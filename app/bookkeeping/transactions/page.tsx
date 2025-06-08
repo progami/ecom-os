@@ -29,48 +29,14 @@ export default function TransactionsPage() {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      // TODO: Replace with actual API call to fetch Xero transactions
-      // const response = await fetch('/api/v1/bookkeeping/transactions');
-      // const data = await response.json();
+      const response = await fetch('/api/v1/bookkeeping/transactions');
       
-      // Mock data for now
-      const mockTransactions: XeroTransaction[] = [
-        {
-          id: '1',
-          date: '2024-01-15',
-          description: 'Office Supplies from Staples',
-          payee: 'Staples Inc',
-          reference: 'INV-2024-001',
-          amount: 156.75,
-          suggestedAccountCode: '400',
-          suggestedTaxType: 'INPUT2',
-          matchedRule: 'Office Supplies Rule',
-          isReconciled: false
-        },
-        {
-          id: '2',
-          date: '2024-01-16',
-          description: 'Monthly Software Subscription',
-          payee: 'Adobe Systems',
-          reference: 'SUB-2024-01',
-          amount: 52.99,
-          suggestedAccountCode: '469',
-          suggestedTaxType: 'NONE',
-          matchedRule: 'Software Subscriptions Rule',
-          isReconciled: false
-        },
-        {
-          id: '3',
-          date: '2024-01-17',
-          description: 'Client Payment - Project ABC',
-          payee: 'ABC Corporation',
-          reference: 'PAY-2024-001',
-          amount: -5000.00,
-          isReconciled: true
-        }
-      ];
+      if (!response.ok) {
+        throw new Error('Failed to fetch transactions');
+      }
       
-      setTransactions(mockTransactions);
+      const data = await response.json();
+      setTransactions(data.data);
     } catch (err) {
       setError('Failed to fetch transactions');
     } finally {
