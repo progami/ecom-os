@@ -71,6 +71,7 @@ jobs:
             echo "2. Get architectural approval before proceeding" >> review-comment.md
             echo "" >> review-comment.md
             echo "**Verdict:** [REJECTED]" >> review-comment.md
+            echo "VERDICT=REJECTED" >> $GITHUB_ENV
           elif [ "$TYPE_CHECK_FAILED" == "true" ]; then
             echo "### ⚠️ REWORK REQUIRED" >> review-comment.md
             echo "" >> review-comment.md
@@ -80,12 +81,14 @@ jobs:
             echo "\`\`\`" >> review-comment.md
             echo "" >> review-comment.md
             echo "**Verdict:** [REWORK_REQUIRED]" >> review-comment.md
+            echo "VERDICT=REWORK_REQUIRED" >> $GITHUB_ENV
           elif [ "$LINT_FAILED" == "true" ]; then
             echo "### ✅ AUTO-FIXED" >> review-comment.md
             echo "" >> review-comment.md
             echo "Linting issues were detected and automatically fixed." >> review-comment.md
             echo "" >> review-comment.md
             echo "**Verdict:** [APPROVED_WITH_FIXES]" >> review-comment.md
+            echo "VERDICT=APPROVED_WITH_FIXES" >> $GITHUB_ENV
           else
             echo "### ✅ APPROVED" >> review-comment.md
             echo "" >> review-comment.md
@@ -95,6 +98,7 @@ jobs:
             echo "- ✅ Linting passed" >> review-comment.md
             echo "" >> review-comment.md
             echo "**Verdict:** [APPROVED]" >> review-comment.md
+            echo "VERDICT=APPROVED" >> $GITHUB_ENV
           fi
           
       - name: Post review comment
@@ -110,3 +114,39 @@ jobs:
               repo: context.repo.repo,
               body: comment
             });
+      
+      - name: Auto-merge if approved
+        if: env.VERDICT == 'APPROVED' || env.VERDICT == 'APPROVED_WITH_FIXES'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            console.log('PR approved, proceeding with auto-merge...');
+            
+            try {
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                merge_method: 'squash'
+              });
+              
+              console.log('PR successfully merged!');
+              
+              // Post merge confirmation
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: '✅ **Auto-merged** by Architect Agent after successful review.'
+              });
+            } catch (error) {
+              console.error('Failed to merge PR:', error.message);
+              
+              // Post error comment
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `❌ **Auto-merge failed**: ${error.message}\n\nPlease merge manually or resolve any conflicts.`
+              });
+            }
