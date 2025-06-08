@@ -15,6 +15,11 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
       
+      - name: Fetch base branch
+        run: |
+          git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
+          echo "Base branch fetched: ${{ github.base_ref }}"
+      
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -39,8 +44,14 @@ jobs:
       - name: Check for schema changes
         id: schema_check
         run: |
-          if git diff origin/${{ github.base_ref }}...HEAD --name-only | grep -q "prisma/schema.prisma"; then
+          echo "Checking for schema changes between ${{ github.base_ref }} and HEAD"
+          git diff --name-only ${{ github.base_ref }}...HEAD | grep "prisma/" || true
+          
+          if git diff --name-only ${{ github.base_ref }}...HEAD | grep -q "prisma/schema.prisma"; then
             echo "SCHEMA_CHANGED=true" >> $GITHUB_ENV
+            echo "Schema changes detected!"
+          else
+            echo "No schema changes detected."
           fi
       
       - name: Configure git
@@ -61,10 +72,13 @@ jobs:
           echo "## Architect Agent Review" > review-comment.md
           echo "" >> review-comment.md
           
-          if [ "$SCHEMA_CHANGED" == "true" ]; then
+          # Check if this is a schema-only PR
+          NON_SCHEMA_CHANGES=$(git diff --name-only ${{ github.base_ref }}...HEAD | grep -v "prisma/" | grep -v "^\.github/workflows/" || true)
+          
+          if [ "$SCHEMA_CHANGED" == "true" ] && [ -n "$NON_SCHEMA_CHANGES" ]; then
             echo "### ❌ AUTOMATIC REJECTION" >> review-comment.md
             echo "" >> review-comment.md
-            echo "**Reason:** Unapproved schema changes detected in \`prisma/schema.prisma\`" >> review-comment.md
+            echo "**Reason:** Schema changes mixed with application code" >> review-comment.md
             echo "" >> review-comment.md
             echo "Schema changes require explicit approval. Please:" >> review-comment.md
             echo "1. Create a separate PR with only the schema change" >> review-comment.md
@@ -72,6 +86,13 @@ jobs:
             echo "" >> review-comment.md
             echo "**Verdict:** [REJECTED]" >> review-comment.md
             echo "VERDICT=REJECTED" >> $GITHUB_ENV
+          elif [ "$SCHEMA_CHANGED" == "true" ] && [ -z "$NON_SCHEMA_CHANGES" ]; then
+            echo "### ⚠️ SCHEMA-ONLY PR DETECTED" >> review-comment.md
+            echo "" >> review-comment.md
+            echo "This PR contains only schema changes. Manual architectural review required." >> review-comment.md
+            echo "" >> review-comment.md
+            echo "**Verdict:** [PENDING_MANUAL_REVIEW]" >> review-comment.md
+            echo "VERDICT=PENDING_MANUAL_REVIEW" >> $GITHUB_ENV
           elif [ "$TYPE_CHECK_FAILED" == "true" ]; then
             echo "### ⚠️ REWORK REQUIRED" >> review-comment.md
             echo "" >> review-comment.md
