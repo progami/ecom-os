@@ -1,0 +1,145 @@
+name: WMS Scheduled Jobs
+
+on:
+  schedule:
+    # Run weekly storage calculations every Sunday at 2 AM UTC
+    - cron: '0 2 * * 0'
+    # Run daily reports at 6 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Job to run'
+        required: true
+        type: choice
+        options:
+          - weekly-storage
+          - daily-reports
+          - low-stock-alerts
+          - invoice-reminders
+
+jobs:
+  weekly-storage-calculation:
+    name: Calculate Weekly Storage Costs
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.job == 'weekly-storage'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd warehouse_management
+          npm ci
+
+      - name: Run weekly storage calculation
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+        run: |
+          cd warehouse_management
+          npm run script:weekly-storage
+
+      - name: Notify on failure
+        if: failure()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: failure
+          text: 'Weekly storage calculation failed!'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+  daily-reports:
+    name: Generate Daily Reports
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.job == 'daily-reports'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate daily reports
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: |
+          # Add daily report generation script
+          echo "Generating daily reports..."
+
+  low-stock-alerts:
+    name: Check Low Stock Levels
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.job == 'low-stock-alerts'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          cd warehouse_management
+          npm ci
+
+      - name: Check low stock and send alerts
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SP_CLIENT_ID: ${{ secrets.SP_CLIENT_ID }}
+          SP_CLIENT_SECRET: ${{ secrets.SP_CLIENT_SECRET }}
+          SP_REFRESH_TOKEN: ${{ secrets.SP_REFRESH_TOKEN }}
+        run: |
+          cd warehouse_management
+          npm run script:low-stock-alerts
+
+  invoice-reminders:
+    name: Send Invoice Reminders
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.job == 'invoice-reminders'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Send invoice reminders
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: |
+          # Add invoice reminder script
+          echo "Sending invoice reminders..."

@@ -1,0 +1,132 @@
+name: WMS Deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/wms/**'
+      - 'app/api/v1/wms/**'
+      - 'components/wms/**'
+      - 'lib/wms/**'
+      - 'prisma/**'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18'
+
+jobs:
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: staging
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: npx prisma migrate deploy
+
+      - name: Build application
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          NEXTAUTH_URL: ${{ secrets.STAGING_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+        run: npm run build
+
+      - name: Deploy to staging
+        run: |
+          echo "Deploy to staging environment"
+          # Add your deployment script here
+          # e.g., rsync, docker push, vercel deploy, etc.
+
+      - name: Run post-deployment tests
+        env:
+          APP_URL: ${{ secrets.STAGING_URL }}
+        run: |
+          # Add smoke tests here
+          curl -f $APP_URL/api/v1/wms/health || exit 1
+
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci --production
+
+      - name: Backup database
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          echo "Creating database backup..."
+          # Add database backup script here
+
+      - name: Run database migrations
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: npx prisma migrate deploy
+
+      - name: Build application
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          NEXTAUTH_URL: ${{ secrets.PRODUCTION_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+          # Amazon Integration
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          SP_CLIENT_ID: ${{ secrets.SP_CLIENT_ID }}
+          SP_CLIENT_SECRET: ${{ secrets.SP_CLIENT_SECRET }}
+          SP_REFRESH_TOKEN: ${{ secrets.SP_REFRESH_TOKEN }}
+        run: npm run build
+
+      - name: Deploy to production
+        run: |
+          echo "Deploy to production environment"
+          # Add your production deployment script here
+
+      - name: Run post-deployment verification
+        env:
+          APP_URL: ${{ secrets.PRODUCTION_URL }}
+        run: |
+          # Verify deployment
+          curl -f $APP_URL/api/v1/wms/health || exit 1
+          
+      - name: Notify team
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          text: 'WMS deployment to production: ${{ job.status }}'
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          echo "Deployment failed - initiating rollback"
+          # Add rollback script here
