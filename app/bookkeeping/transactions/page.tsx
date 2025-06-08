@@ -44,9 +44,39 @@ export default function TransactionsPage() {
     }
   };
 
-  const handleReconcile = (transactionId: string) => {
-    // TODO: Implement reconciliation
-    console.log('Reconciling transaction:', transactionId);
+  const handleReconcile = async (transactionId: string) => {
+    try {
+      const transaction = transactions.find(t => t.id === transactionId);
+      if (!transaction || !transaction.suggestedAccountCode) return;
+
+      const response = await fetch('/api/v1/bookkeeping/transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transactionId,
+          accountCode: transaction.suggestedAccountCode,
+          taxType: transaction.suggestedTaxType,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reconcile transaction');
+      }
+
+      // Update local state
+      setTransactions(prev => 
+        prev.map(t => 
+          t.id === transactionId 
+            ? { ...t, isReconciled: true }
+            : t
+        )
+      );
+    } catch (err) {
+      console.error('Error reconciling transaction:', err);
+      // TODO: Show error message to user
+    }
   };
 
   if (loading) {
