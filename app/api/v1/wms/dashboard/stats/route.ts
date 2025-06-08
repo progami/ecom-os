@@ -49,13 +49,13 @@ export async function GET() {
       }),
       // Pending invoices
       prisma.wmsInvoice.count({
-        where: { reconciliationStatus: 'pending' }
+        where: { status: 'pending' }
       }),
       // Overdue invoices (older than 30 days)
       prisma.wmsInvoice.count({
         where: {
-          reconciliationStatus: 'pending',
-          invoiceDate: {
+          status: 'pending',
+          dueDate: {
             lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
           }
         }
@@ -68,7 +68,7 @@ export async function GET() {
             lte: endOfLastMonth
           }
         },
-        _sum: { quantityChange: true }
+        _sum: { cartonsIn: true, cartonsOut: true }
       }),
       // Last month storage cost
       prisma.wmsStorageLedger.aggregate({
@@ -84,11 +84,11 @@ export async function GET() {
 
     // Calculate trends
     const currentInv = totalInventory._sum.currentCartons || 0
-    const lastInv = Math.abs(lastMonthInventory._sum.quantityChange || 1)
+    const lastInv = Math.abs((lastMonthInventory._sum?.cartonsIn || 0) - (lastMonthInventory._sum?.cartonsOut || 0) || 1)
     const inventoryChange = ((currentInv - lastInv) / lastInv * 100).toFixed(1)
     
-    const currentCost = storageCost._sum.calculatedWeeklyCost || 0
-    const lastCost = lastMonthCost._sum.calculatedWeeklyCost || 1
+    const currentCost = Number(storageCost._sum.calculatedWeeklyCost || 0)
+    const lastCost = Number(lastMonthCost._sum.calculatedWeeklyCost || 1)
     const costChange = ((currentCost - lastCost) / lastCost * 100).toFixed(1)
 
     return NextResponse.json({
