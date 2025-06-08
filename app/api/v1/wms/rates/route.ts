@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
         ...validatedData,
         effectiveDate: new Date(validatedData.effectiveDate),
         endDate: validatedData.endDate ? new Date(validatedData.endDate) : undefined,
-        createdById: session.user.id
+        createdById: (session.user as any).id
       },
       include: {
         warehouse: true,
@@ -250,7 +250,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session || session.user.role !== 'admin') {
+    if (!session || !session.user || (session.user as any).role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

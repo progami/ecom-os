@@ -6,14 +6,14 @@ import { prisma } from '@/lib/prisma'
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
-    if (!session || session.user.role !== 'admin') {
+    if (!session || !session.user || (session.user as any).role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
     // Fetch all SKUs with their inventory balances
-    const skus = await prisma.sku.findMany({
+    const skus = await prisma.wmsSku.findMany({
       include: {
-        InventoryBalance: {
+        inventoryBalances: {
           include: {
             warehouse: true
           }
@@ -25,7 +25,7 @@ export async function GET() {
     })
 
     // Get Amazon FBA warehouse
-    const amazonWarehouse = await prisma.warehouse.findFirst({
+    const amazonWarehouse = await prisma.wmsWarehouse.findFirst({
       where: {
         name: {
           contains: 'Amazon FBA'
@@ -34,15 +34,15 @@ export async function GET() {
     })
 
     // Transform data for comparison
-    const comparisonData = skus.map(sku => {
-      const warehouseBalance = sku.InventoryBalance
-        .filter(bal => bal.warehouseId !== amazonWarehouse?.id)
-        .reduce((sum, bal) => sum + bal.currentCartons, 0)
+    const comparisonData = skus.map((sku: any) => {
+      const warehouseBalance = sku.inventoryBalances
+        .filter((bal: any) => bal.warehouseId !== amazonWarehouse?.id)
+        .reduce((sum: number, bal: any) => sum + bal.currentCartons, 0)
       
       const amazonBalance = amazonWarehouse 
-        ? sku.InventoryBalance
-            .filter(bal => bal.warehouseId === amazonWarehouse.id)
-            .reduce((sum, bal) => sum + bal.currentCartons, 0)
+        ? sku.inventoryBalances
+            .filter((bal: any) => bal.warehouseId === amazonWarehouse.id)
+            .reduce((sum: number, bal: any) => sum + bal.currentCartons, 0)
         : 0
 
       const total = warehouseBalance + amazonBalance

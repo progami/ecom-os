@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
     
-    console.log('Session found:', session.user.email)
+    console.log('Session found:', session.user?.email)
 
     const searchParams = request.nextUrl.searchParams
     const startDate = searchParams.get('startDate')

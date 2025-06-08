@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/prisma'
 
 export async function GET(req: NextRequest) {
   try {
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
         transactionDate: { lte: pointInTime }
       }
       
-      if (session.user.role === 'staff' && (session.user as any).warehouseId) {
+      if (session.user && (session.user as any).role === 'staff' && (session.user as any).warehouseId) {
         transactionWhere.warehouseId = (session.user as any).warehouseId
       } else if (warehouseId) {
         transactionWhere.warehouseId = warehouseId

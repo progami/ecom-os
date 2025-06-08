@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/wms/wms/utils/auth-utils'
-import { getWarehouseFilter } from '@/lib/wms/wms/utils/auth-utils-utils'
-import prisma from '@/lib/wms/prisma'
+import { authOptions } from '@/lib/auth'
+import { getWarehouseFilter } from '@/lib/wms/utils/auth-utils'
+import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
 // Validation schemas

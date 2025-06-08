@@ -30,11 +30,11 @@ export async function GET() {
       lastMonthCost
     ] = await Promise.all([
       // Current inventory
-      prisma.inventoryBalance.aggregate({
+      prisma.wmsInventoryBalance.aggregate({
         _sum: { currentCartons: true }
       }),
       // Current month storage cost
-      prisma.storageLedger.aggregate({
+      prisma.wmsStorageLedger.aggregate({
         where: {
           weekEndingDate: {
             gte: startOfMonth,
@@ -44,15 +44,15 @@ export async function GET() {
         _sum: { calculatedWeeklyCost: true }
       }),
       // Active SKUs (with inventory)
-      prisma.inventoryBalance.count({
+      prisma.wmsInventoryBalance.count({
         where: { currentCartons: { gt: 0 } }
       }),
       // Pending invoices
-      prisma.invoice.count({
+      prisma.wmsInvoice.count({
         where: { reconciliationStatus: 'pending' }
       }),
       // Overdue invoices (older than 30 days)
-      prisma.invoice.count({
+      prisma.wmsInvoice.count({
         where: {
           reconciliationStatus: 'pending',
           invoiceDate: {
@@ -61,7 +61,7 @@ export async function GET() {
         }
       }),
       // Last month inventory for comparison
-      prisma.inventoryTransaction.aggregate({
+      prisma.wmsInventoryTransaction.aggregate({
         where: {
           transactionDate: {
             gte: startOfLastMonth,
@@ -71,7 +71,7 @@ export async function GET() {
         _sum: { quantityChange: true }
       }),
       // Last month storage cost
-      prisma.storageLedger.aggregate({
+      prisma.wmsStorageLedger.aggregate({
         where: {
           weekEndingDate: {
             gte: startOfLastMonth,
