@@ -1,0 +1,24 @@
+{
+  "name": "bookkeeper-automation",
+  "version": "1.0.0",
+  "description": "Automated bookkeeping agent for Xero transaction categorization",
+  "main": "run.ts",
+  "scripts": {
+    "start": "tsx run.ts",
+    "dev": "tsx watch run.ts",
+    "build": "tsc",
+    "test": "echo \"No tests yet\""
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.7.1",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

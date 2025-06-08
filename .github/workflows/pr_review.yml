@@ -1,0 +1,20 @@
+name: 'PR Architectural Review'
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 'Run PR Master Agent'
+        run: |
+          claude -p "You are the PR Master. Your constitution is in ./docs/CLAUDE_PR_MASTER.md. Review Pull Request #${{ github.event.pull_request.number }} and post your findings as a comment."
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
