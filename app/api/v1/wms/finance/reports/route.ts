@@ -454,7 +454,7 @@ async function generateAgingReport(warehouseFilter: any) {
       'Warehouse': invoice.warehouse.name,
       'Invoice Date': format(invoice.invoiceDate, 'yyyy-MM-dd'),
       'Due Date': invoice.dueDate ? format(invoice.dueDate, 'yyyy-MM-dd') : 'Not Set',
-      'Days Overdue': daysOverdue > 0 ? daysOverdue : '',
+      'Days Overdue': daysOverdue > 0 ? daysOverdue.toString() : '',
       'Aging Bucket': agingBucket.toUpperCase(),
       'Amount': Money.fromPrismaDecimal(invoice.totalAmount).format(),
       'Status': invoice.status.toUpperCase(),
