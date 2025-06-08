@@ -111,12 +111,12 @@ export async function POST(req: NextRequest) {
     const updatedSettings = await prisma.settings.upsert({
       where: { key: 'notifications' },
       update: {
-        value: body as any,
+        value: body,
         updatedAt: new Date()
       },
       create: {
         key: 'notifications',
-        value: body as any,
+        value: body,
         description: 'System notification settings'
       }
     })

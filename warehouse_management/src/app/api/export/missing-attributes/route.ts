@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
         row.shipName,
         row.containerNumber,
         row.missingAttributes,
-        row.missingCount.toString()
+        row.missingCount
       ])
     })
 

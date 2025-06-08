@@ -202,12 +202,7 @@ export async function GET(request: Request) {
     }
 
     // Fetch real chart data
-    let chartData: {
-      inventoryTrend: { date: string; inventory: number }[],
-      costTrend: { date: string; cost: number }[],
-      warehouseDistribution: { name: string; value: number; percentage: string }[],
-      recentTransactions: { id: string; date: string; type: string; sku: string; quantity: number }[]
-    } = {
+    let chartData = {
       inventoryTrend: [],
       costTrend: [],
       warehouseDistribution: [],
@@ -360,7 +355,7 @@ export async function GET(request: Request) {
           return {
             name: warehouse.name,
             value: value,
-            percentage: '0%' // Calculate later
+            percentage: 0 // Calculate later
           }
         })
       )
@@ -369,7 +364,7 @@ export async function GET(request: Request) {
       const total = chartData.warehouseDistribution.reduce((sum, w) => sum + w.value, 0)
       chartData.warehouseDistribution = chartData.warehouseDistribution.map(w => ({
         ...w,
-        percentage: total > 0 ? `${Math.round((w.value / total) * 100)}%` : '0%'
+        percentage: total > 0 ? Math.round((w.value / total) * 100) : 0
       }))
       
       console.log('Warehouse distribution:', chartData.warehouseDistribution)

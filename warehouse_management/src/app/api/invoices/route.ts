@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
     const skip = (page - 1) * limit
 
     // Get warehouse filter based on user role
-    const warehouseFilter = getWarehouseFilter(session, warehouseId || undefined)
+    const warehouseFilter = getWarehouseFilter(session, warehouseId)
     if (warehouseFilter === null) {
       return NextResponse.json({ error: 'No warehouse access' }, { status: 403 })
     }
@@ -179,7 +179,7 @@ export async function POST(req: NextRequest) {
       // Check if it's the same request (idempotent)
       const isSameRequest = 
         existingInvoice.warehouseId === validatedData.warehouseId &&
-        Number(existingInvoice.totalAmount) === validatedData.totalAmount &&
+        existingInvoice.totalAmount === validatedData.totalAmount &&
         existingInvoice.lineItems.length === validatedData.lineItems.length
 
       if (isSameRequest) {

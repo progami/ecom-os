@@ -767,13 +767,13 @@ export default function AdminDashboardPage() {
               title="Import Data"
               description="Bulk import from Excel/CSV"
               icon={Upload}
-              onClick={() => toast('Import feature coming soon', { icon: '📥' })}
+              onClick={() => toast.info('Import feature coming soon')}
             />
             <SystemAction
               title="Database Backup"
               description="Create database snapshot"
               icon={Database}
-              onClick={() => toast('Backup feature coming soon', { icon: '💾' })}
+              onClick={() => toast.info('Backup feature coming soon')}
             />
             <SystemAction
               title="Generate Reports"
@@ -785,7 +785,7 @@ export default function AdminDashboardPage() {
               title="System Health"
               description="View detailed diagnostics"
               icon={Activity}
-              onClick={() => toast('Health monitor coming soon', { icon: '🩺' })}
+              onClick={() => toast.info('Health monitor coming soon')}
             />
             <SystemAction
               title="Notifications"

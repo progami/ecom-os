@@ -112,12 +112,12 @@ export async function PUT(request: NextRequest) {
     const updatedSettings = await prisma.settings.upsert({
       where: { key: 'security' },
       update: {
-        value: body as any,
+        value: body,
         updatedAt: new Date()
       },
       create: {
         key: 'security',
-        value: body as any,
+        value: body,
         description: 'System security settings'
       }
     })

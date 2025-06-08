@@ -97,7 +97,7 @@ export async function POST(
               data: {
                 status: 'overbilled', // Use overbilled/underbilled as proxy for disputed
                 resolutionNotes,
-                resolvedById: session.user.id,
+                resolvedById: session.userId,
                 resolvedAt: new Date(),
               },
             });
@@ -124,7 +124,7 @@ export async function POST(
             data: {
               status: Number(recon.difference) > 0 ? 'overbilled' : 'underbilled',
               resolutionNotes: generalDisputeReason,
-              resolvedById: session.user.id,
+              resolvedById: session.userId,
               resolvedAt: new Date(),
             },
           });
@@ -151,7 +151,7 @@ export async function POST(
           tableName: 'invoices',
           recordId: invoiceId,
           action: 'DISPUTED',
-          userId: session.user.id,
+          userId: session.userId,
           changes: {
             previousStatus: invoice.status,
             newStatus: 'disputed',
@@ -241,7 +241,7 @@ export async function GET(
         user: {
           select: {
             email: true,
-            fullName: true,
+            name: true,
           },
         },
       },
@@ -258,7 +258,7 @@ export async function GET(
       disputeHistory: disputeHistory.map(log => ({
         id: log.id,
         disputedAt: log.createdAt,
-        disputedBy: log.user.email || log.user.fullName,
+        disputedBy: log.user.email || log.user.name,
         details: log.changes,
       })),
     });

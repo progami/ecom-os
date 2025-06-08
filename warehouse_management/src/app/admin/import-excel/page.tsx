@@ -21,10 +21,6 @@ interface ImportResult {
   imported: number
   skipped: number
   errors: string[]
-  warnings?: string[]
-  criticalFieldsMissing?: string[]
-  missingFieldsNotInExcel?: string[]
-  totalWarnings?: number
 }
 
 export default function ImportExcelPage() {
@@ -267,40 +263,6 @@ export default function ImportExcelPage() {
                           <li className="text-xs">• ...and {result.errors.length - 5} more errors</li>
                         )}
                       </ul>
-                    </div>
-                  )}
-
-                  {result.criticalFieldsMissing && result.criticalFieldsMissing.length > 0 && (
-                    <div className="mt-3 p-3 bg-orange-50 rounded text-sm">
-                      <p className="font-medium text-orange-900 mb-1">Critical Missing Fields:</p>
-                      <ul className="text-orange-800 space-y-1">
-                        {result.criticalFieldsMissing.map((missing, idx) => (
-                          <li key={idx} className="text-xs">⚠️ {missing}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {result.warnings && result.warnings.length > 0 && (
-                    <div className="mt-3 p-3 bg-yellow-50 rounded text-sm">
-                      <p className="font-medium text-yellow-900 mb-1">Warnings:</p>
-                      <ul className="text-yellow-800 space-y-1">
-                        {result.warnings.map((warning, idx) => (
-                          <li key={idx} className="text-xs">• {warning}</li>
-                        ))}
-                        {result.totalWarnings && result.totalWarnings > result.warnings.length && (
-                          <li className="text-xs">• ...and {result.totalWarnings - result.warnings.length} more warnings</li>
-                        )}
-                      </ul>
-                    </div>
-                  )}
-
-                  {result.missingFieldsNotInExcel && result.missingFieldsNotInExcel.length > 0 && (
-                    <div className="mt-3 p-3 bg-blue-50 rounded text-sm">
-                      <p className="font-medium text-blue-900 mb-1">Required Fields Not in Excel:</p>
-                      <div className="text-blue-800 text-xs whitespace-pre-line">
-                        {result.missingFieldsNotInExcel.join('\n')}
-                      </div>
                     </div>
                   )}
                 </div>

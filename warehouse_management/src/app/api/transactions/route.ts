@@ -4,43 +4,6 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { TransactionType } from '@prisma/client'
 
-export async function GET(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const searchParams = request.nextUrl.searchParams
-    const limit = parseInt(searchParams.get('limit') || '100')
-    const includeAttachments = searchParams.get('includeAttachments') === 'true'
-
-    const transactions = await prisma.inventoryTransaction.findMany({
-      take: limit,
-      orderBy: { transactionDate: 'desc' },
-      include: {
-        warehouse: {
-          select: { id: true, name: true, code: true }
-        },
-        sku: {
-          select: { id: true, skuCode: true, description: true }
-        },
-        createdBy: {
-          select: { id: true, fullName: true }
-        }
-      }
-    })
-
-    return NextResponse.json({ transactions })
-  } catch (error) {
-    console.error('Failed to fetch transactions:', error)
-    return NextResponse.json({ 
-      error: 'Failed to fetch transactions' 
-    }, { status: 500 })
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)

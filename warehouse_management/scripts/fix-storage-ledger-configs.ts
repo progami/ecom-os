@@ -15,10 +15,8 @@ async function fixStorageLedgerConfigs() {
     // Find entries where cartons = pallets (likely using default config)
     const entries = await prisma.storageLedger.findMany({
       where: {
-        AND: [
-          { cartonsEndOfMonday: { lte: 20 } }, // Focus on low carton counts
-          { cartonsEndOfMonday: { gte: 1 } }
-        ]
+        cartonsEndOfMonday: { lte: 20 }, // Focus on low carton counts
+        cartonsEndOfMonday: { gte: 1 }
       },
       include: {
         sku: true,

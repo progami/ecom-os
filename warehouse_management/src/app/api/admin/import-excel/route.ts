@@ -246,8 +246,6 @@ async function importInventoryLedger(sheet: XLSX.WorkSheet, userId: string) {
   let imported = 0
   let skipped = 0
   const errors: string[] = []
-  const warnings: string[] = []
-  const criticalFieldsMissing: string[] = []
 
   // Get warehouse and SKU mappings
   const warehouses = await prisma.warehouse.findMany()
@@ -256,59 +254,36 @@ async function importInventoryLedger(sheet: XLSX.WorkSheet, userId: string) {
   const skus = await prisma.sku.findMany()
   const skuMap = new Map(skus.map(s => [s.skuCode, s]))
 
-  // Track missing pallet data
-  let transactionsWithMissingPalletData = 0
-
   for (const row of data) {
     try {
-      // Use the new column names from restructured file
-      const transactionId = row.transaction_id || row.Transaction_ID
-      const warehouseName = row.warehouse || row.Warehouse
-      const skuCode = row.sku || row.SKU
-      const transactionType = row.transaction_type || row.Transaction_Type || 'RECEIVE'
-      
-      if (!transactionId || !warehouseName || !skuCode) {
+      if (!row.Transaction_ID || !row.Warehouse || !row.SKU) {
         skipped++
-        errors.push(`Row missing required fields - Transaction ID: ${transactionId || 'MISSING'}, Warehouse: ${warehouseName || 'MISSING'}, SKU: ${skuCode || 'MISSING'}`)
         continue
       }
 
-      const warehouse = warehouseMap.get(warehouseName.toLowerCase())
+      const warehouse = warehouseMap.get(row.Warehouse.toLowerCase())
       if (!warehouse) {
-        errors.push(`Warehouse ${warehouseName} not found for transaction ${transactionId}`)
+        errors.push(`Warehouse ${row.Warehouse} not found for transaction ${row.Transaction_ID}`)
         continue
       }
 
-      const sku = skuMap.get(skuCode)
+      const sku = skuMap.get(row.SKU)
       if (!sku) {
-        errors.push(`SKU ${skuCode} not found for transaction ${transactionId}`)
+        errors.push(`SKU ${row.SKU} not found for transaction ${row.Transaction_ID}`)
         continue
       }
 
-      // Parse date - handle both formats
-      let transactionDate = new Date()
-      if (row.transaction_date) {
-        transactionDate = new Date(row.transaction_date)
-      } else if (row.Timestamp) {
-        if (typeof row.Timestamp === 'number') {
-          transactionDate = new Date((row.Timestamp - 25569) * 86400 * 1000)
-        } else {
-          transactionDate = new Date(row.Timestamp)
-        }
-      }
+      // Convert Excel date to JS date
+      const transactionDate = row.Timestamp 
+        ? new Date((row.Timestamp - 25569) * 86400 * 1000)
+        : new Date()
 
-      // Parse pickup date if available
-      let pickupDate = null
-      if (row.pickup_date) {
-        pickupDate = new Date(row.pickup_date)
-      }
-
-      // Extract batch/lot
-      const batchLot = row.batch_lot || row.Shipment?.toString() || 'DEFAULT'
+      // Extract batch/lot from Shipment field
+      const batchLot = row.Shipment?.toString() || 'DEFAULT'
 
       // Check if transaction already exists
       const existing = await prisma.inventoryTransaction.findUnique({
-        where: { transactionId }
+        where: { transactionId: row.Transaction_ID }
       })
 
       if (existing) {
@@ -316,138 +291,63 @@ async function importInventoryLedger(sheet: XLSX.WorkSheet, userId: string) {
         continue
       }
 
-      // Build attachments object from flags
-      const attachments: any = {}
-      if (row.has_packing_list === 'TRUE') {
-        attachments.packingList = { exists: true }
-      }
-      if (row.has_commercial_invoice === 'TRUE') {
-        attachments.commercialInvoice = { exists: true }
-      }
-      if (row.has_delivery_note === 'TRUE') {
-        attachments.deliveryNote = { exists: true }
-      }
-      if (row.has_cubemaster === 'TRUE') {
-        attachments.cubemaster = { exists: true }
-      }
-
-      // Parse cartons and pallets - handle both naming conventions
-      const cartonsIn = parseInt(row.cartons_in || row.Cartons_In || '0') || 0
-      const cartonsOut = parseInt(row.cartons_out || row.Cartons_Out || '0') || 0
-      const storagePalletsIn = parseInt(row.storage_pallets_in || row.Pallets_In || '0') || 0
-      const shippingPalletsOut = parseInt(row.shipping_pallets_out || row.Pallets_Out || '0') || 0
-
-      // Validate critical fields for calculations
-      if (transactionType === 'RECEIVE') {
-        if (cartonsIn > 0 && storagePalletsIn === 0) {
-          warnings.push(`Transaction ${transactionId}: RECEIVE with ${cartonsIn} cartons but 0 storage pallets - this will affect cost calculations`)
-          transactionsWithMissingPalletData++
-        }
-      } else if (transactionType === 'SHIP') {
-        if (cartonsOut > 0 && shippingPalletsOut === 0) {
-          warnings.push(`Transaction ${transactionId}: SHIP with ${cartonsOut} cartons but 0 shipping pallets - this will affect cost calculations`)
-          transactionsWithMissingPalletData++
-        }
-      }
-
-      // Get pallet configurations
-      let storageCartonsPerPallet = null
-      let shippingCartonsPerPallet = null
-      
-      if (row.storage_cartons_per_pallet) {
-        storageCartonsPerPallet = parseInt(row.storage_cartons_per_pallet)
-      }
-      if (row.shipping_cartons_per_pallet) {
-        shippingCartonsPerPallet = parseInt(row.shipping_cartons_per_pallet)
-      }
-
-      // Check for warehouse configs
-      const hasWarehouseConfig = await prisma.warehouseSkuConfig.findFirst({
-        where: {
-          warehouseId: warehouse.id,
-          skuId: sku.id,
-          effectiveDate: { lte: transactionDate },
-          OR: [
-            { endDate: null },
-            { endDate: { gte: transactionDate } }
-          ]
-        }
-      })
-
-      if (!hasWarehouseConfig) {
-        if (transactionType === 'RECEIVE' && !storageCartonsPerPallet) {
-          warnings.push(`Transaction ${transactionId}: No warehouse config or storage_cartons_per_pallet for ${warehouse.name}/${sku.skuCode}`)
-        } else if (transactionType === 'SHIP' && !shippingCartonsPerPallet) {
-          warnings.push(`Transaction ${transactionId}: No warehouse config or shipping_cartons_per_pallet for ${warehouse.name}/${sku.skuCode}`)
-        }
-      }
-
       await prisma.inventoryTransaction.create({
         data: {
-          transactionId,
+          transactionId: row.Transaction_ID,
           warehouseId: warehouse.id,
           skuId: sku.id,
           batchLot,
-          transactionType: transactionType as any,
-          referenceId: row.reference_id || row['Reference_ID (Email tag)'] || null,
-          cartonsIn,
-          cartonsOut,
-          storagePalletsIn,
-          shippingPalletsOut,
-          notes: row.notes || row.Notes || null,
+          transactionType: row.Transaction_Type || 'RECEIVE',
+          referenceId: row['Reference_ID (Email tag)'] || null,
+          cartonsIn: parseInt(row.Cartons_In) || 0,
+          cartonsOut: parseInt(row.Cartons_Out) || 0,
+          storagePalletsIn: parseInt(row.storage_pallets_in) || 0,
+          shippingPalletsOut: parseInt(row.shipping_pallets_out) || 0,
+          notes: row.Notes || null,
           transactionDate,
-          pickupDate,
-          isReconciled: row.is_reconciled === 'TRUE',
           createdById: userId,
-          shipName: row.ship_name || null,
-          containerNumber: row.container_number || null,
-          storageCartonsPerPallet,
-          shippingCartonsPerPallet,
-          attachments: Object.keys(attachments).length > 0 ? attachments : null
+          // Try to extract additional info from reference field
+          shipName: extractShipName(row['Reference_ID (Email tag)']),
+          containerNumber: extractContainerNumber(row['Reference_ID (Email tag)'])
         }
       })
       imported++
     } catch (error) {
-      errors.push(`Transaction ${row.transaction_id || row.Transaction_ID}: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      errors.push(`Transaction ${row.Transaction_ID}: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
-  // Add summary of critical missing data
-  if (transactionsWithMissingPalletData > 0) {
-    criticalFieldsMissing.push(`${transactionsWithMissingPalletData} transactions have cartons but missing pallet data (storage_pallets_in or shipping_pallets_out)`)
-  }
-
-  const warehouseConfigCount = await prisma.warehouseSkuConfig.count()
-  if (warehouseConfigCount === 0) {
-    criticalFieldsMissing.push('No warehouse SKU configurations found - cartons per pallet calculations will fail')
-  }
-
-  // Report systematically missing fields that are not in Excel
-  const missingFieldsNotInExcel = []
-  
-  // RECEIVE transaction missing fields
-  missingFieldsNotInExcel.push('For RECEIVE transactions:')
-  missingFieldsNotInExcel.push('  • container_number - Required for tracking specific containers')
-  missingFieldsNotInExcel.push('  • attachments - Packing lists, commercial invoices, etc.')
-  
-  // SHIP transaction missing fields  
-  missingFieldsNotInExcel.push('\nFor SHIP transactions:')
-  missingFieldsNotInExcel.push('  • pickup_date - Required for scheduling and tracking')
-  missingFieldsNotInExcel.push('  • ship_name/destination - Required for delivery tracking')
-  missingFieldsNotInExcel.push('  • container_number - If shipping via container')
-  missingFieldsNotInExcel.push('  • attachments - Delivery notes, shipping documents')
-  
-  missingFieldsNotInExcel.push('\nThese fields must be added via Import Attributes after initial import')
-
-  return { 
-    sheet: 'Inventory Ledger', 
-    imported, 
-    skipped, 
-    errors, 
-    warnings: warnings.slice(0, 10), // Limit warnings to first 10
-    criticalFieldsMissing,
-    missingFieldsNotInExcel,
-    totalWarnings: warnings.length
-  }
+  return { sheet: 'Inventory Ledger', imported, skipped, errors }
 }
 
+function extractShipName(reference: string): string | null {
+  if (!reference) return null
+  
+  // Common ship name patterns
+  const patterns = [
+    /MV\s+([^,]+)/i,
+    /M\/V\s+([^,]+)/i,
+    /vessel:\s*([^,]+)/i,
+    /ship:\s*([^,]+)/i,
+    /^([^-,]+)/  // First part before comma or dash
+  ]
+
+  for (const pattern of patterns) {
+    const match = reference.match(pattern)
+    if (match) {
+      return match[1].trim()
+    }
+  }
+
+  return null
+}
+
+function extractContainerNumber(reference: string): string | null {
+  if (!reference) return null
+  
+  // Container number pattern (4 letters + 7 digits)
+  const containerPattern = /\b[A-Z]{4}\d{7}\b/
+  const match = reference.match(containerPattern)
+  
+  return match ? match[0] : null
+}

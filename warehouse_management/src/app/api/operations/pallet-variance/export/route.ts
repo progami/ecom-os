@@ -96,9 +96,9 @@ export async function GET(request: NextRequest) {
         row.sku,
         row.description,
         row.batchLot,
-        row.systemPallets.toString(),
-        row.actualPallets.toString(),
-        row.variance.toString(),
+        row.systemPallets,
+        row.actualPallets,
+        row.variance,
         row.variancePercentage,
         row.status,
         new Date(row.lastUpdated).toLocaleString()

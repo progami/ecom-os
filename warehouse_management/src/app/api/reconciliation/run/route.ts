@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
         if (matchingCost) {
           const expectedAmount = matchingCost.totalAmount
           const { difference, status } = calculateReconciliationDifference(
-            Number(lineItem.amount),
+            lineItem.amount,
             expectedAmount
           )
           
@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
             costName: lineItem.costName,
             expectedAmount,
             invoicedAmount: lineItem.amount,
-            difference,
+            difference: difference.toDecimal(),
             status,
             expectedQuantity: matchingCost.totalQuantity,
             invoicedQuantity: lineItem.quantity || 0,

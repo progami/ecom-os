@@ -127,7 +127,7 @@ export const authOptions: NextAuthOptions = {
     },
   },
   pages: {
-    signIn: '/auth/login',
-    error: '/auth/error',
+    signIn: '/wms/auth/login',
+    error: '/wms/auth/error',
   },
 }

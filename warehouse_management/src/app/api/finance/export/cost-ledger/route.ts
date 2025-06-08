@@ -24,17 +24,17 @@ export async function GET(request: NextRequest) {
       costLedgerUrl.searchParams.set(key, value)
     })
 
-    const costLedgerResponse = await fetch(costLedgerUrl.toString(), {
+    const response = await fetch(costLedgerUrl.toString(), {
       headers: {
         cookie: request.headers.get('cookie') || ''
       }
     })
 
-    if (!costLedgerResponse.ok) {
+    if (!response.ok) {
       throw new Error('Failed to fetch cost ledger data')
     }
 
-    const data = await costLedgerResponse.json()
+    const data = await response.json()
     const { ledger, totals, groupBy } = data
 
     // Create Excel workbook

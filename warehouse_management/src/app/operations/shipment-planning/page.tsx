@@ -250,8 +250,22 @@ export default function ShipmentPlanningPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <PageHeader
-          title="FBA Shipment Planning"
-          description="Monitor FBA stock levels and plan replenishments"
+          title={
+            <div className="flex items-center gap-3">
+              FBA Shipment Planning
+              {lowStockCount > 0 && (
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                  {lowStockCount} items below {SHIPMENT_PLANNING_CONFIG.LOW_STOCK_THRESHOLD_DAYS} days
+                </span>
+              )}
+            </div>
+          }
+          subtitle="Monitor FBA stock levels and plan replenishments"
+          icon={TrendingUp}
+          iconColor="text-purple-600"
+          bgColor="bg-purple-50"
+          borderColor="border-purple-200"
+          textColor="text-purple-800"
           actions={
             <div className="flex items-center gap-2">
               <button
@@ -273,18 +287,6 @@ export default function ShipmentPlanningPage() {
             </div>
           }
         />
-
-        {/* Low Stock Alert */}
-        {lowStockCount > 0 && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-yellow-600" />
-              <span className="text-sm font-medium text-yellow-900">
-                {lowStockCount} items below {SHIPMENT_PLANNING_CONFIG.LOW_STOCK_THRESHOLD_DAYS} days of stock
-              </span>
-            </div>
-          </div>
-        )}
 
         {/* Suggestions Panel */}
         {suggestions.length > 0 && (

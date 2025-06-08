@@ -222,12 +222,12 @@ async function parseCSV(buffer: Buffer): Promise<InvoiceUploadData | null> {
     const lineItems = records.slice(lineItemsStartIndex)
       .filter((row: any) => hasLineItemData(row))
       .map((row: any) => extractCSVLineItem(row))
-      .filter((item: any) => item.amount > 0)
+      .filter(item => item.amount > 0)
     
     // Calculate total if not provided
     let totalAmount = invoiceInfo.totalAmount || 0
     if (!totalAmount && lineItems.length > 0) {
-      totalAmount = lineItems.reduce((sum: number, item: any) => sum + item.amount, 0)
+      totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0)
     }
 
     return {
@@ -349,7 +349,7 @@ async function parseExcel(buffer: Buffer): Promise<InvoiceUploadData | null> {
     // Calculate total if not provided
     let totalAmount = invoiceInfo.totalAmount
     if (!totalAmount && lineItems.length > 0) {
-      totalAmount = lineItems.reduce((sum: number, item: any) => sum + item.amount, 0)
+      totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0)
     }
 
     return {
@@ -617,7 +617,7 @@ async function startReconciliationInTransaction(tx: any, invoiceId: string) {
   })
 
   // Get cost rate details
-  const costRateIds = calculatedCosts.map((c: any) => c.costRateId)
+  const costRateIds = calculatedCosts.map(c => c.costRateId)
   const costRates = await tx.costRate.findMany({
     where: { id: { in: costRateIds } }
   })
@@ -627,13 +627,13 @@ async function startReconciliationInTransaction(tx: any, invoiceId: string) {
 
     for (const lineItem of invoice.lineItems) {
       // Find matching calculated cost
-      const matchingRate = costRates.find((r: any) => 
+      const matchingRate = costRates.find(r => 
         r.costCategory === lineItem.costCategory && 
         r.costName === lineItem.costName
       )
 
       if (matchingRate) {
-        const calculatedSum = calculatedCosts.find((c: any) => c.costRateId === matchingRate.id)
+        const calculatedSum = calculatedCosts.find(c => c.costRateId === matchingRate.id)
         const expectedAmount = calculatedSum?._sum.finalExpectedCost || 0
 
         const { difference, status } = calculateReconciliationDifference(
@@ -647,7 +647,7 @@ async function startReconciliationInTransaction(tx: any, invoiceId: string) {
           costName: lineItem.costName,
           expectedAmount,
           invoicedAmount: lineItem.amount,
-          difference,
+          difference: difference.toDecimal(),
           status
         })
       } else {

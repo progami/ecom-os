@@ -108,7 +108,7 @@ export async function POST(
           data: {
             status: 'match', // Mark accepted items as matching
             resolutionNotes: `Accepted by ${session.user?.email} on ${new Date().toISOString()}. Payment method: ${paymentMethod}, Reference: ${paymentReference}`,
-            resolvedById: session.user.id,
+            resolvedById: session.userId,
             resolvedAt: new Date(),
           },
         });
@@ -147,7 +147,7 @@ export async function POST(
           data: {
             status: 'match',
             resolutionNotes: `Invoice accepted by ${session.user?.email} on ${new Date().toISOString()}. Payment method: ${paymentMethod}, Reference: ${paymentReference}`,
-            resolvedById: session.user.id,
+            resolvedById: session.userId,
             resolvedAt: new Date(),
           },
         });
@@ -168,7 +168,7 @@ export async function POST(
           tableName: 'invoices',
           recordId: invoiceId,
           action: 'ACCEPTED',
-          userId: session.user.id,
+          userId: session.userId,
           changes: {
             previousStatus: invoice.status,
             newStatus: 'paid',

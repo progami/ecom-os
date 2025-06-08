@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      billingPeriod = { start, end };
+      billingPeriod = { startDate: start, endDate: end };
     } else {
       // Otherwise, calculate current billing period
       billingPeriod = getBillingPeriod(new Date());
@@ -52,15 +52,16 @@ export async function GET(request: NextRequest) {
     if (summary) {
       // Return summarized costs by category and name
       const costSummary = await getCalculatedCostsSummary(warehouseId, billingPeriod);
+      const summaryArray = Array.from(costSummary.values());
       
       return NextResponse.json({
         warehouseId,
         billingPeriod: {
-          startDate: billingPeriod.start.toISOString(),
-          endDate: billingPeriod.end.toISOString(),
+          startDate: billingPeriod.startDate.toISOString(),
+          endDate: billingPeriod.endDate.toISOString(),
         },
-        costs: costSummary,
-        totalAmount: costSummary.reduce((sum, cost) => sum + cost.totalAmount, 0),
+        costs: summaryArray,
+        totalAmount: summaryArray.reduce((sum, cost) => sum + cost.totalAmount, 0),
       });
     } else {
       // Return detailed costs
@@ -69,11 +70,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         warehouseId,
         billingPeriod: {
-          startDate: billingPeriod.start.toISOString(),
-          endDate: billingPeriod.end.toISOString(),
+          startDate: billingPeriod.startDate.toISOString(),
+          endDate: billingPeriod.endDate.toISOString(),
         },
         costs,
-        totalAmount: costs.reduce((sum, cost) => sum + cost.amount, 0),
+        totalAmount: costs.reduce((sum, cost) => sum + cost.totalAmount, 0),
       });
     }
   } catch (error) {

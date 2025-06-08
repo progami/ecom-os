@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Search, Filter, Download, Package2, Calendar, AlertCircle, BookOpen, Package, ArrowUpDown, ArrowUp, ArrowDown, DollarSign, BarChart3, X, Info } from 'lucide-react'
+import { Search, Filter, Download, Package2, Calendar, Eye, Clock, AlertCircle, BookOpen, Package, ArrowUpDown, ArrowUp, ArrowDown, DollarSign, BarChart3, X } from 'lucide-react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -12,8 +12,6 @@ import { ImmutableLedgerNotice } from '@/components/ui/immutable-ledger-notice'
 import { toast } from 'react-hot-toast'
 import { formatCurrency } from '@/lib/utils'
 import { InventoryTabs } from '@/components/operations/inventory-tabs'
-import { IncompleteTransactionsAlert } from '@/components/operations/incomplete-transactions-alert'
-import { Tooltip } from '@/components/ui/tooltip'
 
 interface InventoryBalance {
   id: string
@@ -57,6 +55,8 @@ export default function UnifiedInventoryPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<'balances' | 'transactions'>('transactions')
+  const [viewMode, setViewMode] = useState<'live' | 'point-in-time'>('live')
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc') // Default: latest first
   
   
@@ -78,12 +78,12 @@ export default function UnifiedInventoryPage() {
   const [filters, setFilters] = useState({
     warehouse: '',
     transactionType: '',
+    startDate: '',
     endDate: '',
     minCartons: '',
     maxCartons: '',
     showLowStock: false,
-    showZeroStock: false,
-    showMissingAttributes: false
+    showZeroStock: false
   })
 
   useEffect(() => {
@@ -101,10 +101,10 @@ export default function UnifiedInventoryPage() {
   const fetchData = useCallback(async (forceRefresh = false) => {
     try {
       // Generate cache keys based on current state
-      const balancesCacheKey = 'live'
-      const transactionsCacheKey = 'live'
+      const balancesCacheKey = `${viewMode}-${selectedDate}`
+      const transactionsCacheKey = `${viewMode}-${selectedDate}`
       
-      // Check if we have cached data for the current tab
+      // Check if we have cached data for the current tab and haven't changed view/date
       if (!forceRefresh && hasInitialized) {
         if (activeTab === 'balances' && dataCache.balances?.key === balancesCacheKey) {
           setInventoryData(dataCache.balances.data)
@@ -133,7 +133,9 @@ export default function UnifiedInventoryPage() {
       // Always fetch both tabs on initial load
       if (!hasInitialized) {
         // Fetch inventory balances
-        const balancesUrl = '/api/inventory/balances'
+        const balancesUrl = viewMode === 'point-in-time' 
+          ? `/api/inventory/balances?date=${selectedDate}`
+          : '/api/inventory/balances'
         
         console.log('Fetching balances from:', balancesUrl)
         const balancesResponse = await fetch(balancesUrl)
@@ -147,7 +149,9 @@ export default function UnifiedInventoryPage() {
         }
         
         // Fetch transactions
-        const transactionsUrl = '/api/transactions/ledger'
+        const transactionsUrl = viewMode === 'point-in-time'
+          ? `/api/transactions/ledger?date=${selectedDate}`
+          : '/api/transactions/ledger'
         
         const transactionsResponse = await fetch(transactionsUrl)
         if (transactionsResponse.ok) {
@@ -163,7 +167,9 @@ export default function UnifiedInventoryPage() {
       } else {
         // After initialization, only fetch the active tab
         if (activeTab === 'balances') {
-          const url = '/api/inventory/balances'
+          const url = viewMode === 'point-in-time' 
+            ? `/api/inventory/balances?date=${selectedDate}`
+            : '/api/inventory/balances'
           
           console.log('Fetching balances from:', url)
           const response = await fetch(url)
@@ -176,7 +182,9 @@ export default function UnifiedInventoryPage() {
             }))
           }
         } else if (activeTab === 'transactions') {
-          const url = '/api/transactions/ledger'
+          const url = viewMode === 'point-in-time'
+            ? `/api/transactions/ledger?date=${selectedDate}`
+            : '/api/transactions/ledger'
           
           const response = await fetch(url)
           if (response.ok) {
@@ -196,7 +204,7 @@ export default function UnifiedInventoryPage() {
         setLoading(false)
       }
     }
-  }, [activeTab, warehouses.length, hasInitialized])
+  }, [activeTab, viewMode, selectedDate, warehouses.length, hasInitialized])
 
   // Initial load
   useEffect(() => {
@@ -205,6 +213,14 @@ export default function UnifiedInventoryPage() {
     }
   }, [hasInitialized, fetchData])
   
+  // Refetch when view mode or date changes
+  useEffect(() => {
+    if (hasInitialized) {
+      // Clear cache when view mode or date changes to force fresh data
+      setDataCache({})
+      fetchData(true)
+    }
+  }, [viewMode, selectedDate, fetchData, hasInitialized])
   
   // Handle tab changes
   useEffect(() => {
@@ -255,12 +271,8 @@ export default function UnifiedInventoryPage() {
       if (filters.transactionType && transaction.transactionType !== filters.transactionType) return false
       
       const transactionDate = new Date(transaction.transactionDate)
+      if (filters.startDate && transactionDate < new Date(filters.startDate)) return false
       if (filters.endDate && transactionDate > new Date(filters.endDate)) return false
-
-      if (filters.showMissingAttributes) {
-        const missing = getMissingAttributes(transaction)
-        if (missing.length === 0) return false
-      }
 
       return true
     })
@@ -280,8 +292,11 @@ export default function UnifiedInventoryPage() {
       window.open('/api/export/inventory', '_blank')
     } else {
       const params = new URLSearchParams({
+        viewMode,
+        ...(viewMode === 'point-in-time' && { date: selectedDate }),
         warehouse: filters.warehouse,
         transactionType: filters.transactionType,
+        startDate: filters.startDate,
         endDate: filters.endDate,
         minCartons: filters.minCartons,
         maxCartons: filters.maxCartons,
@@ -292,24 +307,12 @@ export default function UnifiedInventoryPage() {
     }
   }
 
+  const handleDateChange = (date: string) => {
+    setSelectedDate(date)
+  }
+  
   const handleTabChange = (tab: 'balances' | 'transactions') => {
     setActiveTab(tab)
-  }
-
-  // Check if transaction has missing required attributes
-  const getMissingAttributes = (transaction: Transaction) => {
-    const missing: string[] = []
-    
-    if (transaction.transactionType === 'RECEIVE') {
-      if (!transaction.containerNumber) missing.push('Container #')
-      if (!transaction.attachments) missing.push('Attachments')
-    } else if (transaction.transactionType === 'SHIP') {
-      if (!transaction.pickupDate) missing.push('Pickup Date')
-      if (!transaction.shipName) missing.push('Destination')
-      if (!transaction.attachments) missing.push('Attachments')
-    }
-    
-    return missing
   }
 
 
@@ -346,7 +349,7 @@ export default function UnifiedInventoryPage() {
         <PageHeader
           title="Inventory Ledger & Balances"
           subtitle="Inventory movements and current stock levels"
-          description="This combines the Excel Inventory Ledger (all movements) and calculated balances. Use the tabs to switch between the full inventory ledger and current inventory balances."
+          description="This combines the Excel Inventory Ledger (all movements) and calculated balances. Use the tabs to switch between the full inventory ledger and current inventory balances. Point-in-time view lets you see historical stock levels."
           icon={BookOpen}
           iconColor="text-green-600"
           bgColor="bg-green-50"
@@ -381,12 +384,93 @@ export default function UnifiedInventoryPage() {
           }
         />
 
-        {/* Incomplete Transactions Alert */}
-        <IncompleteTransactionsAlert />
-
         {/* Tab Navigation */}
         <InventoryTabs activeTab={activeTab} onTabChange={handleTabChange} />
 
+        {/* View Mode Controls */}
+        <div className="bg-white border rounded-lg">
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <label className="text-sm font-medium">View Mode:</label>
+                <div className="flex rounded-md shadow-sm">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setViewMode('live')
+                    }}
+                    className={`px-4 py-2 text-sm font-medium rounded-l-md border ${
+                      viewMode === 'live'
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Eye className="h-4 w-4 inline mr-2" />
+                    Live View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      setViewMode('point-in-time')
+                    }}
+                    className={`px-4 py-2 text-sm font-medium rounded-r-md border ${
+                      viewMode === 'point-in-time'
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Clock className="h-4 w-4 inline mr-2" />
+                    Point-in-Time
+                  </button>
+                </div>
+              </div>
+
+              {viewMode === 'point-in-time' && (
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium">As of Date:</label>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => handleDateChange(e.target.value)}
+                    max={new Date().toISOString().split('T')[0]}
+                    className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              )}
+            </div>
+
+            {viewMode === 'point-in-time' && (
+              <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                  <div className="text-sm text-yellow-800">
+                    <p className="font-medium">Point-in-Time View Active</p>
+                    <p>
+                      {activeTab === 'balances' 
+                        ? `Showing inventory balances as of ${new Date(selectedDate).toLocaleDateString('en-US', { 
+                            timeZone: 'America/Chicago',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })} 11:59:59 PM CT.`
+                        : `Showing all inventory movements up to ${new Date(selectedDate).toLocaleDateString('en-US', { 
+                            timeZone: 'America/Chicago',
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })} 11:59:59 PM CT with running balances.`
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Filters */}
         <div className="space-y-4" onSubmit={(e) => e.preventDefault()}>
@@ -460,15 +544,16 @@ export default function UnifiedInventoryPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">
-                        <div className="flex items-center gap-1">
-                          End Date
-                          <Tooltip 
-                            content="Filter transactions up to this date. This also affects the Current Balances tab by only showing stock levels as of this date." 
-                            iconSize="sm"
-                          />
-                        </div>
-                      </label>
+                      <label className="block text-sm font-medium mb-1">Start Date</label>
+                      <input
+                        type="date"
+                        value={filters.startDate}
+                        onChange={(e) => setFilters({...filters, startDate: e.target.value})}
+                        className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">End Date</label>
                       <input
                         type="date"
                         value={filters.endDate}
@@ -525,20 +610,6 @@ export default function UnifiedInventoryPage() {
                     </div>
                   </>
                 )}
-
-                {activeTab === 'transactions' && (
-                  <div className="flex items-end">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={filters.showMissingAttributes}
-                        onChange={(e) => setFilters({...filters, showMissingAttributes: e.target.checked})}
-                        className="rounded border-gray-300"
-                      />
-                      <span className="text-sm">Missing Attributes Only</span>
-                    </label>
-                  </div>
-                )}
               </div>
               <div className="mt-4 flex justify-end">
                 <button
@@ -549,12 +620,12 @@ export default function UnifiedInventoryPage() {
                     setFilters({
                       warehouse: '',
                       transactionType: '',
+                      startDate: '',
                       endDate: '',
                       minCartons: '',
                       maxCartons: '',
                       showLowStock: false,
-                      showZeroStock: false,
-                      showMissingAttributes: false
+                      showZeroStock: false
                     })
                   }}
                   className="text-sm text-primary hover:underline"
@@ -569,21 +640,6 @@ export default function UnifiedInventoryPage() {
         {/* Show immutable notice for ledger tab */}
         <div className={activeTab === 'transactions' ? '' : 'hidden'}>
           <ImmutableLedgerNotice />
-          
-          {/* Reconciliation Info */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-            <div className="flex items-start gap-3">
-              <Info className="h-5 w-5 text-blue-600 mt-0.5" />
-              <div className="space-y-2">
-                <h3 className="font-medium text-blue-900">About Transaction Status</h3>
-                <div className="text-sm text-blue-800 space-y-1">
-                  <p><strong>Reconciled:</strong> Transaction has been verified against warehouse invoices and billing records. This confirms the transaction was properly billed and paid for.</p>
-                  <p><strong>Unreconciled:</strong> Transaction has not yet been matched with warehouse invoices. This is normal for recent transactions that haven't been billed yet.</p>
-                  <p className="text-xs mt-2">Note: Currently all transactions show as unreconciled. The reconciliation process happens during invoice processing in the Finance module.</p>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Content based on active tab */}
@@ -622,7 +678,9 @@ export default function UnifiedInventoryPage() {
               <div className="bg-gray-50 px-6 py-3 border-b">
                 <h3 className="text-lg font-semibold">Inventory Balance Details</h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Current stock levels by Warehouse, SKU, and Batch/Lot
+                  {viewMode === 'live' 
+                    ? 'Current stock levels by Warehouse, SKU, and Batch/Lot'
+                    : `Stock levels as of ${new Date(selectedDate).toLocaleDateString()}`}
                 </p>
               </div>
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
@@ -758,7 +816,7 @@ export default function UnifiedInventoryPage() {
         <div className={activeTab === 'transactions' ? '' : 'hidden'}>
           <>
             {/* Transaction Summary Stats */}
-            <div className="grid gap-4 md:grid-cols-5">
+            <div className="grid gap-4 md:grid-cols-4">
               <div className="border rounded-lg p-4">
                 <p className="text-sm text-muted-foreground">Total Transactions</p>
                 <p className="text-2xl font-bold">{filteredAndSortedTransactions.length.toLocaleString()}</p>
@@ -781,15 +839,6 @@ export default function UnifiedInventoryPage() {
                   {filteredAndSortedTransactions.filter(t => t.transactionType.startsWith('ADJUST')).length.toLocaleString()}
                 </p>
               </div>
-              <div className="border rounded-lg p-4 bg-yellow-50">
-                <p className="text-sm text-yellow-800">Missing Attributes</p>
-                <p className="text-2xl font-bold text-yellow-600">
-                  {filteredAndSortedTransactions.filter(t => getMissingAttributes(t).length > 0).length.toLocaleString()}
-                </p>
-                <p className="text-xs text-yellow-700 mt-1">
-                  {Math.round((filteredAndSortedTransactions.filter(t => getMissingAttributes(t).length > 0).length / filteredAndSortedTransactions.length) * 100)}% incomplete
-                </p>
-              </div>
             </div>
 
             {/* Inventory Ledger Table */}
@@ -799,7 +848,9 @@ export default function UnifiedInventoryPage() {
                   <div>
                     <h3 className="text-lg font-semibold">Inventory Ledger Details</h3>
                     <p className="text-sm text-gray-600 mt-1">
-                      All inventory movements in chronological order • Click any transaction to view details or add missing attributes
+                      {viewMode === 'live' 
+                        ? 'All inventory movements in chronological order' 
+                        : `Inventory movements up to ${new Date(selectedDate).toLocaleDateString()}`}
                     </p>
                   </div>
                   <div className="text-sm text-gray-600">
@@ -865,27 +916,22 @@ export default function UnifiedInventoryPage() {
                       <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Pallet Config
                       </th>
+                      {viewMode === 'point-in-time' && (
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Balance
+                        </th>
+                      )}
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         User
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Notes
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Missing Data
-                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredAndSortedTransactions.map((transaction) => {
-                      const missingAttributes = getMissingAttributes(transaction)
-                      const hasMissingData = missingAttributes.length > 0
-                      
-                      return (
-                      <tr 
-                        key={transaction.id} 
-                        className={`hover:bg-gray-50 cursor-pointer ${hasMissingData ? 'bg-yellow-50' : ''}`}
-                        onClick={() => router.push(`/operations/transactions/${transaction.id}`)}>
+                    {filteredAndSortedTransactions.map((transaction) => (
+                      <tr key={transaction.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-sm">
                           <div className="text-gray-900">
                             {new Date(transaction.transactionDate).toLocaleDateString('en-US', {
@@ -1050,6 +1096,11 @@ export default function UnifiedInventoryPage() {
                             )}
                           </div>
                         </td>
+                        {viewMode === 'point-in-time' && (
+                          <td className="px-4 py-3 text-sm text-gray-900 text-right font-medium">
+                            {transaction.runningBalance?.toLocaleString() || '-'}
+                          </td>
+                        )}
                         <td className="px-4 py-3 text-sm text-gray-500">
                           {transaction.createdBy.fullName}
                         </td>
@@ -1058,27 +1109,11 @@ export default function UnifiedInventoryPage() {
                             {transaction.notes || '-'}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm">
-                          {missingAttributes.length > 0 ? (
-                            <div className="space-y-1">
-                              {missingAttributes.map((attr, idx) => (
-                                <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800 mr-1">
-                                  {attr}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
-                              Complete
-                            </span>
-                          )}
-                        </td>
                       </tr>
-                      )
-                    })}
+                    ))}
                     {filteredAndSortedTransactions.length === 0 && (
                       <tr>
-                        <td colSpan={17} className="px-6 py-12">
+                        <td colSpan={viewMode === 'point-in-time' ? 17 : 16} className="px-6 py-12">
                           <EmptyState
                             icon={Calendar}
                             title="No transactions found"

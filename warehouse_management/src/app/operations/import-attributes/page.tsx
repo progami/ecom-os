@@ -31,7 +31,6 @@ interface Transaction {
   referenceId: string
   shipName?: string
   containerNumber?: string
-  pickupDate?: string
   attachments?: any
 }
 
@@ -99,9 +98,8 @@ export default function ImportAttributesPage() {
     const missing: string[] = []
     const attachments = transaction.attachments || {}
     
-    // Check for required fields based on transaction type
+    // Check for required documents based on transaction type
     if (transaction.transactionType === 'RECEIVE') {
-      if (!transaction.containerNumber) missing.push('Container Number')
       if (!attachments.packingList) missing.push('Packing List')
       if (!attachments.commercialInvoice) missing.push('Commercial Invoice')
       if (!attachments.deliveryNote) missing.push('Delivery Note')
@@ -109,10 +107,16 @@ export default function ImportAttributesPage() {
     }
     
     if (transaction.transactionType === 'SHIP') {
-      if (!transaction.pickupDate) missing.push('Pickup Date')
-      if (!transaction.shipName) missing.push('Destination/Customer')
       if (!attachments.packingList) missing.push('Packing List')
       if (!attachments.deliveryNote) missing.push('Delivery Note')
+    }
+
+    // Check for additional attributes
+    if (!transaction.shipName && transaction.transactionType === 'RECEIVE') {
+      missing.push('Ship Name')
+    }
+    if (!transaction.containerNumber && transaction.transactionType === 'RECEIVE') {
+      missing.push('Container Number')
     }
 
     return missing
@@ -193,20 +197,21 @@ export default function ImportAttributesPage() {
     <DashboardLayout>
       <div className="space-y-6">
         <PageHeader
-          title="Import Transaction Attributes (Deprecated)"
-          subtitle="This page is being phased out"
-          description="You can now click on any transaction in the Inventory Ledger to view details and add missing attributes directly. This provides a better workflow for completing transaction data."
-          icon={AlertCircle}
-          iconColor="text-yellow-600"
-          bgColor="bg-yellow-50"
-          borderColor="border-yellow-200"
-          textColor="text-yellow-800"
+          title="Import Transaction Attributes"
+          subtitle="Add missing documents and attributes to transactions"
+          description="Upload missing documents and add required attributes to complete transaction records. This ensures full traceability and compliance."
+          icon={Upload}
+          iconColor="text-blue-600"
+          bgColor="bg-blue-50"
+          borderColor="border-blue-200"
+          textColor="text-blue-800"
           actions={
             <button
-              className="primary-button"
-              onClick={() => router.push('/operations/inventory')}
+              className="secondary-button"
+              onClick={() => window.open('/api/export/missing-attributes', '_blank')}
             >
-              Go to Inventory Ledger
+              <Download className="h-4 w-4 mr-2" />
+              Export Missing List
             </button>
           }
         />

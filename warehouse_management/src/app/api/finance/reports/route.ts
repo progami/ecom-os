@@ -181,7 +181,7 @@ async function generateInvoiceReconciliationReport(period: string, warehouseFilt
         'Expected Amount': Money.fromPrismaDecimal(recon.expectedAmount).format(),
         'Invoiced Amount': Money.fromPrismaDecimal(recon.invoicedAmount).format(),
         'Variance': Money.fromPrismaDecimal(recon.difference).format(),
-        'Variance %': Number(recon.expectedAmount) > 0 
+        'Variance %': recon.expectedAmount > 0 
           ? `${((Number(recon.difference) / Number(recon.expectedAmount)) * 100).toFixed(2)}%`
           : 'N/A',
         'Match Status': recon.status.toUpperCase(),
@@ -249,7 +249,7 @@ async function generateCostVarianceReport(period: string, warehouseFilter: any) 
 
   const categoryTotals = new Map<string, { expected: number, invoiced: number, count: number }>()
 
-  const data: any[] = reconciliations.map(recon => {
+  const data = reconciliations.map(recon => {
     const category = recon.costCategory
     if (!categoryTotals.has(category)) {
       categoryTotals.set(category, { expected: 0, invoiced: 0, count: 0 })
@@ -504,7 +504,7 @@ async function generateAgingReport(warehouseFilter: any) {
   })
 
   const now = new Date()
-  const aging: Record<string, { count: number; amount: number }> = {
+  const aging = {
     current: { count: 0, amount: 0 },
     '1-30': { count: 0, amount: 0 },
     '31-60': { count: 0, amount: 0 },

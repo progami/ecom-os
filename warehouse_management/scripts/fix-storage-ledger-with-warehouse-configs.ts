@@ -30,10 +30,8 @@ async function fixStorageLedgerWithWarehouseConfigs() {
     // Manual filter since Prisma doesn't support field comparison
     const entries = await prisma.storageLedger.findMany({
       where: {
-        AND: [
-          { cartonsEndOfMonday: { lte: 10 } },
-          { cartonsEndOfMonday: { gte: 1 } }
-        ]
+        cartonsEndOfMonday: { lte: 10 },
+        cartonsEndOfMonday: { gte: 1 }
       },
       include: {
         sku: true,
