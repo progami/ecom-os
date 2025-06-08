@@ -62,8 +62,8 @@ export async function GET() {
       by: ['status'],
       where: {
         billingPeriodStart: {
-          gte: currentBillingPeriod.startDate,
-          lte: currentBillingPeriod.endDate,
+          gte: currentBillingPeriod.start,
+          lte: currentBillingPeriod.end,
         },
       },
       _count: true,
@@ -86,8 +86,8 @@ export async function GET() {
           lt: today,
         },
         billingPeriodStart: {
-          gte: currentBillingPeriod.startDate,
-          lte: currentBillingPeriod.endDate,
+          gte: currentBillingPeriod.start,
+          lte: currentBillingPeriod.end,
         },
       },
     })
@@ -175,8 +175,8 @@ export async function GET() {
       where: {
         invoice: {
           billingPeriodStart: {
-            gte: currentBillingPeriod.startDate,
-            lte: currentBillingPeriod.endDate,
+            gte: currentBillingPeriod.start,
+            lte: currentBillingPeriod.end,
           },
         },
       },
@@ -224,8 +224,8 @@ export async function GET() {
       },
       recentActivity: activities,
       billingPeriod: {
-        start: currentBillingPeriod.startDate,
-        end: currentBillingPeriod.endDate,
+        start: currentBillingPeriod.start,
+        end: currentBillingPeriod.end,
       },
     })
   } catch (error) {

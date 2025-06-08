@@ -36,11 +36,7 @@ export async function GET(request: NextRequest) {
       include: {
         warehouse: true,
         sku: true,
-        calculatedCosts: {
-          include: {
-            costRate: true
-          }
-        }
+        // calculatedCosts relation removed - not in schema
       },
       orderBy: {
         transactionDate: 'desc'
@@ -90,28 +86,16 @@ export async function GET(request: NextRequest) {
 
       const weekData = costsByWeek.get(weekKey)
       
-      // Add calculated costs
-      for (const cost of transaction.calculatedCosts) {
-        const category = cost.costRate.category.toLowerCase()
-        if (weekData.costs[category] !== undefined) {
-          weekData.costs[category] += Number(cost.calculatedCost)
-          weekData.costs.total += Number(cost.calculatedCost)
-        }
-
-        weekData.details.push({
-          transactionId: transaction.transactionId,
-          transactionDate: transaction.transactionDate,
-          transactionType: transaction.transactionType,
-          warehouse: transaction.warehouse.name,
-          sku: transaction.sku.skuCode,
-          batchLot: transaction.batchLot,
-          category: cost.costRate.category,
-          rate: cost.costRate.rate,
-          quantity: cost.quantity,
-          cost: Number(cost.calculatedCost),
-          rateDescription: cost.costRate.description
-        })
-      }
+      // Add transaction-based costs (simplified without calculatedCosts)
+      // TODO: Need to calculate costs based on transaction type and rates
+      weekData.details.push({
+        transactionId: transaction.transactionId,
+        transactionDate: transaction.transactionDate,
+        transactionType: transaction.transactionType,
+        warehouse: transaction.warehouse.name,
+        sku: transaction.sku.skuCode,
+        batchLot: transaction.batchLot
+      })
 
       weekData.transactions.push({
         id: transaction.id,

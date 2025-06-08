@@ -182,7 +182,7 @@ async function generateInvoiceReconciliationReport(period: string, warehouseFilt
         'Expected Amount': Money.fromPrismaDecimal(recon.expectedAmount).format(),
         'Invoiced Amount': Money.fromPrismaDecimal(recon.invoicedAmount).format(),
         'Variance': Money.fromPrismaDecimal(recon.difference).format(),
-        'Variance %': recon.expectedAmount > 0 
+        'Variance %': recon.expectedAmount.toNumber() > 0 
           ? `${((Number(recon.difference) / Number(recon.expectedAmount)) * 100).toFixed(2)}%`
           : 'N/A',
         'Match Status': recon.status.toUpperCase(),
@@ -348,7 +348,7 @@ async function generateFinancialSummaryReport(period: string, warehouseFilter: a
 
   const data: any[] = []
 
-  for (const [warehouseId, summary] of warehouseSummary) {
+  for (const [warehouseId, summary] of Array.from(warehouseSummary.entries())) {
     data.push({
       'Warehouse': summary.warehouse.name,
       'Type': 'SUMMARY',
@@ -446,8 +446,8 @@ async function generateAgingReport(warehouseFilter: any) {
     else if (daysOverdue > 30) agingBucket = '31-60'
     else if (daysOverdue > 0) agingBucket = '1-30'
 
-    aging[agingBucket].count++
-    aging[agingBucket].amount += Number(invoice.totalAmount)
+    (aging as any)[agingBucket].count++
+    (aging as any)[agingBucket].amount += Number(invoice.totalAmount)
 
     return {
       'Invoice Number': invoice.invoiceNumber,
@@ -504,10 +504,10 @@ async function generateCostByCategoryReport(period: string, warehouseFilter: any
 
   const data: any[] = []
 
-  for (const [category, warehouses] of categoryData) {
+  for (const [category, warehouses] of Array.from(categoryData.entries())) {
     let categoryTotal = 0
     
-    for (const [warehouse, amount] of warehouses) {
+    for (const [warehouse, amount] of Array.from(warehouses.entries())) {
       categoryTotal += amount
       data.push({
         'Category': category,
@@ -582,7 +582,7 @@ async function generateWarehouseComparisonReport(period: string) {
       }
     }
 
-    const topCategory = [...categoryBreakdown.entries()]
+    const topCategory = Array.from(categoryBreakdown.entries())
       .sort((a, b) => b[1] - a[1])[0]
 
     return {

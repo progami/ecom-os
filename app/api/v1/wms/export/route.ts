@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/wms/wms/utils/auth-utils'
-import prisma from '@/lib/wms/prisma'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
 import * as XLSX from 'xlsx'
 
 // GET /api/v1/wms/export - Export data to Excel
@@ -116,8 +116,8 @@ async function addInvoicesSheet(wb: XLSX.WorkBook, filters: any) {
   XLSX.utils.book_append_sheet(wb, ws, 'Invoices')
 
   // Add line items sheet
-  const allLineItems = invoices.flatMap(inv => 
-    inv.lineItems.map(item => ({
+  const allLineItems = invoices.flatMap((inv: any) => 
+    inv.lineItems.map((item: any) => ({
       'Invoice Number': inv.invoiceNumber,
       'Warehouse': inv.warehouse.name,
       'Cost Category': item.costCategory,
@@ -155,7 +155,7 @@ async function addInventorySheet(wb: XLSX.WorkBook, filters: any) {
     ]
   })
 
-  const inventoryData = inventory.map(inv => ({
+  const inventoryData = inventory.map((inv: any) => ({
     'Warehouse': inv.warehouse.name,
     'SKU Code': inv.sku.skuCode,
     'Description': inv.sku.description,
@@ -202,7 +202,7 @@ async function addTransactionsSheet(wb: XLSX.WorkBook, filters: any) {
     take: 10000 // Limit to prevent huge exports
   })
 
-  const transactionData = transactions.map(tx => ({
+  const transactionData = transactions.map((tx: any) => ({
     'Transaction ID': tx.transactionId,
     'Date': tx.transactionDate.toISOString().split('T')[0],
     'Warehouse': tx.warehouse.name,
@@ -258,7 +258,7 @@ async function addReconciliationSheet(wb: XLSX.WorkBook, filters: any) {
     orderBy: { createdAt: 'desc' }
   })
 
-  const reconciliationData = reconciliations.map(rec => ({
+  const reconciliationData = reconciliations.map((rec: any) => ({
     'Invoice Number': rec.invoice.invoiceNumber,
     'Warehouse': rec.invoice.warehouse.name,
     'Invoice Date': rec.invoice.invoiceDate.toISOString().split('T')[0],
@@ -302,7 +302,7 @@ async function addCostsSheet(wb: XLSX.WorkBook, filters: any) {
     take: 10000 // Limit to prevent huge exports
   })
 
-  const costData = calculatedCosts.map(cost => ({
+  const costData = calculatedCosts.map((cost: any) => ({
     'Cost ID': cost.calculatedCostId,
     'Transaction Type': cost.transactionType,
     'Transaction Ref': cost.transactionReferenceId,
@@ -340,7 +340,7 @@ async function addCostsSheet(wb: XLSX.WorkBook, filters: any) {
     ]
   })
 
-  const rateData = costRates.map(rate => ({
+  const rateData = costRates.map((rate: any) => ({
     'Warehouse': rate.warehouse.name,
     'Cost Category': rate.costCategory,
     'Cost Name': rate.costName,

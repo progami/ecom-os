@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      billingPeriod = { startDate: start, endDate: end };
+      billingPeriod = { start, end };
     } else {
       // Otherwise, calculate current billing period
       billingPeriod = getBillingPeriod(new Date());
@@ -57,8 +57,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         warehouseId,
         billingPeriod: {
-          startDate: billingPeriod.startDate.toISOString(),
-          endDate: billingPeriod.endDate.toISOString(),
+          startDate: billingPeriod.start.toISOString(),
+          endDate: billingPeriod.end.toISOString(),
         },
         costs: summaryArray,
         totalAmount: summaryArray.reduce((sum, cost) => sum + cost.totalAmount, 0),
@@ -70,11 +70,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         warehouseId,
         billingPeriod: {
-          startDate: billingPeriod.startDate.toISOString(),
-          endDate: billingPeriod.endDate.toISOString(),
+          startDate: billingPeriod.start.toISOString(),
+          endDate: billingPeriod.end.toISOString(),
         },
         costs,
-        totalAmount: costs.reduce((sum, cost) => sum + cost.totalAmount, 0),
+        totalAmount: costs.reduce((sum, cost) => sum + cost.amount, 0),
       });
     }
   } catch (error) {
