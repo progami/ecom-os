@@ -2,122 +2,46 @@
 > ecom-os@0.1.0 type-check
 > tsc --noEmit
 
-app/api/auth/[...nextauth]/route.ts(12,13): error TS2322: Type '(credentials: Record<"email" | "password", string> | undefined) => Promise<{ id: string; email: string; name: string; } | null>' is not assignable to type '(credentials: Record<"email" | "password", string> | undefined, req: Pick<RequestInternal, "body" | "query" | "headers" | "method">) => Awaitable<...>'.
-  Type 'Promise<{ id: string; email: string; name: string; } | null>' is not assignable to type 'Awaitable<User | null>'.
-    Type 'Promise<{ id: string; email: string; name: string; } | null>' is not assignable to type 'PromiseLike<User | null>'.
-      Types of property 'then' are incompatible.
-        Type '<TResult1 = { id: string; email: string; name: string; } | null, TResult2 = never>(onfulfilled?: ((value: { id: string; email: string; name: string; } | null) => TResult1 | PromiseLike<TResult1>) | null | undefined, onrejected?: ((reason: any) => TResult2 | PromiseLike<...>) | ... 1 more ... | undefined) => Promise<...' is not assignable to type '<TResult1 = User | null, TResult2 = never>(onfulfilled?: ((value: User | null) => TResult1 | PromiseLike<TResult1>) | null | undefined, onrejected?: ((reason: any) => TResult2 | PromiseLike<...>) | null | undefined) => PromiseLike<...>'.
-          Types of parameters 'onfulfilled' and 'onfulfilled' are incompatible.
-            Types of parameters 'value' and 'value' are incompatible.
-              Type '{ id: string; email: string; name: string; } | null' is not assignable to type 'User | null'.
-                Property 'role' is missing in type '{ id: string; email: string; name: string; }' but required in type 'User'.
-app/api/v1/wms/amazon/inventory-comparison/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/amazon/inventory-comparison/route.ts(14,31): error TS2339: Property 'sku' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
-app/api/v1/wms/amazon/inventory-comparison/route.ts(28,42): error TS2551: Property 'warehouse' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouse'?
-app/api/v1/wms/amazon/inventory-comparison/route.ts(37,37): error TS7006: Parameter 'sku' implicitly has an 'any' type.
-app/api/v1/wms/amazon/inventory-comparison/route.ts(39,17): error TS7006: Parameter 'bal' implicitly has an 'any' type.
-app/api/v1/wms/amazon/inventory-comparison/route.ts(40,18): error TS7006: Parameter 'sum' implicitly has an 'any' type.
-app/api/v1/wms/amazon/inventory-comparison/route.ts(40,23): error TS7006: Parameter 'bal' implicitly has an 'any' type.
-app/api/v1/wms/amazon/inventory-comparison/route.ts(44,21): error TS7006: Parameter 'bal' implicitly has an 'any' type.
-app/api/v1/wms/amazon/inventory-comparison/route.ts(45,22): error TS7006: Parameter 'sum' implicitly has an 'any' type.
-app/api/v1/wms/amazon/inventory-comparison/route.ts(45,27): error TS7006: Parameter 'bal' implicitly has an 'any' type.
-app/api/v1/wms/amazon/sync/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/dashboard/stats/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/dashboard/stats/route.ts(33,14): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
-app/api/v1/wms/dashboard/stats/route.ts(37,14): error TS2551: Property 'storageLedger' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsStorageLedger'?
-app/api/v1/wms/dashboard/stats/route.ts(47,14): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
-app/api/v1/wms/dashboard/stats/route.ts(51,14): error TS2339: Property 'invoice' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
-app/api/v1/wms/dashboard/stats/route.ts(55,14): error TS2339: Property 'invoice' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
-app/api/v1/wms/dashboard/stats/route.ts(64,14): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
-app/api/v1/wms/dashboard/stats/route.ts(74,14): error TS2551: Property 'storageLedger' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsStorageLedger'?
-app/api/v1/wms/export/route.ts(3,29): error TS2307: Cannot find module '@/lib/wms/wms/utils/auth-utils' or its corresponding type declarations.
-app/api/v1/wms/export/route.ts(4,20): error TS2307: Cannot find module '@/lib/wms/prisma' or its corresponding type declarations.
-app/api/v1/wms/export/route.ts(98,36): error TS7006: Parameter 'inv' implicitly has an 'any' type.
-app/api/v1/wms/export/route.ts(109,43): error TS7006: Parameter 'r' implicitly has an 'any' type.
-app/api/v1/wms/export/route.ts(110,46): error TS7006: Parameter 'r' implicitly has an 'any' type.
-app/api/v1/wms/export/route.ts(111,47): error TS7006: Parameter 'r' implicitly has an 'any' type.
-app/api/v1/wms/export/route.ts(112,53): error TS7006: Parameter 'sum' implicitly has an 'any' type.
-app/api/v1/wms/export/route.ts(112,58): error TS7006: Parameter 'r' implicitly has an 'any' type.
-app/api/v1/wms/export/route.ts(119,41): error TS7006: Parameter 'inv' implicitly has an 'any' type.
-app/api/v1/wms/export/route.ts(120,23): error TS7006: Parameter 'item' implicitly has an 'any' type.
-app/api/v1/wms/export/route.ts(158,39): error TS7006: Parameter 'inv' implicitly has an 'any' type.
-app/api/v1/wms/export/route.ts(205,44): error TS7006: Parameter 'tx' implicitly has an 'any' type.
-app/api/v1/wms/export/route.ts(261,50): error TS7006: Parameter 'rec' implicitly has an 'any' type.
-app/api/v1/wms/export/route.ts(305,40): error TS7006: Parameter 'cost' implicitly has an 'any' type.
-app/api/v1/wms/export/route.ts(343,34): error TS7006: Parameter 'rate' implicitly has an 'any' type.
-app/api/v1/wms/finance/calculated-costs/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/finance/calculated-costs/route.ts(46,25): error TS2353: Object literal may only specify known properties, and 'startDate' does not exist in type 'BillingPeriod'.
-app/api/v1/wms/finance/calculated-costs/route.ts(60,36): error TS2339: Property 'startDate' does not exist on type 'BillingPeriod'.
-app/api/v1/wms/finance/calculated-costs/route.ts(61,34): error TS2339: Property 'endDate' does not exist on type 'BillingPeriod'.
-app/api/v1/wms/finance/calculated-costs/route.ts(73,36): error TS2339: Property 'startDate' does not exist on type 'BillingPeriod'.
-app/api/v1/wms/finance/calculated-costs/route.ts(74,34): error TS2339: Property 'endDate' does not exist on type 'BillingPeriod'.
-app/api/v1/wms/finance/calculated-costs/route.ts(77,61): error TS2339: Property 'totalAmount' does not exist on type 'AggregatedCost'.
-app/api/v1/wms/finance/cost-ledger/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/finance/cost-ledger/route.ts(39,9): error TS2353: Object literal may only specify known properties, and 'calculatedCosts' does not exist in type 'WmsInventoryTransactionInclude<DefaultArgs>'.
-app/api/v1/wms/finance/cost-ledger/route.ts(94,38): error TS2339: Property 'calculatedCosts' does not exist on type '{ id: string; warehouseId: string; batchLot: string; skuId: string; createdAt: Date; notes: string | null; transactionId: string; transactionType: WmsTransactionType; ... 13 more ...; attachments: JsonValue; }'.
-app/api/v1/wms/finance/cost-ledger/route.ts(105,34): error TS2551: Property 'warehouse' does not exist on type '{ id: string; warehouseId: string; batchLot: string; skuId: string; createdAt: Date; notes: string | null; transactionId: string; transactionType: WmsTransactionType; ... 13 more ...; attachments: JsonValue; }'. Did you mean 'warehouseId'?
-app/api/v1/wms/finance/cost-ledger/route.ts(106,28): error TS2339: Property 'sku' does not exist on type '{ id: string; warehouseId: string; batchLot: string; skuId: string; createdAt: Date; notes: string | null; transactionId: string; transactionType: WmsTransactionType; ... 13 more ...; attachments: JsonValue; }'.
-app/api/v1/wms/finance/dashboard/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/finance/dashboard/route.ts(65,37): error TS2339: Property 'startDate' does not exist on type 'BillingPeriod'.
-app/api/v1/wms/finance/dashboard/route.ts(66,37): error TS2339: Property 'endDate' does not exist on type 'BillingPeriod'.
-app/api/v1/wms/finance/dashboard/route.ts(89,37): error TS2339: Property 'startDate' does not exist on type 'BillingPeriod'.
-app/api/v1/wms/finance/dashboard/route.ts(90,37): error TS2339: Property 'endDate' does not exist on type 'BillingPeriod'.
-app/api/v1/wms/finance/dashboard/route.ts(178,39): error TS2339: Property 'startDate' does not exist on type 'BillingPeriod'.
-app/api/v1/wms/finance/dashboard/route.ts(179,39): error TS2339: Property 'endDate' does not exist on type 'BillingPeriod'.
-app/api/v1/wms/finance/dashboard/route.ts(227,37): error TS2339: Property 'startDate' does not exist on type 'BillingPeriod'.
-app/api/v1/wms/finance/dashboard/route.ts(228,35): error TS2339: Property 'endDate' does not exist on type 'BillingPeriod'.
-app/api/v1/wms/finance/reports/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/finance/reports/route.ts(185,23): error TS2365: Operator '>' cannot be applied to types 'Decimal' and 'number'.
-app/api/v1/wms/finance/reports/route.ts(351,40): error TS2802: Type 'Map<string, any>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
-app/api/v1/wms/finance/reports/route.ts(449,5): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ current: { count: number; amount: number; }; '1-30': { count: number; amount: number; }; '31-60': { count: number; amount: number; }; '61-90': { count: number; amount: number; }; '90+': { count: number; amount: number; }; }'.
-  No index signature with a parameter of type 'string' was found on type '{ current: { count: number; amount: number; }; '1-30': { count: number; amount: number; }; '31-60': { count: number; amount: number; }; '61-90': { count: number; amount: number; }; '90+': { count: number; amount: number; }; }'.
-app/api/v1/wms/finance/reports/route.ts(450,5): error TS7053: Element implicitly has an 'any' type because expression of type 'string' can't be used to index type '{ current: { count: number; amount: number; }; '1-30': { count: number; amount: number; }; '31-60': { count: number; amount: number; }; '61-90': { count: number; amount: number; }; '90+': { count: number; amount: number; }; }'.
-  No index signature with a parameter of type 'string' was found on type '{ current: { count: number; amount: number; }; '1-30': { count: number; amount: number; }; '31-60': { count: number; amount: number; }; '61-90': { count: number; amount: number; }; '90+': { count: number; amount: number; }; }'.
-app/api/v1/wms/finance/reports/route.ts(507,40): error TS2802: Type 'Map<string, Map<string, number>>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
-app/api/v1/wms/finance/reports/route.ts(585,29): error TS2802: Type 'MapIterator<[string, number]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
-app/api/v1/wms/finance/storage-ledger/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/inventory/balances/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/inventory/balances/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
+app/api/v1/bookkeeping/rules/route.ts(3,10): error TS2459: Module '"@/app/api/auth/[...nextauth]/route"' declares 'authOptions' locally, but it is not exported.
+app/api/v1/wms/dashboard/stats/route.ts(52,18): error TS2561: Object literal may only specify known properties, but 'reconciliationStatus' does not exist in type 'WmsInvoiceWhereInput'. Did you mean to write 'reconciliations'?
+app/api/v1/wms/dashboard/stats/route.ts(57,11): error TS2561: Object literal may only specify known properties, but 'reconciliationStatus' does not exist in type 'WmsInvoiceWhereInput'. Did you mean to write 'reconciliations'?
+app/api/v1/wms/dashboard/stats/route.ts(71,17): error TS2353: Object literal may only specify known properties, and 'quantityChange' does not exist in type 'WmsInventoryTransactionSumAggregateInputType'.
+app/api/v1/wms/dashboard/stats/route.ts(87,30): error TS18048: 'lastMonthInventory._sum' is possibly 'undefined'.
+app/api/v1/wms/dashboard/stats/route.ts(87,54): error TS2339: Property 'quantityChange' does not exist on type '{ cartonsIn?: number | null | undefined; cartonsOut?: number | null | undefined; storagePalletsIn?: number | null | undefined; shippingPalletsOut?: number | null | undefined; shippingCartonsPerPallet?: number | ... 1 more ... | undefined; storageCartonsPerPallet?: number | ... 1 more ... | undefined; }'.
+app/api/v1/wms/dashboard/stats/route.ts(92,26): error TS2362: The left-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+app/api/v1/wms/dashboard/stats/route.ts(92,40): error TS2363: The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+app/api/v1/wms/dashboard/stats/route.ts(92,52): error TS2363: The right-hand side of an arithmetic operation must be of type 'any', 'number', 'bigint' or an enum type.
+app/api/v1/wms/finance/reports/route.ts(447,31): error TS2322: Type 'number' is not assignable to type 'string'.
+app/api/v1/wms/finance/reports/route.ts(447,45): error TS2349: This expression is not callable.
+  Type 'String' has no call signatures.
 app/api/v1/wms/inventory/balances/route.ts(92,36): error TS2802: Type 'MapIterator<[string, any]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
-app/api/v1/wms/inventory/route.ts(26,36): error TS2339: Property 'inventoryLog' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
-app/api/v1/wms/inventory/route.ts(54,32): error TS7006: Parameter 'item' implicitly has an 'any' type.
-app/api/v1/wms/inventory/route.ts(59,24): error TS7006: Parameter 'item' implicitly has an 'any' type.
-app/api/v1/wms/inventory/route.ts(107,39): error TS2339: Property 'inventoryLog' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
-app/api/v1/wms/invoices/route.ts(3,29): error TS2307: Cannot find module '@/lib/wms/wms/utils/auth-utils' or its corresponding type declarations.
-app/api/v1/wms/invoices/route.ts(4,36): error TS2307: Cannot find module '@/lib/wms/wms/utils/auth-utils-utils' or its corresponding type declarations.
-app/api/v1/wms/invoices/route.ts(5,20): error TS2307: Cannot find module '@/lib/wms/prisma' or its corresponding type declarations.
-app/api/v1/wms/products/route.ts(13,35): error TS2339: Property 'product' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+app/api/v1/wms/inventory/route.ts(36,9): error TS2353: Object literal may only specify known properties, and 'product' does not exist in type 'WmsInventoryBalanceInclude<DefaultArgs>'.
+app/api/v1/wms/inventory/route.ts(54,45): error TS2339: Property 'quantity' does not exist on type '{ id: string; warehouseId: string; currentCartons: number; shippingCartonsPerPallet: number | null; storageCartonsPerPallet: number | null; currentPallets: number; currentUnits: number; skuId: string; batchLot: string; lastTransactionDate: Date | null; lastUpdated: Date; }'.
+app/api/v1/wms/inventory/route.ts(62,29): error TS2551: Property 'warehouse' does not exist on type '{ id: string; warehouseId: string; currentCartons: number; shippingCartonsPerPallet: number | null; storageCartonsPerPallet: number | null; currentPallets: number; currentUnits: number; skuId: string; batchLot: string; lastTransactionDate: Date | null; lastUpdated: Date; }'. Did you mean 'warehouseId'?
+app/api/v1/wms/inventory/route.ts(63,29): error TS2551: Property 'warehouse' does not exist on type '{ id: string; warehouseId: string; currentCartons: number; shippingCartonsPerPallet: number | null; storageCartonsPerPallet: number | null; currentPallets: number; currentUnits: number; skuId: string; batchLot: string; lastTransactionDate: Date | null; lastUpdated: Date; }'. Did you mean 'warehouseId'?
+app/api/v1/wms/inventory/route.ts(64,25): error TS2339: Property 'productId' does not exist on type '{ id: string; warehouseId: string; currentCartons: number; shippingCartonsPerPallet: number | null; storageCartonsPerPallet: number | null; currentPallets: number; currentUnits: number; skuId: string; batchLot: string; lastTransactionDate: Date | null; lastUpdated: Date; }'.
+app/api/v1/wms/inventory/route.ts(65,19): error TS2339: Property 'product' does not exist on type '{ id: string; warehouseId: string; currentCartons: number; shippingCartonsPerPallet: number | null; storageCartonsPerPallet: number | null; currentPallets: number; currentUnits: number; skuId: string; batchLot: string; lastTransactionDate: Date | null; lastUpdated: Date; }'.
+app/api/v1/wms/inventory/route.ts(66,27): error TS2339: Property 'product' does not exist on type '{ id: string; warehouseId: string; currentCartons: number; shippingCartonsPerPallet: number | null; storageCartonsPerPallet: number | null; currentPallets: number; currentUnits: number; skuId: string; batchLot: string; lastTransactionDate: Date | null; lastUpdated: Date; }'.
+app/api/v1/wms/inventory/route.ts(67,27): error TS2339: Property 'product' does not exist on type '{ id: string; warehouseId: string; currentCartons: number; shippingCartonsPerPallet: number | null; storageCartonsPerPallet: number | null; currentPallets: number; currentUnits: number; skuId: string; batchLot: string; lastTransactionDate: Date | null; lastUpdated: Date; }'.
+app/api/v1/wms/inventory/route.ts(68,24): error TS2339: Property 'quantity' does not exist on type '{ id: string; warehouseId: string; currentCartons: number; shippingCartonsPerPallet: number | null; storageCartonsPerPallet: number | null; currentPallets: number; currentUnits: number; skuId: string; batchLot: string; lastTransactionDate: Date | null; lastUpdated: Date; }'.
+app/api/v1/wms/inventory/route.ts(69,20): error TS2339: Property 'unit' does not exist on type '{ id: string; warehouseId: string; currentCartons: number; shippingCartonsPerPallet: number | null; storageCartonsPerPallet: number | null; currentPallets: number; currentUnits: number; skuId: string; batchLot: string; lastTransactionDate: Date | null; lastUpdated: Date; }'.
+app/api/v1/wms/inventory/route.ts(72,28): error TS2339: Property 'quantity' does not exist on type '{ id: string; warehouseId: string; currentCartons: number; shippingCartonsPerPallet: number | null; storageCartonsPerPallet: number | null; currentPallets: number; currentUnits: number; skuId: string; batchLot: string; lastTransactionDate: Date | null; lastUpdated: Date; }'.
+app/api/v1/wms/inventory/route.ts(73,41): error TS2339: Property 'quantity' does not exist on type '{ id: string; warehouseId: string; currentCartons: number; shippingCartonsPerPallet: number | null; storageCartonsPerPallet: number | null; currentPallets: number; currentUnits: number; skuId: string; batchLot: string; lastTransactionDate: Date | null; lastUpdated: Date; }'.
+app/api/v1/wms/inventory/route.ts(73,58): error TS2339: Property 'unitsPerCarton' does not exist on type '{ id: string; warehouseId: string; currentCartons: number; shippingCartonsPerPallet: number | null; storageCartonsPerPallet: number | null; currentPallets: number; currentUnits: number; skuId: string; batchLot: string; lastTransactionDate: Date | null; lastUpdated: Date; }'.
+app/api/v1/wms/inventory/route.ts(110,9): error TS2353: Object literal may only specify known properties, and 'productId' does not exist in type '(Without<WmsInventoryTransactionCreateInput, WmsInventoryTransactionUncheckedCreateInput> & WmsInventoryTransactionUncheckedCreateInput) | (Without<...> & WmsInventoryTransactionCreateInput)'.
+app/api/v1/wms/inventory/route.ts(120,9): error TS2353: Object literal may only specify known properties, and 'product' does not exist in type 'WmsInventoryTransactionInclude<DefaultArgs>'.
+app/api/v1/wms/invoices/route.ts(53,57): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+app/api/v1/wms/invoices/route.ts(182,9): error TS2367: This comparison appears to be unintentional because the types 'Decimal' and 'number' have no overlap.
+app/api/v1/wms/products/route.ts(4,10): error TS2459: Module '"@/app/api/auth/[...nextauth]/route"' declares 'authOptions' locally, but it is not exported.
+app/api/v1/wms/products/route.ts(28,13): error TS2353: Object literal may only specify known properties, and 'inventoryLogs' does not exist in type 'WmsSkuCountOutputTypeSelect<DefaultArgs>'.
+app/api/v1/wms/products/route.ts(33,9): error TS2353: Object literal may only specify known properties, and 'sku' does not exist in type 'WmsSkuOrderByWithRelationInput | WmsSkuOrderByWithRelationInput[]'.
 app/api/v1/wms/products/route.ts(66,35): error TS2339: Property 'product' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
-app/api/v1/wms/products/route.ts(78,34): error TS2339: Property 'product' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
-app/api/v1/wms/rates/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/reports/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/settings/notifications/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/settings/notifications/route.ts(114,9): error TS2322: Type 'NotificationSettings' is not assignable to type 'JsonNull | InputJsonValue | undefined'.
-  Type 'NotificationSettings' is not assignable to type 'InputJsonObject'.
-    Index signature for type 'string' is missing in type 'NotificationSettings'.
-app/api/v1/wms/settings/notifications/route.ts(119,9): error TS2322: Type 'NotificationSettings' is not assignable to type 'JsonNull | InputJsonValue'.
-  Type 'NotificationSettings' is not assignable to type 'InputJsonObject'.
-    Index signature for type 'string' is missing in type 'NotificationSettings'.
-app/api/v1/wms/settings/rates/[id]/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/settings/rates/check-overlap/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/settings/rates/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/settings/security/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/settings/security/route.ts(115,9): error TS2322: Type 'SecuritySettings' is not assignable to type 'JsonNull | InputJsonValue | undefined'.
-  Type 'SecuritySettings' is not assignable to type 'InputJsonObject'.
-    Index signature for type 'string' is missing in type 'SecuritySettings'.
-app/api/v1/wms/settings/security/route.ts(120,9): error TS2322: Type 'SecuritySettings' is not assignable to type 'JsonNull | InputJsonValue'.
-  Type 'SecuritySettings' is not assignable to type 'InputJsonObject'.
-    Index signature for type 'string' is missing in type 'SecuritySettings'.
-app/api/v1/wms/skus/[id]/next-batch/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/skus/[id]/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/skus/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/transactions/[id]/attachments/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/transactions/[id]/attributes/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+app/api/v1/wms/products/route.ts(80,9): error TS2353: Object literal may only specify known properties, and 'sku' does not exist in type '(Without<WmsSkuCreateInput, WmsSkuUncheckedCreateInput> & WmsSkuUncheckedCreateInput) | (Without<...> & WmsSkuCreateInput)'.
 app/api/v1/wms/transactions/[id]/attributes/route.ts(28,11): error TS2698: Spread types may only be created from object types.
-app/api/v1/wms/transactions/ledger/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/api/v1/wms/transactions/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 app/api/v1/wms/warehouse-configs/route.ts(3,29): error TS2307: Cannot find module '@/lib/wms/wms/utils/auth-utils' or its corresponding type declarations.
 app/api/v1/wms/warehouse-configs/route.ts(4,24): error TS2307: Cannot find module '@/lib/wms/prisma' or its corresponding type declarations.
+app/api/v1/wms/warehouses/route.ts(4,10): error TS2459: Module '"@/app/api/auth/[...nextauth]/route"' declares 'authOptions' locally, but it is not exported.
 app/api/v1/wms/warehouses/route.ts(13,37): error TS2551: Property 'warehouse' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouse'?
 app/api/v1/wms/warehouses/route.ts(56,35): error TS2551: Property 'warehouse' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouse'?
 app/api/v1/wms/warehouses/route.ts(68,36): error TS2551: Property 'warehouse' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouse'?
@@ -127,7 +51,6 @@ app/wms/admin/dashboard/page.tsx(776,36): error TS2339: Property 'info' does not
 app/wms/admin/dashboard/page.tsx(788,36): error TS2339: Property 'info' does not exist on type '{ (message: Message, opts?: Partial<Pick<Toast, "id" | "style" | "className" | "icon" | "duration" | "ariaProps" | "position" | "iconTheme" | "removeDelay">> | undefined): string; ... 6 more ...; promise<T>(promise: Promise<...> | (() => Promise<...>), msgs: { ...; }, opts?: DefaultToastOptions | undefined): Promise...'.
 app/wms/admin/import-excel/page.tsx(16,28): error TS2307: Cannot find module '@/components/wms/ui/page-header' or its corresponding type declarations.
 app/wms/admin/inventory/client-page.tsx(6,30): error TS2307: Cannot find module '@/components/common/export-button' or its corresponding type declarations.
-app/wms/admin/inventory/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 app/wms/admin/inventory/page.tsx(16,42): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
 app/wms/admin/inventory/page.tsx(28,34): error TS2339: Property 'sku' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 app/wms/admin/inventory/page.tsx(29,37): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
@@ -136,14 +59,10 @@ app/wms/admin/inventory/page.tsx(35,38): error TS2551: Property 'inventoryBalanc
 app/wms/admin/inventory/page.tsx(40,43): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 app/wms/admin/inventory/page.tsx(51,47): error TS7006: Parameter 'balance' implicitly has an 'any' type.
 app/wms/admin/inventory/page.tsx(69,50): error TS7006: Parameter 'tx' implicitly has an 'any' type.
-app/wms/admin/invoices/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/wms/admin/reports/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 app/wms/admin/reports/page.tsx(22,12): error TS2551: Property 'storageLedger' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsStorageLedger'?
 app/wms/admin/reports/page.tsx(34,12): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 app/wms/admin/reports/page.tsx(43,12): error TS2339: Property 'invoice' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 app/wms/admin/settings/page.tsx(22,41): error TS2307: Cannot find module '@/components/wms/ui/page-header' or its corresponding type declarations.
-app/wms/admin/users/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-app/wms/analytics/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 app/wms/analytics/page.tsx(7,30): error TS2307: Cannot find module '@/components/common/export-button' or its corresponding type declarations.
 app/wms/analytics/page.tsx(22,42): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 app/wms/analytics/page.tsx(23,40): error TS2551: Property 'warehouse' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouse'?
@@ -157,7 +76,6 @@ app/wms/analytics/page.tsx(119,29): error TS7006: Parameter 'item' implicitly ha
 app/wms/analytics/page.tsx(119,35): error TS7006: Parameter 'index' implicitly has an 'any' type.
 app/wms/analytics/page.tsx(129,58): error TS2339: Property 'skuCode' does not exist on type '{}'.
 app/wms/analytics/page.tsx(130,68): error TS2339: Property 'description' does not exist on type '{}'.
-app/wms/config/batch-attributes/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 app/wms/config/batch-attributes/page.tsx(17,32): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
 app/wms/config/batch-attributes/page.tsx(43,44): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 app/wms/config/batch-attributes/page.tsx(46,35): error TS7006: Parameter 'b' implicitly has an 'any' type.
@@ -175,7 +93,6 @@ app/wms/config/batch-attributes/page.tsx(90,38): error TS7006: Parameter 'sum' i
 app/wms/config/batch-attributes/page.tsx(90,43): error TS7006: Parameter 'b' implicitly has an 'any' type.
 app/wms/config/batch-attributes/page.tsx(183,22): error TS18046: 'skuBatches' is of type 'unknown'.
 app/wms/config/products/page.tsx(10,31): error TS2307: Cannot find module '@/components/ui/confirm-dialog' or its corresponding type declarations.
-app/wms/config/warehouse-configs/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 app/wms/config/warehouse-configs/page.tsx(18,32): error TS2551: Property 'warehouseSkuConfig' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseSkuConfig'?
 app/wms/config/warehouse-configs/page.tsx(37,46): error TS7006: Parameter 'acc' implicitly has an 'any' type.
 app/wms/config/warehouse-configs/page.tsx(37,51): error TS7006: Parameter 'config' implicitly has an 'any' type.
@@ -187,11 +104,9 @@ app/wms/dashboard/page.tsx(21,33): error TS2307: Cannot find module '@/component
 app/wms/finance/cost-ledger/page.tsx(21,28): error TS2307: Cannot find module '@/components/wms/ui/page-header' or its corresponding type declarations.
 app/wms/finance/cost-ledger/page.tsx(24,10): error TS2305: Module '"@/lib/utils"' has no exported member 'formatCurrency'.
 app/wms/finance/dashboard/page.tsx(25,28): error TS2307: Cannot find module '@/components/wms/ui/page-header' or its corresponding type declarations.
-app/wms/finance/reports/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 app/wms/finance/storage-ledger/page.tsx(8,28): error TS2307: Cannot find module '@/components/wms/ui/page-header' or its corresponding type declarations.
 app/wms/operations/shipment-planning/page.tsx(251,11): error TS2322: Type 'Element' is not assignable to type 'string'.
 app/wms/operations/shipment-planning/page.tsx(310,69): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
-app/wms/reports/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 app/wms/reports/page.tsx(22,12): error TS2551: Property 'storageLedger' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsStorageLedger'?
 app/wms/reports/page.tsx(34,12): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 app/wms/reports/page.tsx(43,12): error TS2339: Property 'invoice' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
@@ -365,7 +280,6 @@ archive/warehouse_management/src/app/admin/import-excel/page.tsx(15,33): error T
 archive/warehouse_management/src/app/admin/import-excel/page.tsx(16,28): error TS2307: Cannot find module '@/components/ui/page-header' or its corresponding type declarations.
 archive/warehouse_management/src/app/admin/inventory/client-page.tsx(6,30): error TS2307: Cannot find module '@/components/common/export-button' or its corresponding type declarations.
 archive/warehouse_management/src/app/admin/inventory/new/page.tsx(6,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
-archive/warehouse_management/src/app/admin/inventory/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/admin/inventory/page.tsx(4,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
 archive/warehouse_management/src/app/admin/inventory/page.tsx(16,42): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
 archive/warehouse_management/src/app/admin/inventory/page.tsx(28,34): error TS2339: Property 'sku' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
@@ -375,9 +289,7 @@ archive/warehouse_management/src/app/admin/inventory/page.tsx(35,38): error TS25
 archive/warehouse_management/src/app/admin/inventory/page.tsx(40,43): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 archive/warehouse_management/src/app/admin/inventory/page.tsx(51,47): error TS7006: Parameter 'balance' implicitly has an 'any' type.
 archive/warehouse_management/src/app/admin/inventory/page.tsx(69,50): error TS7006: Parameter 'tx' implicitly has an 'any' type.
-archive/warehouse_management/src/app/admin/invoices/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/admin/invoices/page.tsx(6,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
-archive/warehouse_management/src/app/admin/reports/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/admin/reports/page.tsx(5,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
 archive/warehouse_management/src/app/admin/reports/page.tsx(22,12): error TS2551: Property 'storageLedger' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsStorageLedger'?
 archive/warehouse_management/src/app/admin/reports/page.tsx(34,12): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
@@ -388,9 +300,7 @@ archive/warehouse_management/src/app/admin/settings/notifications/page.tsx(5,33)
 archive/warehouse_management/src/app/admin/settings/page.tsx(21,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
 archive/warehouse_management/src/app/admin/settings/page.tsx(22,41): error TS2307: Cannot find module '@/components/ui/page-header' or its corresponding type declarations.
 archive/warehouse_management/src/app/admin/settings/security/page.tsx(5,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
-archive/warehouse_management/src/app/admin/users/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/admin/users/page.tsx(6,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
-archive/warehouse_management/src/app/analytics/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/analytics/page.tsx(5,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
 archive/warehouse_management/src/app/analytics/page.tsx(7,30): error TS2307: Cannot find module '@/components/common/export-button' or its corresponding type declarations.
 archive/warehouse_management/src/app/analytics/page.tsx(22,42): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
@@ -405,7 +315,6 @@ archive/warehouse_management/src/app/analytics/page.tsx(119,29): error TS7006: P
 archive/warehouse_management/src/app/analytics/page.tsx(119,35): error TS7006: Parameter 'index' implicitly has an 'any' type.
 archive/warehouse_management/src/app/analytics/page.tsx(129,58): error TS2339: Property 'skuCode' does not exist on type '{}'.
 archive/warehouse_management/src/app/analytics/page.tsx(130,68): error TS2339: Property 'description' does not exist on type '{}'.
-archive/warehouse_management/src/app/api/admin/dashboard/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/admin/dashboard/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
 archive/warehouse_management/src/app/api/admin/dashboard/route.ts(198,33): error TS7006: Parameter 'row' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/admin/dashboard/route.ts(249,30): error TS7006: Parameter 'tx' implicitly has an 'any' type.
@@ -423,7 +332,6 @@ archive/warehouse_management/src/app/api/admin/dashboard/route.ts(365,7): error 
 archive/warehouse_management/src/app/api/admin/dashboard/route.ts(366,9): error TS2698: Spread types may only be created from object types.
 archive/warehouse_management/src/app/api/admin/dashboard/route.ts(367,47): error TS2339: Property 'value' does not exist on type 'never'.
 archive/warehouse_management/src/app/api/admin/dashboard/route.ts(389,55): error TS7006: Parameter 'tx' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/admin/import-excel/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/admin/import-excel/route.ts(78,20): error TS2339: Property 'sku' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/src/app/api/admin/import-excel/route.ts(124,35): error TS2551: Property 'warehouse' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouse'?
 archive/warehouse_management/src/app/api/admin/import-excel/route.ts(125,47): error TS7006: Parameter 'w' implicitly has an 'any' type.
@@ -442,7 +350,6 @@ archive/warehouse_management/src/app/api/admin/import-excel/route.ts(285,37): er
 archive/warehouse_management/src/app/api/admin/import-excel/route.ts(294,20): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 archive/warehouse_management/src/app/api/admin/import-excel/route.ts(297,34): error TS2339: Property 'id' does not exist on type '{}'.
 archive/warehouse_management/src/app/api/admin/import-excel/route.ts(298,22): error TS2339: Property 'id' does not exist on type '{}'.
-archive/warehouse_management/src/app/api/amazon/inventory-comparison/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/amazon/inventory-comparison/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
 archive/warehouse_management/src/app/api/amazon/inventory-comparison/route.ts(32,62): error TS7006: Parameter 'w' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/amazon/inventory-comparison/route.ts(76,36): error TS7006: Parameter 'sku' implicitly has an 'any' type.
@@ -451,31 +358,22 @@ archive/warehouse_management/src/app/api/amazon/inventory-comparison/route.ts(81
 archive/warehouse_management/src/app/api/amazon/inventory-comparison/route.ts(81,57): error TS7006: Parameter 'balance' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/amazon/inventory-comparison/route.ts(103,49): error TS7006: Parameter 'a' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/amazon/inventory-comparison/route.ts(103,52): error TS7006: Parameter 'b' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/amazon/setup-warehouse/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/amazon/setup-warehouse/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
-archive/warehouse_management/src/app/api/amazon/sync-to-database/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/amazon/sync-to-database/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
-archive/warehouse_management/src/app/api/amazon/sync/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/amazon/sync/route.ts(5,46): error TS2307: Cannot find module '@/lib/amazon/client' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/amazon/sync/route.ts(69,32): error TS2339: Property 'sku' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/src/app/api/amazon/sync/route.ts(89,22): error TS2339: Property 'sku' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/src/app/api/amazon/sync/route.ts(121,31): error TS2339: Property 'sku' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/src/app/api/amazon/sync/route.ts(159,26): error TS2339: Property 'sku' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
-archive/warehouse_management/src/app/api/auth/[...nextauth]/route.ts(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-archive/warehouse_management/src/app/api/dashboard/stats/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/dashboard/stats/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
-archive/warehouse_management/src/app/api/export/inventory/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/export/inventory/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
 archive/warehouse_management/src/app/api/export/inventory/route.ts(34,46): error TS7006: Parameter 'item' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/export/ledger/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/export/ledger/route.ts(73,39): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 archive/warehouse_management/src/app/api/export/ledger/route.ts(94,41): error TS7006: Parameter 't' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/export/missing-attributes/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/export/missing-attributes/route.ts(20,39): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 archive/warehouse_management/src/app/api/export/missing-attributes/route.ts(31,42): error TS7006: Parameter 'transaction' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/export/missing-attributes/route.ts(63,15): error TS7006: Parameter 't' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/export/missing-attributes/route.ts(96,25): error TS7006: Parameter 'row' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/export/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/export/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
 archive/warehouse_management/src/app/api/export/route.ts(98,36): error TS7006: Parameter 'inv' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/export/route.ts(109,43): error TS7006: Parameter 'r' implicitly has an 'any' type.
@@ -490,15 +388,12 @@ archive/warehouse_management/src/app/api/export/route.ts(205,44): error TS7006: 
 archive/warehouse_management/src/app/api/export/route.ts(261,50): error TS7006: Parameter 'rec' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/export/route.ts(305,40): error TS7006: Parameter 'cost' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/export/route.ts(343,34): error TS7006: Parameter 'rate' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/finance/calculated-costs/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/finance/calculated-costs/route.ts(9,8): error TS2307: Cannot find module '@/lib/calculations/cost-aggregation' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/finance/calculated-costs/route.ts(64,63): error TS18046: 'cost' is of type 'unknown'.
 archive/warehouse_management/src/app/api/finance/calculated-costs/route.ts(77,36): error TS7006: Parameter 'sum' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/finance/calculated-costs/route.ts(77,41): error TS7006: Parameter 'cost' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/finance/cost-ledger/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/finance/cost-ledger/route.ts(28,39): error TS2551: Property 'transaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean '$transaction'?
 archive/warehouse_management/src/app/api/finance/cost-ledger/route.ts(51,40): error TS2551: Property 'storageLedger' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsStorageLedger'?
-archive/warehouse_management/src/app/api/finance/dashboard/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/finance/dashboard/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
 archive/warehouse_management/src/app/api/finance/dashboard/route.ts(9,8): error TS2307: Cannot find module '@/lib/calculations/cost-aggregation' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/finance/dashboard/route.ts(75,44): error TS7006: Parameter 's' implicitly has an 'any' type.
@@ -511,17 +406,14 @@ archive/warehouse_management/src/app/api/finance/dashboard/route.ts(161,29): err
 archive/warehouse_management/src/app/api/finance/dashboard/route.ts(186,42): error TS7006: Parameter 's' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/finance/dashboard/route.ts(187,45): error TS7006: Parameter 's' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/finance/dashboard/route.ts(188,46): error TS7006: Parameter 's' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/finance/export/cost-ledger/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/finance/export/cost-ledger/route.ts(27,11): error TS2451: Cannot redeclare block-scoped variable 'response'.
 archive/warehouse_management/src/app/api/finance/export/cost-ledger/route.ts(146,11): error TS2451: Cannot redeclare block-scoped variable 'response'.
-archive/warehouse_management/src/app/api/finance/export/storage-ledger/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/finance/export/storage-ledger/route.ts(47,39): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 archive/warehouse_management/src/app/api/finance/export/storage-ledger/route.ts(59,37): error TS2551: Property 'warehouse' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouse'?
 archive/warehouse_management/src/app/api/finance/export/storage-ledger/route.ts(76,32): error TS2339: Property 'costRate' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/src/app/api/finance/export/storage-ledger/route.ts(293,53): error TS2802: Type 'Map<string, { skuId: string; batchLot: string; sku: any; }>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
 archive/warehouse_management/src/app/api/finance/export/storage-ledger/route.ts(308,40): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
 archive/warehouse_management/src/app/api/finance/export/storage-ledger/route.ts(323,50): error TS2551: Property 'warehouseSkuConfig' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseSkuConfig'?
-archive/warehouse_management/src/app/api/finance/reports/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/finance/reports/route.ts(4,36): error TS2307: Cannot find module '@/lib/auth-utils' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/finance/reports/route.ts(5,23): error TS2307: Cannot find module '@/lib/financial-utils' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/finance/reports/route.ts(6,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
@@ -554,31 +446,30 @@ archive/warehouse_management/src/app/api/finance/reports/route.ts(676,40): error
 archive/warehouse_management/src/app/api/finance/reports/route.ts(678,41): error TS7006: Parameter 'sum' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/finance/reports/route.ts(678,46): error TS7006: Parameter 'inv' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/finance/reports/route.ts(688,29): error TS2802: Type 'MapIterator<[string, number]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
-archive/warehouse_management/src/app/api/finance/storage-ledger/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/finance/storage-ledger/route.ts(41,37): error TS2551: Property 'warehouse' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouse'?
 archive/warehouse_management/src/app/api/finance/storage-ledger/route.ts(70,40): error TS2551: Property 'storageLedger' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsStorageLedger'?
 archive/warehouse_management/src/app/api/finance/storage-ledger/route.ts(166,32): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
 archive/warehouse_management/src/app/api/finance/storage-ledger/route.ts(179,31): error TS2551: Property 'warehouseSkuConfig' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseSkuConfig'?
-archive/warehouse_management/src/app/api/inventory/balances/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/inventory/balances/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
 archive/warehouse_management/src/app/api/inventory/balances/route.ts(92,36): error TS2802: Type 'MapIterator<[string, any]>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
-archive/warehouse_management/src/app/api/inventory/notifications/low-stock/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/inventory/notifications/low-stock/route.ts(5,42): error TS2307: Cannot find module '@/lib/config/shipment-planning' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/inventory/notifications/low-stock/route.ts(20,42): error TS2339: Property 'amazonInventory' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/src/app/api/inventory/notifications/low-stock/route.ts(40,47): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
-archive/warehouse_management/src/app/api/inventory/shipments/email/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-archive/warehouse_management/src/app/api/invoices/[id]/accept/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/invoices/[id]/accept/route.ts(4,34): error TS2307: Cannot find module '@/lib/auth-utils' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/invoices/[id]/accept/route.ts(5,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
 archive/warehouse_management/src/app/api/invoices/[id]/accept/route.ts(100,53): error TS7006: Parameter 'tx' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/invoices/[id]/dispute/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
+archive/warehouse_management/src/app/api/invoices/[id]/accept/route.ts(111,35): error TS2551: Property 'userId' does not exist on type 'Session'. Did you mean 'user'?
+archive/warehouse_management/src/app/api/invoices/[id]/accept/route.ts(150,35): error TS2551: Property 'userId' does not exist on type 'Session'. Did you mean 'user'?
+archive/warehouse_management/src/app/api/invoices/[id]/accept/route.ts(171,27): error TS2551: Property 'userId' does not exist on type 'Session'. Did you mean 'user'?
 archive/warehouse_management/src/app/api/invoices/[id]/dispute/route.ts(4,34): error TS2307: Cannot find module '@/lib/auth-utils' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/invoices/[id]/dispute/route.ts(5,23): error TS2307: Cannot find module '@/lib/financial-utils' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/invoices/[id]/dispute/route.ts(6,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
 archive/warehouse_management/src/app/api/invoices/[id]/dispute/route.ts(74,53): error TS7006: Parameter 'tx' implicitly has an 'any' type.
+archive/warehouse_management/src/app/api/invoices/[id]/dispute/route.ts(100,39): error TS2551: Property 'userId' does not exist on type 'Session'. Did you mean 'user'?
+archive/warehouse_management/src/app/api/invoices/[id]/dispute/route.ts(127,37): error TS2551: Property 'userId' does not exist on type 'Session'. Did you mean 'user'?
+archive/warehouse_management/src/app/api/invoices/[id]/dispute/route.ts(154,27): error TS2551: Property 'userId' does not exist on type 'Session'. Did you mean 'user'?
 archive/warehouse_management/src/app/api/invoices/[id]/dispute/route.ts(230,7): error TS7006: Parameter 'r' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/invoices/[id]/dispute/route.ts(258,42): error TS7006: Parameter 'log' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/invoices/[id]/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/invoices/[id]/route.ts(4,34): error TS2307: Cannot find module '@/lib/auth-utils' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/invoices/[id]/route.ts(5,23): error TS2307: Cannot find module '@/lib/financial-utils' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/invoices/[id]/route.ts(6,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
@@ -588,10 +479,8 @@ archive/warehouse_management/src/app/api/invoices/[id]/route.ts(75,67): error TS
 archive/warehouse_management/src/app/api/invoices/[id]/route.ts(80,52): error TS7006: Parameter 'r' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/invoices/[id]/route.ts(81,55): error TS7006: Parameter 'r' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/invoices/[id]/route.ts(82,56): error TS7006: Parameter 'r' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/invoices/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/invoices/route.ts(4,36): error TS2307: Cannot find module '@/lib/auth-utils' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/invoices/route.ts(5,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
-archive/warehouse_management/src/app/api/invoices/upload/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/invoices/upload/route.ts(4,36): error TS2307: Cannot find module '@/lib/auth-utils' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/invoices/upload/route.ts(5,70): error TS2307: Cannot find module '@/lib/financial-utils' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/invoices/upload/route.ts(6,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
@@ -602,10 +491,8 @@ archive/warehouse_management/src/app/api/invoices/upload/route.ts(230,44): error
 archive/warehouse_management/src/app/api/invoices/upload/route.ts(620,43): error TS7006: Parameter 'c' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/invoices/upload/route.ts(630,43): error TS7006: Parameter 'r' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/invoices/upload/route.ts(636,52): error TS7006: Parameter 'c' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/operations/pallet-variance/[id]/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/operations/pallet-variance/[id]/route.ts(22,34): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
 archive/warehouse_management/src/app/api/operations/pallet-variance/[id]/route.ts(31,18): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
-archive/warehouse_management/src/app/api/operations/pallet-variance/export/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/operations/pallet-variance/export/route.ts(20,35): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
 archive/warehouse_management/src/app/api/operations/pallet-variance/export/route.ts(29,15): error TS7006: Parameter 'balance' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/operations/pallet-variance/export/route.ts(30,12): error TS7006: Parameter 'balance' implicitly has an 'any' type.
@@ -615,21 +502,16 @@ archive/warehouse_management/src/app/api/operations/pallet-variance/export/route
 archive/warehouse_management/src/app/api/operations/pallet-variance/export/route.ts(60,44): error TS7006: Parameter 'v' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/operations/pallet-variance/export/route.ts(61,43): error TS7006: Parameter 'v' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/operations/pallet-variance/export/route.ts(92,23): error TS7006: Parameter 'row' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/operations/pallet-variance/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/operations/pallet-variance/route.ts(15,35): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
 archive/warehouse_management/src/app/api/operations/pallet-variance/route.ts(25,15): error TS7006: Parameter 'balance' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/operations/pallet-variance/route.ts(26,12): error TS7006: Parameter 'balance' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/operations/pallet-variance/route.ts(53,15): error TS7006: Parameter 'v' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/rates/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/rates/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
-archive/warehouse_management/src/app/api/reconciliation/[id]/resolve/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/reconciliation/[id]/resolve/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
-archive/warehouse_management/src/app/api/reconciliation/run/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/reconciliation/run/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
 archive/warehouse_management/src/app/api/reconciliation/run/route.ts(5,58): error TS2307: Cannot find module '@/lib/financial-utils' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/reconciliation/run/route.ts(10,8): error TS2307: Cannot find module '@/lib/calculations/cost-aggregation' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/reconciliation/run/route.ts(83,58): error TS7006: Parameter 'cost' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/reports/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/reports/route.ts(180,33): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
 archive/warehouse_management/src/app/api/reports/route.ts(199,23): error TS7006: Parameter 'b' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/reports/route.ts(217,37): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
@@ -673,47 +555,35 @@ archive/warehouse_management/src/app/api/reports/route.ts(725,35): error TS2551:
 archive/warehouse_management/src/app/api/reports/route.ts(739,24): error TS7006: Parameter 't' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/reports/route.ts(752,26): error TS7006: Parameter 'stat' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/reports/route.ts(762,22): error TS7006: Parameter 'stat' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/settings/notifications/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/settings/notifications/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
-archive/warehouse_management/src/app/api/settings/rates/[id]/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/settings/rates/[id]/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
-archive/warehouse_management/src/app/api/settings/rates/check-overlap/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/settings/rates/check-overlap/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
-archive/warehouse_management/src/app/api/settings/rates/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/settings/rates/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
 archive/warehouse_management/src/app/api/settings/rates/route.ts(34,38): error TS7006: Parameter 'rate' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/settings/security/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/settings/security/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
-archive/warehouse_management/src/app/api/skus/[id]/next-batch/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/skus/[id]/next-batch/route.ts(22,30): error TS2339: Property 'sku' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/src/app/api/skus/[id]/next-batch/route.ts(34,42): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 archive/warehouse_management/src/app/api/skus/[id]/next-batch/route.ts(55,14): error TS7006: Parameter 't' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/skus/[id]/next-batch/route.ts(59,17): error TS7006: Parameter 'n' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/skus/[id]/next-batch/route.ts(65,42): error TS7006: Parameter 't' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/skus/[id]/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/skus/[id]/route.ts(17,30): error TS2339: Property 'sku' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/src/app/api/skus/[id]/route.ts(67,38): error TS2339: Property 'sku' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/src/app/api/skus/[id]/route.ts(82,37): error TS2339: Property 'sku' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/src/app/api/skus/[id]/route.ts(123,30): error TS2339: Property 'sku' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/src/app/api/skus/[id]/route.ts(141,43): error TS2339: Property 'sku' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/src/app/api/skus/[id]/route.ts(153,18): error TS2339: Property 'sku' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
-archive/warehouse_management/src/app/api/skus/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/skus/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
 archive/warehouse_management/src/app/api/skus/route.ts(214,76): error TS18046: 'count' is of type 'unknown'.
-archive/warehouse_management/src/app/api/transactions/[id]/attachments/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/transactions/[id]/attachments/route.ts(29,38): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 archive/warehouse_management/src/app/api/transactions/[id]/attachments/route.ts(61,18): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 archive/warehouse_management/src/app/api/transactions/[id]/attachments/route.ts(92,38): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
-archive/warehouse_management/src/app/api/transactions/[id]/attributes/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/transactions/[id]/attributes/route.ts(21,45): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 archive/warehouse_management/src/app/api/transactions/[id]/attributes/route.ts(28,28): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 archive/warehouse_management/src/app/api/transactions/[id]/attributes/route.ts(31,19): error TS7006: Parameter 't' implicitly has an 'any' type.
-archive/warehouse_management/src/app/api/transactions/ledger/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/transactions/ledger/route.ts(57,39): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 archive/warehouse_management/src/app/api/transactions/ledger/route.ts(82,56): error TS7006: Parameter 'transaction' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/transactions/ledger/route.ts(113,33): error TS2551: Property 'warehouseSkuConfig' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseSkuConfig'?
 archive/warehouse_management/src/app/api/transactions/ledger/route.ts(141,37): error TS2551: Property 'warehouseSkuConfig' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseSkuConfig'?
-archive/warehouse_management/src/app/api/transactions/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/transactions/route.ts(5,10): error TS2724: '"@prisma/client"' has no exported member named 'TransactionType'. Did you mean 'WmsTransactionType'?
 archive/warehouse_management/src/app/api/transactions/route.ts(68,42): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 archive/warehouse_management/src/app/api/transactions/route.ts(86,42): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
@@ -726,32 +596,26 @@ archive/warehouse_management/src/app/api/transactions/route.ts(242,40): error TS
 archive/warehouse_management/src/app/api/transactions/route.ts(269,36): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
 archive/warehouse_management/src/app/api/transactions/route.ts(304,22): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
 archive/warehouse_management/src/app/api/transactions/route.ts(319,22): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
-archive/warehouse_management/src/app/api/warehouse-configs/[id]/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/warehouse-configs/[id]/route.ts(20,33): error TS2551: Property 'warehouseSkuConfig' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseSkuConfig'?
 archive/warehouse_management/src/app/api/warehouse-configs/[id]/route.ts(62,35): error TS2551: Property 'warehouseSkuConfig' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseSkuConfig'?
 archive/warehouse_management/src/app/api/warehouse-configs/[id]/route.ts(75,44): error TS2551: Property 'warehouseSkuConfig' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseSkuConfig'?
 archive/warehouse_management/src/app/api/warehouse-configs/[id]/route.ts(112,33): error TS2551: Property 'warehouseSkuConfig' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseSkuConfig'?
-archive/warehouse_management/src/app/api/warehouse-configs/invoice-templates/[id]/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/warehouse-configs/invoice-templates/[id]/route.ts(21,34): error TS2551: Property 'warehouseNotification' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseNotification'?
 archive/warehouse_management/src/app/api/warehouse-configs/invoice-templates/[id]/route.ts(31,20): error TS2551: Property 'warehouseNotification' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseNotification'?
 archive/warehouse_management/src/app/api/warehouse-configs/invoice-templates/[id]/route.ts(43,30): error TS2551: Property 'warehouseNotification' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseNotification'?
 archive/warehouse_management/src/app/api/warehouse-configs/invoice-templates/[id]/route.ts(53,21): error TS7006: Parameter 'n' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/warehouse-configs/invoice-templates/[id]/route.ts(61,35): error TS2551: Property 'warehouseNotification' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseNotification'?
 archive/warehouse_management/src/app/api/warehouse-configs/invoice-templates/[id]/route.ts(111,18): error TS2551: Property 'warehouseNotification' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseNotification'?
-archive/warehouse_management/src/app/api/warehouse-configs/invoice-templates/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/warehouse-configs/invoice-templates/route.ts(16,36): error TS2551: Property 'warehouseNotification' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseNotification'?
 archive/warehouse_management/src/app/api/warehouse-configs/invoice-templates/route.ts(29,46): error TS7006: Parameter 't' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/warehouse-configs/invoice-templates/route.ts(69,20): error TS2551: Property 'warehouseNotification' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseNotification'?
 archive/warehouse_management/src/app/api/warehouse-configs/invoice-templates/route.ts(80,30): error TS2551: Property 'warehouseNotification' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseNotification'?
 archive/warehouse_management/src/app/api/warehouse-configs/invoice-templates/route.ts(89,21): error TS7006: Parameter 'n' implicitly has an 'any' type.
 archive/warehouse_management/src/app/api/warehouse-configs/invoice-templates/route.ts(97,35): error TS2551: Property 'warehouseNotification' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseNotification'?
-archive/warehouse_management/src/app/api/warehouse-configs/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/warehouse-configs/route.ts(28,42): error TS2551: Property 'warehouseSkuConfig' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseSkuConfig'?
 archive/warehouse_management/src/app/api/warehouse-configs/route.ts(65,33): error TS2551: Property 'warehouseSkuConfig' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseSkuConfig'?
-archive/warehouse_management/src/app/api/warehouses/route.ts(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/api/warehouses/route.ts(4,8): error TS2613: Module '"/home/runner/work/ecom_os/ecom_os/lib/prisma"' has no default export. Did you mean to use 'import { prisma } from "/home/runner/work/ecom_os/ecom_os/lib/prisma"' instead?
 archive/warehouse_management/src/app/api/warehouses/route.ts(272,76): error TS18046: 'count' is of type 'unknown'.
-archive/warehouse_management/src/app/config/batch-attributes/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/config/batch-attributes/page.tsx(6,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
 archive/warehouse_management/src/app/config/batch-attributes/page.tsx(7,28): error TS2307: Cannot find module '@/components/ui/page-header' or its corresponding type declarations.
 archive/warehouse_management/src/app/config/batch-attributes/page.tsx(17,32): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
@@ -792,7 +656,6 @@ archive/warehouse_management/src/app/config/warehouse-configs/[id]/edit/page.tsx
 archive/warehouse_management/src/app/config/warehouse-configs/[id]/edit/page.tsx(7,28): error TS2307: Cannot find module '@/components/ui/page-header' or its corresponding type declarations.
 archive/warehouse_management/src/app/config/warehouse-configs/new/page.tsx(6,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
 archive/warehouse_management/src/app/config/warehouse-configs/new/page.tsx(7,28): error TS2307: Cannot find module '@/components/ui/page-header' or its corresponding type declarations.
-archive/warehouse_management/src/app/config/warehouse-configs/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/config/warehouse-configs/page.tsx(6,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
 archive/warehouse_management/src/app/config/warehouse-configs/page.tsx(7,28): error TS2307: Cannot find module '@/components/ui/page-header' or its corresponding type declarations.
 archive/warehouse_management/src/app/config/warehouse-configs/page.tsx(18,32): error TS2551: Property 'warehouseSkuConfig' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsWarehouseSkuConfig'?
@@ -815,7 +678,6 @@ archive/warehouse_management/src/app/finance/invoices/[id]/page.tsx(6,33): error
 archive/warehouse_management/src/app/finance/invoices/new/page.tsx(6,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
 archive/warehouse_management/src/app/finance/invoices/page.tsx(5,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
 archive/warehouse_management/src/app/finance/reconciliation/page.tsx(5,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
-archive/warehouse_management/src/app/finance/reports/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/finance/reports/page.tsx(5,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
 archive/warehouse_management/src/app/finance/storage-ledger/page.tsx(7,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
 archive/warehouse_management/src/app/finance/storage-ledger/page.tsx(8,28): error TS2307: Cannot find module '@/components/ui/page-header' or its corresponding type declarations.
@@ -841,8 +703,6 @@ archive/warehouse_management/src/app/operations/shipment-planning/page.tsx(11,33
 archive/warehouse_management/src/app/operations/shipment-planning/page.tsx(12,28): error TS2307: Cannot find module '@/components/ui/page-header' or its corresponding type declarations.
 archive/warehouse_management/src/app/operations/shipment-planning/page.tsx(19,8): error TS2307: Cannot find module '@/lib/config/shipment-planning' or its corresponding type declarations.
 archive/warehouse_management/src/app/operations/shipment-planning/page.tsx(312,69): error TS2802: Type 'Set<string>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
-archive/warehouse_management/src/app/page.tsx(3,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
-archive/warehouse_management/src/app/reports/page.tsx(2,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/src/app/reports/page.tsx(5,33): error TS2307: Cannot find module '@/components/layout/dashboard-layout' or its corresponding type declarations.
 archive/warehouse_management/src/app/reports/page.tsx(22,12): error TS2551: Property 'storageLedger' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsStorageLedger'?
 archive/warehouse_management/src/app/reports/page.tsx(34,12): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
@@ -1112,12 +972,16 @@ archive/warehouse_management/tests/__tests__/integration/inventory-workflow.test
 archive/warehouse_management/tests/__tests__/integration/inventory-workflow.test.ts(457,16): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
 archive/warehouse_management/tests/__tests__/integration/inventory-workflow.test.ts(478,21): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
 archive/warehouse_management/tests/__tests__/integration/inventory-workflow.test.ts(479,21): error TS2551: Property 'inventoryBalance' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryBalance'?
-archive/warehouse_management/tests/__tests__/lib/auth.test.ts(1,29): error TS2307: Cannot find module '@/lib/auth' or its corresponding type declarations.
 archive/warehouse_management/tests/__tests__/lib/auth.test.ts(61,16): error TS2339: Property 'user' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/tests/__tests__/lib/auth.test.ts(69,21): error TS2339: Property 'user' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/tests/__tests__/lib/auth.test.ts(90,16): error TS2339: Property 'user' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/tests/__tests__/lib/auth.test.ts(102,16): error TS2339: Property 'user' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/tests/__tests__/lib/auth.test.ts(121,16): error TS2339: Property 'user' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
+archive/warehouse_management/tests/__tests__/lib/auth.test.ts(144,56): error TS2345: Argument of type '{ token: { role: string; sub: string; }; user: { id: string; email: string; name: string; role: string; warehouseId: string; }; }' is not assignable to parameter of type '{ token: JWT; user: User | AdapterUser; account: Account | null; profile?: Profile | undefined; trigger?: "signIn" | "update" | "signUp" | undefined; isNewUser?: boolean | undefined; session?: any; }'.
+  Property 'account' is missing in type '{ token: { role: string; sub: string; }; user: { id: string; email: string; name: string; role: string; warehouseId: string; }; }' but required in type '{ token: JWT; user: User | AdapterUser; account: Account | null; profile?: Profile | undefined; trigger?: "signIn" | "update" | "signUp" | undefined; isNewUser?: boolean | undefined; session?: any; }'.
+archive/warehouse_management/tests/__tests__/lib/auth.test.ts(174,71): error TS2322: Type '{ id: string; email: string; name: string; role: string; warehouseId: null; }' is not assignable to type 'JWT'.
+  Types of property 'warehouseId' are incompatible.
+    Type 'null' is not assignable to type 'string | undefined'.
 archive/warehouse_management/tests/__tests__/lib/auth.test.ts(208,18): error TS2339: Property 'user' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'.
 archive/warehouse_management/tests/__tests__/lib/calculations/inventory-balance.test.ts(5,8): error TS2307: Cannot find module '@/lib/calculations/inventory-balance' or its corresponding type declarations.
 archive/warehouse_management/tests/__tests__/lib/calculations/inventory-balance.test.ts(50,16): error TS2551: Property 'inventoryTransaction' does not exist on type 'PrismaClient<PrismaClientOptions, never, DefaultArgs>'. Did you mean 'wmsInventoryTransaction'?
@@ -1297,6 +1161,7 @@ archive/warehouse_management/tests/__tests__/middleware.test.ts(3,28): error TS2
 archive/warehouse_management/tests/__tests__/test-utils.tsx(69,24): error TS2322: Type '{ user: { id: string; name: string; email: string; role: "admin"; warehouseId: null; }; expires: string; }' is not assignable to type 'Session'.
   The types of 'user.warehouseId' are incompatible between these types.
     Type 'null' is not assignable to type 'string | undefined'.
+bookkeeper/test-integration.ts(18,55): error TS18046: 'data' is of type 'unknown'.
 components/wms/finance/storage-ledger-tab.tsx(7,10): error TS2305: Module '"@/lib/utils"' has no exported member 'formatCurrency'.
 components/wms/layout/main-nav.tsx(31,20): error TS2307: Cannot find module '@/lib/wms/wms/utils' or its corresponding type declarations.
 components/wms/warehouse/warehouse-map.tsx(27,33): error TS2503: Cannot find namespace 'google'.
@@ -1307,6 +1172,15 @@ components/wms/warehouse/warehouse-map.tsx(60,26): error TS2304: Cannot find nam
 components/wms/warehouse/warehouse-map.tsx(68,30): error TS2304: Cannot find name 'google'.
 components/wms/warehouse/warehouse-map.tsx(73,21): error TS2304: Cannot find name 'google'.
 components/wms/warehouse/warehouse-map.tsx(83,34): error TS2304: Cannot find name 'google'.
+lib/auth.ts(12,13): error TS2322: Type '(credentials: Record<"email" | "password", string> | undefined) => Promise<{ id: string; email: string; name: string; } | null>' is not assignable to type '(credentials: Record<"email" | "password", string> | undefined, req: Pick<RequestInternal, "body" | "query" | "headers" | "method">) => Awaitable<...>'.
+  Type 'Promise<{ id: string; email: string; name: string; } | null>' is not assignable to type 'Awaitable<User | null>'.
+    Type 'Promise<{ id: string; email: string; name: string; } | null>' is not assignable to type 'PromiseLike<User | null>'.
+      Types of property 'then' are incompatible.
+        Type '<TResult1 = { id: string; email: string; name: string; } | null, TResult2 = never>(onfulfilled?: ((value: { id: string; email: string; name: string; } | null) => TResult1 | PromiseLike<TResult1>) | null | undefined, onrejected?: ((reason: any) => TResult2 | PromiseLike<...>) | ... 1 more ... | undefined) => Promise<...' is not assignable to type '<TResult1 = User | null, TResult2 = never>(onfulfilled?: ((value: User | null) => TResult1 | PromiseLike<TResult1>) | null | undefined, onrejected?: ((reason: any) => TResult2 | PromiseLike<...>) | null | undefined) => PromiseLike<...>'.
+          Types of parameters 'onfulfilled' and 'onfulfilled' are incompatible.
+            Types of parameters 'value' and 'value' are incompatible.
+              Type '{ id: string; email: string; name: string; } | null' is not assignable to type 'User | null'.
+                Property 'role' is missing in type '{ id: string; email: string; name: string; }' but required in type 'User'.
 lib/wms/calculations/cost-aggregation.ts(1,24): error TS2307: Cannot find module '@/lib/wms/prisma' or its corresponding type declarations.
 lib/wms/calculations/cost-aggregation.ts(2,10): error TS2724: '"@prisma/client"' has no exported member named 'CostCategory'. Did you mean 'WmsCostCategory'?
 lib/wms/calculations/cost-aggregation.ts(122,22): error TS2802: Type 'MapIterator<AggregatedCost>' can only be iterated through when using the '--downlevelIteration' flag or with a '--target' of 'es2015' or higher.
