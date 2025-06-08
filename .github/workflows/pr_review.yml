@@ -1,0 +1,152 @@
+name: 'Architect Agent PR Review & Correction'
+on:
+  pull_request:
+    types: [opened, synchronize]
+jobs:
+  review:
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run linting check
+        id: lint_check
+        continue-on-error: true
+        run: |
+          npm run lint > lint-output.txt 2>&1 || echo "LINT_FAILED=true" >> $GITHUB_ENV
+          
+      - name: Run type check
+        id: type_check
+        continue-on-error: true
+        run: |
+          npm run type-check > type-output.txt 2>&1 || echo "TYPE_CHECK_FAILED=true" >> $GITHUB_ENV
+      
+      - name: Check for schema changes
+        id: schema_check
+        run: |
+          if git diff origin/${{ github.base_ref }}...HEAD --name-only | grep -q "prisma/schema.prisma"; then
+            echo "SCHEMA_CHANGED=true" >> $GITHUB_ENV
+          fi
+      
+      - name: Configure git
+        run: |
+          git config --global user.email "architect-agent[bot]@users.noreply.github.com"
+          git config --global user.name "Architect Agent[bot]"
+      
+      - name: Auto-fix linting issues
+        if: env.LINT_FAILED == 'true'
+        run: |
+          npm run lint:fix || true
+          git add -A
+          git diff --cached --quiet || (git commit -m "fix: Auto-fix linting issues" && git push)
+      
+      - name: Generate review comment
+        id: review
+        run: |
+          echo "## Architect Agent Review" > review-comment.md
+          echo "" >> review-comment.md
+          
+          if [ "$SCHEMA_CHANGED" == "true" ]; then
+            echo "### ❌ AUTOMATIC REJECTION" >> review-comment.md
+            echo "" >> review-comment.md
+            echo "**Reason:** Unapproved schema changes detected in \`prisma/schema.prisma\`" >> review-comment.md
+            echo "" >> review-comment.md
+            echo "Schema changes require explicit approval. Please:" >> review-comment.md
+            echo "1. Create a separate PR with only the schema change" >> review-comment.md
+            echo "2. Get architectural approval before proceeding" >> review-comment.md
+            echo "" >> review-comment.md
+            echo "**Verdict:** [REJECTED]" >> review-comment.md
+            echo "VERDICT=REJECTED" >> $GITHUB_ENV
+          elif [ "$TYPE_CHECK_FAILED" == "true" ]; then
+            echo "### ⚠️ REWORK REQUIRED" >> review-comment.md
+            echo "" >> review-comment.md
+            echo "**Type checking failed.** Please fix the following issues:" >> review-comment.md
+            echo "\`\`\`" >> review-comment.md
+            cat type-output.txt | head -50 >> review-comment.md
+            echo "\`\`\`" >> review-comment.md
+            echo "" >> review-comment.md
+            echo "**Verdict:** [REWORK_REQUIRED]" >> review-comment.md
+            echo "VERDICT=REWORK_REQUIRED" >> $GITHUB_ENV
+          elif [ "$LINT_FAILED" == "true" ]; then
+            echo "### ✅ AUTO-FIXED" >> review-comment.md
+            echo "" >> review-comment.md
+            echo "Linting issues were detected and automatically fixed." >> review-comment.md
+            echo "" >> review-comment.md
+            echo "**Verdict:** [APPROVED_WITH_FIXES]" >> review-comment.md
+            echo "VERDICT=APPROVED_WITH_FIXES" >> $GITHUB_ENV
+          else
+            echo "### ✅ APPROVED" >> review-comment.md
+            echo "" >> review-comment.md
+            echo "All checks passed:" >> review-comment.md
+            echo "- ✅ No schema changes" >> review-comment.md
+            echo "- ✅ Type checking passed" >> review-comment.md
+            echo "- ✅ Linting passed" >> review-comment.md
+            echo "" >> review-comment.md
+            echo "**Verdict:** [APPROVED]" >> review-comment.md
+            echo "VERDICT=APPROVED" >> $GITHUB_ENV
+          fi
+          
+      - name: Post review comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const comment = fs.readFileSync('review-comment.md', 'utf8');
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+      
+      - name: Auto-merge if approved
+        if: env.VERDICT == 'APPROVED' || env.VERDICT == 'APPROVED_WITH_FIXES'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            console.log('PR approved, proceeding with auto-merge...');
+            
+            try {
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                merge_method: 'squash'
+              });
+              
+              console.log('PR successfully merged!');
+              
+              // Post merge confirmation
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: '✅ **Auto-merged** by Architect Agent after successful review.'
+              });
+            } catch (error) {
+              console.error('Failed to merge PR:', error.message);
+              
+              // Post error comment
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: `❌ **Auto-merge failed**: ${error.message}\n\nPlease merge manually or resolve any conflicts.`
+              });
+            }
