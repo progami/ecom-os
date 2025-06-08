@@ -1,0 +1,89 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model CategorizationRule {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  
+  // Rule matching criteria
+  matchType   String   // 'contains', 'equals', 'startsWith', 'endsWith'
+  matchField  String   // 'description', 'payee', 'reference'
+  matchValue  String   // The value to match against
+  
+  // Categorization target
+  accountCode String   // Xero account code
+  taxType     String   // Xero tax type
+  
+  // Metadata
+  priority    Int      @default(0) // Higher priority rules apply first
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([isActive, priority])
+}
+
+// WMS Models
+model Warehouse {
+  id            String         @id @default(cuid())
+  code          String         @unique
+  name          String
+  address       String?
+  contactEmail  String?
+  contactPhone  String?
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  
+  inventoryLogs InventoryLog[]
+  products      Product[]      @relation("WarehouseProducts")
+}
+
+model Product {
+  id           String         @id @default(cuid())
+  sku          String         @unique
+  name         String
+  description  String?
+  category     String?
+  unitPrice    Float?
+  weight       Float?
+  dimensions   Json?
+  isActive     Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  
+  inventoryLogs InventoryLog[]
+  warehouses    Warehouse[]    @relation("WarehouseProducts")
+}
+
+model InventoryLog {
+  id              String       @id @default(cuid())
+  warehouseId     String
+  productId       String
+  quantity        Int
+  unit            String       @default("units")
+  unitsPerCarton  Int          @default(1)
+  batchLot        String?
+  type            String       // RECEIVE, SHIP, ADJUST, COUNT
+  referenceNumber String?
+  notes           String?
+  userId          String?
+  lastUpdated     DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+  
+  warehouse       Warehouse    @relation(fields: [warehouseId], references: [id])
+  product         Product      @relation(fields: [productId], references: [id])
+  
+  @@index([warehouseId, productId])
+  @@index([createdAt])
+}
