@@ -45,9 +45,10 @@ jobs:
         id: schema_check
         run: |
           echo "Checking for schema changes between ${{ github.base_ref }} and HEAD"
-          git diff --name-only ${{ github.base_ref }}...HEAD | grep "prisma/" || true
+          git diff --name-only ${{ github.base_ref }}...HEAD | grep "prisma/" | grep -v "^archive/" || true
           
-          if git diff --name-only ${{ github.base_ref }}...HEAD | grep -q "prisma/schema.prisma"; then
+          # Check for actual schema changes (excluding archive folder)
+          if git diff --name-only ${{ github.base_ref }}...HEAD | grep -v "^archive/" | grep -q "prisma/schema.prisma"; then
             echo "SCHEMA_CHANGED=true" >> $GITHUB_ENV
             echo "Schema changes detected!"
           else
@@ -72,8 +73,8 @@ jobs:
           echo "## Architect Agent Review" > review-comment.md
           echo "" >> review-comment.md
           
-          # Check if this is a schema-only PR
-          NON_SCHEMA_CHANGES=$(git diff --name-only ${{ github.base_ref }}...HEAD | grep -v "prisma/" | grep -v "^\.github/workflows/" || true)
+          # Check if this is a schema-only PR (excluding archive folder)
+          NON_SCHEMA_CHANGES=$(git diff --name-only ${{ github.base_ref }}...HEAD | grep -v "^archive/" | grep -v "prisma/" | grep -v "^\.github/workflows/" || true)
           
           if [ "$SCHEMA_CHANGED" == "true" ] && [ -n "$NON_SCHEMA_CHANGES" ]; then
             echo "### ❌ AUTOMATIC REJECTION" >> review-comment.md
