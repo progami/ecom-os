@@ -1,9 +1,9 @@
 import { 
-  WmsUserRole as UserRole, 
-  WmsTransactionType as TransactionType, 
-  WmsCostCategory as CostCategory, 
-  WmsInvoiceStatus as InvoiceStatus, 
-  WmsReconciliationStatus as ReconciliationStatus 
+  UserRole, 
+  TransactionType, 
+  CostCategory, 
+  InvoiceStatus, 
+  ReconciliationStatus 
 } from '@prisma/client'
 
 // Re-export Prisma enums for convenience
@@ -173,37 +173,4 @@ export interface ImportResult {
     field: string
     message: string
   }>
-}
-
-// Additional types from cost-aggregation.ts
-export interface AggregatedCost {
-  costCategory: CostCategory
-  costName: string
-  quantity: number
-  amount: number
-}
-
-export interface BillingPeriod {
-  start: Date
-  end: Date
-}
-
-// Additional types from security settings
-export interface SecuritySettings {
-  twoFactorRequired: boolean
-  sessionTimeout: number
-  passwordPolicy: {
-    minLength: number
-    requireUppercase: boolean
-    requireNumbers: boolean
-    requireSpecialChars: boolean
-  }
-}
-
-// Additional types from notification settings
-export interface NotificationSettings {
-  emailNotifications: boolean
-  invoiceReminders: boolean
-  lowStockAlerts: boolean
-  reconciliationAlerts: boolean
 }
