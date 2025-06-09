@@ -132,11 +132,16 @@ As master, I will:
 
 ### Port Assignments
 Each worktree MUST use its assigned port to avoid conflicts:
-- **Master**: 3000 (default)
-- **Auth**: 3001
-- **WMS**: 3002
-- **Bookkeeping**: 3003
-- **Analytics**: 3004
+- **Master**: 3000 (default) - `npm run dev`
+- **Auth**: 3001 - `npm run dev -- -p 3001`
+- **WMS**: 3002 - `npm run dev -- -p 3002`
+- **Bookkeeping**: 3003 - `npm run dev -- -p 3003`
+- **Analytics**: 3004 - `npm run dev -- -p 3004`
+
+**IMPORTANT:** When the user runs `npm run dev` in your worktree directory, you MUST:
+1. Remind them to use your assigned port
+2. Provide the correct command with port number
+3. Example response: "Please use port 3001 for auth: `npm run dev -- -p 3001`"
 
 ### Coordination Tracking
 
@@ -379,6 +384,9 @@ Each worktree MUST use its assigned port to avoid conflicts:
 2. Create `STATUS.md` in your branch root
 3. Use port **3001** for development: `npm run dev -- -p 3001`
 
+**Dev Server Protocol:** If user types `npm run dev`, immediately respond:
+"Please use port 3001 for auth: `npm run dev -- -p 3001`"
+
 **Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
 
 **Requirements:**
@@ -408,6 +416,9 @@ Each worktree MUST use its assigned port to avoid conflicts:
 2. Create/update `STATUS.md` in your branch root
 3. Use port **3002** for development: `npm run dev -- -p 3002`
 
+**Dev Server Protocol:** If user types `npm run dev`, immediately respond:
+"Please use port 3002 for wms: `npm run dev -- -p 3002`"
+
 **Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
 
 **Current State:** Core functionality implemented. Focus on enhancements and bug fixes.
@@ -419,6 +430,9 @@ Each worktree MUST use its assigned port to avoid conflicts:
 1. Update `app/layout.tsx` metadata to: `title: "Ecom OS (bookkeeping)"`
 2. Create `STATUS.md` in your branch root
 3. Use port **3003** for development: `npm run dev -- -p 3003`
+
+**Dev Server Protocol:** If user types `npm run dev`, immediately respond:
+"Please use port 3003 for bookkeeping: `npm run dev -- -p 3003`"
 
 **Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
 
@@ -435,6 +449,9 @@ Each worktree MUST use its assigned port to avoid conflicts:
 1. Update `app/layout.tsx` metadata to: `title: "Ecom OS (analytics)"`
 2. Create `STATUS.md` in your branch root
 3. Use port **3004** for development: `npm run dev -- -p 3004`
+
+**Dev Server Protocol:** If user types `npm run dev`, immediately respond:
+"Please use port 3004 for analytics: `npm run dev -- -p 3004`"
 
 **Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
 
