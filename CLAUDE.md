@@ -122,14 +122,17 @@ As master, I will:
 #### Active Dependencies
 | Requesting Team | Required From | Description | Status | Issue |
 |----------------|---------------|-------------|---------|--------|
-| Auth | DevOps/Admin | Database permissions for postgres user | Blocked | #8 |
+| _None currently_ | | | | |
 
 #### Blocked Issues
-- **Critical**: #8 - Auth team blocked on database access (since 2024-12-09)
+- **Critical**: None currently
 - **Non-Critical**: None currently
 
+#### Recently Resolved
+- **#8** (2024-12-09): Auth database access - Resolved by correcting DATABASE_URL configuration
+
 #### Team Status Summary
-- **Auth**: Development complete, blocked on database access (2024-12-09)
+- **Auth**: Development complete, blocker resolved (2024-12-09)
 - **WMS**: Core features complete (2024-06-08)
 - **Bookkeeping**: Not started  
 - **Analytics**: Not started
