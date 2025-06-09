@@ -115,13 +115,32 @@ As master, I will:
 1. Check STATUS.md files across worktrees during PR reviews
 2. Monitor GitHub issues with "blocked" label
 3. Coordinate between worktrees to resolve dependencies
-4. Maintain a `COORDINATION.md` file tracking inter-team dependencies
+4. Track dependencies in the Coordination section below
+
+### Coordination Tracking
+
+#### Active Dependencies
+| Requesting Team | Required From | Description | Status | Issue |
+|----------------|---------------|-------------|---------|--------|
+| _None yet_ | | | | |
+
+#### Blocked Issues
+- **Critical**: None currently
+- **Non-Critical**: None currently
+
+#### Team Status Summary
+- **Auth**: Not started
+- **WMS**: Core features complete (2024-06-08)
+- **Bookkeeping**: Not started  
+- **Analytics**: Not started
 
 ---
 ## WORKTREE-SPECIFIC INSTRUCTIONS
 
 ### Auth Worktree (`../auth`)
 **Mission:** Create unified authentication system and shell container for Ecom OS.
+
+**Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
 
 **Requirements:**
 1. **Unified Login System**
@@ -145,10 +164,14 @@ As master, I will:
 ### WMS Worktree (`../wms`)
 **Mission:** Enhance and maintain the Warehouse Management System.
 
+**Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
+
 **Current State:** Core functionality implemented. Focus on enhancements and bug fixes.
 
 ### Bookkeeping Worktree (`../bookkeeping`)
 **Mission:** Develop Xero integration and financial management features.
+
+**Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
 
 **Requirements:**
 1. Transaction import and categorization
@@ -158,6 +181,8 @@ As master, I will:
 
 ### Analytics Worktree (`../analytics`)
 **Mission:** Build cross-application analytics and reporting dashboard.
+
+**Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
 
 **Requirements:**
 1. Unified metrics from all sub-apps
