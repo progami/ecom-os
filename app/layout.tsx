@@ -6,7 +6,7 @@ import { Providers } from "./providers"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Ecom OS (wms-integration)",
+  title: "Ecom OS",
   description: "E-commerce Operating System",
 }
 

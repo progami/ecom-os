@@ -152,6 +152,7 @@ As master, I will:
 3. New agent in worktree MUST:
    - Read entire CLAUDE.md from master branch
    - Find their specific section in "Worktree-Specific Instructions"
+   - Update app/layout.tsx to show branch name in title: `title: "Ecom OS (branch-name)"`
    - Create initial STATUS.md in their branch
    - Begin work according to their mission
 
@@ -298,6 +299,10 @@ As master, I will:
 ### Auth Worktree (`../auth`)
 **Mission:** Create unified authentication system and shell container for Ecom OS.
 
+**Initial Setup:**
+1. Update `app/layout.tsx` metadata to: `title: "Ecom OS (auth)"`
+2. Create `STATUS.md` in your branch root
+
 **Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
 
 **Requirements:**
@@ -322,12 +327,20 @@ As master, I will:
 ### WMS Worktree (`../wms`)
 **Mission:** Enhance and maintain the Warehouse Management System.
 
+**Initial Setup:**
+1. Update `app/layout.tsx` metadata to: `title: "Ecom OS (wms)"`
+2. Create/update `STATUS.md` in your branch root
+
 **Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
 
 **Current State:** Core functionality implemented. Focus on enhancements and bug fixes.
 
 ### Bookkeeping Worktree (`../bookkeeping`)
 **Mission:** Develop Xero integration and financial management features.
+
+**Initial Setup:**
+1. Update `app/layout.tsx` metadata to: `title: "Ecom OS (bookkeeping)"`
+2. Create `STATUS.md` in your branch root
 
 **Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
 
@@ -339,6 +352,10 @@ As master, I will:
 
 ### Analytics Worktree (`../analytics`)
 **Mission:** Build cross-application analytics and reporting dashboard.
+
+**Initial Setup:**
+1. Update `app/layout.tsx` metadata to: `title: "Ecom OS (analytics)"`
+2. Create `STATUS.md` in your branch root
 
 **Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
 
