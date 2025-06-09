@@ -40,6 +40,9 @@ As the master branch instance, your primary responsibilities are:
    - **CRITICAL: Check for and reject any redundant, unused, or temporary files**
    - Remove any archive folders, old implementations, or test outputs
    - Ensure only active, necessary code is merged
+   - **CRITICAL: Verify scope boundaries - reject any changes outside team's domain**
+   - Check for unauthorized UI/UX modifications
+   - Verify no unnecessary refactoring or dependency additions
    - Run integration tests if applicable
 
 6. **Cleanup Requirements:**
@@ -218,8 +221,11 @@ As master, I will:
 **Process:**
 1. **Worktree Agent:**
    - Ensures all tests pass
+   - Reviews own changes for scope violations
+   - Removes any out-of-scope modifications
    - Updates STATUS.md with summary
    - Creates PR: `gh pr create --title "[Team]: [Feature]" --body "[description]"`
+   - In PR body, explicitly list any cross-team changes and why they were necessary
    - Waits for review
 
 2. **Master's Review:**
@@ -292,6 +298,56 @@ As master, I will:
 5. Continues with next feature
 
 **REMEMBER: EVERY INTERACTION MUST FOLLOW THESE LOOPS. NO EXCEPTIONS.**
+
+---
+## STRICT SCOPE BOUNDARIES
+
+**MANDATORY: You MUST stay within your assigned scope. NO EXCEPTIONS.**
+
+### What You MUST NOT Do:
+1. **UI/UX Changes** - Do NOT modify UI components, styling, or user experience unless:
+   - It's explicitly required for your feature's core functionality
+   - The change is broken and prevents your feature from working
+   - Never change for "improvement" or "ease of use" outside your scope
+
+2. **Other Teams' Code** - Do NOT modify code owned by other teams:
+   - Auth team: Only touches authentication and shell
+   - WMS team: Only touches warehouse features
+   - Bookkeeping team: Only touches financial features
+   - Analytics team: Only touches reporting features
+
+3. **Global Changes** - Do NOT make changes that affect the entire system unless:
+   - It's explicitly part of your mission
+   - You've created an issue and received approval
+
+4. **Refactoring** - Do NOT refactor existing code unless:
+   - It's broken and blocking your work
+   - You've documented why in your STATUS.md
+
+5. **New Dependencies** - Do NOT add new npm packages unless:
+   - Absolutely required for your core feature
+   - No existing package can do the job
+   - Document why in your PR
+
+### What You MUST Focus On:
+1. **Your Mission** - Read your worktree section below
+2. **Your Features** - Build only what's specified
+3. **Your Tests** - Write tests for your code only
+4. **Your Documentation** - Update only docs related to your feature
+
+### Examples of Scope Violations:
+- ❌ Auth agent redesigning the button components "to look better"
+- ❌ WMS agent adding user management features
+- ❌ Bookkeeping agent modifying the navigation menu
+- ❌ Analytics agent changing the authentication flow
+
+### Examples of Acceptable Changes:
+- ✅ Auth agent modifying button component IF it's broken for login
+- ✅ WMS agent adding a new WMS-specific API endpoint
+- ✅ Bookkeeping agent creating new financial report components
+- ✅ Analytics agent adding analytics-specific database models
+
+**IF IN DOUBT: Create an issue asking for clarification rather than making the change.**
 
 ---
 ## WORKTREE-SPECIFIC INSTRUCTIONS
