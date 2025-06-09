@@ -6,18 +6,40 @@ Ecom OS is a unified, intelligent, and scalable software ecosystem designed to b
 ## 2. Architectural Philosophy
 Our system is a **single, unified, full-stack Next.js 14 monolith**. All development is performed by a single Lead Agent in an interactive session. The agent's complete set of instructions, standards, and workflows are defined in the root `CLAUDE.md` file.
 
-## 3. Local Development Setup (For Human Operator)
+## 3. Local Development Setup
 
-This guide details the steps to configure your local machine to run the application that the agent will build.
-
-### Core Technologies
-You must have the following installed on your local machine:
+### Prerequisites
 *   **Node.js:** Version 18+
 *   **npm** or **pnpm**
-*   **Docker & Docker Compose**
 *   **Git** & **GitHub CLI (`gh`)**
 
-### Running the Application
-Once the agent has created the Next.js project, you will run it with the standard commands:
-1.  `npm install` (or `pnpm install`)
-2.  `npm run dev`
+### Quick Start
+1. **Clone and setup**
+   ```bash
+   git clone https://github.com/progami/ecom_os.git
+   cd ecom_os
+   npm install
+   cp .env.example .env.local
+   ```
+
+2. **Database setup**
+   ```bash
+   npx prisma generate
+   npx prisma migrate dev
+   npm run prisma:seed  # optional
+   ```
+
+3. **Start development**
+   ```bash
+   npm run dev
+   ```
+
+### Database Configuration
+- **Local Development**: Uses SQLite by default (`DATABASE_URL="file:./dev.db"`)
+- **Production**: Can use PostgreSQL (see .env.example for format)
+
+### Working with Worktrees
+Each sub-app has its own worktree branch:
+- Auth: `git worktree add ../auth auth`
+- WMS: `git worktree add ../wms wms`
+- Bookkeeping: `git worktree add ../bookkeeping bookkeeping`
