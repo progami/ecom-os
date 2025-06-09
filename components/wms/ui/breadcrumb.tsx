@@ -1,57 +1,55 @@
 'use client'
 
+import { ChevronRight, Home } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { ChevronRight, Home } from 'lucide-react'
 
 export function Breadcrumb() {
   const pathname = usePathname()
-  
-  // Don't show breadcrumbs on home or login pages
-  if (pathname === '/' || pathname === '/auth/login') {
-    return null
-  }
+  const paths = pathname.split('/').filter(Boolean)
 
-  // Parse the pathname into segments
-  const segments = pathname.split('/').filter(Boolean)
-  
-  // Create breadcrumb items
-  const breadcrumbs = segments.map((segment, index) => {
-    const href = '/' + segments.slice(0, index + 1).join('/')
-    const label = segment
+  // Generate breadcrumb items
+  const breadcrumbs = paths.map((path, index) => {
+    const href = `/${paths.slice(0, index + 1).join('/')}`
+    const name = path
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ')
     
-    return { href, label }
+    return { name, href }
   })
 
   return (
-    <nav className="flex items-center space-x-1 text-sm text-gray-600 mb-4">
-      <Link
-        href="/"
-        className="flex items-center hover:text-gray-900 transition-colors"
-      >
-        <Home className="h-4 w-4" />
-      </Link>
-      
-      {breadcrumbs.map((breadcrumb, index) => (
-        <div key={breadcrumb.href} className="flex items-center">
-          <ChevronRight className="h-4 w-4 mx-1 text-gray-400" />
-          {index === breadcrumbs.length - 1 ? (
-            <span className="font-medium text-gray-900">
-              {breadcrumb.label}
-            </span>
-          ) : (
-            <Link
-              href={breadcrumb.href}
-              className="hover:text-gray-900 transition-colors"
-            >
-              {breadcrumb.label}
+    <nav className="flex mb-8" aria-label="Breadcrumb">
+      <ol role="list" className="flex items-center space-x-4">
+        <li>
+          <div>
+            <Link href="/wms" className="text-gray-400 hover:text-gray-500">
+              <Home className="h-5 w-5" />
+              <span className="sr-only">Home</span>
             </Link>
-          )}
-        </div>
-      ))}
+          </div>
+        </li>
+        {breadcrumbs.map((breadcrumb, index) => (
+          <li key={breadcrumb.href}>
+            <div className="flex items-center">
+              <ChevronRight className="h-5 w-5 text-gray-400" />
+              {index === breadcrumbs.length - 1 ? (
+                <span className="ml-4 text-sm font-medium text-gray-500">
+                  {breadcrumb.name}
+                </span>
+              ) : (
+                <Link
+                  href={breadcrumb.href}
+                  className="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700"
+                >
+                  {breadcrumb.name}
+                </Link>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
     </nav>
   )
 }

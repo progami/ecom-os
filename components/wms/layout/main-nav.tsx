@@ -28,7 +28,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react'
 import { useState } from 'react'
-import { cn } from '@/lib/wms/wms/utils'
+import { cn } from '@/lib/utils'
 
 interface NavSection {
   title: string
