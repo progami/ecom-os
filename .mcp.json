@@ -17,10 +17,7 @@
     },
     "github": {
       "command": "npx",
-      "args": ["@modelcontextprotocol/server-github"],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "your-token"
-      }
+      "args": ["@modelcontextprotocol/server-github"]
     }
   }
 }
