@@ -1,5 +1,7 @@
 # Ecom OS - CONSTITUTION, STANDARDS, & WORKFLOW
 
+**CRITICAL: YOU MUST READ THIS ENTIRE FILE. SKIP NOTHING. EVERY SECTION IS MANDATORY.**
+
 This is your single, definitive manual. You are the **Lead Agent** for the Ecom OS project. You MUST adhere to all principles in this document.
 
 ## GIT WORKTREE WORKFLOW (MASTER BRANCH)
@@ -136,6 +138,159 @@ As master, I will:
 - **WMS**: Core features complete (2024-06-08)
 - **Bookkeeping**: Not started  
 - **Analytics**: Not started
+
+---
+## SYSTEM FEEDBACK LOOPS
+
+**MANDATORY READING: These loops define ALL interactions in the system.**
+
+### Loop 1: Worktree Creation & Context Transfer
+**When:** New worktree is created by master
+**Process:**
+1. Master creates worktree: `git worktree add ../[app-name] [app-name]`
+2. Master ensures CLAUDE.md contains specific instructions for that worktree
+3. New agent in worktree MUST:
+   - Read entire CLAUDE.md from master branch
+   - Find their specific section in "Worktree-Specific Instructions"
+   - Create initial STATUS.md in their branch
+   - Begin work according to their mission
+
+### Loop 2: Progress Reporting
+**When:** Daily or after significant progress
+**Process:**
+1. Worktree agent updates STATUS.md with:
+   - Completed tasks (with commit hashes)
+   - Current task in progress
+   - Next planned tasks
+   - Any potential blockers
+2. Commits STATUS.md to their branch
+3. Master periodically reviews STATUS.md files across branches
+
+### Loop 3: Blocker Resolution
+**When:** Agent encounters a blocker
+**Process:**
+1. **Immediate Actions by Blocked Agent:**
+   - Create GitHub issue: `gh issue create --title "[BLOCKED] [Team]: [Description]" --label "blocked,[team-name]"`
+   - Update STATUS.md with blocker details
+   - If PR exists, comment: `@progami - Blocked on [description]. See issue #[number]`
+   - Continue with any non-blocked work OR implement workarounds
+
+2. **Master's Response:**
+   - Reviews new issues with "blocked" label
+   - Updates Coordination Tracking in CLAUDE.md
+   - Either:
+     - Resolves blocker directly (permissions, configuration, etc.)
+     - Coordinates with other teams if cross-team dependency
+     - Provides guidance via issue comment
+   - Closes issue when resolved
+
+3. **Blocked Agent's Follow-up:**
+   - Pulls latest changes if master made fixes
+   - Updates STATUS.md to show blocker resolved
+   - Continues with previously blocked work
+
+### Loop 4: Cross-Team Dependencies
+**When:** One team needs something from another team
+**Process:**
+1. **Requesting Team:**
+   - Creates issue describing need
+   - Tags both team labels
+   - Updates their STATUS.md
+
+2. **Master's Coordination:**
+   - Updates Coordination Tracking table
+   - May create task in target team's worktree instructions
+   - Monitors progress
+
+3. **Providing Team:**
+   - Implements requested feature/API/component
+   - Updates their STATUS.md
+   - Comments on issue when complete
+
+4. **Resolution:**
+   - Requesting team pulls changes
+   - Updates STATUS.md
+   - Master updates coordination tracking
+
+### Loop 5: PR Submission & Review
+**When:** Feature complete and ready for merge
+**Process:**
+1. **Worktree Agent:**
+   - Ensures all tests pass
+   - Updates STATUS.md with summary
+   - Creates PR: `gh pr create --title "[Team]: [Feature]" --body "[description]"`
+   - Waits for review
+
+2. **Master's Review:**
+   - Checks for system-wide impacts
+   - Verifies no breaking changes
+   - Ensures no redundant files
+   - Reviews adherence to standards
+   - Either:
+     - Approves and merges
+     - Requests changes via PR comment
+     - Identifies blockers and creates issues
+
+3. **If Changes Requested:**
+   - Worktree agent makes requested changes
+   - Updates PR
+   - Loop continues until approved
+
+### Loop 6: Schema Change Protocol
+**When:** Database schema changes needed
+**Special Process:**
+1. **Worktree Agent:**
+   - Edits schema.prisma
+   - Commits ONLY schema change
+   - Runs `npx prisma migrate dev --create-only`
+   - Commits ONLY migration
+   - Creates PR with ONLY these 2 commits
+   - STOPS all work
+
+2. **Master:**
+   - Reviews schema impact
+   - Approves or requests changes
+   - Merges when safe
+
+3. **Worktree Agent:**
+   - Pulls merged changes
+   - Continues development
+
+### Loop 7: Emergency Communication
+**When:** Critical issues affecting multiple teams
+**Process:**
+1. Create issue with "CRITICAL" in title
+2. Use @progami mention in issue
+3. Update STATUS.md with "CRITICAL ISSUE" section
+4. Master addresses within same day
+
+### Loop 8: Context Refresh
+**When:** Agent restarts or loses context
+**Process:**
+1. Re-read entire CLAUDE.md
+2. Check own STATUS.md for current state
+3. Check open issues tagged with team label
+4. Check open PRs from branch
+5. Continue from last known state
+
+### Loop 9: Cleanup Requests
+**When:** Master identifies redundant files during PR review
+**Process:**
+1. Master comments on PR listing files to remove
+2. Worktree agent removes files
+3. Updates PR
+4. Master re-reviews
+
+### Loop 10: Success Confirmation
+**When:** PR merged successfully
+**Process:**
+1. Master merges PR
+2. Master updates Coordination Tracking if needed
+3. Worktree agent pulls latest master
+4. Updates STATUS.md with next phase plans
+5. Continues with next feature
+
+**REMEMBER: EVERY INTERACTION MUST FOLLOW THESE LOOPS. NO EXCEPTIONS.**
 
 ---
 ## WORKTREE-SPECIFIC INSTRUCTIONS
