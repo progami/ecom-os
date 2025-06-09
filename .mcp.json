@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    },
+    "rest-api": {
+      "command": "npx",
+      "args": ["dkmaker-mcp-rest-api"],
+      "env": {
+        "REST_BASE_URL": "http://localhost:3000"
+      }
+    },
+    "docker": {
+      "command": "npx",
+      "args": ["@docker/mcp-server"]
+    },
+    "github": {
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "your-token"
+      }
+    }
+  }
+}
