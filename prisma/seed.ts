@@ -1,92 +1,84 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcryptjs'
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🌱 Starting seed...');
+  // Create simplified permissions - just admin and staff
+  const permissions = [
+    { name: 'admin' },
+    { name: 'staff' },
+  ]
 
-  // Seed categorization rules for bookkeeping
-  const rules = [
-    {
-      name: 'Office Supplies',
-      description: 'Categorize office supply purchases',
-      matchType: 'contains',
-      matchField: 'description',
-      matchValue: 'office supplies',
-      accountCode: '400',
-      taxType: 'BASEXCLUDED',
-      priority: 10,
-      isActive: true
-    },
-    {
-      name: 'Software Subscriptions',
-      description: 'Monthly software and SaaS subscriptions',
-      matchType: 'contains',
-      matchField: 'payee',
-      matchValue: 'software',
-      accountCode: '420',
-      taxType: 'BASEXCLUDED',
-      priority: 15,
-      isActive: true
-    },
-    {
-      name: 'Bank Fees',
-      description: 'Bank service charges and fees',
-      matchType: 'startsWith',
-      matchField: 'description',
-      matchValue: 'bank fee',
-      accountCode: '404',
-      taxType: 'EXEMPTEXPORT',
-      priority: 20,
-      isActive: true
-    },
-    {
-      name: 'Shipping Costs',
-      description: 'Outbound shipping and courier fees',
-      matchType: 'contains',
-      matchField: 'description',
-      matchValue: 'shipping',
-      accountCode: '425',
-      taxType: 'BASEXCLUDED',
-      priority: 5,
-      isActive: true
-    },
-    {
-      name: 'Travel Expenses',
-      description: 'Business travel and accommodation',
-      matchType: 'equals',
-      matchField: 'reference',
-      matchValue: 'TRAVEL',
-      accountCode: '433',
-      taxType: 'BASEXCLUDED',
-      priority: 8,
-      isActive: true
-    }
-  ];
-
-  // Create categorization rules
-  for (const rule of rules) {
-    await prisma.categorizationRule.upsert({
-      where: {
-        id: rule.name.toLowerCase().replace(/\s+/g, '-')
-      },
-      update: rule,
-      create: {
-        id: rule.name.toLowerCase().replace(/\s+/g, '-'),
-        ...rule
-      }
-    });
+  for (const permission of permissions) {
+    await prisma.permission.upsert({
+      where: { name: permission.name },
+      update: {},
+      create: permission,
+    })
   }
 
-  console.log(`✅ Created ${rules.length} categorization rules`);
+  // Get permissions
+  const adminPermission = await prisma.permission.findUnique({ where: { name: 'admin' } })
+  const staffPermission = await prisma.permission.findUnique({ where: { name: 'staff' } })
+
+  // Create simplified users
+  const users = [
+    {
+      email: 'jarraramjad@ecomos.com',
+      password: 'SecurePass123!',
+      name: 'Jarrar Amjad',
+      role: 'admin',
+      permissions: [adminPermission!, staffPermission!],
+    },
+    {
+      email: 'admin@ecomos.com',
+      password: 'AdminPass123!',
+      name: 'Admin User',
+      role: 'admin',
+      permissions: [adminPermission!, staffPermission!],
+    },
+    {
+      email: 'staff@ecomos.com',
+      password: 'StaffPass123!',
+      name: 'Staff User',
+      role: 'staff',
+      permissions: [staffPermission!],
+    },
+  ]
+
+  for (const user of users) {
+    const hashedPassword = await bcrypt.hash(user.password, 10)
+    await prisma.user.upsert({
+      where: { email: user.email },
+      update: {
+        password: hashedPassword,
+        name: user.name,
+        role: user.role,
+        permissions: {
+          set: user.permissions.map(p => ({ id: p.id })),
+        },
+      },
+      create: {
+        email: user.email,
+        password: hashedPassword,
+        name: user.name,
+        role: user.role,
+        permissions: {
+          connect: user.permissions.map(p => ({ id: p.id })),
+        },
+      },
+    })
+  }
+
+  console.log('Seed data created successfully')
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
+  .catch((e) => {
+    console.error(e)
+    process.exit(1)
   })
-  .catch(async (e) => {
-    console.error('Error seeding database:', e);
-    await prisma.$disconnect();
-    process.exit(1);
-  });
+  .finally(async () => {
+    await prisma.$disconnect()
+  })

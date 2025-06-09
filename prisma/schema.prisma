@@ -6,563 +6,344 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-model CategorizationRule {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  
-  // Rule matching criteria
-  matchType   String   // 'contains', 'equals', 'startsWith', 'endsWith'
-  matchField  String   // 'description', 'payee', 'reference'
-  matchValue  String   // The value to match against
-  
-  // Categorization target
-  accountCode String   // Xero account code
-  taxType     String   // Xero tax type
-  
-  // Metadata
-  priority    Int      @default(0) // Higher priority rules apply first
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@index([isActive, priority])
-}
+// User model for authentication
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String?
+  role          String    @default("warehouse_staff")
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
-// WMS Models with Wms prefix for namespace separation
-model WmsUser {
-  id                      String                  @id @default(uuid())
-  email                   String                  @unique
-  username                String?                 @unique
-  passwordHash            String                  @map("password_hash")
-  fullName                String                  @map("full_name")
-  role                    WmsUserRole
-  warehouseId             String?                 @map("warehouse_id")
-  isActive                Boolean                 @default(true) @map("is_active")
-  createdAt               DateTime                @default(now()) @map("created_at")
-  updatedAt               DateTime                @updatedAt @map("updated_at")
-  lastLoginAt             DateTime?               @map("last_login_at")
-  auditLogs               WmsAuditLog[]
-  createdCalcCosts        WmsCalculatedCost[]
-  createdCostRates        WmsCostRate[]
-  createdTransactions     WmsInventoryTransaction[]  @relation("TransactionCreator")
-  resolvedReconciliations WmsInvoiceReconciliation[] @relation("ReconciliationResolver")
-  createdInvoices         WmsInvoice[]
-  createdSkuVersions      WmsSkuVersion[]
-  warehouse               WmsWarehouse?              @relation(fields: [warehouseId], references: [id])
-  createdConfigs          WmsWarehouseSkuConfig[]
-
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  permissions   Permission[]
+  
   @@index([email])
-  @@index([username])
-  @@index([warehouseId])
-  @@map("wms_users")
 }
 
-model WmsWarehouse {
-  id                    String                 @id @default(uuid())
-  code                  String                 @unique
+// NextAuth required models
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Permission model for role-based access
+model Permission {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  users     User[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// WMS Models (existing)
+model Warehouse {
+  id                    String              @id @default(cuid())
   name                  String
   address               String?
-  latitude              Float?                 @map("latitude")
-  longitude             Float?                 @map("longitude")
-  contactEmail          String?                @map("contact_email")
-  contactPhone          String?                @map("contact_phone")
-  isActive              Boolean                @default(true) @map("is_active")
-  createdAt             DateTime               @default(now()) @map("created_at")
-  updatedAt             DateTime               @updatedAt @map("updated_at")
-  calculatedCosts       WmsCalculatedCost[]
-  costRates             WmsCostRate[]
-  inventoryBalances     WmsInventoryBalance[]
-  inventoryTransactions WmsInventoryTransaction[]
-  invoices              WmsInvoice[]
-  storageLedgerEntries  WmsStorageLedger[]
-  users                 WmsUser[]
-  warehouseSkuConfigs   WmsWarehouseSkuConfig[]
-  notifications         WmsWarehouseNotification[]
-
-  @@map("wms_warehouses")
+  coordinates           String?
+  type                  String              @default("standard")
+  isActive              Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  
+  locations             Location[]
+  transactions          Transaction[]
+  warehouseConfigs      WarehouseConfig[]
+  storageLedgerEntries  StorageLedgerEntry[]
+  
+  @@index([name])
 }
 
-model WmsSku {
-  id                    String                 @id @default(uuid())
-  skuCode               String                 @unique @map("sku_code")
-  asin                  String?
-  description           String
-  packSize              Int                    @map("pack_size")
-  material              String?
-  unitDimensionsCm      String?                @map("unit_dimensions_cm")
-  unitWeightKg          Decimal?               @map("unit_weight_kg") @db.Decimal(10, 3)
-  unitsPerCarton        Int                    @map("units_per_carton")
-  cartonDimensionsCm    String?                @map("carton_dimensions_cm")
-  cartonWeightKg        Decimal?               @map("carton_weight_kg") @db.Decimal(10, 3)
-  packagingType         String?                @map("packaging_type")
-  notes                 String?
-  isActive              Boolean                @default(true) @map("is_active")
-  createdAt             DateTime               @default(now()) @map("created_at")
-  updatedAt             DateTime               @updatedAt @map("updated_at")
-  calculatedCosts       WmsCalculatedCost[]
-  inventoryBalances     WmsInventoryBalance[]
-  inventoryTransactions WmsInventoryTransaction[]
-  versions              WmsSkuVersion[]
-  storageLedgerEntries  WmsStorageLedger[]
-  warehouseConfigs      WmsWarehouseSkuConfig[]
-  fbaStock              Int                    @default(0) @map("fba_stock")
-  fbaStockLastUpdated   DateTime?              @map("fba_stock_last_updated")
-
-  @@index([skuCode])
-  @@map("wms_skus")
+model Location {
+  id            String        @id @default(cuid())
+  warehouseId   String
+  name          String
+  type          String
+  capacity      Int?
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  warehouse     Warehouse     @relation(fields: [warehouseId], references: [id])
+  inventory     Inventory[]
+  
+  @@unique([warehouseId, name])
+  @@index([warehouseId])
 }
 
-model WmsSkuVersion {
-  id                 String    @id @default(uuid())
-  skuId              String    @map("sku_id")
-  versionIdentifier  String    @map("version_identifier")
-  effectiveDate      DateTime  @map("effective_date") @db.Date
-  endDate            DateTime? @map("end_date") @db.Date
-  unitsPerCarton     Int       @map("units_per_carton")
-  cartonDimensionsCm String?   @map("carton_dimensions_cm")
-  cartonWeightKg     Decimal?  @map("carton_weight_kg") @db.Decimal(10, 3)
-  notes              String?
-  createdAt          DateTime  @default(now()) @map("created_at")
-  createdById        String    @map("created_by")
-  createdBy          WmsUser      @relation(fields: [createdById], references: [id])
-  sku                WmsSku       @relation(fields: [skuId], references: [id])
-
-  @@map("wms_sku_versions")
+model Product {
+  id            String        @id @default(cuid())
+  sku           String        @unique
+  name          String
+  description   String?
+  category      String?
+  unitOfMeasure String        @default("unit")
+  isActive      Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  inventory     Inventory[]
+  transactions  Transaction[]
+  
+  @@index([sku])
+  @@index([name])
 }
 
-model WmsWarehouseSkuConfig {
-  id                       String    @id @default(uuid())
-  warehouseId              String    @map("warehouse_id")
-  skuId                    String    @map("sku_id")
-  storageCartonsPerPallet  Int       @map("storage_cartons_per_pallet")
-  shippingCartonsPerPallet Int       @map("shipping_cartons_per_pallet")
-  maxStackingHeightCm      Int?      @map("max_stacking_height_cm")
-  effectiveDate            DateTime  @map("effective_date") @db.Date
-  endDate                  DateTime? @map("end_date") @db.Date
-  notes                    String?
-  createdAt                DateTime  @default(now()) @map("created_at")
-  updatedAt                DateTime  @updatedAt @map("updated_at")
-  createdById              String    @map("created_by")
-  createdBy                WmsUser      @relation(fields: [createdById], references: [id])
-  sku                      WmsSku       @relation(fields: [skuId], references: [id])
-  warehouse                WmsWarehouse @relation(fields: [warehouseId], references: [id])
-
-  @@unique([warehouseId, skuId, effectiveDate])
-  @@index([warehouseId, skuId])
-  @@map("wms_warehouse_sku_configs")
+model Inventory {
+  id                String              @id @default(cuid())
+  productId         String
+  locationId        String
+  quantity          Decimal
+  batchNumber       String?
+  expiryDate        DateTime?
+  lastUpdated       DateTime            @default(now())
+  
+  product           Product             @relation(fields: [productId], references: [id])
+  location          Location            @relation(fields: [locationId], references: [id])
+  attributeValues   AttributeValue[]
+  
+  @@unique([productId, locationId, batchNumber])
+  @@index([productId])
+  @@index([locationId])
+  @@index([batchNumber])
 }
 
-model WmsCostRate {
-  id              String           @id @default(uuid())
-  warehouseId     String           @map("warehouse_id")
-  costCategory    WmsCostCategory  @map("cost_category")
-  costName        String           @map("cost_name")
-  costValue       Decimal          @map("cost_value") @db.Decimal(12, 2)
-  unitOfMeasure   String           @map("unit_of_measure")
-  effectiveDate   DateTime         @map("effective_date") @db.Date
-  endDate         DateTime?        @map("end_date") @db.Date
-  notes           String?
-  createdAt       DateTime         @default(now()) @map("created_at")
-  updatedAt       DateTime         @updatedAt @map("updated_at")
-  createdById     String           @map("created_by")
-  calculatedCosts WmsCalculatedCost[]
-  createdBy       WmsUser             @relation(fields: [createdById], references: [id])
-  warehouse       WmsWarehouse        @relation(fields: [warehouseId], references: [id])
-
-  @@unique([warehouseId, costName, effectiveDate])
-  @@index([warehouseId, costName, effectiveDate])
-  @@map("wms_cost_rates")
-}
-
-model WmsInventoryTransaction {
-  id                       String          @id @default(uuid())
-  transactionId            String          @unique @map("transaction_id")
-  warehouseId              String          @map("warehouse_id")
-  skuId                    String          @map("sku_id")
-  batchLot                 String          @map("batch_lot")
-  transactionType          WmsTransactionType @map("transaction_type")
-  referenceId              String?         @map("reference_id")
-  cartonsIn                Int             @default(0) @map("cartons_in")
-  cartonsOut               Int             @default(0) @map("cartons_out")
-  storagePalletsIn         Int             @default(0) @map("storage_pallets_in")
-  shippingPalletsOut       Int             @default(0) @map("shipping_pallets_out")
-  notes                    String?
-  transactionDate          DateTime        @map("transaction_date")
-  pickupDate               DateTime?       @map("pickup_date")
-  isReconciled             Boolean         @default(false) @map("is_reconciled")
-  createdAt                DateTime        @default(now()) @map("created_at")
-  createdById              String          @map("created_by")
-  shippingCartonsPerPallet Int?            @map("shipping_cartons_per_pallet")
-  storageCartonsPerPallet  Int?            @map("storage_cartons_per_pallet")
-  shipName                 String?         @map("ship_name")
-  containerNumber          String?         @map("container_number")
-  attachments              Json?           @db.JsonB
-  createdBy                WmsUser            @relation("TransactionCreator", fields: [createdById], references: [id])
-  sku                      WmsSku             @relation(fields: [skuId], references: [id])
-  warehouse                WmsWarehouse       @relation(fields: [warehouseId], references: [id])
-
-  @@index([transactionDate])
-  @@index([warehouseId, skuId, batchLot])
-  @@index([transactionDate(sort: Desc)], map: "idx_wms_inventory_transactions_date")
-  @@index([warehouseId, skuId, batchLot], map: "idx_wms_inventory_transactions_warehouse_sku_batch")
-  @@map("wms_inventory_transactions")
-}
-
-model WmsInventoryBalance {
-  id                       String    @id @default(uuid())
-  warehouseId              String    @map("warehouse_id")
-  skuId                    String    @map("sku_id")
-  batchLot                 String    @map("batch_lot")
-  currentCartons           Int       @default(0) @map("current_cartons")
-  currentPallets           Int       @default(0) @map("current_pallets")
-  currentUnits             Int       @default(0) @map("current_units")
-  lastTransactionDate      DateTime? @map("last_transaction_date")
-  lastUpdated              DateTime  @default(now()) @updatedAt @map("last_updated")
-  shippingCartonsPerPallet Int?      @map("shipping_cartons_per_pallet")
-  storageCartonsPerPallet  Int?      @map("storage_cartons_per_pallet")
-  sku                      WmsSku       @relation(fields: [skuId], references: [id])
-  warehouse                WmsWarehouse @relation(fields: [warehouseId], references: [id])
-
-  @@unique([warehouseId, skuId, batchLot])
-  @@index([warehouseId, skuId, batchLot])
-  @@map("wms_inventory_balances")
-}
-
-model WmsStorageLedger {
-  id                    String    @id @default(uuid())
-  slId                  String    @unique @map("sl_id")
-  weekEndingDate        DateTime  @map("week_ending_date") @db.Date
-  warehouseId           String    @map("warehouse_id")
-  skuId                 String    @map("sku_id")
-  batchLot              String    @map("batch_lot")
-  cartonsEndOfMonday    Int       @map("cartons_end_of_monday")
-  storagePalletsCharged Int       @map("storage_pallets_charged")
-  applicableWeeklyRate  Decimal   @map("applicable_weekly_rate") @db.Decimal(10, 2)
-  calculatedWeeklyCost  Decimal   @map("calculated_weekly_cost") @db.Decimal(12, 2)
-  billingPeriodStart    DateTime  @map("billing_period_start") @db.Date
-  billingPeriodEnd      DateTime  @map("billing_period_end") @db.Date
-  createdAt             DateTime  @default(now()) @map("created_at")
-  sku                   WmsSku       @relation(fields: [skuId], references: [id])
-  warehouse             WmsWarehouse @relation(fields: [warehouseId], references: [id])
-
-  @@unique([weekEndingDate, warehouseId, skuId, batchLot])
-  @@index([billingPeriodStart, billingPeriodEnd])
-  @@index([warehouseId, weekEndingDate])
-  @@map("wms_storage_ledger")
-}
-
-model WmsCalculatedCost {
-  id                     String    @id @default(uuid())
-  calculatedCostId       String    @unique @map("calculated_cost_id")
-  transactionType        String    @map("transaction_type")
-  transactionReferenceId String    @map("transaction_reference_id")
-  costRateId             String    @map("cost_rate_id")
-  warehouseId            String    @map("warehouse_id")
-  skuId                  String    @map("sku_id")
-  batchLot               String?   @map("batch_lot")
-  transactionDate        DateTime  @map("transaction_date") @db.Date
-  billingWeekEnding      DateTime  @map("billing_week_ending") @db.Date
-  billingPeriodStart     DateTime  @map("billing_period_start") @db.Date
-  billingPeriodEnd       DateTime  @map("billing_period_end") @db.Date
-  quantityCharged        Decimal   @map("quantity_charged") @db.Decimal(12, 2)
-  applicableRate         Decimal   @map("applicable_rate") @db.Decimal(10, 2)
-  calculatedCost         Decimal   @map("calculated_cost") @db.Decimal(12, 2)
-  costAdjustmentValue    Decimal   @default(0) @map("cost_adjustment_value") @db.Decimal(12, 2)
-  finalExpectedCost      Decimal   @map("final_expected_cost") @db.Decimal(12, 2)
-  notes                  String?
-  createdAt              DateTime  @default(now()) @map("created_at")
-  createdById            String    @map("created_by")
-  costRate               WmsCostRate  @relation(fields: [costRateId], references: [id])
-  createdBy              WmsUser      @relation(fields: [createdById], references: [id])
-  sku                    WmsSku       @relation(fields: [skuId], references: [id])
-  warehouse              WmsWarehouse @relation(fields: [warehouseId], references: [id])
-
-  @@index([billingPeriodStart, billingPeriodEnd])
-  @@index([warehouseId, transactionDate])
-  @@map("wms_calculated_costs")
-}
-
-model WmsInvoice {
-  id                 String                  @id @default(uuid())
-  invoiceNumber      String                  @unique @map("invoice_number")
-  warehouseId        String                  @map("warehouse_id")
-  billingPeriodStart DateTime                @map("billing_period_start") @db.Date
-  billingPeriodEnd   DateTime                @map("billing_period_end") @db.Date
-  invoiceDate        DateTime                @map("invoice_date") @db.Date
-  dueDate            DateTime?               @map("due_date") @db.Date
-  totalAmount        Decimal                 @map("total_amount") @db.Decimal(12, 2)
-  status             WmsInvoiceStatus        @default(pending)
-  notes              String?
-  createdAt          DateTime                @default(now()) @map("created_at")
-  updatedAt          DateTime                @updatedAt @map("updated_at")
-  createdById        String                  @map("created_by")
-  paymentMethod      String?                 @map("payment_method")
-  paymentReference   String?                 @map("payment_reference")
-  paymentDate        DateTime?               @map("payment_date") @db.Date
-  paidAt             DateTime?               @map("paid_at")
-  paidBy             String?                 @map("paid_by")
-  disputedAt         DateTime?               @map("disputed_at")
-  disputedBy         String?                 @map("disputed_by")
-  lineItems          WmsInvoiceLineItem[]
-  reconciliations    WmsInvoiceReconciliation[]
-  disputes           WmsInvoiceDispute[]
-  auditLogs          WmsInvoiceAuditLog[]
-  notifications      WmsWarehouseNotification[]
-  createdBy          WmsUser                    @relation(fields: [createdById], references: [id])
-  warehouse          WmsWarehouse               @relation(fields: [warehouseId], references: [id])
-
-  @@index([paymentDate], map: "idx_wms_invoices_payment_date")
-  @@index([paidAt], map: "idx_wms_invoices_paid_at")
-  @@index([disputedAt], map: "idx_wms_invoices_disputed_at")
-  @@map("wms_invoices")
-}
-
-model WmsInvoiceLineItem {
-  id           String       @id @default(uuid())
-  invoiceId    String       @map("invoice_id")
-  costCategory WmsCostCategory @map("cost_category")
-  costName     String       @map("cost_name")
-  quantity     Decimal      @db.Decimal(12, 2)
-  unitRate     Decimal?     @map("unit_rate") @db.Decimal(10, 2)
-  amount       Decimal      @db.Decimal(12, 2)
-  notes        String?
-  createdAt    DateTime     @default(now()) @map("created_at")
-  invoice      WmsInvoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-
-  @@map("wms_invoice_line_items")
-}
-
-model WmsInvoiceReconciliation {
-  id               String               @id @default(uuid())
-  invoiceId        String               @map("invoice_id")
-  costCategory     WmsCostCategory      @map("cost_category")
-  costName         String               @map("cost_name")
-  expectedAmount   Decimal              @map("expected_amount") @db.Decimal(12, 2)
-  invoicedAmount   Decimal              @map("invoiced_amount") @db.Decimal(12, 2)
-  difference       Decimal              @db.Decimal(12, 2)
-  status           WmsReconciliationStatus
-  resolutionNotes  String?              @map("resolution_notes")
-  resolvedById     String?              @map("resolved_by")
-  resolvedAt       DateTime?            @map("resolved_at")
-  suggestedAmount  Decimal?             @map("suggested_amount") @db.Decimal(12, 2)
-  expectedQuantity Decimal?             @map("expected_quantity") @db.Decimal(12, 2)
-  invoicedQuantity Decimal?             @map("invoiced_quantity") @db.Decimal(12, 2)
-  unitRate         Decimal?             @map("unit_rate") @db.Decimal(10, 2)
-  createdAt        DateTime             @default(now()) @map("created_at")
-  invoice          WmsInvoice              @relation(fields: [invoiceId], references: [id])
-  resolvedBy       WmsUser?                @relation("ReconciliationResolver", fields: [resolvedById], references: [id])
-
-  @@map("wms_invoice_reconciliations")
-}
-
-model WmsAuditLog {
-  id        String   @id @default(uuid())
-  tableName String   @map("table_name")
-  recordId  String   @map("record_id")
-  action    String
-  changes   Json?
-  userId    String   @map("user_id")
-  ipAddress String?  @map("ip_address")
-  userAgent String?  @map("user_agent")
-  createdAt DateTime @default(now()) @map("created_at")
-  user      WmsUser     @relation(fields: [userId], references: [id])
-
-  @@index([tableName, recordId])
-  @@index([userId])
+model Transaction {
+  id                String              @id @default(cuid())
+  type              String
+  productId         String
+  warehouseId       String
+  quantity          Decimal
+  batchNumber       String?
+  referenceNumber   String?
+  notes             String?
+  status            String              @default("pending")
+  createdAt         DateTime            @default(now())
+  createdBy         String?
+  
+  product           Product             @relation(fields: [productId], references: [id])
+  warehouse         Warehouse           @relation(fields: [warehouseId], references: [id])
+  attachments       Attachment[]
+  attributeValues   AttributeValue[]
+  
+  @@index([type])
+  @@index([productId])
+  @@index([warehouseId])
+  @@index([referenceNumber])
   @@index([createdAt])
-  @@map("wms_audit_logs")
 }
 
-model WmsInventoryAuditLog {
-  id             Int       @id @default(autoincrement())
-  action         String    @db.VarChar(10)
-  transaction_id String?   @db.VarChar(255)
-  attempted_by   String?   @db.VarChar(255)
-  attempted_at   DateTime? @default(now()) @db.Timestamp(6)
-  error_message  String?
-  old_data       Json?
-  new_data       Json?
-
-  @@map("wms_inventory_audit_log")
-}
-
-model WmsSettings {
-  id          String   @id @default(uuid())
-  key         String   @unique
-  value       Json
-  description String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  @@map("wms_settings")
-}
-
-model WmsPalletVariance {
-  id                      String               @id @default(uuid())
-  transactionId           String               @map("transaction_id")
-  warehouseId             String               @map("warehouse_id")
-  skuId                   String               @map("sku_id")
-  batchLot                String               @map("batch_lot")
-  documentedPallets       Int                  @map("documented_pallets")
-  expectedPallets         Int                  @map("expected_pallets")
-  variancePallets         Int                  @map("variance_pallets")
-  varianceCartons         Int                  @map("variance_cartons")
-  notes                   String?
-  resolutionStatus        String               @default("pending") @map("resolution_status")
-  resolvedAt              DateTime?            @map("resolved_at")
-  resolvedBy              String?              @map("resolved_by")
-  resolutionNotes         String?              @map("resolution_notes")
-  createdAt               DateTime             @default(now()) @map("created_at")
-
+model Attachment {
+  id            String        @id @default(cuid())
+  transactionId String
+  fileName      String
+  fileType      String
+  fileSize      Int
+  fileUrl       String
+  uploadedAt    DateTime      @default(now())
+  
+  transaction   Transaction   @relation(fields: [transactionId], references: [id])
+  
   @@index([transactionId])
-  @@index([warehouseId, skuId])
-  @@index([resolutionStatus])
-  @@map("wms_pallet_variance")
 }
 
-model WmsInvoiceDispute {
-  id                 String               @id @default(uuid())
-  invoiceId          String               @map("invoice_id")
-  disputedBy         String               @map("disputed_by")
-  disputedAt         DateTime             @default(now()) @map("disputed_at")
-  reason             String
-  disputedAmount     Decimal              @map("disputed_amount") @db.Decimal(12, 2)
-  lineItemsDisputed  Int                  @default(0) @map("line_items_disputed")
-  status             WmsDisputeStatus     @default(open)
-  contactedWarehouse Boolean              @default(false) @map("contacted_warehouse")
-  resolutionNotes    String?              @map("resolution_notes")
-  resolvedBy         String?              @map("resolved_by")
-  resolvedAt         DateTime?            @map("resolved_at")
-  createdAt          DateTime             @default(now()) @map("created_at")
-  updatedAt          DateTime             @updatedAt @map("updated_at")
-  invoice            WmsInvoice              @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  resolutions        WmsDisputeResolution[]
-
-  @@index([invoiceId], map: "idx_wms_invoice_disputes_invoice_id")
-  @@index([status], map: "idx_wms_invoice_disputes_status")
-  @@index([disputedAt], map: "idx_wms_invoice_disputes_disputed_at")
-  @@map("wms_invoice_disputes")
+model Attribute {
+  id            String          @id @default(cuid())
+  name          String          @unique
+  dataType      String
+  isRequired    Boolean         @default(false)
+  defaultValue  String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  
+  values        AttributeValue[]
+  
+  @@index([name])
 }
 
-model WmsInvoiceAuditLog {
-  id          String            @id @default(uuid())
-  invoiceId   String            @map("invoice_id")
-  action      WmsInvoiceAction
-  performedBy String            @map("performed_by")
-  performedAt DateTime          @default(now()) @map("performed_at")
-  details     Json?             @db.JsonB
-  createdAt   DateTime          @default(now()) @map("created_at")
-  invoice     WmsInvoice           @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-
-  @@index([invoiceId], map: "idx_wms_invoice_audit_logs_invoice_id")
-  @@index([action], map: "idx_wms_invoice_audit_logs_action")
-  @@index([performedAt], map: "idx_wms_invoice_audit_logs_performed_at")
-  @@map("wms_invoice_audit_logs")
+model AttributeValue {
+  id            String        @id @default(cuid())
+  attributeId   String
+  value         String
+  transactionId String?
+  inventoryId   String?
+  createdAt     DateTime      @default(now())
+  
+  attribute     Attribute     @relation(fields: [attributeId], references: [id])
+  transaction   Transaction?  @relation(fields: [transactionId], references: [id])
+  inventory     Inventory?    @relation(fields: [inventoryId], references: [id])
+  
+  @@index([attributeId])
+  @@index([transactionId])
+  @@index([inventoryId])
 }
 
-model WmsWarehouseNotification {
-  id               String            @id @default(uuid())
-  warehouseId      String            @map("warehouse_id")
-  type             WmsNotificationType
-  title            String
-  message          String
-  relatedInvoiceId String?           @map("related_invoice_id")
-  read             Boolean           @default(false)
-  readAt           DateTime?         @map("read_at")
-  readBy           String?           @map("read_by")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  warehouse        WmsWarehouse         @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  relatedInvoice   WmsInvoice?          @relation(fields: [relatedInvoiceId], references: [id], onDelete: SetNull)
-
-  @@index([warehouseId], map: "idx_wms_warehouse_notifications_warehouse_id")
-  @@index([type], map: "idx_wms_warehouse_notifications_type")
-  @@index([read], map: "idx_wms_warehouse_notifications_read")
-  @@index([createdAt], map: "idx_wms_warehouse_notifications_created_at")
-  @@map("wms_warehouse_notifications")
+model WarehouseConfig {
+  id                  String              @id @default(cuid())
+  warehouseId         String
+  configType          String
+  configValue         String
+  isActive            Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  
+  warehouse           Warehouse           @relation(fields: [warehouseId], references: [id])
+  invoiceTemplates    InvoiceTemplate[]
+  
+  @@unique([warehouseId, configType])
+  @@index([warehouseId])
 }
 
-model WmsDisputeResolution {
-  id               String              @id @default(uuid())
-  disputeId        String              @map("dispute_id")
-  resolutionType   WmsResolutionType
-  resolutionAmount Decimal?            @map("resolution_amount") @db.Decimal(12, 2)
-  resolutionNotes  String?             @map("resolution_notes")
-  resolvedBy       String              @map("resolved_by")
-  resolvedAt       DateTime            @default(now()) @map("resolved_at")
-  createdAt        DateTime            @default(now()) @map("created_at")
-  dispute          WmsInvoiceDispute      @relation(fields: [disputeId], references: [id], onDelete: Cascade)
-
-  @@index([disputeId], map: "idx_wms_dispute_resolutions_dispute_id")
-  @@map("wms_dispute_resolutions")
+model InvoiceTemplate {
+  id                String            @id @default(cuid())
+  name              String
+  warehouseConfigId String
+  templateData      String
+  isDefault         Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  warehouseConfig   WarehouseConfig   @relation(fields: [warehouseConfigId], references: [id])
+  
+  @@index([warehouseConfigId])
 }
 
-// WMS Enums
-enum WmsUserRole {
-  admin
-  staff
+model Rate {
+  id                String            @id @default(cuid())
+  name              String
+  type              String
+  value             Decimal
+  unit              String
+  warehouseId       String?
+  startDate         DateTime
+  endDate           DateTime?
+  isActive          Boolean           @default(true)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([type])
+  @@index([warehouseId])
+  @@index([startDate, endDate])
 }
 
-enum WmsTransactionType {
-  RECEIVE
-  SHIP
-  ADJUST_IN
-  ADJUST_OUT
-  TRANSFER
+model Invoice {
+  id                String            @id @default(cuid())
+  invoiceNumber     String            @unique
+  type              String
+  status            String            @default("draft")
+  amount            Decimal
+  dueDate           DateTime?
+  paidDate          DateTime?
+  data              String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  
+  @@index([invoiceNumber])
+  @@index([status])
+  @@index([type])
 }
 
-enum WmsCostCategory {
-  Container
-  Carton
-  Pallet
-  Storage
-  Unit
-  Shipment
-  Accessorial
+model StorageLedgerEntry {
+  id                String            @id @default(cuid())
+  warehouseId       String
+  productSku        String
+  date              DateTime
+  openingBalance    Decimal
+  receipts          Decimal
+  shipments         Decimal
+  closingBalance    Decimal
+  averageBalance    Decimal
+  storageRate       Decimal
+  storageCost       Decimal
+  handlingCost      Decimal
+  totalCost         Decimal
+  createdAt         DateTime          @default(now())
+  
+  warehouse         Warehouse         @relation(fields: [warehouseId], references: [id])
+  
+  @@unique([warehouseId, productSku, date])
+  @@index([warehouseId])
+  @@index([productSku])
+  @@index([date])
 }
 
-enum WmsInvoiceStatus {
-  pending
-  reconciled
-  disputed
-  paid
+// Bookkeeping Models
+model CategorizationRule {
+  id              String    @id @default(cuid())
+  name            String
+  description     String?
+  pattern         String?
+  category        String
+  subcategory     String?
+  isActive        Boolean   @default(true)
+  priority        Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([category])
+  @@index([isActive])
 }
 
-enum WmsReconciliationStatus {
-  match
-  overbilled
-  underbilled
-}
-
-enum WmsDisputeStatus {
-  open
-  resolved
-  escalated
-}
-
-enum WmsInvoiceAction {
-  CREATED
-  UPDATED
-  ACCEPTED
-  DISPUTED
-  RESOLVED
-  PAID
-}
-
-enum WmsNotificationType {
-  INVOICE_DISPUTED
-  RECONCILIATION_COMPLETE
-  PAYMENT_RECEIVED
-  DISPUTE_RESOLVED
-}
-
-enum WmsResolutionType {
-  ACCEPTED
-  REJECTED
-  PARTIAL_ACCEPT
-  ESCALATED
+model BookkeepingTransaction {
+  id              String    @id @default(cuid())
+  date            DateTime
+  description     String
+  amount          Decimal
+  type            String    // debit or credit
+  category        String?
+  subcategory     String?
+  accountName     String
+  referenceNumber String?
+  notes           String?
+  isReconciled    Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([date])
+  @@index([category])
+  @@index([accountName])
+  @@index([isReconciled])
 }

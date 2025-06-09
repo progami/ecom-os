@@ -35,18 +35,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-# local npm configuration
-.npmrc
-
-# temporary output files
-lint-output.txt
-type-output.txt
-*.log
-
-# build directories
-dist/
-build/
-
-# bookkeeper node_modules
-bookkeeper/node_modules/
