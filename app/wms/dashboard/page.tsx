@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { DashboardLayout } from '@/components/wms/layout/dashboard-layout'
 import { PageHeader } from '@/components/wms/shared/page-header'
-import { QuickStartGuide } from '@/components/ui/quick-start-guide'
+import { QuickStartGuide } from '@/components/wms/ui/quick-start-guide'
 import Link from 'next/link'
 import { toast } from 'react-hot-toast'
 
