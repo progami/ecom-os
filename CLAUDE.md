@@ -10,25 +10,44 @@ As the master branch instance, your primary responsibilities are:
 2. **Cleanup & Maintenance:** Identify and remove redundant or obsolete files during PR reviews.
 3. **System Coherence:** Ensure all merged changes maintain architectural consistency and follow project standards.
 
-### Standard Workflow for Feature Development:
+### Standard Workflow for Sub-Application Development:
 
-1. **Feature Branch Creation:** When a new feature is requested, create a git worktree for that feature:
+1. **Sub-App Branch Strategy:** Each major sub-application maintains ONE long-lived branch:
+   - `wms` - For all Warehouse Management System features
+   - `bookkeeping` - For all Bookkeeping features
+   - `auth` - For authentication and shell features
+   - `analytics` - For analytics and reporting features
+   
+2. **Worktree Setup:** Create/use existing worktree for the sub-app:
    ```bash
-   git worktree add ../feature-name feature/TICKET-description
+   # First time setup
+   git worktree add ../wms wms
+   
+   # Or if branch exists
+   git worktree add ../wms --track origin/wms
    ```
 
-2. **Development in Feature Worktree:** All development work happens in the feature worktree, NOT in master.
+3. **Development in Sub-App Worktree:** All development for that sub-app happens in its dedicated worktree.
 
-3. **PR Creation:** After the user approves the changes in the feature worktree, create a PR to master.
+4. **PR Creation:** After implementing and testing features, create a PR from the sub-app branch to master.
 
-4. **Master Review Process:** In the master worktree:
+5. **Master Review Process:** In the master worktree:
    - Review the PR for system-wide impacts
    - Ensure no breaking changes to existing functionality
    - Verify adherence to coding standards
-   - Check for and flag any redundant files for removal
+   - **CRITICAL: Check for and reject any redundant, unused, or temporary files**
+   - Remove any archive folders, old implementations, or test outputs
+   - Ensure only active, necessary code is merged
    - Run integration tests if applicable
 
-5. **Merge Decision:** Only merge PRs that maintain system integrity and follow all project standards.
+6. **Cleanup Requirements:**
+   - No temporary output files (*.log, *-output.txt)
+   - No archive or backup directories
+   - No commented-out code blocks
+   - No unused imports or dead code
+   - No duplicate implementations
+
+7. **Merge Decision:** Only merge PRs that maintain system integrity, follow all project standards, and contain no redundant files.
 
 ---
 ## PART 1: YOUR PRIME DIRECTIVE & BOOTUP SEQUENCE
