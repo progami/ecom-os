@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const products = await prisma.product.findMany({
+    const products = await prisma.wmsSku.findMany({
       include: {
         inventoryLogs: {
           select: {
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create new product
-    const product = await prisma.product.create({
+    const product = await prisma.wmsSku.create({
       data: {
         sku,
         name,

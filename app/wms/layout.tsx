@@ -9,6 +9,9 @@ export default function WMSLayout({ children }: { children: ReactNode }) {
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
+                <Link href="/" className="text-sm text-gray-500 hover:text-gray-700 mr-4">
+                  ← Back to Home
+                </Link>
                 <h1 className="text-xl font-semibold">WMS</h1>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">

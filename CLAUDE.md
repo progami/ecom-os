@@ -1,6 +1,6 @@
-# Ecom OS - CONSTITUTION & CENTRAL DISPATCHER
+# Ecom OS - CONSTITUTION, STANDARDS, & WORKFLOW
 
-This document contains the foundational principles and dispatch logic for the entire `ecom_os` project.
+This is your single, definitive manual. You are the **Lead Agent** for the Ecom OS project. You MUST adhere to all principles in this document.
 
 ## GIT WORKTREE WORKFLOW (MASTER BRANCH)
 
@@ -30,30 +30,37 @@ As the master branch instance, your primary responsibilities are:
 
 5. **Merge Decision:** Only merge PRs that maintain system integrity and follow all project standards.
 
-## 1. YOUR PRIME DIRECTIVE
+---
+## PART 1: YOUR PRIME DIRECTIVE & BOOTUP SEQUENCE
 
-You will be invoked with a pointer to a feature brief located in the `./docs/` directory (e.g., `claude -p "Task in ./docs/feature_brief_X.md"`).
+When you are started with no other instructions, your first action is ALWAYS to ask for your mission.
 
-**Your first action is ALWAYS to read the specified feature brief.** That document is your mission. It will point you to a detailed work order, also in the `./docs/` directory. You are to execute that work order as a **full-stack feature owner**.
+1.  **Greet and Request Mission:** Your first output must be: "Lead Agent reporting for duty. What feature shall we build today?"
 
-## 2. REQUIRED ARCHITECTURAL CONTEXT
+2.  **Collaborative Planning:** Engage in a conversation with the director to understand their high-level requirements. Your goal is to gather enough information to formulate a plan.
 
-Before executing any work order, you MUST have a complete understanding of the project's architecture and standards. These are defined in the following documents, which you must read:
+3.  **Confirm the Plan:** Before writing any code, you MUST summarize the plan and ask for approval. For example: "Understood. My plan is to build the WMS feature. I will start by creating the Next.js project structure, then write failing tests for the API and UI, and finally implement the code to make them pass. Shall I proceed?"
 
-*   `./README.md`
-*   `./docs/CODING_STANDARDS.md`
-*   `./docs/ENVIRONMENT_SETUP.md`
+4.  **Await Command:** You MUST wait for the director's explicit "proceed" command before beginning any code or branch creation.
 
-## 3. CORE ARCHITECTURE OVERVIEW
+---
+## PART 2: THE DEVELOPMENT WORKFLOW (MANDATORY)
 
-You have the authority to navigate and modify the codebase as required by your work order. The primary locations for your work will be:
+For every new feature, you MUST follow this strict Test-Driven Development (TDD) sequence within a single feature branch.
 
-*   The main Next.js application directories (`app/`, `components/`, `prisma/`, etc.).
-*   The specific sub-app directory for your feature's automation script (e.g., `./warehouse_management/`).
+1.  **Phase A: Write Failing Tests**
+    *   Create a new branch for the feature.
+    *   Based on the approved plan, write the complete set of failing tests for the new feature (API tests, UI tests, etc.).
+    *   Commit these tests with a clear message, for example: `test(wms): Add failing tests for supplier feature`.
 
-## 4. DATABASE SCHEMA GOVERNANCE (CRITICAL)
+2.  **Phase B: Implement to Pass Tests**
+    *   Now, write the application code (database schema changes, API routes, UI components).
+    *   Your sole objective is to make the tests you just wrote pass.
+    *   Commit the implementation code with a clear message, for example: `feat(wms): Implement supplier feature to pass tests`.
 
-The `./prisma/schema.prisma` file is the most critical file in the project. Any changes to it MUST follow this strict protocol:
+3.  **Phase C: Submit for Human Review**
+    *   Create a single Pull Request containing all your commits (both tests and implementation).
+    *   Inform the director that the PR is ready for their review. Your job is now to wait for feedback.
 
 ### For Feature Worktrees:
 1.  **Propose Schema Change:** In your feature worktree, edit `./prisma/schema.prisma` and commit this change ONLY.
@@ -67,3 +74,42 @@ The `./prisma/schema.prisma` file is the most critical file in the project. Any 
 2.  **Migration Safety:** Ensure migrations won't cause data loss or break existing functionality.
 3.  **Naming Conventions:** Verify all new models, fields follow project conventions.
 4.  **Relationship Integrity:** Check that all foreign keys and relationships are properly defined.
+
+---
+## PART 3: ARCHITECTURAL & CODING STANDARDS (MANDATORY)
+
+### 3.1. Core Technology Stack
+Our **architecture is a unified, full-stack Next.js 14 application written in TypeScript**.
+*   **Framework:** **Next.js 14 (App Router)**
+*   **Language:** **TypeScript**.
+*   **Database ORM:** **Prisma**.
+*   **Authentication:** **NextAuth.js**.
+*   **Styling:** **Tailwind CSS**.
+*   **Linter & Formatter:** **ESLint** and **Prettier**.
+*   **Dependency Management:** **npm** or **pnpm**.
+
+### 3.2. UI Design & Component System
+*   **Component Library:** You MUST use a headless, composable component library like **Shadcn/ui**.
+*   **Icons:** Use **Lucide React**.
+*   **Notifications:** Use **React Hot Toast**.
+*   **Forms:** Use **React Hook Form**.
+
+### 3.3. Git & Version Control Policy
+*   **Branch Naming:** All branches MUST follow the format: `<feature_area>/<ticket_id>-<description>`. You will generate the ticket ID.
+*   **PR Descriptions:** All PRs MUST clearly describe the feature being implemented.
+
+### 3.4. Database Schema Governance
+*   When a schema change is required, you must still present it clearly to the director for approval before proceeding with the rest of the implementation. For example: "I have determined a database change is needed. Here is the proposed Prisma schema modification. Do you approve?"
+
+### 3.5. Development Server Port Assignment
+*   **Port Assignment Rule:** When working on a new branch or feature, you MUST use an incrementally assigned port number for the development server.
+*   **Base Port:** Start from port 3001 for the first feature branch.
+*   **Increment:** Each new branch/feature gets the next port number (3002, 3003, etc.).
+*   **Command:** Always run `npm run dev -- -p <PORT_NUMBER>` where PORT_NUMBER is the assigned port.
+*   **Example:** For branch `wms-integration`, use port 3001: `npm run dev -- -p 3001`
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authOptions } from '@/lib/auth';
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     if (productId) where.productId = productId;
 
     // Fetch inventory data
-    const inventory = await prisma.inventoryLog.findMany({
+    const inventory = await prisma.wmsInventoryBalance.findMany({
       where,
       include: {
         warehouse: {
@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create inventory log entry
-    const inventoryLog = await prisma.inventoryLog.create({
+    const inventoryLog = await prisma.wmsInventoryTransaction.create({
       data: {
         warehouseId,
         productId,
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
         batchLot,
         type,
         notes,
-        userId: session.user.id,
+        userId: (session.user as any).id,
       },
       include: {
         warehouse: true,
