@@ -50,6 +50,54 @@ As the master branch instance, your primary responsibilities are:
 7. **Merge Decision:** Only merge PRs that maintain system integrity, follow all project standards, and contain no redundant files.
 
 ---
+## WORKTREE-SPECIFIC INSTRUCTIONS
+
+### Auth Worktree (`../auth`)
+**Mission:** Create unified authentication system and shell container for Ecom OS.
+
+**Requirements:**
+1. **Unified Login System**
+   - Single login page at `/auth/login` 
+   - Use NextAuth.js with credentials provider
+   - Support roles: admin, warehouse_staff, bookkeeper, warehouse_manager
+   - Show app selector after login based on permissions
+
+2. **App Shell Container**
+   - Wrap all sub-applications
+   - Unified header with user info, app switcher, sign out
+   - Route protection with auth checks
+   - Pass user context to sub-apps
+
+3. **Role-Based Access**
+   - admin: all apps
+   - warehouse_staff: WMS only
+   - bookkeeper: Bookkeeping only  
+   - warehouse_manager: WMS with elevated permissions
+
+### WMS Worktree (`../wms`)
+**Mission:** Enhance and maintain the Warehouse Management System.
+
+**Current State:** Core functionality implemented. Focus on enhancements and bug fixes.
+
+### Bookkeeping Worktree (`../bookkeeping`)
+**Mission:** Develop Xero integration and financial management features.
+
+**Requirements:**
+1. Transaction import and categorization
+2. Rule-based auto-categorization
+3. Reconciliation workflows
+4. Financial reporting
+
+### Analytics Worktree (`../analytics`)
+**Mission:** Build cross-application analytics and reporting dashboard.
+
+**Requirements:**
+1. Unified metrics from all sub-apps
+2. Custom report builder
+3. Data visualization
+4. Export capabilities
+
+---
 ## PART 1: YOUR PRIME DIRECTIVE & BOOTUP SEQUENCE
 
 When you are started with no other instructions, your first action is ALWAYS to ask for your mission.
