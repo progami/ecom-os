@@ -33,37 +33,25 @@ test.describe('Authentication and Navigation Flow', () => {
     console.log('Step 3: Clicking sign in button...');
     await signInButton.click();
     
-    // 4. Check for database error (current state)
-    console.log('Step 4: Checking for error messages...');
-    const errorMessage = page.locator('div.bg-red-50').first();
+    // 4. Wait for navigation to app-selector
+    console.log('Step 4: Waiting for navigation to app-selector...');
     
-    // Wait a bit for error to appear
-    await page.waitForTimeout(2000);
-    
-    // Check if we have a database error
-    const hasError = await errorMessage.isVisible();
-    
-    if (hasError) {
-      const errorText = await errorMessage.textContent();
-      console.log('❌ Login failed with error:', errorText);
-      
-      // Expected error based on snapshot
-      expect(errorText).toContain('postgres');
-      expect(errorText).toContain('denied access');
-      
-      console.log('\n📋 Test Summary:');
-      console.log('✅ Step 1: Login page loaded successfully');
-      console.log('✅ Step 2: Login form displayed with pre-filled credentials');
-      console.log('✅ Step 3: Sign in button clicked');
-      console.log('❌ Step 4: Login failed due to database access error');
-      console.log('\n⚠️  Note: The application needs database configuration to proceed with authentication');
-      
-      return; // Exit early since we can't proceed without database
+    try {
+      await page.waitForURL('**/app-selector', { 
+        timeout: 15000,
+        waitUntil: 'networkidle' 
+      });
+      console.log('✅ Successfully navigated to app-selector');
+    } catch (error) {
+      // Check if there's an error message
+      const errorMessage = page.locator('div.bg-red-50').first();
+      if (await errorMessage.isVisible({ timeout: 1000 })) {
+        const errorText = await errorMessage.textContent();
+        console.log('❌ Login failed with error:', errorText);
+        throw new Error(`Login failed: ${errorText}`);
+      }
+      throw error;
     }
-    
-    // If no error, continue with the rest of the flow
-    console.log('Step 4: Waiting for successful login...');
-    await page.waitForURL('**/app-selector', { timeout: 10000 });
     
     // 5. Verify the user sees "Welcome, Jarrar Amjad" on the app selector page
     console.log('Step 5: Verifying welcome message...');
