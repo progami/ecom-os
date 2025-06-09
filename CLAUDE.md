@@ -50,6 +50,74 @@ As the master branch instance, your primary responsibilities are:
 7. **Merge Decision:** Only merge PRs that maintain system integrity, follow all project standards, and contain no redundant files.
 
 ---
+## INTER-AGENT COMMUNICATION PROTOCOL
+
+### Status Reporting
+Each worktree maintains a `STATUS.md` file in their branch that must be updated regularly:
+
+```markdown
+# Auth Status Report
+
+## Current Sprint: [Sprint Name]
+**Last Updated:** [ISO DateTime]
+**Agent Session:** [Session ID/Start Time]
+
+## Progress
+- [x] Completed task 1
+- [x] Completed task 2
+- [ ] In progress: task 3
+- [ ] Blocked: task 4
+
+## Blockers
+1. **Blocker Title**
+   - Description: What is blocking progress
+   - Dependency: What/who is needed
+   - Impact: What can't be done until resolved
+   - Proposed Solution: Suggested approach
+
+## Needs From Other Teams
+- [ ] WMS: Need user role definitions
+- [ ] Master: Need schema approval for User model changes
+
+## Recent Commits
+- abc123: feat: Add login page UI
+- def456: test: Add auth integration tests
+
+## Next Steps
+1. Complete JWT implementation
+2. Integrate with existing WMS auth
+```
+
+### Blocker Communication
+When blocked, agents must:
+
+1. **Create GitHub Issue**
+   ```bash
+   gh issue create --title "[BLOCKED] Auth: Need user role schema" \
+     --label "blocked,auth" \
+     --body "Description of what's needed"
+   ```
+
+2. **Update STATUS.md** with blocker details
+
+3. **Tag in PR comments** if PR exists:
+   ```
+   @progami - Blocked on schema approval. See issue #123
+   ```
+
+### Progress Updates
+1. **Daily**: Update STATUS.md with progress
+2. **On Completion**: Update STATUS.md and create PR
+3. **On Blocker**: Create issue + update STATUS.md
+
+### Master's Monitoring Responsibilities
+As master, I will:
+1. Check STATUS.md files across worktrees during PR reviews
+2. Monitor GitHub issues with "blocked" label
+3. Coordinate between worktrees to resolve dependencies
+4. Maintain a `COORDINATION.md` file tracking inter-team dependencies
+
+---
 ## WORKTREE-SPECIFIC INSTRUCTIONS
 
 ### Auth Worktree (`../auth`)
