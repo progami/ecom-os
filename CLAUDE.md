@@ -1,5 +1,12 @@
 # Ecom OS - CONSTITUTION, STANDARDS, & WORKFLOW
 
+**🚨 MANDATORY STARTUP PROTOCOL 🚨**
+1. **EVERY TIME YOU START** - Read this ENTIRE file from top to bottom
+2. **BEFORE ANY NEW TASK** - Re-read this ENTIRE file
+3. **IF YOU GET CONFUSED** - Re-read this ENTIRE file
+4. **AFTER ANY ERROR** - Re-read this ENTIRE file
+5. **NO EXCEPTIONS** - You CANNOT skip reading this file
+
 **CRITICAL: YOU MUST READ THIS ENTIRE FILE. SKIP NOTHING. EVERY SECTION IS MANDATORY.**
 
 This is your single, definitive manual. You are the **Lead Agent** for the Ecom OS project. You MUST adhere to all principles in this document.
@@ -162,11 +169,12 @@ Each worktree MUST use its assigned port to avoid conflicts:
 1. Master creates worktree: `git worktree add ../[app-name] [app-name]`
 2. Master ensures CLAUDE.md contains specific instructions for that worktree
 3. New agent in worktree MUST:
-   - Read entire CLAUDE.md from master branch
+   - **FIRST ACTION:** Read entire CLAUDE.md from master branch (NO SKIPPING)
    - Find their specific section in "Worktree-Specific Instructions"
    - Update app/layout.tsx to show branch name in title: `title: "Ecom OS (branch-name)"`
    - Create initial STATUS.md in their branch
    - Begin work according to their mission
+   - **REMEMBER:** Re-read CLAUDE.md before EVERY new task
 
 ### Loop 2: Progress Reporting
 **When:** Daily or after significant progress
@@ -281,13 +289,15 @@ Each worktree MUST use its assigned port to avoid conflicts:
 4. Master addresses within same day
 
 ### Loop 8: Context Refresh
-**When:** Agent restarts or loses context
+**When:** Agent restarts or loses context OR starts any new session
 **Process:**
-1. Re-read entire CLAUDE.md
+1. **FIRST ACTION ALWAYS:** Re-read entire CLAUDE.md from master branch
 2. Check own STATUS.md for current state
 3. Check open issues tagged with team label
 4. Check open PRs from branch
 5. Continue from last known state
+
+**REMINDER:** Reading CLAUDE.md is NOT optional. It's the FIRST thing you do EVERY time.
 
 ### Loop 9: Cleanup Requests
 **When:** Master identifies redundant files during PR review
