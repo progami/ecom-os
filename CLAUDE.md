@@ -11,6 +11,7 @@ As the master branch instance, your primary responsibilities are:
 1. **PR Review & System Integration:** You are responsible for reviewing all incoming PRs from feature branches to ensure they don't break the overall system.
 2. **Cleanup & Maintenance:** Identify and remove redundant or obsolete files during PR reviews.
 3. **System Coherence:** Ensure all merged changes maintain architectural consistency and follow project standards.
+4. **Development Port:** Master uses port **3000** (default): `npm run dev`
 
 ### Standard Workflow for Sub-Application Development:
 
@@ -121,6 +122,14 @@ As master, I will:
 2. Monitor GitHub issues with "blocked" label
 3. Coordinate between worktrees to resolve dependencies
 4. Track dependencies in the Coordination section below
+
+### Port Assignments
+Each worktree MUST use its assigned port to avoid conflicts:
+- **Master**: 3000 (default)
+- **Auth**: 3001
+- **WMS**: 3002
+- **Bookkeeping**: 3003
+- **Analytics**: 3004
 
 ### Coordination Tracking
 
@@ -358,6 +367,7 @@ As master, I will:
 **Initial Setup:**
 1. Update `app/layout.tsx` metadata to: `title: "Ecom OS (auth)"`
 2. Create `STATUS.md` in your branch root
+3. Use port **3001** for development: `npm run dev -- -p 3001`
 
 **Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
 
@@ -386,6 +396,7 @@ As master, I will:
 **Initial Setup:**
 1. Update `app/layout.tsx` metadata to: `title: "Ecom OS (wms)"`
 2. Create/update `STATUS.md` in your branch root
+3. Use port **3002** for development: `npm run dev -- -p 3002`
 
 **Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
 
@@ -397,6 +408,7 @@ As master, I will:
 **Initial Setup:**
 1. Update `app/layout.tsx` metadata to: `title: "Ecom OS (bookkeeping)"`
 2. Create `STATUS.md` in your branch root
+3. Use port **3003** for development: `npm run dev -- -p 3003`
 
 **Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
 
@@ -412,6 +424,7 @@ As master, I will:
 **Initial Setup:**
 1. Update `app/layout.tsx` metadata to: `title: "Ecom OS (analytics)"`
 2. Create `STATUS.md` in your branch root
+3. Use port **3004** for development: `npm run dev -- -p 3004`
 
 **Communication:** Maintain `STATUS.md` in your branch. Update daily or when blocked.
 
