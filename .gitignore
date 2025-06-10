@@ -8,6 +8,16 @@
 
 # testing
 /coverage
+/test-results/
+/tests/
+playwright-report/
+playwright/.cache/
+test-*.spec.ts
+*.spec.ts
+*.test.ts
+*.test.tsx
+__tests__/
+e2e/
 
 # next.js
 /.next/
@@ -64,6 +74,21 @@ Thumbs.db
 *.tmp
 *.temp
 .swc/
+*-screenshot.png
+*.png
+*.jpg
+*.jpeg
+homepage-screenshot.*
 
 # MCP config
 .mcp.json
+
+# Development artifacts
+.turbo/
+.parcel-cache/
+.cache/
+*.local
+
+# Lock files (keep only package-lock.json)
+yarn.lock
+pnpm-lock.yaml

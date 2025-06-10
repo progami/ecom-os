@@ -14,7 +14,46 @@ This repository contains:
 
 If you're creating a new Ecom OS application, follow these guidelines:
 
-### 1. Technology Stack
+### 1. Strict Folder Structure & Clean Repository
+
+All Ecom OS projects MUST maintain a clean, organized repository:
+
+#### ✅ Required Structure
+```
+project-root/
+├── app/                  # Next.js app directory (routes, layouts, pages)
+├── components/           # Reusable React components
+├── lib/                  # Utility functions, services, helpers
+├── prisma/              # Database schema and migrations
+├── public/              # Static assets (minimal)
+├── docs/                # Project documentation
+├── scripts/             # Build/deployment scripts
+├── tests/               # ONE test directory only
+├── .gitignore           # Comprehensive ignore file
+├── package.json         # Dependencies and scripts
+├── README.md            # Project documentation
+└── tsconfig.json        # TypeScript configuration
+```
+
+#### ❌ Prohibited Items
+- NO redundant test directories (test/, __tests__/, e2e/, etc.)
+- NO development artifacts (screenshots, logs, temp files)
+- NO multiple lock files (only package-lock.json allowed)
+- NO IDE-specific files (.vscode/, .idea/)
+- NO build outputs in repository
+- NO cached files or temporary directories
+- NO duplicate or backup files
+- NO commented-out code or unused files
+
+#### 🧹 Repository Hygiene
+1. Run `git clean -fd` before committing to remove untracked files
+2. Review `git status` for unintended files
+3. Keep .gitignore comprehensive and up-to-date
+4. Delete unused dependencies from package.json
+5. Remove console.logs and debug code
+6. Keep only essential configuration files
+
+### 2. Technology Stack
 
 All Ecom OS applications should use:
 ```json
@@ -27,29 +66,6 @@ All Ecom OS applications should use:
   "forms": "React Hook Form + Zod",
   "database": "PostgreSQL/SQLite with Prisma"
 }
-```
-
-### 2. Project Structure
-
-Follow this standard structure:
-```
-your-app/
-├── app/                    # Next.js App Router pages
-│   ├── api/               # API routes
-│   ├── (features)/        # Feature-based routing
-│   └── layout.tsx         # Root layout
-├── components/            # React components
-│   ├── ui/               # Base UI components
-│   ├── features/         # Feature-specific components
-│   └── shared/           # Shared components
-├── lib/                   # Utilities and services
-│   ├── api/              # API clients
-│   ├── hooks/            # Custom React hooks
-│   └── utils/            # Helper functions
-├── prisma/               # Database schema
-│   └── schema.prisma     # Prisma schema file
-├── public/               # Static assets
-└── docs/                 # Project documentation
 ```
 
 ### 3. Port Allocation
