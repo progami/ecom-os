@@ -1,0 +1,394 @@
+# Ecom OS Architecture Overview
+
+## System Architecture
+
+```mermaid
+graph TB
+    subgraph "User Interface"
+        A[Navigation Hub<br/>:3000] 
+    end
+    
+    subgraph "Applications"
+        B[WMS<br/>:3002]
+        C[Bookkeeping<br/>:3003]
+        D[CentralDB<br/>:3004]
+    end
+    
+    subgraph "Databases"
+        E[(PostgreSQL<br/>WMS DB)]
+        F[(SQLite<br/>Bookkeeping DB)]
+        G[(PostgreSQL<br/>Central DB)]
+    end
+    
+    subgraph "External Services"
+        H[Amazon SP API]
+        I[Xero API]
+    end
+    
+    A -->|Redirect| B
+    A -->|Redirect| C
+    A -->|Redirect| D
+    
+    B --> E
+    C --> F
+    D --> G
+    
+    B --> H
+    C --> I
+```
+
+## Application Architecture Patterns
+
+### 1. Warehouse Management System (WMS)
+
+#### Domain-Driven Design
+```
+src/
+├── modules/
+│   ├── operations/       # Core warehouse operations
+│   │   ├── inventory/
+│   │   ├── receiving/
+│   │   └── shipping/
+│   ├── finance/          # Financial management
+│   │   ├── invoicing/
+│   │   ├── reconciliation/
+│   │   └── reporting/
+│   ├── configuration/    # System configuration
+│   │   ├── products/
+│   │   ├── warehouses/
+│   │   └── rates/
+│   └── admin/           # Administration
+│       ├── users/
+│       └── settings/
+```
+
+#### Key Architectural Decisions
+
+1. **Immutable Ledger Pattern**
+   - All inventory transactions are immutable
+   - No updates or deletes allowed
+   - Audit trail maintained automatically
+   - Point-in-time queries supported
+
+2. **Event Sourcing (Partial)**
+   - Transaction log serves as event stream
+   - Current state derived from transaction history
+   - Enables time-travel queries
+
+3. **CQRS Pattern**
+   - Separate read models for reporting
+   - Write models for transactions
+   - Optimized query patterns
+
+### 2. Bookkeeping Module
+
+#### Simple CRUD Architecture
+```
+app/
+├── api/
+│   └── v1/
+│       └── bookkeeping/
+│           ├── rules/     # Rule management
+│           └── stats/     # Dashboard stats
+├── bookkeeping/
+│   ├── page.tsx          # Dashboard
+│   └── rules/            # Rule CRUD pages
+```
+
+#### Design Principles
+- **Simplicity First:** Minimal complexity
+- **Single Responsibility:** Focused on categorization
+- **Stateless API:** RESTful design
+- **Client-Side State:** React Query for caching
+
+### 3. CentralDB (Planned)
+
+#### Data Warehouse Architecture
+```
+Future Architecture:
+├── ETL Pipeline
+│   ├── Extractors (from WMS, Bookkeeping)
+│   ├── Transformers (data normalization)
+│   └── Loaders (to central DB)
+├── Analytics Engine
+│   ├── Real-time dashboards
+│   ├── Historical reports
+│   └── Predictive analytics
+└── API Gateway
+    ├── GraphQL endpoint
+    └── REST endpoints
+```
+
+## Database Design Patterns
+
+### WMS Database
+
+#### Immutable Transaction Log
+```sql
+-- Transactions cannot be updated/deleted
+CREATE TABLE inventory_transactions (
+    id UUID PRIMARY KEY,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    -- No updated_at field
+    -- Triggers prevent updates/deletes
+);
+```
+
+#### Chronological Integrity
+```sql
+-- Ensure transactions are in order
+CREATE FUNCTION check_transaction_date()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.transaction_date < (
+        SELECT MAX(transaction_date) 
+        FROM inventory_transactions 
+        WHERE warehouse_id = NEW.warehouse_id
+    ) THEN
+        RAISE EXCEPTION 'Cannot backdate transactions';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+### Bookkeeping Database
+
+#### Simple Schema
+```sql
+-- Single main entity
+CREATE TABLE categorization_rules (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    match_type TEXT NOT NULL,
+    match_field TEXT NOT NULL,
+    match_value TEXT NOT NULL,
+    account_code TEXT NOT NULL,
+    tax_type TEXT NOT NULL,
+    priority INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT TRUE
+);
+```
+
+## API Design Standards
+
+### RESTful Conventions
+
+#### URL Structure
+```
+GET    /api/v1/resources          # List
+GET    /api/v1/resources/:id      # Get one
+POST   /api/v1/resources          # Create
+PUT    /api/v1/resources/:id      # Update
+DELETE /api/v1/resources/:id      # Delete
+```
+
+#### Response Format
+```typescript
+// Success Response
+{
+  "data": T,
+  "metadata": {
+    "page": 1,
+    "limit": 20,
+    "total": 100
+  }
+}
+
+// Error Response
+{
+  "error": {
+    "code": "RESOURCE_NOT_FOUND",
+    "message": "User-friendly error message",
+    "details": {}
+  }
+}
+```
+
+### Error Handling
+
+#### Error Codes
+```typescript
+enum ErrorCode {
+  // Client errors (4xx)
+  BAD_REQUEST = 'BAD_REQUEST',
+  UNAUTHORIZED = 'UNAUTHORIZED',
+  FORBIDDEN = 'FORBIDDEN',
+  NOT_FOUND = 'NOT_FOUND',
+  CONFLICT = 'CONFLICT',
+  
+  // Server errors (5xx)
+  INTERNAL_ERROR = 'INTERNAL_ERROR',
+  SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE'
+}
+```
+
+## Authentication & Authorization
+
+### Current State
+- Each app has independent auth
+- JWT tokens with app-specific secrets
+- Role-based access (Admin/Staff)
+
+### Future SSO Architecture
+```typescript
+// Centralized auth flow
+1. User logs into Navigation Hub
+2. Hub generates master JWT token
+3. Token includes app permissions
+4. Apps validate token with shared secret
+5. Apps create local sessions
+
+// Token structure
+{
+  "sub": "user-id",
+  "email": "user@example.com",
+  "apps": {
+    "wms": { "role": "admin", "warehouse": "WH001" },
+    "bookkeeping": { "role": "user" },
+    "centraldb": { "role": "viewer" }
+  }
+}
+```
+
+## Performance Architecture
+
+### Caching Strategy
+
+#### Application Level
+- React Query for API response caching
+- Next.js static generation where possible
+- API route caching with proper headers
+
+#### Database Level
+- PostgreSQL query result caching
+- Indexed queries for common patterns
+- Materialized views for reports
+
+### Scaling Considerations
+
+#### Horizontal Scaling
+- Stateless applications (can run multiple instances)
+- Database connection pooling
+- Load balancer ready
+
+#### Vertical Scaling
+- Optimized queries
+- Efficient data structures
+- Background job processing
+
+## Security Architecture
+
+### Defense in Depth
+
+1. **Network Level**
+   - HTTPS only in production
+   - Firewall rules
+   - Rate limiting
+
+2. **Application Level**
+   - Input validation (Zod)
+   - SQL injection prevention (Prisma)
+   - XSS protection
+   - CSRF tokens
+
+3. **Data Level**
+   - Encryption at rest
+   - Encryption in transit
+   - PII data masking
+   - Audit logging
+
+### Access Control
+
+```typescript
+// Role-based access control
+enum Role {
+  ADMIN = 'admin',    // Full access
+  STAFF = 'staff',    // Limited access
+  VIEWER = 'viewer'   // Read-only
+}
+
+// Resource-based permissions
+interface Permission {
+  resource: string
+  actions: ('create' | 'read' | 'update' | 'delete')[]
+}
+```
+
+## Deployment Architecture
+
+### Container Strategy
+```dockerfile
+# Each app as separate container
+FROM node:18-alpine
+WORKDIR /app
+COPY . .
+RUN npm ci --only=production
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+### Environment Configuration
+```bash
+# Development
+NODE_ENV=development
+DATABASE_URL=postgresql://localhost/dev
+
+# Staging
+NODE_ENV=staging
+DATABASE_URL=postgresql://staging/db
+
+# Production
+NODE_ENV=production
+DATABASE_URL=postgresql://prod/db
+```
+
+## Monitoring & Observability
+
+### Logging Strategy
+```typescript
+// Structured logging
+logger.info('Transaction created', {
+  transactionId: tx.id,
+  userId: user.id,
+  warehouseId: warehouse.id,
+  amount: tx.amount
+})
+```
+
+### Metrics Collection
+- Application metrics (response times, error rates)
+- Business metrics (transactions/day, inventory levels)
+- Infrastructure metrics (CPU, memory, disk)
+
+### Health Checks
+```typescript
+// Standard health check endpoint
+GET /api/health
+
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "uptime": 3600,
+  "checks": {
+    "database": "connected",
+    "redis": "connected",
+    "external_api": "reachable"
+  }
+}
+```
+
+## Future Architecture Considerations
+
+### Microservices Migration
+- Extract services by domain
+- API Gateway pattern
+- Service mesh for communication
+- Event-driven architecture
+
+### Data Pipeline
+- Real-time data streaming
+- ETL for analytics
+- Data lake for ML/AI
+- Event sourcing expansion
