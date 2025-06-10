@@ -76,7 +76,9 @@ Current port assignments:
 - **3002** - Warehouse Management System
 - **3003** - Bookkeeping
 - **3004** - CentralDB
-- **3005+** - Available for new services
+- **3005** - CaseHunter (Coming Soon)
+- **3006** - HRMS (Human Resource Management System)
+- **3007+** - Available for new services
 
 ### 4. Essential Configuration Files
 
@@ -180,7 +182,7 @@ Each project must include:
 
 To integrate your app with the navigation hub:
 
-1. Choose an available port (3005+)
+1. Choose an available port (3007+)
 2. Create a PR to add your app to the navigation page
 3. Follow the redirect pattern:
 ```tsx

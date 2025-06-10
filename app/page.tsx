@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Package2, BookOpen, Database, ArrowRight, Sparkles } from 'lucide-react'
+import { Package2, BookOpen, Database, Search, Users, ArrowRight, Sparkles } from 'lucide-react'
 
 export default function Home() {
   return (
@@ -147,6 +147,80 @@ export default function Home() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-2xl" />
               <div className="absolute bottom-0 left-0 w-24 h-24 bg-pink-500/10 rounded-full blur-2xl" />
             </Link>
+          </div>
+
+          {/* Second Row - CaseHunter and HRMS */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+            {/* CaseHunter Card */}
+            <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-xl border border-white/10 p-8 opacity-75">
+              {/* Card glow effect */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-orange-500 to-red-500 rounded-3xl blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-500" />
+              
+              <div className="relative">
+                {/* Icon container */}
+                <div className="mb-6">
+                  <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl shadow-xl flex items-center justify-center">
+                    <Search className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+                
+                {/* Content */}
+                <h2 className="text-2xl font-bold text-white mb-3">
+                  CaseHunter
+                </h2>
+                <p className="text-gray-300 mb-6 leading-relaxed">
+                  Advanced case tracking and legal document management system
+                </p>
+                
+                {/* Coming Soon Badge */}
+                <div className="inline-flex items-center px-3 py-1 bg-orange-500/20 text-orange-400 rounded-full text-sm font-medium">
+                  Coming Soon
+                </div>
+              </div>
+              
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl" />
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-red-500/10 rounded-full blur-2xl" />
+            </div>
+
+            {/* HRMS Card */}
+            <Link
+              href="/hrms"
+              className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-xl border border-white/10 p-8 hover:border-white/20 transition-all duration-500 hover:transform hover:scale-[1.02]"
+            >
+              {/* Card glow effect */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-3xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-500" />
+              
+              <div className="relative">
+                {/* Icon container */}
+                <div className="mb-6">
+                  <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-2xl shadow-xl flex items-center justify-center transform group-hover:scale-110 transition-transform duration-500">
+                    <Users className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+                
+                {/* Content */}
+                <h2 className="text-2xl font-bold text-white mb-3 group-hover:text-indigo-300 transition-colors">
+                  HRMS
+                </h2>
+                <p className="text-gray-300 mb-6 leading-relaxed">
+                  Manage freelancers, employees, contracts, and payroll in one unified system
+                </p>
+                
+                {/* Action */}
+                <div className="flex items-center text-indigo-400 font-medium group-hover:text-indigo-300">
+                  <span>Launch HRMS</span>
+                  <ArrowRight className="ml-2 w-5 h-5 transform group-hover:translate-x-2 transition-transform duration-300" />
+                </div>
+              </div>
+              
+              {/* Decorative elements */}
+              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-2xl" />
+              <div className="absolute bottom-0 left-0 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl" />
+            </Link>
+
+            {/* Empty cell for balance */}
+            <div></div>
           </div>
 
           {/* Footer */}
