@@ -205,6 +205,7 @@ export default function YourAppPage() {
 - [Technology Stack Details](docs/TECH_STACK.md)
 - [UI/UX Style Guide](docs/STYLE_GUIDE.md)
 - [System Architecture](docs/ARCHITECTURE.md)
+- [MCP Servers Guide](docs/MCP_SERVERS.md)
 
 ## 🚦 Running the Navigation Hub
 
