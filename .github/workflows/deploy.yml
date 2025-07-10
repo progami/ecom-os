@@ -1,0 +1,110 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '18.x'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build application
+      run: npm run build
+      env:
+        NODE_ENV: production
+
+    - name: Deploy to EC2
+      env:
+        DEPLOY_KEY: ${{ secrets.EC2_SSH_KEY }}
+        DEPLOY_HOST: ${{ secrets.EC2_HOST }}
+        DEPLOY_USER: ${{ secrets.EC2_USER }}
+      run: |
+        # Setup SSH
+        mkdir -p ~/.ssh
+        echo "$DEPLOY_KEY" > ~/.ssh/deploy_key
+        chmod 600 ~/.ssh/deploy_key
+        ssh-keyscan -H $DEPLOY_HOST >> ~/.ssh/known_hosts
+        
+        # Create deployment script
+        cat > deploy.sh << 'EOF'
+        #!/bin/bash
+        set -e
+        
+        # Create application directory if it doesn't exist
+        sudo mkdir -p /home/targon/app
+        sudo chown -R targon:targon /home/targon || true
+        
+        # Navigate to application directory
+        cd /home/targon/app
+        
+        # Clone or pull repository
+        if [ ! -d ".git" ]; then
+          git clone ${{ github.server_url }}/${{ github.repository }}.git .
+        else
+          git pull origin main
+        fi
+        
+        # Install dependencies
+        npm ci --production
+        
+        # Build the application
+        npm run build
+        
+        # Stop existing PM2 process (if exists)
+        pm2 stop targon-frontend || true
+        
+        # Start application with PM2
+        PORT=3000 pm2 start npm --name "targon-frontend" -- start
+        
+        # Save PM2 configuration
+        pm2 save
+        
+        # Update nginx configuration if changed
+        if [ -f deployment/nginx.conf ]; then
+          sudo cp deployment/nginx.conf /etc/nginx/sites-available/targon-frontend
+          sudo ln -sf /etc/nginx/sites-available/targon-frontend /etc/nginx/sites-enabled/
+          sudo nginx -t && sudo systemctl reload nginx
+        fi
+        
+        echo "Deployment completed successfully!"
+        EOF
+        
+        # Copy and execute deployment script
+        scp -i ~/.ssh/deploy_key deploy.sh $DEPLOY_USER@$DEPLOY_HOST:/tmp/
+        ssh -i ~/.ssh/deploy_key $DEPLOY_USER@$DEPLOY_HOST 'bash /tmp/deploy.sh'
+        
+        # Cleanup
+        rm -f ~/.ssh/deploy_key deploy.sh
+
+    - name: Health Check
+      env:
+        SITE_URL: ${{ secrets.PRODUCTION_URL }}
+      run: |
+        echo "Waiting for application to start..."
+        sleep 30
+        
+        # Check if site is accessible
+        response=$(curl -s -o /dev/null -w "%{http_code}" $SITE_URL)
+        if [ $response -eq 200 ]; then
+          echo "Site is up and running!"
+        else
+          echo "Site returned HTTP $response"
+          exit 1
+        fi

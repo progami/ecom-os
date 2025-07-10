@@ -1,8 +1,8 @@
 {
-  "name": "ecom-os-hub",
-  "version": "0.1.0",
+  "name": "targon-global-frontend",
+  "version": "1.0.0",
   "private": true,
-  "description": "Navigation hub and documentation for Ecom OS ecosystem",
+  "description": "Targon Global - America's leading sustainable drop cloth manufacturer",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

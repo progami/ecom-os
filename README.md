@@ -68,17 +68,70 @@ All Ecom OS applications should use:
 }
 ```
 
-### 3. Port Allocation
+### 3. Application Zones & Port Allocation
 
-Current port assignments:
+All Ecom OS applications are organized into 5 strategic zones, with 20-port spacing between zones to allow for future expansion:
+
+#### 🌐 Core Services (Ports 3000-3019)
 - **3000** - Navigation Hub (this repo)
-- **3001** - Reserved
-- **3002** - Warehouse Management System
-- **3003** - Bookkeeping
-- **3004** - CentralDB
-- **3005** - CaseHunter (Coming Soon)
-- **3006** - HRMS (Human Resource Management System)
-- **3007+** - Available for new services
+- **3001** - Jason AI Assistant - Company AI personal assistant
+- **3002** - [WMS](../warehouse_management) - Inventory & logistics
+- **3003** - [Bookkeeping](../bookkeeping) - Financial transactions & accounting
+- **3004** - [CentralDB](../CentralDB) - Product data management
+- **3006** - [HRMS](../HRMS) - Human resources management
+- **3007** - Authentication Service (Planned)
+- **3008** - Notification Service (Planned)
+- **3009** - File Storage Service (Planned)
+- **3010** - Search Service (Planned)
+- **3011** - Analytics Engine (Planned)
+- **3012** - Workflow Engine (Planned)
+- **3013** - Integration Hub (Planned)
+- **3014** - Configuration Service (Planned)
+- **3015** - Monitoring Dashboard (Planned)
+
+#### 🏦 Finance Zone (Ports 3020-3039)
+- **3020** - Finance Analytics (Planned)
+- **3021** - Invoicing & Billing (Planned)
+- **3022** - Tax Management (Planned)
+- **3023** - Budget Planning (Planned)
+- **3024** - Expense Management (Planned)
+- **3025** - Financial Reporting (Planned)
+- **3026** - Payment Processing (Planned)
+- **3027** - Credit Management (Planned)
+- **3028** - Audit & Compliance (Planned)
+
+#### 📦 Operations Zone (Ports 3040-3059)
+- **3040** - Supply Chain Management (Planned)
+- **3041** - Fleet Management (Planned)
+- **3042** - Quality Control (Planned)
+- **3043** - Procurement (Planned)
+- **3044** - Manufacturing (Planned)
+- **3045** - Maintenance Management (Planned)
+- **3046** - Safety & Compliance (Planned)
+- **3047** - Resource Planning (Planned)
+
+#### 💼 Sales & Marketing Zone (Ports 3060-3079)
+- **3060** - [CaseHunter](../CaseHunter) - Lead generation & tracking (Coming Soon)
+- **3061** - CRM System (Planned)
+- **3062** - Marketing Automation (Planned)
+- **3063** - Email Campaigns (Planned)
+- **3064** - Social Media Management (Planned)
+- **3065** - Customer Support (Planned)
+- **3066** - Sales Analytics (Planned)
+- **3067** - Loyalty Programs (Planned)
+- **3068** - Affiliate Management (Planned)
+- **3069** - Content Management (Planned)
+
+#### 🛠️ Product Development Zone (Ports 3080-3099)
+- **3080** - Product Lifecycle Management (Planned)
+- **3081** - R&D Dashboard (Planned)
+- **3082** - Design Studio (Planned)
+- **3083** - Testing & QA (Planned)
+- **3084** - Documentation Hub (Planned)
+- **3085** - Version Control UI (Planned)
+- **3086** - API Management (Planned)
+- **3087** - Feature Tracking (Planned)
+- **3088** - Innovation Lab (Planned)
 
 ### 4. Essential Configuration Files
 
@@ -182,7 +235,7 @@ Each project must include:
 
 To integrate your app with the navigation hub:
 
-1. Choose an available port (3007+)
+1. Choose an available port from the appropriate zone
 2. Create a PR to add your app to the navigation page
 3. Follow the redirect pattern:
 ```tsx

@@ -10,24 +10,26 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "Ecom OS - Unified E-commerce Platform",
-  description: "Your unified platform for warehouse management and financial operations",
-  keywords: "warehouse management, bookkeeping, inventory, e-commerce, operations",
-  authors: [{ name: "Ecom OS Team" }],
+  title: "Targon Global - Professional Drop Cloths at Unbeatable Prices",
+  description: "America's leading sustainable drop cloth manufacturer. GRS certified, Amazon Climate Pledge Friendly. Save 25-30% with our direct-to-consumer model.",
+  keywords: "drop cloth, plastic drop cloth, canvas drop cloth, painting supplies, contractor supplies, sustainable, recycled materials, GRS certified",
+  authors: [{ name: "Targon Global" }],
   openGraph: {
-    title: "Ecom OS",
-    description: "Your unified platform for e-commerce operations",
+    title: "Targon Global - Professional Drop Cloths",
+    description: "America's leading sustainable drop cloth manufacturer. Save 25-30% with our direct-to-consumer model.",
     type: "website",
+    url: "https://www.targonglobal.com",
   },
   robots: {
     index: true,
     follow: true,
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-  },
+}
+
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 }
 
 export default function RootLayout({

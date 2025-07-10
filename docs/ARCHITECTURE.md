@@ -8,16 +8,23 @@ graph TB
         A[Navigation Hub<br/>:3000] 
     end
     
-    subgraph "Applications"
+    subgraph "Core Services (3000-3019)"
+        J[Jason AI<br/>:3001]
         B[WMS<br/>:3002]
         C[Bookkeeping<br/>:3003]
         D[CentralDB<br/>:3004]
+        K[HRMS<br/>:3006]
+    end
+    
+    subgraph "Zone Applications"
+        L[Margin Master<br/>:3400]
     end
     
     subgraph "Databases"
         E[(PostgreSQL<br/>WMS DB)]
         F[(SQLite<br/>Bookkeeping DB)]
         G[(PostgreSQL<br/>Central DB)]
+        M[(PostgreSQL<br/>HRMS DB)]
     end
     
     subgraph "External Services"
@@ -25,17 +32,42 @@ graph TB
         I[Xero API]
     end
     
+    A -->|Redirect| J
     A -->|Redirect| B
     A -->|Redirect| C
     A -->|Redirect| D
+    A -->|Redirect| K
+    A -->|Redirect| L
     
     B --> E
     C --> F
     D --> G
+    K --> M
     
     B --> H
     C --> I
 ```
+
+## Port Allocation Strategy
+
+The Ecom OS ecosystem uses a structured port allocation strategy with 20-port spacing between zones:
+
+### Zone Distribution
+- **Core Services (3000-3019)**: Essential infrastructure and shared services
+  - 3000: Navigation Hub
+  - 3001: Jason AI Assistant
+  - 3002: WMS
+  - 3003: Bookkeeping
+  - 3004: CentralDB
+  - 3006: HRMS
+  - 3007-3019: Future core services
+
+- **Finance Zone (3020-3039)**: Financial management applications
+- **Operations Zone (3040-3059)**: Operational excellence tools
+- **Sales & Marketing Zone (3060-3079)**: Customer-facing applications
+- **Product Development Zone (3080-3099)**: Product and development tools
+
+Note: Margin Master (3400) is a legacy placement that will remain at its current port.
 
 ## Application Architecture Patterns
 
@@ -101,7 +133,7 @@ app/
 - **Stateless API:** RESTful design
 - **Client-Side State:** React Query for caching
 
-### 3. CentralDB (Planned)
+### 3. CentralDB (Active - Core Service)
 
 #### Data Warehouse Architecture
 ```
