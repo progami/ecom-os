@@ -4,62 +4,63 @@ import Link from 'next/link'
 import { 
   Shield, Leaf, DollarSign, TrendingUp, Award, Package,
   Target, Users, BarChart3, Globe, Building2, CheckCircle,
-  ArrowRight, Phone, Mail, MapPin, Menu, X, Star
+  ArrowRight, Phone, Mail, MapPin, Menu, X, Star,
+  Factory, Truck, Lightbulb, Briefcase, HandshakeIcon
 } from 'lucide-react'
 import { useState } from 'react'
 
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const features = [
+  const businessCapabilities = [
     {
-      icon: DollarSign,
-      title: "25-30% Lower Prices",
-      description: "Direct import model eliminates distributor markups while maintaining premium quality"
+      icon: Globe,
+      title: "Global Supply Chain",
+      description: "Direct partnerships with certified manufacturers across Asia, ensuring quality control and competitive pricing"
+    },
+    {
+      icon: Building2,
+      title: "Enterprise Solutions",
+      description: "Customized B2B programs for retailers, distributors, and large-scale contractors"
     },
     {
       icon: Leaf,
-      title: "GRS Certified Sustainable",
-      description: "Only recycled drop cloth brand qualifying for Amazon's Climate Pledge Friendly program"
+      title: "Sustainability Leadership",
+      description: "GRS certified operations setting industry standards for environmental responsibility"
     },
     {
-      icon: Shield,
-      title: "Professional Grade Quality",
-      description: "Trusted by contractors and DIY homeowners for superior protection and durability"
-    },
-    {
-      icon: Target,
-      title: "Strategic Market Position",
-      description: "Capturing the $2.5 billion U.S. drop cloth market with competitive advantages"
+      icon: BarChart3,
+      title: "Data-Driven Operations",
+      description: "Advanced analytics and AI-powered inventory management for optimal efficiency"
     }
   ]
 
-  const products = [
+  const divisions = [
     {
-      name: "Targon Shield™ Standard",
-      description: "9' x 12' plastic drop cloth, 0.7 mil thickness",
-      features: ["Ideal for DIY projects", "Waterproof protection", "Tear-resistant"],
-      price: "$8.99"
+      name: "Manufacturing & Import",
+      icon: Factory,
+      description: "Strategic partnerships with GRS-certified facilities",
+      capabilities: ["Quality Control", "Supply Chain Management", "Cost Optimization"]
     },
     {
-      name: "Targon Shield™ Heavy Duty",
-      description: "9' x 12' plastic drop cloth, 1.0 mil thickness",
-      features: ["Professional contractor grade", "Extra durability", "Reusable"],
-      price: "$12.99"
+      name: "Distribution & Logistics",
+      icon: Truck,
+      description: "Nationwide fulfillment network serving major markets",
+      capabilities: ["3PL Integration", "Just-in-Time Delivery", "Inventory Management"]
     },
     {
-      name: "Targon Shield™ Cotton",
-      description: "9' x 12' canvas drop cloth",
-      features: ["Premium absorbent material", "Washable & reusable", "Non-slip surface"],
-      price: "$24.99"
+      name: "Technology & Innovation",
+      icon: Lightbulb,
+      description: "Proprietary systems for operational excellence",
+      capabilities: ["E-commerce Platform", "WMS Integration", "Business Intelligence"]
     }
   ]
 
   const stats = [
-    { value: "$2.5B", label: "Market Size" },
-    { value: "29%", label: "Gross Margins" },
-    { value: "$2.4M", label: "Year 5 Revenue" },
-    { value: "6", label: "Core SKUs" }
+    { value: "$2.5B", label: "Market Opportunity" },
+    { value: "5+", label: "U.S. Jobs Created" },
+    { value: "100%", label: "Recycled Materials" },
+    { value: "25%", label: "Cost Advantage" }
   ]
 
   return (
@@ -80,16 +81,16 @@ export default function Home() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              <Link href="#products" className="text-gray-700 hover:text-green-600 transition-colors">Products</Link>
-              <Link href="#about" className="text-gray-700 hover:text-green-600 transition-colors">About</Link>
-              <Link href="#sustainability" className="text-gray-700 hover:text-green-600 transition-colors">Sustainability</Link>
+              <Link href="#capabilities" className="text-gray-700 hover:text-green-600 transition-colors">Capabilities</Link>
+              <Link href="#divisions" className="text-gray-700 hover:text-green-600 transition-colors">Divisions</Link>
+              <Link href="#partners" className="text-gray-700 hover:text-green-600 transition-colors">Partners</Link>
               <Link href="#contact" className="text-gray-700 hover:text-green-600 transition-colors">Contact</Link>
               <Link 
                 href="/WMS" 
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center space-x-2"
               >
                 <Package className="w-4 h-4" />
-                <span>WMS Portal</span>
+                <span>Partner Portal</span>
               </Link>
             </div>
 
@@ -107,15 +108,15 @@ export default function Home() {
         {mobileMenuOpen && (
           <div className="md:hidden bg-white border-t border-gray-200">
             <div className="px-4 py-4 space-y-4">
-              <Link href="#products" className="block text-gray-700 hover:text-green-600">Products</Link>
-              <Link href="#about" className="block text-gray-700 hover:text-green-600">About</Link>
-              <Link href="#sustainability" className="block text-gray-700 hover:text-green-600">Sustainability</Link>
+              <Link href="#capabilities" className="block text-gray-700 hover:text-green-600">Capabilities</Link>
+              <Link href="#divisions" className="block text-gray-700 hover:text-green-600">Divisions</Link>
+              <Link href="#partners" className="block text-gray-700 hover:text-green-600">Partners</Link>
               <Link href="#contact" className="block text-gray-700 hover:text-green-600">Contact</Link>
               <Link 
                 href="/WMS" 
                 className="block px-4 py-2 bg-green-600 text-white rounded-lg text-center hover:bg-green-700"
               >
-                WMS Portal
+                Partner Portal
               </Link>
             </div>
           </div>
@@ -123,53 +124,32 @@ export default function Home() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-green-50 to-green-100">
+      <section className="relative bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
-                Professional Drop Cloths at
-                <span className="text-green-600"> Unbeatable Prices</span>
-              </h1>
-              <p className="text-xl text-gray-600 mb-8">
-                America's leading sustainable drop cloth manufacturer, delivering professional-grade protection 
-                with 25-30% savings through our direct-to-consumer model.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <a 
-                  href="#products" 
-                  className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
-                >
-                  <span>Shop Products</span>
-                  <ArrowRight className="w-5 h-5" />
-                </a>
-                <a 
-                  href="#contact" 
-                  className="px-8 py-3 border-2 border-green-600 text-green-600 rounded-lg hover:bg-green-50 transition-colors flex items-center justify-center"
-                >
-                  Get Wholesale Quote
-                </a>
-              </div>
-            </div>
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-green-400/20 to-green-600/20 rounded-3xl blur-3xl" />
-              <div className="relative bg-white rounded-3xl shadow-2xl p-8 border border-green-100">
-                <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
-                    <Shield className="w-10 h-10 text-green-600" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-gray-900">Targon Shield™</h3>
-                  <p className="text-gray-600 mt-2">Premium Protection You Can Trust</p>
-                </div>
-                <div className="space-y-4">
-                  {["Made from recycled materials", "GRS certified sustainable", "Amazon Climate Pledge Friendly", "Professional contractor approved"].map((item, index) => (
-                    <div key={index} className="flex items-center space-x-3">
-                      <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                      <span className="text-gray-700">{item}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <div className="text-center">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
+              Building America's Future in
+              <span className="text-green-600"> Sustainable Manufacturing</span>
+            </h1>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-12">
+              Targon Global is revolutionizing the protective materials industry through innovative supply chain management, 
+              sustainable practices, and technology-driven operations.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-6 justify-center">
+              <a 
+                href="#capabilities" 
+                className="px-8 py-4 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2 text-lg font-semibold"
+              >
+                <span>Explore Our Business</span>
+                <ArrowRight className="w-5 h-5" />
+              </a>
+              <a 
+                href="#contact" 
+                className="px-8 py-4 border-2 border-green-600 text-green-600 rounded-lg hover:bg-green-50 transition-colors flex items-center justify-center text-lg font-semibold"
+              >
+                <Briefcase className="w-5 h-5 mr-2" />
+                <span>Partner With Us</span>
+              </a>
             </div>
           </div>
 
@@ -185,69 +165,63 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Features Section */}
-      <section className="py-20 bg-gray-50">
+      {/* Business Capabilities Section */}
+      <section id="capabilities" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Why Choose Targon Global?
+              Core Business Capabilities
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              We're revolutionizing the drop cloth industry with sustainable materials, 
-              competitive pricing, and uncompromising quality.
+              Leveraging our expertise and infrastructure to deliver exceptional value across the supply chain
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => (
-              <div key={index} className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                  <feature.icon className="w-6 h-6 text-green-600" />
+            {businessCapabilities.map((capability, index) => (
+              <div key={index} className="bg-gray-50 rounded-xl p-6 hover:shadow-lg transition-all duration-300 border border-gray-100">
+                <div className="w-14 h-14 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                  <capability.icon className="w-7 h-7 text-green-600" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">{feature.title}</h3>
-                <p className="text-gray-600">{feature.description}</p>
+                <h3 className="text-xl font-bold text-gray-900 mb-3">{capability.title}</h3>
+                <p className="text-gray-600">{capability.description}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Products Section */}
-      <section id="products" className="py-20">
+      {/* Business Divisions Section */}
+      <section id="divisions" className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Our Product Line
+              Our Business Divisions
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Professional-grade drop cloths designed for every project and budget
+              Integrated operations delivering end-to-end value in the protective materials industry
             </p>
           </div>
 
           <div className="grid md:grid-cols-3 gap-8">
-            {products.map((product, index) => (
-              <div key={index} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
-                <div className="bg-gradient-to-br from-green-50 to-green-100 p-8">
-                  <div className="w-16 h-16 bg-white rounded-lg flex items-center justify-center mb-4 mx-auto">
-                    <Package className="w-8 h-8 text-green-600" />
+            {divisions.map((division, index) => (
+              <div key={index} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300">
+                <div className="bg-gradient-to-br from-green-600 to-green-700 p-8 text-white">
+                  <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-lg flex items-center justify-center mb-4">
+                    <division.icon className="w-8 h-8 text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 text-center">{product.name}</h3>
+                  <h3 className="text-2xl font-bold">{division.name}</h3>
                 </div>
                 <div className="p-6">
-                  <p className="text-gray-600 mb-4">{product.description}</p>
-                  <ul className="space-y-2 mb-6">
-                    {product.features.map((feature, fIndex) => (
-                      <li key={fIndex} className="flex items-center space-x-2">
-                        <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
-                        <span className="text-gray-700">{feature}</span>
-                      </li>
+                  <p className="text-gray-600 mb-6">{division.description}</p>
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-gray-900">Key Capabilities:</h4>
+                    {division.capabilities.map((capability, cIndex) => (
+                      <div key={cIndex} className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-green-600 rounded-full" />
+                        <span className="text-gray-700">{capability}</span>
+                      </div>
                     ))}
-                  </ul>
-                  <div className="flex items-center justify-between">
-                    <span className="text-3xl font-bold text-green-600">{product.price}</span>
-                    <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
-                      Order Now
-                    </button>
                   </div>
                 </div>
               </div>
@@ -256,109 +230,117 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Sustainability Section */}
-      <section id="sustainability" className="py-20 bg-green-50">
+      {/* Partners & Certifications Section */}
+      <section id="partners" className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Strategic Partnerships & Certifications
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Building strong relationships with industry leaders and maintaining the highest standards
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-12">
+            {/* Certifications */}
+            <div className="bg-gray-50 rounded-2xl p-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <Award className="w-8 h-8 text-green-600 mr-3" />
+                Industry Certifications
+              </h3>
+              <div className="space-y-4">
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-2">Global Recycled Standard (GRS)</h4>
+                  <p className="text-gray-600">Certified for recycled content and responsible production practices</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-2">Amazon Climate Pledge Friendly</h4>
+                  <p className="text-gray-600">Only recycled drop cloth brand qualifying for sustainability certification</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-2">ISO 9001:2015 (In Progress)</h4>
+                  <p className="text-gray-600">Pursuing quality management system certification</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Key Partners */}
+            <div className="bg-gray-50 rounded-2xl p-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+                <HandshakeIcon className="w-8 h-8 text-green-600 mr-3" />
+                Key Business Partners
+              </h3>
+              <div className="space-y-4">
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-2">Major Retail Chains</h4>
+                  <p className="text-gray-600">Strategic partnerships with leading home improvement retailers</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-2">E-commerce Platforms</h4>
+                  <p className="text-gray-600">Preferred vendor status on Amazon and other marketplaces</p>
+                </div>
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-2">Manufacturing Partners</h4>
+                  <p className="text-gray-600">Exclusive agreements with GRS-certified facilities</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Leadership & Vision Section */}
+      <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                Leading the Way in Sustainable Protection
+                Leadership & Vision
               </h2>
               <p className="text-xl text-gray-600 mb-6">
-                As the only recycled drop cloth brand qualifying for Amazon's Climate Pledge Friendly program, 
-                we're committed to environmental responsibility without compromising quality.
+                Targon Global combines proven international experience with innovative American entrepreneurship 
+                to transform the protective materials industry.
               </p>
-              <div className="space-y-4">
-                <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Leaf className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">GRS Certified Materials</h3>
-                    <p className="text-gray-600">Global Recycled Standard certification ensures our materials meet the highest sustainability standards</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Award className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">20-30% Cost Reduction</h3>
-                    <p className="text-gray-600">Recycled materials reduce production costs, allowing us to pass savings directly to customers</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="bg-white rounded-3xl shadow-xl p-8">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Environmental Impact</h3>
               <div className="space-y-6">
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-700">Recycled Content</span>
-                    <span className="font-bold text-green-600">100%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div className="bg-green-600 h-3 rounded-full" style={{width: '100%'}}></div>
-                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Jarrar Amjad, Founder & CEO</h3>
+                  <p className="text-gray-600 mb-4">
+                    Former COO of Trademan Enterprise Ltd (UK), bringing 4 years of experience building 
+                    a successful drop cloth business from startup to profitability. Expert in supplier 
+                    negotiations, inventory management, and strategic partnerships.
+                  </p>
                 </div>
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-700">Carbon Footprint Reduction</span>
-                    <span className="font-bold text-green-600">75%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div className="bg-green-600 h-3 rounded-full" style={{width: '75%'}}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-gray-700">Waste Diverted from Landfills</span>
-                    <span className="font-bold text-green-600">90%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div className="bg-green-600 h-3 rounded-full" style={{width: '90%'}}></div>
-                  </div>
+                <div className="bg-white rounded-lg p-6 border border-gray-200">
+                  <h4 className="font-semibold text-gray-900 mb-3">Our Mission</h4>
+                  <p className="text-gray-600">
+                    To become America's leading sustainable protective materials company by combining 
+                    operational excellence, environmental responsibility, and customer-first innovation.
+                  </p>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* About Section */}
-      <section id="about" className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Built on Experience, Driven by Innovation
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              With proven expertise from building a successful UK drop cloth business, 
-              we're bringing operational excellence to the American market.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-gray-50 rounded-xl p-8 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Globe className="w-8 h-8 text-green-600" />
+            <div className="grid grid-cols-2 gap-6">
+              <div className="bg-white rounded-xl p-6 text-center shadow-lg">
+                <Globe className="w-12 h-12 text-green-600 mx-auto mb-4" />
+                <h4 className="font-bold text-gray-900 mb-2">Global Expertise</h4>
+                <p className="text-sm text-gray-600">International supply chain management</p>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Global Experience</h3>
-              <p className="text-gray-600">4 years as COO of successful UK drop cloth company</p>
-            </div>
-            <div className="bg-gray-50 rounded-xl p-8 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <BarChart3 className="w-8 h-8 text-green-600" />
+              <div className="bg-white rounded-xl p-6 text-center shadow-lg">
+                <Target className="w-12 h-12 text-green-600 mx-auto mb-4" />
+                <h4 className="font-bold text-gray-900 mb-2">Market Focus</h4>
+                <p className="text-sm text-gray-600">$2.5B U.S. market opportunity</p>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Proven Growth</h3>
-              <p className="text-gray-600">Built business from startup to profitability</p>
-            </div>
-            <div className="bg-gray-50 rounded-xl p-8 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="w-8 h-8 text-green-600" />
+              <div className="bg-white rounded-xl p-6 text-center shadow-lg">
+                <Users className="w-12 h-12 text-green-600 mx-auto mb-4" />
+                <h4 className="font-bold text-gray-900 mb-2">Job Creation</h4>
+                <p className="text-sm text-gray-600">5+ U.S. employees by Year 5</p>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">U.S. Job Creation</h3>
-              <p className="text-gray-600">Committed to hiring 5+ full-time U.S. employees by Year 5</p>
+              <div className="bg-white rounded-xl p-6 text-center shadow-lg">
+                <TrendingUp className="w-12 h-12 text-green-600 mx-auto mb-4" />
+                <h4 className="font-bold text-gray-900 mb-2">Growth Target</h4>
+                <p className="text-sm text-gray-600">$2.4M revenue by Year 5</p>
+              </div>
             </div>
           </div>
         </div>
@@ -368,23 +350,26 @@ export default function Home() {
       <section className="py-20 bg-gradient-to-br from-green-600 to-green-700">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-            Ready to Save on Your Next Project?
+            Let's Build the Future Together
           </h2>
           <p className="text-xl text-green-100 mb-8">
-            Join thousands of satisfied customers who trust Targon Shield™ for professional protection at unbeatable prices.
+            Whether you're a retailer, distributor, or investor, discover how partnering with 
+            Targon Global can transform your business.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a 
               href="#contact" 
-              className="px-8 py-3 bg-white text-green-600 rounded-lg hover:bg-gray-100 transition-colors font-semibold"
+              className="px-8 py-3 bg-white text-green-600 rounded-lg hover:bg-gray-100 transition-colors font-semibold flex items-center justify-center"
             >
-              Get Started Today
+              <HandshakeIcon className="w-5 h-5 mr-2" />
+              Become a Partner
             </a>
             <a 
               href="/WMS" 
-              className="px-8 py-3 border-2 border-white text-white rounded-lg hover:bg-white/10 transition-colors font-semibold"
+              className="px-8 py-3 border-2 border-white text-white rounded-lg hover:bg-white/10 transition-colors font-semibold flex items-center justify-center"
             >
-              Partner Portal
+              <Building2 className="w-5 h-5 mr-2" />
+              Partner Portal Access
             </a>
           </div>
         </div>
@@ -429,7 +414,7 @@ export default function Home() {
               </div>
             </div>
             <div className="bg-white rounded-xl shadow-xl p-8">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6">Request a Quote</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-6">Start a Partnership</h3>
               <form className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
@@ -440,20 +425,29 @@ export default function Home() {
                   />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+                  <input 
+                    type="text" 
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600"
+                    placeholder="Company name"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                   <input 
                     type="email" 
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600"
-                    placeholder="your@email.com"
+                    placeholder="your@company.com"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Business Type</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Partnership Type</label>
                   <select className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600">
                     <option>Select...</option>
-                    <option>Retailer</option>
-                    <option>Contractor</option>
-                    <option>Distributor</option>
+                    <option>Retail Partnership</option>
+                    <option>Distribution Agreement</option>
+                    <option>Supplier/Vendor</option>
+                    <option>Investment Opportunity</option>
                     <option>Other</option>
                   </select>
                 </div>
@@ -462,14 +456,14 @@ export default function Home() {
                   <textarea 
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-green-600"
                     rows={4}
-                    placeholder="Tell us about your needs..."
+                    placeholder="Tell us about your partnership interests..."
                   />
                 </div>
                 <button 
                   type="submit" 
                   className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold"
                 >
-                  Send Quote Request
+                  Submit Partnership Inquiry
                 </button>
               </form>
             </div>
@@ -493,18 +487,18 @@ export default function Home() {
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Products</h4>
+              <h4 className="font-semibold mb-4">Business</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">Plastic Drop Cloths</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Canvas Drop Cloths</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Bulk Orders</a></li>
+                <li><a href="#capabilities" className="hover:text-white transition-colors">Capabilities</a></li>
+                <li><a href="#divisions" className="hover:text-white transition-colors">Divisions</a></li>
+                <li><a href="#partners" className="hover:text-white transition-colors">Partners</a></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#about" className="hover:text-white transition-colors">About Us</a></li>
-                <li><a href="#sustainability" className="hover:text-white transition-colors">Sustainability</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Leadership</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
                 <li><a href="#contact" className="hover:text-white transition-colors">Contact</a></li>
               </ul>
             </div>
@@ -512,8 +506,8 @@ export default function Home() {
               <h4 className="font-semibold mb-4">Resources</h4>
               <ul className="space-y-2 text-gray-400">
                 <li><a href="/WMS" className="hover:text-white transition-colors">Partner Portal</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Wholesale</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Terms & Conditions</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Investor Relations</a></li>
+                <li><a href="#" className="hover:text-white transition-colors">Sustainability Report</a></li>
               </ul>
             </div>
           </div>
