@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { 
   Shield, Package, CheckCircle, TrendingDown, Award,
   ArrowRight, Phone, Mail, Star, Menu, X, Truck,
-  Clock, Users, ShoppingCart, Home, Palette, Building2
+  Clock, Users, ShoppingCart, Home as HomeIcon, Palette, Building2
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -310,7 +310,7 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-8">
             <div className="text-center">
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Home className="w-8 h-8 text-blue-600" />
+                <HomeIcon className="w-8 h-8 text-blue-600" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">Home Projects</h3>
               <p className="text-gray-600">Interior painting, furniture refinishing, and weekend DIY projects</p>
