@@ -15,22 +15,22 @@ export default function Home() {
 
   const divisions = [
     {
+      name: "E-Commerce",
+      icon: ShoppingCart,
+      description: "Direct-to-consumer platform with competitive pricing",
+      capabilities: ["Amazon marketplace", "Own website", "24-hour shipping"]
+    },
+    {
+      name: "Retail Distribution",
+      icon: Building2,
+      description: "Growing B2B partnerships with major retailers",
+      capabilities: ["Bulk orders", "Custom packaging", "Retail support"]
+    },
+    {
       name: "Manufacturing",
       icon: Factory,
-      description: "State-of-the-art facilities producing sustainable materials",
-      capabilities: ["Plastic extrusion", "Textile processing", "Quality control"]
-    },
-    {
-      name: "Distribution",
-      icon: Truck,
-      description: "Nationwide logistics network ensuring timely delivery",
-      capabilities: ["24-hour fulfillment", "Bulk shipping", "Inventory management"]
-    },
-    {
-      name: "Innovation",
-      icon: Lightbulb,
-      description: "R&D focused on sustainable materials and processes",
-      capabilities: ["Material science", "Process optimization", "Sustainability research"]
+      description: "Transitioning to U.S. production by Year 5",
+      capabilities: ["GRS certified materials", "Quality control", "50% U.S. production target"]
     }
   ]
 
@@ -147,20 +147,20 @@ export default function Home() {
             </div>
             <div className="grid grid-cols-4 gap-8 max-w-2xl mx-auto">
               <div>
-                <p className="text-3xl font-bold text-[#012D44]">30+</p>
-                <p className="text-sm text-gray-600">Years of Innovation</p>
+                <p className="text-3xl font-bold text-[#012D44]">$8.8M</p>
+                <p className="text-sm text-gray-600">5-Year Revenue</p>
               </div>
               <div>
-                <p className="text-3xl font-bold text-[#012D44]">3</p>
-                <p className="text-sm text-gray-600">Core Divisions</p>
+                <p className="text-3xl font-bold text-[#012D44]">6</p>
+                <p className="text-sm text-gray-600">Product Lines</p>
               </div>
               <div>
-                <p className="text-3xl font-bold text-[#012D44]">50M+</p>
-                <p className="text-sm text-gray-600">Products Delivered</p>
+                <p className="text-3xl font-bold text-[#012D44]">25-30%</p>
+                <p className="text-sm text-gray-600">Below Competitors</p>
               </div>
               <div>
-                <p className="text-3xl font-bold text-[#012D44]">100%</p>
-                <p className="text-sm text-gray-600">US Operations</p>
+                <p className="text-3xl font-bold text-[#012D44]">1,364%</p>
+                <p className="text-sm text-gray-600">5-Year ROI</p>
               </div>
             </div>
           </div>
@@ -213,23 +213,23 @@ export default function Home() {
               </div>
             </div>
             <div className="bg-[#E6FAFF] rounded-lg p-10">
-              <h3 className="text-2xl font-bold text-[#012D44] mb-8 text-center">By the Numbers</h3>
+              <h3 className="text-2xl font-bold text-[#012D44] mb-8 text-center">Business Projections</h3>
               <div className="space-y-6">
                 <div className="flex justify-between items-center py-3 border-b border-[#012D44]/10">
-                  <span className="text-gray-700">Founded</span>
-                  <span className="font-bold text-[#012D44] text-xl">1993</span>
+                  <span className="text-gray-700">Year 1 Revenue</span>
+                  <span className="font-bold text-[#012D44] text-xl">$1.2M</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b border-[#012D44]/10">
-                  <span className="text-gray-700">Team Members</span>
-                  <span className="font-bold text-[#012D44] text-xl">200+</span>
+                  <span className="text-gray-700">Year 5 Revenue</span>
+                  <span className="font-bold text-[#012D44] text-xl">$2.4M</span>
                 </div>
                 <div className="flex justify-between items-center py-3 border-b border-[#012D44]/10">
-                  <span className="text-gray-700">Products Shipped</span>
-                  <span className="font-bold text-[#012D44] text-xl">50M+</span>
+                  <span className="text-gray-700">U.S. Jobs Created</span>
+                  <span className="font-bold text-[#012D44] text-xl">5+ by Year 5</span>
                 </div>
                 <div className="flex justify-between items-center py-3">
-                  <span className="text-gray-700">Carbon Neutral Since</span>
-                  <span className="font-bold text-[#012D44] text-xl">2020</span>
+                  <span className="text-gray-700">Initial Investment</span>
+                  <span className="font-bold text-[#012D44] text-xl">$80,000</span>
                 </div>
               </div>
             </div>
@@ -291,19 +291,19 @@ export default function Home() {
               <ul className="space-y-3 mb-8">
                 <li className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
-                  <span className="text-gray-700">Bulk ordering with volume discounts</span>
+                  <span className="text-gray-700">25-30% below market pricing</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
-                  <span className="text-gray-700">Custom product specifications</span>
+                  <span className="text-gray-700">60-65 day lead times</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
-                  <span className="text-gray-700">Dedicated account management</span>
+                  <span className="text-gray-700">16,000+ units monthly capacity</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
-                  <span className="text-gray-700">Just-in-time delivery</span>
+                  <span className="text-gray-700">Flexible payment terms</span>
                 </li>
               </ul>
               <Link href="#contact" className="inline-flex items-center gap-2 text-[#012D44] hover:underline font-medium">
@@ -318,19 +318,19 @@ export default function Home() {
               <ul className="space-y-3 mb-8">
                 <li className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
-                  <span className="text-gray-700">Simple product selection</span>
+                  <span className="text-gray-700">6 optimized product SKUs</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
-                  <span className="text-gray-700">24-hour shipping</span>
+                  <span className="text-gray-700">3-5 day U.S. delivery</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
-                  <span className="text-gray-700">Eco-friendly materials</span>
+                  <span className="text-gray-700">GRS certified materials</span>
                 </li>
                 <li className="flex items-start gap-3">
                   <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
-                  <span className="text-gray-700">Fair, transparent pricing</span>
+                  <span className="text-gray-700">Amazon marketplace presence</span>
                 </li>
               </ul>
               <Link href="/products" className="inline-flex items-center gap-2 text-[#012D44] hover:underline font-medium">
@@ -355,31 +355,31 @@ export default function Home() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
             <div className="text-center">
               <div className="w-16 h-16 bg-[#E6FAFF] rounded-full flex items-center justify-center mx-auto mb-4">
-                <Leaf className="w-8 h-8 text-[#012D44]" />
+                <TrendingUp className="w-8 h-8 text-[#012D44]" />
               </div>
-              <p className="text-4xl font-bold text-[#012D44] mb-2">85%</p>
-              <p className="text-sm text-gray-700">Products from recycled materials</p>
+              <p className="text-4xl font-bold text-[#012D44] mb-2">97%</p>
+              <p className="text-sm text-gray-700">Revenue growth over 5 years</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-[#E6FAFF] rounded-full flex items-center justify-center mx-auto mb-4">
                 <Users className="w-8 h-8 text-[#012D44]" />
               </div>
-              <p className="text-4xl font-bold text-[#012D44] mb-2">2M+</p>
-              <p className="text-sm text-gray-700">Customers served annually</p>
+              <p className="text-4xl font-bold text-[#012D44] mb-2">141K+</p>
+              <p className="text-sm text-gray-700">Units sold Year 1</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-[#E6FAFF] rounded-full flex items-center justify-center mx-auto mb-4">
-                <TrendingUp className="w-8 h-8 text-[#012D44]" />
+                <DollarSign className="w-8 h-8 text-[#012D44]" />
               </div>
-              <p className="text-4xl font-bold text-[#012D44] mb-2">30%</p>
-              <p className="text-sm text-gray-700">Average customer savings</p>
+              <p className="text-4xl font-bold text-[#012D44] mb-2">13.8%</p>
+              <p className="text-sm text-gray-700">Net margin by Year 5</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-[#E6FAFF] rounded-full flex items-center justify-center mx-auto mb-4">
-                <Globe className="w-8 h-8 text-[#012D44]" />
+                <Award className="w-8 h-8 text-[#012D44]" />
               </div>
-              <p className="text-4xl font-bold text-[#012D44] mb-2">100%</p>
-              <p className="text-sm text-gray-700">Carbon neutral operations</p>
+              <p className="text-4xl font-bold text-[#012D44] mb-2">GRS</p>
+              <p className="text-sm text-gray-700">Certified recycled materials</p>
             </div>
           </div>
           <div className="bg-[#012D44] text-white rounded-lg p-12 text-center">
