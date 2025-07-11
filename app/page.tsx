@@ -65,6 +65,11 @@ export default function Home() {
 
   return (
     <div className="relative min-h-screen bg-white">
+      {/* Deployment Test Banner */}
+      <div className="bg-green-600 text-white text-center py-2 text-sm font-medium">
+        🚀 New Deployment System Active - Updated {new Date().toLocaleString()}
+      </div>
+      
       {/* Navigation */}
       <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
