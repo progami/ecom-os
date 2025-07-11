@@ -5,69 +5,55 @@ import {
   Shield, Package, CheckCircle, TrendingDown, Award,
   ArrowRight, Phone, Mail, Star, Menu, X, Truck,
   Clock, Users, ShoppingCart, Home as HomeIcon, Palette, Building2,
-  Zap, Target, Lightbulb
+  Zap, Target, Lightbulb, Wrench, Factory, Globe, Heart,
+  TrendingUp, ShieldCheck, Leaf, DollarSign
 } from 'lucide-react'
 import { useState } from 'react'
 
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const products = [
+  const divisions = [
     {
-      name: "Standard Drop Cloth",
-      description: "12' x 9' • 7 Micron • Clear Plastic",
-      features: ["Covers 108 sq ft", "Light & portable", "Single project use"],
-      image: "/api/placeholder/400/300",
-      options: [
-        { pack: "6-Pack", price: "$6.99", perUnit: "$1.17 each" },
-        { pack: "12-Pack", price: "$12.99", perUnit: "$1.08 each", savings: "8% savings" }
-      ],
-      badge: "Most Efficient"
+      name: "Manufacturing",
+      icon: Factory,
+      description: "State-of-the-art facilities producing sustainable materials",
+      capabilities: ["Plastic extrusion", "Textile processing", "Quality control"]
     },
     {
-      name: "Professional Drop Cloth",
-      description: "12' x 9' • 32 Micron • Heavy-Duty Plastic",
-      features: ["4x thicker", "Tear-resistant", "Multi-project use"],
-      image: "/api/placeholder/400/300",
-      options: [
-        { pack: "1-Pack", price: "$7.99", perUnit: "$7.99 each" },
-        { pack: "3-Pack", price: "$14.99", perUnit: "$5.00 each", savings: "37% savings" }
-      ],
-      badge: "Built to Last"
+      name: "Distribution",
+      icon: Truck,
+      description: "Nationwide logistics network ensuring timely delivery",
+      capabilities: ["24-hour fulfillment", "Bulk shipping", "Inventory management"]
     },
     {
-      name: "Reusable Canvas Drop Cloth",
-      description: "12' x 9' • 8oz Cotton Canvas",
-      features: ["Machine washable", "Absorbs spills", "Stays in place"],
-      image: "/api/placeholder/400/300",
-      options: [
-        { pack: "1-Pack", price: "$19.99", perUnit: "$19.99 each" },
-        { pack: "2-Pack", price: "$34.99", perUnit: "$17.50 each", savings: "13% savings" }
-      ],
-      badge: "Long-term Value"
+      name: "Innovation",
+      icon: Lightbulb,
+      description: "R&D focused on sustainable materials and processes",
+      capabilities: ["Material science", "Process optimization", "Sustainability research"]
     }
   ]
 
-  const benefits = [
+  const values = [
     {
       icon: Zap,
-      title: "Efficient Coverage",
-      description: "Right size, right price, no waste"
+      title: "Efficiency",
+      description: "Solving everyday problems better"
     },
     {
       icon: Target,
-      title: "Simple Selection",
-      description: "Three options. Easy choice."
+      title: "Simplicity",
+      description: "Reducing complexity in every interaction"
     },
     {
-      icon: Award,
-      title: "Eco-Certified",
-      description: "Recycled materials, same quality"
+      icon: Users,
+      title: "Empowerment",
+      description: "Enabling right decisions for our partners"
     },
     {
-      icon: Clock,
-      title: "Ships in 24 Hours",
-      description: "In stock, ready to go"
+      icon: Leaf,
+      title: "Sustainability",
+      description: "Building tomorrow's solutions today"
     }
   ]
 
@@ -85,21 +71,22 @@ export default function Home() {
                 </div>
                 <div>
                   <span className="text-xl font-bold text-[#012D44]">Targon</span>
-                  <span className="hidden sm:block text-xs text-gray-600">Drop Cloths Done Better</span>
+                  <span className="hidden sm:block text-xs text-gray-600">Everyday, Done Better</span>
                 </div>
               </Link>
             </div>
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              <Link href="#products" className="text-gray-700 hover:text-[#012D44] transition-colors font-medium">Products</Link>
-              <Link href="#why-targon" className="text-gray-700 hover:text-[#012D44] transition-colors font-medium">Why Choose Us</Link>
+              <Link href="#about" className="text-gray-700 hover:text-[#012D44] transition-colors font-medium">About</Link>
+              <Link href="#divisions" className="text-gray-700 hover:text-[#012D44] transition-colors font-medium">Divisions</Link>
+              <Link href="#impact" className="text-gray-700 hover:text-[#012D44] transition-colors font-medium">Impact</Link>
               <Link href="#contact" className="text-gray-700 hover:text-[#012D44] transition-colors font-medium">Contact</Link>
               <Link 
-                href="#products" 
+                href="#solutions" 
                 className="px-6 py-2.5 bg-[#012D44] text-white rounded hover:bg-[#011f2e] transition-colors font-medium"
               >
-                Shop Drop Cloths
+                Our Solutions
               </Link>
             </div>
 
@@ -117,14 +104,15 @@ export default function Home() {
         {mobileMenuOpen && (
           <div className="md:hidden bg-white border-t border-gray-100">
             <div className="px-4 py-4 space-y-4">
-              <Link href="#products" className="block text-gray-700 hover:text-[#012D44] font-medium">Products</Link>
-              <Link href="#why-targon" className="block text-gray-700 hover:text-[#012D44] font-medium">Why Choose Us</Link>
+              <Link href="#about" className="block text-gray-700 hover:text-[#012D44] font-medium">About</Link>
+              <Link href="#divisions" className="block text-gray-700 hover:text-[#012D44] font-medium">Divisions</Link>
+              <Link href="#impact" className="block text-gray-700 hover:text-[#012D44] font-medium">Impact</Link>
               <Link href="#contact" className="block text-gray-700 hover:text-[#012D44] font-medium">Contact</Link>
               <Link 
-                href="#products" 
+                href="#solutions" 
                 className="block px-4 py-2.5 bg-[#012D44] text-white rounded text-center hover:bg-[#011f2e] font-medium"
               >
-                Shop Drop Cloths
+                Our Solutions
               </Link>
             </div>
           </div>
@@ -133,316 +121,310 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="relative bg-[#E6FAFF]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
-              <h1 className="text-4xl md:text-5xl font-bold text-[#012D44] mb-4">
-                Paint Protection.
-                <span className="block">Done Better.</span>
-              </h1>
-              <p className="text-xl text-gray-700 mb-8">
-                Simple choices. Right sizes. Fair prices. 
-                The drop cloth you need, nothing you don't.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <a 
-                  href="#products" 
-                  className="px-8 py-3 bg-[#012D44] text-white rounded hover:bg-[#011f2e] transition-colors text-lg font-medium"
-                >
-                  View Products
-                </a>
-                <a 
-                  href="#bulk" 
-                  className="px-8 py-3 border-2 border-[#012D44] text-[#012D44] rounded hover:bg-[#E6FAFF] transition-colors text-lg font-medium"
-                >
-                  Bulk Pricing
-                </a>
-              </div>
-              <div className="flex items-center gap-8 mt-10">
-                <div>
-                  <p className="text-3xl font-bold text-[#012D44]">$6.99</p>
-                  <p className="text-sm text-gray-600">Starting at</p>
-                </div>
-                <div className="h-12 w-px bg-gray-300"></div>
-                <div>
-                  <p className="text-3xl font-bold text-[#012D44]">24hr</p>
-                  <p className="text-sm text-gray-600">Ships within</p>
-                </div>
-                <div className="h-12 w-px bg-gray-300"></div>
-                <div>
-                  <p className="text-3xl font-bold text-[#012D44]">4.8★</p>
-                  <p className="text-sm text-gray-600">2,847 reviews</p>
-                </div>
-              </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32">
+          <div className="text-center max-w-4xl mx-auto">
+            <h1 className="text-4xl md:text-6xl font-bold text-[#012D44] mb-6">
+              Solving Everyday Problems.
+              <span className="block text-3xl md:text-5xl mt-2">Better.</span>
+            </h1>
+            <p className="text-xl md:text-2xl text-gray-700 mb-8 max-w-3xl mx-auto">
+              At Targon, we simplify complexities to empower our partners with 
+              the simplest choices and most efficient solutions.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
+              <a 
+                href="#about" 
+                className="px-8 py-3 bg-[#012D44] text-white rounded hover:bg-[#011f2e] transition-colors text-lg font-medium"
+              >
+                Learn About Us
+              </a>
+              <a 
+                href="#divisions" 
+                className="px-8 py-3 border-2 border-[#012D44] text-[#012D44] rounded hover:bg-white transition-colors text-lg font-medium"
+              >
+                Our Divisions
+              </a>
             </div>
-            <div className="relative">
-              <div className="bg-white rounded-lg shadow-sm p-8 border border-gray-200">
-                <div className="mb-6">
-                  <div className="text-sm text-gray-600 mb-2">Most Popular</div>
-                  <h3 className="text-2xl font-bold text-[#012D44] mb-4">Professional 3-Pack</h3>
-                  <div className="space-y-4">
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-gray-600">Regular price</span>
-                      <span className="text-gray-500 line-through">$23.97</span>
-                    </div>
-                    <div className="flex justify-between items-baseline">
-                      <span className="font-medium text-[#012D44]">Your price</span>
-                      <span className="text-3xl font-bold text-[#012D44]">$14.99</span>
-                    </div>
-                    <div className="bg-green-50 text-green-700 px-3 py-2 rounded text-center">
-                      You save $8.98 (37%)
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2 mb-6 text-sm">
-                  <div className="flex items-start gap-2">
-                    <div className="w-1.5 h-1.5 bg-[#012D44] rounded-full mt-1.5"></div>
-                    <span className="text-gray-700">3 heavy-duty sheets (12' × 9')</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <div className="w-1.5 h-1.5 bg-[#012D44] rounded-full mt-1.5"></div>
-                    <span className="text-gray-700">32 micron thickness</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <div className="w-1.5 h-1.5 bg-[#012D44] rounded-full mt-1.5"></div>
-                    <span className="text-gray-700">Reusable for multiple projects</span>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <div className="w-1.5 h-1.5 bg-[#012D44] rounded-full mt-1.5"></div>
-                    <span className="text-gray-700">324 sq ft total coverage</span>
-                  </div>
-                </div>
-                <button className="w-full px-6 py-3 bg-[#012D44] text-white rounded hover:bg-[#011f2e] transition-colors font-medium">
-                  Add to Cart
-                </button>
+            <div className="grid grid-cols-4 gap-8 max-w-2xl mx-auto">
+              <div>
+                <p className="text-3xl font-bold text-[#012D44]">30+</p>
+                <p className="text-sm text-gray-600">Years of Innovation</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-[#012D44]">3</p>
+                <p className="text-sm text-gray-600">Core Divisions</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-[#012D44]">50M+</p>
+                <p className="text-sm text-gray-600">Products Delivered</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-[#012D44]">100%</p>
+                <p className="text-sm text-gray-600">US Operations</p>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Trust Badges */}
+      {/* Core Values */}
       <section className="bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <h2 className="text-2xl font-bold text-[#012D44] text-center mb-12">Our Core Values</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {benefits.map((benefit, index) => (
+            {values.map((value, index) => (
               <div key={index} className="text-center">
                 <div className="w-12 h-12 bg-[#E6FAFF] rounded-full flex items-center justify-center mx-auto mb-3">
-                  <benefit.icon className="w-6 h-6 text-[#012D44]" />
+                  <value.icon className="w-6 h-6 text-[#012D44]" />
                 </div>
-                <h3 className="font-semibold text-[#012D44] text-sm mb-1">{benefit.title}</h3>
-                <p className="text-xs text-gray-600">{benefit.description}</p>
+                <h3 className="font-semibold text-[#012D44] text-sm mb-1">{value.title}</h3>
+                <p className="text-xs text-gray-600">{value.description}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Products Section */}
-      <section id="products" className="py-20">
+      {/* About Section */}
+      <section id="about" className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold text-[#012D44] mb-6">
+                Who We Are
+              </h2>
+              <div className="space-y-6 text-gray-700">
+                <p className="text-lg">
+                  Targon is a sustainable manufacturing company dedicated to solving 
+                  everyday problems through innovative, efficient solutions.
+                </p>
+                <div>
+                  <h3 className="font-semibold text-[#012D44] mb-2">Our Purpose</h3>
+                  <p>We exist to simplify the complexities of modern life by providing tools and solutions that empower better decisions.</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[#012D44] mb-2">Our Approach</h3>
+                  <p>We dive deep into the details to understand real problems, then engineer simple, sustainable solutions that just work.</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[#012D44] mb-2">Our Promise</h3>
+                  <p>Every Targon product is designed with efficiency, simplicity, and sustainability at its core. No complexity, no waste.</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-[#E6FAFF] rounded-lg p-10">
+              <h3 className="text-2xl font-bold text-[#012D44] mb-8 text-center">By the Numbers</h3>
+              <div className="space-y-6">
+                <div className="flex justify-between items-center py-3 border-b border-[#012D44]/10">
+                  <span className="text-gray-700">Founded</span>
+                  <span className="font-bold text-[#012D44] text-xl">1993</span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-[#012D44]/10">
+                  <span className="text-gray-700">Team Members</span>
+                  <span className="font-bold text-[#012D44] text-xl">200+</span>
+                </div>
+                <div className="flex justify-between items-center py-3 border-b border-[#012D44]/10">
+                  <span className="text-gray-700">Products Shipped</span>
+                  <span className="font-bold text-[#012D44] text-xl">50M+</span>
+                </div>
+                <div className="flex justify-between items-center py-3">
+                  <span className="text-gray-700">Carbon Neutral Since</span>
+                  <span className="font-bold text-[#012D44] text-xl">2020</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Divisions Section */}
+      <section id="divisions" className="py-20 bg-[#fafbfc]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-[#012D44] mb-4">
-              Three Options. Simple Choice.
+              Our Divisions
             </h2>
-            <p className="text-lg text-gray-700 max-w-2xl mx-auto">
-              We've done the research. These are the only drop cloths you'll ever need.
+            <p className="text-lg text-gray-700 max-w-3xl mx-auto">
+              Three focused divisions working together to deliver comprehensive solutions 
+              for everyday challenges.
             </p>
           </div>
-
           <div className="grid md:grid-cols-3 gap-8">
-            {products.map((product, index) => (
-              <div key={index} className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                {product.badge && (
-                  <div className="bg-[#E6FAFF] text-[#012D44] text-center py-2 text-sm font-medium border-b border-gray-200">
-                    {product.badge}
-                  </div>
-                )}
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-[#012D44] mb-2">{product.name}</h3>
-                  <p className="text-gray-600 text-sm mb-6">{product.description}</p>
-                  
-                  <div className="space-y-2 mb-6 text-sm">
-                    {product.features.map((feature, fIndex) => (
-                      <div key={fIndex} className="flex items-start gap-2">
-                        <div className="w-1.5 h-1.5 bg-[#012D44] rounded-full mt-1.5"></div>
-                        <span className="text-gray-700">{feature}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="space-y-3">
-                    {product.options.map((option, oIndex) => (
-                      <div key={oIndex} className={`border rounded p-4 ${option.savings ? 'border-[#012D44] bg-[#E6FAFF]' : 'border-gray-200'}`}>
-                        <div className="flex justify-between items-baseline mb-3">
-                          <div>
-                            <h4 className="font-semibold text-[#012D44]">{option.pack}</h4>
-                            <p className="text-sm text-gray-600">{option.perUnit}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-bold text-[#012D44]">{option.price}</p>
-                            {option.savings && (
-                              <p className="text-sm text-[#00a651] font-medium">{option.savings}</p>
-                            )}
-                          </div>
-                        </div>
-                        <button className="w-full px-4 py-2 bg-[#012D44] text-white rounded hover:bg-[#011f2e] transition-colors text-sm font-medium">
-                          Select
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+            {divisions.map((division, index) => (
+              <div key={index} className="bg-white rounded-lg p-8 border border-gray-200">
+                <div className="w-16 h-16 bg-[#E6FAFF] rounded-lg flex items-center justify-center mb-6">
+                  <division.icon className="w-8 h-8 text-[#012D44]" />
+                </div>
+                <h3 className="text-xl font-bold text-[#012D44] mb-3">{division.name}</h3>
+                <p className="text-gray-700 mb-6">{division.description}</p>
+                <div className="space-y-2">
+                  {division.capabilities.map((capability, cIndex) => (
+                    <div key={cIndex} className="flex items-start gap-2">
+                      <div className="w-1.5 h-1.5 bg-[#012D44] rounded-full mt-1.5"></div>
+                      <span className="text-sm text-gray-600">{capability}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
           </div>
+        </div>
+      </section>
 
-          <div className="mt-16 bg-[#E6FAFF] rounded-lg p-8 text-center">
-            <h3 className="text-xl font-semibold text-[#012D44] mb-2">Need something different?</h3>
-            <p className="text-gray-700 mb-4">Custom sizes and bulk orders available.</p>
-            <Link href="#contact" className="inline-flex items-center gap-2 text-[#012D44] hover:underline font-medium">
-              <Phone className="w-5 h-5" />
-              <span>Call 1-800-TARGON1</span>
+      {/* Solutions Section */}
+      <section id="solutions" className="py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-[#012D44] mb-4">
+              Solutions That Work
+            </h2>
+            <p className="text-lg text-gray-700 max-w-3xl mx-auto">
+              From protective materials to logistics solutions, we make everyday tasks simpler and more efficient.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-12">
+            <div className="bg-white rounded-lg p-8 border border-gray-200">
+              <h3 className="text-2xl font-bold text-[#012D44] mb-4">For Businesses</h3>
+              <p className="text-gray-700 mb-6">
+                Streamline your operations with our B2B solutions designed for efficiency at scale.
+              </p>
+              <ul className="space-y-3 mb-8">
+                <li className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
+                  <span className="text-gray-700">Bulk ordering with volume discounts</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
+                  <span className="text-gray-700">Custom product specifications</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
+                  <span className="text-gray-700">Dedicated account management</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
+                  <span className="text-gray-700">Just-in-time delivery</span>
+                </li>
+              </ul>
+              <Link href="#contact" className="inline-flex items-center gap-2 text-[#012D44] hover:underline font-medium">
+                Learn More <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+            <div className="bg-white rounded-lg p-8 border border-gray-200">
+              <h3 className="text-2xl font-bold text-[#012D44] mb-4">For Individuals</h3>
+              <p className="text-gray-700 mb-6">
+                Quality products designed for your projects, available when you need them.
+              </p>
+              <ul className="space-y-3 mb-8">
+                <li className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
+                  <span className="text-gray-700">Simple product selection</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
+                  <span className="text-gray-700">24-hour shipping</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
+                  <span className="text-gray-700">Eco-friendly materials</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle className="w-5 h-5 text-[#012D44] mt-0.5" />
+                  <span className="text-gray-700">Fair, transparent pricing</span>
+                </li>
+              </ul>
+              <Link href="/products" className="inline-flex items-center gap-2 text-[#012D44] hover:underline font-medium">
+                View Products <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Impact Section */}
+      <section id="impact" className="py-20 bg-[#fafbfc]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-[#012D44] mb-4">
+              Our Impact
+            </h2>
+            <p className="text-lg text-gray-700 max-w-3xl mx-auto">
+              Measuring success not just in products delivered, but in problems solved and futures protected.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-[#E6FAFF] rounded-full flex items-center justify-center mx-auto mb-4">
+                <Leaf className="w-8 h-8 text-[#012D44]" />
+              </div>
+              <p className="text-4xl font-bold text-[#012D44] mb-2">85%</p>
+              <p className="text-sm text-gray-700">Products from recycled materials</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-[#E6FAFF] rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="w-8 h-8 text-[#012D44]" />
+              </div>
+              <p className="text-4xl font-bold text-[#012D44] mb-2">2M+</p>
+              <p className="text-sm text-gray-700">Customers served annually</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-[#E6FAFF] rounded-full flex items-center justify-center mx-auto mb-4">
+                <TrendingUp className="w-8 h-8 text-[#012D44]" />
+              </div>
+              <p className="text-4xl font-bold text-[#012D44] mb-2">30%</p>
+              <p className="text-sm text-gray-700">Average customer savings</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-[#E6FAFF] rounded-full flex items-center justify-center mx-auto mb-4">
+                <Globe className="w-8 h-8 text-[#012D44]" />
+              </div>
+              <p className="text-4xl font-bold text-[#012D44] mb-2">100%</p>
+              <p className="text-sm text-gray-700">Carbon neutral operations</p>
+            </div>
+          </div>
+          <div className="bg-[#012D44] text-white rounded-lg p-12 text-center">
+            <h3 className="text-2xl md:text-3xl font-bold mb-4">
+              Building a Better Tomorrow
+            </h3>
+            <p className="text-lg text-[#E6FAFF] max-w-3xl mx-auto mb-8">
+              Every decision we make is guided by our commitment to efficiency, 
+              sustainability, and empowering our partners to succeed.
+            </p>
+            <Link href="/sustainability" className="inline-flex items-center gap-2 text-white hover:text-[#E6FAFF] font-medium">
+              Learn About Our Commitments <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Use Cases */}
-      <section className="py-20 bg-[#fafbfc]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-[#012D44] text-center mb-16">
-            Right Tool. Right Job.
-          </h2>
-          <div className="grid md:grid-cols-3 gap-12">
-            <div>
-              <div className="w-12 h-12 bg-[#E6FAFF] rounded flex items-center justify-center mb-4">
-                <HomeIcon className="w-6 h-6 text-[#012D44]" />
-              </div>
-              <h3 className="text-lg font-semibold text-[#012D44] mb-2">Weekend DIY</h3>
-              <p className="text-gray-700 text-sm">Quick room painting. Furniture projects. One-time use.</p>
-              <p className="text-sm font-medium text-[#012D44] mt-3">→ Standard 6-Pack</p>
-            </div>
-            <div>
-              <div className="w-12 h-12 bg-[#E6FAFF] rounded flex items-center justify-center mb-4">
-                <Palette className="w-6 h-6 text-[#012D44]" />
-              </div>
-              <h3 className="text-lg font-semibold text-[#012D44] mb-2">Professional Jobs</h3>
-              <p className="text-gray-700 text-sm">Multiple rooms. Client projects. Need durability.</p>
-              <p className="text-sm font-medium text-[#012D44] mt-3">→ Professional 3-Pack</p>
-            </div>
-            <div>
-              <div className="w-12 h-12 bg-[#E6FAFF] rounded flex items-center justify-center mb-4">
-                <Building2 className="w-6 h-6 text-[#012D44]" />
-              </div>
-              <h3 className="text-lg font-semibold text-[#012D44] mb-2">Repeat Use</h3>
-              <p className="text-gray-700 text-sm">Workshop protection. Regular projects. Long-term value.</p>
-              <p className="text-sm font-medium text-[#012D44] mt-3">→ Canvas Drop Cloth</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Why Choose Targon */}
-      <section id="why-targon" className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-2 gap-16 items-center">
-            <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-[#012D44] mb-8">
-                Why We're Different
-              </h2>
-              <div className="space-y-8">
-                <div>
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-[#E6FAFF] rounded flex items-center justify-center">
-                      <Lightbulb className="w-5 h-5 text-[#012D44]" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-[#012D44]">We Did the Research</h3>
-                  </div>
-                  <p className="text-gray-700 ml-13">Three products cover 99% of needs. No confusing choices.</p>
-                </div>
-                <div>
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-[#E6FAFF] rounded flex items-center justify-center">
-                      <Target className="w-5 h-5 text-[#012D44]" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-[#012D44]">Direct to You</h3>
-                  </div>
-                  <p className="text-gray-700 ml-13">No middleman markup. Same quality, 30% less cost.</p>
-                </div>
-                <div>
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 bg-[#E6FAFF] rounded flex items-center justify-center">
-                      <Award className="w-5 h-5 text-[#012D44]" />
-                    </div>
-                    <h3 className="text-lg font-semibold text-[#012D44]">Certified Sustainable</h3>
-                  </div>
-                  <p className="text-gray-700 ml-13">Recycled materials. Same performance. Better for tomorrow.</p>
-                </div>
-              </div>
-            </div>
-            <div>
-              <div className="bg-[#E6FAFF] rounded-lg p-8">
-                <h3 className="text-2xl font-bold text-[#012D44] mb-6">The Math is Simple</h3>
-                <div className="space-y-4 mb-6">
-                  <div className="flex justify-between items-center py-3 border-b border-[#012D44]/10">
-                    <span className="text-gray-700">Their Price (12x9 Heavy-Duty)</span>
-                    <span className="font-semibold text-gray-700">$11.99</span>
-                  </div>
-                  <div className="flex justify-between items-center py-3 border-b border-[#012D44]/10">
-                    <span className="text-[#012D44] font-medium">Our Price (Same Quality)</span>
-                    <span className="font-bold text-[#012D44] text-xl">$7.99</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-3">
-                    <span className="font-semibold text-green-700">You Save</span>
-                    <span className="font-bold text-green-700 text-xl">$4.00 (33%)</span>
-                  </div>
-                </div>
-                <p className="text-sm text-[#012D44] text-center font-medium">
-                  Every. Single. Time.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Reviews Section */}
-      <section id="reviews" className="py-20 bg-[#fafbfc]">
+      {/* Testimonials Section */}
+      <section className="py-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl font-bold text-[#012D44] text-center mb-16">
-            Real Reviews. Real Results.
+            Trusted Partners
           </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <div className="flex mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-[#012D44] text-[#012D44]" />
-                ))}
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="bg-white rounded-lg p-8 border border-gray-200">
+              <p className="text-gray-700 mb-6 italic">
+                "Targon transformed our supply chain. Their efficiency-first approach 
+                reduced our material costs by 35% while improving product quality. 
+                They're not just a supplier, they're a strategic partner."
+              </p>
+              <div>
+                <p className="font-semibold text-[#012D44]">Jennifer Martinez</p>
+                <p className="text-sm text-gray-600">VP Operations, BuildRight Construction</p>
               </div>
-              <p className="text-gray-700 text-sm mb-4">"Actually reusable. Unlike others that tear first use. Worth it."</p>
-              <p className="font-medium text-[#012D44]">Mike R.</p>
-              <p className="text-xs text-gray-600">Pro Painter • 20 years</p>
             </div>
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <div className="flex mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-[#012D44] text-[#012D44]" />
-                ))}
+            <div className="bg-white rounded-lg p-8 border border-gray-200">
+              <p className="text-gray-700 mb-6 italic">
+                "In 10 years of partnership, Targon has never missed a delivery. 
+                Their commitment to simplicity and reliability has made them an 
+                essential part of our business operations."
+              </p>
+              <div>
+                <p className="font-semibold text-[#012D44]">Robert Chen</p>
+                <p className="text-sm text-gray-600">CEO, Premier Painting Solutions</p>
               </div>
-              <p className="text-gray-700 text-sm mb-4">"Simple ordering. Fair price. Does the job. What more do you need?"</p>
-              <p className="font-medium text-[#012D44]">Sarah L.</p>
-              <p className="text-xs text-gray-600">Homeowner</p>
-            </div>
-            <div className="bg-white rounded-lg p-6 border border-gray-200">
-              <div className="flex mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-4 h-4 fill-[#012D44] text-[#012D44]" />
-                ))}
-              </div>
-              <p className="text-gray-700 text-sm mb-4">"Bulk orders arrive on time. Every time. Reliable supplier."</p>
-              <p className="font-medium text-[#012D44]">Johnson & Co.</p>
-              <p className="text-xs text-gray-600">Contractor</p>
             </div>
           </div>
         </div>
@@ -452,23 +434,23 @@ export default function Home() {
       <section className="py-20 bg-[#012D44]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Drop Cloths. Done Better.
+            Ready to Simplify?
           </h2>
           <p className="text-lg text-[#E6FAFF] mb-10">
-            Stop overpaying. Start protecting smarter.
+            Let's solve your everyday challenges together.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a 
-              href="#products" 
+              href="#contact" 
               className="px-8 py-3 bg-white text-[#012D44] rounded hover:bg-[#E6FAFF] transition-colors font-medium"
             >
-              View Products
+              Start a Conversation
             </a>
             <a 
-              href="tel:1-800-TARGON1" 
+              href="#divisions" 
               className="px-8 py-3 border-2 border-white text-white rounded hover:bg-white/10 transition-colors font-medium"
             >
-              Call for Bulk Orders
+              Explore Our Capabilities
             </a>
           </div>
         </div>
@@ -514,7 +496,7 @@ export default function Home() {
               </div>
             </div>
             <div className="bg-[#E6FAFF] rounded-lg p-8">
-              <h3 className="text-xl font-bold text-[#012D44] mb-6">Quick Quote</h3>
+              <h3 className="text-xl font-bold text-[#012D44] mb-6">Start a Conversation</h3>
               <form className="space-y-4">
                 <div>
                   <input 
@@ -541,14 +523,14 @@ export default function Home() {
                   <textarea 
                     className="w-full px-4 py-3 border border-[#012D44]/20 rounded focus:outline-none focus:border-[#012D44]"
                     rows={3}
-                    placeholder="How many drop cloths do you need?"
+                    placeholder="Tell us about your challenge"
                   />
                 </div>
                 <button 
                   type="submit" 
                   className="w-full px-6 py-3 bg-[#012D44] text-white rounded hover:bg-[#011f2e] transition-colors font-medium"
                 >
-                  Get Quote
+                  Send Message
                 </button>
               </form>
             </div>
@@ -567,7 +549,7 @@ export default function Home() {
                 </div>
                 <div>
                   <span className="text-xl font-bold">Targon</span>
-                  <p className="text-sm text-[#E6FAFF]">Drop Cloths Done Better</p>
+                  <p className="text-sm text-[#E6FAFF]">Everyday, Done Better</p>
                 </div>
               </div>
               <p className="text-[#E6FAFF] text-sm max-w-xs">
@@ -578,9 +560,10 @@ export default function Home() {
             <div>
               <h4 className="font-medium mb-4 text-sm">Quick Links</h4>
               <ul className="space-y-2 text-sm text-[#E6FAFF]">
-                <li><a href="#products" className="hover:text-white transition-colors">Products</a></li>
-                <li><a href="#why-targon" className="hover:text-white transition-colors">Why Choose Us</a></li>
-                <li><a href="#contact" className="hover:text-white transition-colors">Get Quote</a></li>
+                <li><a href="#about" className="hover:text-white transition-colors">About Us</a></li>
+                <li><a href="#divisions" className="hover:text-white transition-colors">Our Divisions</a></li>
+                <li><a href="#solutions" className="hover:text-white transition-colors">Solutions</a></li>
+                <li><a href="#impact" className="hover:text-white transition-colors">Our Impact</a></li>
               </ul>
             </div>
             <div>
