@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+coverage
+playwright-report
+test-results
+*.md
+.git
+dist
+build
+public
+*.json
+*.lock
+*.log
+.DS_Store
+prisma/migrations

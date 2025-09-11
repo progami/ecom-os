@@ -1,0 +1,165 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 259 94% 51%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 259 94% 51%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 259 94% 51%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 259 94% 51%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+/* Financial Table Styles */
+@layer components {
+  /* Base table styles */
+  .financial-table {
+    @apply w-full text-sm;
+  }
+
+  /* Header styles */
+  .financial-table thead tr {
+    @apply border-b bg-gray-50 dark:bg-gray-800;
+  }
+
+  .financial-table th {
+    @apply p-3 font-medium;
+  }
+
+  /* Body styles */
+  .financial-table tbody tr {
+    @apply border-b hover:bg-gray-50 dark:hover:bg-gray-800;
+  }
+
+  .financial-table tbody tr:nth-child(odd) {
+    @apply bg-gray-50/50 dark:bg-gray-800/50;
+  }
+
+  .financial-table td {
+    @apply py-2 px-3;
+  }
+
+  /* Sticky columns */
+  .financial-table .sticky-col {
+    @apply sticky left-0 bg-white dark:bg-gray-900 z-10;
+  }
+
+  .financial-table thead .sticky-col {
+    @apply bg-gray-50 dark:bg-gray-800;
+  }
+
+  /* Total rows */
+  .financial-table .total-row {
+    @apply font-bold bg-gray-100 dark:bg-gray-700 border-t-2 border-gray-300;
+  }
+
+  .financial-table .total-row .sticky-col {
+    @apply bg-gray-100 dark:bg-gray-700;
+  }
+
+  /* Currency values */
+  .financial-table .currency {
+    @apply text-right font-mono;
+  }
+
+  .financial-table .currency.positive {
+    @apply text-green-600 dark:text-green-400;
+  }
+
+  .financial-table .currency.negative {
+    @apply text-red-600 dark:text-red-400;
+  }
+}
+
+/* Handsontable Weeks of Stock Color Coding */
+@layer components {
+  /* Critical stock level (0-4 weeks) - Red */
+  .handsontable td.stock-critical {
+    background-color: #fee2e2 !important;
+    color: #991b1b !important;
+  }
+  
+  /* Warning stock level (4-6 weeks) - Orange/Red */
+  .handsontable td.stock-warning {
+    background-color: #fed7aa !important;
+    color: #9a3412 !important;
+  }
+  
+  /* Low stock level (6-8 weeks) - Orange */
+  .handsontable td.stock-low {
+    background-color: #fef3c7 !important;
+    color: #92400e !important;
+  }
+  
+  /* Moderate stock level (8-10 weeks) - Yellow */
+  .handsontable td.stock-moderate {
+    background-color: #fef9c3 !important;
+    color: #854d0e !important;
+  }
+  
+  /* Good stock level (10-12 weeks) - Light Green */
+  .handsontable td.stock-good {
+    background-color: #ecfccb !important;
+    color: #3f6212 !important;
+  }
+  
+  /* Healthy stock level (12-14 weeks) - Green */
+  .handsontable td.stock-healthy {
+    background-color: #d9f99d !important;
+    color: #365314 !important;
+  }
+  
+  /* Excellent stock level (14+ weeks) - Dark Green */
+  .handsontable td.stock-excellent {
+    background-color: #bbf7d0 !important;
+    color: #14532d !important;
+  }
+}

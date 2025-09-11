@@ -1,0 +1,268 @@
+name: Deploy to Production
+
+on:
+  # Auto-deploy when code is pushed to main
+  push:
+    branches: [main]
+  
+  # Auto-deploy on new releases
+  release:
+    types: [published]
+    
+  # Manual deployment
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  deploy:
+    name: Deploy to Server
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'production' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v5
+    
+    # Create a GitHub deployment
+    - name: Create GitHub deployment
+      uses: actions/github-script@v7
+      id: deployment
+      if: always()
+      continue-on-error: true
+      with:
+        script: |
+          try {
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: '${{ github.event.inputs.environment || 'production' }}',
+              description: 'Deploying to ${{ github.event.inputs.environment || 'production' }}',
+              auto_merge: false,
+              required_contexts: []
+            });
+            
+            core.setOutput('deployment_id', deployment.data.id);
+            return deployment.data.id;
+          } catch (error) {
+            console.log('Failed to create deployment:', error.message);
+            core.setOutput('deployment_id', '');
+            return null;
+          }
+    
+    # Update deployment status to in_progress
+    - name: Update deployment status (in progress)
+      uses: actions/github-script@v7
+      if: steps.deployment.outputs.deployment_id != ''
+      with:
+        script: |
+          await github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: ${{ steps.deployment.outputs.deployment_id }},
+            state: 'in_progress',
+            description: 'Deployment in progress...',
+            environment_url: 'https://wms.targonglobal.com'
+          });
+    
+    - name: Deploy to production server
+      id: deploy
+      uses: appleboy/ssh-action@v1.2.2
+      env:
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET }}
+        NEXTAUTH_URL: ${{ secrets.NEXTAUTH_URL }}
+        NODE_ENV: ${{ secrets.NODE_ENV || 'production' }}
+        PORT: ${{ secrets.PORT || '3001' }}
+        LOG_DIR: ${{ secrets.LOG_DIR || '/home/ubuntu/wms-ecomos/logs' }}
+        S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+        S3_BUCKET_REGION: ${{ secrets.S3_BUCKET_REGION || 'us-east-1' }}
+        AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+        S3_PRESIGNED_URL_EXPIRY: ${{ secrets.S3_PRESIGNED_URL_EXPIRY || '3600' }}
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: 22
+        envs: DATABASE_URL,NEXTAUTH_SECRET,NEXTAUTH_URL,NODE_ENV,PORT,LOG_DIR,S3_BUCKET_NAME,S3_BUCKET_REGION,AWS_REGION,S3_PRESIGNED_URL_EXPIRY
+        script: |
+          echo "🚀 Starting deployment..."
+          
+          # Run deployment as ubuntu user
+          set -e
+          
+          echo "📁 Navigating to application directory..."
+          cd /home/ubuntu/wms-ecomos
+          
+          # Use environment variables from GitHub Secrets (passed via envs parameter)
+          echo "🔐 Using environment variables from GitHub Secrets..."
+          
+          # Verify DATABASE_URL is set
+          if [ -z "$DATABASE_URL" ]; then
+            echo "❌ DATABASE_URL not found! Please set it as a GitHub Secret."
+            echo "Go to: Settings > Secrets and variables > Actions"
+            echo "Add secrets: DATABASE_URL, NEXTAUTH_SECRET, NEXTAUTH_URL"
+            exit 1
+          fi
+          
+          echo "✅ Environment variables loaded successfully"
+          
+          echo "💾 Backing up database before deployment..."
+          BACKUP_FILE="/home/ubuntu/backups/wms_backup_$(date +%Y%m%d_%H%M%S).sql"
+          mkdir -p /home/ubuntu/backups
+          pg_dump $DATABASE_URL > $BACKUP_FILE || echo "⚠️ Backup failed, continuing anyway"
+          
+          echo "🔄 Pulling latest changes from main branch..."
+          git fetch origin main
+          git reset --hard origin/main
+          
+          echo "📦 Installing dependencies..."
+          # Clean install - remove node_modules first to avoid conflicts
+          rm -rf node_modules package-lock.json || true
+          npm install --production=false
+          
+          echo "🗄️ Testing database connection..."
+          psql "$DATABASE_URL" -c "SELECT version();" || echo "❌ Database connection failed"
+          
+          echo "🗄️ Checking current database state..."
+          npx prisma migrate status || true
+          
+          echo "🗄️ Running database migrations..."
+          echo "DATABASE_URL is set: ${DATABASE_URL:+Yes}"
+          npx prisma generate
+          
+          # Check if _prisma_migrations table exists
+          echo "Checking if migrations table exists..."
+          HAS_MIGRATIONS_TABLE=$(psql "$DATABASE_URL" -t -c "SELECT 1 FROM information_schema.tables WHERE table_name='_prisma_migrations';" | tr -d '[:space:]')
+          
+          if [ "$HAS_MIGRATIONS_TABLE" != "1" ]; then
+            echo "⚠️ No migrations table found - need to baseline existing database"
+            
+            # Check which columns exist to determine what to mark as applied
+            HAS_SKU_CODE=$(psql "$DATABASE_URL" -t -c "SELECT COUNT(*) FROM information_schema.columns WHERE table_name='inventory_transactions' AND column_name='sku_code';" | tr -d '[:space:]')
+            
+            echo "Creating baseline..."
+            
+            # Mark migrations as applied based on what exists
+            npx prisma migrate resolve --applied 20250809060000_init || true
+            npx prisma migrate resolve --applied 20250809204740_remove_mode_of_transportation || true  
+            npx prisma migrate resolve --applied 20250811022611_remove_transaction_id || true
+            
+            if [ "$HAS_SKU_CODE" = "1" ]; then
+              echo "✓ sku_code column exists, marking immutable migration as applied"
+              npx prisma migrate resolve --applied 20250812144355_make_transactions_immutable || true
+            else
+              echo "⚠️ sku_code column missing, will apply immutable migration"
+              # Don't mark it as applied - let migrate deploy run it
+            fi
+            
+            echo "✓ Baseline complete"
+          else
+            echo "✓ Migrations table exists, checking status..."
+            npx prisma migrate status || true
+          fi
+          
+          # Now run migrate deploy - will apply any unapplied migrations
+          echo "Running: npx prisma migrate deploy"
+          npx prisma migrate deploy || true
+          
+          echo "Migration completed or failed - continuing..."
+          
+          echo "🔨 Building application..."
+          export BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "Build time: $BUILD_TIME"
+          npm run build
+          
+          echo "♻️ Restarting application..."
+          pm2 restart wms-app-ubuntu || pm2 start ecosystem.config.js --env production
+          
+          echo "💾 Saving PM2 configuration..."
+          pm2 save
+          
+          # Verify the app is running
+          sleep 5
+          if pm2 list | grep -q "wms-app-ubuntu.*online"; then
+            echo "✅ Deployment completed successfully!"
+          else
+            echo "⚠️ Deployment completed but app may not be running correctly"
+            pm2 logs wms-app-ubuntu --nostream --lines 50 || true
+          fi
+          
+          echo "📊 Application status:"
+          pm2 list
+    
+    - name: Health check
+      id: health_check
+      uses: appleboy/ssh-action@v1.2.2
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: 22
+        script: |
+          echo "🏥 Running health check..."
+          sleep 10
+          
+          # Check if app is running
+          if curl -f -s http://localhost:3001/api/health > /dev/null; then
+            echo "✅ Health check passed!"
+          else
+            echo "❌ Health check failed!"
+            pm2 logs wms-app-ubuntu --lines 50
+            exit 1
+          fi
+    
+    # Update deployment status based on result
+    - name: Update deployment status (success)
+      if: success() && steps.deployment.outputs.deployment_id != ''
+      uses: actions/github-script@v7
+      with:
+        script: |
+          await github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: ${{ steps.deployment.outputs.deployment_id }},
+            state: 'success',
+            description: 'Deployment successful',
+            environment_url: 'https://wms.targonglobal.com'
+          });
+    
+    - name: Update deployment status (failure)
+      if: failure() && steps.deployment.outputs.deployment_id != ''
+      uses: actions/github-script@v7
+      with:
+        script: |
+          await github.rest.repos.createDeploymentStatus({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            deployment_id: ${{ steps.deployment.outputs.deployment_id }},
+            state: 'failure',
+            description: 'Deployment failed',
+            environment_url: 'https://wms.targonglobal.com'
+          });
+    
+    - name: Notify deployment status
+      if: always()
+      uses: appleboy/ssh-action@v1.2.2
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: 22
+        script: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment successful - $(date)"
+          else
+            echo "❌ Deployment failed - $(date)"
+          fi

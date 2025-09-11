@@ -1,0 +1,42 @@
+# Database Configuration
+db_user: wms
+db_password: wms_secure_password_2024
+db_name: wms_production
+
+# GitHub Configuration
+github_repo_url: git@github.com:progami/WMS_EcomOS.git
+git_branch: main
+github_deploy_key_path: ~/.ssh/github_deploy
+
+# Application Configuration
+nextauth_url: "https://targonglobal.com/WMS"
+nextauth_secret: production_secret_key_change_in_production
+node_env: production
+base_path: "/WMS"
+app_port: 3001
+
+# Demo Data
+demo_admin_password: SecureWarehouse2024!
+demo_staff_password: DemoStaff2024!
+setup_demo_data: true
+
+# Domain Configuration
+domain_name: targonglobal.com
+certbot_email: admin@targonglobal.com
+
+# Nginx Configuration
+server_name: targonglobal.com
+use_ssl: true
+ssl_cert_path: "/etc/letsencrypt/live/targonglobal.com/fullchain.pem"
+ssl_key_path: "/etc/letsencrypt/live/targonglobal.com/privkey.pem"
+
+# AWS S3 Configuration
+# Note: S3 bucket name will be passed from Terraform outputs
+s3_bucket_name: wms-production-459288913318
+s3_bucket_region: us-east-1
+s3_use_accelerated_endpoint: false
+s3_force_path_style: false
+s3_presigned_url_expiry: 3600
+
+# CloudFront CDN (optional)
+# cloudfront_domain: your-distribution.cloudfront.net

@@ -1,0 +1,280 @@
+---
+- name: Deploy WMS Application with SSL and Path-based Routing
+  hosts: wms_servers
+  become: yes
+  vars:
+    app_user: wms
+    app_dir: /home/wms
+    node_version: "20"
+    postgres_version: "16"
+    
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install system dependencies
+      apt:
+        name:
+          - curl
+          - git
+          - nginx
+          - postgresql-{{ postgres_version }}
+          - postgresql-contrib-{{ postgres_version }}
+          - python3-psycopg2
+          - python3-pip
+          - build-essential
+          - certbot
+          - python3-certbot-nginx
+          - ufw
+        state: present
+
+    - name: Create application user
+      user:
+        name: "{{ app_user }}"
+        system: yes
+        shell: /bin/bash
+        home: "{{ app_dir }}"
+        create_home: yes
+
+    - name: Install Node.js
+      shell: |
+        curl -fsSL https://deb.nodesource.com/setup_{{ node_version }}.x | bash -
+        apt-get install -y nodejs
+      args:
+        creates: /usr/bin/node
+
+    - name: Install PM2 globally
+      npm:
+        name: pm2
+        global: yes
+        state: present
+
+    - name: Configure PostgreSQL
+      block:
+        - name: Start and enable PostgreSQL
+          systemd:
+            name: postgresql
+            state: started
+            enabled: yes
+
+        - name: Create database user
+          postgresql_user:
+            name: "{{ db_user }}"
+            password: "{{ db_password }}"
+            role_attr_flags: CREATEDB,NOSUPERUSER
+            state: present
+          become_user: postgres
+
+        - name: Create application database
+          postgresql_db:
+            name: "{{ db_name }}"
+            owner: "{{ db_user }}"
+            encoding: UTF-8
+            state: present
+          become_user: postgres
+
+    - name: Create app directory
+      file:
+        path: "{{ app_dir }}/app"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0755'
+
+    - name: Clone/update repository
+      git:
+        repo: "{{ github_repo_url }}"
+        dest: "{{ app_dir }}/app"
+        version: "{{ git_branch }}"
+        force: yes
+        accept_hostkey: yes
+      become_user: "{{ app_user }}"
+      when: github_repo_url is defined
+
+    - name: Create .env file
+      template:
+        src: env-ssl.j2
+        dest: "{{ app_dir }}/app/.env"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0600'
+
+    - name: Create next.config.js with BASE_PATH
+      template:
+        src: next.config.j2
+        dest: "{{ app_dir }}/app/next.config.js"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0644'
+
+    - name: Install npm dependencies
+      npm:
+        path: "{{ app_dir }}/app"
+        state: present
+      become_user: "{{ app_user }}"
+
+    - name: Generate Prisma client
+      command: npx prisma generate
+      args:
+        chdir: "{{ app_dir }}/app"
+      become_user: "{{ app_user }}"
+
+    - name: Check if migrations exist
+      stat:
+        path: "{{ app_dir }}/app/prisma/migrations"
+      register: migrations_dir
+
+    - name: Run database migrations (if exist)
+      command: npx prisma migrate deploy
+      args:
+        chdir: "{{ app_dir }}/app"
+      become_user: "{{ app_user }}"
+      environment:
+        DATABASE_URL: "postgresql://{{ db_user }}:{{ db_password }}@localhost:5432/{{ db_name }}"
+      when: migrations_dir.stat.exists and migrations_dir.stat.isdir
+
+    - name: Push database schema (if no migrations)
+      command: npx prisma db push --skip-generate
+      args:
+        chdir: "{{ app_dir }}/app"
+      become_user: "{{ app_user }}"
+      environment:
+        DATABASE_URL: "postgresql://{{ db_user }}:{{ db_password }}@localhost:5432/{{ db_name }}"
+      when: not (migrations_dir.stat.exists and migrations_dir.stat.isdir)
+
+    - name: Seed database (if needed)
+      command: npx prisma db seed
+      args:
+        chdir: "{{ app_dir }}/app"
+      become_user: "{{ app_user }}"
+      ignore_errors: yes
+
+    - name: Build application with BASE_PATH
+      command: npm run build
+      args:
+        chdir: "{{ app_dir }}/app"
+      become_user: "{{ app_user }}"
+      environment:
+        NODE_ENV: production
+        BASE_PATH: "{{ base_path }}"
+
+    - name: Create ecosystem config for PM2
+      template:
+        src: ecosystem.config.j2
+        dest: "{{ app_dir }}/app/ecosystem.config.js"
+        owner: "{{ app_user }}"
+        group: "{{ app_user }}"
+        mode: '0644'
+
+    - name: Configure PM2 startup
+      shell: |
+        pm2 startup systemd -u {{ app_user }} --hp {{ app_dir }}
+        systemctl enable pm2-{{ app_user }}
+      args:
+        creates: /etc/systemd/system/pm2-{{ app_user }}.service
+
+    - name: Start application with PM2
+      shell: |
+        cd {{ app_dir }}/app
+        pm2 delete wms-app || true
+        pm2 start ecosystem.config.js
+        pm2 save
+      become_user: "{{ app_user }}"
+
+    - name: Configure UFW firewall
+      ufw:
+        rule: allow
+        port: "{{ item }}"
+        proto: tcp
+      loop:
+        - "22"
+        - "80"
+        - "443"
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+
+    - name: Configure initial Nginx (for Certbot)
+      template:
+        src: nginx-initial.conf.j2
+        dest: /etc/nginx/sites-available/wms
+      notify: restart nginx
+
+    - name: Enable Nginx site
+      file:
+        src: /etc/nginx/sites-available/wms
+        dest: /etc/nginx/sites-enabled/wms
+        state: link
+      notify: restart nginx
+
+    - name: Remove default Nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+      notify: restart nginx
+
+    - name: Test nginx configuration
+      command: nginx -t
+      register: nginx_syntax_check
+
+    - name: Restart nginx
+      systemd:
+        name: nginx
+        state: restarted
+      when: nginx_syntax_check.rc == 0
+
+    - name: Obtain SSL certificate
+      command: |
+        certbot --nginx -d {{ domain_name }} --non-interactive --agree-tos --email {{ certbot_email }} --redirect
+      args:
+        creates: "{{ ssl_cert_path }}"
+
+    - name: Configure Nginx with SSL and path routing
+      template:
+        src: nginx-ssl-path.conf.j2
+        dest: /etc/nginx/sites-available/wms
+      notify: restart nginx
+
+    - name: Test nginx configuration after SSL
+      command: nginx -t
+      register: nginx_ssl_check
+
+    - name: Reload nginx with SSL config
+      systemd:
+        name: nginx
+        state: reloaded
+      when: nginx_ssl_check.rc == 0
+
+    - name: Setup auto-renewal for SSL certificates
+      cron:
+        name: "Renew Let's Encrypt certificates"
+        job: "/usr/bin/certbot renew --quiet"
+        minute: "0"
+        hour: "2"
+        day: "*"
+        month: "*"
+        weekday: "1"
+
+    - name: Setup demo data
+      uri:
+        url: "https://{{ domain_name }}{{ base_path }}/api/demo/setup"
+        method: POST
+        headers:
+          Content-Type: "application/json"
+        status_code: [200, 500]
+        validate_certs: no
+      when: setup_demo_data | default(true)
+      ignore_errors: yes
+      retries: 3
+      delay: 10
+
+  handlers:
+    - name: restart nginx
+      systemd:
+        name: nginx
+        state: restarted

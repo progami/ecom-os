@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Logs and reports
+logs/
+*.log
+playwright-report/
+test-results/
+
+# Env files
+.env.local
+.env.development
+.env.production
+.env.test
+.env
+
+# OS
+.DS_Store
+
+# Prisma
+prisma/*.db
+prisma/*.sqlite
+prisma/migrations/
+

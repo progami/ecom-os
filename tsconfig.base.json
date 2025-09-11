@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "preserve",
+    "strict": true,
+    "noEmit": true,
+    "allowJs": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@ecom-os/ui": ["packages/ui/src"],
+      "@ecom-os/theme": ["packages/theme/src"],
+      "@ecom-os/utils": ["packages/utils/src"],
+      "@ecom-os/config": ["packages/config/src"],
+      "@ecom-os/logger": ["packages/logger/src"],
+      "@ecom-os/api-client": ["packages/api-client/src"],
+      "@ecom-os/domain": ["packages/domain-models/src"]
+    }
+  }
+}
+

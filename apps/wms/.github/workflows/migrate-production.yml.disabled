@@ -1,0 +1,96 @@
+name: Apply Production Migrations
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "migrate" to confirm'
+        required: true
+        type: string
+
+jobs:
+  migrate:
+    name: Apply Migrations to Production
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'migrate'
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Check migration status
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "📊 Current migration status:"
+          npx prisma migrate status || true
+          
+      - name: Apply migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "🚀 Applying pending migrations..."
+          
+          # Check if this is a baseline situation
+          if npx prisma migrate status 2>&1 | grep -q "P3005"; then
+            echo "⚠️ Database needs baseline - marking existing migrations as applied"
+            
+            # Create _prisma_migrations table and mark migrations as applied
+            psql "$DATABASE_URL" << 'EOF'
+CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
+    id VARCHAR(36) PRIMARY KEY,
+    checksum VARCHAR(64) NOT NULL,
+    finished_at TIMESTAMPTZ,
+    migration_name VARCHAR(255) NOT NULL,
+    logs TEXT,
+    rolled_back_at TIMESTAMPTZ,
+    started_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    applied_steps_count INTEGER NOT NULL DEFAULT 0
+);
+EOF
+            
+            # Mark each migration as applied
+            for migration in prisma/migrations/*/; do
+              if [ -d "$migration" ]; then
+                name=$(basename "$migration")
+                if [ "$name" != "migration_lock.toml" ] && [ -f "${migration}migration.sql" ]; then
+                  echo "Marking $name as applied..."
+                  checksum=$(sha256sum "${migration}migration.sql" | cut -d' ' -f1)
+                  psql "$DATABASE_URL" -c "INSERT INTO _prisma_migrations (id, checksum, finished_at, migration_name, applied_steps_count) VALUES (gen_random_uuid(), '$checksum', NOW(), '$name', 1) ON CONFLICT DO NOTHING;"
+                fi
+              fi
+            done
+            
+            echo "✓ Baseline complete, now applying new migrations..."
+          fi
+          
+          npx prisma migrate deploy
+          
+      - name: Verify schema
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "✅ Verifying schema..."
+          npx prisma db pull --print
+          
+      - name: Deploy to production
+        if: success()
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            cd /home/ubuntu/wms-ecomos
+            git pull origin main
+            npm ci
+            npx prisma generate
+            pm2 reload wms-app-ubuntu
+            echo "✅ Application reloaded with new schema"

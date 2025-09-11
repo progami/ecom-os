@@ -1,0 +1,80 @@
+# Add labels to PRs based on changed files
+# https://github.com/actions/labeler
+
+# Frontend labels
+frontend:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'app/**'
+      - 'components/**'
+      - 'pages/**'
+      - 'public/**'
+      - 'styles/**'
+      - '*.css'
+      - '*.scss'
+
+# Backend labels
+backend:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'api/**'
+      - 'lib/**'
+      - 'server/**'
+      - 'prisma/**'
+      - 'middleware/**'
+
+# Database labels
+database:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'prisma/**'
+      - '**/migrations/**'
+
+# Test labels
+tests:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'tests/**'
+      - '**/*.test.ts'
+      - '**/*.test.tsx'
+      - '**/*.spec.ts'
+      - '**/*.spec.tsx'
+      - 'jest.config.*'
+      - 'playwright.config.*'
+
+# Documentation labels
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.md'
+      - 'docs/**'
+
+# Configuration labels
+configuration:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '*.config.js'
+      - '*.config.ts'
+      - '.env*'
+      - 'package.json'
+      - 'tsconfig.json'
+      - '.eslintrc*'
+      - '.prettierrc*'
+
+# CI/CD labels
+ci/cd:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/**'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.dockerignore'
+
+# Dependencies labels
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'yarn.lock'
+      - 'pnpm-lock.yaml'

@@ -1,0 +1,40 @@
+name: Deploy - WMS
+
+on:
+  workflow_run:
+    workflows: ["CI - WMS"]
+    types:
+      - completed
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    uses: orgname/shared-workflows/.github/workflows/deploy-ssh.yml@main
+    with:
+      environment: ${{ github.event.inputs.environment || 'production' }}
+      app-name: 'wms-app'
+      app-path: '/home/wms/app'
+      app-user: 'wms'
+      branch: 'main'
+      health-check-url: '/api/health'
+      health-check-port: '3001'
+      node-version: '20'
+      post-deploy-commands: |
+        # WMS-specific post-deploy tasks
+        echo "Running WMS-specific tasks..."
+        # Update any WMS-specific configurations
+    secrets:
+      SERVER_HOST: ${{ secrets.SERVER_HOST }}
+      SERVER_USER: ${{ secrets.SERVER_USER }}
+      SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}

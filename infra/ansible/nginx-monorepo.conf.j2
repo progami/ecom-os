@@ -1,0 +1,44 @@
+server {
+  listen 80;
+  server_name www.targonglobal.com;
+  location / {
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+    proxy_pass http://127.0.0.1:{{ website_port }};
+  }
+}
+
+server {
+  listen 80;
+  server_name wms.targonglobal.com;
+  location / {
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+    proxy_pass http://127.0.0.1:{{ wms_port }};
+  }
+}
+
+server {
+  listen 80;
+  server_name fcc.targonglobal.com;
+  location / {
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+    proxy_pass http://127.0.0.1:{{ fcc_port }};
+  }
+}
+
+server {
+  listen 80;
+  server_name hrms.targonglobal.com;
+  location / {
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+    proxy_pass http://127.0.0.1:{{ hrms_port }};
+  }
+}
+

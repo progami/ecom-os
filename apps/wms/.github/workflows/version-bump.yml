@@ -1,0 +1,147 @@
+name: Version Bump
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+jobs:
+  version-bump:
+    # Only run when a PR from dev to main is merged
+    if: |
+      github.event.pull_request.merged == true && 
+      github.event.pull_request.head.ref == 'dev'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: dev  # Checkout dev branch
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+          
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Configure Git
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+      - name: Check if version was already bumped
+        id: check_version
+        run: |
+          # Get version from main
+          git fetch origin main
+          MAIN_VERSION=$(git show origin/main:package.json | grep '"version"' | head -1 | awk -F '"' '{print $4}')
+          
+          # Get version from dev
+          DEV_VERSION=$(node -p "require('./package.json').version")
+          
+          echo "Main version: $MAIN_VERSION"
+          echo "Dev version: $DEV_VERSION"
+          
+          if [ "$MAIN_VERSION" != "$DEV_VERSION" ]; then
+            echo "already_bumped=true" >> $GITHUB_OUTPUT
+            echo "Version already bumped in dev ($DEV_VERSION vs main: $MAIN_VERSION)"
+          else
+            echo "already_bumped=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Determine version bump type
+        if: steps.check_version.outputs.already_bumped == 'false'
+        id: bump_type
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_LABELS="${{ join(github.event.pull_request.labels.*.name, ',') }}"
+          
+          # Skip if it's a release PR (already has version bump)
+          if [[ "$PR_TITLE" == *"Release"* ]] || [[ "$PR_TITLE" == *"release"* ]] || [[ "$PR_TITLE" == *"chore:"* ]]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Check for breaking changes
+          if [[ "$PR_TITLE" == *"BREAKING CHANGE"* ]] || [[ "$PR_TITLE" == *"!"* ]] || [[ "$PR_LABELS" == *"breaking"* ]]; then
+            echo "type=major" >> $GITHUB_OUTPUT
+            echo "skip=false" >> $GITHUB_OUTPUT
+          # Check for new features or refactors
+          elif [[ "$PR_TITLE" == *"feat"* ]] || [[ "$PR_TITLE" == *"refactor"* ]] || [[ "$PR_LABELS" == *"enhancement"* ]]; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+            echo "skip=false" >> $GITHUB_OUTPUT
+          # Default to patch for fixes and other changes
+          else
+            echo "type=patch" >> $GITHUB_OUTPUT
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Bump version in dev
+        if: steps.check_version.outputs.already_bumped == 'false' && steps.bump_type.outputs.skip != 'true'
+        id: version
+        run: |
+          # Bump version without creating a git tag
+          npm version ${{ steps.bump_type.outputs.type }} --no-git-tag-version
+          
+          # Get the new version
+          NEW_VERSION=$(node -p "require('./package.json').version")
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          
+      - name: Create version bump branch and PR
+        if: steps.check_version.outputs.already_bumped == 'false' && steps.bump_type.outputs.skip != 'true'
+        run: |
+          # Create a new branch for the version bump
+          BRANCH_NAME="version-bump/v${{ steps.version.outputs.new_version }}"
+          git checkout -b $BRANCH_NAME
+          
+          # Commit the version bump
+          git add package.json package-lock.json
+          git commit -m "chore: bump version to ${{ steps.version.outputs.new_version }}
+          
+          Automated version bump after merging PR #${{ github.event.pull_request.number }}
+          Type: ${{ steps.bump_type.outputs.type }}
+          Previous PR: ${{ github.event.pull_request.title }}"
+          
+          # Push the branch
+          git push origin $BRANCH_NAME
+          
+          # Create a PR from version bump branch to dev
+          gh pr create \
+            --base dev \
+            --head $BRANCH_NAME \
+            --title "chore: bump version to ${{ steps.version.outputs.new_version }}" \
+            --body "## Automated Version Bump
+          
+          This PR was automatically created after merging #${{ github.event.pull_request.number }} to main.
+          
+          ### Version Change
+          - Bump type: **${{ steps.bump_type.outputs.type }}**
+          - New version: **${{ steps.version.outputs.new_version }}**
+          
+          ### Next Steps
+          1. This PR will merge to \`dev\`
+          2. Create a new PR from \`dev\` to \`main\` for the next release
+          3. The release will be created automatically when merged to main
+          
+          ---
+          *This is an automated PR. Review and merge to include in the next release cycle.*" \
+            --label "version-bump"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Comment on original PR
+        if: steps.check_version.outputs.already_bumped == 'false' && steps.bump_type.outputs.skip != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ github.event.pull_request.number }},
+              body: `🔄 Version bump PR created: #${{ steps.create_pr.outputs.pr_number }}
+              
+              The version will be bumped to **v${{ steps.version.outputs.new_version }}** in the \`dev\` branch.`
+            })

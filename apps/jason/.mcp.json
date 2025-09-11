@@ -1,0 +1,49 @@
+{
+  "mcpServers": {
+    "google-workspace": {
+      "command": "/bin/zsh",
+      "args": ["-l", "-c", "cd /Users/jarraramjad/mcp-servers/google_workspace_mcp && /Users/jarraramjad/.local/bin/uv run main.py"],
+      "env": {
+        "OAUTHLIB_INSECURE_TRANSPORT": "1"
+      }
+    },
+    "filesystem": {
+      "command": "/opt/homebrew/bin/npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    },
+    "git": {
+      "command": "/bin/zsh",
+      "args": ["-l", "-c", "/Users/jarraramjad/.local/bin/uvx mcp-server-git --repository ."]
+    },
+    "github": {
+      "command": "/opt/homebrew/bin/npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "__SET_IN_ENV__"
+      }
+    },
+    "memory": {
+      "command": "/opt/homebrew/bin/npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "fetch": {
+      "command": "/bin/zsh",
+      "args": ["-l", "-c", "/Users/jarraramjad/.local/bin/uvx mcp-server-fetch"]
+    },
+    "time": {
+      "command": "/Users/jarraramjad/mcp-servers/time-server.sh"
+    },
+    "playwright": {
+      "command": "/opt/homebrew/bin/npx",
+      "args": ["-y", "@executeautomation/playwright-mcp-server"]
+    },
+    "context7": {
+      "command": "/opt/homebrew/bin/npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": {
+        "UPSTASH_VECTOR_REST_URL": "YOUR_UPSTASH_VECTOR_URL",
+        "UPSTASH_VECTOR_REST_TOKEN": "YOUR_UPSTASH_VECTOR_TOKEN"
+      }
+    }
+  }
+}

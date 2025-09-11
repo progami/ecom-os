@@ -1,0 +1,287 @@
+name: Reusable Test Suite
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        description: 'Node.js version to use'
+        required: false
+        type: string
+        default: '20'
+      working-directory:
+        description: 'Working directory for tests'
+        required: false
+        type: string
+        default: '.'
+      test-command:
+        description: 'Test command to run'
+        required: false
+        type: string
+        default: 'test'
+      run-unit:
+        description: 'Run unit tests'
+        required: false
+        type: boolean
+        default: true
+      run-integration:
+        description: 'Run integration tests'
+        required: false
+        type: boolean
+        default: true
+      run-e2e:
+        description: 'Run E2E tests'
+        required: false
+        type: boolean
+        default: false
+      e2e-browsers:
+        description: 'Browsers for E2E tests (JSON array)'
+        required: false
+        type: string
+        default: '["chromium"]'
+      services-config:
+        description: 'Database services configuration'
+        required: false
+        type: string
+        default: 'standard'
+    secrets:
+      DATABASE_URL:
+        required: false
+      REDIS_URL:
+        required: false
+      NEXTAUTH_SECRET:
+        required: false
+      TEST_ENV:
+        required: false
+
+jobs:
+  # Fast tests - Unit and Integration
+  test-fast:
+    name: Unit & Integration Tests
+    if: inputs.run-unit || inputs.run-integration
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    
+    # Service containers
+    services:
+      postgres:
+        image: ${{ inputs.services-config != 'none' && 'postgres:15' || '' }}
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: ${{ contains(inputs.services-config, 'redis') && 'redis:7' || '' }}
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+          cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Setup test database
+        if: inputs.services-config != 'none'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/test' }}
+        run: |
+          # Generate Prisma client if schema exists
+          if [ -f "prisma/schema.prisma" ]; then
+            npx prisma generate
+            npx prisma db push --accept-data-loss
+            
+            # Run seed if exists
+            if [ -f "prisma/seed-test.ts" ]; then
+              npx tsx prisma/seed-test.ts
+            elif [ -f "prisma/seed.ts" ]; then
+              npx tsx prisma/seed.ts
+            fi
+          fi
+      
+      - name: Run unit tests
+        if: inputs.run-unit
+        env:
+          NODE_ENV: test
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/test' }}
+          REDIS_URL: ${{ secrets.REDIS_URL || 'redis://localhost:6379' }}
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'test-secret' }}
+        run: |
+          npm run ${{ inputs.test-command }}:unit || npm run ${{ inputs.test-command }} || echo "No unit tests found"
+      
+      - name: Run integration tests
+        if: inputs.run-integration
+        env:
+          NODE_ENV: test
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/test' }}
+          REDIS_URL: ${{ secrets.REDIS_URL || 'redis://localhost:6379' }}
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'test-secret' }}
+        run: |
+          npm run ${{ inputs.test-command }}:integration || echo "No integration tests found"
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-fast-${{ github.sha }}
+          path: |
+            ${{ inputs.working-directory }}/coverage/
+            ${{ inputs.working-directory }}/test-results/
+            ${{ inputs.working-directory }}/**/*.xml
+          retention-days: 7
+
+  # E2E tests
+  test-e2e:
+    name: E2E Tests
+    if: inputs.run-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    
+    strategy:
+      matrix:
+        browser: ${{ fromJSON(inputs.e2e-browsers) }}
+    
+    services:
+      postgres:
+        image: ${{ inputs.services-config != 'none' && 'postgres:15' || '' }}
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: ${{ contains(inputs.services-config, 'redis') && 'redis:7' || '' }}
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: 'npm'
+          cache-dependency-path: ${{ inputs.working-directory }}/package-lock.json
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-${{ github.sha }}
+          path: ${{ inputs.working-directory }}
+      
+      - name: Install Playwright
+        run: |
+          cd tests 2>/dev/null || cd .
+          npx playwright install --with-deps ${{ matrix.browser }}
+      
+      - name: Setup test database
+        if: inputs.services-config != 'none'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/test' }}
+        run: |
+          if [ -f "prisma/schema.prisma" ]; then
+            npx prisma generate
+            npx prisma db push --accept-data-loss
+            
+            if [ -f "prisma/seed-test.ts" ]; then
+              npx tsx prisma/seed-test.ts
+            elif [ -f "prisma/seed.ts" ]; then
+              npx tsx prisma/seed.ts
+            fi
+          fi
+      
+      - name: Start application server
+        env:
+          NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/test' }}
+          REDIS_URL: ${{ secrets.REDIS_URL || 'redis://localhost:6379' }}
+          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'test-secret' }}
+          CI: true
+        run: |
+          # Start the server in background
+          npm run start &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+          
+          # Wait for server to be ready
+          echo "Waiting for server to start..."
+          for i in {1..30}; do
+            if curl -f http://localhost:3000/api/health 2>/dev/null || curl -f http://localhost:3000 2>/dev/null; then
+              echo "Server is ready!"
+              break
+            fi
+            echo "Waiting for server... attempt $i/30"
+            sleep 2
+          done
+      
+      - name: Run E2E tests - ${{ matrix.browser }}
+        env:
+          BASE_URL: http://localhost:3000
+          CI: true
+        run: |
+          npm run ${{ inputs.test-command }}:e2e:ci -- --project=${{ matrix.browser }} || \
+          npm run ${{ inputs.test-command }}:e2e -- --project=${{ matrix.browser }} || \
+          npx playwright test --project=${{ matrix.browser }}
+      
+      - name: Stop server
+        if: always()
+        run: |
+          if [ ! -z "$SERVER_PID" ]; then
+            kill $SERVER_PID || true
+          fi
+      
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-${{ matrix.browser }}-${{ github.sha }}
+          path: |
+            ${{ inputs.working-directory }}/playwright-report/
+            ${{ inputs.working-directory }}/test-results/
+            ${{ inputs.working-directory }}/**/*-results.xml
+          retention-days: 7

@@ -1,0 +1,153 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Employee model (kept minimal but practical)
+model Employee {
+  id               String         @id @default(cuid())
+  employeeId       String         @unique
+  firstName        String
+  lastName         String
+  email            String         @unique
+  phone            String?
+  avatar           String?
+
+  // Personal Information
+  dateOfBirth      DateTime?
+  gender           String?
+  maritalStatus    String?
+  nationality      String?
+  address          String?
+  city             String?
+  country          String?
+  postalCode       String?
+
+  // Employment Information
+  department       String
+  position         String
+  employmentType   EmploymentType  @default(FULL_TIME)
+  joinDate         DateTime
+  status           EmployeeStatus  @default(ACTIVE)
+  reportsTo        String?
+
+  // Compensation
+  salary           Float?
+  currency         String          @default("USD")
+
+  // Emergency Contact
+  emergencyContact String?
+  emergencyPhone   String?
+
+  // Metadata
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  // Relations
+  files            EmployeeFile[]
+
+  @@index([email])
+  @@index([employeeId])
+  @@index([department])
+  @@index([status])
+}
+
+// Resource model (external service providers such as accounting firms, CPAs, designers)
+model Resource {
+  id           String            @id @default(cuid())
+  name         String
+  category     ResourceCategory
+  subcategory  String?
+  description  String?
+  contactName  String?
+  email        String?
+  phone        String?
+  website      String?
+  address      String?
+  city         String?
+  country      String?
+  tags         String[]
+  rating       Float?
+  notes        String?
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@index([category])
+  @@index([category, subcategory])
+  @@index([name])
+}
+
+// Company policies (e.g., leave policy, performance reviews)
+model Policy {
+  id            String        @id @default(cuid())
+  title         String
+  category      PolicyCategory
+  summary       String?
+  content       String?       // Text content if stored inline
+  fileUrl       String?       // S3 URL for file storage
+  version       String?
+  effectiveDate DateTime?
+  status        PolicyStatus  @default(ACTIVE)
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([category])
+  @@index([status])
+}
+
+// Enums (trimmed to essentials)
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
+  RESIGNED
+}
+
+enum ResourceCategory {
+  ACCOUNTING
+  LEGAL
+  DESIGN
+  MARKETING
+  IT
+  HR
+  OTHER
+}
+
+enum PolicyCategory {
+  LEAVE
+  PERFORMANCE
+  CONDUCT
+  SECURITY
+  COMPENSATION
+  OTHER
+}
+
+enum PolicyStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+// Employee documents (e.g., offer letter)
+model EmployeeFile {
+  id          String   @id @default(cuid())
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId  String
+  title       String
+  fileUrl     String
+  uploadedAt  DateTime @default(now())
+
+  @@index([employeeId])
+}

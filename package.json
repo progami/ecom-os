@@ -1,0 +1,18 @@
+{
+  "name": "ecom-os",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run type-check",
+    "format": "turbo run format"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0"
+  }
+}

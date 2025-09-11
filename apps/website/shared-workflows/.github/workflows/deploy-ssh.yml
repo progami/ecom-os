@@ -1,0 +1,216 @@
+name: Reusable SSH Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: false
+        type: string
+        default: 'production'
+      app-name:
+        description: 'Application name for PM2'
+        required: true
+        type: string
+      app-path:
+        description: 'Application path on server'
+        required: true
+        type: string
+      app-user:
+        description: 'User to run application as'
+        required: false
+        type: string
+        default: ''
+      branch:
+        description: 'Git branch to deploy'
+        required: false
+        type: string
+        default: 'main'
+      health-check-url:
+        description: 'Health check URL (relative or absolute)'
+        required: false
+        type: string
+        default: '/api/health'
+      health-check-port:
+        description: 'Port for health check'
+        required: false
+        type: string
+        default: '3000'
+      post-deploy-commands:
+        description: 'Additional commands to run after deployment'
+        required: false
+        type: string
+        default: ''
+      node-version:
+        description: 'Node.js version'
+        required: false
+        type: string
+        default: '20'
+    secrets:
+      SERVER_HOST:
+        required: true
+      SERVER_USER:
+        required: true
+      SERVER_SSH_KEY:
+        required: true
+      DEPLOY_ENV:
+        required: false
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Validate inputs
+        run: |
+          if [ -z "${{ inputs.app-name }}" ]; then
+            echo "Error: app-name is required"
+            exit 1
+          fi
+          if [ -z "${{ inputs.app-path }}" ]; then
+            echo "Error: app-path is required"
+            exit 1
+          fi
+      
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            set -e
+            
+            echo "🚀 Starting deployment of ${{ inputs.app-name }} to ${{ inputs.environment }}..."
+            echo "📅 Deployment time: $(date)"
+            
+            # Determine if we need to run as a specific user
+            RUN_PREFIX=""
+            if [ -n "${{ inputs.app-user }}" ]; then
+              RUN_PREFIX="sudo -u ${{ inputs.app-user }}"
+              echo "🔐 Running commands as user: ${{ inputs.app-user }}"
+            fi
+            
+            # Execute deployment
+            $RUN_PREFIX bash << 'DEPLOY_SCRIPT'
+            set -e
+            
+            echo "📁 Navigating to application directory..."
+            cd ${{ inputs.app-path }}
+            
+            echo "🔄 Fetching latest changes from ${{ inputs.branch }} branch..."
+            git fetch origin ${{ inputs.branch }}
+            git reset --hard origin/${{ inputs.branch }}
+            
+            echo "📦 Installing dependencies..."
+            npm ci --production=false
+            
+            # Run any pre-build commands (like Prisma generate)
+            if [ -f "prisma/schema.prisma" ]; then
+              echo "🔧 Generating Prisma client..."
+              npx prisma generate
+            fi
+            
+            echo "🔨 Building application..."
+            npm run build
+            
+            # Run database migrations if they exist
+            if [ -f "prisma/schema.prisma" ]; then
+              echo "🗄️ Running database migrations..."
+              npx prisma migrate deploy || echo "No pending migrations"
+            fi
+            
+            echo "♻️ Restarting application with PM2..."
+            pm2 restart ${{ inputs.app-name }} || pm2 start ecosystem.config.js --only ${{ inputs.app-name }}
+            
+            echo "💾 Saving PM2 configuration..."
+            pm2 save
+            
+            # Run post-deploy commands if provided
+            if [ -n "${{ inputs.post-deploy-commands }}" ]; then
+              echo "🔧 Running post-deploy commands..."
+              ${{ inputs.post-deploy-commands }}
+            fi
+            
+            echo "✅ Deployment completed successfully!"
+            echo "📊 Application status:"
+            pm2 list | grep ${{ inputs.app-name }} || pm2 list
+            
+            DEPLOY_SCRIPT
+      
+      - name: Health check
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            echo "🏥 Running health check..."
+            sleep 10
+            
+            # Determine health check URL
+            HEALTH_URL="${{ inputs.health-check-url }}"
+            if [[ ! "$HEALTH_URL" =~ ^https?:// ]]; then
+              # It's a relative URL, prepend localhost
+              HEALTH_URL="http://localhost:${{ inputs.health-check-port }}$HEALTH_URL"
+            fi
+            
+            echo "🔍 Checking: $HEALTH_URL"
+            
+            # Perform health check
+            MAX_RETRIES=5
+            RETRY_COUNT=0
+            
+            while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+              if curl -f -s "$HEALTH_URL" > /dev/null; then
+                echo "✅ Health check passed!"
+                exit 0
+              else
+                RETRY_COUNT=$((RETRY_COUNT + 1))
+                echo "⏳ Health check attempt $RETRY_COUNT/$MAX_RETRIES failed, retrying..."
+                sleep 5
+              fi
+            done
+            
+            echo "❌ Health check failed after $MAX_RETRIES attempts!"
+            echo "📋 Application logs:"
+            
+            # Show PM2 logs on failure
+            RUN_PREFIX=""
+            if [ -n "${{ inputs.app-user }}" ]; then
+              RUN_PREFIX="sudo -u ${{ inputs.app-user }}"
+            fi
+            $RUN_PREFIX pm2 logs ${{ inputs.app-name }} --lines 50
+            
+            exit 1
+      
+      - name: Deployment summary
+        if: always()
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: 22
+          script: |
+            echo "📊 Deployment Summary"
+            echo "===================="
+            echo "Application: ${{ inputs.app-name }}"
+            echo "Environment: ${{ inputs.environment }}"
+            echo "Branch: ${{ inputs.branch }}"
+            echo "Status: ${{ job.status }}"
+            echo "Time: $(date)"
+            echo "===================="
+            
+            if [ "${{ job.status }}" == "success" ]; then
+              echo "✅ Deployment successful!"
+            else
+              echo "❌ Deployment failed!"
+            fi
