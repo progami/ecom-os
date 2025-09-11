@@ -36,8 +36,8 @@ jobs:
           node-version: 20
       - run: corepack enable && corepack prepare pnpm@9.0.0 --activate
       - run: pnpm install
-      - name: Build workspace
-        run: pnpm build || (echo "Build failed" && exit 1)
+      - name: Build website only
+        run: pnpm turbo run build --filter=@ecom-os/website || (echo "Build failed" && exit 1)
 
       - name: Configure SSH
         run: |
