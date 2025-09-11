@@ -18,7 +18,7 @@
     - name: Ensure system deps
       apt:
         update_cache: yes
-        name: [curl, git, nginx, build-essential, rsync]
+        name: [curl, git, nginx, build-essential, rsync, certbot, python3-certbot-nginx]
         state: present
     - name: Install Node.js
       shell: |
@@ -135,6 +135,23 @@
     - name: Disable default site
       file: { path: /etc/nginx/sites-enabled/default, state: absent }
       notify: restart nginx
+
+    - name: Apply pending nginx handlers before certbot
+      meta: flush_handlers
+
+    - name: Obtain/renew Let's Encrypt cert for apex + www
+      command: >-
+        certbot --nginx
+        -d {{ root_server_name | default('targonglobal.com') }}
+        -d {{ website_server_name | default('www.targonglobal.com') }}
+        --non-interactive --agree-tos
+        --email {{ certbot_email | default('admin@targonglobal.com') }}
+        --redirect
+      args:
+        creates: "/etc/letsencrypt/live/{{ root_server_name | default('targonglobal.com') }}/fullchain.pem"
+      register: certbot_result
+      changed_when: certbot_result.rc == 0
+      failed_when: certbot_result.rc not in [0]
     - name: Start website with PM2
       shell: |
         cd {{ app_base }}/repo
