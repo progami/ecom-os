@@ -53,11 +53,12 @@ jobs:
             --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
           echo "EC2_HOST=$EC2_HOST_IP" >> $GITHUB_ENV
 
-      - name: Fallback to secret EC2_HOST (if not discovered)
+      - name: Fallback to secrets for EC2 host and user (if not discovered)
         run: |
           if [ -z "${EC2_HOST:-}" ]; then
             echo "EC2_HOST=${{ secrets.EC2_HOST }}" >> $GITHUB_ENV
           fi
+          echo "EC2_USER=${{ secrets.EC2_USER }}" >> $GITHUB_ENV
 
       - name: Append known_hosts for EC2
         run: |
@@ -67,7 +68,8 @@ jobs:
         run: |
           mkdir -p infra/ansible/inventory
           echo "[mono]" > infra/ansible/inventory/hosts.ini
-          echo "$EC2_HOST ansible_user=${{ secrets.EC2_USER || 'ubuntu' }}" >> infra/ansible/inventory/hosts.ini
+          USER_VAL=${EC2_USER:-ubuntu}
+          echo "$EC2_HOST ansible_user=$USER_VAL" >> infra/ansible/inventory/hosts.ini
 
       - name: Deploy via Ansible (monorepo)
         env:
@@ -102,4 +104,3 @@ jobs:
           for h in "${REQUIRED[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" || failures=$((failures+1)); done
           for h in "${OPTIONAL[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" || true; done
           [ "$failures" -eq 0 ] || exit 1
-
