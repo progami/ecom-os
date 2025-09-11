@@ -42,9 +42,9 @@
     - name: Install dependencies (pnpm)
       command: pnpm install --frozen-lockfile
       args: { chdir: "{{ app_base }}/repo" }
-    - name: Build website and wms via Turbo
+    - name: Build website via Turbo
       shell: |
-        pnpm turbo run build --filter=@ecom-os/website --filter=@ecom-os/wms
+        pnpm turbo run build --filter=@ecom-os/website
       args: { chdir: "{{ app_base }}/repo" }
 
     - name: Write per-app environment files from GitHub Secrets
@@ -132,13 +132,11 @@
     - name: Disable default site
       file: { path: /etc/nginx/sites-enabled/default, state: absent }
       notify: restart nginx
-    - name: Start website and wms with PM2
+    - name: Start website with PM2
       shell: |
         cd {{ app_base }}/repo
         pm2 delete website || true
-        pm2 delete wms || true
         PORT={{ website_port }} pm2 start --name website -- pnpm --filter @ecom-os/website start
-        PORT={{ wms_port }} pm2 start --name wms -- pnpm --filter @ecom-os/wms start
         pm2 save
       args: { chdir: "{{ app_base }}/repo" }
   handlers:

@@ -171,8 +171,8 @@ jobs:
           CENTRAL_DB=$(parse_var central_db_server_name)
           MARGIN_MASTER=$(parse_var margin_master_server_name)
           JASON=$(parse_var jason_server_name)
-          REQUIRED=($WEBSITE $WMS)
-          OPTIONAL=($FCC $HRMS $CENTRAL_DB $MARGIN_MASTER $JASON)
+          REQUIRED=($WEBSITE)
+          OPTIONAL=($WMS $FCC $HRMS $CENTRAL_DB $MARGIN_MASTER $JASON)
           check_host() {
             local host="$1"; local ip="$2"; local path="/"; local i=1
             while [ $i -le 20 ]; do
