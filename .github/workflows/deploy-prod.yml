@@ -19,10 +19,10 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
-      - name: Install Ansible
+      - name: Install tools (ansible, rsync, jq, curl)
         run: |
           sudo apt-get update
-          sudo apt-get install -y ansible rsync
+          sudo apt-get install -y ansible rsync jq curl
       - uses: pnpm/action-setup@v4
         with:
           version: 9
@@ -64,6 +64,35 @@ jobs:
       - name: Append known_hosts for EC2
         run: |
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Update Cloudflare DNS (apex + www) to EC2
+        if: ${{ secrets.CF_API_TOKEN != '' }}
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ZONE_NAME: targonglobal.com
+        run: |
+          set -e
+          echo "Fetching Cloudflare Zone ID for $CF_ZONE_NAME"
+          ZONE_RESP=$(curl -s -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/zones?name=$CF_ZONE_NAME")
+          CF_ZONE_ID=$(echo "$ZONE_RESP" | jq -r '.result[0].id')
+          if [ -z "$CF_ZONE_ID" ] || [ "$CF_ZONE_ID" = "null" ]; then echo "Zone not found" >&2; exit 1; fi
+          upsert_a(){
+            local NAME="$1"; local IP="$2"; local PROXIED=${3:-false}
+            echo "Upserting A record $NAME -> $IP (proxied=$PROXIED)"
+            REC_ID=$(curl -s -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records?type=A&name=$NAME" | jq -r '.result[0].id')
+            DATA=$(jq -n --arg type A --arg name "$NAME" --arg content "$IP" --argjson proxied $PROXIED '{type:"A",name:$name,content:$content,ttl:120,proxied:$proxied}')
+            if [ -n "$REC_ID" ] && [ "$REC_ID" != "null" ]; then
+              curl -s -X PUT -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json" \
+                "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records/$REC_ID" --data "$DATA" | jq -r '.success'
+            else
+              curl -s -X POST -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json" \
+                "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records" --data "$DATA" | jq -r '.success'
+            fi
+          }
+          upsert_a "$CF_ZONE_NAME" "$EC2_HOST" false
+          upsert_a "www.$CF_ZONE_NAME" "$EC2_HOST" false
 
       - name: Write inventory
         run: |
