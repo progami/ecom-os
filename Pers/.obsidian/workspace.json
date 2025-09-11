@@ -4,17 +4,21 @@
     "type": "split",
     "children": [
       {
-        "id": "4664a6878318ad4d",
+        "id": "935836242ba52e80",
         "type": "tabs",
         "children": [
           {
-            "id": "b41dbe1f65df6e0d",
+            "id": "0ef534ad16cdefbb",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "Space.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "New tab"
+              "title": "Space"
             }
           }
         ]
@@ -165,10 +169,10 @@
   },
   "active": "e987b2f7bfef3057",
   "lastOpenFiles": [
-    "Employee Rules.md",
+    "Basit Bhai discussion.md",
     "Space.md",
     "Hiring Criteria.md",
-    "Basit Bhai discussion.md",
+    "Employee Rules.md",
     "Emloyees.md",
     "Welcome.md"
   ]
