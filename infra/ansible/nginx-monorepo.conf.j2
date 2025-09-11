@@ -9,6 +9,13 @@ server {
   }
 }
 
+# Redirect apex/root domain to website (www)
+server {
+  listen 80;
+  server_name {{ root_server_name | default('targonglobal.com') }};
+  return 301 http://{{ website_server_name | default('www.targonglobal.com') }}$request_uri;
+}
+
 server {
   listen 80;
   server_name {{ wms_server_name | default('wms.targonglobal.com') }};
@@ -81,4 +88,3 @@ server {
   }
 }
 {% endif %}
-

@@ -31,7 +31,8 @@ jobs:
           node-version: 20
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
-      - run: pnpm build
+      - name: Build workspace
+        run: pnpm build || (echo "Build failed" && exit 1)
 
       - name: Configure SSH
         run: |
@@ -71,6 +72,9 @@ jobs:
           USER_VAL=${EC2_USER:-ubuntu}
           echo "$EC2_HOST ansible_user=$USER_VAL" >> infra/ansible/inventory/hosts.ini
 
+      - name: Show ansible version
+        run: ansible --version && ansible-galaxy collection list || true
+
       - name: Deploy via Ansible (monorepo)
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'False'
@@ -84,6 +88,8 @@ jobs:
           MARGIN_MASTER_ENV: ${{ secrets.MARGIN_MASTER_ENV }}
           JASON_ENV: ${{ secrets.JASON_ENV }}
         run: |
+          set -e
+          echo "Inventory:" && cat infra/ansible/inventory/hosts.ini
           ansible-playbook -vvv -i infra/ansible/inventory/hosts.ini infra/ansible/deploy-monorepo.yml
 
       - name: Post-deploy health checks
@@ -98,8 +104,8 @@ jobs:
           CENTRAL_DB=$(parse_var central_db_server_name)
           MARGIN_MASTER=$(parse_var margin_master_server_name)
           JASON=$(parse_var jason_server_name)
-          REQUIRED=($WEBSITE $WMS $FCC $HRMS)
-          OPTIONAL=($CENTRAL_DB $MARGIN_MASTER $JASON)
+          REQUIRED=($WEBSITE $WMS)
+          OPTIONAL=($FCC $HRMS $CENTRAL_DB $MARGIN_MASTER $JASON)
           check_host() {
             local host="$1"; local ip="$2"; local path="/"; local i=1
             while [ $i -le 20 ]; do

@@ -23,6 +23,26 @@ We use pnpm workspaces and Turborepo. All apps live under `apps/` and shared cod
 - `packages/` – shared libraries (config, logger; more to come: ui, theme, utils)
 - `docs/` – shared guidelines (architecture, style, shared workflows)
 
+## App Status
+
+- Active (production/CI deploy wired)
+  - @ecom-os/website (`apps/website`) – www.targonglobal.com
+  - @ecom-os/wms (`apps/wms`) – wms.targonglobal.com
+- Pre-release (wiring CI + envs)
+  - @ecom-os/hrms (`apps/hrms`) – hrms.targonglobal.com
+  - @ecom-os/fcc (`apps/fcc`) – fcc.targonglobal.com
+- In development (not released)
+  - @ecom-os/central-db (`apps/central-db`) – centraldb.targonglobal.com
+  - @ecom-os/margin-master (`apps/margin-master`) – mm.targonglobal.com
+  - @ecom-os/jason (`apps/jason`) – jason.targonglobal.com
+- Experimental (non-production)
+  - E2 (`apps/e2`)
+  - YE 2024 (`apps/ye-2024`)
+
+Notes
+- Production deploys run on push to `main` via `.github/workflows/deploy-prod.yml`.
+- Per-app env is templated from GitHub Secrets: `WEBSITE_ENV`, `WMS_ENV`, `HRMS_ENV`, `FCC_ENV`, `CENTRAL_DB_ENV`, `MARGIN_MASTER_ENV`, `JASON_ENV`.
+
 ## Getting started
 
 1) Install tooling (local):
