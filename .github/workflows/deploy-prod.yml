@@ -58,10 +58,13 @@ jobs:
       - name: Discover EC2 host (if AWS creds available)
         if: ${{ env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' }}
         run: |
-          EC2_HOST_IP=$(aws ec2 describe-instances \
+          read INST_ID INST_AZ INST_IP < <(aws ec2 describe-instances \
             --filters Name=instance-state-name,Values=running \
-            --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
-          echo "EC2_HOST=$EC2_HOST_IP" >> $GITHUB_ENV
+            --query 'Reservations[0].Instances[0].[InstanceId,Placement.AvailabilityZone,PublicIpAddress]' --output text)
+          echo "EC2_HOST=$INST_IP" >> $GITHUB_ENV
+          echo "EIC_INSTANCE_ID=$INST_ID" >> $GITHUB_ENV
+          echo "EIC_INSTANCE_AZ=$INST_AZ" >> $GITHUB_ENV
+          echo "Discovered: id=$INST_ID az=$INST_AZ ip=$INST_IP"
 
       - name: Fallback to secrets for EC2 host and user (if not discovered)
         run: |
@@ -73,6 +76,26 @@ jobs:
       - name: Append known_hosts for EC2
         run: |
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Generate and inject CI SSH key via EC2 Instance Connect
+        if: ${{ env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' }}
+        env:
+          OS_USER: ${{ env.EC2_USER_SECRET }}
+        run: |
+          set -e
+          OS_USER=${OS_USER:-ubuntu}
+          ssh-keygen -t ed25519 -N '' -f ~/.ssh/ci_key -C ci@github || true
+          # Push key via EIC (ephemeral)
+          aws ec2-instance-connect send-ssh-public-key \
+            --instance-id "$EIC_INSTANCE_ID" \
+            --availability-zone "$EIC_INSTANCE_AZ" \
+            --instance-os-user "$OS_USER" \
+            --ssh-public-key "file://$HOME/.ssh/ci_key.pub"
+          # Use ephemeral window to append pubkey permanently
+          ssh -i ~/.ssh/ci_key -o StrictHostKeyChecking=no "$OS_USER@$EC2_HOST" \
+            "mkdir -p ~/.ssh && touch ~/.ssh/authorized_keys && grep -qxF '$(cat ~/.ssh/ci_key.pub)' ~/.ssh/authorized_keys || echo '$(cat ~/.ssh/ci_key.pub)' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"
+          # Switch default key for subsequent steps
+          install -m 600 -D ~/.ssh/ci_key ~/.ssh/id_rsa
 
       - name: Update Cloudflare DNS (apex + www) to EC2
         continue-on-error: true
