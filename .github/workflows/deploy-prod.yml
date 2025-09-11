@@ -166,7 +166,12 @@ jobs:
         run: |
           set -e
           HOST_IP="$EC2_HOST"
-          parse_var() { awk -F': *' -v VAR="$1" '$1==VAR {print $2}' infra/ansible/group_vars/all.yml | tr -d '"\''; }
+          parse_var() {
+            awk -F': *' -v VAR="$1" '$1==VAR {print $2}' infra/ansible/group_vars/all.yml \
+              | tr -d '"' \
+              | sed -e 's/^ *//' -e 's/ *$//' \
+              | tr -d '\n'
+          }
           WEBSITE=$(parse_var website_server_name)
           WMS=$(parse_var wms_server_name)
           FCC=$(parse_var fcc_server_name)
