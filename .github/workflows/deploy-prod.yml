@@ -106,6 +106,15 @@ jobs:
       - name: Show ansible version
         run: ansible --version && ansible-galaxy collection list || true
 
+      - name: Ansible ping EC2
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: 'False'
+          ANSIBLE_SSH_COMMON_ARGS: "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ConnectionAttempts=10"
+        run: |
+          echo "[mono]" > infra/ansible/inventory/hosts.ini
+          echo "$EC2_HOST ansible_user=${EC2_USER:-ubuntu}" >> infra/ansible/inventory/hosts.ini
+          ansible -vvv -i infra/ansible/inventory/hosts.ini mono -m ping
+
       - name: Deploy via Ansible (monorepo)
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'False'
