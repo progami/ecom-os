@@ -1,0 +1,84 @@
+server {
+  listen 80;
+  server_name {{ website_server_name | default('www.targonglobal.com') }};
+  location / {
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+    proxy_pass http://127.0.0.1:{{ website_port | default(3000) }};
+  }
+}
+
+server {
+  listen 80;
+  server_name {{ wms_server_name | default('wms.targonglobal.com') }};
+  location / {
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+    proxy_pass http://127.0.0.1:{{ wms_port | default(3001) }};
+  }
+}
+
+server {
+  listen 80;
+  server_name {{ fcc_server_name | default('fcc.targonglobal.com') }};
+  location / {
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+    proxy_pass http://127.0.0.1:{{ fcc_port | default(3003) }};
+  }
+}
+
+server {
+  listen 80;
+  server_name {{ hrms_server_name | default('hrms.targonglobal.com') }};
+  location / {
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+    proxy_pass http://127.0.0.1:{{ hrms_port | default(3006) }};
+  }
+}
+
+# Optional apps (enable by setting *_server_name to your domain)
+{% if central_db_server_name is defined %}
+server {
+  listen 80;
+  server_name {{ central_db_server_name }};
+  location / {
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+    proxy_pass http://127.0.0.1:{{ central_db_port | default(3004) }};
+  }
+}
+{% endif %}
+
+{% if margin_master_server_name is defined %}
+server {
+  listen 80;
+  server_name {{ margin_master_server_name }};
+  location / {
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+    proxy_pass http://127.0.0.1:{{ margin_master_port | default(3007) }};
+  }
+}
+{% endif %}
+
+{% if jason_server_name is defined %}
+server {
+  listen 80;
+  server_name {{ jason_server_name }};
+  location / {
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+    proxy_pass http://127.0.0.1:{{ jason_port | default(3008) }};
+  }
+}
+{% endif %}
+
