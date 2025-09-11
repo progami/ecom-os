@@ -2,7 +2,7 @@ name: deploy-prod
 
 on:
   push:
-    branches: [ main, chore/deploy-setup ]
+    branches: [ main ]
     paths:
       - 'apps/**'
       - 'packages/**'
