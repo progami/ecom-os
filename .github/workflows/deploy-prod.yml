@@ -14,6 +14,14 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      # expose secrets as env; avoid using `secrets.*` in `if:` expressions
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      EC2_HOST_SECRET: ${{ secrets.EC2_HOST }}
+      EC2_USER_SECRET: ${{ secrets.EC2_USER }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
     concurrency:
       group: prod-main
       cancel-in-progress: false
@@ -38,17 +46,17 @@ jobs:
       - name: Configure SSH
         run: |
           install -m 600 -D /dev/null ~/.ssh/id_rsa
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
 
       - name: Optionally assume AWS role and discover EC2 host
-        if: ${{ secrets.AWS_ROLE_TO_ASSUME && secrets.AWS_REGION }}
+        if: ${{ env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' }}
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Discover EC2 host (if AWS creds available)
-        if: ${{ secrets.AWS_ROLE_TO_ASSUME && secrets.AWS_REGION }}
+        if: ${{ env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' }}
         run: |
           EC2_HOST_IP=$(aws ec2 describe-instances \
             --filters Name=instance-state-name,Values=running \
@@ -58,22 +66,22 @@ jobs:
       - name: Fallback to secrets for EC2 host and user (if not discovered)
         run: |
           if [ -z "${EC2_HOST:-}" ]; then
-            echo "EC2_HOST=${{ secrets.EC2_HOST }}" >> $GITHUB_ENV
+            echo "EC2_HOST=${EC2_HOST_SECRET}" >> $GITHUB_ENV
           fi
-          echo "EC2_USER=${{ secrets.EC2_USER }}" >> $GITHUB_ENV
+          echo "EC2_USER=${EC2_USER_SECRET}" >> $GITHUB_ENV
 
       - name: Append known_hosts for EC2
         run: |
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
 
       - name: Update Cloudflare DNS (apex + www) to EC2
-        if: ${{ secrets.CF_API_TOKEN != '' }}
         continue-on-error: true
         env:
-          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_API_TOKEN: ${{ env.CF_API_TOKEN }}
           CF_ZONE_NAME: targonglobal.com
         run: |
           set -e
+          if [ -z "${CF_API_TOKEN:-}" ]; then echo "No CF_API_TOKEN provided; skipping DNS update"; exit 0; fi
           echo "Fetching Cloudflare Zone ID for $CF_ZONE_NAME"
           ZONE_RESP=$(curl -s -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json" \
             "https://api.cloudflare.com/client/v4/zones?name=$CF_ZONE_NAME")
