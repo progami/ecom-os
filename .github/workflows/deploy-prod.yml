@@ -1,0 +1,105 @@
+name: deploy-prod
+
+on:
+  push:
+    branches: [ main, chore/deploy-setup ]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'infra/ansible/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency:
+      group: prod-main
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible rsync
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+      - name: Configure SSH
+        run: |
+          install -m 600 -D /dev/null ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+
+      - name: Optionally assume AWS role and discover EC2 host
+        if: ${{ secrets.AWS_ROLE_TO_ASSUME && secrets.AWS_REGION }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Discover EC2 host (if AWS creds available)
+        if: ${{ secrets.AWS_ROLE_TO_ASSUME && secrets.AWS_REGION }}
+        run: |
+          EC2_HOST_IP=$(aws ec2 describe-instances \
+            --filters Name=instance-state-name,Values=running \
+            --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)
+          echo "EC2_HOST=$EC2_HOST_IP" >> $GITHUB_ENV
+
+      - name: Fallback to secret EC2_HOST (if not discovered)
+        run: |
+          if [ -z "${EC2_HOST:-}" ]; then
+            echo "EC2_HOST=${{ secrets.EC2_HOST }}" >> $GITHUB_ENV
+          fi
+
+      - name: Append known_hosts for EC2
+        run: |
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Write inventory
+        run: |
+          mkdir -p infra/ansible/inventory
+          echo "[mono]" > infra/ansible/inventory/hosts.ini
+          echo "$EC2_HOST ansible_user=${{ secrets.EC2_USER || 'ubuntu' }}" >> infra/ansible/inventory/hosts.ini
+
+      - name: Deploy via Ansible (monorepo)
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: 'False'
+        run: |
+          ansible-playbook -i infra/ansible/inventory/hosts.ini infra/ansible/deploy-monorepo.yml
+
+      - name: Post-deploy health checks
+        run: |
+          set -e
+          HOST_IP="$EC2_HOST"
+          parse_var() { awk -F': *' -v VAR="$1" '$1==VAR {print $2}' infra/ansible/group_vars/all.yml | tr -d '"\''; }
+          WEBSITE=$(parse_var website_server_name)
+          WMS=$(parse_var wms_server_name)
+          FCC=$(parse_var fcc_server_name)
+          HRMS=$(parse_var hrms_server_name)
+          CENTRAL_DB=$(parse_var central_db_server_name)
+          MARGIN_MASTER=$(parse_var margin_master_server_name)
+          JASON=$(parse_var jason_server_name)
+          REQUIRED=($WEBSITE $WMS $FCC $HRMS)
+          OPTIONAL=($CENTRAL_DB $MARGIN_MASTER $JASON)
+          check_host() {
+            local host="$1"; local ip="$2"; local path="/"; local i=1
+            while [ $i -le 20 ]; do
+              code=$(curl -sS -o /dev/null -w "%{http_code}" -H "Host: $host" "http://$ip$path" || true)
+              if echo "$code" | grep -Eq '^(20|30)[0-9]$'; then echo "OK: $host -> $code"; return 0; fi
+              sleep 5; i=$((i+1))
+            done
+            echo "FAIL: $host"; return 1
+          }
+          failures=0
+          for h in "${REQUIRED[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" || failures=$((failures+1)); done
+          for h in "${OPTIONAL[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" || true; done
+          [ "$failures" -eq 0 ] || exit 1
+
