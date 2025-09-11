@@ -26,10 +26,11 @@ jobs:
       - uses: pnpm/action-setup@v4
         with:
           version: 9
+          run_install: false
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
+      - run: corepack enable && corepack prepare pnpm@9 --activate
       - run: pnpm install
       - name: Build workspace
         run: pnpm build || (echo "Build failed" && exit 1)
