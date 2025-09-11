@@ -27,9 +27,12 @@
       args: { creates: /usr/bin/node }
     - name: Install global tools
       npm:
-        name: [pm2, pnpm]
+        name: "{{ item }}"
         global: yes
         state: present
+      loop:
+        - pm2
+        - pnpm
     - name: Create app dir
       file: { path: "{{ app_base }}", state: directory, owner: ubuntu, group: ubuntu, mode: '0755' }
     - name: Copy local repo (GitHub runner workspace)
