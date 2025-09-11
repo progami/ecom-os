@@ -30,7 +30,7 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install
       - name: Build workspace
         run: pnpm build || (echo "Build failed" && exit 1)
 
