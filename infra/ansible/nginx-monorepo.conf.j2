@@ -13,7 +13,7 @@ server {
 server {
   listen 80;
   server_name {{ root_server_name | default('targonglobal.com') }};
-  return 301 http://{{ website_server_name | default('www.targonglobal.com') }}$request_uri;
+  return 301 https://{{ website_server_name | default('www.targonglobal.com') }}$request_uri;
 }
 
 server {
