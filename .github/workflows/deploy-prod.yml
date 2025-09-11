@@ -1,0 +1,65 @@
+name: deploy-prod
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'infra/ansible/**'
+      - '.github/workflows/deploy-prod.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - name: Determine EC2 host
+        id: discover
+        run: |
+          if [ -n "${{ secrets.AWS_ROLE_TO_ASSUME }}" ]; then
+            aws configure set region "${{ secrets.AWS_REGION }}"
+            HOST=$(aws ec2 describe-instances --filters "Name=instance-state-name,Values=running" --query "Reservations[0].Instances[0].PublicIpAddress" --output text)
+            echo "EC2_HOST=$HOST" >> $GITHUB_ENV
+          else
+            echo "EC2_HOST=${{ secrets.EC2_HOST }}" >> $GITHUB_ENV
+          fi
+
+      - name: Add host to known_hosts
+        run: ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy with Ansible
+        run: ansible-playbook -i "$EC2_HOST," infra/ansible/deploy-monorepo.yml
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "false"
+          ANSIBLE_STDOUT_CALLBACK: default
+
+      - name: Post-deploy health checks
+        run: |
+          hosts=(www.targonglobal.com wms.targonglobal.com fcc.targonglobal.com hrms.targonglobal.com)
+          for h in "${hosts[@]}"; do
+            echo "Checking $h"
+            for i in {1..20}; do
+              status=$(curl -s -o /dev/null -w '%{http_code}' -H "Host: $h" http://$EC2_HOST/ || echo "000")
+              if [[ $status == 2* || $status == 3* ]]; then
+                echo "$h healthy ($status)"; break
+              fi
+              echo "Retry $i for $h (status $status)"; sleep 5
+              if [ "$i" -eq 20 ]; then echo "$h failed"; exit 1; fi
+            done
+          done
