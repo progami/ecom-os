@@ -74,8 +74,17 @@ jobs:
       - name: Deploy via Ansible (monorepo)
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'False'
+          ANSIBLE_STDOUT_CALLBACK: debug
+          ANSIBLE_SSH_COMMON_ARGS: "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ConnectionAttempts=10"
+          WEBSITE_ENV: ${{ secrets.WEBSITE_ENV }}
+          WMS_ENV: ${{ secrets.WMS_ENV }}
+          HRMS_ENV: ${{ secrets.HRMS_ENV }}
+          FCC_ENV: ${{ secrets.FCC_ENV }}
+          CENTRAL_DB_ENV: ${{ secrets.CENTRAL_DB_ENV }}
+          MARGIN_MASTER_ENV: ${{ secrets.MARGIN_MASTER_ENV }}
+          JASON_ENV: ${{ secrets.JASON_ENV }}
         run: |
-          ansible-playbook -i infra/ansible/inventory/hosts.ini infra/ansible/deploy-monorepo.yml
+          ansible-playbook -vvv -i infra/ansible/inventory/hosts.ini infra/ansible/deploy-monorepo.yml
 
       - name: Post-deploy health checks
         run: |

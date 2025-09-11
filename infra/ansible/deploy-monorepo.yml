@@ -45,6 +45,78 @@
     - name: Build apps
       command: pnpm build
       args: { chdir: "{{ app_base }}/repo" }
+
+    - name: Write per-app environment files from GitHub Secrets
+      block:
+        - name: Write website env
+          copy:
+            dest: "{{ app_base }}/repo/apps/website/.env"
+            content: "{{ lookup('env', 'WEBSITE_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'WEBSITE_ENV') | default('', true)) | length > 0
+
+        - name: Write WMS env
+          copy:
+            dest: "{{ app_base }}/repo/apps/wms/.env"
+            content: "{{ lookup('env', 'WMS_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'WMS_ENV') | default('', true)) | length > 0
+
+        - name: Write HRMS env
+          copy:
+            dest: "{{ app_base }}/repo/apps/hrms/.env"
+            content: "{{ lookup('env', 'HRMS_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'HRMS_ENV') | default('', true)) | length > 0
+
+        - name: Write FCC env
+          copy:
+            dest: "{{ app_base }}/repo/apps/fcc/.env"
+            content: "{{ lookup('env', 'FCC_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'FCC_ENV') | default('', true)) | length > 0
+
+        - name: Write Central DB env
+          copy:
+            dest: "{{ app_base }}/repo/apps/central-db/.env"
+            content: "{{ lookup('env', 'CENTRAL_DB_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'CENTRAL_DB_ENV') | default('', true)) | length > 0
+
+        - name: Write Margin Master env
+          copy:
+            dest: "{{ app_base }}/repo/apps/margin-master/.env"
+            content: "{{ lookup('env', 'MARGIN_MASTER_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'MARGIN_MASTER_ENV') | default('', true)) | length > 0
+
+        - name: Write Jason env
+          copy:
+            dest: "{{ app_base }}/repo/apps/jason/.env"
+            content: "{{ lookup('env', 'JASON_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'JASON_ENV') | default('', true)) | length > 0
     - name: Write Nginx config
       template:
         src: nginx-monorepo.conf.j2
@@ -81,4 +153,3 @@
   handlers:
     - name: restart nginx
       systemd: { name: nginx, state: restarted }
-

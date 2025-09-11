@@ -40,3 +40,12 @@ s3_presigned_url_expiry: 3600
 
 # CloudFront CDN (optional)
 # cloudfront_domain: your-distribution.cloudfront.net
+
+# Monorepo vhost configuration (used by deploy-monorepo.yml)
+website_server_name: www.targonglobal.com
+wms_server_name: wms.targonglobal.com
+fcc_server_name: fcc.targonglobal.com
+hrms_server_name: hrms.targonglobal.com
+central_db_server_name: centraldb.targonglobal.com
+margin_master_server_name: mm.targonglobal.com
+jason_server_name: jason.targonglobal.com
