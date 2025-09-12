@@ -27,3 +27,6 @@ logs/
 .DS_Store
 .idea/
 .vscode/
+
+# Personal notes (do not commit)
+Pers/
