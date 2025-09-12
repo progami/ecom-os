@@ -18,7 +18,7 @@
     - name: Ensure system deps
       apt:
         update_cache: yes
-        name: [curl, git, nginx, build-essential, rsync, certbot, python3-certbot-nginx]
+        name: [curl, git, nginx, build-essential, rsync, certbot, python3-certbot-nginx, lsof]
         state: present
     - name: Install Node.js
       shell: |
@@ -158,16 +158,24 @@
       register: certbot_result
       changed_when: certbot_result.rc == 0
       failed_when: certbot_result.rc not in [0]
-    - name: Start website with PM2
+    - name: Start website with PM2 (clean restart + verify)
       shell: |
+        set -e
         cd {{ app_base }}/repo
+        # Kill any rogue process on the website port
+        lsof -ti:{{ website_port }} | xargs -r kill -9 || true
+        # Rebuild website cleanly
         rm -rf apps/website/.next
         pnpm --filter @ecom-os/website build
-        rm -rf apps/website/.next
-        pnpm --filter @ecom-os/website build
+        # Restart PM2 with explicit CWD
         pm2 delete website || true
-        PORT={{ website_port }} NODE_ENV=production pm2 start apps/website/server.js --name website --cwd {{ app_base }}/repo/apps/website --update-env
+        PORT={{ website_port }} NODE_ENV=production pm2 start server.js --name website --cwd {{ app_base }}/repo/apps/website --update-env
         pm2 save
+        # Verify content served on localhost includes expected markers
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+          if curl -fsS -H "Host: {{ website_server_name | default('www.targonglobal.com') }}" "http://127.0.0.1:{{ website_port }}/" | grep -Eiq '(INNOVATION TO IMPACT|Everyday, Done Better)'; then
+            echo "Content verification OK"; break; fi; sleep 3; done
+        curl -fsS -H "Host: {{ website_server_name | default('www.targonglobal.com') }}" "http://127.0.0.1:{{ website_port }}/" | grep -Eiq '(INNOVATION TO IMPACT|Everyday, Done Better)' || (echo 'ERROR: Content verification failed on localhost' >&2; exit 1)
       args: { chdir: "{{ app_base }}/repo" }
   handlers:
     - name: restart nginx
