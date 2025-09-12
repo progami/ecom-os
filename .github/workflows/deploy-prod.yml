@@ -182,16 +182,20 @@ jobs:
           JASON=$(parse_var jason_server_name)
           REQUIRED=($WEBSITE)
           OPTIONAL=($WMS $FCC $HRMS $CENTRAL_DB $MARGIN_MASTER $JASON)
+          # host ip retries
           check_host() {
-            local host="$1"; local ip="$2"; local path="/"; local i=1
-            while [ $i -le 20 ]; do
-              code=$(curl -sS -o /dev/null -w "%{http_code}" -H "Host: $host" "http://$ip$path" || true)
+            local host="$1"; local ip="$2"; local retries="${3:-12}"; local path="/"; local i=1
+            while [ $i -le "$retries" ]; do
+              code=$(curl -sS --connect-timeout 3 --max-time 5 -o /dev/null -w "%{http_code}" -H "Host: $host" "http://$ip$path" || true)
               if echo "$code" | grep -Eq '^(20|30)[0-9]$'; then echo "OK: $host -> $code"; return 0; fi
               sleep 5; i=$((i+1))
             done
             echo "FAIL: $host"; return 1
           }
           failures=0
-          for h in "${REQUIRED[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" || failures=$((failures+1)); done
-          for h in "${OPTIONAL[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" || true; done
+          # Required hosts (allow up to 12 attempts ~1 min max)
+          for h in "${REQUIRED[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" 12 || failures=$((failures+1)); done
+          # Optional hosts: run in parallel with fewer attempts (6 attempts ~30s max each)
+          for h in "${OPTIONAL[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" 6 & done
+          wait || true
           [ "$failures" -eq 0 ] || exit 1
