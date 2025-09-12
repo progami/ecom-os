@@ -11,7 +11,9 @@ const schema = z.object({
 
 export type AppConfig = z.infer<typeof schema>;
 
-export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
+// Keep this package framework-agnostic by avoiding Node-specific types.
+// Consumers should pass an object like process.env.
+export function getConfig(env: Record<string, string | undefined>): AppConfig {
   const parsed = schema.safeParse(env);
   if (!parsed.success) {
     const issues = parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('\n');
@@ -19,4 +21,3 @@ export function getConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   }
   return parsed.data;
 }
-
