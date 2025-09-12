@@ -1,0 +1,197 @@
+name: CD
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'infra/ansible/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      # expose secrets as env; avoid using `secrets.*` in `if:` expressions
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      EC2_HOST_SECRET: ${{ secrets.EC2_HOST }}
+      EC2_USER_SECRET: ${{ secrets.EC2_USER }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+    concurrency:
+      group: prod-main
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools (ansible, rsync, jq, curl)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ansible rsync jq curl
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: corepack enable && corepack prepare pnpm@9.0.0 --activate
+      - run: pnpm install
+      - name: Build website only
+        run: pnpm turbo run build --filter=@ecom-os/website || (echo "Build failed" && exit 1)
+
+      - name: Configure SSH
+        run: |
+          install -m 600 -D /dev/null ~/.ssh/id_rsa
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+
+      - name: Optionally assume AWS role and discover EC2 host
+        if: ${{ env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Discover EC2 host (if AWS creds available)
+        if: ${{ env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' }}
+        run: |
+          read INST_ID INST_AZ INST_IP < <(aws ec2 describe-instances \
+            --filters Name=instance-state-name,Values=running \
+            --query 'Reservations[0].Instances[0].[InstanceId,Placement.AvailabilityZone,PublicIpAddress]' --output text)
+          echo "EC2_HOST=$INST_IP" >> $GITHUB_ENV
+          echo "EIC_INSTANCE_ID=$INST_ID" >> $GITHUB_ENV
+          echo "EIC_INSTANCE_AZ=$INST_AZ" >> $GITHUB_ENV
+          echo "Discovered: id=$INST_ID az=$INST_AZ ip=$INST_IP"
+
+      - name: Fallback to secrets for EC2 host and user (if not discovered)
+        run: |
+          if [ -z "${EC2_HOST:-}" ]; then
+            echo "EC2_HOST=${EC2_HOST_SECRET}" >> $GITHUB_ENV
+          fi
+          echo "EC2_USER=${EC2_USER_SECRET}" >> $GITHUB_ENV
+
+      - name: Append known_hosts for EC2
+        run: |
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Generate and inject CI SSH key via EC2 Instance Connect
+        if: ${{ env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' }}
+        env:
+          OS_USER: ${{ env.EC2_USER_SECRET }}
+        run: |
+          set -e
+          OS_USER=${OS_USER:-ubuntu}
+          ssh-keygen -t ed25519 -N '' -f ~/.ssh/ci_key -C ci@github || true
+          # Push key via EIC (ephemeral)
+          aws ec2-instance-connect send-ssh-public-key \
+            --instance-id "$EIC_INSTANCE_ID" \
+            --availability-zone "$EIC_INSTANCE_AZ" \
+            --instance-os-user "$OS_USER" \
+            --ssh-public-key "file://$HOME/.ssh/ci_key.pub"
+          # Use ephemeral window to append pubkey permanently
+          ssh -i ~/.ssh/ci_key -o StrictHostKeyChecking=no "$OS_USER@$EC2_HOST" \
+            "mkdir -p ~/.ssh && touch ~/.ssh/authorized_keys && grep -qxF '$(cat ~/.ssh/ci_key.pub)' ~/.ssh/authorized_keys || echo '$(cat ~/.ssh/ci_key.pub)' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"
+          # Switch default key for subsequent steps
+          install -m 600 -D ~/.ssh/ci_key ~/.ssh/id_rsa
+
+      - name: Update Cloudflare DNS (apex + www) to EC2
+        continue-on-error: true
+        env:
+          CF_API_TOKEN: ${{ env.CF_API_TOKEN }}
+          CF_ZONE_NAME: targonglobal.com
+        run: |
+          set -e
+          if [ -z "${CF_API_TOKEN:-}" ]; then echo "No CF_API_TOKEN provided; skipping DNS update"; exit 0; fi
+          echo "Fetching Cloudflare Zone ID for $CF_ZONE_NAME"
+          ZONE_RESP=$(curl -s -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json" \
+            "https://api.cloudflare.com/client/v4/zones?name=$CF_ZONE_NAME")
+          CF_ZONE_ID=$(echo "$ZONE_RESP" | jq -r '.result[0].id')
+          if [ -z "$CF_ZONE_ID" ] || [ "$CF_ZONE_ID" = "null" ]; then echo "Zone not found" >&2; exit 1; fi
+          upsert_a(){
+            local NAME="$1"; local IP="$2"; local PROXIED=${3:-false}
+            echo "Upserting A record $NAME -> $IP (proxied=$PROXIED)"
+            REC_ID=$(curl -s -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json" \
+              "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records?type=A&name=$NAME" | jq -r '.result[0].id')
+            DATA=$(jq -n --arg type A --arg name "$NAME" --arg content "$IP" --argjson proxied $PROXIED '{type:"A",name:$name,content:$content,ttl:120,proxied:$proxied}')
+            if [ -n "$REC_ID" ] && [ "$REC_ID" != "null" ]; then
+              curl -s -X PUT -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json" \
+                "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records/$REC_ID" --data "$DATA" | jq -r '.success'
+            else
+              curl -s -X POST -H "Authorization: Bearer $CF_API_TOKEN" -H "Content-Type: application/json" \
+                "https://api.cloudflare.com/client/v4/zones/$CF_ZONE_ID/dns_records" --data "$DATA" | jq -r '.success'
+            fi
+          }
+          upsert_a "$CF_ZONE_NAME" "$EC2_HOST" false
+          upsert_a "www.$CF_ZONE_NAME" "$EC2_HOST" false
+
+      - name: Write inventory
+        run: |
+          mkdir -p infra/ansible/inventory
+          echo "[mono]" > infra/ansible/inventory/hosts.ini
+          USER_VAL=${EC2_USER:-ubuntu}
+          echo "$EC2_HOST ansible_user=$USER_VAL" >> infra/ansible/inventory/hosts.ini
+
+      - name: Show ansible version
+        run: ansible --version && ansible-galaxy collection list || true
+
+      - name: Ansible ping EC2
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: 'False'
+          ANSIBLE_SSH_COMMON_ARGS: "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ConnectionAttempts=10"
+        run: |
+          echo "[mono]" > infra/ansible/inventory/hosts.ini
+          echo "$EC2_HOST ansible_user=${EC2_USER:-ubuntu}" >> infra/ansible/inventory/hosts.ini
+          ansible -vvv -i infra/ansible/inventory/hosts.ini mono -m ping
+
+      - name: Deploy via Ansible (monorepo)
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: 'False'
+          ANSIBLE_STDOUT_CALLBACK: debug
+          ANSIBLE_SSH_COMMON_ARGS: "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ConnectionAttempts=10"
+          DEPLOY_COMMIT: ${{ github.sha }}
+          WEBSITE_ENV: ${{ secrets.WEBSITE_ENV }}
+          WMS_ENV: ${{ secrets.WMS_ENV }}
+          HRMS_ENV: ${{ secrets.HRMS_ENV }}
+          FCC_ENV: ${{ secrets.FCC_ENV }}
+          CENTRAL_DB_ENV: ${{ secrets.CENTRAL_DB_ENV }}
+          MARGIN_MASTER_ENV: ${{ secrets.MARGIN_MASTER_ENV }}
+          JASON_ENV: ${{ secrets.JASON_ENV }}
+        run: |
+          set -e
+          echo "Inventory:" && cat infra/ansible/inventory/hosts.ini
+          ansible-playbook -vvv -i infra/ansible/inventory/hosts.ini infra/ansible/deploy-monorepo.yml
+
+      - name: Post-deploy health checks
+        run: |
+          set -e
+          HOST_IP="$EC2_HOST"
+          parse_var() {
+            awk -F': *' -v VAR="$1" '$1==VAR {print $2}' infra/ansible/group_vars/all.yml \
+              | tr -d '"' \
+              | sed -e 's/^ *//' -e 's/ *$//' \
+              | tr -d '\n'
+          }
+          WEBSITE=$(parse_var website_server_name)
+          WMS=$(parse_var wms_server_name)
+          FCC=$(parse_var fcc_server_name)
+          HRMS=$(parse_var hrms_server_name)
+          CENTRAL_DB=$(parse_var central_db_server_name)
+          MARGIN_MASTER=$(parse_var margin_master_server_name)
+          JASON=$(parse_var jason_server_name)
+          REQUIRED=($WEBSITE)
+          OPTIONAL=($WMS $FCC $HRMS $CENTRAL_DB $MARGIN_MASTER $JASON)
+          check_host() {
+            local host="$1"; local ip="$2"; local path="/"; local i=1
+            while [ $i -le 20 ]; do
+              code=$(curl -sS -o /dev/null -w "%{http_code}" -H "Host: $host" "http://$ip$path" || true)
+              if echo "$code" | grep -Eq '^(20|30)[0-9]$'; then echo "OK: $host -> $code"; return 0; fi
+              sleep 5; i=$((i+1))
+            done
+            echo "FAIL: $host"; return 1
+          }
+          failures=0
+          for h in "${REQUIRED[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" || failures=$((failures+1)); done
+          for h in "${OPTIONAL[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" || true; done
+          [ "$failures" -eq 0 ] || exit 1
