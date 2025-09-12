@@ -1,6 +1,6 @@
 # Ecom OS Monorepo
 
-This repository hosts the Ecom Operating System monorepo with four apps:
+This repository hosts the Ecom Operating System monorepo with these apps:
 
 - HRMS (`apps/hrms`, package `@ecom-os/hrms`)
 - WMS (`apps/wms`, package `@ecom-os/wms`)
@@ -9,7 +9,6 @@ This repository hosts the Ecom Operating System monorepo with four apps:
 - Central DB (`apps/central-db`, package `@ecom-os/central-db`)
 - Margin Master (`apps/margin-master`, package `@ecom-os/margin-master`)
 - Jason (`apps/jason`, package `@ecom-os/jason`)
-- E2 (`apps/e2`) – utilities and experiments; contains `calculations/` Next.js app
 - YE 2024 (`apps/ye-2024`, package `@ecom-os/ye-2024`) – experimental/non-production data and dashboards
 
 We use pnpm workspaces and Turborepo. All apps live under `apps/` and shared code under `packages/`.

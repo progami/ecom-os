@@ -1,2 +1,0 @@
-- do not assume anything, ask if unsure
-- do not type let me actually check, infact actually check before talking
