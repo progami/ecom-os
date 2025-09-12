@@ -136,6 +136,14 @@
       file: { path: /etc/nginx/sites-enabled/default, state: absent }
       notify: restart nginx
 
+    - name: Set deploy headers globally (commit + time)
+      copy:
+        dest: /etc/nginx/conf.d/deploy-headers.conf
+        content: |
+          add_header X-Deploy-Commit "{{ lookup('env','DEPLOY_COMMIT') | default('', true) }}" always;
+          add_header X-Deploy-Time "{{ ansible_date_time.iso8601 | default('', true) }}" always;
+      notify: restart nginx
+
     - name: Apply pending nginx handlers before certbot
       meta: flush_handlers
 

@@ -150,6 +150,7 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: 'False'
           ANSIBLE_STDOUT_CALLBACK: debug
           ANSIBLE_SSH_COMMON_ARGS: "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ConnectionAttempts=10"
+          DEPLOY_COMMIT: ${{ github.sha }}
           WEBSITE_ENV: ${{ secrets.WEBSITE_ENV }}
           WMS_ENV: ${{ secrets.WMS_ENV }}
           HRMS_ENV: ${{ secrets.HRMS_ENV }}
