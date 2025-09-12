@@ -132,6 +132,15 @@
         dest: /etc/nginx/sites-enabled/ecom-os
         state: link
       notify: restart nginx
+    - name: Disable any other nginx sites (ensure www hits apps/website)
+      shell: |
+        set -e
+        for f in /etc/nginx/sites-enabled/*; do
+          [ "$(basename "$f")" = "ecom-os" ] && continue || rm -f "$f" || true;
+        done
+      args:
+        executable: /bin/bash
+      notify: restart nginx
     - name: Disable default site
       file: { path: /etc/nginx/sites-enabled/default, state: absent }
       notify: restart nginx
@@ -171,11 +180,11 @@
         pm2 delete website || true
         PORT={{ website_port }} NODE_ENV=production pm2 start server.js --name website --cwd {{ app_base }}/repo/apps/website --update-env
         pm2 save
-        # Verify content served on localhost includes expected markers
+        # Verify content served on localhost includes expected repo markers (strict)
         for i in 1 2 3 4 5 6 7 8 9 10; do
-          if curl -fsS -H "Host: {{ website_server_name | default('www.targonglobal.com') }}" "http://127.0.0.1:{{ website_port }}/" | grep -Eiq '(INNOVATION TO IMPACT|Everyday, Done Better)'; then
+          if curl -fsS -H "Host: {{ website_server_name | default('www.targonglobal.com') }}" "http://127.0.0.1:{{ website_port }}/" | grep -Eiq '(INNOVATION TO IMPACT|Targon Global – Everyday, Done Better)'; then
             echo "Content verification OK"; break; fi; sleep 3; done
-        curl -fsS -H "Host: {{ website_server_name | default('www.targonglobal.com') }}" "http://127.0.0.1:{{ website_port }}/" | grep -Eiq '(INNOVATION TO IMPACT|Everyday, Done Better)' || (echo 'ERROR: Content verification failed on localhost' >&2; exit 1)
+        curl -fsS -H "Host: {{ website_server_name | default('www.targonglobal.com') }}" "http://127.0.0.1:{{ website_port }}/" | grep -Eiq '(INNOVATION TO IMPACT|Targon Global – Everyday, Done Better)' || (echo 'ERROR: Content verification failed on localhost' >&2; exit 1)
       args: { chdir: "{{ app_base }}/repo" }
   handlers:
     - name: restart nginx
