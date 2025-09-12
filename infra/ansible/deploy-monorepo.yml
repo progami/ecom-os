@@ -161,8 +161,10 @@
     - name: Start website with PM2
       shell: |
         cd {{ app_base }}/repo
+        rm -rf apps/website/.next
+        pnpm --filter @ecom-os/website build
         pm2 delete website || true
-        PORT={{ website_port }} pm2 start --name website -- pnpm --filter @ecom-os/website start
+        PORT={{ website_port }} NODE_ENV=production pm2 start apps/website/server.js --name website --cwd {{ app_base }}/repo/apps/website --update-env
         pm2 save
       args: { chdir: "{{ app_base }}/repo" }
   handlers:
