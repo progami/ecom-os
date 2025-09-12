@@ -18,7 +18,7 @@
     - name: Ensure system deps
       apt:
         update_cache: yes
-        name: [curl, git, nginx, build-essential]
+        name: [curl, git, nginx, build-essential, rsync, certbot, python3-certbot-nginx]
         state: present
     - name: Install Node.js
       shell: |
@@ -27,9 +27,12 @@
       args: { creates: /usr/bin/node }
     - name: Install global tools
       npm:
-        name: [pm2, pnpm]
+        name: "{{ item }}"
         global: yes
         state: present
+      loop:
+        - pm2
+        - pnpm
     - name: Create app dir
       file: { path: "{{ app_base }}", state: directory, owner: ubuntu, group: ubuntu, mode: '0755' }
     - name: Copy local repo (GitHub runner workspace)
@@ -40,11 +43,84 @@
         delete: yes
         rsync_opts: ["--exclude=.git", "--exclude=node_modules", "--exclude=.turbo"]
     - name: Install dependencies (pnpm)
-      command: pnpm install --frozen-lockfile
+      shell: pnpm install
       args: { chdir: "{{ app_base }}/repo" }
-    - name: Build apps
-      command: pnpm build
+    - name: Build website only (no turbo)
+      shell: |
+        pnpm --filter @ecom-os/website build
       args: { chdir: "{{ app_base }}/repo" }
+
+    - name: Write per-app environment files from GitHub Secrets
+      block:
+        - name: Write website env
+          copy:
+            dest: "{{ app_base }}/repo/apps/website/.env"
+            content: "{{ lookup('env', 'WEBSITE_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'WEBSITE_ENV') | default('', true)) | length > 0
+
+        - name: Write WMS env
+          copy:
+            dest: "{{ app_base }}/repo/apps/wms/.env"
+            content: "{{ lookup('env', 'WMS_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'WMS_ENV') | default('', true)) | length > 0
+
+        - name: Write HRMS env
+          copy:
+            dest: "{{ app_base }}/repo/apps/hrms/.env"
+            content: "{{ lookup('env', 'HRMS_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'HRMS_ENV') | default('', true)) | length > 0
+
+        - name: Write FCC env
+          copy:
+            dest: "{{ app_base }}/repo/apps/fcc/.env"
+            content: "{{ lookup('env', 'FCC_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'FCC_ENV') | default('', true)) | length > 0
+
+        - name: Write Central DB env
+          copy:
+            dest: "{{ app_base }}/repo/apps/central-db/.env"
+            content: "{{ lookup('env', 'CENTRAL_DB_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'CENTRAL_DB_ENV') | default('', true)) | length > 0
+
+        - name: Write Margin Master env
+          copy:
+            dest: "{{ app_base }}/repo/apps/margin-master/.env"
+            content: "{{ lookup('env', 'MARGIN_MASTER_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'MARGIN_MASTER_ENV') | default('', true)) | length > 0
+
+        - name: Write Jason env
+          copy:
+            dest: "{{ app_base }}/repo/apps/jason/.env"
+            content: "{{ lookup('env', 'JASON_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'JASON_ENV') | default('', true)) | length > 0
     - name: Write Nginx config
       template:
         src: nginx-monorepo.conf.j2
@@ -59,26 +135,36 @@
     - name: Disable default site
       file: { path: /etc/nginx/sites-enabled/default, state: absent }
       notify: restart nginx
-    - name: Start apps with PM2
+
+    - name: Set deploy headers globally (commit + time)
+      copy:
+        dest: /etc/nginx/conf.d/deploy-headers.conf
+        content: |
+          add_header X-Deploy-Commit "{{ lookup('env','DEPLOY_COMMIT') | default('', true) }}" always;
+          add_header X-Deploy-Time "{{ ansible_date_time.iso8601 | default('', true) }}" always;
+      notify: restart nginx
+
+    - name: Apply pending nginx handlers before certbot
+      meta: flush_handlers
+
+    - name: Obtain/ensure Let's Encrypt cert for apex + www
+      command: >-
+        certbot --nginx --reinstall
+        -d {{ root_server_name | default('targonglobal.com') }}
+        -d {{ website_server_name | default('www.targonglobal.com') }}
+        --non-interactive --agree-tos
+        --email {{ certbot_email | default('admin@targonglobal.com') }}
+        --redirect
+      register: certbot_result
+      changed_when: certbot_result.rc == 0
+      failed_when: certbot_result.rc not in [0]
+    - name: Start website with PM2
       shell: |
         cd {{ app_base }}/repo
-        # Ensure website serves the freshly built app from correct cwd
         rm -rf apps/website/.next
         pnpm --filter @ecom-os/website build
         pm2 delete website || true
-        pm2 delete wms || true
-        pm2 delete fcc || true
-        pm2 delete hrms || true
-        pm2 delete central-db || true
-        pm2 delete margin-master || true
-        pm2 delete jason || true
         PORT={{ website_port }} NODE_ENV=production pm2 start apps/website/server.js --name website --cwd {{ app_base }}/repo/apps/website --update-env
-        PORT={{ wms_port }} pm2 start --name wms -- pnpm --filter @ecom-os/wms start
-        PORT={{ fcc_port }} pm2 start --name fcc -- pnpm --filter @ecom-os/fcc start
-        PORT={{ hrms_port }} pm2 start --name hrms -- pnpm --filter @ecom-os/hrms start
-        PORT={{ central_db_port }} pm2 start --name central-db -- pnpm --filter @ecom-os/central-db start || true
-        PORT={{ margin_master_port }} pm2 start --name margin-master -- pnpm --filter @ecom-os/margin-master start || true
-        PORT={{ jason_port }} pm2 start --name jason -- pnpm --filter @ecom-os/jason start || true
         pm2 save
       args: { chdir: "{{ app_base }}/repo" }
   handlers:
