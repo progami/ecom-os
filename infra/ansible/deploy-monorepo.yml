@@ -132,6 +132,16 @@
         dest: /etc/nginx/sites-enabled/ecom-os
         state: link
       notify: restart nginx
+    - name: Disable any other nginx sites (ensure www hits apps/website)
+      shell: |
+        set -e
+        for f in /etc/nginx/sites-enabled/*; do
+          [ "$(basename "$f")" = "ecom-os" ] && continue || rm -f "$f" || true;
+        done
+      args:
+        executable: /bin/bash
+      notify: restart nginx
+      notify: restart nginx
     - name: Disable default site
       file: { path: /etc/nginx/sites-enabled/default, state: absent }
       notify: restart nginx
@@ -163,6 +173,8 @@
         set -e
         cd {{ app_base }}/repo
         # Kill any rogue process on the website port
+        pm2 delete targon-frontend || true
+        pm2 delete targon || true
         lsof -ti:{{ website_port }} | xargs -r kill -9 || true
         # Rebuild website cleanly
         rm -rf apps/website/.next
