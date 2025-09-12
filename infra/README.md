@@ -1,16 +1,16 @@
 # Ecom OS Infra (Single EC2)
 
-This folder contains Terraform + Ansible to deploy all apps (website, wms, hrms, fcc) on a single EC2 host, fronted by Nginx and managed by PM2. We do not deploy until everything runs locally.
+This folder is the single source of truth for infra used by CD. It deploys to a single EC2 host (Nginx + PM2) and can deploy the entire monorepo.
 
 ## Layout
-- terraform/: EC2 + SG + EIP + IAM role and outputs.
-- ansible/: One playbook to provision node/nginx/pm2 and run apps.
+- ansible/: provisioning and deploy (used by CD)
+  - deploy-monorepo.yml – monorepo deploy (PM2 for apps, Nginx vhosts)
+  - nginx-monorepo.conf.j2 – nginx vhosts
+  - group_vars/all.yml – hostnames/ports for health checks
+- legacy/: archived WMS‑specific playbooks and old inventory templates (removed)
+- terraform/: EC2 + SG + EIP + IAM role, S3 bucket, etc. (optional; not used by CD)
 
-## Quick start (dev/prototype)
-- terraform:
-  - Set variables in `terraform/terraform.tfvars` (copy `.example` → remove `.example`).
-  - `make` style commands are similar to WMS infra; run:
-
+## Quick start
 ```bash
 cd infra/terraform
 terraform init
@@ -18,15 +18,12 @@ terraform plan
 # terraform apply  # when ready
 ```
 
-- ansible:
-  - After terraform apply, get public_ip from outputs.
-  - Fill ansible inventory `infra/ansible/inventory/hosts.ini` with the EC2 IP and SSH key.
-  - `ansible-playbook -i ansible/inventory/hosts.ini ansible/deploy-monorepo.yml`
-
-## Ports and hosts
+## Ports and hosts (example defaults)
 - website: 3000 → www.targonglobal.com
 - wms: 3001 → wms.targonglobal.com
 - fcc: 3003 → fcc.targonglobal.com
 - hrms: 3006 → hrms.targonglobal.com
+- central-db: 3004 → centraldb.targonglobal.com (optional)
+- margin-master: 3007 → margin.targonglobal.com (optional)
 
-Set DNS A records to the EC2 elastic IP or use certbot to issue host certs.
+CD runs ansible/deploy-monorepo.yml on push to main (or manual dispatch) and handles inventory/host selection.
