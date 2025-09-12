@@ -1,14 +1,12 @@
 # Ecom OS Infra (Single EC2)
 
-This folder is the single source of truth for infra used by CD. It deploys to a single EC2 host (Nginx + PM2) and can deploy the entire monorepo.
+This folder is the single source of truth for infrastructure, migrated from WMS's mature Terraform + Ansible stack. It deploys to a single EC2 host (Nginx + PM2) and can deploy the entire monorepo.
 
 ## Layout
-- ansible/: provisioning and deploy (used by CD)
+- terraform/: EC2 + SG + EIP + IAM role, S3 bucket, etc. (from WMS stack)
+- ansible/: Provisioning (node/nginx/postgres/pm2) + deployments
+  - playbook.yml, wms-deploy.yml – original WMS playbooks
   - deploy-monorepo.yml – monorepo deploy (PM2 for apps, Nginx vhosts)
-  - nginx-monorepo.conf.j2 – nginx vhosts
-  - group_vars/all.yml – hostnames/ports for health checks
-- legacy/: archived WMS‑specific playbooks and old inventory templates (removed)
-- terraform/: EC2 + SG + EIP + IAM role, S3 bucket, etc. (optional; not used by CD)
 
 ## Quick start
 ```bash
@@ -26,4 +24,8 @@ terraform plan
 - central-db: 3004 → centraldb.targonglobal.com (optional)
 - margin-master: 3007 → margin.targonglobal.com (optional)
 
-CD runs ansible/deploy-monorepo.yml on push to main (or manual dispatch) and handles inventory/host selection.
+```bash
+# Ansible deploy (GitHub Actions does this on push to main):
+ansible-playbook -i ansible/inventory/hosts.ini ansible/deploy-monorepo.yml
+```
+
