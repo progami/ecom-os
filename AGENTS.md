@@ -1,0 +1,1 @@
+# delete redundant / unused files after any architectural changes
