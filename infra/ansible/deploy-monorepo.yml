@@ -173,6 +173,9 @@
         cd {{ app_base }}/repo
         # Kill any rogue process on the website port
         lsof -ti:{{ website_port }} | xargs -r kill -9 || true
+        # Remove any legacy PM2 apps that could be served by nginx (landing)
+        pm2 delete targon-frontend || true
+        pm2 delete targon || true
         # Rebuild website cleanly
         rm -rf apps/website/.next
         pnpm --filter @ecom-os/website build
