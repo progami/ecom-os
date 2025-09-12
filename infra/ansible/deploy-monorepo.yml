@@ -62,6 +62,9 @@
     - name: Start apps with PM2
       shell: |
         cd {{ app_base }}/repo
+        # Ensure website serves the freshly built app from correct cwd
+        rm -rf apps/website/.next
+        pnpm --filter @ecom-os/website build
         pm2 delete website || true
         pm2 delete wms || true
         pm2 delete fcc || true
@@ -69,7 +72,7 @@
         pm2 delete central-db || true
         pm2 delete margin-master || true
         pm2 delete jason || true
-        PORT={{ website_port }} pm2 start --name website -- pnpm --filter @ecom-os/website start
+        PORT={{ website_port }} NODE_ENV=production pm2 start apps/website/server.js --name website --cwd {{ app_base }}/repo/apps/website --update-env
         PORT={{ wms_port }} pm2 start --name wms -- pnpm --filter @ecom-os/wms start
         PORT={{ fcc_port }} pm2 start --name fcc -- pnpm --filter @ecom-os/fcc start
         PORT={{ hrms_port }} pm2 start --name hrms -- pnpm --filter @ecom-os/hrms start
@@ -81,4 +84,3 @@
   handlers:
     - name: restart nginx
       systemd: { name: nginx, state: restarted }
-
