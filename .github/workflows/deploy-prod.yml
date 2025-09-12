@@ -1,18 +1,17 @@
 name: CD
 
 on:
-  push:
+  # Run CD only when a PR to main is merged (closed + merged)
+  pull_request:
+    types: [ closed ]
     branches: [ main ]
-    paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'infra/ansible/**'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
+  # Allow manual deploys
   workflow_dispatch: {}
 
 jobs:
   deploy:
+    # Ensure we only run for merged PRs (or manual dispatch)
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true) }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -30,6 +29,9 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Check out the latest main after merge
+          ref: main
       - name: Install tools (ansible, rsync, jq, curl)
         run: |
           sudo apt-get update
@@ -150,7 +152,8 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: 'False'
           ANSIBLE_STDOUT_CALLBACK: debug
           ANSIBLE_SSH_COMMON_ARGS: "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ConnectionAttempts=10"
-          DEPLOY_COMMIT: ${{ github.sha }}
+          # Prefer the merge commit SHA when available
+          DEPLOY_COMMIT: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
           WEBSITE_ENV: ${{ secrets.WEBSITE_ENV }}
           WMS_ENV: ${{ secrets.WMS_ENV }}
           HRMS_ENV: ${{ secrets.HRMS_ENV }}
