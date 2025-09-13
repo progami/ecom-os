@@ -83,3 +83,12 @@ pnpm --filter @ecom-os/website dev
 
 - Apps currently use different Next.js versions; pnpm will isolate versions per workspace. We can align later.
  - Monorepo structure is canonical; apps have been moved into `apps/`.
+
+## Workflow Policy
+
+- Branches: active development on `dev`; production on `main`.
+- CI: runs on pull requests to `dev` and `main` only; duplicate push builds are avoided.
+- Required checks: `build-test` and `GitGuardian Security Checks` must pass before merge.
+- Reviews: no approval required (single-collaborator repo); merges happen via PR with green checks.
+- CD: deploys on push to `main` via `.github/workflows/deploy-prod.yml`.
+- Housekeeping: `apps/e2` removed; personal notes under `Pers/` are ignored by Git and not tracked.
