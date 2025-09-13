@@ -7,20 +7,20 @@
     --gradient-primary: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
     --gradient-secondary: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
     --gradient-success: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
-    /* Theme tokens aligned with WMS/website */
+    /* WMS-aligned theme tokens */
     --background: 0 0% 100%;
     --foreground: 240 10% 3.9%;
     --card: 0 0% 100%;
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 177 100% 38%;
+    --primary: 259 94% 51%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 214 12% 49%;
+    --secondary: 220 100% 95%;
     --secondary-foreground: 240 5.9% 10%;
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
-    --accent: 177 100% 38%;
+    --accent: 258 90% 66%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
@@ -57,6 +57,9 @@
   body { @apply bg-background text-foreground; }
 }
 
+/* Prevent body scrolling like WMS */
+html, body { height: 100%; overflow: hidden; }
+
 @layer components {
   /* Unified table styles */
   .hrms-table-wrapper {
@@ -67,20 +70,10 @@
     border-collapse: separate;
     border-spacing: 0;
   }
-  .hrms-thead-row {
-    @apply border-b border-slate-800;
-  }
-  .hrms-row {
-    @apply border-b border-slate-800 hover:bg-slate-800/40 transition-colors;
-  }
-  .hrms-th {
-    @apply text-left font-medium text-slate-400;
-    padding: var(--hrms-cell-py, 0.5rem) var(--hrms-cell-px, 0.5rem);
-  }
-  .hrms-td {
-    @apply text-slate-300 align-top;
-    padding: var(--hrms-cell-py, 0.5rem) var(--hrms-cell-px, 0.5rem);
-  }
+  .hrms-thead-row { @apply border-b border-gray-200 dark:border-gray-700; }
+  .hrms-row { @apply border-b border-gray-200 dark:border-gray-700 hover:bg-muted/50 transition-colors; }
+  .hrms-th { @apply text-left font-medium text-muted-foreground; padding: var(--hrms-cell-py, 0.5rem) var(--hrms-cell-px, 0.5rem); }
+  .hrms-td { @apply align-top text-foreground; padding: var(--hrms-cell-py, 0.5rem) var(--hrms-cell-px, 0.5rem); }
 
   /* Density presets */
   .hrms-density-compact {
@@ -98,11 +91,11 @@
   }
 
   .gradient-border-content {
-    @apply rounded-lg bg-slate-900;
+    @apply rounded-lg bg-white dark:bg-gray-900;
   }
 
   .glass-morphism {
-    @apply backdrop-blur-xl bg-slate-900/70 border border-slate-800;
+    @apply backdrop-blur-sm bg-white/70 dark:bg-gray-900/70 border border-white/20 dark:border-gray-800;
   }
 
   .glow-effect {
@@ -122,3 +115,27 @@
     @apply bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent;
   }
 }
+
+/* WMS-inspired utilities */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { @apply bg-muted; }
+::-webkit-scrollbar-thumb { @apply bg-muted-foreground/30 rounded-md; }
+::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/50; }
+
+/* Data table styles (WMS naming for future reuse) */
+.data-table { @apply w-full border-collapse; }
+.data-table th { @apply bg-muted font-medium text-left p-2 border-b; }
+.data-table td { @apply p-2 border-b; }
+.data-table tr:hover { @apply bg-muted/50; }
+
+/* Form styles */
+.form-input { @apply w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary; }
+.form-label { @apply block text-sm font-medium mb-1; }
+.form-error { @apply text-sm text-destructive mt-1; }
+
+/* Status badges */
+.status-badge { @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium; }
+.status-badge-success { @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200; }
+.status-badge-warning { @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200; }
+.status-badge-error { @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200; }
+.status-badge-info { @apply bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200; }

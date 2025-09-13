@@ -41,7 +41,7 @@ export default function HRMSNavigation() {
       <nav
         className={`${
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 fixed lg:relative w-64 h-full bg-slate-900 border-r border-slate-800 transition-transform duration-300 z-40`}
+        } lg:translate-x-0 fixed lg:relative w-64 h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 transition-transform duration-300 z-40`}
       >
         <div className="p-6">
           <h1 className="text-2xl font-bold text-gradient mb-8">HRMS</h1>
@@ -56,10 +56,10 @@ export default function HRMSNavigation() {
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-md transition-colors ${
                       isActive
-                        ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-white border border-purple-500/30'
-                        : 'hover:bg-slate-800 text-slate-400 hover:text-white'
+                        ? 'bg-gray-100 text-primary dark:bg-gray-800'
+                        : 'text-gray-700 hover:text-primary hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'
                     }`}
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
@@ -72,11 +72,11 @@ export default function HRMSNavigation() {
           </ul>
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-slate-800">
+        <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-200 dark:border-gray-800">
           <div className="gradient-border">
             <div className="gradient-border-content p-4">
-              <p className="text-sm text-slate-400">HR Management System</p>
-              <p className="text-xs text-slate-500 mt-1">Version 1.0.0</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">HR Management System</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Version 1.0.0</p>
             </div>
           </div>
         </div>

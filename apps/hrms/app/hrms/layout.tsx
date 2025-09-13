@@ -33,10 +33,10 @@ export default function HRMSLayout({
   }, [])
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-950">
+    <div className="flex h-screen overflow-hidden">
       <HRMSNavigation />
-      <main className={`flex-1 overflow-y-auto ${density === 'compact' ? 'hrms-density-compact' : 'hrms-density-comfortable'}`}>
-        <div className="p-8">
+      <main className={`flex-1 flex flex-col min-h-0 ${density === 'compact' ? 'hrms-density-compact' : 'hrms-density-comfortable'}`}>
+        <div className="px-4 sm:px-6 md:px-8 py-4 flex-1 min-h-0">
           {children}
         </div>
       </main>
