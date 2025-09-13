@@ -34,6 +34,7 @@ export default function HRMSNavigation() {
         className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-slate-900 border border-slate-800"
         aria-label="Menu"
       >
+        <span className="sr-only">Menu</span>
         {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
       </button>
 

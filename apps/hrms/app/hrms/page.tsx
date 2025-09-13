@@ -27,30 +27,24 @@ export default function HRMSDashboard() {
         <p className="text-slate-400 mt-2">Welcome to your HR Management System</p>
       </div>
 
-      {/* Summary Table */}
-      <div className="hrms-table-wrapper">
-        <table className="hrms-table">
-          <thead>
-            <tr className="hrms-thead-row">
-              <th className="hrms-th">Metric</th>
-              <th className="hrms-th">Count</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="hrms-row">
-              <td className="hrms-td">Total Employees</td>
-              <td className="hrms-td font-medium">{counts.employees}</td>
-            </tr>
-            <tr className="hrms-row">
-              <td className="hrms-td">Resources</td>
-              <td className="hrms-td font-medium">{counts.resources}</td>
-            </tr>
-            <tr className="hrms-row">
-              <td className="hrms-td">Policies</td>
-              <td className="hrms-td font-medium">{counts.policies}</td>
-            </tr>
-          </tbody>
-        </table>
+      {/* Summary Cards (WMS-like) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover-glow">
+          <h3 className="text-sm text-muted-foreground">Total Employees</h3>
+          <div className="mt-2 text-2xl font-semibold">{counts.employees}</div>
+        </div>
+        <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover-glow">
+          <h3 className="text-sm text-muted-foreground">Resources</h3>
+          <div className="mt-2 text-2xl font-semibold">{counts.resources}</div>
+        </div>
+        <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover-glow">
+          <h3 className="text-sm text-muted-foreground">Policies</h3>
+          <div className="mt-2 text-2xl font-semibold">{counts.policies}</div>
+        </div>
+        <div className="p-4 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover-glow">
+          <h3 className="text-sm text-muted-foreground">Payroll This Month</h3>
+          <div className="mt-2 text-2xl font-semibold">$0</div>
+        </div>
       </div>
 
       {/* Main Content Grid */}
@@ -77,11 +71,6 @@ export default function HRMSDashboard() {
             </tr>
           </thead>
           <tbody>
-            <tr className="hrms-row">
-              <td className="hrms-td">Payroll This Month</td>
-              <td className="hrms-td font-medium">$0</td>
-              <td className="hrms-td text-slate-400">No data available</td>
-            </tr>
             <tr className="hrms-row">
               <td className="hrms-td">Avg Work Hours</td>
               <td className="hrms-td font-medium">0</td>
