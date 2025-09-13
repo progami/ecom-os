@@ -94,7 +94,7 @@ export default function PoliciesPage() {
           <p className="text-muted-foreground mt-2">Company policies like leave and performance reviews</p>
         </div>
         
-        <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hover:opacity-90 transition-opacity">
+        <button onClick={() => setShowAdd(true)} className="btn btn-primary px-4 py-2 rounded-md flex items-center gap-2">
           <Plus size={20} />
           <span>Add Policy</span>
         </button>
@@ -155,9 +155,9 @@ export default function PoliciesPage() {
               <tr key={p.id} className="hrms-row">
                 <td className="hrms-td">
                   <div className="flex items-center gap-2">
-                    <FileText className="text-purple-500" size={16} />
+                    <FileText className="text-primary" size={16} />
                     {p.fileUrl ? (
-                      <a href={p.fileUrl} target="_blank" rel="noreferrer" className="font-medium text-purple-400 hover:text-purple-300">{p.title}</a>
+                      <a href={p.fileUrl} target="_blank" rel="noreferrer" className="font-medium text-primary hover:text-primary/80">{p.title}</a>
                     ) : (
                       <span className="font-medium">{p.title}</span>
                     )}
@@ -172,7 +172,7 @@ export default function PoliciesPage() {
                 <td className="hrms-td">{p.effectiveDate ? new Date(p.effectiveDate).toLocaleDateString() : '—'}</td>
                 <td className="hrms-td">
                   {p.fileUrl ? (
-                    <a href={p.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-purple-400 hover:text-purple-300">
+                    <a href={p.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:text-primary/80">
                       <Download size={14} /> Download
                     </a>
                   ) : '—'}

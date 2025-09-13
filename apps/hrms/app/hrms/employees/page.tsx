@@ -50,7 +50,7 @@ export default function EmployeesPage() {
         
         <Link
           href="/hrms/employees/add"
-          className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hover:opacity-90 transition-opacity"
+          className="btn btn-primary px-4 py-2 rounded-md flex items-center gap-2"
         >
           <Plus size={20} />
           <span>Add Employee</span>

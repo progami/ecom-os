@@ -23,7 +23,7 @@ export default function ResourcesPage() {
           <p className="text-muted-foreground mt-2">Directory of accounting firms, CPAs, designers, and more</p>
         </div>
         
-        <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hover:opacity-90 transition-opacity">
+        <button onClick={() => setShowAdd(true)} className="btn btn-primary px-4 py-2 rounded-md flex items-center gap-2">
           <Plus size={20} />
           <span>Add Resource</span>
         </button>

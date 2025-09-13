@@ -219,13 +219,13 @@ export default function EmployeeTable({ searchQuery, filters, onChanged }: Emplo
               >
                 <td className="hrms-td">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
+                    <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
                       {employee.firstName[0]}{employee.lastName[0]}
                     </div>
                     <div>
                       <Link
                         href={`/hrms/employees/${employee.employeeId}`}
-                        className="font-medium text-purple-400 hover:text-purple-300"
+                        className="font-medium text-primary hover:text-primary/80"
                         onClick={(e)=>e.stopPropagation()}
                       >
                         {employee.firstName} {employee.lastName}

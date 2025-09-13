@@ -13,8 +13,8 @@ interface Category {
 const categories: Category[] = [
   { id: 'all', name: 'All Providers', icon: Users, color: 'text-muted-foreground' },
   { id: 'ACCOUNTING', name: 'Accounting', icon: Calculator, color: 'text-blue-500' },
-  { id: 'LEGAL', name: 'Legal', icon: Scale, color: 'text-purple-500' },
-  { id: 'DESIGN', name: 'Design', icon: Brush, color: 'text-pink-500' },
+  { id: 'LEGAL', name: 'Legal', icon: Scale, color: 'text-primary' },
+  { id: 'DESIGN', name: 'Design', icon: Brush, color: 'text-primary' },
   { id: 'MARKETING', name: 'Marketing', icon: Megaphone, color: 'text-green-500' },
   { id: 'IT', name: 'IT Services', icon: Cpu, color: 'text-orange-500' },
   { id: 'HR', name: 'HR Services', icon: Users, color: 'text-cyan-500' },

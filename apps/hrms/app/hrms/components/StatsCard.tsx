@@ -14,7 +14,7 @@ export default function StatsCard({ title, value, change, trend, icon: Icon }: S
       <div className="gradient-border-content p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
-          <Icon className="text-purple-500" size={24} />
+          <Icon className="text-primary" size={24} />
         </div>
         
         <div className="flex items-end justify-between">

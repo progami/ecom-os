@@ -72,7 +72,7 @@ export default function AddEmployeePage() {
         <div className="gradient-border">
           <div className="gradient-border-content p-6">
             <div className="flex items-center gap-2 mb-6">
-              <User className="text-purple-500" size={20} />
+              <User className="text-primary" size={20} />
               <h2 className="text-xl font-semibold">Personal Information</h2>
             </div>
             
@@ -147,7 +147,7 @@ export default function AddEmployeePage() {
         <div className="gradient-border">
           <div className="gradient-border-content p-6">
             <div className="flex items-center gap-2 mb-6">
-              <Briefcase className="text-purple-500" size={20} />
+              <Briefcase className="text-primary" size={20} />
               <h2 className="text-xl font-semibold">Employment Information</h2>
             </div>
             
@@ -251,7 +251,7 @@ export default function AddEmployeePage() {
         <div className="gradient-border">
           <div className="gradient-border-content p-6">
             <div className="flex items-center gap-2 mb-6">
-              <Phone className="text-purple-500" size={20} />
+              <Phone className="text-primary" size={20} />
               <h2 className="text-xl font-semibold">Contact Information</h2>
             </div>
             
@@ -321,7 +321,7 @@ export default function AddEmployeePage() {
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+            className="btn btn-primary px-6 py-2 rounded-md flex items-center gap-2 disabled:opacity-50"
           >
             <Save size={20} />
             <span>{loading ? 'Saving...' : 'Save Employee'}</span>

@@ -227,7 +227,7 @@ export default function EmployeeDetailPage() {
                 <tr key={f.id} className="hrms-row">
                   <td className="hrms-td font-medium">{f.title}</td>
                   <td className="hrms-td">
-                    <a href={f.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-purple-400 hover:text-purple-300">
+                    <a href={f.fileUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:text-primary/80">
                       <LinkIcon size={14} /> View
                     </a>
                   </td>
