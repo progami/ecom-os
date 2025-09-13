@@ -27,7 +27,7 @@ export default function TableToolbar({
     <div className="flex items-center gap-2 py-2">
       {onImport && (
         <>
-          <button onClick={() => fileRef.current?.click()} className="px-3 py-1.5 text-sm border border-slate-700 rounded bg-slate-900 hover:bg-slate-800 flex items-center gap-2">
+          <button onClick={() => fileRef.current?.click()} className="secondary-button text-sm px-3 py-1.5">
             <Upload size={16} /> Import CSV
           </button>
           <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={(e) => {
@@ -38,15 +38,14 @@ export default function TableToolbar({
         </>
       )}
       {onExport && (
-        <button onClick={() => onExport()} className="px-3 py-1.5 text-sm border border-slate-700 rounded bg-slate-900 hover:bg-slate-800 flex items-center gap-2">
+        <button onClick={() => onExport()} className="secondary-button text-sm px-3 py-1.5">
           <Download size={16} /> Export CSV
         </button>
       )}
       {showDensityToggle && (
-        <button onClick={toggleDensity} className="ml-auto px-3 py-1.5 text-sm border border-slate-700 rounded bg-slate-900 hover:bg-slate-800 flex items-center gap-2" title="Toggle table density">
+        <button onClick={toggleDensity} className="ml-auto secondary-button text-sm px-3 py-1.5" title="Toggle table density">
           <Rows2 size={16} /> Density
         </button>
       )}
     </div>
   )}
-

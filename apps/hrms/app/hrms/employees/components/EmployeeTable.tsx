@@ -104,6 +104,19 @@ export default function EmployeeTable({ searchQuery, filters, onChanged }: Emplo
     setEditingId(null)
   }
 
+  const getStatusColor = (status: Employee['status']) => {
+    switch (status) {
+      case 'ACTIVE':
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+      case 'ON_LEAVE':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+      case 'TERMINATED':
+        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+      default:
+        return 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+    }
+  }
+
   const parseCSV = async (file: File) => {
     const text = await file.text()
     // naive CSV parse supporting quotes
@@ -227,27 +240,27 @@ export default function EmployeeTable({ searchQuery, filters, onChanged }: Emplo
                       >
                         {employee.firstName} {employee.lastName}
                       </Link>
-                      <p className="text-sm text-slate-400">{employee.employeeId}</p>
+                      <p className="text-sm text-muted-foreground">{employee.employeeId}</p>
                     </div>
                   </div>
                 </td>
                 <td className="hrms-td" onClick={(e)=>e.stopPropagation()}>
                   {editingId === employee.id ? (
-                    <input value={editDraft.department} onChange={e=>setEditDraft({...editDraft, department: e.target.value})} className="px-2 py-1 bg-slate-800 border border-slate-700 rounded w-full" />
+                    <input value={editDraft.department} onChange={e=>setEditDraft({...editDraft, department: e.target.value})} className="form-input px-2 py-1 w-full" />
                   ) : (
-                    <p className="text-slate-300">{employee.department}</p>
+                    <p className="text-foreground">{employee.department}</p>
                   )}
                 </td>
                 <td className="hrms-td" onClick={(e)=>e.stopPropagation()}>
                   {editingId === employee.id ? (
-                    <input value={editDraft.position} onChange={e=>setEditDraft({...editDraft, position: e.target.value})} className="px-2 py-1 bg-slate-800 border border-slate-700 rounded w-full" />
+                    <input value={editDraft.position} onChange={e=>setEditDraft({...editDraft, position: e.target.value})} className="form-input px-2 py-1 w-full" />
                   ) : (
-                    <p className="text-slate-300">{employee.position}</p>
+                    <p className="text-foreground">{employee.position}</p>
                   )}
                 </td>
                 <td className="hrms-td" onClick={(e)=>e.stopPropagation()}>
                   {editingId === employee.id ? (
-                    <select value={editDraft.status} onChange={e=>setEditDraft({...editDraft, status: e.target.value})} className="px-2 py-1 bg-slate-800 border border-slate-700 rounded">
+                    <select value={editDraft.status} onChange={e=>setEditDraft({...editDraft, status: e.target.value})} className="form-input px-2 py-1 w-auto">
                       <option value="ACTIVE">ACTIVE</option>
                       <option value="ON_LEAVE">ON_LEAVE</option>
                       <option value="TERMINATED">TERMINATED</option>
@@ -260,19 +273,19 @@ export default function EmployeeTable({ searchQuery, filters, onChanged }: Emplo
                   )}
                 </td>
                 <td className="hrms-td">
-                  <p className="text-slate-300">{new Date(employee.joinDate).toLocaleDateString()}</p>
+                  <p className="text-foreground">{new Date(employee.joinDate).toLocaleDateString()}</p>
                 </td>
                 <td className="hrms-td">
                   <div className="relative">
                     {editingId === employee.id ? (
                       <div className="flex items-center gap-2">
-                        <button onClick={() => saveEdit(employee.id)} className="p-2 hover:bg-slate-700 rounded-lg" aria-label="Save"><Check size={16} /></button>
-                        <button onClick={cancelEdit} className="p-2 hover:bg-slate-700 rounded-lg" aria-label="Cancel"><X size={16} /></button>
+                        <button onClick={() => saveEdit(employee.id)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg" aria-label="Save"><Check size={16} /></button>
+                        <button onClick={cancelEdit} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg" aria-label="Cancel"><X size={16} /></button>
                       </div>
                     ) : (
                     <button
                       onClick={() => setShowDropdown(showDropdown === employee.id ? null : employee.id)}
-                      className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
+                      className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
                       aria-label="More actions"
                       onMouseDown={(e) => e.stopPropagation()}
                       onClickCapture={(e) => e.stopPropagation()}
@@ -282,34 +295,34 @@ export default function EmployeeTable({ searchQuery, filters, onChanged }: Emplo
                     )}
                     
                     {showDropdown === employee.id && (
-                      <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-slate-700 rounded-lg shadow-lg z-10" onClick={(e)=>e.stopPropagation()}>
+                      <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg shadow-lg z-10" onClick={(e)=>e.stopPropagation()}>
                         <Link
                           href={`/hrms/employees/${employee.employeeId}`}
-                          className="flex items-center gap-2 px-4 py-2 hover:bg-slate-700 transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                         >
                           <Eye size={16} />
                           <span>View Details</span>
                         </Link>
-                        <button onClick={()=>{ setShowDropdown(null); startEdit(employee) }} className="flex items-center gap-2 px-4 py-2 hover:bg-slate-700 transition-colors w-full text-left">
+                        <button onClick={()=>{ setShowDropdown(null); startEdit(employee) }} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors w-full text-left">
                           <Edit size={16} />
                           <span>Edit</span>
                         </button>
                         {/* Edit route not implemented in minimal scope */}
                         <a
                           href={`mailto:${employee.email}`}
-                          className="flex items-center gap-2 px-4 py-2 hover:bg-slate-700 transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                         >
                           <Mail size={16} />
                           <span>Send Email</span>
                         </a>
                         <a
                           href={`tel:${employee.phone}`}
-                          className="flex items-center gap-2 px-4 py-2 hover:bg-slate-700 transition-colors"
+                          className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                         >
                           <Phone size={16} />
                           <span>Call</span>
                         </a>
-                        <button onClick={() => handleDelete(employee.id)} className="flex items-center gap-2 px-4 py-2 hover:bg-slate-700 transition-colors text-red-400 w-full">
+                        <button onClick={() => handleDelete(employee.id)} className="flex items-center gap-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-red-600 dark:text-red-300 w-full">
                           <Trash2 size={16} />
                           <span>Delete</span>
                         </button>
@@ -324,14 +337,14 @@ export default function EmployeeTable({ searchQuery, filters, onChanged }: Emplo
       </div>
       
       {loading && (
-        <div className="text-center py-8 text-slate-400">Loading...</div>
+        <div className="text-center py-8 text-muted-foreground">Loading...</div>
       )}
       {error && (
         <div className="text-center py-8 text-red-400">{error}</div>
       )}
       {!loading && employees.length === 0 && (
         <div className="text-center py-12">
-          <p className="text-slate-400">No employees found matching your search.</p>
+          <p className="text-muted-foreground">No employees found matching your search.</p>
         </div>
       )}
     </div>
