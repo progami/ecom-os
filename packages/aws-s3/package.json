@@ -17,7 +17,8 @@
     "mime-types": "^2 || ^3"
   },
   "devDependencies": {
+    "@types/mime-types": "^2.1.4",
+    "@types/node": "^20.12.12",
     "typescript": "^5.4.0"
   }
 }
-

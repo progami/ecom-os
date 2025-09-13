@@ -142,9 +142,11 @@ export class S3Service {
       } else if (Buffer.isBuffer(file)) {
         uploadBody = file;
         fileSize = file.length;
-      } else {
+      } else if (file instanceof Readable) {
         uploadBody = file;
         fileSize = 0;
+      } else {
+        throw new Error('Unsupported file type for upload');
       }
 
       const contentType = options.contentType || mime.lookup(key) || 'application/octet-stream';
@@ -388,4 +390,3 @@ export function isValidFileContext(context: unknown): context is FileContext {
       return false;
   }
 }
-
