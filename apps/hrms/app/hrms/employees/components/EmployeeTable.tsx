@@ -104,6 +104,7 @@ export default function EmployeeTable({ searchQuery, filters, onChanged }: Emplo
     setEditingId(null)
   }
 
+  // unified status badge colors
   const getStatusColor = (status: Employee['status']) => {
     switch (status) {
       case 'ACTIVE':
@@ -192,18 +193,7 @@ export default function EmployeeTable({ searchQuery, filters, onChanged }: Emplo
     URL.revokeObjectURL(url)
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return 'bg-green-500/20 text-green-500'
-      case 'ON_LEAVE':
-        return 'bg-yellow-500/20 text-yellow-500'
-      case 'TERMINATED':
-        return 'bg-red-500/20 text-red-500'
-      default:
-        return 'bg-slate-500/20 text-slate-500'
-    }
-  }
+  // duplicate removed; using unified getStatusColor above
 
   return (
     <div>

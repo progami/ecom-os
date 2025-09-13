@@ -18,12 +18,12 @@ export default function UpcomingEvents() {
     <div className="h-full">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xl font-semibold">Upcoming Events</h2>
-        <Calendar className="text-slate-400" size={18} />
+        <Calendar className="text-muted-foreground" size={18} />
       </div>
 
       {events.length === 0 ? (
         <div className="text-center py-6">
-          <p className="text-slate-400">No upcoming events</p>
+          <p className="text-muted-foreground">No upcoming events</p>
         </div>
       ) : (
         <div className="hrms-table-wrapper">

@@ -18,7 +18,7 @@ const categories: Category[] = [
   { id: 'MARKETING', name: 'Marketing', icon: Megaphone, color: 'text-green-500' },
   { id: 'IT', name: 'IT Services', icon: Cpu, color: 'text-orange-500' },
   { id: 'HR', name: 'HR Services', icon: Users, color: 'text-cyan-500' },
-  { id: 'OTHER', name: 'Other', icon: MoreHorizontal, color: 'text-slate-500' },
+  { id: 'OTHER', name: 'Other', icon: MoreHorizontal, color: 'text-muted-foreground' },
 ]
 
 interface ResourceCategoriesProps {

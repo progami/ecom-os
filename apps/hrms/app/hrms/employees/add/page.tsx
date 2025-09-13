@@ -131,7 +131,7 @@ export default function AddEmployeePage() {
               
               <div>
                 <label className="form-label text-muted-foreground">Gender</label>
-                <select name="gender" className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500">
+                <select name="gender" className="form-input px-4 py-2">
                   <option value="">Select Gender</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
@@ -153,7 +153,7 @@ export default function AddEmployeePage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Employee ID *</label>
+                <label className="form-label text-muted-foreground">Employee ID *</label>
                 <input
                   type="text"
                   required

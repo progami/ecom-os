@@ -189,7 +189,7 @@ export default function ResourcesGrid({ searchQuery, selectedCategory, selectedS
               <td className="hrms-td">
                 <div className="flex items-center gap-2">
                   {editingId === resource.id ? (
-                    <input value={editDraft.name} onChange={e=>setEditDraft({...editDraft, name: e.target.value})} className="px-2 py-1 bg-slate-800 border border-slate-700 rounded w-full" />
+                    <input value={editDraft.name} onChange={e=>setEditDraft({...editDraft, name: e.target.value})} className="form-input px-2 py-1 w-full" />
                   ) : resource.website ? (
                     <a href={resource.website} target="_blank" rel="noreferrer" className="font-medium text-purple-400 hover:text-purple-300">{resource.name}</a>
                   ) : (
@@ -200,7 +200,7 @@ export default function ResourcesGrid({ searchQuery, selectedCategory, selectedS
               <td className="hrms-td">{resource.category}</td>
               <td className="hrms-td">
                 {editingId === resource.id ? (
-                  <select value={editDraft.subcategory} onChange={e=>setEditDraft({...editDraft, subcategory: e.target.value})} className="px-2 py-1 bg-slate-800 border border-slate-700 rounded">
+                  <select value={editDraft.subcategory} onChange={e=>setEditDraft({...editDraft, subcategory: e.target.value})} className="form-input px-2 py-1 w-auto">
                     <option value="">—</option>
                     {(SUBCATEGORIES[resource.category]||[]).map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                   </select>
@@ -213,21 +213,21 @@ export default function ResourcesGrid({ searchQuery, selectedCategory, selectedS
               <td className="hrms-td">{resource.contactName || '—'}</td>
               <td className="hrms-td">
                 {editingId === resource.id ? (
-                  <input value={editDraft.email} onChange={e=>setEditDraft({...editDraft, email: e.target.value})} className="px-2 py-1 bg-slate-800 border border-slate-700 rounded w-full" />
+                  <input value={editDraft.email} onChange={e=>setEditDraft({...editDraft, email: e.target.value})} className="form-input px-2 py-1 w-full" />
                 ) : resource.email ? (
-                  <span className="inline-flex items-center gap-1 text-slate-300"><Mail size={14} /> {resource.email}</span>
+                  <span className="inline-flex items-center gap-1 text-foreground"><Mail size={14} /> {resource.email}</span>
                 ) : '—'}
               </td>
               <td className="hrms-td">
                 {editingId === resource.id ? (
-                  <input value={editDraft.phone} onChange={e=>setEditDraft({...editDraft, phone: e.target.value})} className="px-2 py-1 bg-slate-800 border border-slate-700 rounded w-full" />
+                  <input value={editDraft.phone} onChange={e=>setEditDraft({...editDraft, phone: e.target.value})} className="form-input px-2 py-1 w-full" />
                 ) : resource.phone ? (
-                  <span className="inline-flex items-center gap-1 text-slate-300"><Phone size={14} /> {resource.phone}</span>
+                  <span className="inline-flex items-center gap-1 text-foreground"><Phone size={14} /> {resource.phone}</span>
                 ) : '—'}
               </td>
               <td className="hrms-td">
                 {editingId === resource.id ? (
-                  <input value={editDraft.website} onChange={e=>setEditDraft({...editDraft, website: e.target.value})} className="px-2 py-1 bg-slate-800 border border-slate-700 rounded w-full" />
+                  <input value={editDraft.website} onChange={e=>setEditDraft({...editDraft, website: e.target.value})} className="form-input px-2 py-1 w-full" />
                 ) : resource.website ? (
                   <a href={resource.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-purple-400 hover:text-purple-300">
                     <Globe size={14} /> {websiteHost(resource.website)} <ExternalLink size={14} />
@@ -242,11 +242,11 @@ export default function ResourcesGrid({ searchQuery, selectedCategory, selectedS
               <td className="hrms-td">
                 {editingId === resource.id ? (
                   <div className="flex items-center gap-2">
-                    <button onClick={()=>saveEdit(resource.id)} className="p-2 hover:bg-slate-700 rounded-lg" aria-label="Save"><Check size={16} /></button>
-                    <button onClick={cancelEdit} className="p-2 hover:bg-slate-700 rounded-lg" aria-label="Cancel"><X size={16} /></button>
+                    <button onClick={()=>saveEdit(resource.id)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg" aria-label="Save"><Check size={16} /></button>
+                    <button onClick={cancelEdit} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg" aria-label="Cancel"><X size={16} /></button>
                   </div>
                 ) : (
-                  <button onClick={()=>startEdit(resource)} className="px-2 py-1 border border-slate-700 rounded text-slate-300 hover:bg-slate-800 flex items-center gap-1"><Edit size={14} /> Edit</button>
+                  <button onClick={()=>startEdit(resource)} className="px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-foreground hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-1"><Edit size={14} /> Edit</button>
                 )}
               </td>
             </tr>
@@ -256,14 +256,14 @@ export default function ResourcesGrid({ searchQuery, selectedCategory, selectedS
       </div>
 
       {loading && (
-        <div className="text-center py-6 text-slate-400">Loading...</div>
+        <div className="text-center py-6 text-muted-foreground">Loading...</div>
       )}
       {error && (
         <div className="text-center py-6 text-red-400">{error}</div>
       )}
       {!loading && items.length === 0 && (
         <div className="text-center py-10">
-          <p className="text-slate-400">No providers found matching your criteria.</p>
+          <p className="text-muted-foreground">No providers found matching your criteria.</p>
         </div>
       )}
     </div>

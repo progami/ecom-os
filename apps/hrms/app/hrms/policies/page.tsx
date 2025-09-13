@@ -75,13 +75,13 @@ export default function PoliciesPage() {
   const statusColor = (status: Policy['status']) => {
     switch (status) {
       case 'ACTIVE':
-        return 'bg-green-500/20 text-green-500'
+        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
       case 'DRAFT':
-        return 'bg-yellow-500/20 text-yellow-500'
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
       case 'ARCHIVED':
-        return 'bg-slate-500/20 text-slate-500'
+        return 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
       default:
-        return 'bg-slate-500/20 text-slate-500'
+        return 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
     }
   }
 
@@ -162,7 +162,7 @@ export default function PoliciesPage() {
                       <span className="font-medium">{p.title}</span>
                     )}
                   </div>
-                  {p.summary && <div className="text-xs text-slate-500 mt-1 line-clamp-1">{p.summary}</div>}
+          {p.summary && <div className="text-xs text-muted-foreground mt-1 line-clamp-1">{p.summary}</div>}
                 </td>
                 <td className="hrms-td">{p.category}</td>
                 <td className="hrms-td">
@@ -182,11 +182,11 @@ export default function PoliciesPage() {
           </tbody>
         </table>
 
-        {loading && <div className="text-center py-6 text-slate-400">Loading...</div>}
+        {loading && <div className="text-center py-6 text-muted-foreground">Loading...</div>}
         {error && <div className="text-center py-6 text-red-400">{error}</div>}
         {!loading && items.length === 0 && (
           <div className="text-center py-10">
-            <p className="text-slate-400">No policies found.</p>
+            <p className="text-muted-foreground">No policies found.</p>
           </div>
         )}
       </div>
