@@ -24,7 +24,7 @@ export default function HRMSDashboard() {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gradient">HR Dashboard</h1>
-        <p className="text-slate-400 mt-2">Welcome to your HR Management System</p>
+        <p className="text-muted-foreground mt-2">Welcome to your HR Management System</p>
       </div>
 
       {/* Summary Cards (WMS-like) */}
@@ -74,12 +74,12 @@ export default function HRMSDashboard() {
             <tr className="hrms-row">
               <td className="hrms-td">Avg Work Hours</td>
               <td className="hrms-td font-medium">0</td>
-              <td className="hrms-td text-slate-400">No data available</td>
+              <td className="hrms-td text-muted-foreground">No data available</td>
             </tr>
             <tr className="hrms-row">
               <td className="hrms-td">Leave Requests</td>
               <td className="hrms-td font-medium">0</td>
-              <td className="hrms-td text-slate-400">No pending requests</td>
+              <td className="hrms-td text-muted-foreground">No pending requests</td>
             </tr>
           </tbody>
         </table>

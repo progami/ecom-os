@@ -11,7 +11,7 @@ interface Category {
 }
 
 const categories: Category[] = [
-  { id: 'all', name: 'All Providers', icon: Users, color: 'text-slate-400' },
+  { id: 'all', name: 'All Providers', icon: Users, color: 'text-muted-foreground' },
   { id: 'ACCOUNTING', name: 'Accounting', icon: Calculator, color: 'text-blue-500' },
   { id: 'LEGAL', name: 'Legal', icon: Scale, color: 'text-purple-500' },
   { id: 'DESIGN', name: 'Design', icon: Brush, color: 'text-pink-500' },
@@ -46,10 +46,10 @@ export default function ResourceCategories({ selectedCategory, selectedSubcatego
                 onCategoryChange(category.id)
                 onSubcategoriesChange?.([])
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
                 isSelected
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                  ? 'bg-gray-100 text-primary dark:bg-gray-800'
+                  : 'text-gray-700 hover:text-primary hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'
               }`}
             >
               <Icon className={isSelected ? 'text-white' : category.color} size={18} />
@@ -64,10 +64,10 @@ export default function ResourceCategories({ selectedCategory, selectedSubcatego
           {/* All (clear selections) */}
           <button
             onClick={() => onSubcategoriesChange?.([])}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${
+            className={`px-4 py-2 rounded-md text-sm font-medium ${
               selectedSubcategories.length === 0
-                ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                ? 'bg-gray-100 text-primary dark:bg-gray-800'
+                : 'text-gray-700 hover:text-primary hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'
             }`}
           >
             All
@@ -83,10 +83,10 @@ export default function ResourceCategories({ selectedCategory, selectedSubcatego
                     : [...selectedSubcategories, s.id]
                   onSubcategoriesChange?.(next)
                 }}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                className={`px-4 py-2 rounded-md text-sm font-medium ${
                   active
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                    ? 'bg-gray-100 text-primary dark:bg-gray-800'
+                    : 'text-gray-700 hover:text-primary hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'
                 }`}
               >
                 {s.label}

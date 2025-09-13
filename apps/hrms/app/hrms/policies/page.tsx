@@ -91,7 +91,7 @@ export default function PoliciesPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gradient">Policies</h1>
-          <p className="text-slate-400 mt-2">Company policies like leave and performance reviews</p>
+          <p className="text-muted-foreground mt-2">Company policies like leave and performance reviews</p>
         </div>
         
         <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hover:opacity-90 transition-opacity">
@@ -105,20 +105,17 @@ export default function PoliciesPage() {
         <div className="gradient-border-content p-4 space-y-4">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
               <input
                 type="text"
                 placeholder="Search policies by title or summary..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                className="form-input w-full pl-10 pr-4"
               />
             </div>
             <div>
-              <button className="flex items-center gap-2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700">
-                <Filter size={20} />
-                <span>Filters</span>
-              </button>
+              <button className="secondary-button"><Filter size={20} /> <span>Filters</span></button>
             </div>
           </div>
 
@@ -127,10 +124,10 @@ export default function PoliciesPage() {
               <button
                 key={c.id}
                 onClick={() => setSelectedCategory(c.id)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium ${
+                className={`px-4 py-2 rounded-md text-sm font-medium ${
                   selectedCategory === c.id
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                    ? 'bg-gray-100 text-primary dark:bg-gray-800'
+                    : 'text-gray-700 hover:text-primary hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'
                 }`}
               >
                 {c.label}
@@ -197,11 +194,11 @@ export default function PoliciesPage() {
       {showAdd && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="w-full max-w-lg gradient-border">
-            <div className="gradient-border-content p-6 bg-slate-900">
+            <div className="gradient-border-content p-6">
               <h3 className="text-xl font-semibold mb-4">Add Policy</h3>
               <div className="grid grid-cols-1 gap-4">
-                <input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="Title *" className="px-3 py-2 bg-slate-800 border border-slate-700 rounded" />
-                <select value={form.category} onChange={e=>setForm({...form,category:e.target.value})} className="px-3 py-2 bg-slate-800 border border-slate-700 rounded">
+                <input value={form.title} onChange={e=>setForm({...form,title:e.target.value})} placeholder="Title *" className="form-input" />
+                <select value={form.category} onChange={e=>setForm({...form,category:e.target.value})} className="form-input">
                   <option value="">Select Category *</option>
                   <option value="LEAVE">Leave</option>
                   <option value="PERFORMANCE">Performance</option>
@@ -210,10 +207,10 @@ export default function PoliciesPage() {
                   <option value="COMPENSATION">Compensation</option>
                   <option value="OTHER">Other</option>
                 </select>
-                <textarea value={form.summary} onChange={e=>setForm({...form,summary:e.target.value})} placeholder="Summary" className="px-3 py-2 bg-slate-800 border border-slate-700 rounded" />
+                <textarea value={form.summary} onChange={e=>setForm({...form,summary:e.target.value})} placeholder="Summary" className="form-input" />
               </div>
               <div className="mt-6 flex justify-end gap-2">
-                <button onClick={()=>setShowAdd(false)} className="px-4 py-2 border border-slate-700 rounded">Cancel</button>
+                <button onClick={()=>setShowAdd(false)} className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded">Cancel</button>
                 <button disabled={saving} onClick={async()=>{
                   if(!form.title||!form.category){alert('Title and Category required');return}
                   setSaving(true)

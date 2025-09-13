@@ -129,25 +129,25 @@ export default function EmployeeDetailPage() {
     if (res.ok) setFiles((prev) => prev.filter((f) => f.id !== fileId))
   }
 
-  if (loading) return <div className="p-6 text-slate-400">Loading...</div>
+  if (loading) return <div className="p-6 text-muted-foreground">Loading...</div>
   if (error) return <div className="p-6 text-red-400">{error}</div>
-  if (!item) return <div className="p-6 text-slate-400">Not found</div>
+  if (!item) return <div className="p-6 text-muted-foreground">Not found</div>
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/hrms/employees" className="px-2 py-1 border border-slate-700 rounded text-slate-300 hover:bg-slate-800">
+          <Link href="/hrms/employees" className="px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-foreground hover:bg-gray-100 dark:hover:bg-gray-800">
             <ArrowLeft size={16} />
           </Link>
           <h1 className="text-2xl font-bold">{item.firstName} {item.lastName}</h1>
-          <span className="text-slate-500">({item.employeeId})</span>
+          <span className="text-muted-foreground">({item.employeeId})</span>
         </div>
         <div className="flex items-center gap-2">
           {!editing ? (
-            <button onClick={() => setEditing(true)} className="px-3 py-1.5 text-sm border border-slate-700 rounded bg-slate-900 hover:bg-slate-800 flex items-center gap-2"><Edit2 size={16} /> Edit</button>
+            <button onClick={() => setEditing(true)} className="secondary-button text-sm px-3 py-1.5"><Edit2 size={16} /> Edit</button>
           ) : (
-            <button onClick={save} className="px-3 py-1.5 text-sm border border-slate-700 rounded bg-slate-900 hover:bg-slate-800 flex items-center gap-2"><Save size={16} /> Save</button>
+            <button onClick={save} className="secondary-button text-sm px-3 py-1.5"><Save size={16} /> Save</button>
           )}
         </div>
       </div>
@@ -178,9 +178,9 @@ export default function EmployeeDetailPage() {
                     key === 'joinDate' ? (item.joinDate ? new Date(item.joinDate).toLocaleDateString() : '—') : (item as any)[key] || '—'
                   ) : (
                     key === 'joinDate' ? (
-                      <input type="date" value={form.joinDate || ''} onChange={(e) => setForm({ ...form, joinDate: e.target.value })} className="px-2 py-1 bg-slate-800 border border-slate-700 rounded" />
+                      <input type="date" value={form.joinDate || ''} onChange={(e) => setForm({ ...form, joinDate: e.target.value })} className="form-input px-2 py-1 w-auto" />
                     ) : (
-                      <input value={form[key as string] || ''} onChange={(e) => setForm({ ...form, [key]: e.target.value })} className="px-2 py-1 bg-slate-800 border border-slate-700 rounded w-full max-w-md" />
+                      <input value={form[key as string] || ''} onChange={(e) => setForm({ ...form, [key]: e.target.value })} className="form-input px-2 py-1 w-full max-w-md" />
                     )
                   )}
                 </td>
@@ -199,14 +199,14 @@ export default function EmployeeDetailPage() {
               placeholder="Title (e.g., Offer Letter)"
               value={newFile.title}
               onChange={(e) => setNewFile({ ...newFile, title: e.target.value })}
-              className="px-2 py-1 bg-slate-800 border border-slate-700 rounded"
+              className="form-input px-2 py-1 w-auto"
             />
             <input
               type="file"
               onChange={(e) => setNewFile({ ...newFile, file: e.target.files?.[0] || null })}
-              className="px-2 py-1 bg-slate-800 border border-slate-700 rounded w-80"
+              className="form-input px-2 py-1 w-80"
             />
-            <button disabled={savingFile} onClick={addFile} className="px-3 py-1.5 text-sm border border-slate-700 rounded bg-slate-900 hover:bg-slate-800 flex items-center gap-2 disabled:opacity-50">
+            <button disabled={savingFile} onClick={addFile} className="secondary-button text-sm px-3 py-1.5 disabled:opacity-50">
               <Plus size={16} /> Add
             </button>
           </div>
@@ -233,7 +233,7 @@ export default function EmployeeDetailPage() {
                   </td>
                   <td className="hrms-td">{new Date(f.uploadedAt).toLocaleString()}</td>
                   <td className="hrms-td">
-                    <button onClick={() => deleteFile(f.id)} className="px-2 py-1 border border-slate-700 rounded text-red-300 hover:bg-slate-800 flex items-center gap-1"><Trash2 size={14} /> Delete</button>
+                    <button onClick={() => deleteFile(f.id)} className="px-2 py-1 border border-gray-300 dark:border-gray-700 rounded text-red-600 dark:text-red-300 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-1"><Trash2 size={14} /> Delete</button>
                   </td>
                 </tr>
               ))}

@@ -20,7 +20,7 @@ export default function ResourcesPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gradient">Service Providers</h1>
-          <p className="text-slate-400 mt-2">Directory of accounting firms, CPAs, designers, and more</p>
+          <p className="text-muted-foreground mt-2">Directory of accounting firms, CPAs, designers, and more</p>
         </div>
         
         <button onClick={() => setShowAdd(true)} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg hover:opacity-90 transition-opacity">
@@ -33,13 +33,13 @@ export default function ResourcesPage() {
       <div className="gradient-border">
         <div className="gradient-border-content p-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={20} />
             <input
               type="text"
               placeholder="Search resources by title or description..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500 transition-colors"
+              className="form-input w-full pl-10 pr-4"
             />
           </div>
         </div>
@@ -59,11 +59,11 @@ export default function ResourcesPage() {
       {showAdd && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="w-full max-w-lg gradient-border">
-            <div className="gradient-border-content p-6 bg-slate-900">
+            <div className="gradient-border-content p-6">
               <h3 className="text-xl font-semibold mb-4">Add Provider</h3>
               <div className="grid grid-cols-1 gap-4">
-                <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Name *" className="px-3 py-2 bg-slate-800 border border-slate-700 rounded" />
-                <select value={form.category} onChange={e=>setForm({...form,category:e.target.value})} className="px-3 py-2 bg-slate-800 border border-slate-700 rounded">
+                <input value={form.name} onChange={e=>setForm({...form,name:e.target.value})} placeholder="Name *" className="form-input" />
+                <select value={form.category} onChange={e=>setForm({...form,category:e.target.value})} className="form-input">
                   <option value="">Select Category *</option>
                   <option value="ACCOUNTING">Accounting</option>
                   <option value="LEGAL">Legal</option>
@@ -78,19 +78,19 @@ export default function ResourcesPage() {
                   value={form.subcategory || ''}
                   onChange={e=>setForm({...form,subcategory:e.target.value})}
                   disabled={!form.category}
-                  className="px-3 py-2 bg-slate-800 border border-slate-700 rounded disabled:opacity-50"
+                  className="form-input disabled:opacity-50"
                 >
                   <option value="">Select Subcategory</option>
                   {form.category && getSubcategories(form.category).map(s => (
                     <option key={s.id} value={s.id}>{s.label}</option>
                   ))}
                 </select>
-                <input value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="Email" className="px-3 py-2 bg-slate-800 border border-slate-700 rounded" />
-                <input value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="Phone" className="px-3 py-2 bg-slate-800 border border-slate-700 rounded" />
-                <input value={form.website} onChange={e=>setForm({...form,website:e.target.value})} placeholder="Website" className="px-3 py-2 bg-slate-800 border border-slate-700 rounded" />
+                <input value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="Email" className="form-input" />
+                <input value={form.phone} onChange={e=>setForm({...form,phone:e.target.value})} placeholder="Phone" className="form-input" />
+                <input value={form.website} onChange={e=>setForm({...form,website:e.target.value})} placeholder="Website" className="form-input" />
               </div>
               <div className="mt-6 flex justify-end gap-2">
-                <button onClick={()=>setShowAdd(false)} className="px-4 py-2 border border-slate-700 rounded">Cancel</button>
+                <button onClick={()=>setShowAdd(false)} className="px-4 py-2 border border-gray-300 dark:border-gray-700 rounded">Cancel</button>
                 <button disabled={saving} onClick={async()=>{
                   if(!form.name||!form.category){alert('Name and Category required');return}
                   setSaving(true)

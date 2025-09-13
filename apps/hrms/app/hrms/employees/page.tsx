@@ -45,7 +45,7 @@ export default function EmployeesPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gradient">Employees</h1>
-          <p className="text-slate-400 mt-2">Manage your workforce</p>
+          <p className="text-muted-foreground mt-2">Manage your workforce</p>
         </div>
         
         <Link
@@ -63,13 +63,13 @@ export default function EmployeesPage() {
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search */}
             <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" size={20} />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={20} />
               <input
                 type="text"
                 placeholder="Search employees by name, email, or ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500 transition-colors"
+                className="form-input w-full pl-10 pr-4"
               />
             </div>
             
@@ -77,13 +77,13 @@ export default function EmployeesPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors"
+                className="secondary-button"
               >
                 <Filter size={20} />
                 <span>Filters</span>
               </button>
               
-              <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors">
+              <button onClick={handleExport} className="secondary-button">
                 <Download size={20} />
                 <span>Export</span>
               </button>
@@ -92,7 +92,7 @@ export default function EmployeesPage() {
           
           {/* Filters Panel */}
           {showFilters && (
-            <div className="mt-4 pt-4 border-t border-slate-800">
+            <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-800">
               <EmployeeFilters value={filters} onChange={setFilters} />
             </div>
           )}

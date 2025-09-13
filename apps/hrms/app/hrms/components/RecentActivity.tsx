@@ -17,12 +17,12 @@ export default function RecentActivity() {
     <div className="h-full">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-xl font-semibold">Recent Activity</h2>
-        <Clock className="text-slate-400" size={18} />
+        <Clock className="text-muted-foreground" size={18} />
       </div>
 
       {activities.length === 0 ? (
         <div className="text-center py-6">
-          <p className="text-slate-400">No recent activity</p>
+          <p className="text-muted-foreground">No recent activity</p>
         </div>
       ) : (
         <div className="hrms-table-wrapper">

@@ -56,13 +56,13 @@ export default function AddEmployeePage() {
       <div className="flex items-center gap-4">
         <Link
           href="/hrms/employees"
-          className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
         >
           <ArrowLeft size={20} />
         </Link>
         <div>
           <h1 className="text-3xl font-bold text-gradient">Add New Employee</h1>
-          <p className="text-slate-400 mt-2">Enter employee information</p>
+          <p className="text-muted-foreground mt-2">Enter employee information</p>
         </div>
       </div>
 
@@ -78,59 +78,59 @@ export default function AddEmployeePage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">First Name *</label>
+                <label className="form-label text-muted-foreground">First Name *</label>
                 <input
                   type="text"
                   required
                   name="firstName"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                   placeholder="John"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Last Name *</label>
+                <label className="form-label text-muted-foreground">Last Name *</label>
                 <input
                   type="text"
                   required
                   name="lastName"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                   placeholder="Doe"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Email *</label>
+                <label className="form-label text-muted-foreground">Email *</label>
                 <input
                   type="email"
                   required
                   name="email"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                   placeholder="john.doe@company.com"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Phone</label>
+                <label className="form-label text-muted-foreground">Phone</label>
                 <input
                   type="tel"
                   name="phone"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                   placeholder="+1 234 567 8900"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Date of Birth</label>
+                <label className="form-label text-muted-foreground">Date of Birth</label>
                 <input
                   type="date"
                   name="dateOfBirth"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Gender</label>
+                <label className="form-label text-muted-foreground">Gender</label>
                 <select name="gender" className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500">
                   <option value="">Select Gender</option>
                   <option value="Male">Male</option>
@@ -158,17 +158,17 @@ export default function AddEmployeePage() {
                   type="text"
                   required
                   name="employeeId"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                   placeholder="EMP001"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Department *</label>
+                <label className="form-label text-muted-foreground">Department *</label>
                 <select
                   required
                   name="department"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                 >
                   <option value="">Select Department</option>
                   <option value="engineering">Engineering</option>
@@ -180,22 +180,22 @@ export default function AddEmployeePage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Position *</label>
+                <label className="form-label text-muted-foreground">Position *</label>
                 <input
                   type="text"
                   required
                   name="position"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                   placeholder="Senior Developer"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Employment Type *</label>
+                <label className="form-label text-muted-foreground">Employment Type *</label>
                 <select
                   required
                   name="employmentType"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                 >
                   <option value="">Select Type</option>
                   <option value="FULL_TIME">Full Time</option>
@@ -206,38 +206,38 @@ export default function AddEmployeePage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Join Date *</label>
+                <label className="form-label text-muted-foreground">Join Date *</label>
                 <input
                   type="date"
                   required
                   name="joinDate"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Reports To</label>
+                <label className="form-label text-muted-foreground">Reports To</label>
                 <input
                   type="text"
                   name="reportsTo"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                   placeholder="Manager Employee ID"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Salary</label>
+                <label className="form-label text-muted-foreground">Salary</label>
                 <input
                   type="number"
                   name="salary"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                   placeholder="75000"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Currency</label>
-                <select name="currency" className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500">
+                <label className="form-label text-muted-foreground">Currency</label>
+                <select name="currency" className="form-input px-4 py-2">
                   <option value="USD">USD</option>
                   <option value="EUR">EUR</option>
                   <option value="GBP">GBP</option>
@@ -257,51 +257,51 @@ export default function AddEmployeePage() {
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-400 mb-2">Address</label>
+                <label className="form-label text-muted-foreground">Address</label>
                 <input
                   type="text"
                   name="address"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                   placeholder="123 Main Street"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">City</label>
+                <label className="form-label text-muted-foreground">City</label>
                 <input
                   type="text"
                   name="city"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                   placeholder="New York"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Country</label>
+                <label className="form-label text-muted-foreground">Country</label>
                 <input
                   type="text"
                   name="country"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                   placeholder="United States"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Emergency Contact</label>
+                <label className="form-label text-muted-foreground">Emergency Contact</label>
                 <input
                   type="text"
                   name="emergencyContact"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                   placeholder="Jane Doe"
                 />
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Emergency Phone</label>
+                <label className="form-label text-muted-foreground">Emergency Phone</label>
                 <input
                   type="tel"
                   name="emergencyPhone"
-                  className="w-full px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="form-input px-4 py-2"
                   placeholder="+1 234 567 8901"
                 />
               </div>
@@ -313,7 +313,7 @@ export default function AddEmployeePage() {
         <div className="flex justify-end gap-4">
           <Link
             href="/hrms/employees"
-            className="px-6 py-2 border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors"
+            className="px-6 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             Cancel
           </Link>
