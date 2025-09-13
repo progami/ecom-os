@@ -191,7 +191,7 @@ export default function ResourcesGrid({ searchQuery, selectedCategory, selectedS
                   {editingId === resource.id ? (
                     <input value={editDraft.name} onChange={e=>setEditDraft({...editDraft, name: e.target.value})} className="form-input px-2 py-1 w-full" />
                   ) : resource.website ? (
-                    <a href={resource.website} target="_blank" rel="noreferrer" className="font-medium text-purple-400 hover:text-purple-300">{resource.name}</a>
+                    <a href={resource.website} target="_blank" rel="noreferrer" className="font-medium text-primary hover:text-primary/80">{resource.name}</a>
                   ) : (
                     <span className="font-medium">{resource.name}</span>
                   )}

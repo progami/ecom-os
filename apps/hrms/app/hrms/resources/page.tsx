@@ -98,7 +98,7 @@ export default function ResourcesPage() {
                   setSaving(false)
                   if(res.ok){ setShowAdd(false); setForm({name:'',category:'',email:'',phone:'',website:''}); window.dispatchEvent(new Event('resources:reload')); }
                   else alert('Failed to add')
-                }} className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded disabled:opacity-50">{saving?'Saving...':'Save'}</button>
+                }} className="btn btn-primary px-4 py-2 rounded disabled:opacity-50">{saving?'Saving...':'Save'}</button>
               </div>
             </div>
           </div>
