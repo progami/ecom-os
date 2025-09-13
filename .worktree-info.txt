@@ -1,0 +1,6 @@
+App: hrms
+Branch: work/hrms
+Base: origin/main
+Dev: pnpm --filter @ecom-os/hrms dev
+Build: turbo run build --filter=@ecom-os/hrms
+Type-check: pnpm --filter @ecom-os/hrms type-check
