@@ -30,3 +30,6 @@ logs/
 
 # Personal notes (do not commit)
 Pers/
+
+# Local worktree helpers
+.worktree-info.txt
