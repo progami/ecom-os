@@ -16,13 +16,13 @@ export function DevLogin() {
       const result = await signIn('credentials', {
         emailOrUsername: process.env.NEXT_PUBLIC_DEV_EMAIL || 'admin@test.com',
         password: process.env.NEXT_PUBLIC_DEV_PASSWORD || process.env.NEXT_PUBLIC_DEV_PASS || '',
-        redirect: false,
+        callbackUrl: '/operations/inventory',
+        redirect: true,
       })
 
-      if (result?.ok) {
-        toast.success('Logged in as Demo Admin')
-        router.push('/operations/inventory')
-      } else {
+      // If redirect: true, we won't reach here on success.
+      // If we do, show error toast.
+      if (result?.error) {
         toast.error('Login failed - check if demo user exists')
       }
     } catch (_error) {

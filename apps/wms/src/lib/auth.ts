@@ -5,6 +5,9 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { UserRole } from '@prisma/client'
 
+const secure = process.env.NODE_ENV === 'production'
+const cookieDomain = process.env.COOKIE_DOMAIN || 'localhost'
+
 const baseAuthOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
@@ -12,6 +15,45 @@ const baseAuthOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === 'development',
+  // Use WMS-specific cookie names to avoid cross-app conflicts on localhost
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === 'production'
+        ? '__Secure-wms.next-auth.session-token'
+        : 'wms.next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure,
+        domain: cookieDomain,
+      },
+    },
+    callbackUrl: {
+      name: process.env.NODE_ENV === 'production'
+        ? '__Secure-wms.next-auth.callback-url'
+        : 'wms.next-auth.callback-url',
+      options: {
+        sameSite: 'lax',
+        path: '/',
+        secure,
+        domain: cookieDomain,
+      },
+    },
+    csrfToken: {
+      name: process.env.NODE_ENV === 'production'
+        ? '__Host-wms.next-auth.csrf-token'
+        : 'wms.next-auth.csrf-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure,
+        // For __Host- cookies in production, domain must not be set; but we only use __Host in prod
+        ...(secure ? {} : { domain: cookieDomain }),
+      },
+    },
+  },
   providers: [
     CredentialsProvider({
       name: 'credentials',

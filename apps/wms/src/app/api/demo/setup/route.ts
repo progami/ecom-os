@@ -11,9 +11,28 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { createDemoTransactions } from '@/lib/demo-transactions'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
 
-export async function POST(_request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
+    // Disallow in production unless explicitly enabled
+    if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_SETUP !== 'true') {
+      return NextResponse.json({ error: 'Demo setup is disabled in production' }, { status: 403 })
+    }
+
+    // Require authenticated admin
+    const session = await getServerSession(authOptions)
+    if (!session || session.user?.role !== 'admin') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // In production, require explicit strong passwords via env
+    if (process.env.NODE_ENV === 'production') {
+      if (!process.env.DEMO_ADMIN_PASSWORD || !process.env.DEMO_STAFF_PASSWORD) {
+        return NextResponse.json({ error: 'Missing required demo passwords' }, { status: 400 })
+      }
+    }
     // Check if demo users already exist
     const demoUser = await prisma.user.findFirst({
       where: {
@@ -31,7 +50,7 @@ export async function POST(_request: NextRequest) {
     // Start transaction to ensure atomic operation
     const result = await prisma.$transaction(async (tx) => {
       // Always create a demo admin user
-      const demoAdminPassword = process.env.DEMO_ADMIN_PASSWORD || 'SecureWarehouse2024!'
+      const demoAdminPassword = process.env.DEMO_ADMIN_PASSWORD || (process.env.NODE_ENV !== 'production' ? 'SecureWarehouse2024!' : '')
       const hashedPassword = await bcrypt.hash(demoAdminPassword, 10)
       
       // Check if demo admin already exists
@@ -95,7 +114,7 @@ export async function POST(_request: NextRequest) {
 
 async function generateBasicDemoData(tx: Prisma.TransactionClient, adminUserId: string) {
   // Create demo staff user
-  const demoStaffPassword = process.env.DEMO_STAFF_PASSWORD || 'DemoStaff2024!'
+  const demoStaffPassword = process.env.DEMO_STAFF_PASSWORD || (process.env.NODE_ENV !== 'production' ? 'DemoStaff2024!' : '')
   const hashedPassword = await bcrypt.hash(demoStaffPassword, 10)
   const staffUser = await tx.user.create({
     data: {

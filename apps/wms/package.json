@@ -30,6 +30,7 @@
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
+    "db:seed:test": "tsx prisma/seed-test.ts",
     "demo": "tsx scripts/demo.ts",
     "demo:headed": "tsx scripts/demo.ts --headed",
     "db:generate": "prisma generate",

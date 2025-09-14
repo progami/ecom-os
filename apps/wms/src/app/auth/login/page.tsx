@@ -50,21 +50,17 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
+      const redirectUrl = callbackUrl || '/dashboard'
       const result = await signIn('credentials', {
         emailOrUsername: formData.emailOrUsername,
         password: formData.password,
-        redirect: false,
+        callbackUrl: redirectUrl,
+        redirect: true,
       })
 
+      // With redirect: true, NextAuth will navigate on success.
       if (result?.error) {
         toast.error('Invalid email/username or password')
-      } else {
-        toast.success('Login successful!')
-        
-        // Use router.push for proper Next.js navigation
-        const redirectUrl = callbackUrl || '/dashboard'
-        router.push(redirectUrl)
-        router.refresh()
       }
     } catch (_error) {
       toast.error('An error occurred during login')
