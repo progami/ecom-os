@@ -50,6 +50,11 @@
         pnpm --filter @ecom-os/website build
       args: { chdir: "{{ app_base }}/repo" }
 
+    - name: Build WMS (no turbo)
+      shell: |
+        pnpm --filter @ecom-os/wms build
+      args: { chdir: "{{ app_base }}/repo" }
+
     - name: Write per-app environment files from GitHub Secrets
       block:
         - name: Write website env
@@ -188,6 +193,29 @@
           if curl -fsS -H "Host: {{ website_server_name | default('www.targonglobal.com') }}" "http://127.0.0.1:{{ website_port }}/" | grep -Eiq '(INNOVATION TO IMPACT|Everyday, Done Better)'; then
             echo "Content verification OK"; break; fi; sleep 3; done
         curl -fsS -H "Host: {{ website_server_name | default('www.targonglobal.com') }}" "http://127.0.0.1:{{ website_port }}/" | grep -Eiq '(INNOVATION TO IMPACT|Everyday, Done Better)' || (echo 'ERROR: Content verification failed on localhost' >&2; exit 1)
+      args: { chdir: "{{ app_base }}/repo" }
+
+    - name: Start WMS with PM2 (clean restart + verify)
+      shell: |
+        set -e
+        cd {{ app_base }}/repo
+        # Kill any rogue process on the WMS port
+        pm2 delete wms || true
+        lsof -ti:{{ wms_port }} | xargs -r kill -9 || true
+        # Rebuild WMS cleanly
+        rm -rf apps/wms/.next
+        pnpm --filter @ecom-os/wms build
+        # Restart PM2 with explicit CWD
+        pm2 delete wms || true
+        PORT={{ wms_port }} NODE_ENV=production pm2 start server.js --name wms --cwd {{ app_base }}/repo/apps/wms --update-env
+        pm2 save
+        # Health check WMS
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+          code=$(curl -sS -o /dev/null -w "%{http_code}" -H "Host: {{ wms_server_name | default('wms.targonglobal.com') }}" "http://127.0.0.1:{{ wms_port }}/api/health" || true)
+          if echo "$code" | grep -Eq '^(20|30)[0-9]$'; then echo "WMS OK"; break; fi
+          sleep 3;
+        done
+        curl -fsS -H "Host: {{ wms_server_name | default('wms.targonglobal.com') }}" "http://127.0.0.1:{{ wms_port }}/api/health" >/dev/null
       args: { chdir: "{{ app_base }}/repo" }
   handlers:
     - name: restart nginx
