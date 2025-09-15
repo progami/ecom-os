@@ -1,8 +1,8 @@
-name: Auto Sync dev to main
+name: Auto Sync dev to main (disabled)
 
 on:
-  push:
-    branches: [ main ]
+  # Disabled automatic trigger to prevent unintended dev updates from main.
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -10,6 +10,7 @@ permissions:
 jobs:
   sync-dev:
     runs-on: ubuntu-latest
+    if: false # hard-disable job; remove to re-enable
     steps:
       - uses: actions/checkout@v4
         with:
