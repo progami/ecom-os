@@ -1,22 +1,31 @@
 import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
+import prisma from '../../../../lib/prisma'
 
 type Params = { params: { id: string } }
 
 export async function GET(_req: Request, { params }: Params) {
-  const item = await prisma.policy.findUnique({ where: { id: params.id } })
-  if (!item) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json(item)
+  const p = await prisma.policy.findUnique({ where: { id: params.id } })
+  if (!p) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  return NextResponse.json(p)
 }
 
 export async function PATCH(req: Request, { params }: Params) {
   try {
     const body = await req.json()
-    if (body.effectiveDate) body.effectiveDate = new Date(body.effectiveDate)
-    const updated = await prisma.policy.update({ where: { id: params.id }, data: body })
-    return NextResponse.json(updated)
+    const updates: any = {}
+    if ('title' in body) updates.title = String(body.title)
+    if ('category' in body) updates.category = String(body.category).toUpperCase()
+    if ('summary' in body) updates.summary = body.summary ?? null
+    if ('content' in body) updates.content = body.content ?? null
+    if ('fileUrl' in body) updates.fileUrl = body.fileUrl ?? null
+    if ('version' in body) updates.version = body.version ?? null
+    if ('effectiveDate' in body) updates.effectiveDate = body.effectiveDate ? new Date(body.effectiveDate) : null
+    if ('status' in body) updates.status = String(body.status).toUpperCase()
+
+    const p = await prisma.policy.update({ where: { id: params.id }, data: updates })
+    return NextResponse.json(p)
   } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'Failed to update' }, { status: 500 })
+    return NextResponse.json({ error: e.message || 'Failed to update policy' }, { status: 500 })
   }
 }
 
@@ -24,8 +33,7 @@ export async function DELETE(_req: Request, { params }: Params) {
   try {
     await prisma.policy.delete({ where: { id: params.id } })
     return NextResponse.json({ ok: true })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'Failed to delete' }, { status: 500 })
+  } catch {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 }
-

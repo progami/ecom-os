@@ -7,7 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Employee model (kept minimal but practical)
 model Employee {
   id               String         @id @default(cuid())
   employeeId       String         @unique
@@ -17,7 +16,6 @@ model Employee {
   phone            String?
   avatar           String?
 
-  // Personal Information
   dateOfBirth      DateTime?
   gender           String?
   maritalStatus    String?
@@ -27,36 +25,63 @@ model Employee {
   country          String?
   postalCode       String?
 
-  // Employment Information
   department       String
+  departmentId     String?
+  dept             Department?    @relation(fields: [departmentId], references: [id])
   position         String
   employmentType   EmploymentType  @default(FULL_TIME)
   joinDate         DateTime
   status           EmployeeStatus  @default(ACTIVE)
   reportsTo        String?
 
-  // Compensation
   salary           Float?
   currency         String          @default("USD")
 
-  // Emergency Contact
   emergencyContact String?
   emergencyPhone   String?
 
-  // Metadata
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
-  // Relations
   files            EmployeeFile[]
+  roles            Role[]
 
   @@index([email])
   @@index([employeeId])
   @@index([department])
+  @@index([departmentId])
   @@index([status])
 }
 
-// Resource model (external service providers such as accounting firms, CPAs, designers)
+model EmployeeFile {
+  id          String   @id @default(cuid())
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId  String
+  title       String
+  fileUrl     String
+  uploadedAt  DateTime @default(now())
+
+  @@index([employeeId])
+}
+
+model Department {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  code        String?    @unique
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  employees   Employee[]
+}
+
+model Role {
+  id          String     @id @default(cuid())
+  name        String     @unique
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  employees   Employee[]
+}
+
 model Resource {
   id           String            @id @default(cuid())
   name         String
@@ -82,14 +107,13 @@ model Resource {
   @@index([name])
 }
 
-// Company policies (e.g., leave policy, performance reviews)
 model Policy {
   id            String        @id @default(cuid())
   title         String
   category      PolicyCategory
   summary       String?
-  content       String?       // Text content if stored inline
-  fileUrl       String?       // S3 URL for file storage
+  content       String?
+  fileUrl       String?
   version       String?
   effectiveDate DateTime?
   status        PolicyStatus  @default(ACTIVE)
@@ -101,7 +125,6 @@ model Policy {
   @@index([status])
 }
 
-// Enums (trimmed to essentials)
 enum EmploymentType {
   FULL_TIME
   PART_TIME
@@ -139,15 +162,4 @@ enum PolicyStatus {
   DRAFT
   ACTIVE
   ARCHIVED
-}
-// Employee documents (e.g., offer letter)
-model EmployeeFile {
-  id          String   @id @default(cuid())
-  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  employeeId  String
-  title       String
-  fileUrl     String
-  uploadedAt  DateTime @default(now())
-
-  @@index([employeeId])
 }

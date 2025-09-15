@@ -1,44 +1,42 @@
 {
   "name": "@ecom-os/hrms",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "scripts": {
     "dev": "next dev -p 3006",
     "build": "next build",
-    "start": "NODE_ENV=production node server.js",
-    "dev:logged": "node server.js",
+    "start": "next start -p 3006",
     "type-check": "tsc --noEmit --skipLibCheck",
-    "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
-    
-    "seed:dev": "node scripts/seed-dev.mjs",
-    "lint": "next lint",
-    "test": "playwright test",
-    "test:ui": "playwright test --ui",
-    "test:headed": "playwright test --headed"
+    "db:push": "prisma db push",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset --force",
+    "db:studio": "prisma studio",
+    "db:seed": "prisma generate && prisma db seed"
   },
   "dependencies": {
-    "@ecom-os/auth": "workspace:*",
-    "next-auth": "^4.24.11",
-    "@prisma/client": "^5.8.0",
-    "@aws-sdk/client-s3": "^3.632.0",
-    "@aws-sdk/s3-request-presigner": "^3.632.0",
-    "lucide-react": "^0.312.0",
+    "clsx": "^2.1.1",
     "next": "14.0.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwind-merge": "^3.3.1",
+    "@prisma/client": "^5.8.0",
+    "googleapis": "^131.0.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.52.0",
-    "@types/node": "^20.10.6",
+    "@types/node": "24.3.3",
     "@types/react": "^18.2.46",
     "@types/react-dom": "^18.2.18",
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.33",
-    "prisma": "^5.8.0",
     "tailwindcss": "^3.4.0",
-    "typescript": "^5.3.3"
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5.3.3",
+    "prisma": "^5.8.0",
+    "tsx": "^4.20.4"
   }
 }
