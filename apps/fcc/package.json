@@ -57,6 +57,7 @@
     "refresh:balance-sheet": "tsx scripts/refresh-all-balance-sheet-data.ts"
   },
   "dependencies": {
+    "@ecom-os/auth": "workspace:*",
     "@hookform/resolvers": "^3.3.4",
     "@prisma/client": "^5.11.0",
     "@radix-ui/react-alert-dialog": "^1.0.5",

@@ -69,7 +69,10 @@ export default function ShipmentPlanningPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      router.push('/auth/login')
+      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+      const url = new URL('/login', central)
+      url.searchParams.set('callbackUrl', window.location.origin + '/market/shipment-planning')
+      window.location.href = url.toString()
       return
     }
     fetchStockData()

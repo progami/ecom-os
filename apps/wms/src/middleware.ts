@@ -1,17 +1,19 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+import { withBasePath, withoutBasePath } from '@/lib/utils/base-path'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  
-  // Redirect /operations to /operations/inventory
-  if (pathname === '/operations') {
+  const normalizedPath = withoutBasePath(pathname)
+
+  // Redirect /operations to /operations/inventory (base-path aware)
+  if (normalizedPath === '/operations') {
     const url = request.nextUrl.clone()
-    url.pathname = '/operations/inventory'
+    url.pathname = withBasePath('/operations/inventory')
     return NextResponse.redirect(url)
   }
-  
+
   // Public routes that don't require authentication
   // Use exact matches or proper prefix matching to prevent auth bypass
   const publicRoutes = [
@@ -19,51 +21,64 @@ export async function middleware(request: NextRequest) {
     '/auth/login',
     '/auth/error',
     '/api/health',
-    '/api/demo',
     '/api/logs',
   ]
-  
+
   // Routes that should be prefix-matched
   const publicPrefixes = [
     '/api/auth/', // NextAuth internal routes
   ]
-  
+
   // Check if the route is public using exact match
-  const isExactPublicRoute = publicRoutes.includes(pathname)
-  
+  const isExactPublicRoute = publicRoutes.includes(normalizedPath)
+
   // Check if the route matches a public prefix
-  const isPublicPrefix = publicPrefixes.some(prefix => pathname.startsWith(prefix))
-  
+  const isPublicPrefix = publicPrefixes.some(prefix => normalizedPath.startsWith(prefix))
+
   // Combine both checks
   const isPublicRoute = isExactPublicRoute || isPublicPrefix
-  
-  // Skip auth check for public routes, static files, and API routes
-  // Note: _next and favicon.ico checks use startsWith for safety
-  if (isPublicRoute || pathname.startsWith('/_next') || pathname === '/favicon.ico') {
+
+  // Skip auth check for public routes and static assets
+  if (isPublicRoute || normalizedPath.startsWith('/_next') || normalizedPath === '/favicon.ico') {
     return NextResponse.next()
   }
-  
-  
+
   // Check for session
   let token = null
   try {
-    token = await getToken({ 
-      req: request, 
-      secret: process.env.NEXTAUTH_SECRET,
-    })
+    const namesToTry = [
+      process.env.NODE_ENV === 'production'
+        ? '__Secure-next-auth.session-token'
+        : 'next-auth.session-token',
+      process.env.NODE_ENV === 'production'
+        ? '__Secure-next-auth.session-token'
+        : 'ecomos.next-auth.session-token',
+      // Legacy app-prefixed cookie for WMS during migration
+      process.env.NODE_ENV === 'production'
+        ? '__Secure-wms.next-auth.session-token'
+        : 'wms.next-auth.session-token',
+    ]
+
+    for (const name of namesToTry) {
+      token = await getToken({
+        req: request,
+        secret: process.env.NEXTAUTH_SECRET,
+        cookieName: name,
+      })
+      if (token) break
+    }
   } catch (_error) {
-    // console.error('Error getting token in middleware:', _error)
     // Continue without token - will redirect if needed
   }
-  
-  // If no token and trying to access protected route, redirect to login
-  if (!token && !pathname.startsWith('/auth/')) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    url.searchParams.set('callbackUrl', request.nextUrl.pathname)
-    return NextResponse.redirect(url)
+
+  // If no token and trying to access protected route, redirect to central login
+  if (!token && !normalizedPath.startsWith('/auth/')) {
+    const central = process.env.CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+    const redirect = new URL('/login', central)
+    redirect.searchParams.set('callbackUrl', request.nextUrl.toString())
+    return NextResponse.redirect(redirect)
   }
-  
+
   return NextResponse.next()
 }
 

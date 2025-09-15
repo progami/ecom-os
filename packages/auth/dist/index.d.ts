@@ -5,7 +5,13 @@ export interface CookieDomainOptions {
     domain: string;
     secure?: boolean;
     sameSite?: SameSite;
+    appId?: string;
 }
+/**
+ * Build consistent cookie names and options for NextAuth across apps.
+ * - In production (secure), uses __Secure- prefix for session/callback and __Host- for csrf (no domain).
+ * - In development, optionally prefixes cookie names with `${appId}.` to avoid collisions on localhost.
+ */
 export declare function buildCookieOptions(opts: CookieDomainOptions): NextAuthOptions["cookies"];
 export declare const AuthEnvSchema: z.ZodObject<{
     NEXTAUTH_SECRET: z.ZodString;
@@ -20,4 +26,22 @@ export declare const AuthEnvSchema: z.ZodObject<{
     COOKIE_DOMAIN: string;
     NEXTAUTH_URL?: string | undefined;
 }>;
-export declare function withSharedAuth(base: NextAuthOptions, cookieDomain: string): NextAuthOptions;
+export interface SharedAuthOptions {
+    cookieDomain: string;
+    appId?: string;
+}
+/**
+ * Compose app-specific NextAuth options with shared, secure defaults.
+ */
+export declare function withSharedAuth(base: NextAuthOptions, optsOrDomain: SharedAuthOptions | string): NextAuthOptions;
+/**
+ * Helper to derive the likely session cookie names to probe in middleware.
+ * In dev, returns both generic and app-prefixed variants for robustness.
+ */
+export declare function getCandidateSessionCookieNames(appId?: string): string[];
+export type AppEntitlement = {
+    role: string;
+    depts?: string[];
+};
+export type RolesClaim = Record<string, AppEntitlement>;
+export declare function getAppEntitlement(roles: unknown, appId: string): AppEntitlement | undefined;

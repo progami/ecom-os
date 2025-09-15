@@ -53,7 +53,10 @@ export default function EditRatePage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session || session.user.role !== 'admin') {
-      router.push('/auth/login')
+      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+      const url = new URL('/login', central)
+      url.searchParams.set('callbackUrl', window.location.origin + `/config/rates/${params.id}/edit`)
+      window.location.href = url.toString()
       return
     }
     fetchRate()

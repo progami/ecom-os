@@ -242,7 +242,12 @@ export default function AmazonIntegrationPage() {
   }
 
   if (!session || session.user.role !== 'admin') {
-    router.push('/auth/login')
+      {
+        const central = (process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL as string) || 'https://ecomos.targonglobal.com'
+        const url = new URL('/login', central)
+        url.searchParams.set('callbackUrl', window.location.origin + '/market/amazon')
+        window.location.href = url.toString()
+      }
     return null
   }
 

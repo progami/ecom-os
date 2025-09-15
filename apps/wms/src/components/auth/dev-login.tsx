@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 
@@ -12,19 +11,10 @@ export function DevLogin() {
   const handleDevLogin = async () => {
     setLoading(true)
     try {
-      // Use environment variables for dev credentials to avoid hardcoding
-      const result = await signIn('credentials', {
-        emailOrUsername: process.env.NEXT_PUBLIC_DEV_EMAIL || 'admin@test.com',
-        password: process.env.NEXT_PUBLIC_DEV_PASSWORD || process.env.NEXT_PUBLIC_DEV_PASS || '',
-        redirect: false,
-      })
-
-      if (result?.ok) {
-        toast.success('Logged in as Demo Admin')
-        router.push('/operations/inventory')
-      } else {
-        toast.error('Login failed - check if demo user exists')
-      }
+      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+      const url = new URL('/login', central)
+      url.searchParams.set('callbackUrl', window.location.origin + '/operations/inventory')
+      window.location.href = url.toString()
     } catch (_error) {
       toast.error('Login error')
     } finally {

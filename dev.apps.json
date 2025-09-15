@@ -1,0 +1,9 @@
+{
+  "host": "localhost",
+  "apps": {
+    "wms": 3001,
+    "hrms": 3006,
+    "fcc": 3003,
+    "website": 3005
+  }
+}

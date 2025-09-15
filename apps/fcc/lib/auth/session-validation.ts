@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { SESSION_COOKIE_NAME, TOKEN_COOKIE_NAME } from '@/lib/cookie-config';
+import { TOKEN_COOKIE_NAME } from '@/lib/cookie-config';
 import { getXeroClient, refreshToken, getStoredTokenSet } from '@/lib/xero-client';
 import { prisma } from '@/lib/prisma';
 import { structuredLogger } from '@/lib/logger';
 import { withLock, LOCK_RESOURCES } from '@/lib/redis-lock';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export interface SessionUser {
   userId: string;
@@ -42,35 +44,8 @@ export enum ValidationLevel {
 /**
  * Validates a session token
  */
-function validateSessionToken(token: string): SessionUser | null {
-  try {
-    // For now, parse the session data directly (migrate to JWT in production)
-    const sessionData = JSON.parse(token);
-    
-    // Check for userId field (expected format)
-    if (sessionData.userId && sessionData.email) {
-      return sessionData as SessionUser;
-    }
-    
-    // Also check for legacy format with nested user object
-    if (sessionData.user && sessionData.user.id) {
-      return {
-        userId: sessionData.user.id,
-        email: sessionData.user.email || sessionData.email, // Check both locations for email
-        tenantId: sessionData.tenantId || '',
-        tenantName: sessionData.tenantName || '',
-        role: sessionData.role || 'user'
-      };
-    }
-  } catch (error) {
-    structuredLogger.warn('Failed to parse session token', {
-      component: 'session-validation',
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-    return null;
-  }
-  return null;
-}
+// Legacy stub retained for compatibility; unified auth uses NextAuth server session
+function validateSessionToken(_token: string): SessionUser | null { return null }
 
 /**
  * Validates session and returns user information
@@ -129,23 +104,9 @@ export async function validateSession(
     }
 
     const cookieStore = cookies();
-    
-    // Check for user session
-    const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
-    if (!sessionCookie?.value) {
-      return {
-        user: null as any,
-        isAdmin: false,
-        isValid: false
-      };
-    }
-
-    // Validate session token
-    const sessionData = validateSessionToken(sessionCookie.value);
-    if (!sessionData) {
-      structuredLogger.warn('Invalid session token', {
-        component: 'session-validation'
-      });
+    // Unified auth: read NextAuth session
+    const nextAuthSession = await getServerSession(authOptions);
+    if (!nextAuthSession || !nextAuthSession.user || !(nextAuthSession as any).user.id) {
       return {
         user: null as any,
         isAdmin: false,
@@ -155,38 +116,53 @@ export async function validateSession(
 
     // Skip database verification for test users in development
     let dbUser = null;
+    const userIdFromSession = (nextAuthSession as any).user.id as string | undefined;
     const isTestUser = process.env.NODE_ENV === 'development' && 
-      sessionData.userId && 
-      (sessionData.userId.startsWith('test-') || sessionData.userId === 'user-1' || sessionData.userId.includes('test'));
+      userIdFromSession && 
+      (userIdFromSession.startsWith('test-') || userIdFromSession === 'user-1' || userIdFromSession.includes('test'));
     
     if (isTestUser) {
       structuredLogger.debug('Skipping database verification for test user', {
         component: 'session-validation',
-        userId: sessionData.userId
+        userId: userIdFromSession
       });
       // Create a mock user object for test users
       dbUser = {
-        id: sessionData.userId,
-        email: sessionData.email,
-        tenantId: sessionData.tenantId || '!Qn7M1',
-        tenantName: sessionData.tenantName || 'Test Tenant'
+        id: userIdFromSession!,
+        email: (nextAuthSession.user as any).email,
+        tenantId: (nextAuthSession.user as any).tenantId || '!Qn7M1',
+        tenantName: (nextAuthSession.user as any).tenantName || 'Test Tenant'
       };
     } else {
       // Verify user exists in database for non-test users
-      dbUser = await prisma.user.findUnique({
-        where: { id: sessionData.userId }
-      });
+      dbUser = await prisma.user.findUnique({ where: { id: userIdFromSession! } });
 
       if (!dbUser) {
-        structuredLogger.warn('User not found in database', {
-          component: 'session-validation',
-          userId: sessionData.userId
-        });
-        return {
-          user: null as any,
-          isAdmin: false,
-          isValid: false
-        };
+        // JIT provision local user with minimal data (Option A)
+        try {
+          dbUser = await prisma.user.create({
+            data: {
+              id: userIdFromSession!,
+              email: (nextAuthSession.user as any).email || `user-${userIdFromSession}@example.com`,
+              name: (nextAuthSession.user as any).name || null,
+              hasCompletedSetup: false,
+            } as any,
+          })
+          structuredLogger.info('Provisioned local user for FCC', {
+            component: 'session-validation',
+            userId: userIdFromSession
+          })
+        } catch (e) {
+          structuredLogger.error('Failed provisioning FCC user', e, {
+            component: 'session-validation',
+            userId: userIdFromSession
+          })
+          return {
+            user: null as any,
+            isAdmin: false,
+            isValid: false
+          };
+        }
       }
     }
 
@@ -194,14 +170,16 @@ export async function validateSession(
     const user: SessionUser = {
       userId: dbUser.id,
       email: dbUser.email,
-      tenantId: sessionData.tenantId || dbUser.tenantId || '',
-      tenantName: sessionData.tenantName || dbUser.tenantName || '',
+      tenantId: (nextAuthSession.user as any).tenantId || dbUser.tenantId || '',
+      tenantName: (nextAuthSession.user as any).tenantName || dbUser.tenantName || '',
       role: 'user' // Default role since User model doesn't have role field
     };
 
-    // Check admin privileges if required - for now, only check email
-    const isAdmin = dbUser.email === 'ajarrar@trademanenterprise.com' || 
-                   (isTestUser && sessionData.userId === 'test-admin-1');
+    // Check admin privileges via central roles claim when present
+    const centralSession = await getServerSession(authOptions)
+    const roles: any = (centralSession as any)?.roles
+    const fccRole = roles?.fcc?.role as string | undefined
+    const isAdmin = fccRole === 'admin'
     if (level === ValidationLevel.ADMIN && !isAdmin) {
       structuredLogger.warn('Non-admin user attempted admin access', {
         component: 'session-validation',

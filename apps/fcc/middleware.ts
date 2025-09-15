@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { getToken } from 'next-auth/jwt';
 
 // Content Security Policy
 const CSP_DIRECTIVES = [
@@ -26,10 +27,7 @@ const PUBLIC_ROUTES = [
   '/forgot-password',
   '/api/v1/xero/auth',
   '/api/v1/xero/auth/callback',
-  '/api/v1/auth/session',
-  '/api/v1/auth/login',
-  '/api/v1/auth/register',
-  '/api/v1/auth/signout',
+  '/api/auth/', // NextAuth internal routes
   '/api/health',
   '/_next',
   '/favicon.ico',
@@ -50,7 +48,7 @@ const PROTECTED_ROUTES = [
 
 import { cookieDomain } from '@/lib/cookie-config';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   
   // Skip middleware entirely for Next.js static files to preserve proper MIME types
@@ -118,96 +116,42 @@ export function middleware(request: NextRequest) {
       console.log(`[Middleware] Route ${pathname} requires authentication (isPublicRoute: ${isPublicRoute})`);
     }
     
-    // Check for user_session cookie or dev bypass
-    const userSession = request.cookies.get('user_session');
-    
-    // Debug logging
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`[Middleware] Auth check for ${pathname}:`, {
-        hasUserSession: !!userSession,
-        hasDevBypass: !!devBypassSession,
-        isPlaywright: isPlaywrightTest
-      });
-    }
-    
-    // Check for authentication (allow dev bypass in development)
-    if ((!userSession || !userSession.value) && !devBypassSession) {
-      if (process.env.NODE_ENV === 'development' && !pathname.includes('.')) {
-        console.log(`[Middleware] No user_session cookie found for ${pathname}, redirecting to login`);
+    // NextAuth session check via JWT cookie
+    let hasSession = false;
+    try {
+      const candidateNames = [
+        process.env.NODE_ENV === 'production'
+          ? '__Secure-next-auth.session-token'
+          : 'next-auth.session-token',
+        process.env.NODE_ENV === 'production'
+          ? '__Secure-next-auth.session-token'
+          : 'ecomos.next-auth.session-token',
+        // Legacy app-specific cookie during migration
+        process.env.NODE_ENV === 'production'
+          ? '__Secure-next-auth.session-token'
+          : 'fcc.next-auth.session-token',
+      ];
+      for (const name of candidateNames) {
+        const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET, cookieName: name });
+        if (token) { hasSession = true; break; }
       }
-      // For API routes, return 401 instead of redirecting
+    } catch {}
+
+    if (!hasSession && !devBypassSession) {
       if (pathname.startsWith('/api/')) {
         return NextResponse.json(
           { error: 'Unauthorized', message: 'Authentication required' },
           { status: 401 }
         );
       }
-      
-      const url = request.nextUrl.clone();
-      url.pathname = '/login';
-      // Store the original URL to redirect back after login
-      if (pathname !== '/' && pathname !== '/login') {
-        url.searchParams.set('returnUrl', pathname);
-      }
-      return NextResponse.redirect(url);
+      const central = process.env.CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+      const login = new URL('/login', central)
+      login.searchParams.set('callbackUrl', request.nextUrl.toString())
+      return NextResponse.redirect(login);
     }
-    
-    // Variable to hold the validated session data
-    let validatedSession: any = null;
-    
-    // Try to validate the session (or use dev bypass)
+    // If dev bypass is present in tests, surface it for downstream diagnostic use
     if (devBypassSession) {
-      // Dev bypass is active, session is valid
-      console.log(`[Middleware] Using dev bypass session for ${pathname}`);
-      validatedSession = devBypassSession;
-    } else if (userSession && userSession.value) {
-      try {
-        const sessionData = JSON.parse(userSession.value);
-        
-        // Support both formats: new format with user object AND old format with userId
-        const isValidSession = (sessionData.user && sessionData.user.id) || 
-                             (sessionData.userId && sessionData.email);
-        
-        if (!isValidSession) {
-          console.log(`[Middleware] Invalid session format for ${pathname}, redirecting to login`);
-          // Clear the invalid cookie
-          const response = NextResponse.redirect(new URL('/login', request.url));
-          response.cookies.delete('user_session');
-          return response;
-        }
-        
-        // In development mode, skip database validation for test users
-        if (process.env.NODE_ENV === 'development') {
-          const userId = sessionData.user?.id || sessionData.userId;
-          if (isTestUser(userId)) {
-            console.log(`[Middleware] Test user detected (${userId}), skipping database validation`);
-            // For test users, ensure the session has all required fields
-            if (!sessionData.tenantId) {
-              sessionData.tenantId = '!Qn7M1'; // Default test tenant
-            }
-            if (!sessionData.tenantName) {
-              sessionData.tenantName = 'Test Tenant';
-            }
-          }
-        }
-        
-        validatedSession = sessionData;
-      } catch (e) {
-        console.error(`[Middleware] Failed to parse session:`, e);
-        // Clear the invalid cookie and redirect to login
-        const response = NextResponse.redirect(new URL('/login', request.url));
-        response.cookies.delete('user_session');
-        return response;
-      }
-    } else {
-      // No session at all - this shouldn't happen as we checked above, but just in case
-      console.log(`[Middleware] No valid session found for ${pathname}`);
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
-    
-    // Store the validated session data in headers for downstream handlers
-    if (validatedSession) {
-      requestHeaders.set('x-auth-session', JSON.stringify(validatedSession));
+      requestHeaders.set('x-auth-session', JSON.stringify(devBypassSession));
     }
   }
   
