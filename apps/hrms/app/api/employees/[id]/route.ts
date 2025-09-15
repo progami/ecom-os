@@ -1,36 +1,36 @@
 import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
+import prisma from '../../../../lib/prisma'
 
 type Params = { params: { id: string } }
 
 export async function GET(_req: Request, { params }: Params) {
-  let item = await prisma.employee.findUnique({ where: { id: params.id } })
-  if (!item) {
-    // Fallback: support /employees/{employeeId}
-    item = await prisma.employee.findUnique({ where: { employeeId: params.id } })
-  }
-  if (!item) return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
-  return NextResponse.json(item)
+  const e = await prisma.employee.findFirst({ where: { OR: [{ id: params.id }, { employeeId: params.id }] }, include: { roles: true, dept: true } })
+  if (!e) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  return NextResponse.json(e)
 }
 
 export async function PATCH(req: Request, { params }: Params) {
-  try {
-    const body = await req.json()
-    const data: any = { ...body }
-    if (body.joinDate) data.joinDate = new Date(body.joinDate)
-    if (body.dateOfBirth) data.dateOfBirth = new Date(body.dateOfBirth)
-    const updated = await prisma.employee.update({ where: { id: params.id }, data })
-    return NextResponse.json(updated)
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'Failed to update' }, { status: 500 })
+  const body = await req.json()
+  const departmentName: string | null = body.department || body.departmentName || null
+  const roles: string[] = Array.isArray(body.roles) ? body.roles.map((r: any) => String(r)) : []
+  const updates: any = { ...body }
+  if (departmentName) {
+    updates.department = departmentName
+    updates.dept = {
+      connectOrCreate: { where: { name: departmentName }, create: { name: departmentName } }
+    }
   }
+  if (roles.length) {
+    updates.roles = {
+      set: [],
+      connectOrCreate: roles.map((name) => ({ where: { name }, create: { name } }))
+    }
+  }
+  const e = await prisma.employee.update({ where: { id: params.id }, data: updates, include: { roles: true, dept: true } })
+  return NextResponse.json(e)
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
-  try {
-    await prisma.employee.delete({ where: { id: params.id } })
-    return NextResponse.json({ ok: true })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'Failed to delete' }, { status: 500 })
-  }
+  await prisma.employee.delete({ where: { id: params.id } })
+  return NextResponse.json({ ok: true })
 }

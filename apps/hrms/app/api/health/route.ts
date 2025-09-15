@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
+import prisma from '../../../lib/prisma'
 
 export async function GET() {
   try {
@@ -10,6 +10,6 @@ export async function GET() {
     ])
     return NextResponse.json({ ok: true, employees, resources, policies })
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e.message }, { status: 503 })
+    return NextResponse.json({ ok: false, error: e.message || 'DB not reachable' }, { status: 500 })
   }
 }

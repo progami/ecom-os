@@ -1,330 +1,100 @@
-'use client'
+"use client"
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save, User, Briefcase, Phone, Calendar } from 'lucide-react'
 import Link from 'next/link'
+import { EmployeesApi } from '@/lib/api-client'
 
 export default function AddEmployeePage() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const r = useRouter()
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setLoading(true)
+    setSubmitting(true)
+    setError(null)
+    const fd = new FormData(e.currentTarget)
+    const payload = Object.fromEntries(fd.entries()) as any
     try {
-      const form = e.currentTarget
-      const fd = new FormData(form)
-      const payload: any = {
-        employeeId: fd.get('employeeId'),
-        firstName: fd.get('firstName'),
-        lastName: fd.get('lastName'),
-        email: fd.get('email'),
-        phone: fd.get('phone') || undefined,
-        dateOfBirth: fd.get('dateOfBirth') || undefined,
-        gender: fd.get('gender') || undefined,
-        department: fd.get('department'),
-        position: fd.get('position'),
-        employmentType: String(fd.get('employmentType')||'').toUpperCase(),
-        joinDate: fd.get('joinDate'),
-        reportsTo: fd.get('reportsTo') || undefined,
-        salary: fd.get('salary') ? Number(fd.get('salary')) : undefined,
-        currency: fd.get('currency') || 'USD',
-        address: fd.get('address') || undefined,
-        city: fd.get('city') || undefined,
-        country: fd.get('country') || undefined,
-        emergencyContact: fd.get('emergencyContact') || undefined,
-        emergencyPhone: fd.get('emergencyPhone') || undefined,
-      }
-      const res = await fetch('/api/employees', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+      await EmployeesApi.create({
+        employeeId: String(payload.employeeId),
+        firstName: String(payload.firstName),
+        lastName: String(payload.lastName),
+        email: String(payload.email),
+        department: String(payload.department || payload.departmentName || ''),
+        position: String(payload.position),
+        joinDate: String(payload.joinDate),
+        employmentType: String(payload.employmentType || 'FULL_TIME'),
+        status: String(payload.status || 'ACTIVE'),
       })
-      if (!res.ok) throw new Error(await res.text())
-      router.push('/hrms/employees')
-    } catch (err) {
-      alert('Failed to save employee')
+      r.push('/hrms/employees')
+    } catch (e: any) {
+      setError(e.message)
     } finally {
-      setLoading(false)
+      setSubmitting(false)
     }
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link
-          href="/hrms/employees"
-          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-        >
-          <ArrowLeft size={20} />
-        </Link>
-        <div>
-          <h1 className="text-3xl font-bold text-gradient">Add New Employee</h1>
-          <p className="text-muted-foreground mt-2">Enter employee information</p>
-        </div>
+    <div className="max-w-2xl space-y-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold">Add Employee</h1>
+        <Link href="/hrms/employees" className="text-sm underline">Back to list</Link>
       </div>
 
-      {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Personal Information */}
-        <div className="gradient-border">
-          <div className="gradient-border-content p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <User className="text-primary" size={20} />
-              <h2 className="text-xl font-semibold">Personal Information</h2>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="form-label text-muted-foreground">First Name *</label>
-                <input
-                  type="text"
-                  required
-                  name="firstName"
-                  className="form-input px-4 py-2"
-                  placeholder="John"
-                />
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">Last Name *</label>
-                <input
-                  type="text"
-                  required
-                  name="lastName"
-                  className="form-input px-4 py-2"
-                  placeholder="Doe"
-                />
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">Email *</label>
-                <input
-                  type="email"
-                  required
-                  name="email"
-                  className="form-input px-4 py-2"
-                  placeholder="john.doe@company.com"
-                />
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">Phone</label>
-                <input
-                  type="tel"
-                  name="phone"
-                  className="form-input px-4 py-2"
-                  placeholder="+1 234 567 8900"
-                />
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">Date of Birth</label>
-                <input
-                  type="date"
-                  name="dateOfBirth"
-                  className="form-input px-4 py-2"
-                />
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">Gender</label>
-                <select name="gender" className="form-input px-4 py-2">
-                  <option value="">Select Gender</option>
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                  <option value="Prefer not to say">Prefer not to say</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
+      {error && <div className="rounded-md border border-red-300 bg-red-50 text-red-700 p-3 text-sm">{error}</div>}
 
-        {/* Employment Information */}
-        <div className="gradient-border">
-          <div className="gradient-border-content p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <Briefcase className="text-primary" size={20} />
-              <h2 className="text-xl font-semibold">Employment Information</h2>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="form-label text-muted-foreground">Employee ID *</label>
-                <input
-                  type="text"
-                  required
-                  name="employeeId"
-                  className="form-input px-4 py-2"
-                  placeholder="EMP001"
-                />
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">Department *</label>
-                <select
-                  required
-                  name="department"
-                  className="form-input px-4 py-2"
-                >
-                  <option value="">Select Department</option>
-                  <option value="engineering">Engineering</option>
-                  <option value="marketing">Marketing</option>
-                  <option value="sales">Sales</option>
-                  <option value="hr">Human Resources</option>
-                  <option value="finance">Finance</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">Position *</label>
-                <input
-                  type="text"
-                  required
-                  name="position"
-                  className="form-input px-4 py-2"
-                  placeholder="Senior Developer"
-                />
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">Employment Type *</label>
-                <select
-                  required
-                  name="employmentType"
-                  className="form-input px-4 py-2"
-                >
-                  <option value="">Select Type</option>
-                  <option value="FULL_TIME">Full Time</option>
-                  <option value="PART_TIME">Part Time</option>
-                  <option value="CONTRACT">Contract</option>
-                  <option value="INTERN">Intern</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">Join Date *</label>
-                <input
-                  type="date"
-                  required
-                  name="joinDate"
-                  className="form-input px-4 py-2"
-                />
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">Reports To</label>
-                <input
-                  type="text"
-                  name="reportsTo"
-                  className="form-input px-4 py-2"
-                  placeholder="Manager Employee ID"
-                />
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">Salary</label>
-                <input
-                  type="number"
-                  name="salary"
-                  className="form-input px-4 py-2"
-                  placeholder="75000"
-                />
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">Currency</label>
-                <select name="currency" className="form-input px-4 py-2">
-                  <option value="USD">USD</option>
-                  <option value="EUR">EUR</option>
-                  <option value="GBP">GBP</option>
-                </select>
-              </div>
-            </div>
-          </div>
+      <form onSubmit={onSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm mb-1">Employee ID *</label>
+          <input name="employeeId" required className="w-full px-3 py-2 rounded-md border border-input" />
         </div>
-
-        {/* Contact Information */}
-        <div className="gradient-border">
-          <div className="gradient-border-content p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <Phone className="text-primary" size={20} />
-              <h2 className="text-xl font-semibold">Contact Information</h2>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="md:col-span-2">
-                <label className="form-label text-muted-foreground">Address</label>
-                <input
-                  type="text"
-                  name="address"
-                  className="form-input px-4 py-2"
-                  placeholder="123 Main Street"
-                />
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">City</label>
-                <input
-                  type="text"
-                  name="city"
-                  className="form-input px-4 py-2"
-                  placeholder="New York"
-                />
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">Country</label>
-                <input
-                  type="text"
-                  name="country"
-                  className="form-input px-4 py-2"
-                  placeholder="United States"
-                />
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">Emergency Contact</label>
-                <input
-                  type="text"
-                  name="emergencyContact"
-                  className="form-input px-4 py-2"
-                  placeholder="Jane Doe"
-                />
-              </div>
-              
-              <div>
-                <label className="form-label text-muted-foreground">Emergency Phone</label>
-                <input
-                  type="tel"
-                  name="emergencyPhone"
-                  className="form-input px-4 py-2"
-                  placeholder="+1 234 567 8901"
-                />
-              </div>
-            </div>
-          </div>
+        <div>
+          <label className="block text-sm mb-1">Email *</label>
+          <input name="email" type="email" required className="w-full px-3 py-2 rounded-md border border-input" />
         </div>
-
-        {/* Form Actions */}
-        <div className="flex justify-end gap-4">
-          <Link
-            href="/hrms/employees"
-            className="px-6 py-2 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          >
-            Cancel
-          </Link>
-          
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn btn-primary px-6 py-2 rounded-md flex items-center gap-2 disabled:opacity-50"
-          >
-            <Save size={20} />
-            <span>{loading ? 'Saving...' : 'Save Employee'}</span>
+        <div>
+          <label className="block text-sm mb-1">First Name *</label>
+          <input name="firstName" required className="w-full px-3 py-2 rounded-md border border-input" />
+        </div>
+        <div>
+          <label className="block text-sm mb-1">Last Name *</label>
+          <input name="lastName" required className="w-full px-3 py-2 rounded-md border border-input" />
+        </div>
+        <div>
+          <label className="block text-sm mb-1">Department *</label>
+          <input name="department" required className="w-full px-3 py-2 rounded-md border border-input" />
+        </div>
+        <div>
+          <label className="block text-sm mb-1">Position *</label>
+          <input name="position" required className="w-full px-3 py-2 rounded-md border border-input" />
+        </div>
+        <div>
+          <label className="block text-sm mb-1">Join Date *</label>
+          <input name="joinDate" type="date" required className="w-full px-3 py-2 rounded-md border border-input" />
+        </div>
+        <div>
+          <label className="block text-sm mb-1">Employment Type *</label>
+          <select name="employmentType" className="w-full px-3 py-2 rounded-md border border-input">
+            <option value="FULL_TIME">FULL_TIME</option>
+            <option value="PART_TIME">PART_TIME</option>
+            <option value="CONTRACT">CONTRACT</option>
+            <option value="INTERN">INTERN</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm mb-1">Status *</label>
+          <select name="status" className="w-full px-3 py-2 rounded-md border border-input">
+            <option value="ACTIVE">ACTIVE</option>
+            <option value="ON_LEAVE">ON_LEAVE</option>
+            <option value="TERMINATED">TERMINATED</option>
+            <option value="RESIGNED">RESIGNED</option>
+          </select>
+        </div>
+        <div className="md:col-span-2">
+          <button disabled={submitting} className="px-4 py-2 rounded-md bg-primary text-primary-foreground disabled:opacity-50">
+            {submitting ? 'Saving…' : 'Save Employee'}
           </button>
         </div>
       </form>
