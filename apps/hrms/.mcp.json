@@ -1,0 +1,53 @@
+{
+  "mcpServers": {
+    "xero": {
+      "command": "/opt/homebrew/bin/npx",
+      "args": ["@xeroapi/xero-mcp-server@latest"],
+      "env": {
+        "XERO_CLIENT_ID": "__SET_IN_ENV__",
+        "XERO_CLIENT_SECRET": "__SET_IN_ENV__"
+      }
+    },
+    "postgres": {
+      "command": "/opt/homebrew/bin/npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "postgresql://jarraramjad@localhost/bookkeeping"]
+    },
+    "google-workspace": {
+      "command": "/bin/zsh",
+      "args": ["-l", "-c", "cd /Users/jarraramjad/mcp-servers/google_workspace_mcp && uv run main.py"],
+      "env": {
+        "OAUTHLIB_INSECURE_TRANSPORT": "1"
+      }
+    },
+    "filesystem": {
+      "command": "/opt/homebrew/bin/npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    },
+    "git": {
+      "command": "/bin/zsh",
+      "args": ["-l", "-c", "uvx mcp-server-git --repository ."]
+    },
+    "github": {
+      "command": "/opt/homebrew/bin/npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "__SET_IN_ENV__"
+      }
+    },
+    "memory": {
+      "command": "/opt/homebrew/bin/npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "fetch": {
+      "command": "/bin/zsh",
+      "args": ["-l", "-c", "uvx mcp-server-fetch"]
+    },
+    "time": {
+      "command": "/Users/jarraramjad/mcp-servers/time-server.sh"
+    },
+    "playwright": {
+      "command": "/opt/homebrew/bin/npx",
+      "args": ["-y", "@executeautomation/playwright-mcp-server"]
+    }
+  }
+}

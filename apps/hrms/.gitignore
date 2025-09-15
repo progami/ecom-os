@@ -24,4 +24,5 @@ test-results/
 # Prisma
 prisma/*.db
 prisma/*.sqlite
-# Keep migrations tracked for production deployments
+prisma/migrations/
+
