@@ -21,7 +21,8 @@ const baseAuthOptions: NextAuthOptions = {
         }
         // If DATABASE_URL is not configured in dev, allow a safe demo fallback
         const hasDb = !!process.env.DATABASE_URL
-        if (!hasDb && process.env.NODE_ENV !== 'production') {
+        const demoEnabled = process.env.NODE_ENV !== 'production' && ['1','true','yes','on'].includes(String(process.env.DEMO_LOGIN_ENABLED || '').toLowerCase())
+        if (!hasDb || demoEnabled) {
           const demoUsernames = ['demo-admin', 'demo-admin@warehouse.com']
           const demoPass = process.env.DEMO_ADMIN_PASSWORD || 'SecureWarehouse2024!'
           if (demoUsernames.includes(credentials.emailOrUsername) && credentials.password === demoPass) {
@@ -34,24 +35,45 @@ const baseAuthOptions: NextAuthOptions = {
         }
         // Normal DB-backed flow
         try {
-          const user = await prisma.user.findFirst({
-            where: { email: credentials.emailOrUsername },
-          } as any)
+          const identifier = credentials.emailOrUsername
+          let user = await prisma.user.findFirst({ where: { email: identifier } } as any)
+          // Optional username field support via env (e.g., USERNAME_FIELD=username)
+          if (!user && !identifier.includes('@')) {
+            const field = (process.env.USERNAME_FIELD || '').trim()
+            if (field) {
+              try {
+                const where: any = {}
+                where[field] = identifier
+                user = await prisma.user.findFirst({ where } as any)
+              } catch (_e) {
+                // If schema lacks the field, ignore and continue with invalid credentials
+              }
+            }
+          }
+          const userFound = user
           if (!user) throw new Error('Invalid credentials')
-          const isActive = (user as any).isActive ?? true
+          if (!userFound) throw new Error('Invalid credentials')
+          const isActive = (userFound as any).isActive ?? true
           if (!isActive) throw new Error('Invalid credentials')
-          const hash = (user as any).passwordHash ?? (user as any).password
-          const isPasswordValid = await bcrypt.compare(credentials.password, hash)
+          const hash = (userFound as any).passwordHash ?? (userFound as any).password
+          let isPasswordValid = false
+          if (typeof hash === 'string' && hash.startsWith('$2')) {
+            // Likely a bcrypt hash
+            isPasswordValid = await bcrypt.compare(credentials.password, hash)
+          } else {
+            // Fallback to plain-text match for legacy/dev records (dev only)
+            isPasswordValid = process.env.NODE_ENV !== 'production' && credentials.password === hash
+          }
           if (!isPasswordValid) throw new Error('Invalid credentials')
-          await prisma.user.update({ where: { id: (user as any).id }, data: { lastLoginAt: new Date() } } as any)
-          const roles = getUserEntitlements({ id: (user as any).id, email: (user as any).email, name: (user as any).fullName ?? (user as any).name, role: (user as any).role as any })
+          await prisma.user.update({ where: { id: (userFound as any).id }, data: { lastLoginAt: new Date() } } as any)
+          const roles = getUserEntitlements({ id: (userFound as any).id, email: (userFound as any).email, name: (userFound as any).fullName ?? (userFound as any).name, role: (userFound as any).role as any })
           const apps = Object.keys(roles)
           return {
-            id: (user as any).id,
-            email: (user as any).email,
-            name: (user as any).fullName ?? (user as any).name,
-            role: (user as any).role,
-            warehouseId: (user as any).warehouseId || undefined,
+            id: (userFound as any).id,
+            email: (userFound as any).email,
+            name: (userFound as any).fullName ?? (userFound as any).name,
+            role: (userFound as any).role,
+            warehouseId: (userFound as any).warehouseId || undefined,
             roles,
             apps,
           } as any
