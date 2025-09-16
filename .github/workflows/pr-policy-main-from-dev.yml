@@ -1,0 +1,24 @@
+name: PR Policy
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  require-dev-source:
+    name: Require PR head to be dev
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate source branch
+        run: |
+          echo "Base: ${{ github.base_ref }}"
+          echo "Head: ${{ github.head_ref }}"
+          if [ "${{ github.base_ref }}" != "main" ]; then
+            echo "Not targeting main; skipping."
+            exit 0
+          fi
+          if [ "${{ github.head_ref }}" != "dev" ]; then
+            echo "::error::PRs to main must come from dev (head was '${{ github.head_ref }}')"
+            exit 1
+          fi
+          echo "OK: dev → main PR"
