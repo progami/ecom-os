@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { signIn } from 'next-auth/react'
+// import { signIn } from 'next-auth/react'
 import { toast } from 'react-hot-toast'
 import { 
   Package2, 
@@ -39,25 +39,11 @@ export default function LandingPage() {
       // Wait a moment for the database transaction to complete
       await new Promise(resolve => setTimeout(resolve, 1000))
 
-      // Then sign in as demo admin
-      const result = await signIn('credentials', {
-        emailOrUsername: 'demo-admin',
-        password: 'SecureWarehouse2024!',
-        redirect: false,
-      })
-
-      if (result?.error) {
-        throw new Error('Failed to sign in to demo account')
-      }
-
-      toast.success('Welcome to WMS Demo! Explore all features with sample data.', {
-        duration: 6000,
-        icon: '🎉'
-      })
-      
-      // Redirect to unified dashboard
-      router.push('/dashboard')
-      router.refresh()
+      // Redirect to central login; after login, return to Dashboard
+      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+      const url = new URL('/login', central)
+      url.searchParams.set('callbackUrl', window.location.origin + '/dashboard')
+      window.location.href = url.toString()
     } catch (_error) {
       // console.error('Error setting up demo:', error)
       toast.error(_error instanceof Error ? _error.message : 'Failed to set up demo')
@@ -151,7 +137,16 @@ export default function LandingPage() {
             </button>
             
             <a
-              href="/auth/login"
+              href={(process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com') + '/login'}
+              onClick={(e) => {
+                e.preventDefault()
+                const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+                const url = new URL('/login', central)
+                if (typeof window !== 'undefined') {
+                  url.searchParams.set('callbackUrl', window.location.origin)
+                }
+                window.location.href = url.toString()
+              }}
               className="inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
             >
               <Package2 className="h-5 w-5" />

@@ -100,7 +100,10 @@ export default function UnifiedInventoryPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      router.push('/auth/login')
+      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+      const url = new URL('/login', central)
+      url.searchParams.set('callbackUrl', window.location.origin + '/operations/inventory')
+      window.location.href = url.toString()
       return
     }
     if (!['staff', 'admin'].includes(session.user.role)) {

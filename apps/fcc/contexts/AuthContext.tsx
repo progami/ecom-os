@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { signOut as nextAuthSignOut } from 'next-auth/react'
 import { waitForServerReady } from '@/lib/server-ready'
 
 // Use console for client-side logging
@@ -290,27 +291,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const signOut = async () => {
     try {
-      const response = await fetch('/api/v1/auth/signout', {
-        method: 'POST',
-        credentials: 'include'
-      })
-      
-      if (response.ok) {
-        // Clear auth state
-        setAuthState({
-          isAuthenticated: false,
-          user: null,
-          hasData: false,
-          hasActiveToken: false,
-          organization: null,
-          isLoading: false
-        })
-        
-        // Force a hard refresh to clear any cached state
-        window.location.replace('/login')
-      } else {
-        toast.error('Failed to sign out')
-      }
+      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+      const url = new URL('/api/auth/signout', central)
+      url.searchParams.set('callbackUrl', window.location.origin + '/login')
+      window.location.href = url.toString()
     } catch (error) {
       logger.error('Failed to sign out', error)
       toast.error('Error signing out')

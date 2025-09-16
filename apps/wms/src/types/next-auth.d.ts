@@ -9,6 +9,7 @@ declare module 'next-auth' {
       warehouseId?: string
       sessionId?: string
       isDemo?: boolean
+      departments?: string[]
     } & DefaultSession['user']
   }
   

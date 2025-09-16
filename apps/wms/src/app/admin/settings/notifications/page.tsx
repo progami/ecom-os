@@ -45,7 +45,7 @@ export default function NotificationSettingsPage() {
       fetchSettings()
     } else if (session) {
       // User is logged in but not an admin (must be 'staff')
-      router.push('/auth/login')
+      router.push('/dashboard')
     }
   }, [session, router])
 

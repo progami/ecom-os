@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { signOut, useSession } from 'next-auth/react'
+import { useSession } from 'next-auth/react'
 import {
   Package2,
   Home,
@@ -183,7 +183,12 @@ export function MainNav() {
                     )}
                     
                     <button
-                      onClick={() => signOut({ callbackUrl: '/auth/login' })}
+                      onClick={() => {
+                        const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+                        const url = new URL('/api/auth/signout', central)
+                        url.searchParams.set('callbackUrl', window.location.origin + '/auth/login')
+                        window.location.href = url.toString()
+                      }}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-2"
                     >
                       <LogOut className="h-4 w-4" />

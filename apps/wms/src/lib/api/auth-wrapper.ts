@@ -61,11 +61,31 @@ export function withAuthAndParams<T = unknown>(
 /**
  * Check if user has required role(s)
  */
-export function requireRole(
-  session: Session,
-  allowedRoles: string[]
-): boolean {
-  return allowedRoles.includes(session.user.role)
+export function requireRole(session: Session, allowedRoles: string[]): boolean {
+  return allowedRoles.includes((session.user as any).role)
+}
+
+export function requireDept(session: Session, allowedDepts: string[]): boolean {
+  const depts: string[] | undefined = (session.user as any).departments
+  if (!allowedDepts.length) return true
+  if (!depts?.length) return false
+  return allowedDepts.some((d) => depts.includes(d))
+}
+
+export function withRoleAndDept<T = unknown>(
+  allowedRoles: string[],
+  allowedDepts: string[] | undefined,
+  handler: AuthenticatedHandler<T>
+): (request: NextRequest) => Promise<NextResponse<T | { error: string }>> {
+  return withAuth(async (request, session) => {
+    if (!requireRole(session, allowedRoles)) {
+      return ApiResponses.forbidden('Insufficient role')
+    }
+    if (allowedDepts && !requireDept(session, allowedDepts)) {
+      return ApiResponses.forbidden('Insufficient department')
+    }
+    return handler(request, session)
+  })
 }
 
 /**

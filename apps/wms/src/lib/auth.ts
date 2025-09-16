@@ -1,9 +1,9 @@
 import { NextAuthOptions } from 'next-auth'
-import { withSharedAuth } from '@ecom-os/auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import { prisma } from '@/lib/prisma'
-import bcrypt from 'bcryptjs'
+import { withSharedAuth } from '@ecom-os/auth'
 import { UserRole } from '@prisma/client'
+
+const secure = process.env.NODE_ENV === 'production'
 
 const baseAuthOptions: NextAuthOptions = {
   session: {
@@ -12,72 +12,38 @@ const baseAuthOptions: NextAuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === 'development',
+  // Include a no-op credentials provider so NextAuth routes (csrf/session) function
+  // WMS does not authenticate locally; central portal issues the session cookie
   providers: [
     CredentialsProvider({
-      name: 'credentials',
+      name: 'noop',
       credentials: {
-        emailOrUsername: { label: 'Email or Username', type: 'text' },
+        username: { label: 'Username', type: 'text' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials) {
-        if (!credentials?.emailOrUsername || !credentials?.password) {
-          throw new Error('Invalid credentials')
-        }
-
-        const user = await prisma.user.findFirst({
-          where: {
-            OR: [
-              { email: credentials.emailOrUsername },
-              { username: credentials.emailOrUsername }
-            ]
-          }
-        })
-
-        if (!user || !user.isActive) {
-          throw new Error('Invalid credentials')
-        }
-
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.passwordHash
-        )
-
-        if (!isPasswordValid) {
-          throw new Error('Invalid credentials')
-        }
-
-        // Update last login
-        await prisma.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        })
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.fullName,
-          role: user.role,
-          warehouseId: user.warehouseId || undefined,
-          isDemo: user.isDemo,
-        }
+      async authorize() {
+        return null
       },
     }),
   ],
   callbacks: {
     async jwt({ token, user }) {
-      if (user) {
-        token.sub = user.id  // Ensure sub is set to the actual user ID
-        token.role = user.role
-        token.warehouseId = user.warehouseId
-        token.isDemo = user.isDemo
+      // WMS is decode-only; preserve central claims
+      if (user && (user as any).id) {
+        token.sub = (user as any).id
       }
       return token
     },
     async session({ session, token }) {
-      session.user.id = token.sub!
-      session.user.role = token.role as UserRole
-      session.user.warehouseId = token.warehouseId as string | undefined
-      session.user.isDemo = token.isDemo as boolean | undefined
+      session.user.id = (token.sub as string) || session.user.id
+      // Prefer central roles claim for WMS
+      const roles: any = (token as any).roles
+      const wmsEnt = roles?.wms as { role?: string; depts?: string[] } | undefined
+      if (wmsEnt?.role) {
+        session.user.role = (wmsEnt.role as string) as UserRole
+      }
+      // @ts-expect-error augment
+      session.user.departments = wmsEnt?.depts
       return session
     },
   },
@@ -89,5 +55,9 @@ const baseAuthOptions: NextAuthOptions = {
 
 export const authOptions: NextAuthOptions = withSharedAuth(
   baseAuthOptions,
-  process.env.COOKIE_DOMAIN || '.targonglobal.com'
+  {
+    cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
+    // Use central cookie prefix so NextAuth reads the same dev cookie as ecomOS
+    appId: 'ecomos',
+  }
 )

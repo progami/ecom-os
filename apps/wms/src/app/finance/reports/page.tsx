@@ -8,7 +8,9 @@ export default async function FinanceReportsPage() {
   const session = await getServerSession(authOptions)
 
   if (!session) {
-    redirect('/auth/login')
+    const central = process.env.CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+    redirect(`${central}/login?callbackUrl=${encodeURIComponent(appUrl + '/finance/reports')}`)
   }
 
   // Both admin and staff can access finance reports

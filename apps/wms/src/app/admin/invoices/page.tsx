@@ -20,7 +20,12 @@ export default function AdminInvoicesPage() {
   }
 
   if (!session || session.user.role !== 'admin') {
-    redirect('/auth/login')
+    if (typeof window !== 'undefined') {
+      const central = (process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL as string) || 'https://ecomos.targonglobal.com'
+      const url = new URL('/login', central)
+      url.searchParams.set('callbackUrl', window.location.origin + '/admin/invoices')
+      window.location.replace(url.toString())
+    }
     return null
   }
 
