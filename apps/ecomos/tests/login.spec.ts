@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test'
 
 const CENTRAL = 'http://localhost:3000'
 const WMS = 'http://localhost:3001'
-const DEMO_USERNAMES = ['demo-admin@warehouse.com']
-const DEMO_PASS = 'SecureWarehouse2024!'
+const DEMO_USERNAMES = ['jarraramjad']
+const DEMO_PASS = 'xUh2*KC2%tZYNzV'
 
 test('portal login redirects to portal home', async ({ page }) => {
   await page.goto(`${CENTRAL}/login`, { waitUntil: 'domcontentloaded' })

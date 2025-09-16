@@ -2,12 +2,27 @@ import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
-import { withSharedAuth } from '@ecom-os/auth'
+import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 import { getUserEntitlements } from '@/lib/entitlements'
+
+const devPort = process.env.PORT || 3000
+const devBaseUrl = `http://localhost:${devPort}`
+applyDevAuthDefaults({
+  appId: 'ecomos',
+  port: devPort,
+  baseUrl: devBaseUrl,
+  cookieDomain: 'localhost',
+  centralUrl: devBaseUrl,
+  publicCentralUrl: devBaseUrl,
+})
 
 const baseAuthOptions: NextAuthOptions = {
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
   secret: process.env.NEXTAUTH_SECRET,
+  pages: {
+    signIn: '/login',
+    error: '/login',
+  },
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -21,16 +36,22 @@ const baseAuthOptions: NextAuthOptions = {
         }
         // If DATABASE_URL is not configured in dev, allow a safe demo fallback
         const hasDb = !!process.env.DATABASE_URL
-        const demoEnabled = process.env.NODE_ENV !== 'production' && ['1','true','yes','on'].includes(String(process.env.DEMO_LOGIN_ENABLED || '').toLowerCase())
-        if (!hasDb || demoEnabled) {
-          const demoUsernames = ['demo-admin', 'demo-admin@warehouse.com']
-          const demoPass = process.env.DEMO_ADMIN_PASSWORD || 'SecureWarehouse2024!'
-          if (demoUsernames.includes(credentials.emailOrUsername) && credentials.password === demoPass) {
-            const fauxUser = { id: 'demo-admin-id', email: 'demo-admin@warehouse.com', name: 'Demo Admin', role: 'admin' }
-            const roles = getUserEntitlements(fauxUser)
-            const apps = Object.keys(roles)
-            return { id: fauxUser.id, email: fauxUser.email, name: fauxUser.name, role: fauxUser.role, roles, apps } as any
+        const demoToggle = ['1','true','yes','on'].includes(String(process.env.DEMO_LOGIN_ENABLED || '').toLowerCase())
+        const demoUsername = String(process.env.DEMO_ADMIN_USERNAME || 'jarraramjad')
+        const demoPass = String(process.env.DEMO_ADMIN_PASSWORD || 'xUh2*KC2%tZYNzV')
+        const allowDemo = process.env.NODE_ENV !== 'production' && (!hasDb || demoToggle || credentials.emailOrUsername === demoUsername)
+        if (allowDemo && credentials.emailOrUsername === demoUsername && credentials.password === demoPass) {
+          const fauxUser = {
+            id: 'demo-admin-id',
+            email: process.env.DEMO_ADMIN_EMAIL || 'jarraramjad@targonglobal.com',
+            name: 'Jarrar Amjad',
+            role: 'admin',
           }
+          const roles = getUserEntitlements(fauxUser)
+          const apps = Object.keys(roles)
+          return { id: fauxUser.id, email: fauxUser.email, name: fauxUser.name, role: fauxUser.role, roles, apps } as any
+        }
+        if (allowDemo && !hasDb) {
           throw new Error('Invalid credentials')
         }
         // Normal DB-backed flow

@@ -67,10 +67,45 @@ export const AuthEnvSchema = z.object({
 /**
  * Compose app-specific NextAuth options with shared, secure defaults.
  */
+const truthyValues = new Set(['1', 'true', 'yes', 'on']);
+/**
+ * Provide sane defaults for local development so NextAuth stops warning about missing env vars.
+ */
+export function applyDevAuthDefaults(options = {}) {
+    if (process.env.NODE_ENV === 'production')
+        return;
+    if (!process.env.NEXTAUTH_SECRET) {
+        const suffix = options.appId ? `-${options.appId}` : '';
+        // 32+ chars keeps jose happy for local JWT encryption/decryption.
+        process.env.NEXTAUTH_SECRET = `dev-only-nextauth-secret${suffix}-change-me`;
+    }
+    if (!process.env.NEXTAUTH_URL) {
+        const port = options.port ?? process.env.PORT ?? 3000;
+        const baseUrl = options.baseUrl ?? `http://localhost:${port}`;
+        process.env.NEXTAUTH_URL = String(baseUrl);
+    }
+    if (!process.env.COOKIE_DOMAIN && options.cookieDomain) {
+        process.env.COOKIE_DOMAIN = options.cookieDomain;
+    }
+    if (!process.env.CENTRAL_AUTH_URL && options.centralUrl) {
+        process.env.CENTRAL_AUTH_URL = options.centralUrl;
+    }
+    if (!process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL && options.publicCentralUrl) {
+        process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL = options.publicCentralUrl;
+    }
+    if (process.env.NEXTAUTH_DEBUG === undefined) {
+        // Default to off; callers can opt-in with NEXTAUTH_DEBUG=1 if needed.
+        process.env.NEXTAUTH_DEBUG = '0';
+    }
+}
 export function withSharedAuth(base, optsOrDomain) {
     const opts = typeof optsOrDomain === 'string'
         ? { cookieDomain: optsOrDomain }
         : optsOrDomain;
+    const envDebug = process.env.NEXTAUTH_DEBUG ? truthyValues.has(process.env.NEXTAUTH_DEBUG.toLowerCase()) : undefined;
+    const baseDebug = typeof base.debug === 'boolean' ? base.debug : undefined;
+    const debug = envDebug ?? baseDebug ?? false;
+    const secret = process.env.NEXTAUTH_SECRET ?? base.secret;
     return {
         // Keep base providers/callbacks etc. from app
         ...base,
@@ -79,8 +114,8 @@ export function withSharedAuth(base, optsOrDomain) {
             maxAge: 30 * 24 * 60 * 60,
             ...base.session,
         },
-        debug: process.env.NODE_ENV === 'development' || !!base.debug,
-        secret: process.env.NEXTAUTH_SECRET ?? base.secret,
+        debug,
+        secret,
         cookies: {
             ...buildCookieOptions({ domain: opts.cookieDomain, sameSite: 'lax', appId: opts.appId }),
             ...base.cookies,

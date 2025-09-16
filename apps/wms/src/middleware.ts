@@ -73,7 +73,10 @@ export async function middleware(request: NextRequest) {
 
   // If no token and trying to access protected route, redirect to central login
   if (!token && !normalizedPath.startsWith('/auth/')) {
-    const central = process.env.CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+    const defaultCentral = process.env.NODE_ENV === 'production'
+      ? 'https://ecomos.targonglobal.com'
+      : 'http://localhost:3000'
+    const central = process.env.CENTRAL_AUTH_URL || defaultCentral
     const redirect = new URL('/login', central)
     redirect.searchParams.set('callbackUrl', request.nextUrl.toString())
     return NextResponse.redirect(redirect)

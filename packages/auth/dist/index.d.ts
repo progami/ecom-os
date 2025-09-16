@@ -30,9 +30,18 @@ export interface SharedAuthOptions {
     cookieDomain: string;
     appId?: string;
 }
+export interface DevAuthDefaultsOptions {
+    appId?: string;
+    port?: string | number;
+    baseUrl?: string;
+    cookieDomain?: string;
+    centralUrl?: string;
+    publicCentralUrl?: string;
+}
 /**
- * Compose app-specific NextAuth options with shared, secure defaults.
+ * Provide sane defaults for local development so NextAuth stops warning about missing env vars.
  */
+export declare function applyDevAuthDefaults(options?: DevAuthDefaultsOptions): void;
 export declare function withSharedAuth(base: NextAuthOptions, optsOrDomain: SharedAuthOptions | string): NextAuthOptions;
 /**
  * Helper to derive the likely session cookie names to probe in middleware.

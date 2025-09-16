@@ -1,12 +1,23 @@
 import type { NextAuthOptions } from 'next-auth'
-import { withSharedAuth } from '@ecom-os/auth'
+import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
+
+const devPort = process.env.PORT || process.env.FCC_PORT || 3003
+const devBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${devPort}`
+const centralDev = process.env.CENTRAL_AUTH_URL || 'http://localhost:3000'
+applyDevAuthDefaults({
+  appId: 'ecomos',
+  port: devPort,
+  baseUrl: devBaseUrl,
+  cookieDomain: 'localhost',
+  centralUrl: centralDev,
+  publicCentralUrl: process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'http://localhost:3000',
+})
 
 const baseAuthOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60,
   },
-  secret: process.env.NEXTAUTH_SECRET,
   callbacks: {
     async jwt({ token, user }) {
       if (user && (user as any).id) {

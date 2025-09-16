@@ -1,7 +1,19 @@
 import type { NextAuthOptions } from 'next-auth';
-import { withSharedAuth } from '@ecom-os/auth';
+import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth';
 
 // NOTE: Keep providers/callbacks/pages here as HRMS evolves.
+const devPort = process.env.PORT || process.env.HRMS_PORT || 3006;
+const devBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${devPort}`;
+const centralDev = process.env.CENTRAL_AUTH_URL || 'http://localhost:3000';
+applyDevAuthDefaults({
+  appId: 'ecomos',
+  port: devPort,
+  baseUrl: devBaseUrl,
+  cookieDomain: 'localhost',
+  centralUrl: centralDev,
+  publicCentralUrl: process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'http://localhost:3000',
+});
+
 const baseAuthOptions: NextAuthOptions = {
   // Add providers when ready (e.g., Credentials, OIDC)
   providers: [],

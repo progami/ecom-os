@@ -31,7 +31,10 @@ export async function middleware(request: NextRequest) {
     } catch {}
 
     if (!hasSession) {
-      const central = process.env.CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+      const defaultCentral = process.env.NODE_ENV === 'production'
+        ? 'https://ecomos.targonglobal.com'
+        : 'http://localhost:3000'
+      const central = process.env.CENTRAL_AUTH_URL || defaultCentral
       const login = new URL('/login', central)
       login.searchParams.set('callbackUrl', request.nextUrl.toString())
       return NextResponse.redirect(login)
@@ -46,4 +49,3 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }
-
