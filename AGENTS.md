@@ -32,4 +32,4 @@
 - Group changes by app or shared package and mention additional workspaces touched when scopes differ.
 - PRs should include purpose, testing evidence (`pnpm lint && pnpm test`), screenshots for UI shifts, and linked GitHub issues.
 - Request owners of affected apps and shared packages as reviewers; flag infra updates for DevOps before merge.
-- Branching: use short-lived `feature/*` branches off `dev`, merge via PR with passing checks, and let automation fast-forward `main` from `dev`; never push directly to `main`.
+- Branching: work on short-lived `feature/*` branches off `dev`, merge back through PR with passing checks, delete the feature branch after merge, and advance `main` only via a deliberate release PR—never automation or direct pushes.
