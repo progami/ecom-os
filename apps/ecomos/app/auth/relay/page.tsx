@@ -43,7 +43,7 @@ export default function AuthRelay({ searchParams }: { searchParams?: { to?: stri
           <div style={{width:8, height:8, background:'#00C2B9', borderRadius:'50%', animation:'bounce 1.4s ease-in-out infinite', animationDelay:'0.4s'}}></div>
         </div>
       </div>
-      <style jsx>{`
+      <style jsx global>{`
         @keyframes pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.8; }
@@ -56,4 +56,3 @@ export default function AuthRelay({ searchParams }: { searchParams?: { to?: stri
     </div>
   )
 }
-

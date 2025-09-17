@@ -6,9 +6,11 @@ export type AppDef = {
   name: string
   description: string
   url: string
+  category: string
   icon?: string
   roles?: string[] // allowed roles (optional). If omitted, all roles allowed
   devPath?: string
+  devUrl?: string
 }
 
 export const ALL_APPS: AppDef[] = [
@@ -17,6 +19,7 @@ export const ALL_APPS: AppDef[] = [
     name: 'Warehouse Management',
     description: 'Inbound, outbound, inventory and reporting.',
     url: 'https://wms.targonglobal.com',
+    category: 'Ops',
     roles: ['admin', 'manager', 'staff']
   },
   {
@@ -25,6 +28,7 @@ export const ALL_APPS: AppDef[] = [
     description: 'HR, payroll and people operations.',
     url: 'https://hrms.targonglobal.com',
     devPath: '/hrms',
+    category: 'HR / Admin',
     roles: ['admin', 'hr']
   },
   {
@@ -32,6 +36,7 @@ export const ALL_APPS: AppDef[] = [
     name: 'Finance Console',
     description: 'Financial data, reports and integrations.',
     url: 'https://fcc.targonglobal.com',
+    category: 'Finance',
     roles: ['admin', 'finance']
   },
   {
@@ -39,6 +44,25 @@ export const ALL_APPS: AppDef[] = [
     name: 'Website',
     description: 'Marketing website and CMS.',
     url: 'https://www.targonglobal.com',
+    category: 'Product',
+  },
+  {
+    id: 'margin-master',
+    name: 'Margin Master',
+    description: 'Profitability analytics and sales performance insights.',
+    url: 'https://mm.targonglobal.com',
+    category: 'Product',
+    devUrl: 'http://localhost:3007',
+    roles: ['admin', 'marketing', 'viewer'],
+  },
+  {
+    id: 'legal-suite',
+    name: 'Legal Suite',
+    description: 'Contract repository and compliance workflows.',
+    url: 'https://legal.targonglobal.com',
+    category: 'Legal',
+    devUrl: 'http://localhost:3015',
+    roles: ['admin', 'legal'],
   },
 ]
 
@@ -99,6 +123,10 @@ export function resolveAppUrl(app: AppDef): string {
       const host = cfg.host || 'localhost'
       base = typeof val === 'number' ? `http://${host}:${val}` : typeof val === 'string' ? val : undefined
     }
+  }
+
+  if (!base && (process.env.NODE_ENV as string | undefined) !== 'production' && app.devUrl) {
+    base = app.devUrl
   }
 
   if (!base) {

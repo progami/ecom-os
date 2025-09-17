@@ -1,137 +1,276 @@
-'use client'
+import type { ReactNode } from 'react'
+import type { Session } from 'next-auth'
 
-import './portal.css'
+import styles from './portal.module.css'
 
-export default function PortalClient({ session, apps, roles }: any) {
-  // Icon mapping for different apps
-  const getAppIcon = (appId: string) => {
-    switch(appId) {
-      case 'wms':
-        return (
-          <svg className="icon-svg" viewBox="0 0 24 24" fill="none">
-            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M9 22V12h6v10M8 12H5m14 0h-3m-7-7v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <rect x="9" y="14" width="6" height="3" stroke="currentColor" strokeWidth="1.5"/>
-          </svg>
-        )
-      case 'hrms':
-        return (
-          <svg className="icon-svg" viewBox="0 0 24 24" fill="none">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        )
-      case 'fcc':
-        return (
-          <svg className="icon-svg" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M3 12h18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.3"/>
-          </svg>
-        )
-      case 'website':
-        return (
-          <svg className="icon-svg" viewBox="0 0 24 24" fill="none">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M2 12h20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        )
-      default:
-        return (
-          <svg className="icon-svg" viewBox="0 0 24 24" fill="none">
-            <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.5"/>
-            <path d="M9 9h6v6H9z" stroke="currentColor" strokeWidth="1.5"/>
-          </svg>
-        )
-    }
+type PortalApp = {
+  id: string
+  name: string
+  description: string
+  url: string
+  category: string
+}
+
+type PortalRoleMap = Record<string, { role: string; depts?: string[] }>
+
+const CATEGORY_ORDER = [
+  'Ops',
+  'Sales / Marketing',
+  'Account / Listing',
+  'HR / Admin',
+  'Finance',
+  'Legal',
+]
+
+const OTHER_CATEGORY = 'Other'
+
+const FALLBACK_ICON = (
+  <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+    <rect x="3" y="3" width="18" height="18" rx="4" fill="rgba(0,194,185,0.15)" />
+    <path d="M9 9h6v6H9z" fill="#00c2b9" opacity="0.75" />
+  </svg>
+)
+
+const APP_ICONS: Record<string, ReactNode> = {
+  wms: (
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+      <path
+        d="M3 9l9-6.5L21 9v9.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 5 18.5V9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M9 11.5h6v8.5H9z"
+        fill="rgba(0,194,185,0.35)"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
+  hrms: (
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+      <circle
+        cx="9"
+        cy="7"
+        r="4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        fill="rgba(0,194,185,0.25)"
+      />
+      <path
+        d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16 3.1a4 4 0 0 1 0 7.8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.6"
+      />
+    </svg>
+  ),
+  fcc: (
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+      <path
+        d="M12 3v18"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path
+        d="M17 6.5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  ),
+  website: (
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.4" fill="none" />
+      <path
+        d="M3 12h18"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        opacity="0.7"
+      />
+      <path
+        d="M12 3a18 18 0 0 1 4.5 9 18 18 0 0 1-4.5 9 18 18 0 0 1-4.5-9A18 18 0 0 1 12 3z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        opacity="0.7"
+        fill="none"
+      />
+    </svg>
+  ),
+}
+
+const getAppIcon = (appId: string): ReactNode => APP_ICONS[appId] ?? FALLBACK_ICON
+
+type PortalClientProps = {
+  session: Session
+  apps: PortalApp[]
+  roles?: PortalRoleMap
+}
+
+export default function PortalClient({ session, apps, roles }: PortalClientProps) {
+  const roleMap = roles ?? {}
+  const hasApps = apps.length > 0
+
+  const normalizeCategory = (value?: string | null) => {
+    const trimmed = value?.trim()
+    return trimmed && trimmed.length > 0 ? trimmed : OTHER_CATEGORY
   }
 
+  const appsByCategory = apps.reduce<Record<string, PortalApp[]>>((acc, app) => {
+    const assigned = roleMap[app.id]?.depts
+    const primaryCategory = normalizeCategory(assigned?.[0] ?? (app as any).category)
+    acc[primaryCategory] = acc[primaryCategory]
+      ? [...acc[primaryCategory], app]
+      : [app]
+    return acc
+  }, {})
+
+  const orderedCategories = CATEGORY_ORDER.filter((k) => appsByCategory[k]?.length)
+    .concat(
+      Object.keys(appsByCategory).filter(
+        (key) => !CATEGORY_ORDER.includes(key) && appsByCategory[key]?.length
+      )
+    )
+
   return (
-    <div className="portal-container">
-      <header className="portal-header">
-        <div className="header-brand">
-          <div className="logo-box">
-            <svg className="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </div>
-          <h1 className="portal-title">ecomOS Portal</h1>
-        </div>
-        <div className="header-actions">
-          <div className="user-email">{session.user?.email}</div>
-          <form action="/api/auth/signout" method="POST">
-            <button type="submit" className="signout-btn">Sign Out</button>
-          </form>
-        </div>
-      </header>
-
-      <main className="portal-main">
-        <div className="welcome-section">
-          <h2 className="welcome-title">Control Center</h2>
-          <p className="welcome-subtitle">Manage your business operations from one unified platform</p>
-        </div>
-
-        <div className="apps-grid">
-          {apps.map((app: any) => (
-            <a key={app.id} href={app.url} className="app-card">
-              <div className="app-card-glow"></div>
-              <div className="app-card-header">
-                <div className="app-icon">
-                  {getAppIcon(app.id)}
-                </div>
-                <svg className="arrow-icon" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd"/>
-                </svg>
-              </div>
-              <div className="app-card-body">
-                <div className="app-name">{app.name}</div>
-                <div className="app-description">{app.description}</div>
-              </div>
-              <div className="app-card-footer">
-                <div className="role-chip">
-                  <span className="role-label">Role:</span>
-                  <span className="role-value">{(roles as any)[app.id]?.role}</span>
-                </div>
-              </div>
-            </a>
-          ))}
-
-          {apps.length === 0 && (
-            <div className="empty-state">
-              <svg className="empty-icon" viewBox="0 0 24 24" fill="none">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+    <div className={styles.container}>
+      <div className={styles.headerBar}>
+        <header className={styles.header}>
+          <div className={styles.brand}>
+            <div className={styles.logo} aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none">
+                <path
+                  d="M12 2 2 7l10 5 10-5-10-5Z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M2 12l10 5 10-5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity="0.7"
+                />
+                <path
+                  d="M2 17l10 5 10-5"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  opacity="0.4"
+                />
               </svg>
-              <h3 className="empty-title">No Applications Available</h3>
-              <p className="empty-text">You don't have access to any applications yet. Please contact your system administrator for access.</p>
             </div>
-          )}
-        </div>
-      </main>
-
-      {apps.length > 0 && (
-        <footer className="portal-footer">
-          <div className="footer-content">
-            <h3 className="footer-title">Your Access Privileges</h3>
-            <div className="access-grid">
-              {apps.map((app: any) => (
-                <div key={app.id} className="access-item">
-                  <div className="access-icon">{getAppIcon(app.id)}</div>
-                  <div className="access-details">
-                    <span className="access-app">{app.name}</span>
-                    <span className="access-role">{(roles as any)[app.id]?.role}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <span className={styles.brandTitle}>ecomOS Portal</span>
           </div>
-        </footer>
-      )}
+          <div className={styles.headerCenter}>Control Center</div>
+          <div className={styles.actions}>
+            <span>{session.user?.email}</span>
+            <form action="/api/auth/signout" method="POST">
+              <button type="submit" className={styles.signOut}>
+                Sign out
+              </button>
+            </form>
+          </div>
+        </header>
+      </div>
+
+      <main className={styles.main}>
+          <section className={styles.intro}>
+            <span className={styles.introSpacer} aria-hidden="true" />
+          </section>
+
+          <section aria-label="Available applications" className={styles.categoriesSection}>
+            {orderedCategories.map((category) => (
+              <div key={category} className={styles.categoryBlock}>
+                <div className={styles.categoryHeader}>
+                  <span className={styles.categoryBadge}>{category}</span>
+                  <span className={styles.categoryCount}>
+                    {appsByCategory[category]?.length ?? 0} apps
+                  </span>
+                </div>
+                <div className={styles.grid}>
+                  {appsByCategory[category]?.map((app) => {
+                    const isDisabled = app.category === 'Legal'
+                    const cardClassName = isDisabled
+                      ? `${styles.card} ${styles.cardDisabled}`
+                      : styles.card
+
+                    return (
+                      <a
+                        key={app.id}
+                        href={isDisabled ? undefined : app.url}
+                        className={cardClassName}
+                        aria-disabled={isDisabled}
+                        tabIndex={isDisabled ? -1 : undefined}
+                      >
+                        <div className={styles.iconWrap}>
+                          <div className={styles.iconBox}>{getAppIcon(app.id)}</div>
+                          <svg className={styles.arrow} viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
+                            <path
+                              d="M8 5h6.59L7.3 12.29A1 1 0 0 0 8.7 13.7L16 6.41V13a1 1 0 1 0 2 0V4a1 1 0 0 0-1-1H8a1 1 0 0 0 0 2Z"
+                              fill="currentColor"
+                            />
+                          </svg>
+                        </div>
+                        <div className={styles.name}>{app.name}</div>
+                        <p className={styles.description}>{app.description}</p>
+                      </a>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+
+            {!hasApps && (
+              <div className={styles.empty}>
+                <h2 className={styles.emptyTitle}>No applications assigned</h2>
+                <p>We could not find any entitlements linked to your account. Reach out to an administrator.</p>
+              </div>
+            )}
+          </section>
+
+          {hasApps && (
+            <section aria-label="Current access summary" className={styles.rolesSection}>
+              <h2 className={styles.rolesHeading}>Access summary</h2>
+              <ul className={styles.rolesList}>
+                {apps.map((app) => {
+                  const role = roleMap[app.id]?.role
+                  return (
+                    <li key={app.id}>
+                      {app.name}
+                      {role ? `: ${role}` : ''}
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
+          )}
+      </main>
     </div>
   )
 }
