@@ -42,8 +42,8 @@ const baseAuthOptions: NextAuthOptions = {
         // If DATABASE_URL is not configured in dev, allow a safe demo fallback
         const hasDb = !!process.env.DATABASE_URL
         const demoToggle = ['1','true','yes','on'].includes(String(process.env.DEMO_LOGIN_ENABLED || '').toLowerCase())
-        const demoUsername = String(process.env.DEMO_ADMIN_USERNAME || 'jarraramjad')
-        const demoPass = String(process.env.DEMO_ADMIN_PASSWORD || 'xUh2*KC2%tZYNzV')
+        const demoUsername = String(process.env.DEMO_ADMIN_USERNAME || 'demo-admin')
+        const demoPass = String(process.env.DEMO_ADMIN_PASSWORD || 'demo-password')
         const allowDemo = process.env.NODE_ENV !== 'production' && (!hasDb || demoToggle || credentials.emailOrUsername === demoUsername)
         if (allowDemo && credentials.emailOrUsername === demoUsername && credentials.password === demoPass) {
           const fauxUser = {
