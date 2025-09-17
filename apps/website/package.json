@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "NODE_ENV=production node server.js",
+    "start": "next start",
     "lint": "eslint . --max-warnings=0",
     "type-check": "tsc --noEmit --skipLibCheck",
     "format": "prettier --write \"{app,components,docs}/**/*.{ts,tsx,md}\""
