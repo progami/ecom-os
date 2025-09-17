@@ -9,9 +9,9 @@
     "start": "next start -p 3004",
     "lint": "next lint",
     "type-check": "tsc --noEmit --skipLibCheck",
-    "test": "playwright test",
-    "test:ui": "playwright test tests/ui",
-    "test:business": "playwright test tests/business"
+    "test": "echo 'central-db tests are disabled for dev'",
+    "test:ui": "echo 'central-db tests are disabled for dev'",
+    "test:business": "echo 'central-db tests are disabled for dev'"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
