@@ -73,7 +73,9 @@ const truthyValues = new Set(['1', 'true', 'yes', 'on']);
  * Provide sane defaults for local development so NextAuth stops warning about missing env vars.
  */
 export function applyDevAuthDefaults(options = {}) {
-    if (process.env.NODE_ENV === 'production')
+    const env = process.env.NODE_ENV ?? 'development';
+    const isDevLike = env === 'development' || env === 'test';
+    if (!isDevLike)
         return;
     if (!process.env.NEXTAUTH_SECRET) {
         const suffix = options.appId ? `-${options.appId}` : '';
@@ -106,7 +108,25 @@ export function withSharedAuth(base, optsOrDomain) {
     const envDebug = process.env.NEXTAUTH_DEBUG ? truthyValues.has(process.env.NEXTAUTH_DEBUG.toLowerCase()) : undefined;
     const baseDebug = typeof base.debug === 'boolean' ? base.debug : undefined;
     const debug = envDebug ?? baseDebug ?? false;
-    const secret = process.env.NEXTAUTH_SECRET ?? base.secret;
+    const resolvedSecret = process.env.NEXTAUTH_SECRET ?? base.secret;
+    const envMode = process.env.NODE_ENV ?? 'development';
+    const isDevLike = envMode === 'development' || envMode === 'test';
+    if (!resolvedSecret) {
+        throw new Error('NEXTAUTH_SECRET (or CENTRAL_AUTH_SECRET) must be provided for shared auth.');
+    }
+    if (!isDevLike) {
+        const result = AuthEnvSchema.safeParse({
+            NEXTAUTH_SECRET: resolvedSecret,
+            NEXTAUTH_URL: process.env.NEXTAUTH_URL,
+            COOKIE_DOMAIN: process.env.COOKIE_DOMAIN ?? opts.cookieDomain,
+        });
+        if (!result.success) {
+            const detail = result.error.issues
+                .map((issue) => `${issue.path.join('.') || 'config'}: ${issue.message}`)
+                .join('; ');
+            throw new Error(`Missing required auth configuration: ${detail}`);
+        }
+    }
     return {
         // Keep base providers/callbacks etc. from app
         ...base,
@@ -116,7 +136,7 @@ export function withSharedAuth(base, optsOrDomain) {
             ...base.session,
         },
         debug,
-        secret,
+        secret: resolvedSecret,
         cookies: {
             ...buildCookieOptions({ domain: opts.cookieDomain, sameSite: 'lax', appId: opts.appId }),
             ...base.cookies,
