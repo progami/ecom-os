@@ -143,7 +143,7 @@ export default function LandingPage() {
                 const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
                 const url = new URL('/login', central)
                 if (typeof window !== 'undefined') {
-                  url.searchParams.set('callbackUrl', window.location.origin)
+                  url.searchParams.set('callbackUrl', `${window.location.origin}/dashboard`)
                 }
                 window.location.href = url.toString()
               }}

@@ -1,17 +1,34 @@
 import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import { withSharedAuth } from '@ecom-os/auth'
+import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 import { UserRole } from '@prisma/client'
 
 const secure = process.env.NODE_ENV === 'production'
+
+const devPort = process.env.PORT || process.env.WMS_PORT || 3001
+const devBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${devPort}`
+const centralDev = process.env.CENTRAL_AUTH_URL || 'http://localhost:3000'
+applyDevAuthDefaults({
+  appId: 'ecomos',
+  port: devPort,
+  baseUrl: devBaseUrl,
+  cookieDomain: 'localhost',
+  centralUrl: centralDev,
+  publicCentralUrl: process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'http://localhost:3000',
+})
+
+const sharedSecret = process.env.CENTRAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
+if (sharedSecret) {
+  process.env.NEXTAUTH_SECRET = sharedSecret
+}
 
 const baseAuthOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === 'development',
+  secret: sharedSecret,
+  debug: false,
   // Include a no-op credentials provider so NextAuth routes (csrf/session) function
   // WMS does not authenticate locally; central portal issues the session cookie
   providers: [

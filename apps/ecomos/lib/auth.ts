@@ -2,12 +2,32 @@ import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
-import { withSharedAuth } from '@ecom-os/auth'
+import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 import { getUserEntitlements } from '@/lib/entitlements'
+
+const devPort = process.env.PORT || 3000
+const devBaseUrl = `http://localhost:${devPort}`
+applyDevAuthDefaults({
+  appId: 'ecomos',
+  port: devPort,
+  baseUrl: devBaseUrl,
+  cookieDomain: 'localhost',
+  centralUrl: devBaseUrl,
+  publicCentralUrl: devBaseUrl,
+})
+
+const sharedSecret = process.env.CENTRAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
+if (sharedSecret) {
+  process.env.NEXTAUTH_SECRET = sharedSecret
+}
 
 const baseAuthOptions: NextAuthOptions = {
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: sharedSecret,
+  pages: {
+    signIn: '/login',
+    error: '/login',
+  },
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -21,16 +41,22 @@ const baseAuthOptions: NextAuthOptions = {
         }
         // If DATABASE_URL is not configured in dev, allow a safe demo fallback
         const hasDb = !!process.env.DATABASE_URL
-        const demoEnabled = process.env.NODE_ENV !== 'production' && ['1','true','yes','on'].includes(String(process.env.DEMO_LOGIN_ENABLED || '').toLowerCase())
-        if (!hasDb || demoEnabled) {
-          const demoUsernames = ['demo-admin', 'demo-admin@warehouse.com']
-          const demoPass = process.env.DEMO_ADMIN_PASSWORD || 'SecureWarehouse2024!'
-          if (demoUsernames.includes(credentials.emailOrUsername) && credentials.password === demoPass) {
-            const fauxUser = { id: 'demo-admin-id', email: 'demo-admin@warehouse.com', name: 'Demo Admin', role: 'admin' }
-            const roles = getUserEntitlements(fauxUser)
-            const apps = Object.keys(roles)
-            return { id: fauxUser.id, email: fauxUser.email, name: fauxUser.name, role: fauxUser.role, roles, apps } as any
+        const demoToggle = ['1','true','yes','on'].includes(String(process.env.DEMO_LOGIN_ENABLED || '').toLowerCase())
+        const demoUsername = String(process.env.DEMO_ADMIN_USERNAME || 'demo-admin')
+        const demoPass = String(process.env.DEMO_ADMIN_PASSWORD || 'demo-password')
+        const allowDemo = process.env.NODE_ENV !== 'production' && (!hasDb || demoToggle || credentials.emailOrUsername === demoUsername)
+        if (allowDemo && credentials.emailOrUsername === demoUsername && credentials.password === demoPass) {
+          const fauxUser = {
+            id: 'demo-admin-id',
+            email: process.env.DEMO_ADMIN_EMAIL || 'jarraramjad@targonglobal.com',
+            name: 'Jarrar Amjad',
+            role: 'admin',
           }
+          const roles = getUserEntitlements(fauxUser)
+          const apps = Object.keys(roles)
+          return { id: fauxUser.id, email: fauxUser.email, name: fauxUser.name, role: fauxUser.role, roles, apps } as any
+        }
+        if (allowDemo && !hasDb) {
           throw new Error('Invalid credentials')
         }
         // Normal DB-backed flow
@@ -104,8 +130,10 @@ const baseAuthOptions: NextAuthOptions = {
       return session
     },
     async redirect({ url, baseUrl }) {
-      const allow = String(process.env.ALLOW_CALLBACK_REDIRECT || '').toLowerCase()
-      const allowCallback = allow === '1' || allow === 'true' || allow === 'yes'
+      const allowValue = String(process.env.ALLOW_CALLBACK_REDIRECT || '').toLowerCase()
+      const allowCallbackExplicit = ['1', 'true', 'yes', 'on'].includes(allowValue)
+      const allowCallbackDefault = process.env.NODE_ENV !== 'production' && allowValue === ''
+      const allowCallback = allowCallbackExplicit || allowCallbackDefault
       if (!allowCallback) {
         return baseUrl
       }

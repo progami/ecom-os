@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { getToken } from 'next-auth/jwt'
+import { hasCentralSession } from '@ecom-os/auth'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -13,26 +13,23 @@ export async function middleware(request: NextRequest) {
     PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))
 
   if (!isPublic) {
-    // Check central SSO cookie
-    let hasSession = false
-    try {
-      const candidateNames = [
-        process.env.NODE_ENV === 'production'
-          ? '__Secure-next-auth.session-token'
-          : 'next-auth.session-token',
-        process.env.NODE_ENV === 'production'
-          ? '__Secure-next-auth.session-token'
-          : 'ecomos.next-auth.session-token',
-      ]
-      for (const name of candidateNames) {
-        const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET, cookieName: name })
-        if (token) { hasSession = true; break }
-      }
-    } catch {}
+    const debug = process.env.NODE_ENV !== 'production'
+    const hasSession = await hasCentralSession({
+      request,
+      appId: 'ecomos',
+      centralUrl: process.env.CENTRAL_AUTH_URL,
+      debug,
+    })
 
     if (!hasSession) {
-      const central = process.env.CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+      const defaultCentral = process.env.NODE_ENV === 'production'
+        ? 'https://ecomos.targonglobal.com'
+        : 'http://localhost:3000'
+      const central = process.env.CENTRAL_AUTH_URL || defaultCentral
       const login = new URL('/login', central)
+      if (debug) {
+        console.log('[hrms middleware] missing session, redirecting to', login.toString())
+      }
       login.searchParams.set('callbackUrl', request.nextUrl.toString())
       return NextResponse.redirect(login)
     }
@@ -46,4 +43,3 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }
-

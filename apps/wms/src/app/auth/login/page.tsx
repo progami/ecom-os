@@ -2,9 +2,17 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 
-export default async function LoginPage({ searchParams }: { searchParams?: { callbackUrl?: string } }) {
-  // Read sync dynamic API (searchParams) before any await to satisfy Next.js constraints
-  const desired = (searchParams?.callbackUrl as string | undefined) || '/dashboard'
+type SearchParamsInput =
+  | { callbackUrl?: string }
+  | Promise<{ callbackUrl?: string } | undefined>
+  | undefined
+
+export default async function LoginPage({ searchParams }: { searchParams?: SearchParamsInput }) {
+  const resolved = await Promise.resolve(searchParams)
+  const desired = typeof resolved?.callbackUrl === 'string' && resolved.callbackUrl.trim().length > 0
+    ? resolved.callbackUrl
+    : '/dashboard'
+
   const session = await getServerSession(authOptions)
   if (session) {
     redirect(desired)

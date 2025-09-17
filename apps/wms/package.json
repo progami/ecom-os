@@ -3,7 +3,7 @@
   "version": "0.6.1",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
+    "dev": "node ../../scripts/run-dev-with-logs.js wms -- next dev -p 3001",
     "dev:30001": "next dev -p 30001",
     "dev:turbo": "next dev --turbo",
     "dev:port": "PORT=3001 next dev",

@@ -8,6 +8,7 @@ export type AppDef = {
   url: string
   icon?: string
   roles?: string[] // allowed roles (optional). If omitted, all roles allowed
+  devPath?: string
 }
 
 export const ALL_APPS: AppDef[] = [
@@ -23,6 +24,7 @@ export const ALL_APPS: AppDef[] = [
     name: 'HRMS',
     description: 'HR, payroll and people operations.',
     url: 'https://hrms.targonglobal.com',
+    devPath: '/hrms',
     roles: ['admin', 'hr']
   },
   {
@@ -84,17 +86,32 @@ function getEnvDevUrl(appId: string): string | undefined {
 }
 
 export function resolveAppUrl(app: AppDef): string {
-  if (process.env.NODE_ENV === 'production') return app.url
-  // Prefer explicit env override
-  const envUrl = getEnvDevUrl(app.id)
-  if (envUrl) return envUrl
-  // Try root dev.apps.json
-  const cfg = tryLoadRootDevConfig()
-  if (cfg?.apps && app.id in cfg.apps) {
-    const val = cfg.apps[app.id]
-    const host = cfg.host || 'localhost'
-    if (typeof val === 'number') return `http://${host}:${val}`
-    if (typeof val === 'string') return val
+  if (process.env.NODE_ENV === 'production') {
+    return app.url
   }
-  return app.url
+
+  let base = getEnvDevUrl(app.id)
+
+  if (!base) {
+    const cfg = tryLoadRootDevConfig()
+    if (cfg?.apps && app.id in cfg.apps) {
+      const val = cfg.apps[app.id]
+      const host = cfg.host || 'localhost'
+      base = typeof val === 'number' ? `http://${host}:${val}` : typeof val === 'string' ? val : undefined
+    }
+  }
+
+  if (!base) {
+    base = app.url
+  }
+
+  if (app.devPath) {
+    try {
+      const url = new URL(base)
+      url.pathname = app.devPath
+      return url.toString()
+    } catch {}
+  }
+
+  return base
 }

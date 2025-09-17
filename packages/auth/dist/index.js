@@ -1,3 +1,4 @@
+import { getToken } from 'next-auth/jwt';
 import { z } from 'zod';
 /**
  * Build consistent cookie names and options for NextAuth across apps.
@@ -67,10 +68,45 @@ export const AuthEnvSchema = z.object({
 /**
  * Compose app-specific NextAuth options with shared, secure defaults.
  */
+const truthyValues = new Set(['1', 'true', 'yes', 'on']);
+/**
+ * Provide sane defaults for local development so NextAuth stops warning about missing env vars.
+ */
+export function applyDevAuthDefaults(options = {}) {
+    if (process.env.NODE_ENV === 'production')
+        return;
+    if (!process.env.NEXTAUTH_SECRET) {
+        const suffix = options.appId ? `-${options.appId}` : '';
+        // 32+ chars keeps jose happy for local JWT encryption/decryption.
+        process.env.NEXTAUTH_SECRET = `dev-only-nextauth-secret${suffix}-change-me`;
+    }
+    if (!process.env.NEXTAUTH_URL) {
+        const port = options.port ?? process.env.PORT ?? 3000;
+        const baseUrl = options.baseUrl ?? `http://localhost:${port}`;
+        process.env.NEXTAUTH_URL = String(baseUrl);
+    }
+    if (!process.env.COOKIE_DOMAIN && options.cookieDomain) {
+        process.env.COOKIE_DOMAIN = options.cookieDomain;
+    }
+    if (!process.env.CENTRAL_AUTH_URL && options.centralUrl) {
+        process.env.CENTRAL_AUTH_URL = options.centralUrl;
+    }
+    if (!process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL && options.publicCentralUrl) {
+        process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL = options.publicCentralUrl;
+    }
+    if (process.env.NEXTAUTH_DEBUG === undefined) {
+        // Default to off; callers can opt-in with NEXTAUTH_DEBUG=1 if needed.
+        process.env.NEXTAUTH_DEBUG = '0';
+    }
+}
 export function withSharedAuth(base, optsOrDomain) {
     const opts = typeof optsOrDomain === 'string'
         ? { cookieDomain: optsOrDomain }
         : optsOrDomain;
+    const envDebug = process.env.NEXTAUTH_DEBUG ? truthyValues.has(process.env.NEXTAUTH_DEBUG.toLowerCase()) : undefined;
+    const baseDebug = typeof base.debug === 'boolean' ? base.debug : undefined;
+    const debug = envDebug ?? baseDebug ?? false;
+    const secret = process.env.NEXTAUTH_SECRET ?? base.secret;
     return {
         // Keep base providers/callbacks etc. from app
         ...base,
@@ -79,8 +115,8 @@ export function withSharedAuth(base, optsOrDomain) {
             maxAge: 30 * 24 * 60 * 60,
             ...base.session,
         },
-        debug: process.env.NODE_ENV === 'development' || !!base.debug,
-        secret: process.env.NEXTAUTH_SECRET ?? base.secret,
+        debug,
+        secret,
         cookies: {
             ...buildCookieOptions({ domain: opts.cookieDomain, sameSite: 'lax', appId: opts.appId }),
             ...base.cookies,
@@ -103,6 +139,92 @@ export function getCandidateSessionCookieNames(appId) {
             names.push(`${appId}.next-auth.session-token`);
     }
     return names;
+}
+const DEFAULT_CENTRAL_PROD = 'https://ecomos.targonglobal.com';
+const DEFAULT_CENTRAL_DEV = 'http://localhost:3000';
+const missingSecretWarnings = new Set();
+/**
+ * Determine whether a request already carries a valid central NextAuth session.
+ * - Tries to decode the session cookie locally using the shared secret.
+ * - Falls back to probing the central `/api/auth/session` endpoint to handle
+ *   environments where app-specific secrets differ from the portal.
+ */
+export async function hasCentralSession(options) {
+    const { request, appId, cookieNames, debug = process.env.NODE_ENV !== 'production', fetchImpl, } = options;
+    const names = Array.from(new Set((cookieNames && cookieNames.length > 0)
+        ? cookieNames
+        : getCandidateSessionCookieNames(appId)));
+    const sharedSecret = options.secret
+        || process.env.CENTRAL_AUTH_SECRET
+        || process.env.NEXTAUTH_SECRET;
+    if (sharedSecret) {
+        for (const name of names) {
+            try {
+                const token = await getToken({
+                    req: request,
+                    secret: sharedSecret,
+                    cookieName: name,
+                });
+                if (token) {
+                    return true;
+                }
+            }
+            catch (error) {
+                if (debug) {
+                    const detail = error instanceof Error ? error.message : String(error);
+                    console.warn('[auth] failed to decode session cookie', name, detail);
+                }
+            }
+        }
+    }
+    else if (debug) {
+        const warnKey = names.join('|') || 'global';
+        if (!missingSecretWarnings.has(warnKey)) {
+            missingSecretWarnings.add(warnKey);
+            console.warn('[auth] missing shared NEXTAUTH_SECRET; falling back to central probe');
+        }
+    }
+    const cookieHeader = request.headers.get('cookie');
+    if (!cookieHeader) {
+        return false;
+    }
+    const hasCandidateCookie = names.some((name) => cookieHeader.includes(`${name}=`));
+    if (!hasCandidateCookie) {
+        return false;
+    }
+    const centralBase = options.centralUrl
+        || process.env.CENTRAL_AUTH_URL
+        || (process.env.NODE_ENV === 'production' ? DEFAULT_CENTRAL_PROD : DEFAULT_CENTRAL_DEV);
+    if (!centralBase) {
+        return false;
+    }
+    try {
+        const endpoint = new URL('/api/auth/session', centralBase);
+        const res = await (fetchImpl ?? fetch)(endpoint, {
+            method: 'GET',
+            headers: {
+                cookie: cookieHeader,
+                accept: 'application/json',
+                'x-ecomos-session-probe': '1',
+            },
+            cache: 'no-store',
+        });
+        if (!res.ok) {
+            if (debug) {
+                console.warn('[auth] central session probe returned status', res.status);
+            }
+            return false;
+        }
+        const data = await res.json().catch(() => null);
+        return !!data?.user;
+    }
+    catch (error) {
+        if (debug) {
+            const detail = error instanceof Error ? error.message : String(error);
+            console.warn('[auth] central session probe failed', detail);
+        }
+        return false;
+    }
 }
 export function getAppEntitlement(roles, appId) {
     if (!roles || typeof roles !== 'object')

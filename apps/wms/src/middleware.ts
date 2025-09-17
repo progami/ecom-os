@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { getToken } from 'next-auth/jwt'
+import { hasCentralSession } from '@ecom-os/auth'
 import { withBasePath, withoutBasePath } from '@/lib/utils/base-path'
 
 export async function middleware(request: NextRequest) {
@@ -44,36 +44,23 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check for session
-  let token = null
-  try {
-    const namesToTry = [
-      process.env.NODE_ENV === 'production'
-        ? '__Secure-next-auth.session-token'
-        : 'next-auth.session-token',
-      process.env.NODE_ENV === 'production'
-        ? '__Secure-next-auth.session-token'
-        : 'ecomos.next-auth.session-token',
-      // Legacy app-prefixed cookie for WMS during migration
-      process.env.NODE_ENV === 'production'
-        ? '__Secure-wms.next-auth.session-token'
-        : 'wms.next-auth.session-token',
-    ]
+  const cookieNames = process.env.NODE_ENV === 'production'
+    ? ['__Secure-next-auth.session-token', '__Secure-wms.next-auth.session-token']
+    : ['next-auth.session-token', 'ecomos.next-auth.session-token', 'wms.next-auth.session-token']
 
-    for (const name of namesToTry) {
-      token = await getToken({
-        req: request,
-        secret: process.env.NEXTAUTH_SECRET,
-        cookieName: name,
-      })
-      if (token) break
-    }
-  } catch (_error) {
-    // Continue without token - will redirect if needed
-  }
+  const hasSession = await hasCentralSession({
+    request: request as any,
+    cookieNames,
+    centralUrl: process.env.CENTRAL_AUTH_URL,
+    debug: process.env.NODE_ENV !== 'production',
+  })
 
   // If no token and trying to access protected route, redirect to central login
-  if (!token && !normalizedPath.startsWith('/auth/')) {
-    const central = process.env.CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+  if (!hasSession && !normalizedPath.startsWith('/auth/')) {
+    const defaultCentral = process.env.NODE_ENV === 'production'
+      ? 'https://ecomos.targonglobal.com'
+      : 'http://localhost:3000'
+    const central = process.env.CENTRAL_AUTH_URL || defaultCentral
     const redirect = new URL('/login', central)
     redirect.searchParams.set('callbackUrl', request.nextUrl.toString())
     return NextResponse.redirect(redirect)

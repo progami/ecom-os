@@ -3,12 +3,27 @@
 import { useEffect, useState } from 'react'
 import './login.css'
 
-export default function LoginPage({ searchParams }: { searchParams?: { callbackUrl?: string } }) {
+export default function LoginPage({ searchParams }: { searchParams?: { callbackUrl?: string, error?: string } }) {
   const callbackUrl = searchParams?.callbackUrl || '/'
   const [csrfToken, setCsrfToken] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({ emailOrUsername: '', password: '' })
   const [errors, setErrors] = useState({ emailOrUsername: '', password: '' })
+  const [globalError, setGlobalError] = useState('')
+
+  useEffect(() => {
+    if (!searchParams?.error) {
+      setGlobalError('')
+      return
+    }
+    const code = searchParams.error
+    const friendly: Record<string, string> = {
+      CredentialsSignin: 'Invalid email or password. Please try again.',
+      AccessDenied: 'Your account does not have access. Contact an administrator.',
+      default: 'Unable to sign in right now. Please try again or reach out to support.',
+    }
+    setGlobalError(friendly[code] || friendly.default)
+  }, [searchParams?.error])
 
   useEffect(() => {
     let mounted = true
@@ -47,6 +62,9 @@ export default function LoginPage({ searchParams }: { searchParams?: { callbackU
       e.preventDefault()
       return
     }
+    if (globalError) {
+      setGlobalError('')
+    }
     setIsLoading(true)
   }
 
@@ -78,9 +96,16 @@ export default function LoginPage({ searchParams }: { searchParams?: { callbackU
                 </svg>
               </div>
             </div>
-            <h1 className="login-title">Welcome back</h1>
-            <p className="login-subtitle">Sign in to your ecomOS account</p>
+            <h1 className="login-title">ecomOS Portal</h1>
+            <p className="login-headline">Welcome back</p>
+            <p className="login-subtitle">Sign in to your account to launch connected apps</p>
           </div>
+
+          {globalError && (
+            <div className="form-global-error" role="alert">
+              {globalError}
+            </div>
+          )}
 
           <div className="form-group">
             <label htmlFor="emailOrUsername" className="form-label">
