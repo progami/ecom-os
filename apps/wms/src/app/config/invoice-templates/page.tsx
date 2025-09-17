@@ -25,6 +25,17 @@ interface CostMapping {
   description?: string
 }
 
+const createDefaultMapping = (category: {
+  name: string
+  defaultType: CostMapping['calculationType']
+}): CostMapping => ({
+  enabled: false,
+  category: category.name,
+  calculationType: category.defaultType,
+  customRate: undefined,
+  description: '',
+})
+
 interface InvoiceTemplate {
   id: string
   warehouseId: string
@@ -38,7 +49,11 @@ interface InvoiceTemplate {
   updatedAt: string
 }
 
-const defaultCostCategories = [
+const defaultCostCategories: ReadonlyArray<{
+  key: string
+  name: string
+  defaultType: CostMapping['calculationType']
+}> = [
   { key: 'storage', name: 'Storage', defaultType: 'PER_PALLET' },
   { key: 'container', name: 'Container Unloading', defaultType: 'FLAT_RATE' },
   { key: 'pallet', name: 'Pallet Handling', defaultType: 'PER_PALLET' },
@@ -124,12 +139,7 @@ export default function InvoiceTemplatesPage() {
       setEditingTemplate(null)
       const defaultMappings: Record<string, CostMapping> = {}
       defaultCostCategories.forEach(cat => {
-        defaultMappings[cat.key] = {
-          enabled: false,
-          category: cat.name,
-          calculationType: cat.defaultType,
-          description: ''
-        }
+        defaultMappings[cat.key] = createDefaultMapping(cat)
       })
       setFormData({
         warehouseId: '',
@@ -424,13 +434,7 @@ export default function InvoiceTemplatesPage() {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {defaultCostCategories.map(category => {
-                          const mapping = formData.costMappings[category.key] || {
-                            enabled: false,
-                            category: category.name,
-                            calculationType: category.defaultType,
-                            customRate: undefined,
-                            description: ''
-                          }
+                          const mapping = formData.costMappings[category.key] || createDefaultMapping(category)
 
                           return (
                             <tr key={category.key}>

@@ -1,6 +1,18 @@
 import { useEffect, useRef } from 'react';
 import { clientLogger, measurePerformance } from '@/lib/logger/client';
 
+const toMetadata = (metadata?: unknown): Record<string, unknown> => {
+  if (metadata === undefined || metadata === null) {
+    return {};
+  }
+
+  if (typeof metadata === 'object') {
+    return { ...(metadata as Record<string, unknown>) };
+  }
+
+  return { value: metadata };
+};
+
 interface PerformanceMetrics {
   pageLoad?: number;
   firstContentfulPaint?: number;
@@ -66,7 +78,7 @@ export function useInteractionTracking() {
     clientLogger?.action('Element clicked', {
       element: elementName,
       timestamp: Date.now(),
-      ...metadata,
+      ...toMetadata(metadata),
     });
   };
 
@@ -74,7 +86,7 @@ export function useInteractionTracking() {
     clientLogger?.action('Form submitted', {
       form: formName,
       timestamp: Date.now(),
-      ...metadata,
+      ...toMetadata(metadata),
     });
   };
 

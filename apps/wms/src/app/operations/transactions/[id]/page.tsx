@@ -18,11 +18,12 @@ import {
   Trash2
 } from '@/lib/lucide-icons'
 import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
-import { EditAttachmentsTab } from '@/components/operations/edit-attachments-tab'
+import { EditAttachmentsTab, type ApiAttachment, type EditAttachment } from '@/components/operations/edit-attachments-tab'
 import { DeleteTransactionDialog } from '@/components/operations/delete-transaction-dialog'
 
 interface TransactionData {
   id: string
+  transactionId: string
   transactionType: 'RECEIVE' | 'SHIP' | 'ADJUST_IN' | 'ADJUST_OUT'
   transactionDate: string
   referenceId: string
@@ -36,8 +37,23 @@ interface TransactionData {
   trackingNumber?: string
   supplier?: string
   pickupDate?: string
-  attachments?: Array<{ category: string; fileName: string; contentType: string; size: number; s3Key?: string; s3Url?: string }>
-  calculatedCosts?: Array<{ id: string; category: string; description: string; rate: number; quantity: number; amount: number }>
+  skuCode: string
+  cartonsIn: number
+  cartonsOut: number
+  attachments?: Record<string, ApiAttachment | null>
+  calculatedCosts?: Array<{
+    id: string
+    costCategory?: string
+    costName?: string
+    quantity?: number
+    unitRate?: number
+    totalCost?: number
+    category?: string
+    description?: string
+    rate?: number
+    amount?: number
+  }>
+  stagedAttachments?: Record<string, EditAttachment | null>
   lineItems: Array<{
     id: string
     skuId: string
@@ -104,9 +120,18 @@ export default function TransactionDetailPage() {
       
       // Transform the transaction data to match the expected format
       // Since the API returns a single transaction, we need to create lineItems array
+      const attachmentsRecord: Record<string, ApiAttachment | null> =
+        data.attachments && !Array.isArray(data.attachments)
+          ? (data.attachments as Record<string, ApiAttachment | null>)
+          : {}
+
       const transformedData: TransactionData = {
         ...data,
+        transactionId: data.transactionId || data.referenceId || data.id,
         warehouseId: data.warehouse?.id || data.warehouseId,
+        skuCode: data.skuCode || data.sku?.skuCode || '',
+        cartonsIn: data.cartonsIn ?? 0,
+        cartonsOut: data.cartonsOut ?? 0,
         lineItems: [
           {
             id: data.id,
@@ -121,7 +146,8 @@ export default function TransactionDetailPage() {
             shippingCartonsPerPallet: data.shippingCartonsPerPallet || 0,
             unitsPerCarton: data.unitsPerCarton || data.sku?.unitsPerCarton || 0
           }
-        ]
+        ],
+        attachments: attachmentsRecord
       }
       
       
@@ -189,24 +215,20 @@ export default function TransactionDetailPage() {
 
       // Handle staged attachment changes if any
       if (stagedAttachments) {
-        for (const [category, attachment] of Object.entries(stagedAttachments)) {
+        const entries = Object.entries(stagedAttachments) as Array<[string, EditAttachment | null]>
+        for (const [category, attachment] of entries) {
           if (!attachment) continue
-          
-          const att = attachment as Record<string, unknown>
-          
-          // Handle deletions
-          if (att.deleted && att.s3Key) {
+
+          if (attachment.deleted && attachment.s3Key) {
             await fetch(`/api/transactions/${params.id}/attachments?category=${category}`, {
               method: 'DELETE',
               credentials: 'include'
             })
-          }
-          // Handle new uploads
-          else if (att.isNew && att.file) {
+          } else if (attachment.isNew && attachment.file) {
             const formData = new FormData()
-            formData.append('file', att.file)
+            formData.append('file', attachment.file)
             formData.append('documentType', category)
-            
+
             await fetch(`/api/transactions/${params.id}/attachments`, {
               method: 'POST',
               body: formData,
@@ -346,7 +368,7 @@ export default function TransactionDetailPage() {
                       shipName: transaction.shipName || '',
                       trackingNumber: transaction.trackingNumber || '',
                       supplier: transaction.supplier || '',
-                      stagedAttachments: null // Clear any staged attachment changes
+                      stagedAttachments: undefined
                     })
                   }}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
@@ -648,12 +670,12 @@ export default function TransactionDetailPage() {
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {transaction.calculatedCosts.map((cost: { id: string; category: string; description: string; rate: number; quantity: number; amount: number }, index: number) => (
+                      {transaction.calculatedCosts.map((cost, index) => (
                         <tr key={index}>
                           <td className="px-4 py-3 whitespace-nowrap">
                             <input
                               type="text"
-                              value={cost.costCategory || ''}
+                              value={cost.costCategory ?? cost.category ?? ''}
                               className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
                               readOnly
                             />
@@ -661,7 +683,7 @@ export default function TransactionDetailPage() {
                           <td className="px-4 py-3 whitespace-nowrap">
                             <input
                               type="text"
-                              value={cost.costName || ''}
+                              value={cost.costName ?? cost.description ?? ''}
                               className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
                               readOnly
                             />
@@ -669,7 +691,7 @@ export default function TransactionDetailPage() {
                           <td className="px-4 py-3 whitespace-nowrap">
                             <input
                               type="number"
-                              value={cost.quantity || 0}
+                              value={cost.quantity ?? 0}
                               className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
                               readOnly
                             />
@@ -677,7 +699,7 @@ export default function TransactionDetailPage() {
                           <td className="px-4 py-3 whitespace-nowrap">
                             <input
                               type="number"
-                              value={cost.unitRate || 0}
+                              value={cost.unitRate ?? cost.rate ?? 0}
                               className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
                               readOnly
                             />
@@ -685,7 +707,7 @@ export default function TransactionDetailPage() {
                           <td className="px-4 py-3 whitespace-nowrap">
                             <input
                               type="number"
-                              value={cost.totalCost || 0}
+                              value={cost.totalCost ?? cost.amount ?? 0}
                               className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
                               readOnly
                             />
@@ -704,13 +726,14 @@ export default function TransactionDetailPage() {
             {isEditMode ? (
               // Use EditAttachmentsTab component in edit mode - stages changes locally
               <EditAttachmentsTab 
-                existingAttachments={transaction.attachments as Record<string, { category: string; fileName: string; contentType: string; size: number; s3Key?: string; s3Url?: string }>}
+                existingAttachments={transaction.attachments ?? null}
                 transactionType={transaction.transactionType}
                 onAttachmentsChange={(attachments) => {
+                  const normalized = attachments as Record<string, EditAttachment | null>
                   // Store the staged attachments in editedData
                   setEditedData({
                     ...editedData,
-                    stagedAttachments: attachments
+                    stagedAttachments: normalized
                   })
                 }}
               />
@@ -730,7 +753,7 @@ export default function TransactionDetailPage() {
                     </div>
                     <div className="p-6">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {Object.entries(transaction.attachments).map(([category, attachment]: [string, { fileName: string; contentType: string; size: number; s3Key?: string; s3Url?: string }]) => {
+                        {Object.entries(transaction.attachments as Record<string, ApiAttachment | null>).map(([category, attachment]) => {
                           if (!attachment) return null
                           
                           const categoryLabels: Record<string, string> = {

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma'
-import type { InventoryTransaction } from '@prisma/client';
+import type { TransactionType } from '@prisma/client';
 export const dynamic = 'force-dynamic'
 
 export async function GET(_request: Request) {
@@ -13,9 +13,16 @@ export async function GET(_request: Request) {
     }
 
     // Get incomplete transactions based on user's warehouse
-    const whereClause = session.user.role === 'staff' && session.user.warehouseId
-      ? { warehouseId: session.user.warehouseId }
-      : {};
+    let scopedWarehouseCode: string | undefined
+    if (session.user.role === 'staff' && session.user.warehouseId) {
+      const warehouse = await prisma.warehouse.findUnique({
+        where: { id: session.user.warehouseId },
+        select: { code: true }
+      })
+      scopedWarehouseCode = warehouse?.code
+    }
+
+    const whereClause = scopedWarehouseCode ? { warehouseCode: scopedWarehouseCode } : {};
 
     // Find RECEIVE transactions missing tracking number or pickup date
     const incompleteReceive = await prisma.inventoryTransaction.findMany({
@@ -60,7 +67,17 @@ export async function GET(_request: Request) {
     });
 
     // Format response with missing fields
-    const formatTransaction = (tx: InventoryTransaction & { attachments?: unknown }) => {
+    type IncompleteTransaction = {
+      id: string
+      transactionType: TransactionType
+      transactionDate: Date
+      trackingNumber: string | null
+      pickupDate: Date | null
+      attachments: unknown
+      skuCode: string
+    }
+
+    const formatTransaction = (tx: IncompleteTransaction) => {
       const missingFields = [];
       
       if (tx.transactionType === 'RECEIVE') {
@@ -77,15 +94,15 @@ export async function GET(_request: Request) {
       return {
         id: tx.id,
         transactionType: tx.transactionType,
-        skuCode: tx.sku.skuCode,
+        skuCode: tx.skuCode,
         transactionDate: tx.transactionDate,
         missingFields
       };
     };
 
     const allIncomplete = [
-      ...incompleteReceive.map(formatTransaction),
-      ...incompleteShip.map(formatTransaction)
+      ...incompleteReceive.map(tx => formatTransaction(tx as IncompleteTransaction)),
+      ...incompleteShip.map(tx => formatTransaction(tx as IncompleteTransaction))
     ].sort((a, b) => new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime());
 
     return NextResponse.json(allIncomplete);

@@ -204,7 +204,7 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
     return initialCosts
   }
 
-  const updateCost = (id: string, field: keyof CostEntry, value: string | number | null) => {
+  const updateCost = (id: string, field: keyof CostEntry, value: string | number | boolean | null) => {
     setCosts(prevCosts => {
       const newCosts = prevCosts.map(cost => {
         if (cost.id === id) {

@@ -18,7 +18,8 @@ export interface AuditLogEntry {
 export async function auditLog(entry: AuditLogEntry) {
   try {
     // Sanitize data before storing
-    const sanitizedData = entry.data ? sanitizeAuditData(entry.data) : null
+    const sanitizedData: Prisma.JsonValue =
+      entry.data === undefined ? null : sanitizeAuditData(entry.data)
 
     await prisma.auditLog.create({
       data: {
@@ -39,19 +40,48 @@ export async function auditLog(entry: AuditLogEntry) {
 /**
  * Sanitize data for audit logging
  */
-function sanitizeAuditData(data: unknown): unknown {
+function sanitizeAuditData(data: unknown): Prisma.JsonValue {
+  if (data === null || data === undefined) {
+    return null
+  }
+
   if (typeof data === 'string') {
-    return sanitizeForAudit(data)
+    return sanitizeForAudit(data) as string
   }
-  
+
+  if (typeof data === 'number' || typeof data === 'boolean') {
+    return data
+  }
+
+  if (typeof data === 'bigint') {
+    return data.toString()
+  }
+
+  if (data instanceof Date) {
+    return data.toISOString()
+  }
+
+  if (data instanceof Set) {
+    const sanitizedSet: Prisma.JsonArray = Array.from(data).map((item) => sanitizeAuditData(item))
+    return sanitizedSet
+  }
+
+  if (data instanceof Map) {
+    const mapObject: Record<string, Prisma.JsonValue> = {}
+    for (const [key, value] of data.entries()) {
+      mapObject[String(key)] = sanitizeAuditData(value)
+    }
+    return mapObject
+  }
+
   if (Array.isArray(data)) {
-    return data.map(item => sanitizeAuditData(item))
+    const sanitizedArray: Prisma.JsonArray = data.map((item) => sanitizeAuditData(item))
+    return sanitizedArray
   }
-  
-  if (data && typeof data === 'object') {
-    const sanitized: Record<string, unknown> = {}
+
+  if (typeof data === 'object') {
+    const sanitized: Record<string, Prisma.JsonValue> = {}
     for (const [key, value] of Object.entries(data)) {
-      // Remove sensitive fields
       if (isSensitiveField(key)) {
         sanitized[key] = '[REDACTED]'
       } else {
@@ -60,8 +90,9 @@ function sanitizeAuditData(data: unknown): unknown {
     }
     return sanitized
   }
-  
-  return data
+
+  // Fallback to string representation for unsupported types
+  return String(data)
 }
 
 /**

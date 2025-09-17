@@ -1,187 +1,94 @@
-// Client-side logger for browser environments
-export interface ClientLogEntry {
-  timestamp: string;
-  level: 'info' | 'warn' | 'error' | 'debug';
-  category: string;
-  message: string;
-  metadata?: unknown;
-  url?: string;
-  userAgent?: string;
-  userId?: string;
-}
+/* eslint-disable no-console */
+// Minimal client-side logger that falls back to console output in development
 
-// Helper functions to avoid class property initializers
-function sanitizeMetadata(metadata: unknown): unknown {
-  if (!metadata) return metadata;
+const shouldLog = typeof process !== 'undefined' && process.env.NODE_ENV === 'development'
 
-  // Remove sensitive data
-  const sensitiveKeys = ['password', 'token', 'apiKey', 'creditCard', 'ssn'];
-  
-  if (typeof metadata === 'object' && !Array.isArray(metadata)) {
-    const sanitized = { ...metadata };
-    Object.keys(sanitized).forEach((key) => {
-      if (sensitiveKeys.some((sensitive) => key.toLowerCase().includes(sensitive))) {
-        sanitized[key] = '[REDACTED]';
-      }
-    });
-    return sanitized;
+type LogLevel = 'log' | 'info' | 'warn' | 'error' | 'debug'
+
+const normalizeMetadata = (metadata?: unknown): Record<string, unknown> | undefined => {
+  if (metadata === undefined || metadata === null) {
+    return undefined
   }
 
-  return metadata;
-}
-
-function getUserId(): string | undefined {
-  // Try to get user ID from various sources
-  if (typeof window !== 'undefined') {
-    // Check localStorage
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
-        return user.id || user.userId;
-      } catch {}
-    }
-
-    // Check session storage
-    const sessionUser = sessionStorage.getItem('user');
-    if (sessionUser) {
-      try {
-        const user = JSON.parse(sessionUser);
-        return user.id || user.userId;
-      } catch {}
-    }
+  if (typeof metadata === 'object') {
+    return metadata as Record<string, unknown>
   }
 
-  return undefined;
+  return { value: metadata }
 }
 
-function createEntry(
-  level: ClientLogEntry['level'],
+const log = (
+  level: LogLevel,
   category: string,
   message: string,
   metadata?: unknown
-): ClientLogEntry {
-  return {
-    timestamp: new Date().toISOString(),
-    level,
-    category,
-    message,
-    metadata: sanitizeMetadata(metadata),
-    url: typeof window !== 'undefined' ? window.location.href : undefined,
-    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
-    userId: getUserId(),
-  };
-}
+) => {
+  if (!shouldLog || typeof window === 'undefined') {
+    return
+  }
 
-function logToConsole(entry: ClientLogEntry) {
-  // Only log to console in development
-  if (process.env.NODE_ENV === 'development') {
-    const consoleMethod = entry.level === 'error' ? 'error' : 
-                        entry.level === 'warn' ? 'warn' : 
-                        entry.level === 'debug' ? 'debug' : 'log';
-    
-    // Console log disabled
-    void consoleMethod;
-    void (
-      `[${entry.category}] ${entry.message}`,
-      entry.metadata || ''
-    );
+  const method = console[level] ?? console.log
+  const normalized = normalizeMetadata(metadata)
+
+  if (normalized) {
+    method(`[${category}] ${message}`, normalized)
+  } else {
+    method(`[${category}] ${message}`)
   }
 }
 
 export const clientLogger = {
-  info: (message: string, metadata?: unknown) => {
-    if (typeof window !== 'undefined') {
-      const entry = createEntry('info', 'client', message, metadata);
-      logToConsole(entry);
-    }
-  },
-  warn: (message: string, metadata?: unknown) => {
-    if (typeof window !== 'undefined') {
-      const entry = createEntry('warn', 'client', message, metadata);
-      logToConsole(entry);
-    }
-  },
-  error: (message: string, metadata?: unknown) => {
-    if (typeof window !== 'undefined') {
-      const entry = createEntry('error', 'client', message, metadata);
-      logToConsole(entry);
-    }
-  },
-  debug: (message: string, metadata?: unknown) => {
-    if (typeof window !== 'undefined') {
-      const entry = createEntry('debug', 'client', message, metadata);
-      logToConsole(entry);
-    }
-  },
-  action: (action: string, metadata?: unknown) => {
-    if (typeof window !== 'undefined') {
-      const entry = createEntry('info', 'action', action, metadata);
-      logToConsole(entry);
-    }
-  },
-  navigation: (from: string, to: string, metadata?: unknown) => {
-    if (typeof window !== 'undefined') {
-      const entry = createEntry('info', 'navigation', `Navigate from ${from} to ${to}`, {
-        from,
-        to,
-        ...metadata,
-      });
-      logToConsole(entry);
-    }
-  },
-  performance: (metric: string, value: number, metadata?: unknown) => {
-    if (typeof window !== 'undefined') {
-      const entry = createEntry('info', 'performance', `${metric}: ${value}ms`, {
-        metric,
-        value,
-        ...metadata,
-      });
-      logToConsole(entry);
-    }
-  },
-  api: (method: string, endpoint: string, status: number, duration: number, metadata?: unknown) => {
-    if (typeof window !== 'undefined') {
-      const level = status >= 400 ? 'error' : 'info';
-      const entry = createEntry(level, 'api', `${method} ${endpoint} - ${status}`, {
-        method,
-        endpoint,
-        status,
-        duration,
-        ...metadata,
-      });
-      logToConsole(entry);
-    }
-  },
-};
-
-// Performance monitoring utilities
-export function measurePerformance(name: string, fn: () => void | Promise<void>) {
-  const start = performance.now();
-  
-  const result = fn();
-  
-  if (result instanceof Promise) {
-    return result.finally(() => {
-      const duration = performance.now() - start;
-      clientLogger.performance(name, duration);
-    });
-  } else {
-    const duration = performance.now() - start;
-    clientLogger.performance(name, duration);
-    return result;
-  }
+  info: (message: string, metadata?: unknown) => log('info', 'client', message, metadata),
+  warn: (message: string, metadata?: unknown) => log('warn', 'client', message, metadata),
+  error: (message: string, metadata?: unknown) => log('error', 'client', message, metadata),
+  debug: (message: string, metadata?: unknown) => log('debug', 'client', message, metadata),
+  action: (action: string, metadata?: unknown) => log('info', 'action', action, metadata),
+  navigation: (from: string, to: string, metadata?: unknown) =>
+    log('info', 'navigation', `Navigation from ${from} to ${to}`, {
+      from,
+      to,
+      ...(normalizeMetadata(metadata) ?? {}),
+    }),
+  performance: (metric: string, value: number, metadata?: unknown) =>
+    log('info', 'performance', `${metric}: ${value}ms`, {
+      metric,
+      value,
+      ...(normalizeMetadata(metadata) ?? {}),
+    }),
+  api: (method: string, endpoint: string, status: number, duration: number, metadata?: unknown) =>
+    log(status >= 400 ? 'error' : 'info', 'api', `${method} ${endpoint} - ${status}`, {
+      method,
+      endpoint,
+      status,
+      duration,
+      ...(normalizeMetadata(metadata) ?? {}),
+    }),
 }
 
-// React Error Boundary logger
+export function measurePerformance(name: string, fn: () => void | Promise<void>) {
+  if (typeof performance === 'undefined') {
+    return fn()
+  }
+
+  const start = performance.now()
+  const result = fn()
+
+  if (result instanceof Promise) {
+    return result.finally(() => {
+      const duration = performance.now() - start
+      clientLogger.performance(name, duration)
+    })
+  }
+
+  const duration = performance.now() - start
+  clientLogger.performance(name, duration)
+  return result
+}
+
 export function logErrorToService(error: Error, errorInfo: unknown) {
-  clientLogger.error('React Error Boundary', {
-    error: {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    },
+  log('error', 'error-boundary', error.message, {
+    name: error.name,
+    stack: error.stack,
     errorInfo,
-    component: errorInfo.componentStack,
-  });
+  })
 }

@@ -2,7 +2,6 @@
 
 import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertCircle } from '@/lib/lucide-icons'
@@ -25,7 +24,6 @@ const errorMessages: Record<string, string> = {
 
 function AuthErrorContent() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const error = searchParams.get('error')
   
   const errorMessage = error && errorMessages[error] 

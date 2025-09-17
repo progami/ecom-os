@@ -127,7 +127,7 @@ export function CargoTab({ warehouseId, inventory, inventoryLoading, onItemsChan
 
     // If SKU/batch selection changed, update all related fields
     if (field === 'skuCode' && value) {
-      const [skuId, batchLot] = value.split('_')
+      const [skuId, batchLot] = String(value).split('_')
       const inventoryItem = availableInventory.find(
         inv => inv.skuId === skuId && inv.batchLot === batchLot
       )

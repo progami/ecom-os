@@ -46,7 +46,7 @@ export function ReportGenerator({
   const [customReportType, setCustomReportType] = useState(customReportTypes[0]?.value || 'monthly-inventory')
   const [customPeriod, setCustomPeriod] = useState(new Date().toISOString().slice(0, 7))
   const [customWarehouseId, setCustomWarehouseId] = useState('')
-  const [customFormat, setCustomFormat] = useState('xlsx')
+  const [customFormat, setCustomFormat] = useState<'xlsx' | 'csv' | 'pdf'>('xlsx')
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [generatingCustom, setGeneratingCustom] = useState(false)
 
@@ -92,9 +92,7 @@ export function ReportGenerator({
 
       // Get the filename from the response headers
       const contentDisposition = response.headers.get('content-disposition')
-      const filename = contentDisposition
-        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
-        : `${reportType}-${period}.xlsx`
+      const filename = extractFilename(contentDisposition, `${reportType}-${period}.xlsx`)
 
       // Download the file
       const blob = await response.blob()
@@ -130,10 +128,7 @@ export function ReportGenerator({
         reportType: customReportType,
         period: customPeriod,
         warehouseId: customWarehouseId || undefined,
-      }
-      
-      if (showCustomFormat) {
-        body.format = customFormat
+        exportFormat: showCustomFormat ? customFormat : 'xlsx'
       }
 
       const response = await fetch('/api/reports', {
@@ -151,9 +146,10 @@ export function ReportGenerator({
       // Get the filename from the response headers
       const contentDisposition = response.headers.get('content-disposition')
       const fileExtension = showCustomFormat ? customFormat : 'xlsx'
-      const filename = contentDisposition
-        ? contentDisposition.split('filename=')[1].replace(/"/g, '')
-        : `${customReportType}-${customPeriod}.${fileExtension}`
+      const filename = extractFilename(
+        contentDisposition,
+        `${customReportType}-${customPeriod}.${fileExtension}`
+      )
 
       // Download the file
       const blob = await response.blob()
@@ -258,7 +254,7 @@ export function ReportGenerator({
                 name="exportFormat"
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 value={customFormat}
-                onChange={(e) => setCustomFormat(e.target.value)}
+                onChange={(e) => setCustomFormat(e.target.value as 'xlsx' | 'csv' | 'pdf')}
                 aria-label="Select export format"
                 aria-describedby="custom-export-format-help"
               >
@@ -280,6 +276,20 @@ export function ReportGenerator({
       </div>
     </div>
   )
+}
+
+const extractFilename = (contentDisposition: string | null, fallback: string): string => {
+  if (!contentDisposition) {
+    return fallback
+  }
+
+  const match = /filename\*?=([^;]+)/i.exec(contentDisposition)
+  if (!match || !match[1]) {
+    return fallback
+  }
+
+  const value = match[1].trim().replace(/^"|"$/g, '')
+  return value.length > 0 ? value : fallback
 }
 
 interface ReportSectionComponentProps {

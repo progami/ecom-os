@@ -10,10 +10,16 @@ interface DeleteTransactionDialogProps {
   transaction: {
     id: string
     transactionId: string
-    type: string
+    transactionType: string
     skuCode: string
     cartonsIn: number
     cartonsOut: number
+    lineItems?: Array<{
+      cartonsIn: number
+      cartonsOut: number
+      sku?: { skuCode: string }
+      batchLot?: string
+    }>
   }
   validation: {
     canDelete: boolean

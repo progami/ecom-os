@@ -7,9 +7,11 @@ import { z } from 'zod'
 export const dynamic = 'force-dynamic'
 
 // Validation schemas
+const COST_CATEGORY_OPTIONS = ['Container', 'Carton', 'Pallet', 'Storage', 'Unit', 'transportation', 'Accessorial'] as const
+
 const createRateSchema = z.object({
   warehouseId: z.string().uuid(),
-  costCategory: z.enum(['Container', 'Carton', 'Pallet', 'Storage', 'Unit', 'transportation', 'Accessorial']),
+  costCategory: z.enum(COST_CATEGORY_OPTIONS),
   costName: z.string().min(1),
   costValue: z.number().positive(),
   unitOfMeasure: z.string().min(1),
@@ -42,8 +44,9 @@ export async function GET(req: NextRequest) {
       where.warehouseId = warehouseId
     }
     
-    if (costCategory) {
-      where.costCategory = costCategory
+  if (costCategory && COST_CATEGORY_OPTIONS.includes(costCategory as typeof COST_CATEGORY_OPTIONS[number])) {
+      const normalizedCategory = costCategory as typeof COST_CATEGORY_OPTIONS[number]
+      where.costCategory = normalizedCategory
     }
     
     if (activeOnly) {

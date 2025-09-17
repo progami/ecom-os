@@ -45,7 +45,9 @@ export interface PaginationParams {
 }
 
 // Transform snake_case warehouse to camelCase for frontend compatibility
-function transformWarehouse(warehouse: Prisma.WarehouseGetPayload<object>) {
+type WarehouseWithCounts = Prisma.WarehouseGetPayload<{ include: { _count: true } }>
+
+function transformWarehouse(warehouse: WarehouseWithCounts) {
   return {
     id: warehouse.id,
     code: warehouse.code,
@@ -58,7 +60,7 @@ function transformWarehouse(warehouse: Prisma.WarehouseGetPayload<object>) {
     isActive: warehouse.isActive,
     createdAt: warehouse.createdAt,
     updatedAt: warehouse.updatedAt,
-    _count: warehouse._count
+    _count: warehouse._count || {}
   }
 }
 
@@ -98,13 +100,7 @@ export class WarehouseService extends BaseService {
           skip,
           take: limit,
           include: {
-            _count: {
-              select: {
-                users: true,
-                // inventoryBalance: true, - not in count select
-                // invoices: true - Invoice model removed in v0.5.0
-              }
-            }
+            _count: true
           }
         }),
         this.prisma.warehouse.count({ where })
@@ -129,16 +125,7 @@ export class WarehouseService extends BaseService {
       const warehouse = await this.prisma.warehouse.findUnique({
         where: { id: warehouseId },
         include: {
-          _count: {
-            select: {
-              users: true,
-              costRates: true
-              // inventory_balances: true, - field removed
-              // invoices: true, - Invoice model removed in v0.5.0
-              // inventoryTransactions: true - no longer a relation
-              // calculatedCosts: true - CalculatedCost model removed in v0.5.0
-            }
-          }
+          _count: true
         }
       })
 
@@ -192,13 +179,7 @@ export class WarehouseService extends BaseService {
             isActive: validatedData.isActive
           },
           include: {
-            _count: {
-              select: {
-                users: true,
-                // inventoryBalance: true, - not in count select
-                // invoices: true - Invoice model removed in v0.5.0
-              }
-            }
+            _count: true
           }
         })
 
@@ -234,7 +215,10 @@ export class WarehouseService extends BaseService {
       const updatedWarehouse = await this.executeInTransaction(async (tx) => {
         // Check if warehouse exists
         const currentWarehouse = await tx.warehouse.findUnique({
-          where: { id: warehouseId }
+          where: { id: warehouseId },
+          include: {
+            _count: true
+          }
         })
 
         if (!currentWarehouse) {
@@ -287,19 +271,13 @@ export class WarehouseService extends BaseService {
           where: { id: warehouseId },
           data: updateData,
           include: {
-            _count: {
-              select: {
-                users: true,
-                // inventoryBalance: true, - not in count select
-                // invoices: true - Invoice model removed in v0.5.0
-              }
-            }
+            _count: true
           }
         })
 
         await this.logAudit('WAREHOUSE_UPDATED', 'Warehouse', warehouseId, {
-          previousData: currentWarehouse,
-          newData: updateData
+          previousData: transformWarehouse(currentWarehouse as WarehouseWithCounts),
+          newData: JSON.parse(JSON.stringify(updateData))
         })
 
         return updated
@@ -328,16 +306,7 @@ export class WarehouseService extends BaseService {
         const relatedData = await tx.warehouse.findUnique({
           where: { id: warehouseId },
           include: {
-            _count: {
-              select: {
-                users: true,
-                costRates: true
-                // inventoryBalance: true, - not in count select
-                // inventoryTransactions: true - no longer a relation
-                // invoices: true - Invoice model removed in v0.5.0,
-                // calculatedCosts: true - CalculatedCost model removed in v0.5.0
-              }
-            }
+            _count: true
           }
         })
 
@@ -346,14 +315,17 @@ export class WarehouseService extends BaseService {
         }
 
         // Check if warehouse has any related data
-        const countData = (relatedData as { _count: { inventoryTransactions: number; users: number } })._count
-        const hasRelatedData = countData ? Object.values(countData).some(count => (count as number) > 0) : false
+        const countData = relatedData._count || {}
+        const hasRelatedData = Object.values(countData).some(count => (count as number) > 0)
         
         if (hasRelatedData) {
           // Soft delete - just mark as inactive
           const updatedWarehouse = await tx.warehouse.update({
             where: { id: warehouseId },
-            data: { isActive: false }
+            data: { isActive: false },
+            include: {
+              _count: true
+            }
           })
 
           await this.logAudit('WAREHOUSE_DEACTIVATED', 'Warehouse', warehouseId, {
@@ -401,61 +373,69 @@ export class WarehouseService extends BaseService {
     try {
       await this.requirePermission('warehouse:read')
 
-      const [
-        inventoryStats,
-        transactionStats,
-        invoiceStats,
-        userCount
-      ] = await Promise.all([
-        // Inventory statistics - inventoryBalance table removed from schema
-        Promise.resolve({
+      const warehouse = await this.prisma.warehouse.findUnique({
+        where: { id: warehouseId },
+        select: { code: true }
+      })
+
+      if (!warehouse) {
+        throw new Error('Warehouse not found')
+      }
+
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+
+      const [inventoryAggregates, transactionStats, userCount] = await Promise.all([
+        this.prisma.inventoryTransaction.groupBy({
+          by: ['skuCode', 'batchLot'],
+          where: { warehouseCode: warehouse.code },
           _sum: {
-            currentCartons: null,
-            currentPallets: null,
-            currentUnits: null
-          },
-          _count: {
-            skuId: 0
+            cartonsIn: true,
+            cartonsOut: true
           }
-        }) as Prisma.WarehouseCountOrderByAggregateInput,
-        
-        // Transaction statistics
+        }),
         this.prisma.inventoryTransaction.groupBy({
           by: ['transactionType'],
           where: {
-            warehouseCode: warehouseId,
-            transactionDate: {
-              gte: new Date(new Date().setDate(new Date().getDate() - 30))
-            }
+            warehouseCode: warehouse.code,
+            transactionDate: { gte: thirtyDaysAgo }
           },
-          _count: true
+          _count: {
+            _all: true
+          }
         }),
-        
-        // Invoice statistics - Invoice model removed in v0.5.0
-        Promise.resolve({ _sum: { totalAmount: 0 }, _count: 0 }),
-        
-        // User count
-        this.prisma.user.count({
-          where: { warehouseId: warehouseId }
-        })
+        this.prisma.user.count({ where: { warehouseId } })
       ])
+
+      const skuSet = new Set<string>()
+      let totalCartons = 0
+
+      inventoryAggregates.forEach(aggregate => {
+        skuSet.add(aggregate.skuCode)
+        const net = Number(aggregate._sum.cartonsIn || 0) - Number(aggregate._sum.cartonsOut || 0)
+        if (net > 0) {
+          totalCartons += net
+        }
+      })
+
+      const transactionSummary = transactionStats.reduce<Record<string, number>>((acc, stat) => {
+        acc[stat.transactionType.toLowerCase()] = stat._count._all
+        return acc
+      }, {})
 
       return {
         inventory: {
-          totalSkus: inventoryStats._count.skuId,
-          totalCartons: inventoryStats._sum.currentCartons || 0,
-          totalPallets: inventoryStats._sum.currentPallets || 0,
-          totalUnits: inventoryStats._sum.currentUnits || 0
+          totalSkus: skuSet.size,
+          totalCartons,
+          totalPallets: 0,
+          totalUnits: 0
         },
         transactions: {
-          last30Days: transactionStats.reduce((acc, stat) => ({
-            ...acc,
-            [stat.transactionType.toLowerCase()]: stat._count
-          }), {})
+          last30Days: transactionSummary
         },
         invoices: {
-          total: invoiceStats._count,
-          totalAmount: invoiceStats._sum.totalAmount || 0
+          total: 0,
+          totalAmount: 0
         },
         users: userCount
       }

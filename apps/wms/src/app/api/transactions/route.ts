@@ -2,13 +2,128 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { TransactionType } from '@prisma/client'
+import { TransactionType, CostCategory } from '@prisma/client'
 import { businessLogger, perfLogger } from '@/lib/logger/index'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 // handleTransactionCosts removed - costs are handled via frontend pre-filling
 import { parseLocalDateTime } from '@/lib/utils/date-helpers'
 import { recordStorageCostEntry } from '@/services/storageCost.service'
 export const dynamic = 'force-dynamic'
+
+type MutableTransactionLine = {
+  skuCode?: string
+  skuId?: string
+  batchLot?: string
+  cartons?: number
+  pallets?: number
+  storageCartonsPerPallet?: number
+  shippingCartonsPerPallet?: number
+  storagePalletsIn?: number
+  shippingPalletsOut?: number
+  unitsPerCarton?: number
+  cartonsIn?: number
+  cartonsOut?: number
+}
+
+type ValidatedTransactionLine = {
+  skuCode: string
+  batchLot: string
+  cartons: number
+  pallets?: number
+  storageCartonsPerPallet?: number | null
+  shippingCartonsPerPallet?: number | null
+  storagePalletsIn?: number
+  shippingPalletsOut?: number
+  unitsPerCarton?: number
+}
+
+type TransactionCostPayload = {
+  costType?: string
+  costName?: string
+  quantity?: number
+  unitRate?: number
+  totalCost?: number
+}
+
+type AttachmentPayload = {
+  type?: string
+  content?: string
+  s3Key?: string
+  name?: string
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+const asString = (value: unknown): string | undefined =>
+  typeof value === 'string' && value.trim().length > 0 ? value : undefined
+
+const asNumber = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) ? value : undefined
+
+function normalizeTransactionLine(input: unknown): MutableTransactionLine {
+  if (!isRecord(input)) {
+    return {}
+  }
+
+  return {
+    skuCode: asString(input.skuCode),
+    skuId: asString(input.skuId),
+    batchLot: asString(input.batchLot),
+    cartons: asNumber(input.cartons),
+    pallets: asNumber(input.pallets),
+    storageCartonsPerPallet: asNumber(input.storageCartonsPerPallet),
+    shippingCartonsPerPallet: asNumber(input.shippingCartonsPerPallet),
+    storagePalletsIn: asNumber(input.storagePalletsIn),
+    shippingPalletsOut: asNumber(input.shippingPalletsOut),
+    unitsPerCarton: asNumber(input.unitsPerCarton),
+    cartonsIn: asNumber(input.cartonsIn),
+    cartonsOut: asNumber(input.cartonsOut),
+  }
+}
+
+function normalizeCostInput(input: unknown): TransactionCostPayload | null {
+  if (!isRecord(input)) {
+    return null
+  }
+
+  const costType = asString(input.costType)
+  const totalCost = asNumber(input.totalCost)
+
+  if (!costType && !totalCost) {
+    return null
+  }
+
+  return {
+    costType,
+    costName: asString(input.costName),
+    quantity: asNumber(input.quantity),
+    unitRate: asNumber(input.unitRate),
+    totalCost,
+  }
+}
+
+function normalizeAttachmentInput(input: unknown): AttachmentPayload | null {
+  if (!isRecord(input)) {
+    return null
+  }
+
+  const type = asString(input.type)
+  const content = asString(input.content)
+  const s3Key = asString(input.s3Key)
+  const name = asString(input.name)
+
+  if (!type && !content && !s3Key && !name) {
+    return null
+  }
+
+  return {
+    type,
+    content,
+    s3Key,
+    name,
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -132,39 +247,42 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
-    // Build items array - support both 'items' and 'lineItems' for backward compatibility
-    let itemsArray = items || lineItems
+    const rawItemsInput = Array.isArray(items) ? items : Array.isArray(lineItems) ? lineItems : []
+    let itemsArray: MutableTransactionLine[] = rawItemsInput.map(normalizeTransactionLine)
+
+    const attachmentList: AttachmentPayload[] = Array.isArray(attachments)
+      ? attachments
+          .map(normalizeAttachmentInput)
+          .filter((item): item is AttachmentPayload => item !== null)
+      : []
+
     if (['ADJUST_IN', 'ADJUST_OUT'].includes(txType)) {
-      // For adjustments, create single item from individual fields
       if (!skuId || !batchLot) {
-        return NextResponse.json({ 
-          error: 'Missing required fields for adjustment: skuId and batchLot' 
+        return NextResponse.json({
+          error: 'Missing required fields for adjustment: skuId and batchLot',
         }, { status: 400 })
       }
-      
-      // Get SKU code from skuId
+
       const sku = await prisma.sku.findUnique({
-        where: { id: skuId }
+        where: { id: skuId },
+        select: { skuCode: true },
       })
-      
+
       if (!sku) {
-        return NextResponse.json({ 
-          error: 'SKU not found' 
-        }, { status: 404 })
+        return NextResponse.json({ error: 'SKU not found' }, { status: 404 })
       }
-      
+
       itemsArray = [{
         skuCode: sku.skuCode,
-        batchLot: batchLot,
-        cartons: cartonsIn || cartonsOut || 0,
-        pallets: storagePalletsIn || shippingPalletsOut || 0
+        batchLot,
+        cartons: cartonsIn ?? cartonsOut ?? 0,
+        pallets: storagePalletsIn ?? shippingPalletsOut ?? 0,
       }]
     }
 
     // Validate required fields for non-adjustment transactions
     if (['RECEIVE', 'SHIP'].includes(txType)) {
-      
-      if (!refNumber || !txDate || !itemsArray || !Array.isArray(itemsArray) || itemsArray.length === 0) {
+      if (!refNumber || !txDate || itemsArray.length === 0) {
         // VALIDATION FAILED - missing required fields
         return NextResponse.json({ 
           error: 'Missing required fields: PI/CI/PO number, date, and items',
@@ -339,7 +457,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for duplicate SKU/batch combinations in the request
-    const itemKeys = new Set()
+    const itemKeys = new Set<string>()
     for (const item of itemsArray) {
       const key = `${item.skuCode}-${item.batchLot}`
       if (itemKeys.has(key)) {
@@ -349,6 +467,18 @@ export async function POST(request: NextRequest) {
       }
       itemKeys.add(key)
     }
+
+    const validatedItems: ValidatedTransactionLine[] = itemsArray.map((item) => ({
+      skuCode: item.skuCode!,
+      batchLot: item.batchLot!,
+      cartons: item.cartons!,
+      pallets: item.pallets ?? undefined,
+      storageCartonsPerPallet: item.storageCartonsPerPallet ?? null,
+      shippingCartonsPerPallet: item.shippingCartonsPerPallet ?? null,
+      storagePalletsIn: item.storagePalletsIn ?? undefined,
+      shippingPalletsOut: item.shippingPalletsOut ?? undefined,
+      unitsPerCarton: item.unitsPerCarton ?? undefined,
+    }))
 
     // Get warehouse for transaction ID generation
     const warehouse = await prisma.warehouse.findUnique({
@@ -360,7 +490,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify all SKUs exist and check inventory for SHIP transactions
-    for (const item of itemsArray) {
+    for (const item of validatedItems) {
       const sku = await prisma.sku.findFirst({
         where: { skuCode: item.skuCode }
       })
@@ -404,13 +534,13 @@ export async function POST(request: NextRequest) {
         const transactions = [];
         
         // Pre-fetch all SKUs to reduce queries
-        const skuCodes = itemsArray.map((item: unknown) => item.skuCode);
+        const skuCodes = validatedItems.map((item) => item.skuCode)
         const skus = await tx.sku.findMany({
           where: { skuCode: { in: skuCodes } }
         });
         const skuMap = new Map(skus.map(sku => [sku.skuCode, sku]));
         
-        for (const item of itemsArray) {
+        for (const item of validatedItems) {
           const sku = skuMap.get(item.skuCode);
           if (!sku) {
             throw new Error(`SKU not found: ${item.skuCode}`);
@@ -426,8 +556,8 @@ export async function POST(request: NextRequest) {
             // For adjustments, use provided pallets value directly
             if (txType === 'ADJUST_IN' && item.pallets) {
               calculatedStoragePalletsIn = item.pallets
-            } else if (item.storageCartonsPerPallet > 0) {
-              calculatedStoragePalletsIn = Math.ceil(item.cartons / item.storageCartonsPerPallet)
+            } else if ((item.storageCartonsPerPallet ?? 0) > 0) {
+              calculatedStoragePalletsIn = Math.ceil(item.cartons / (item.storageCartonsPerPallet ?? 1))
               if (item.pallets !== calculatedStoragePalletsIn) {
                 _palletVarianceNotes = `Storage pallet variance: Actual ${item.pallets}, Calculated ${calculatedStoragePalletsIn} (${item.cartons} cartons @ ${item.storageCartonsPerPallet}/pallet)`
               }
@@ -477,51 +607,60 @@ export async function POST(request: NextRequest) {
               referenceId: referenceId,
               cartonsIn: ['RECEIVE', 'ADJUST_IN'].includes(txType) ? item.cartons : 0,
               cartonsOut: ['SHIP', 'ADJUST_OUT'].includes(txType) ? item.cartons : 0,
-              storagePalletsIn: ['RECEIVE', 'ADJUST_IN'].includes(txType) ? (item.storagePalletsIn || item.pallets || calculatedStoragePalletsIn || 0) : 0,
-              shippingPalletsOut: ['SHIP', 'ADJUST_OUT'].includes(txType) ? (item.shippingPalletsOut || item.pallets || calculatedShippingPalletsOut || 0) : 0,
-              storageCartonsPerPallet: txType === 'RECEIVE' ? item.storageCartonsPerPallet : null,
-              shippingCartonsPerPallet: txType === 'RECEIVE' ? item.shippingCartonsPerPallet : (txType === 'SHIP' ? batchShippingCartonsPerPallet : null),
+              storagePalletsIn: ['RECEIVE', 'ADJUST_IN'].includes(txType) ? (item.storagePalletsIn ?? item.pallets ?? calculatedStoragePalletsIn ?? 0) : 0,
+              shippingPalletsOut: ['SHIP', 'ADJUST_OUT'].includes(txType) ? (item.shippingPalletsOut ?? item.pallets ?? calculatedShippingPalletsOut ?? 0) : 0,
+              storageCartonsPerPallet: txType === 'RECEIVE' ? item.storageCartonsPerPallet ?? null : null,
+              shippingCartonsPerPallet: txType === 'RECEIVE' ? item.shippingCartonsPerPallet ?? null : (txType === 'SHIP' ? batchShippingCartonsPerPallet : null),
               shipName: txType === 'RECEIVE' ? sanitizedShipName : null,
               trackingNumber: sanitizedTrackingNumber || null,
               supplier: txType === 'RECEIVE' ? sanitizedSupplier : null,
               attachments: (() => {
-                const combinedAttachments = attachments || [];
-                // Add notes as a special attachment entry for all transaction types
+                const combinedAttachments = [...attachmentList]
                 if (sanitizedNotes) {
-                  return [...combinedAttachments, { type: 'notes', content: sanitizedNotes }];
+                  combinedAttachments.push({ type: 'notes', content: sanitizedNotes })
                 }
-                return combinedAttachments.length > 0 ? combinedAttachments : null;
+                return combinedAttachments.length > 0 ? combinedAttachments : null
               })(),
               transactionDate: parseLocalDateTime(txDate),
               pickupDate: pickupDate ? parseLocalDateTime(pickupDate) : parseLocalDateTime(txDate), // Use provided pickup date or default to transaction date
               createdById: session.user.id,
               createdByName: createdByName,
-              unitsPerCarton: item.unitsPerCarton || sku.unitsPerCarton // Capture units per carton - prefer provided value, fallback to SKU master
+              unitsPerCarton: item.unitsPerCarton ?? sku.unitsPerCarton,
             }
           })
 
           transactions.push(transaction)
 
           // Save costs to CostLedger if provided manually
-          if (costs && Array.isArray(costs) && costs.length > 0) {
-            for (const cost of costs) {
+          const normalizedCosts = Array.isArray(costs)
+            ? costs.map(normalizeCostInput).filter((value): value is TransactionCostPayload => value !== null)
+            : []
+
+          if (normalizedCosts.length > 0) {
+            for (const cost of normalizedCosts) {
               if (cost.totalCost && cost.totalCost > 0) {
                 // Map frontend cost types to database enum values
-                let costCategory: 'Container' | 'Carton' | 'Pallet' | 'transportation' = 'Container'
+                let costCategory: CostCategory = CostCategory.Container
                 if (cost.costType === 'container') {
-                  costCategory = 'Container'
+                  costCategory = CostCategory.Container
                 } else if (cost.costType === 'carton') {
-                  costCategory = 'Carton'
+                  costCategory = CostCategory.Carton
                 } else if (cost.costType === 'pallet') {
-                  costCategory = 'Pallet'
+                  costCategory = CostCategory.Pallet
                 } else if (cost.costType === 'transportation') {
-                  costCategory = 'transportation'
+                  costCategory = CostCategory.transportation
+                } else if (cost.costType === 'storage') {
+                  costCategory = CostCategory.Storage
+                } else if (cost.costType === 'unit') {
+                  costCategory = CostCategory.Unit
+                } else if (cost.costType === 'accessorial') {
+                  costCategory = CostCategory.Accessorial
                 }
                 
                 await tx.costLedger.create({
                   data: {
                     transactionId: transaction.id,
-                    costCategory: costCategory as 'Transportation' | 'Storage' | 'Handling' | 'Outbound',
+                    costCategory,
                     costName: cost.costName || '',
                     quantity: cost.quantity || 1,
                     unitRate: cost.unitRate || 0,
@@ -555,9 +694,13 @@ export async function POST(request: NextRequest) {
           skuDescription: t.skuDescription,
           batchLot: t.batchLot,
           transactionDate: t.transactionDate,
-        }).catch(error => {
+        }).catch((storageError) => {
           // Don't fail transaction processing if storage cost recording fails
-          console.error(`Storage cost recording failed for ${t.warehouseCode}/${t.skuCode}/${t.batchLot}:`, error.message)
+          const message = storageError instanceof Error ? storageError.message : 'Unknown error'
+          console.error(
+            `Storage cost recording failed for ${t.warehouseCode}/${t.skuCode}/${t.batchLot}:`,
+            message
+          )
         })
       )
     );
@@ -571,7 +714,7 @@ export async function POST(request: NextRequest) {
       warehouseId,
       transactionCount: result.length,
       transactionIds: result.map(t => t.id),
-      totalCartons: itemsArray.reduce((sum: number, item: { cartons: number }) => sum + item.cartons, 0),
+      totalCartons: validatedItems.reduce((sum, item) => sum + item.cartons, 0),
       duration,
       userId: session.user.id
     });
@@ -579,9 +722,9 @@ export async function POST(request: NextRequest) {
     // Log performance metrics
     perfLogger.log('Transaction processing completed', {
       transactionType: txType,
-      itemCount: itemsArray.length,
+      itemCount: validatedItems.length,
       duration,
-      avgDurationPerItem: duration / itemsArray.length
+      avgDurationPerItem: duration / Math.max(validatedItems.length, 1)
     });
     
     // Cost calculation is now handled automatically by Prisma middleware
@@ -598,19 +741,24 @@ export async function POST(request: NextRequest) {
     // console.error('Error stack:', error.stack);
     
     // Check for specific error types
-    if (error.message?.includes('Insufficient inventory')) {
-      return NextResponse.json({ 
-        error: error.message
-      }, { status: 400 })
-    }
-    
-    if (error.message?.includes('could not serialize') || 
-        error.message?.includes('deadlock') ||
-        error.message?.includes('concurrent update')) {
-      return NextResponse.json({ 
-        error: 'Transaction conflict detected. Please try again.',
-        details: 'Another transaction is modifying the same inventory. Please retry your request.'
-      }, { status: 409 })
+    if (error instanceof Error) {
+      if (error.message.includes('Insufficient inventory')) {
+        return NextResponse.json({ error: error.message }, { status: 400 })
+      }
+
+      if (
+        error.message.includes('could not serialize') ||
+        error.message.includes('deadlock') ||
+        error.message.includes('concurrent update')
+      ) {
+        return NextResponse.json(
+          {
+            error: 'Transaction conflict detected. Please try again.',
+            details: 'Another transaction is modifying the same inventory. Please retry your request.',
+          },
+          { status: 409 }
+        )
+      }
     }
     
     return NextResponse.json({ 

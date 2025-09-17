@@ -4,6 +4,14 @@ interface RetryError extends Error {
   headers?: Record<string, string>
 }
 
+interface RateLimitError extends Error {
+  retryAfter: number
+}
+
+const isRetryError = (error: unknown): error is RetryError =>
+  typeof error === 'object' && error !== null
+
+
 interface RetryOptions {
   maxRetries?: number;
   maxAttempts?: number; // Alias for maxRetries + 1
@@ -32,11 +40,13 @@ export async function withRetry<T>(
   const onRetry = options.onRetry;
   
   const retryOn = options.shouldRetry ?? options.retryOn ?? ((error: unknown) => {
-    // Retry on network errors and 5xx status codes
-    const err = error as Record<string, unknown>;
-    if (err.code === 'ECONNRESET' || err.code === 'ETIMEDOUT') return true;
-    if (typeof err.status === 'number' && err.status >= 500) return true;
-    if (err.status === 429) return true; // Rate limited
+    if (!isRetryError(error)) {
+      return false
+    }
+
+    if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT') return true
+    if (typeof error.status === 'number' && error.status >= 500) return true
+    if (error.status === 429) return true // Rate limited
     return false;
   });
 
@@ -54,8 +64,8 @@ export async function withRetry<T>(
       }
 
       // Handle rate limit headers
-      if (lastError.status === 429 && lastError.headers?.['retry-after']) {
-        delayMs = parseInt(lastError.headers['retry-after']) * 1000;
+      if (isRetryError(lastError) && lastError.status === 429 && lastError.headers?.['retry-after']) {
+        delayMs = parseInt(lastError.headers['retry-after'], 10) * 1000;
       }
 
       // Apply jitter if enabled
@@ -322,8 +332,8 @@ export function withRateLimit<T>(
     if (requests.length >= maxRequests) {
       const oldestRequest = requests[0];
       const retryAfter = Math.ceil((oldestRequest + windowMs - now) / 1000);
-      const error = new Error(`Rate limit exceeded. Try again in ${retryAfter} seconds.`);
-      (error as unknown).retryAfter = retryAfter;
+      const error = new Error(`Rate limit exceeded. Try again in ${retryAfter} seconds.`) as RateLimitError
+      error.retryAfter = retryAfter;
       throw error;
     }
 

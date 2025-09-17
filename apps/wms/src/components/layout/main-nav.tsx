@@ -17,10 +17,8 @@ import {
   BarChart3,
   Calculator,
   Building,
-  TrendingUp,
   BookOpen,
   Calendar,
-  Cloud,
   AlertTriangle,
 } from '@/lib/lucide-icons'
 import { useState, useEffect } from 'react'
@@ -40,15 +38,6 @@ const baseNavigation: NavSection[] = [
     title: '',
     items: [
       { name: 'Dashboard', href: '/dashboard', icon: Home },
-    ]
-  },
-  {
-    title: 'Market',
-    items: [
-      { name: 'Shipment Planning', href: '/market/shipment-planning', icon: TrendingUp },
-      { name: 'Amazon FBA', href: '/market/amazon', icon: Cloud },
-      { name: 'Order Management', href: '/market/orders', icon: FileText },
-      { name: 'Reorder Alerts', href: '/market/reorder', icon: AlertTriangle },
     ]
   },
   {
@@ -73,8 +62,6 @@ const baseNavigation: NavSection[] = [
       { name: 'Products', href: '/config/products', icon: Package },
       { name: 'Warehouses', href: '/config/warehouses', icon: Building },
       { name: 'Cost Rates', href: '/config/rates', icon: DollarSign },
-      { name: 'Invoice Templates', href: '/config/invoice-templates', icon: FileText },
-      { name: 'Reports & Analytics', href: '/finance/reports', icon: BarChart3 },
     ]
   },
 ]

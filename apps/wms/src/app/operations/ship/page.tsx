@@ -19,17 +19,23 @@ import { AttachmentsTab } from '@/components/operations/ship-attachments-tab'
 
 // Internal utilities
 import { sumBy } from '@/lib/utils/calculations'
+type ValidationErrorItem = { field: string; message?: string }
+type ValidationResult = { isValid: boolean; errors: ValidationErrorItem[] }
+
 // Temporary validation functions
-const validateTransaction = (_data: Record<string, unknown>, _isEdit: boolean) => ({
+const validateTransaction = (_data: Record<string, unknown>, _isEdit: boolean): ValidationResult => ({
   isValid: true,
   errors: []
 })
-const displayValidationErrors = (errors: Record<string, string>) => {
-  Object.values(errors).forEach((error: string) => {
-    toast.error(String(error))
+
+const displayValidationErrors = (errors: ValidationErrorItem[]) => {
+  errors.forEach(error => {
+    toast.error(error.message || error.field)
   })
 }
-const _getFieldError = (errors: Record<string, string>, field: string) => errors[field]
+
+const _getFieldError = (errors: ValidationErrorItem[], field: string) =>
+  errors.find(error => error.field === field)?.message
 
 // Icons
 import { Package2, FileText, DollarSign, Paperclip, Save, X, Truck } from '@/lib/lucide-icons'
@@ -206,10 +212,13 @@ export default function ShipTabbedPage() {
       const response = await fetch(url, { 
         credentials: 'include' 
       })
-      const data = await response.json()
+      const payload = await response.json()
       
-      // When date is provided, API returns array directly (not paginated)
-      const inventoryData = transactionDate ? data : (data.data || [])
+      const inventoryData = Array.isArray(payload)
+        ? payload
+        : Array.isArray(payload?.data)
+          ? payload.data
+          : []
       setInventory(inventoryData)
     } catch (_error) {
       toast.error('Failed to load inventory')

@@ -19,8 +19,19 @@ interface Attachment {
   isNew?: boolean // Mark as new upload
 }
 
+export interface ApiAttachment {
+  fileName?: string
+  name?: string
+  contentType?: string
+  type?: string
+  size?: number
+  s3Key?: string
+  s3Url?: string
+  viewUrl?: string
+}
+
 interface EditAttachmentsTabProps {
-  existingAttachments: Record<string, unknown> | null
+  existingAttachments: Record<string, ApiAttachment> | null
   onAttachmentsChange: (attachments: Record<string, Attachment | null>) => void
   transactionType?: 'RECEIVE' | 'SHIP' | 'ADJUST_IN' | 'ADJUST_OUT'
 }
@@ -87,6 +98,42 @@ const SHIP_CATEGORIES = [
   }
 ]
 
+const parseApiAttachment = (category: string, value: ApiAttachment | undefined): Attachment | null => {
+  if (!value) {
+    return null
+  }
+
+  const name = typeof value.fileName === 'string'
+    ? value.fileName
+    : typeof value.name === 'string'
+      ? value.name
+      : 'Unknown file'
+
+  const type = typeof value.contentType === 'string'
+    ? value.contentType
+    : typeof value.type === 'string'
+      ? value.type
+      : 'application/octet-stream'
+
+  const size = typeof value.size === 'number' ? value.size : 0
+
+  return {
+    name,
+    type,
+    size,
+    s3Key: typeof value.s3Key === 'string' ? value.s3Key : undefined,
+    viewUrl:
+      typeof value.s3Url === 'string'
+        ? value.s3Url
+        : typeof value.viewUrl === 'string'
+          ? value.viewUrl
+          : undefined,
+    category,
+  }
+}
+
+export type EditAttachment = Attachment
+
 export function EditAttachmentsTab({ existingAttachments, onAttachmentsChange, transactionType = 'RECEIVE' }: EditAttachmentsTabProps) {
   const [stagedAttachments, setStagedAttachments] = useState<Record<string, Attachment | null>>({})
   
@@ -100,18 +147,9 @@ export function EditAttachmentsTab({ existingAttachments, onAttachmentsChange, t
       
       // Convert existing attachments to our format
       for (const [category, attachment] of Object.entries(existingAttachments)) {
-        if (attachment && typeof attachment === 'object') {
-          const att = attachment as Record<string, unknown>
-          initial[category] = {
-            name: (att.fileName || att.name || 'Unknown file') as string,
-            type: (att.contentType || att.type || 'application/octet-stream') as string,
-            size: (att.size || 0) as number,
-            s3Key: att.s3Key as string | undefined,
-            viewUrl: (att.s3Url || att.viewUrl) as string | undefined,
-            category,
-            isNew: false,
-            deleted: false
-          }
+        const parsed = parseApiAttachment(category, attachment)
+        if (parsed) {
+          initial[category] = { ...parsed, isNew: false, deleted: false }
         }
       }
       

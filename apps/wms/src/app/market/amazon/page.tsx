@@ -3,7 +3,6 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
@@ -23,7 +22,6 @@ interface InventoryComparison {
 
 // Force cache invalidation
 export default function AmazonIntegrationPage() {
-  const router = useRouter()
   const { data: session, status } = useSession()
 
   // TEMPORARY: Show under construction page

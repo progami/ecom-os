@@ -1,130 +1,61 @@
 'use client'
 
-import React, { useState, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { 
-  Search, 
-  Filter, 
-  Download, 
-  DollarSign, 
-  Package, 
-  Truck, 
+import {
+  DollarSign,
+  BarChart3,
+  RefreshCw,
+  Filter,
+  Download,
+  Truck,
   Box,
-  ChevronDown,
-  ChevronRight,
-  FileText
+  Package,
+  type LucideIcon,
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
-import { EmptyState } from '@/components/ui/empty-state'
-import { toast } from 'react-hot-toast'
+import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
 import { formatCurrency } from '@/lib/utils'
-import { formatDateGMT } from '@/lib/date-utils'
-import { StatsCard } from '@/components/ui/stats-card'
+import { toast } from 'react-hot-toast'
+import type { CostLedgerBucketTotals, CostLedgerGroupResult } from '@ecom-os/ledger'
 
-interface CostDetail {
-  transactionId: string
-  transactionDate: string
-  transactionType: string
+interface CostLedgerResponse {
+  groups: CostLedgerGroupResult[]
+  totals: CostLedgerBucketTotals
+  groupBy: 'week' | 'month'
+}
+
+interface FilterState {
   warehouse: string
-  sku: string
-  batchLot: string
-  costCategory: string
-  costName: string
-  unitRate: number
-  quantity: number
-  totalCost: number
+  startDate: string
+  endDate: string
 }
 
-interface WeekCosts {
-  weekStarting: string
-  weekEnding: string
-  costs: {
-    storage: number
-    container: number
-    pallet: number
-    carton: number
-    unit: number
-    transportation: number
-    accessorial: number
-    total: number
-  }
-  transactions: Array<{
-    id: string
-    transactionId: string
-    transactionDate: string
-    transactionType: string
-    warehouseCode: string
-    skuCode: string
-    batchLot: string
-    cartonsIn: number
-    cartonsOut: number
-    palletQty: number
-    category: string
-    costType: string
-    rate: number
-    quantity: number
-    totalCost: number
-  }>
-  details: CostDetail[]
+const defaultFilters: FilterState = {
+  warehouse: '',
+  startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  endDate: new Date().toISOString().split('T')[0],
 }
 
-export default function CostLedgerPage() {
+function CostLedgerPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
-  const [ledgerData, setLedgerData] = useState<WeekCosts[]>([])
-  const [totals, setTotals] = useState<{
-    total: number
-    container: number
-    pallet: number
-    carton: number
-    unit: number
-    transportation: number
-    accessorial: number
-    other: number
-  }>({
-    total: 0,
-    container: 0,
-    pallet: 0,
-    carton: 0,
-    unit: 0,
-    transportation: 0,
-    accessorial: 0
-  })
-  const [warehouses, setWarehouses] = useState<{id: string; name: string}[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
-  const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set())
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
+  const [ledgerData, setLedgerData] = useState<CostLedgerGroupResult[]>([])
+  const [totals, setTotals] = useState<CostLedgerBucketTotals | null>(null)
+  const [warehouses, setWarehouses] = useState<Array<{ id: string; name: string; code: string }>>([])
+  const [filters, setFilters] = useState<FilterState>(defaultFilters)
   const [groupBy, setGroupBy] = useState<'week' | 'month'>('week')
-  const [filters, setFilters] = useState({
-    warehouse: '',
-    startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
-  })
-
-  // Get ISO week number (Monday as start of week) - for display only
-  const getISOWeekNumber = (date: Date) => {
-    const d = new Date(date)
-    d.setHours(0, 0, 0, 0)
-    // Set to Monday of this week
-    const dayNum = d.getDay() || 7 // Make Sunday = 7
-    d.setDate(d.getDate() + 1 - dayNum)
-    // Get first day of year
-    const yearStart = new Date(d.getFullYear(), 0, 1)
-    // Calculate full weeks between dates
-    const weekNum = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
-    return weekNum
-  }
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
       const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
       const url = new URL('/login', central)
-      url.searchParams.set('callbackUrl', window.location.origin + '/finance/cost-ledger')
+      url.searchParams.set('callbackUrl', `${window.location.origin}/finance/cost-ledger`)
       window.location.href = url.toString()
       return
     }
@@ -135,39 +66,64 @@ export default function CostLedgerPage() {
   }, [session, status, router])
 
   useEffect(() => {
-    // Fetch warehouses
     const fetchWarehouses = async () => {
-      const response = await fetch('/api/warehouses')
-      if (response.ok) {
+      try {
+        const response = await fetch('/api/warehouses')
+        if (!response.ok) {
+          return
+        }
+
         const data = await response.json()
-        setWarehouses(data)
+        if (!Array.isArray(data)) {
+          return
+        }
+
+        const mapped = data.map((warehouse) => ({
+          id: warehouse.id,
+          name: warehouse.name,
+          code: warehouse.code,
+        }))
+
+        setWarehouses(mapped)
+
+        if (!filters.warehouse && session?.user?.warehouseId) {
+          const match = mapped.find(wh => wh.id === session.user.warehouseId)
+          if (match) {
+            setFilters((prev) => ({ ...prev, warehouse: match.code }))
+          }
+        }
+      } catch (_error) {
+        // ignore
       }
     }
-    fetchWarehouses()
-  }, [])
+
+    if (status === 'authenticated') {
+      void fetchWarehouses()
+    }
+  }, [session, status, filters.warehouse])
 
   const fetchCostLedger = useCallback(async () => {
     try {
       setLoading(true)
-      
       const params = new URLSearchParams({
         startDate: filters.startDate,
         endDate: filters.endDate,
         groupBy,
-        ...(filters.warehouse && { warehouseCode: filters.warehouse })
       })
+      if (filters.warehouse) {
+        params.append('warehouseCode', filters.warehouse)
+      }
 
       const response = await fetch(`/api/finance/cost-ledger?${params}`)
-      
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }))
         toast.error(`Failed to load cost ledger: ${errorData.error || response.statusText}`)
         return
       }
 
-      const data = await response.json()
-      setLedgerData(data.ledgerData || [])
-      setTotals(data.totals || {})
+      const data: CostLedgerResponse = await response.json()
+      setLedgerData(data.groups ?? [])
+      setTotals(data.totals ?? null)
     } catch (_error) {
       toast.error('Failed to load cost ledger')
     } finally {
@@ -176,59 +132,83 @@ export default function CostLedgerPage() {
   }, [filters, groupBy])
 
   useEffect(() => {
-    fetchCostLedger()
-  }, [fetchCostLedger])
-
-  const toggleWeek = (weekKey: string) => {
-    const newExpanded = new Set(expandedWeeks)
-    if (newExpanded.has(weekKey)) {
-      newExpanded.delete(weekKey)
-    } else {
-      newExpanded.add(weekKey)
+    if (status === 'authenticated') {
+      fetchCostLedger()
     }
-    setExpandedWeeks(newExpanded)
-  }
+  }, [fetchCostLedger, status])
 
-  const toggleCategory = (categoryKey: string) => {
-    const newExpanded = new Set(expandedCategories)
-    if (newExpanded.has(categoryKey)) {
-      newExpanded.delete(categoryKey)
-    } else {
-      newExpanded.add(categoryKey)
+  const handleExport = useCallback(async () => {
+    try {
+      setExporting(true)
+      const params = new URLSearchParams({
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        groupBy,
+      })
+      if (filters.warehouse) {
+        params.append('warehouseCode', filters.warehouse)
+      }
+
+      const response = await fetch(`/api/finance/export/cost-ledger?${params.toString()}`)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Export failed' }))
+        throw new Error(errorData.error || 'Export failed')
+      }
+
+      const payload = await response.json() as { downloadUrl?: string; filename?: string }
+      if (payload.downloadUrl) {
+        window.location.href = payload.downloadUrl
+        toast.success('Cost ledger export started')
+      } else {
+        toast.error('Export link was not provided')
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to export cost ledger'
+      toast.error(message)
+    } finally {
+      setExporting(false)
     }
-    setExpandedCategories(newExpanded)
-  }
+  }, [filters.startDate, filters.endDate, filters.warehouse, groupBy])
 
-  const handleExport = () => {
-    // Export disabled - API removed
-    toast.error('Export functionality is currently unavailable')
-    /* Disabled - API removed
-    const params = new URLSearchParams({
-      startDate: filters.startDate,
-      endDate: filters.endDate,
-      groupBy,
-      ...(filters.warehouse && { warehouseId: filters.warehouse })
-    })
-    window.open(`/api/finance/export/cost-ledger?${params}`, '_blank')
-    toast.success('Exporting cost ledger...')
-    */
-  }
+  const summaryCards = useMemo(() => {
+    if (!totals) return []
 
-  // Filter ledger data based on search
-  const filteredLedger = ledgerData.filter(week => {
-    if (!searchQuery) return true
-    const query = searchQuery.toLowerCase()
-    
-    // Search in details
-    return week.details.some(detail => 
-      detail.sku.toLowerCase().includes(query) ||
-      detail.warehouse.toLowerCase().includes(query) ||
-      detail.batchLot.toLowerCase().includes(query) ||
-      detail.transactionId.toLowerCase().includes(query)
-    )
-  })
+    const totalAmount = totals.total || 0
+    const safePercent = (value: number) =>
+      totalAmount > 0 ? `${((value / totalAmount) * 100).toFixed(1)}%` : '0.0%'
 
-  if (loading || status === 'loading') {
+    const categoryMap: Array<{ key: keyof Omit<CostLedgerBucketTotals, 'total'>; title: string; icon: LucideIcon }> = [
+      { key: 'storage', title: 'Storage', icon: Box },
+      { key: 'container', title: 'Container', icon: Truck },
+      { key: 'pallet', title: 'Pallet', icon: BarChart3 },
+      { key: 'carton', title: 'Carton', icon: Package },
+      { key: 'unit', title: 'Unit', icon: Package },
+      { key: 'transportation', title: 'Transportation', icon: Truck },
+      { key: 'accessorial', title: 'Accessorial', icon: Filter },
+      { key: 'other', title: 'Other', icon: BarChart3 },
+    ]
+
+    const cards = categoryMap.map(({ key, title, icon }) => ({
+      title,
+      value: formatCurrency(totals[key] ?? 0),
+      subtitle: safePercent(totals[key] ?? 0),
+      icon,
+      variant: 'default' as const,
+    }))
+
+    return [
+      {
+        title: 'Total Cost',
+        value: formatCurrency(totalAmount),
+        subtitle: 'All categories',
+        icon: DollarSign,
+        variant: 'info' as const,
+      },
+      ...cards,
+    ]
+  }, [totals])
+
+  if (status === 'loading') {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
@@ -238,410 +218,152 @@ export default function CostLedgerPage() {
     )
   }
 
-  const getCategoryIcon = (category: string) => {
-    switch (category.toLowerCase()) {
-      case 'storage': return <Box className="h-4 w-4" />
-      case 'container': return <Package className="h-4 w-4" />
-      case 'transportation': return <Truck className="h-4 w-4" />
-      default: return <DollarSign className="h-4 w-4" />
-    }
-  }
-
-  const getCategoryColor = (category: string) => {
-    switch (category.toLowerCase()) {
-      case 'storage': return 'text-blue-600 bg-blue-100'
-      case 'container': return 'text-purple-600 bg-purple-100'
-      case 'pallet': return 'text-green-600 bg-green-100'
-      case 'carton': return 'text-orange-600 bg-orange-100'
-      case 'unit': return 'text-pink-600 bg-pink-100'
-      case 'transportation': return 'text-red-600 bg-red-100'
-      case 'accessorial': return 'text-gray-600 bg-gray-100'
-      default: return 'text-gray-600 bg-gray-100'
-    }
-  }
-
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-full space-y-2">
-        {/* Page Header */}
+      <div className="flex flex-col gap-6">
         <PageHeader
           title="Cost Ledger"
-          subtitle="Comprehensive cost tracking and analysis"
+          subtitle="Weekly and monthly cost allocations"
           icon={DollarSign}
-          iconColor="text-green-600"
-          bgColor="bg-green-50"
-          borderColor="border-green-200"
-          textColor="text-green-800"
+          iconColor="text-emerald-600"
+          bgColor="bg-emerald-50"
+          borderColor="border-emerald-200"
+          textColor="text-emerald-800"
           actions={
-            <div className="flex items-center gap-2">
-              <select
-                value={groupBy}
-                onChange={(e) => setGroupBy(e.target.value as 'week' | 'month')}
-                className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="week">Group by Week</option>
-                <option value="month">Group by Month</option>
-              </select>
-              <button 
+            <div className="flex gap-2">
+              <button
                 type="button"
-                onClick={handleExport}
                 className="secondary-button"
+                onClick={() => fetchCostLedger()}
+                disabled={loading}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={handleExport}
+                disabled={exporting}
               >
                 <Download className="h-4 w-4 mr-2" />
-                Export
+                {exporting ? 'Exporting…' : 'Export'}
               </button>
             </div>
           }
         />
 
-        {/* Cost Summary Cards */}
-        {totals && (
-          <div className="grid gap-1 md:grid-cols-4">
-            <StatsCard
-              title="Total Costs"
-              value={formatCurrency(totals.total)}
-              icon={DollarSign}
-              size="sm"
-            />
-            <StatsCard
-              title="Handling Costs"
-              value={formatCurrency(totals.container + totals.pallet + totals.carton + totals.unit)}
-              subtitle={`${totals.total > 0 ? (((totals.container + totals.pallet + totals.carton + totals.unit) / totals.total) * 100).toFixed(1) : '0.0'}% of total`}
-              icon={Package}
-              variant="success"
-              size="sm"
-            />
-            <StatsCard
-              title="Transportation Costs"
-              value={formatCurrency(totals.transportation || 0)}
-              subtitle={`${totals.total > 0 ? (((totals.transportation || 0) / totals.total) * 100).toFixed(1) : '0.0'}% of total`}
-              icon={Truck}
-              variant="danger"
-              size="sm"
-            />
-            <StatsCard
-              title="Accessorial Costs"
-              value={formatCurrency(totals.accessorial || 0)}
-              subtitle={`${totals.total > 0 ? (((totals.accessorial || 0) / totals.total) * 100).toFixed(1) : '0.0'}% of total`}
-              icon={FileText}
-              variant="info"
-              size="sm"
+        <div className="grid gap-4 md:grid-cols-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Start Date</label>
+            <input
+              type="date"
+              value={filters.startDate}
+              onChange={(event) => setFilters((prev) => ({ ...prev, startDate: event.target.value }))}
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
-        )}
-
-        {/* Filters */}
-        <div className="space-y-2">
-          <div className="flex flex-col sm:flex-row gap-2">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search by SKU, warehouse, batch, or transaction ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-              </div>
-            </div>
-            <button 
-              type="button"
-              onClick={() => setShowFilters(!showFilters)}
-              className={`inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium transition-colors ${
-                showFilters 
-                  ? 'border-primary bg-primary text-white' 
-                  : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50'
-              }`}
+          <div>
+            <label className="block text-sm font-medium mb-1">End Date</label>
+            <input
+              type="date"
+              value={filters.endDate}
+              onChange={(event) => setFilters((prev) => ({ ...prev, endDate: event.target.value }))}
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Warehouse</label>
+            <select
+              value={filters.warehouse}
+              onChange={(event) => setFilters((prev) => ({ ...prev, warehouse: event.target.value }))}
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
             >
-              <Filter className="h-4 w-4 mr-2" />
-              Filters
-            </button>
+              <option value="">All Warehouses</option>
+              {warehouses.map((warehouse) => (
+                <option key={warehouse.code} value={warehouse.code}>
+                  {warehouse.name}
+                </option>
+              ))}
+            </select>
           </div>
-
-          {/* Advanced Filters Panel */}
-          {showFilters && (
-            <div className="border rounded-lg p-2 bg-gray-50 dark:bg-gray-800">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Warehouse</label>
-                  <select
-                    value={filters.warehouse}
-                    onChange={(e) => setFilters({...filters, warehouse: e.target.value})}
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="">All Warehouses</option>
-                    {warehouses.map((warehouse) => (
-                      <option key={warehouse.id} value={warehouse.id}>
-                        {warehouse.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Start Date</label>
-                  <input
-                    type="date"
-                    value={filters.startDate}
-                    onChange={(e) => setFilters({...filters, startDate: e.target.value})}
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">End Date</label>
-                  <input
-                    type="date"
-                    value={filters.endDate}
-                    onChange={(e) => setFilters({...filters, endDate: e.target.value})}
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-              </div>
-              <div className="mt-4 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setFilters({
-                      warehouse: '',
-                      startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                      endDate: new Date().toISOString().split('T')[0]
-                    })
-                  }}
-                  className="text-sm text-primary hover:underline"
-                >
-                  Clear all filters
-                </button>
-              </div>
-            </div>
-          )}
+          <div>
+            <label className="block text-sm font-medium mb-1">Group By</label>
+            <select
+              value={groupBy}
+              onChange={(event) => setGroupBy(event.target.value as 'week' | 'month')}
+              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="week">Weekly</option>
+              <option value="month">Monthly</option>
+            </select>
+          </div>
         </div>
 
-        {/* Cost Ledger Table */}
-        <div className="border rounded-lg overflow-hidden">
-          <div className="bg-gray-50 px-6 py-3 border-b">
-            <h3 className="text-lg font-semibold">Cost Details by {groupBy === 'week' ? 'Week' : 'Month'}</h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Showing {filteredLedger.length} {groupBy === 'week' ? 'weeks' : 'months'} • Click on a {groupBy} to view detailed transaction costs
-            </p>
-          </div>
+        <StatsCardGrid cols={6}>
+          {summaryCards.map((card) => (
+            <StatsCard key={card.title} {...card} />
+          ))}
+        </StatsCardGrid>
+
+        <div className="bg-white border rounded-lg shadow-sm">
+            <div className="flex items-center px-4 py-3 border-b">
+              <Filter className="h-4 w-4 text-muted-foreground mr-2" />
+              <span className="text-sm text-muted-foreground">
+                Showing {ledgerData.length} {groupBy === 'week' ? 'weeks' : 'months'} of cost activity
+              </span>
+            </div>
+
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40 text-muted-foreground">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Period
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Container
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Pallet
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Carton
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Unit
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Transportation
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Accessorial
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
-                  </th>
+                  <th className="px-4 py-2 text-left font-medium">Period</th>
+                  <th className="px-4 py-2 text-right font-medium">Storage</th>
+                  <th className="px-4 py-2 text-right font-medium">Container</th>
+                  <th className="px-4 py-2 text-right font-medium">Pallet</th>
+                  <th className="px-4 py-2 text-right font-medium">Carton</th>
+                  <th className="px-4 py-2 text-right font-medium">Unit</th>
+                  <th className="px-4 py-2 text-right font-medium">Transportation</th>
+                  <th className="px-4 py-2 text-right font-medium">Accessorial</th>
+                  <th className="px-4 py-2 text-right font-medium">Other</th>
+                  <th className="px-4 py-2 text-right font-medium">Total</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredLedger.map((week, _idx) => {
-                  const weekKey = groupBy === 'week' ? week.weekStarting : (week as { month: string }).month
-                  const isExpanded = expandedWeeks.has(weekKey)
-                  
-                  return (
-                    <React.Fragment key={weekKey}>
-                      <tr 
-                        className="hover:bg-gray-50 cursor-pointer"
-                        onClick={() => toggleWeek(weekKey)}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          <div className="flex items-center gap-2">
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4 text-gray-400" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4 text-gray-400" />
-                            )}
-                            {groupBy === 'week' ? (
-                              <div>
-                                <div className="font-medium">
-                                  W{getISOWeekNumber(new Date(week.weekStarting))} {new Date(week.weekStarting).getFullYear()}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {new Date(week.weekStarting).toLocaleDateString()} - {new Date(week.weekEnding).toLocaleDateString()}
-                                </div>
-                              </div>
-                            ) : (
-                              <div>{(week as { month: string }).month}</div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                          {week.costs.container > 0 ? formatCurrency(week.costs.container) : '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                          {week.costs.pallet > 0 ? formatCurrency(week.costs.pallet) : '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                          {week.costs.carton > 0 ? formatCurrency(week.costs.carton) : '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                          {week.costs.unit > 0 ? formatCurrency(week.costs.unit) : '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                          {(week.costs.transportation || 0) > 0 ? formatCurrency(week.costs.transportation || 0) : '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                          {week.costs.accessorial > 0 ? formatCurrency(week.costs.accessorial) : '-'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold">
-                          {formatCurrency(week.costs.total)}
-                        </td>
-                      </tr>
-                      
-                      {/* Expanded details */}
-                      {isExpanded && (
-                        <tr>
-                          <td colSpan={9} className="px-6 py-4 bg-gray-50">
-                            <div className="space-y-2">
-                              <h4 className="font-medium text-sm">Cost Breakdown by Category</h4>
-                              
-                              {/* Group details by category */}
-                              {(() => {
-                                const categorySummary = week.details.reduce((acc, detail) => {
-                                  // Handle cases where category might be undefined
-                                  const categoryName = detail.costCategory || 'Unknown'
-                                  const category = categoryName.toLowerCase()
-                                  if (!acc[category]) {
-                                    acc[category] = {
-                                      name: categoryName,
-                                      totalCost: 0,
-                                      totalQuantity: 0,
-                                      transactions: []
-                                    }
-                                  }
-                                  acc[category].totalCost += detail.totalCost || 0
-                                  acc[category].totalQuantity += detail.quantity || 0
-                                  acc[category].transactions.push(detail)
-                                  return acc
-                                }, {} as Record<string, { category: string; totalCost: number; count: number }>)
-
-                                // Sort categories by total cost descending
-                                const sortedCategories = Object.values(categorySummary).sort((a: { totalCost: number }, b: { totalCost: number }) => b.totalCost - a.totalCost)
-
-                                return (
-                                  <div className="space-y-1">
-                                    {sortedCategories.map((category: { category: string; totalCost: number; count: number }) => {
-                                      const categoryKey = `${weekKey}-${category.name}`
-                                      const isCategoryExpanded = expandedCategories.has(categoryKey)
-                                      
-                                      return (
-                                        <div key={category.name} className="border rounded-lg bg-white">
-                                          <div 
-                                            className="px-4 py-3 flex items-center justify-between cursor-pointer hover:bg-gray-50"
-                                            onClick={(e) => {
-                                              e.stopPropagation()
-                                              toggleCategory(categoryKey)
-                                            }}
-                                          >
-                                            <div className="flex items-center gap-3">
-                                              {isCategoryExpanded ? (
-                                                <ChevronDown className="h-4 w-4 text-gray-400" />
-                                              ) : (
-                                                <ChevronRight className="h-4 w-4 text-gray-400" />
-                                              )}
-                                              <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getCategoryColor(category.name)}`}>
-                                                {getCategoryIcon(category.name)}
-                                                {category.name}
-                                              </span>
-                                              <span className="text-sm text-gray-600">
-                                                {category.transactions.length} transaction{category.transactions.length !== 1 ? 's' : ''}
-                                              </span>
-                                            </div>
-                                            <div className="text-right">
-                                              <div className="text-sm font-semibold">{formatCurrency(category.totalCost)}</div>
-                                              <div className="text-xs text-gray-500">Qty: {category.totalQuantity}</div>
-                                            </div>
-                                          </div>
-                                          
-                                          {isCategoryExpanded && (
-                                            <div className="border-t px-4 py-2">
-                                              <table className="min-w-full divide-y divide-gray-200">
-                                                <thead className="bg-gray-50">
-                                                  <tr>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Date</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Transaction</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Type</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">SKU</th>
-                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Batch</th>
-                                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Qty</th>
-                                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Rate</th>
-                                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Cost</th>
-                                                  </tr>
-                                                </thead>
-                                                <tbody className="bg-white divide-y divide-gray-200">
-                                                  {category.transactions.map((detail: CostDetail, idx: number) => (
-                                                    <tr key={`${detail.transactionId}-${idx}`} className="hover:bg-gray-50">
-                                                      <td className="px-3 py-2 text-xs">
-                                                        {formatDateGMT(detail.transactionDate)}
-                                                      </td>
-                                                      <td className="px-3 py-2 text-xs font-mono">
-                                                        {detail.transactionId.slice(0, 8)}...
-                                                      </td>
-                                                      <td className="px-3 py-2 text-xs">
-                                                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                                                          detail.transactionType === 'RECEIVE' ? 'bg-green-100 text-green-800' :
-                                                          detail.transactionType === 'SHIP' ? 'bg-red-100 text-red-800' :
-                                                          'bg-gray-100 text-gray-800'
-                                                        }`}>
-                                                          {detail.transactionType}
-                                                        </span>
-                                                      </td>
-                                                      <td className="px-3 py-2 text-xs">{detail.sku}</td>
-                                                      <td className="px-3 py-2 text-xs">{detail.batchLot}</td>
-                                                      <td className="px-3 py-2 text-xs text-right">{detail.quantity}</td>
-                                                      <td className="px-3 py-2 text-xs text-right">{formatCurrency(detail.unitRate || 0)}</td>
-                                                      <td className="px-3 py-2 text-xs text-right font-medium">{formatCurrency(detail.totalCost || 0)}</td>
-                                                    </tr>
-                                                  ))}
-                                                </tbody>
-                                              </table>
-                                            </div>
-                                          )}
-                                        </div>
-                                      )
-                                    })}
-                                  </div>
-                                )
-                              })()}
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  )
-                })}
-                {filteredLedger.length === 0 && (
+              <tbody>
+                {ledgerData.length === 0 && (
                   <tr>
-                    <td colSpan={9} className="px-6 py-12">
-                      <EmptyState
-                        icon={DollarSign}
-                        title="No costs found"
-                        description="No cost data found for the selected period and filters."
-                      />
+                    <td colSpan={6} className="px-4 py-6">
+                      <div className="text-center text-muted-foreground">
+                        No cost ledger data for the selected filters.
+                      </div>
                     </td>
                   </tr>
                 )}
+
+                {ledgerData.map((group) => (
+                  <tr key={`${group.period}-${group.rangeStart}`} className="odd:bg-muted/20">
+                    <td className="px-4 py-2">
+                      <div className="font-medium text-foreground">
+                        {formatPeriod(group, groupBy)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {formatDateRange(group.rangeStart, group.rangeEnd)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.storage)}</td>
+                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.container)}</td>
+                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.pallet)}</td>
+                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.carton)}</td>
+                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.unit)}</td>
+                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.transportation)}</td>
+                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.accessorial)}</td>
+                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.other)}</td>
+                    <td className="px-4 py-2 text-right font-semibold text-emerald-700">
+                      {formatCurrency(group.costs.total)}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
@@ -650,3 +372,21 @@ export default function CostLedgerPage() {
     </DashboardLayout>
   )
 }
+
+function formatDateRange(start: string, end: string) {
+  const startDate = new Date(start)
+  const endDate = new Date(end)
+  return `${startDate.toLocaleDateString()} – ${endDate.toLocaleDateString()}`
+}
+
+function formatPeriod(group: CostLedgerGroupResult, groupBy: 'week' | 'month') {
+  if (groupBy === 'month') {
+    const date = new Date(group.rangeStart)
+    return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+  }
+  const startDate = new Date(group.rangeStart)
+  const endDate = new Date(group.rangeEnd)
+  return `Week of ${startDate.toLocaleDateString()} (${endDate.toLocaleDateString()})`
+}
+
+export default CostLedgerPage

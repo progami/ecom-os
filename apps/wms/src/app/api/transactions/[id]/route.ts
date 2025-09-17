@@ -2,9 +2,44 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { getS3Service } from '@/services/s3.service'
 
 export const dynamic = 'force-dynamic'
+
+type TransactionAttachment = {
+  id?: string
+  s3Key?: string
+  name?: string
+  type?: string
+  uploadedAt?: string
+  uploadedBy?: string
+}
+
+type ProcessedAttachment = TransactionAttachment & {
+  s3Url?: string
+}
+
+const toSafeString = (value: unknown): string | undefined => {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined
+}
+
+function parseAttachmentList(value: unknown): TransactionAttachment[] {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value
+    .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+    .map((item) => ({
+      id: toSafeString(item.id),
+      s3Key: toSafeString(item.s3Key),
+      name: toSafeString(item.name),
+      type: toSafeString(item.type),
+      uploadedAt: toSafeString(item.uploadedAt),
+      uploadedBy: toSafeString(item.uploadedBy),
+    }))
+}
 
 export async function GET(
   request: NextRequest,
@@ -74,35 +109,29 @@ export async function GET(
     })
 
     // Process attachments to add presigned URLs
-    let processedAttachments = transaction.attachments
-    if (transaction.attachments && Array.isArray(transaction.attachments)) {
-      const s3Service = getS3Service()
-      processedAttachments = await Promise.all(
-        transaction.attachments.map(async (attachment: {
-          id?: string;
-          s3Key?: string;
-          name?: string;
-          type?: string;
-          uploadedAt?: Date;
-          uploadedBy?: string;
-        }) => {
-          if (attachment.s3Key) {
+    const attachmentsList = parseAttachmentList(transaction.attachments)
+    const s3Service = attachmentsList.length > 0 ? getS3Service() : null
+
+    const processedAttachments: ProcessedAttachment[] = s3Service
+      ? await Promise.all(
+          attachmentsList.map(async (attachment) => {
+            if (!attachment.s3Key) {
+              return attachment
+            }
+
             try {
-              // Generate presigned URL for download
+              const filename = attachment.name ?? attachment.s3Key
               const s3Url = await s3Service.getPresignedUrl(attachment.s3Key, 'get', {
-                responseContentDisposition: `attachment; filename="${attachment.name}"`,
-                expiresIn: 3600 // 1 hour
+                responseContentDisposition: `attachment; filename="${filename}"`,
+                expiresIn: 3600,
               })
               return { ...attachment, s3Url }
             } catch (_error) {
-              // console.error('Failed to generate presigned URL:', _error)
               return attachment
             }
-          }
-          return attachment
-        })
-      )
-    }
+          })
+        )
+      : attachmentsList
 
     // Create response object with transaction and costs
     // Transform to match expected format with nested objects
