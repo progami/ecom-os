@@ -8,7 +8,7 @@
     "production": false
   },
   "scripts": {
-    "dev": "echo 'Experimental package: no dev server' && exit 1",
+    "dev": "echo 'Experimental package: nothing to run'",
     "build": "echo 'Experimental package: nothing to build'",
     "start": "echo 'Experimental package: no start' && exit 1",
     "lint": "echo 'No lint in experimental package'",
@@ -16,4 +16,3 @@
     "test": "echo 'No tests for experimental package'"
   }
 }
-
