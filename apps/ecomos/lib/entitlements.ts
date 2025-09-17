@@ -1,4 +1,4 @@
-export type AppCode = 'wms' | 'hrms' | 'fcc' | 'website'
+export type AppCode = 'wms' | 'hrms' | 'fcc' | 'website' | 'margin-master'
 
 export type UserRecord = {
   id: string
@@ -21,16 +21,18 @@ export function getUserEntitlements(user: UserRecord): RolesClaim {
   const roles: RolesClaim = {}
 
   if (isAdmin) {
-    roles['wms'] = { role: 'admin', depts: ['finance','ops'] }
-    roles['fcc'] = { role: 'admin', depts: ['finance'] }
-    roles['hrms'] = { role: 'admin', depts: ['hr'] }
+    roles['wms'] = { role: 'admin', depts: ['Ops'] }
+    roles['fcc'] = { role: 'admin', depts: ['Finance'] }
+    roles['hrms'] = { role: 'admin', depts: ['HR / Admin'] }
+    roles['margin-master'] = { role: 'admin', depts: ['Product'] }
+    roles['legal-suite'] = { role: 'admin', depts: ['Legal'] }
   } else {
     // Default staff with minimal departments; tune per business rules
-    roles['wms'] = { role: 'staff', depts: ['ops'] }
-    roles['fcc'] = { role: 'viewer', depts: ['finance'] }
+    roles['wms'] = { role: 'staff', depts: ['Ops'] }
+    roles['fcc'] = { role: 'viewer', depts: ['Finance'] }
+    roles['margin-master'] = { role: 'viewer', depts: ['Product'] }
     // hrms optional
   }
 
   return roles
 }
-

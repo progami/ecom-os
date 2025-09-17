@@ -1,29 +1,49 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import './login.css'
 
-export default function LoginPage({ searchParams }: { searchParams?: { callbackUrl?: string, error?: string } }) {
-  const callbackUrl = searchParams?.callbackUrl || '/'
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="login-container" />}>
+      <LoginPageInner />
+    </Suspense>
+  )
+}
+
+function LoginPageInner() {
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get('callbackUrl') || '/'
   const [csrfToken, setCsrfToken] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [formData, setFormData] = useState({ emailOrUsername: '', password: '' })
+  const [formData, setFormData] = useState(() => {
+    if (process.env.NODE_ENV === 'production') {
+      return { emailOrUsername: '', password: '' }
+    }
+
+    return {
+      emailOrUsername: process.env.NEXT_PUBLIC_DEMO_ADMIN_USERNAME ?? 'demo-admin',
+      password: process.env.NEXT_PUBLIC_DEMO_ADMIN_PASSWORD ?? 'demo-password',
+    }
+  })
   const [errors, setErrors] = useState({ emailOrUsername: '', password: '' })
   const [globalError, setGlobalError] = useState('')
 
   useEffect(() => {
-    if (!searchParams?.error) {
+    const error = searchParams.get('error')
+    if (!error) {
       setGlobalError('')
       return
     }
-    const code = searchParams.error
+    const code = error
     const friendly: Record<string, string> = {
       CredentialsSignin: 'Invalid email or password. Please try again.',
       AccessDenied: 'Your account does not have access. Contact an administrator.',
       default: 'Unable to sign in right now. Please try again or reach out to support.',
     }
     setGlobalError(friendly[code] || friendly.default)
-  }, [searchParams?.error])
+  }, [searchParams])
 
   useEffect(() => {
     let mounted = true
