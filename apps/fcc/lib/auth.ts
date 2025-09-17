@@ -13,11 +13,17 @@ applyDevAuthDefaults({
   publicCentralUrl: process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'http://localhost:3000',
 })
 
+const sharedSecret = process.env.CENTRAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
+if (sharedSecret) {
+  process.env.NEXTAUTH_SECRET = sharedSecret
+}
+
 const baseAuthOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60,
   },
+  secret: sharedSecret,
   callbacks: {
     async jwt({ token, user }) {
       if (user && (user as any).id) {

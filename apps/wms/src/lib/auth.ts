@@ -17,12 +17,17 @@ applyDevAuthDefaults({
   publicCentralUrl: process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'http://localhost:3000',
 })
 
+const sharedSecret = process.env.CENTRAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
+if (sharedSecret) {
+  process.env.NEXTAUTH_SECRET = sharedSecret
+}
+
 const baseAuthOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: sharedSecret,
   debug: false,
   // Include a no-op credentials provider so NextAuth routes (csrf/session) function
   // WMS does not authenticate locally; central portal issues the session cookie

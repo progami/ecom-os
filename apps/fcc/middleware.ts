@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { hasCentralSession } from '@ecom-os/auth';
 
 // Content Security Policy
 const CSP_DIRECTIVES = [
@@ -116,28 +116,18 @@ export async function middleware(request: NextRequest) {
       console.log(`[Middleware] Route ${pathname} requires authentication (isPublicRoute: ${isPublicRoute})`);
     }
     
-    // NextAuth session check via JWT cookie
-    let hasSession = false;
-    try {
-      const candidateNames = [
-        process.env.NODE_ENV === 'production'
-          ? '__Secure-next-auth.session-token'
-          : 'next-auth.session-token',
-        process.env.NODE_ENV === 'production'
-          ? '__Secure-next-auth.session-token'
-          : 'ecomos.next-auth.session-token',
-        // Legacy app-specific cookie during migration
-        process.env.NODE_ENV === 'production'
-          ? '__Secure-next-auth.session-token'
-          : 'fcc.next-auth.session-token',
-      ];
-      for (const name of candidateNames) {
-        const token = await getToken({ req: request as any, secret: process.env.NEXTAUTH_SECRET, cookieName: name });
-        if (token) { hasSession = true; break; }
-      }
-    } catch {}
+    const cookieNames = process.env.NODE_ENV === 'production'
+      ? ['__Secure-next-auth.session-token', '__Secure-fcc.next-auth.session-token']
+      : ['next-auth.session-token', 'ecomos.next-auth.session-token', 'fcc.next-auth.session-token'];
 
-    if (!hasSession && !devBypassSession) {
+    const hasSession = devBypassSession ? true : await hasCentralSession({
+      request: request as any,
+      cookieNames,
+      centralUrl: process.env.CENTRAL_AUTH_URL,
+      debug: process.env.NODE_ENV === 'development' && !pathname.includes('.'),
+    });
+
+    if (!hasSession) {
       if (pathname.startsWith('/api/')) {
         return NextResponse.json(
           { error: 'Unauthorized', message: 'Authentication required' },

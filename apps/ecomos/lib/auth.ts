@@ -16,9 +16,14 @@ applyDevAuthDefaults({
   publicCentralUrl: devBaseUrl,
 })
 
+const sharedSecret = process.env.CENTRAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
+if (sharedSecret) {
+  process.env.NEXTAUTH_SECRET = sharedSecret
+}
+
 const baseAuthOptions: NextAuthOptions = {
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: sharedSecret,
   pages: {
     signIn: '/login',
     error: '/login',
@@ -125,8 +130,10 @@ const baseAuthOptions: NextAuthOptions = {
       return session
     },
     async redirect({ url, baseUrl }) {
-      const allow = String(process.env.ALLOW_CALLBACK_REDIRECT || '').toLowerCase()
-      const allowCallback = allow === '1' || allow === 'true' || allow === 'yes'
+      const allowValue = String(process.env.ALLOW_CALLBACK_REDIRECT || '').toLowerCase()
+      const allowCallbackExplicit = ['1', 'true', 'yes', 'on'].includes(allowValue)
+      const allowCallbackDefault = process.env.NODE_ENV !== 'production' && allowValue === ''
+      const allowCallback = allowCallbackExplicit || allowCallbackDefault
       if (!allowCallback) {
         return baseUrl
       }

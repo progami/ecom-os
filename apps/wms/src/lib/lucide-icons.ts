@@ -60,6 +60,7 @@ export {
   BarChart3,
   TrendingUp,
   TrendingDown,
+  Archive,
   FileText,
   File,
   Folder,

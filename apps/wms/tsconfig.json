@@ -15,6 +15,7 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+    "baseUrl": ".",
     "removeComments": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,

@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "packageManager": "pnpm@9.0.0",
   "scripts": {
+    "predev": "node scripts/prepare-dev-logs.js",
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
     "test": "turbo run test",
