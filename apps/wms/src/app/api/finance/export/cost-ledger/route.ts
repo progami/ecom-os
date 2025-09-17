@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import * as XLSX from 'xlsx'
 import { getS3Service } from '@/services/s3.service'
 import { formatDateGMT } from '@/lib/date-utils'
+import type { CostLedgerGroupResult, CostLedgerBucketTotals } from '@ecom-os/ledger'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // Allow up to 60 seconds for large exports
 
@@ -35,25 +36,39 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await costLedgerResponse.json()
-    const { ledger, totals, groupBy } = data
+    const {
+      groups,
+      totals,
+      groupBy = searchParams.get('groupBy') || 'week'
+    } = data as {
+      groups: CostLedgerGroupResult[]
+      totals: CostLedgerBucketTotals
+      groupBy: string
+    }
+
+    const safePercent = (value: number = 0) => {
+      if (!totals.total) return '0.0%'
+      return `${((value / totals.total) * 100).toFixed(1)}%`
+    }
 
     // Create Excel workbook
     const wb = XLSX.utils.book_new()
 
     // Summary sheet
-    const summaryData = [
+    const summaryData: (string | number)[][] = [
       ['Cost Ledger Summary'],
       ['Generated:', formatDateGMT(new Date(), true)],
       ['Period:', `${searchParams.get('startDate')} to ${searchParams.get('endDate')}`],
       [''],
       ['Cost Category', 'Total Amount', 'Percentage'],
-      ['Storage', totals.storage, `${((totals.storage / totals.total) * 100).toFixed(1)}%`],
-      ['Container', totals.container, `${((totals.container / totals.total) * 100).toFixed(1)}%`],
-      ['Pallet', totals.pallet, `${((totals.pallet / totals.total) * 100).toFixed(1)}%`],
-      ['Carton', totals.carton, `${((totals.carton / totals.total) * 100).toFixed(1)}%`],
-      ['Unit', totals.unit, `${((totals.unit / totals.total) * 100).toFixed(1)}%`],
-      ['Shipment', totals.shipment, `${((totals.shipment / totals.total) * 100).toFixed(1)}%`],
-      ['Accessorial', totals.accessorial, `${((totals.accessorial / totals.total) * 100).toFixed(1)}%`],
+      ['Storage', totals.storage || 0, safePercent(totals.storage)],
+      ['Container', totals.container || 0, safePercent(totals.container)],
+      ['Pallet', totals.pallet || 0, safePercent(totals.pallet)],
+      ['Carton', totals.carton || 0, safePercent(totals.carton)],
+      ['Unit', totals.unit || 0, safePercent(totals.unit)],
+      ['Transportation', totals.transportation || 0, safePercent(totals.transportation)],
+      ['Accessorial', totals.accessorial || 0, safePercent(totals.accessorial)],
+      ['Other', totals.other || 0, safePercent(totals.other)],
       ['', '', ''],
       ['TOTAL', totals.total, '100.0%']
     ]
@@ -62,60 +77,47 @@ export async function GET(request: NextRequest) {
 
     // Cost by period sheet
     const periodHeaders = groupBy === 'week' 
-      ? ['Week Starting', 'Week Ending', 'Storage', 'Container', 'Pallet', 'Carton', 'Unit', 'Shipment', 'Accessorial', 'Total']
-      : ['Month', 'Storage', 'Container', 'Pallet', 'Carton', 'Unit', 'Shipment', 'Accessorial', 'Total']
+      ? ['Week Starting', 'Week Ending', 'Storage', 'Container', 'Pallet', 'Carton', 'Unit', 'Transportation', 'Accessorial', 'Other', 'Total']
+      : ['Period', 'Storage', 'Container', 'Pallet', 'Carton', 'Unit', 'Transportation', 'Accessorial', 'Other', 'Total']
 
-    const periodData = [periodHeaders]
+    const periodData: (string | number | null)[][] = [periodHeaders]
     
-    ledger.forEach((period: {
-      weekStarting?: Date;
-      weekEnding?: Date;
-      monthStarting?: Date;
-      monthEnding?: Date;
-      costs: {
-        storage?: number;
-        container?: number;
-        pallet?: number;
-        perCarton?: number;
-        pickPack?: number;
-        transport?: number;
-        other?: number;
-        total?: number;
-      }
-    }) => {
+    groups.forEach(period => {
       if (groupBy === 'week') {
         periodData.push([
-          formatDateGMT(period.weekStarting),
-          formatDateGMT(period.weekEnding),
-          period.costs.storage,
-          period.costs.container,
-          period.costs.pallet,
-          period.costs.carton,
-          period.costs.unit,
-          period.costs.shipment,
-          period.costs.accessorial,
-          period.costs.total
+          formatDateGMT(new Date(period.rangeStart)),
+          formatDateGMT(new Date(period.rangeEnd)),
+          period.costs.storage || 0,
+          period.costs.container || 0,
+          period.costs.pallet || 0,
+          period.costs.carton || 0,
+          period.costs.unit || 0,
+          period.costs.transportation || 0,
+          period.costs.accessorial || 0,
+          period.costs.other || 0,
+          period.costs.total || 0
         ])
       } else {
         periodData.push([
-          period.month,
-          period.costs.storage,
-          period.costs.container,
-          period.costs.pallet,
-          period.costs.carton,
-          period.costs.unit,
-          period.costs.shipment,
-          period.costs.accessorial,
-          period.costs.total
+          period.period,
+          period.costs.storage || 0,
+          period.costs.container || 0,
+          period.costs.pallet || 0,
+          period.costs.carton || 0,
+          period.costs.unit || 0,
+          period.costs.transportation || 0,
+          period.costs.accessorial || 0,
+          period.costs.other || 0,
+          period.costs.total || 0
         ])
       }
     })
 
     // Add totals row
     if (groupBy === 'week') {
-      periodData.push(['', 'TOTAL', totals.storage, totals.container, totals.pallet, totals.carton, totals.unit, totals.shipment, totals.accessorial, totals.total])
+      periodData.push(['', 'TOTAL', totals.storage || 0, totals.container || 0, totals.pallet || 0, totals.carton || 0, totals.unit || 0, totals.transportation || 0, totals.accessorial || 0, totals.other || 0, totals.total || 0])
     } else {
-      periodData.push(['TOTAL', totals.storage, totals.container, totals.pallet, totals.carton, totals.unit, totals.shipment, totals.accessorial, totals.total])
+      periodData.push(['TOTAL', totals.storage || 0, totals.container || 0, totals.pallet || 0, totals.carton || 0, totals.unit || 0, totals.transportation || 0, totals.accessorial || 0, totals.other || 0, totals.total || 0])
     }
 
     const periodWs = XLSX.utils.aoa_to_sheet(periodData)
@@ -126,38 +128,22 @@ export async function GET(request: NextRequest) {
       'Date', 'Transaction ID', 'Type', 'Warehouse', 'SKU', 'Batch/Lot', 
       'Category', 'Description', 'Quantity', 'Rate', 'Cost'
     ]
-    const detailData = [detailHeaders]
+    const detailData: (string | number | null)[][] = [detailHeaders]
 
-    ledger.forEach((period: {
-      weekStarting?: Date;
-      weekEnding?: Date;
-      monthStarting?: Date;
-      monthEnding?: Date;
-      costs: {
-        storage?: number;
-        container?: number;
-        pallet?: number;
-        perCarton?: number;
-        pickPack?: number;
-        transport?: number;
-        other?: number;
-        total?: number;
-      }
-    }) => {
-      period.details.forEach((detail: unknown) => {
-        const d = detail as Record<string, unknown>
+    groups.forEach(period => {
+      period.details.forEach(detail => {
         detailData.push([
-          formatDateGMT(d.transactionDate as string),
-          d.transactionId,
-          d.transactionType,
-          d.warehouse,
-          d.sku,
-          d.batchLot,
-          d.category,
-          d.rateDescription,
-          d.quantity,
-          d.rate,
-          d.cost
+          formatDateGMT(new Date(detail.transactionDate)),
+          detail.transactionId,
+          detail.transactionType,
+          detail.warehouse,
+          detail.sku,
+          detail.batchLot,
+          detail.costCategory,
+          detail.costName,
+          detail.quantity,
+          detail.unitRate,
+          detail.totalCost
         ])
       })
     })

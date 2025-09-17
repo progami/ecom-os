@@ -9,26 +9,10 @@ import { StorageLedgerStats } from './storage-ledger/StorageLedgerStats'
 import { StorageLedgerTable } from './storage-ledger/StorageLedgerTable'
 
 interface StorageLedgerTabProps {
-  viewMode: 'live' | 'point-in-time'
-  selectedDate: string
-  searchQuery: string
-  filters: Record<string, unknown>
-  showFilters: boolean
-  setShowFilters: (show: boolean) => void
-  setFilters: (filters: Record<string, unknown>) => void
-  warehouses: { id: string; name: string }[]
+  warehouseCode?: string
 }
 
-export function StorageLedgerTab({
-  viewMode: _viewMode,
-  selectedDate: _selectedDate,
-  searchQuery,
-  filters,
-  showFilters: _showFilters,
-  setShowFilters: _setShowFilters,
-  setFilters: _setFilters,
-  warehouses: _warehouses
-}: StorageLedgerTabProps) {
+export function StorageLedgerTab({ warehouseCode }: StorageLedgerTabProps) {
   const [dateRange, setDateRange] = useState({
     start: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0]
@@ -37,11 +21,10 @@ export function StorageLedgerTab({
 
   // Use custom hook for data management
   const { entries, summary, loading, error, exportData, refetch } = useStorageLedger({
-    warehouse: filters.warehouse,
+    warehouse: warehouseCode,
     startDate: dateRange.start,
     endDate: dateRange.end,
-    search: searchQuery,
-    includeCosts: true
+    includeCosts: true,
   })
 
   if (loading) {
@@ -85,10 +68,7 @@ export function StorageLedgerTab({
       
       <StorageLedgerStats summary={summary} />
       
-      <StorageLedgerTable 
-        entries={entries} 
-        searchQuery={searchQuery}
-      />
+      <StorageLedgerTable entries={entries} />
     </div>
   )
 }

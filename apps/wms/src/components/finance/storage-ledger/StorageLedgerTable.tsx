@@ -4,22 +4,13 @@ import type { StorageEntry } from '@/hooks/useStorageLedger'
 
 interface StorageLedgerTableProps {
   entries: StorageEntry[]
-  searchQuery: string
   showCosts?: boolean
 }
 
 export function StorageLedgerTable({ 
-  entries, 
-  searchQuery,
+  entries,
   showCosts = true 
 }: StorageLedgerTableProps) {
-  
-  const filteredEntries = entries.filter(entry =>
-    entry.skuCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    entry.skuDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    entry.batchLot.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    entry.warehouseName.toLowerCase().includes(searchQuery.toLowerCase())
-  )
 
   return (
     <div className="bg-white shadow rounded-lg overflow-hidden">
@@ -58,7 +49,7 @@ export function StorageLedgerTable({
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {filteredEntries.map((entry) => (
+            {entries.map((entry) => (
               <tr key={entry.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                   {new Date(entry.weekEndingDate).toLocaleDateString()}
@@ -114,15 +105,10 @@ export function StorageLedgerTable({
         </table>
       </div>
       
-      {filteredEntries.length === 0 && (
+      {entries.length === 0 && (
         <div className="text-center py-12 text-gray-500">
           <div className="text-lg">No storage entries found</div>
-          <div className="text-sm mt-1">
-            {searchQuery 
-              ? `No entries match "${searchQuery}"`
-              : "No entries available for the selected criteria"
-            }
-          </div>
+          <div className="text-sm mt-1">No entries available for the selected criteria</div>
         </div>
       )}
     </div>

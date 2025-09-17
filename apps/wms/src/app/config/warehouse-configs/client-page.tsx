@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { ImportButton } from '@/components/ui/import-button'
 import { useRouter } from 'next/navigation'
 
-interface WarehouseConfig {
+export interface WarehouseConfig {
   id: string
   warehouseId: string
   skuId: string
@@ -32,7 +32,7 @@ interface WarehouseConfig {
   }
 }
 
-interface WarehouseConfigsClientPageProps {
+export interface WarehouseConfigsClientPageProps {
   configs: WarehouseConfig[]
   configsByWarehouse: Record<string, WarehouseConfig[]>
   stats: {

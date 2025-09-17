@@ -3,11 +3,16 @@
 import dynamic from 'next/dynamic'
 
 // Lazy load heavy chart components to improve initial page load
+type RechartComponentProps = Record<string, unknown>
+
 const createLazyChart = (chartName: string) =>
-  dynamic<unknown>(() => import('recharts').then((mod) => mod[chartName] as React.ComponentType<unknown>), {
-    ssr: false,
-    loading: () => <div className="w-full h-full animate-pulse bg-gray-100 rounded" />
-  })
+  dynamic<RechartComponentProps>(() =>
+    import('recharts').then((mod) => mod[chartName] as React.ComponentType<RechartComponentProps>),
+    {
+      ssr: false,
+      loading: () => <div className="w-full h-full animate-pulse bg-gray-100 rounded" />
+    }
+  )
 
 // Lazy loaded chart components
 export const AreaChart = createLazyChart('AreaChart')

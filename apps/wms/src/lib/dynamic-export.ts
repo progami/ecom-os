@@ -1,10 +1,14 @@
 import { Prisma } from '@prisma/client'
 
+export type ExportFieldValue = string | number | boolean | Date | null
+
+export type FieldFormatter = (value: unknown) => ExportFieldValue
+
 // Type definitions
 export interface FieldConfig {
   fieldName: string
   columnName?: string
-  format?: (value: unknown) => unknown
+  format?: FieldFormatter
   includeInExport?: boolean
   isRelation?: boolean
   relationFields?: string[]
@@ -16,20 +20,40 @@ export interface ExportConfig {
   includeRelations?: string[]
   excludeFields?: string[]
   defaultFormatters?: {
-    DateTime?: (value: Date) => string
-    Boolean?: (value: boolean) => string
-    Decimal?: (value: unknown) => string
-    Json?: (value: unknown) => string
+    DateTime?: FieldFormatter
+    Boolean?: FieldFormatter
+    Decimal?: FieldFormatter
+    Json?: FieldFormatter
   }
 }
 
 // Default formatters for common data types
 const defaultFormatters = {
-  DateTime: (value: Date | null) => 
-    value ? new Date(value).toLocaleDateString('en-US', { timeZone: 'America/Chicago' }) : '',
-  Boolean: (value: boolean) => value ? 'Yes' : 'No',
-  Decimal: (value: unknown) => (value as Record<string, unknown>)?.toString() || '0',
-  Json: (value: unknown) => value ? JSON.stringify(value) : '',
+  DateTime: (value: Date | string | number | null): ExportFieldValue =>
+    value ? new Date(value).toLocaleDateString('en-US', { timeZone: 'America/Chicago' }) : null,
+  Boolean: (value: unknown): ExportFieldValue => {
+    if (value === null || value === undefined) {
+      return null
+    }
+    return value === true ? 'Yes' : 'No'
+  },
+  Decimal: (value: unknown): ExportFieldValue => {
+    if (typeof value === 'number' || typeof value === 'bigint') {
+      return value.toString()
+    }
+
+    if (value && typeof value === 'object' && 'toString' in value) {
+      try {
+        return (value as { toString(): string }).toString()
+      } catch (_error) {
+        return '0'
+      }
+    }
+
+    return '0'
+  },
+  Json: (value: unknown): ExportFieldValue =>
+    value === null || value === undefined ? '' : JSON.stringify(value),
 }
 
 // Get model fields from Prisma DMMF
@@ -54,7 +78,7 @@ export function fieldToColumnName(fieldName: string): string {
 
 // Generate export configuration from Prisma model
 export function generateExportConfig(
-  modelName: string, 
+  modelName: string,
   customConfig?: Partial<ExportConfig>
 ): FieldConfig[] {
   const fields = getModelFields(modelName)
@@ -94,7 +118,29 @@ export function generateExportConfig(
         fieldConfig.format = formatters.Json
       } else {
         // Default format for other types
-        fieldConfig.format = (value: string | number | boolean | Date | null | undefined) => value?.toString() || ''
+        fieldConfig.format = (value: unknown) => {
+          if (value === null || value === undefined) {
+            return null
+          }
+
+          if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+            return value
+          }
+
+          if (value instanceof Date) {
+            return value
+          }
+
+          if (typeof value === 'object' && 'toString' in value) {
+            try {
+              return (value as { toString(): string }).toString()
+            } catch (_error) {
+              return null
+            }
+          }
+
+          return null
+        }
       }
     } else {
       fieldConfig.format = customField.format
@@ -113,33 +159,94 @@ export function generateExportConfig(
 }
 
 // Apply export configuration to data
+export type ExportRecord = Record<string, ExportFieldValue>
+
 export function applyExportConfig(
-  data: unknown[], 
+  data: Array<Record<string, unknown>>,
   fieldConfigs: FieldConfig[]
-): Record<string, string | number | boolean | Date | null>[] {
-  return data.map(record => {
-    const row: Record<string, string | number | boolean | Date | null> = {}
-    
+): ExportRecord[] {
+  return data.map((record) => {
+    const row: ExportRecord = {}
+
     for (const config of fieldConfigs) {
-      const value = config.isRelation 
+      const value = config.isRelation
         ? getNestedValue(record, config.fieldName)
         : record[config.fieldName]
-      
-      row[config.columnName || config.fieldName] = config.format 
+
+      const formatted = config.format
         ? config.format(value)
-        : value
+        : defaultFormatValue(value)
+
+      row[config.columnName || config.fieldName] = formatted
     }
-    
+
     return row
   })
 }
 
 // Get nested value from object (e.g., 'warehouse.name')
-function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
-  return path.split('.').reduce<unknown>((current, key) => 
-    current && typeof current === 'object' ? (current as Record<string, unknown>)[key] : undefined, 
-    obj
-  )
+function getNestedValue(obj: unknown, path: string): unknown {
+  if (!obj || typeof obj !== 'object') {
+    return undefined
+  }
+
+  return path.split('.').reduce<unknown>((current, key) => {
+    if (!current || typeof current !== 'object') {
+      return undefined
+    }
+    return (current as Record<string, unknown>)[key]
+  }, obj)
+}
+
+function defaultFormatValue(value: unknown): ExportFieldValue {
+  if (value === null || value === undefined) {
+    return null
+  }
+
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return value
+  }
+
+  if (value instanceof Date) {
+    return value
+  }
+
+  if (typeof value === 'object' && 'toString' in value) {
+    try {
+      return (value as { toString(): string }).toString()
+    } catch (_error) {
+      return null
+    }
+  }
+
+  return null
+}
+
+function listAttachmentTypes(value: unknown): string[] {
+  if (!value) {
+    return []
+  }
+
+  if (Array.isArray(value)) {
+    const result = new Set<string>()
+    value.forEach((entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return
+      }
+      const record = entry as Record<string, unknown>
+      const type = typeof record.type === 'string' ? record.type : undefined
+      if (type) {
+        result.add(type)
+      }
+    })
+    return Array.from(result)
+  }
+
+  if (typeof value === 'object') {
+    return Object.keys(value as Record<string, unknown>)
+  }
+
+  return []
 }
 
 // Specific configurations for common models
@@ -156,43 +263,42 @@ export const inventoryTransactionExportConfig: Partial<ExportConfig> = {
     { fieldName: 'trackingNumber', columnName: 'Tracking Number' },
     
     // Add relation fields
-    { 
-      fieldName: 'warehouse.name', 
+    {
+      fieldName: 'warehouse.name',
       columnName: 'Warehouse',
       isRelation: true,
-      format: (value) => value || ''
+      format: (value: unknown): ExportFieldValue =>
+        value === null || value === undefined ? null : String(value)
     },
-    { 
-      fieldName: 'sku.skuCode', 
+    {
+      fieldName: 'sku.skuCode',
       columnName: 'SKU Code',
       isRelation: true,
-      format: (value) => value || ''
+      format: (value: unknown): ExportFieldValue =>
+        value === null || value === undefined ? null : String(value)
     },
-    { 
-      fieldName: 'sku.description', 
+    {
+      fieldName: 'sku.description',
       columnName: 'SKU Description',
       isRelation: true,
-      format: (value) => value || ''
+      format: (value: unknown): ExportFieldValue =>
+        value === null || value === undefined ? null : String(value)
     },
-    { 
-      fieldName: 'createdBy.fullName', 
+    {
+      fieldName: 'createdBy.fullName',
       columnName: 'Created By',
       isRelation: true,
-      format: (value) => value || ''
+      format: (value: unknown): ExportFieldValue =>
+        value === null || value === undefined ? null : String(value)
     },
     
     // Special formatting
     {
       fieldName: 'attachments',
       columnName: 'Attachments',
-      format: (value) => {
-        if (!value) return ''
-        const attachments = value as unknown
-        const types = []
-        if (attachments.packingList) types.push('Packing List')
-        if (attachments.commercialInvoice) types.push('Invoice')
-        if (attachments.deliveryNote) types.push('Delivery Note')
-        return types.join(', ')
+      format: (value: unknown): ExportFieldValue => {
+        const types = listAttachmentTypes(value)
+        return types.length ? types.join(', ') : null
       }
     }
   ]
@@ -211,7 +317,11 @@ export function generateExcelExport(
   const fieldConfigs = generateExportConfig(exportConfig.modelName!, exportConfig)
   
   // Apply configuration to data
-  const exportData = applyExportConfig(data, fieldConfigs)
+  const records = data.filter((record): record is Record<string, unknown> =>
+    typeof record === 'object' && record !== null
+  )
+
+  const exportData = applyExportConfig(records, fieldConfigs)
   
   // Create workbook
   const wb = XLSX.utils.book_new()
@@ -221,7 +331,7 @@ export function generateExcelExport(
   const colWidths = Object.keys(exportData[0] || {}).map(key => ({
     wch: Math.max(
       key.length,
-      ...exportData.map(row => String(row[key] || '').length)
+      ...exportData.map(row => String(row[key] ?? '').length)
     ) + 2
   }))
   ws['!cols'] = colWidths

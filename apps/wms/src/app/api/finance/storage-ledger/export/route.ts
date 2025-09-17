@@ -1,13 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { getWarehouseFilter } from '@/lib/auth-utils'
+import { prisma } from '@/lib/prisma'
+import type { Prisma } from '@prisma/client'
+
+interface StorageLedgerEntryRow {
+  warehouseCode: string
+  warehouseName: string
+  skuCode: string
+  skuDescription: string
+  batchLot: string
+  weekEndingDate: Date
+  closingBalance: number
+  averageBalance: Prisma.Decimal | number
+  storageRatePerCarton: Prisma.Decimal | number | null
+  totalStorageCost: Prisma.Decimal | number | null
+  isCostCalculated: boolean
+  rateEffectiveDate: Date | null
+  createdAt: Date
+}
 
 export const dynamic = 'force-dynamic'
 
-function generateStorageLedgerCSV(entries: any[]): string {
+const toPrintableNumber = (value: Prisma.Decimal | number | null): string => {
+  if (value === null || value === undefined) {
+    return ''
+  }
+  return Number(value).toString()
+}
+
+function generateStorageLedgerCSV(entries: StorageLedgerEntryRow[]): string {
   const headers = [
     'Week Ending',
     'Warehouse Code',
@@ -35,9 +59,9 @@ function generateStorageLedgerCSV(entries: any[]): string {
       `"${entry.skuDescription.replace(/"/g, '""')}"`,
       `"${entry.batchLot}"`,
       entry.closingBalance,
-      entry.averageBalance,
-      entry.storageRatePerCarton || '',
-      entry.totalStorageCost || '',
+      toPrintableNumber(entry.averageBalance),
+      toPrintableNumber(entry.storageRatePerCarton),
+      toPrintableNumber(entry.totalStorageCost),
       entry.isCostCalculated ? 'Yes' : 'No',
       entry.rateEffectiveDate ? new Date(entry.rateEffectiveDate).toLocaleDateString() : '',
       new Date(entry.createdAt).toLocaleDateString()
@@ -78,15 +102,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Apply warehouse filter based on user role
-    const warehouseFilter = getWarehouseFilter(session.user)
-    const where: any = {
+    const warehouseFilter = getWarehouseFilter(session, undefined)
+    const where: Prisma.StorageLedgerWhereInput = {
       weekEndingDate: {
         gte: new Date(startDate),
         lte: new Date(endDate)
       }
     }
 
-    if (warehouseFilter.warehouseId) {
+    if (warehouseFilter?.warehouseId) {
       // Staff user - filter to their warehouse
       const warehouse = await prisma.warehouse.findUnique({
         where: { id: warehouseFilter.warehouseId },
@@ -101,7 +125,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all matching entries (no pagination for export)
-    const entries = await prisma.storageLedger.findMany({
+    const entries: StorageLedgerEntryRow[] = await prisma.storageLedger.findMany({
       where,
       select: {
         warehouseCode: true,

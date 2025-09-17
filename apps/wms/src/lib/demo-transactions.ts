@@ -13,15 +13,15 @@ interface Warehouse {
   address: string
 }
 
-interface Sku {
+interface DemoSku {
   id: string
   skuCode: string
   description: string
-  unitDimensionsCm: string
-  unitWeightKg: number
-  cartonDimensionsCm: string
-  cartonWeightKg: number
-  packagingType: string
+  unitDimensionsCm: string | null
+  unitWeightKg: Prisma.Decimal | number | null
+  cartonDimensionsCm: string | null
+  cartonWeightKg: Prisma.Decimal | number | null
+  packagingType: string | null
   unitsPerCarton: number
 }
 
@@ -30,7 +30,7 @@ interface DemoTransactionConfig {
   adminUserId: string
   staffUserId: string
   warehouses: Warehouse[]
-  skus: Sku[]
+  skus: DemoSku[]
 }
 
 export async function createDemoTransactions(config: DemoTransactionConfig) {

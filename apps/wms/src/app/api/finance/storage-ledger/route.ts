@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { getWarehouseFilter } from '@/lib/auth-utils'
 import { getStorageCostSummary } from '@/services/storageCost.service'
+import { Prisma } from '@prisma/client'
 
 export const dynamic = 'force-dynamic'
 
@@ -34,10 +35,11 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
 
     // Apply warehouse filter based on user role
-    const warehouseFilter = getWarehouseFilter(session.user)
-    const where: any = {}
+    const warehouseFilter = getWarehouseFilter(session, undefined)
+    const where: Prisma.StorageLedgerWhereInput = {}
+    let scopedWarehouseCode: string | undefined
 
-    if (warehouseFilter.warehouseId) {
+    if (warehouseFilter?.warehouseId) {
       // Staff user - filter to their warehouse
       const warehouse = await prisma.warehouse.findUnique({
         where: { id: warehouseFilter.warehouseId },
@@ -45,10 +47,12 @@ export async function GET(request: NextRequest) {
       })
       if (warehouse) {
         where.warehouseCode = warehouse.code
+        scopedWarehouseCode = warehouse.code
       }
     } else if (warehouseCode) {
       // Admin user with warehouse filter
       where.warehouseCode = warehouseCode
+      scopedWarehouseCode = warehouseCode
     }
 
     // Date range filter
@@ -109,7 +113,7 @@ export async function GET(request: NextRequest) {
       summary = await getStorageCostSummary(
         new Date(startDate),
         new Date(endDate),
-        warehouseCode || (warehouseFilter.warehouseId ? where.warehouseCode : undefined)
+        scopedWarehouseCode
       )
     }
 

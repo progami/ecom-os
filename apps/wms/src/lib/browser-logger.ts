@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 // Browser console logger that sends logs to server
 // This runs only in the browser
 export function initBrowserLogger() {

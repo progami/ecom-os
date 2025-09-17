@@ -113,8 +113,8 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
           return item
         }))
       }
-      await fetchSkuDefaults(id, value)
-      await fetchNextBatchNumber(id, value)
+      await fetchSkuDefaults(id, String(value))
+      await fetchNextBatchNumber(id, String(value))
     }
 
     // If cartons changed, recalculate units and pallets

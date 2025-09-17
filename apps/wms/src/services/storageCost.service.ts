@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { endOfWeek } from 'date-fns'
-import { v4 as uuidv4 } from 'uuid'
+import { randomUUID } from 'crypto'
 import { getStorageRate, calculateStorageCost, type StorageRateResult } from './storageRate.service'
 
 interface RecordStorageCostParams {
@@ -77,14 +78,15 @@ export async function recordStorageCostEntry({
       isCostCalculated = true
     }
   } catch (error) {
-    console.warn(`Storage rate lookup failed for ${warehouseCode}:`, error.message)
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    console.warn(`Storage rate lookup failed for ${warehouseCode}:`, message)
     // Continue without cost calculation - entry will be marked as pending
   }
 
   // Create storage ledger entry with or without cost calculation
   return prisma.storageLedger.create({
     data: {
-      storageLedgerId: uuidv4(),
+      storageLedgerId: randomUUID(),
       warehouseCode,
       warehouseName,
       skuCode,
@@ -126,7 +128,7 @@ export async function ensureWeeklyStorageEntries(date: Date = new Date()) {
   let processed = 0
   let costCalculated = 0
   let skipped = 0
-  let errors: string[] = []
+  const errors: string[] = []
 
   for (const agg of aggregates) {
     const closingBalance = 
@@ -169,7 +171,8 @@ export async function ensureWeeklyStorageEntries(date: Date = new Date()) {
         }
       }
     } catch (error) {
-      const errorMsg = `${agg.warehouseCode}/${agg.skuCode}/${agg.batchLot}: ${error.message}`
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      const errorMsg = `${agg.warehouseCode}/${agg.skuCode}/${agg.batchLot}: ${message}`
       errors.push(errorMsg)
       console.error('Storage entry creation failed:', errorMsg)
     }
@@ -195,8 +198,8 @@ export async function recalculateStorageCosts(
   recalculated: number
   errors: string[]
 }> {
-  const where: any = {
-    isCostCalculated: false
+  const where: Prisma.StorageLedgerWhereInput = {
+    isCostCalculated: false,
   }
   
   if (weekEndingDate) {
@@ -242,7 +245,8 @@ export async function recalculateStorageCosts(
         recalculated++
       }
     } catch (error) {
-      errors.push(`Entry ${entry.id}: ${error.message}`)
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      errors.push(`Entry ${entry.id}: ${message}`)
     }
   }
 
@@ -257,7 +261,7 @@ export async function getStorageCostSummary(
   endDate: Date,
   warehouseCode?: string
 ) {
-  const where: any = {
+  const where: Prisma.StorageLedgerWhereInput = {
     weekEndingDate: {
       gte: startDate,
       lte: endDate

@@ -27,6 +27,17 @@ interface AttachmentsTabProps {
   onAttachmentsChange: (attachments: Attachment[]) => void
 }
 
+interface ApiAttachment {
+  fileName?: string
+  name?: string
+  contentType?: string
+  type?: string
+  size?: number
+  s3Key?: string
+  s3Url?: string
+  viewUrl?: string
+}
+
 const ATTACHMENT_CATEGORIES = [
   {
     id: 'commercial_invoice',
@@ -72,6 +83,45 @@ const ATTACHMENT_CATEGORIES = [
   }
 ]
 
+const isAttachmentRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+const parseApiAttachment = (category: string, value: unknown): Attachment | null => {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const raw = value as ApiAttachment
+  const name = typeof raw.fileName === 'string'
+    ? raw.fileName
+    : typeof raw.name === 'string'
+      ? raw.name
+      : 'Unknown file'
+
+  const type = typeof raw.contentType === 'string'
+    ? raw.contentType
+    : typeof raw.type === 'string'
+      ? raw.type
+      : 'application/octet-stream'
+
+  const size = typeof raw.size === 'number' ? raw.size : 0
+
+  return {
+    name,
+    type,
+    size,
+    s3Key: typeof raw.s3Key === 'string' ? raw.s3Key : undefined,
+    viewUrl:
+      typeof raw.s3Url === 'string'
+        ? raw.s3Url
+        : typeof raw.viewUrl === 'string'
+          ? raw.viewUrl
+          : undefined,
+    category,
+  }
+}
+
 export function AttachmentsTab({ transactionId, onAttachmentsChange }: AttachmentsTabProps) {
   const [attachments, setAttachments] = useState<Record<string, Attachment | null>>({})
   const [uploading, setUploading] = useState<Record<string, boolean>>({})
@@ -89,19 +139,9 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
             const existingAttachments: Record<string, Attachment | null> = {}
             
             // Handle object format (category as key)
-            if (typeof data.attachments === 'object' && !Array.isArray(data.attachments)) {
-              for (const [category, attachment] of Object.entries(data.attachments)) {
-                if (attachment && typeof attachment === 'object') {
-                  const att = attachment as Record<string, unknown>
-                  existingAttachments[category] = {
-                    name: att.fileName || att.name || 'Unknown file',
-                    type: att.contentType || att.type || 'application/octet-stream',
-                    size: att.size || 0,
-                    s3Key: att.s3Key,
-                    viewUrl: att.s3Url || att.viewUrl,
-                    category
-                  }
-                }
+            if (isAttachmentRecord(data.attachments)) {
+              for (const [category, attachmentValue] of Object.entries(data.attachments)) {
+                existingAttachments[category] = parseApiAttachment(category, attachmentValue)
               }
             }
             

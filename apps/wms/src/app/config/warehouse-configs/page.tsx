@@ -2,7 +2,10 @@ import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import WarehouseConfigsClientPage from './client-page'
+import WarehouseConfigsClientPage, {
+  type WarehouseConfig,
+  type WarehouseConfigsClientPageProps
+} from './client-page'
 
 export default async function WarehouseConfigsPage() {
   const session = await getServerSession(authOptions)
@@ -14,18 +17,9 @@ export default async function WarehouseConfigsPage() {
   }
 
   // WarehouseSkuConfig model removed in v0.5.0
-  const configs: Array<{
-    id: string;
-    warehouseId: string;
-    warehouseName: string;
-    skuId: string;
-    skuCode: string;
-    skuDescription: string;
-    storageCartonsPerPallet: number;
-    shippingCartonsPerPallet: number;
-  }> = []
-  const configsByWarehouse = {}
-  const stats = {
+  const configs: WarehouseConfig[] = []
+  const configsByWarehouse: WarehouseConfigsClientPageProps['configsByWarehouse'] = {}
+  const stats: WarehouseConfigsClientPageProps['stats'] = {
     totalConfigs: 0,
     activeConfigs: 0,
     uniqueSkus: 0,
