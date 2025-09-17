@@ -1,3 +1,5 @@
+const path = require('path')
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
@@ -76,6 +78,13 @@ const nextConfig = {
       }
     }
     
+    // Ensure @ alias resolves for both server and client bundles
+    config.resolve = config.resolve || {}
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      '@': path.resolve(__dirname),
+    }
+
     // Bundle optimization for production
     if (!dev && !isServer) {
       // Optimize bundle splitting

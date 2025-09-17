@@ -1,5 +1,6 @@
 import { XeroAccountingApi, TokenSet } from 'xero-node'
-import { getXeroClient, executeXeroAPICall } from '@/lib/xero-client'
+import { getXeroClient } from '@/lib/xero-client'
+import { executeXeroAPICall } from '@/lib/xero-helpers'
 import { structuredLogger } from '@/lib/logger'
 import { CashSummaryData, CashSummarySection, CashSummaryLineItem, CashSummaryAccountCategory } from '@/lib/types/cash-summary'
 import { XeroReportFetcher } from '@/lib/xero-report-fetcher'

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getXeroClient } from '@/lib/xero-client';
-import { getTenantId } from '@/lib/xero-helpers';
-import { executeXeroAPICall } from '@/lib/xero-api-wrapper';
+import { getTenantId, executeXeroAPICall } from '@/lib/xero-helpers';
 import { structuredLogger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
