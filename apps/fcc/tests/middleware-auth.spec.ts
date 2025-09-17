@@ -1,98 +1,23 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '@playwright/test'
+import { createAuthenticatedContext, clearAuth } from './utils/test-auth'
 
-test.describe('Middleware Authentication Tests', () => {
-  test('Cookie authentication should bypass login', async ({ page, context }) => {
-    // Set up test user session cookie
-    const testSession = {
-      user: {
-        id: 'test-user-1',
-        email: 'test@example.com',
-        name: 'Test User'
-      },
-      userId: 'test-user-1',
-      email: 'test@example.com',
-      tenantId: '!Qn7M1',
-      tenantName: 'Test Tenant'
-    };
-    
-    await context.addCookies([{
-      name: 'user_session',
-      value: JSON.stringify(testSession),
-      domain: 'localhost',
-      path: '/',
-      httpOnly: true,
-      secure: true,
-      sameSite: 'Lax'
-    }]);
-    
-    // Navigate to reports page (protected route)
-    await page.goto('/reports');
-    
-    // Should not be redirected to login
-    await expect(page).not.toHaveURL(/\/login/);
-    
-    // Should be on reports page
-    await expect(page).toHaveURL(/\/reports/);
-    
-    // Page should load (wait for content to appear)
-    await page.waitForTimeout(2000); // Give page time to render
-  });
+const HAS_AUTH_COOKIE = Boolean(process.env.FCC_AUTH_COOKIE)
 
-  test('API session endpoint should recognize cookie auth', async ({ page, context }) => {
-    // Set up test user session cookie
-    const testSession = {
-      user: {
-        id: 'test-user-1',
-        email: 'test@example.com',
-        name: 'Test User'
-      },
-      userId: 'test-user-1',
-      email: 'test@example.com',
-      tenantId: '!Qn7M1',
-      tenantName: 'Test Tenant'
-    };
-    
-    await context.addCookies([{
-      name: 'user_session',
-      value: JSON.stringify(testSession),
-      domain: 'localhost',
-      path: '/',
-      httpOnly: true,
-      secure: true,
-      sameSite: 'Lax'
-    }]);
-    
-    // Make API request
-    const response = await page.request.get('/api/v1/auth/session');
-    
-    expect(response.ok()).toBeTruthy();
-    const data = await response.json();
-    
-    expect(data.authenticated).toBe(true);
-    expect(data.user).toBeDefined();
-    expect(data.user.userId).toBe('test-user-1');
-    expect(data.user.email).toBe('test@example.com');
-  });
+test.describe('Authenticated navigation helpers', () => {
+  test.skip(!HAS_AUTH_COOKIE, 'Set FCC_AUTH_COOKIE to run authenticated navigation tests')
 
-  test('Without cookie should redirect to login', async ({ page, context }) => {
-    // Clear any existing cookies
-    await context.clearCookies();
-    
-    // Navigate to protected route
-    await page.goto('/reports');
-    
-    // Should be redirected to login
-    await expect(page).toHaveURL(/\/login/);
-  });
+  test('can open primary dashboards without redirect', async ({ browser }) => {
+    const context = await createAuthenticatedContext(browser)
+    const page = await context.newPage()
 
-  test('Dev bypass parameter should still work', async ({ page }) => {
-    // Navigate with dev bypass
-    await page.goto('/reports?dev_bypass=true');
-    
-    // Should not be redirected to login
-    await expect(page).not.toHaveURL(/\/login/);
-    
-    // Should be on reports page with dev_bypass
-    await expect(page).toHaveURL(/\/reports.*dev_bypass=true/);
-  });
-});
+    const protectedRoutes = ['/finance', '/analytics', '/cashflow']
+
+    for (const route of protectedRoutes) {
+      await page.goto(route, { waitUntil: 'domcontentloaded' })
+      expect(new URL(page.url()).pathname).toBe(route)
+    }
+
+    await clearAuth(context)
+    await context.close()
+  })
+})

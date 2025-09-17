@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { clearTokenSet } from '@/lib/xero-client';
-import { XeroSession } from '@/lib/xero-session';
 import { withRateLimit } from '@/lib/rate-limiter';
 import { Logger } from '@/lib/logger';
 

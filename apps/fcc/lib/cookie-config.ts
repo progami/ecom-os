@@ -18,8 +18,6 @@ export const AUTH_COOKIE_OPTIONS = {
   path: '/',
   domain: cookieDomain,
 };
-
-export const SESSION_COOKIE_NAME = 'user_session';
 export const TOKEN_COOKIE_NAME = 'xero_token';
 
 logger.info('[CookieConfig] Configuration', {

@@ -74,7 +74,7 @@ async function checkCurrentAuthState() {
     console.log('   a) User clicks "Sign Out" in sidebar')
     console.log('   b) Calls signOut() in AuthContext')
     console.log('   c) Makes POST request to /api/v1/auth/signout')
-    console.log('   d) Signout route clears cookies: user_session, xero_token, xero_state, xero_pkce')
+    console.log('   d) Signout happens through central auth; local app only manages Xero token storage')
     console.log('   e) AuthContext clears state and redirects to /login')
     
     console.log('\n3. IDENTIFIED ISSUES:')

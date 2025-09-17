@@ -9,9 +9,14 @@ if [ -z "${REFRESH_TOKEN:-}" ]; then
   exit 1
 fi
 
+if [ -z "$FCC_AUTH_COOKIE" ]; then
+  echo "ERROR: FCC_AUTH_COOKIE env var not set. Provide central auth cookies." >&2
+  exit 1
+fi
+
 # Call the refresh endpoint
 echo "Calling token refresh endpoint..."
 curl -k -X POST "https://localhost:3003/api/auth/xero/refresh" \
   -H "Content-Type: application/json" \
-  -H "Cookie: xero-session=s%3As%253AuW8mLEAz6Uw7tN8nGa_DYWQf78YdBfBL.YrOhZGaWmRQv%252F8%252FdSJFGOJ3q4CQEYx%252BFOJQLRjjsJ8E" \
+  -H "Cookie: $FCC_AUTH_COOKIE" \
   -d "{\"refresh_token\": \"$REFRESH_TOKEN\"}" | jq '.'

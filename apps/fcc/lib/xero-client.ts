@@ -1,13 +1,9 @@
 import { XeroClient } from 'xero-node';
 import { TokenSet } from 'xero-node';
-import { cookies } from 'next/headers';
-import { serialize, parse } from 'cookie';
-import { XeroSession, XeroTokenSet } from './xero-session';
-import { DatabaseSession } from './database-session';
+import { DatabaseSession, XeroTokenSet } from './database-session';
 import { structuredLogger } from './logger';
 import { withLock, LOCK_RESOURCES } from './redis-lock';
 import { XeroApiWrapper } from './xero-api-wrapper';
-import { syncTokenToDatabase } from './xero-token-sync';
 import { getServerSession } from 'next-auth';
 import { refreshTokenWithRetry } from './xero-token-refresh';
 
@@ -32,30 +28,32 @@ export function createXeroClient(state?: string) {
   return xero;
 }
 
-export async function getStoredTokenSet(): Promise<TokenSet | null> {
-  return await XeroSession.getToken() as TokenSet | null;
+export async function getStoredTokenSet(): Promise<XeroTokenSet | null> {
+  return await DatabaseSession.getXeroToken();
 }
 
-export async function getDatabaseTokenSet(): Promise<TokenSet | null> {
-  const token = await DatabaseSession.getXeroToken();
-  return token as TokenSet | null;
+export async function getDatabaseTokenSet(): Promise<XeroTokenSet | null> {
+  return await DatabaseSession.getXeroToken();
 }
 
-export async function storeTokenSet(tokenSet: TokenSet | any) {
-  const tokenData: XeroTokenSet = {
-    access_token: tokenSet.access_token,
-    refresh_token: tokenSet.refresh_token,
-    expires_at: tokenSet.expires_at || (Math.floor(Date.now() / 1000) + (tokenSet.expires_in || 1800)),
+export async function storeTokenSet(tokenSet: TokenSet | XeroTokenSet, tenantId?: string) {
+  const normalized: XeroTokenSet = {
+    access_token: tokenSet.access_token || '',
+    refresh_token: tokenSet.refresh_token || '',
+    expires_at:
+      tokenSet.expires_at || Math.floor(Date.now() / 1000) + (tokenSet.expires_in || 1800),
     expires_in: tokenSet.expires_in,
     token_type: tokenSet.token_type,
-    scope: tokenSet.scope
+    scope: tokenSet.scope,
+    tenant_id: (tokenSet as any).tenant_id || tenantId,
   };
-  
-  await XeroSession.setToken(tokenData);
+
+  await DatabaseSession.updateXeroToken(normalized, normalized.tenant_id);
+  return normalized;
 }
 
-export async function clearTokenSet() {
-  await XeroSession.clearToken();
+export async function clearTokenSet(tenantId?: string) {
+  await DatabaseSession.clearXeroTokens(tenantId);
 }
 
 export function createXeroClientFromTokenSet(tokenSet: XeroTokenSet): XeroClient {
@@ -82,12 +80,12 @@ export async function refreshToken(tokenSet: XeroTokenSet): Promise<XeroTokenSet
       tokenSet.refresh_token!
     );
     
-    await storeTokenSet(newTokenSet);
-    return newTokenSet as XeroTokenSet;
+    const updated = await storeTokenSet(newTokenSet, tokenSet.tenant_id);
+    return updated;
 
   } catch (error) {
     structuredLogger.error('Failed to refresh Xero token', error, { component: 'xero-client' });
-    await clearTokenSet(); // The refresh token is likely invalid, clear everything
+    await clearTokenSet(tokenSet.tenant_id); // The refresh token is likely invalid, clear everything
     return null;
   }
 }

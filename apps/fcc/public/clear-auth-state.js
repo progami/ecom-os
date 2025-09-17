@@ -13,29 +13,9 @@
     }
     keysToRemove.forEach(key => sessionStorage.removeItem(key));
     
-    // Check for session cookie
-    const cookies = document.cookie.split(';');
-    const sessionCookie = cookies.find(c => c.trim().startsWith('user_session='));
-    
-    if (sessionCookie) {
-      try {
-        const sessionValue = decodeURIComponent(sessionCookie.split('=')[1]);
-        const sessionData = JSON.parse(sessionValue);
-        const hasValidSession = (sessionData.user && sessionData.user.id) || 
-                               (sessionData.userId && sessionData.email);
-        
-        // Set a flag that React can check
-        if (hasValidSession) {
-          window.__AUTH_STATE_OPTIMISTIC__ = true;
-          console.log('[Clear Auth State] Found valid session, setting optimistic auth state');
-        }
-      } catch (e) {
-        console.error('[Clear Auth State] Error parsing session cookie:', e);
-      }
-    } else {
-      window.__AUTH_STATE_OPTIMISTIC__ = false;
-      console.log('[Clear Auth State] No session cookie found');
-    }
+    // Central auth cookies are httpOnly, so default to no optimistic session on the client
+    window.__AUTH_STATE_OPTIMISTIC__ = false;
+    console.log('[Clear Auth State] Defaulting to non-optimistic auth state; relying on server check');
   } catch (error) {
     console.error('[Clear Auth State] Error in auth state handler:', error);
   }

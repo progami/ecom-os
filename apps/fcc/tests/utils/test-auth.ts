@@ -68,44 +68,43 @@ export async function injectAuthCookies(
 ) {
   const user = TEST_USERS[userType];
   
-  // Create user session cookie
-  const userSessionCookie = {
-    name: 'user_session',
-    value: JSON.stringify({
-      user: {
-        id: user.userId,
-        email: user.email,
-        name: user.name
-      },
-      userId: user.userId,
-      email: user.email,
-      tenantId: user.tenantId,
-      tenantName: user.tenantName,
-      organizationId: user.organizationId
-    }),
-    domain: 'localhost',
-    path: '/',
-    httpOnly: true,
-    secure: false, // false for localhost - matches middleware behavior
-    sameSite: 'Lax' as const,
-    expires: Date.now() / 1000 + (30 * 24 * 60 * 60) // 30 days
-  };
+  const authHeader = process.env.FCC_AUTH_COOKIE;
+  if (!authHeader) {
+    throw new Error(
+      'Set FCC_AUTH_COOKIE with a valid central session cookie string (e.g. "next-auth.session-token=...; xero_token=...") before running Playwright tests.'
+    );
+  }
 
-  // Create Xero token cookie if user has connection
-  const xeroTokenCookie = user.hasXeroConnection ? {
-    name: 'xero_token',
-    value: JSON.stringify(MOCK_XERO_TOKEN),
-    domain: 'localhost',
-    path: '/',
-    httpOnly: true,
-    secure: false,
-    sameSite: 'Lax' as const,
-    expires: Date.now() / 1000 + (30 * 24 * 60 * 60)
-  } : null;
+  const cookies = authHeader
+    .split(';')
+    .map(part => part.trim())
+    .filter(Boolean)
+    .map(part => {
+      const [name, ...rest] = part.split('=');
+      return {
+        name,
+        value: rest.join('=') || '',
+        domain: 'localhost',
+        path: '/',
+        httpOnly: true,
+        secure: false,
+        sameSite: 'Lax' as const,
+        expires: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+      };
+    });
 
-  const cookies = [userSessionCookie];
-  if (xeroTokenCookie) {
-    cookies.push(xeroTokenCookie);
+  const hasXeroCookie = cookies.some(cookie => cookie.name.includes('xero_token'));
+  if (user.hasXeroConnection && !hasXeroCookie) {
+    cookies.push({
+      name: 'xero_token',
+      value: JSON.stringify(MOCK_XERO_TOKEN),
+      domain: 'localhost',
+      path: '/',
+      httpOnly: true,
+      secure: false,
+      sameSite: 'Lax' as const,
+      expires: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+    });
   }
 
   await context.addCookies(cookies);

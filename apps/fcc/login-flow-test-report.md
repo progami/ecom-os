@@ -57,7 +57,7 @@ app/
 **Current Behavior**:
 1. Logout button in UnifiedPageHeader calls `signOut()` from AuthContext
 2. `signOut()` makes POST request to `/api/v1/auth/signout`
-3. API clears all auth cookies (user_session, xero_token, etc.)
+3. API clears FCC cookies (xero_token, xero_state, etc.) and defers to central logout
 4. Auth state is cleared
 5. User is redirected to `/login` using `window.location.replace()`
 

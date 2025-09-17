@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createXeroClient, storeTokenSet, xeroConfig } from '@/lib/xero-client';
+import { createXeroClient, xeroConfig } from '@/lib/xero-client';
 import { getState, deleteState } from '@/lib/oauth-state-manager';
-import { XeroSession } from '@/lib/xero-session';
 import { structuredLogger } from '@/lib/logger';
-import { AUTH_COOKIE_OPTIONS, SESSION_COOKIE_NAME } from '@/lib/cookie-config';
 import { withRateLimit } from '@/lib/rate-limiter';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 export const GET = withRateLimit(async (request: NextRequest) => {
   structuredLogger.debug('Starting OAuth callback handler', {
@@ -14,17 +14,17 @@ export const GET = withRateLimit(async (request: NextRequest) => {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://localhost:3003';
   
   // Helper function for error redirects
-  const errorRedirect = (errorParam: string) => {
-    const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
-    const isAuthenticated = !!sessionCookie?.value;
-    
+  const errorRedirect = async (errorParam: string) => {
+    const session = await getServerSession(authOptions).catch(() => null);
+    const isAuthenticated = !!session?.user;
+
     if (isAuthenticated) {
       // If authenticated, redirect to finance page with error
       return NextResponse.redirect(`${baseUrl}/finance?xero_error=${encodeURIComponent(errorParam)}`);
-    } else {
-      // If not authenticated, redirect to login
-      return NextResponse.redirect(`${baseUrl}/login?error=${encodeURIComponent(errorParam)}`);
     }
+
+    // If not authenticated, redirect to login
+    return NextResponse.redirect(`${baseUrl}/login?error=${encodeURIComponent(errorParam)}`);
   };
   
   try {
@@ -275,30 +275,6 @@ export const GET = withRateLimit(async (request: NextRequest) => {
             tenantName: user.tenantName
           });
           
-          // Create user session with proper structure
-          const userSession = {
-            user: {
-              id: user.id,
-              email: user.email,
-              name: user.fullName || user.email
-            },
-            userId: user.id,
-            email: user.email,
-            tenantId: user.tenantId,
-            tenantName: user.tenantName
-          };
-          
-          // Prepare token data
-          const tokenData = {
-            access_token: tokenSet.access_token || '',
-            refresh_token: tokenSet.refresh_token || '',
-            expires_at: tokenSet.expires_at || (Math.floor(Date.now() / 1000) + (tokenSet.expires_in || 1800)),
-            expires_in: tokenSet.expires_in || 1800,
-            token_type: tokenSet.token_type || 'Bearer',
-            scope: tokenSet.scope || ''
-          };
-          
-          // Store session in cookie
           // Redirect to the original return URL or finance page
           const redirectUrl = returnUrl && returnUrl !== '/' 
             ? new URL(`${baseUrl}${returnUrl}`)
@@ -324,20 +300,7 @@ export const GET = withRateLimit(async (request: NextRequest) => {
             // Silent fail
           }
           
-          const response = NextResponse.redirect(redirectUrl.toString());
-          response.cookies.set(SESSION_COOKIE_NAME, JSON.stringify(userSession), AUTH_COOKIE_OPTIONS);
-          
-          structuredLogger.debug('Setting user session cookie', {
-            component: 'xero-auth-callback',
-            cookieName: SESSION_COOKIE_NAME,
-            cookieOptions: AUTH_COOKIE_OPTIONS,
-            userSession
-          });
-          
-          // Store token in secure cookie
-          XeroSession.setTokenInResponse(response, tokenData);
-          
-          return response;
+          return NextResponse.redirect(redirectUrl.toString());
         }
       } catch (error) {
         structuredLogger.error('Failed to store user info', error, {
@@ -359,36 +322,13 @@ export const GET = withRateLimit(async (request: NextRequest) => {
         component: 'xero-auth-callback',
         redirectTo: redirectUrl.toString() 
       });
-      const response = NextResponse.redirect(redirectUrl.toString());
-      
-      // Store token in secure cookie using the response
-      const tokenData = {
-        access_token: tokenSet.access_token || '',
-        refresh_token: tokenSet.refresh_token || '',
-        expires_at: tokenSet.expires_at || (Math.floor(Date.now() / 1000) + (tokenSet.expires_in || 1800)),
-        expires_in: tokenSet.expires_in || 1800,
-        token_type: tokenSet.token_type || 'Bearer',
-        scope: tokenSet.scope || ''
-      };
-      
-      structuredLogger.debug('Token data prepared for storage', {
-        component: 'xero-auth-callback',
-        hasAccessToken: !!tokenData.access_token,
-        accessTokenLength: tokenData.access_token.length,
-        hasRefreshToken: !!tokenData.refresh_token,
-        refreshTokenLength: tokenData.refresh_token.length,
-        expiresAt: tokenData.expires_at,
-        tokenType: tokenData.token_type
-      });
-      
-      XeroSession.setTokenInResponse(response, tokenData);
-      
+
       structuredLogger.info('OAuth callback successful', {
         component: 'xero-auth-callback',
-        redirectTo: response.headers.get('location')
+        redirectTo: redirectUrl.toString()
       });
-      
-      return response;
+
+      return NextResponse.redirect(redirectUrl.toString());
     } catch (tokenError: any) {
       structuredLogger.error('Token exchange failed', tokenError, {
         component: 'xero-auth-callback',

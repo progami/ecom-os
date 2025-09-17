@@ -34,13 +34,9 @@ I tested the logout functionality across the application and found:
 1. User clicks "Sign Out" button
 2. `signOut()` is called from AuthContext
 3. Makes POST request to `/api/v1/auth/signout`
-4. Server clears all auth cookies:
-   - `user_session`
-   - `xero_token`
-   - `xero_state`
-   - `xero_pkce`
-5. AuthContext clears state
-6. User is redirected to `/login`
+4. Server clears FCC-scoped cookies (e.g. `xero_token`, `xero_state`, `xero_pkce`)
+5. Central auth clears the shared NextAuth session
+6. AuthContext clears local state and user is redirected to `/login`
 
 ### Changes Made
 

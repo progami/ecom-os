@@ -50,7 +50,11 @@ async function fetchMonthData(year: number, month: number, cookie: string) {
 }
 
 async function aggregateYear2024() {
-  const cookie = 'user_session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbHl2eGJlcWkwMDAwbWF3azU2NzQ3dDJlIiwiZW1haWwiOiJqLmFtamFkQHN3aWZ0Y29tcGxldGVkLmNvbSIsInJvbGUiOiJVU0VSIiwiZmlyc3ROYW1lIjoiSmFycmFyIiwibGFzdE5hbWUiOiJBbWphZCIsImF2YXRhclVybCI6bnVsbCwiaWF0IjoxNzMwNDAzNTk0LCJleHAiOjE3MzI5OTU1OTQsImF1ZCI6WyJib29ra2VlcGluZy1hcHAiXSwiaXNzIjoiaHR0cHM6Ly9sb2NhbGhvc3Q6MzAwMyJ9.Kb5XhBjY5zEK5LCU8tI58IwGfnLOXbgj95bBPLNJL1Y';
+  const cookie = process.env.FCC_AUTH_COOKIE;
+
+  if (!cookie) {
+    throw new Error('FCC_AUTH_COOKIE is not set. Provide a valid central session cookie string (include NextAuth + Xero tokens).');
+  }
   
   console.log('=== FETCHING YEAR 2024 P&L DATA ===\n');
   

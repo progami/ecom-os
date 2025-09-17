@@ -4,9 +4,14 @@
 echo "" > logs/development.log
 
 # Trigger the API call in background
+if [ -z "$FCC_AUTH_COOKIE" ]; then
+  echo "FCC_AUTH_COOKIE is not set. Provide a valid central session cookie (include NextAuth + Xero tokens)." >&2
+  exit 1
+fi
+
 curl -s "http://localhost:3003/api/v1/xero/reports/balance-sheet?dev_bypass=true" \
   -H "Accept: application/json" \
-  -H "Cookie: user_session=%7B%22user%22%3A%7B%22id%22%3A%22user-1%22%2C%22email%22%3A%22ajarrar%40trademanenterprise.com%22%2C%22name%22%3A%22TRADEMAN%20ENTERPRISE%22%7D%2C%22userId%22%3A%22user-1%22%2C%22email%22%3A%22ajarrar%40trademanenterprise.com%22%2C%22tenantId%22%3A%22%21Qn7M1%22%2C%22tenantName%22%3A%22TRADEMAN%20ENTERPRISE%20LTD%22%7D" &
+  -H "Cookie: $FCC_AUTH_COOKIE" &
 
 # Give it time to process
 sleep 5

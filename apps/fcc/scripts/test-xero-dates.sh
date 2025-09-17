@@ -3,9 +3,13 @@
 # Test different date formats with Xero API
 echo "Testing different date formats with Cash Flow API..."
 
-COOKIES='xero-session=s%3As%253AuW8mLEAz6Uw7tN8nGa_DYWQf78YdBfBL.YrOhZGaWmRQv%252F8%252FdSJFGOJ3q4CQEYx%252BFOJQLRjjsJ8E'
+if [ -z "$FCC_AUTH_COOKIE" ]; then
+  echo "FCC_AUTH_COOKIE is not set. Provide a valid central session cookie (include NextAuth + Xero tokens)." >&2
+  exit 1
+fi
 
-# Test 1: Try with fromDate and toDate parameters
+COOKIES="$FCC_AUTH_COOKIE"
+
 echo "1. Testing with fromDate and toDate..."
 curl -k -s "https://localhost:3003/api/v1/xero/reports/cash-flow?fromDate=2025-06-01&toDate=2025-06-30&forceRefresh=true" \
   -H "Accept: application/json" \

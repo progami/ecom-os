@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getXeroClient } from './xero-client';
+import { getXeroClient, getStoredTokenSet } from './xero-client';
 import { structuredLogger } from './logger';
 
 export interface AuthenticatedRequest extends NextRequest {
@@ -121,10 +121,4 @@ export async function requireXeroScopes(
     
     return handler(req);
   });
-}
-
-// Helper to get stored token set
-async function getStoredTokenSet() {
-  const { XeroSession } = await import('./xero-session');
-  return await XeroSession.getToken();
 }

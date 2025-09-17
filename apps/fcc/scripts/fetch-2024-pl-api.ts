@@ -1,6 +1,15 @@
 import fetch from 'node-fetch';
 import fs from 'fs';
 
+const AUTH_COOKIE_ENV = 'FCC_AUTH_COOKIE';
+const authCookie = process.env[AUTH_COOKIE_ENV];
+
+if (!authCookie) {
+  throw new Error(
+    `Missing authentication cookie. Set ${AUTH_COOKIE_ENV} with a valid central session cookie string (include NextAuth + Xero tokens).`
+  );
+}
+
 async function fetch2024PLFromAPI() {
   console.log('📊 Fetching P&L for year ending 31 December 2024 from API...\n');
   
@@ -10,7 +19,7 @@ async function fetch2024PLFromAPI() {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'Cookie': 'user_session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbHl2eGJlcWkwMDAwbWF3azU2NzQ3dDJlIiwiZW1haWwiOiJqLmFtamFkQHN3aWZ0Y29tcGxldGVkLmNvbSIsInJvbGUiOiJVU0VSIiwiZmlyc3ROYW1lIjoiSmFycmFyIiwibGFzdE5hbWUiOiJBbWphZCIsImF2YXRhclVybCI6bnVsbCwiaWF0IjoxNzMwNDAzNTk0LCJleHAiOjE3MzI5OTU1OTQsImF1ZCI6WyJib29ra2VlcGluZy1hcHAiXSwiaXNzIjoiaHR0cHM6Ly9sb2NhbGhvc3Q6MzAwMyJ9.Kb5XhBjY5zEK5LCU8tI58IwGfnLOXbgj95bBPLNJL1Y'
+        'Cookie': authCookie
       },
       // @ts-ignore
       agent: new (require('https').Agent)({

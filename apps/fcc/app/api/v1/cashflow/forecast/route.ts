@@ -104,14 +104,11 @@ export const POST = withValidation(
       
       logger.info('Processing cashflow forecast request', { days, regenerate });
       
-      // Get session from cookie
-      const userSessionCookie = request.cookies.get('user_session');
-      if (!userSessionCookie) {
+      const session = await validateSession(request, ValidationLevel.USER);
+      if (!session.isValid || !session.user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
-      
-      const session = JSON.parse(userSessionCookie.value);
-      const tenantId = session.tenantId;
+      const tenantId = session.user.tenantId;
       
       if (!tenantId) {
         return NextResponse.json({ error: 'No tenant ID in session' }, { status: 401 });

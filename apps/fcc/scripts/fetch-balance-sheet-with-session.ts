@@ -10,12 +10,13 @@ const agent = new https.Agent({
   rejectUnauthorized: false
 });
 
-// Get session cookie from environment or command line
-const SESSION_COOKIE = process.env.USER_SESSION || process.argv[2];
+// Get cookie string from environment or command line
+const AUTH_COOKIE_ENV = 'FCC_AUTH_COOKIE';
+const cookieString = process.env[AUTH_COOKIE_ENV] || process.argv[2];
 
-if (!SESSION_COOKIE) {
-  console.error('❌ Error: Please provide session cookie as argument or USER_SESSION env variable');
-  console.error('Usage: npm run tsx scripts/fetch-balance-sheet-with-session.ts "your-session-cookie"');
+if (!cookieString) {
+  console.error('❌ Error: Provide a central session cookie via FCC_AUTH_COOKIE env variable or as the first argument.');
+  console.error('Usage: npm run tsx scripts/fetch-balance-sheet-with-session.ts "next-auth.session-token=...; xero_token=..."');
   process.exit(1);
 }
 
@@ -37,7 +38,7 @@ async function fetchBalanceSheetData(date: string, description: string): Promise
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        'Cookie': `user_session=${SESSION_COOKIE}`
+        'Cookie': cookieString
       },
       // @ts-ignore
       agent
@@ -137,7 +138,7 @@ async function fetchBalanceSheetData(date: string, description: string): Promise
 
 async function fetchRecentMonths() {
   console.log('=== FETCHING RECENT BALANCE SHEET DATA ===\n');
-  console.log(`Using session cookie: ${SESSION_COOKIE.substring(0, 20)}...`);
+    console.log(`Using session cookie: ${cookieString.substring(0, 20)}...`);
   
   const currentDate = new Date();
   const currentYear = currentDate.getFullYear();

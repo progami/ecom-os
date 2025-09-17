@@ -1,8 +1,9 @@
 import { NextRequest } from 'next/server';
 import { getXeroClientFromDatabase } from './xero-client';
 import { DatabaseSession } from './database-session';
-import { SESSION_COOKIE_NAME } from './cookie-config';
 import { structuredLogger } from './logger';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 
 /**
  * Helper to get the Xero client consistently across the app
@@ -45,35 +46,31 @@ export async function getXeroClient() {
  * Get the current tenant ID from the request session or database
  * @param request - The NextRequest object containing session cookies
  */
-export async function getTenantId(request?: NextRequest): Promise<string | null> {
-  // If request is provided, try to get tenant ID from session cookie
-  if (request) {
-    try {
-      const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
-      if (sessionCookie?.value) {
-        const sessionData = JSON.parse(sessionCookie.value);
-        
-        // Handle both session formats
-        const tenantId = sessionData.tenantId || 
-                        (sessionData.user?.tenantId) || 
-                        null;
-        
-        if (tenantId) {
-          structuredLogger.debug('[getTenantId] Got tenant ID from session cookie', {
-            tenantId,
-            hasUser: !!sessionData.user,
-            email: sessionData.email || sessionData.user?.email
-          });
-          return tenantId;
-        }
-      }
-    } catch (error) {
-      structuredLogger.warn('[getTenantId] Failed to parse session cookie', {
-        error: error instanceof Error ? error.message : 'Unknown error'
+export async function getTenantId(_request?: NextRequest): Promise<string | null> {
+  try {
+    const session = await getServerSession(authOptions).catch((error) => {
+      structuredLogger.debug('[getTenantId] Unable to read central session', {
+        reason: error instanceof Error ? error.message : 'unknown'
       });
+      return null;
+    });
+
+    const user = (session?.user ?? {}) as Record<string, any>;
+    const centralTenantId = user.tenantId || (session as any)?.tenantId || null;
+
+    if (centralTenantId) {
+      structuredLogger.debug('[getTenantId] Using tenant from central session', {
+        tenantId: centralTenantId,
+        email: user.email
+      });
+      return centralTenantId;
     }
+  } catch (error) {
+    structuredLogger.warn('[getTenantId] Failed to read central session', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
-  
+
   // Fall back to database session (for backward compatibility)
   const token = await DatabaseSession.getXeroToken();
   

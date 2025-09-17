@@ -9,13 +9,13 @@ The 45-second delay in updating the auth state after Xero OAuth authentication i
 The OAuth callback route (`/api/v1/xero/auth/callback/route.ts`) successfully:
 - Exchanges the authorization code for tokens
 - Stores the user information in the database
-- Sets cookies for both user session (`user_session`) and Xero token (`xero_token`)
+- Sets FCC cookies for the Xero token (`xero_token`) while central auth maintains the user session
 - Redirects to `/finance` page by default
 
 ### 2. Auth State Update Mechanism
 
 #### Current Issues:
-1. **Dual Storage System**: Tokens are stored in both cookies (via `XeroSession`) and database (via user record)
+1. **Legacy Dual Storage System**: Tokens used to be stored in both cookies and the database, which caused timing gaps; the codebase now relies solely on database storage
 2. **Status Check Relies on Database**: The `/api/v1/xero/status` endpoint checks the database for tokens, not cookies
 3. **Timing Gap**: There's a gap between when cookies are set and when the auth status check recognizes the new connection
 

@@ -69,23 +69,6 @@ app.prepare().then(async () => {
         return;
       }
       
-      // Simple authentication check for protected routes
-      const publicRoutes = ['/login', '/register', '/api/', '/_next', '/favicon.ico'];
-      const isPublicRoute = publicRoutes.some(route => urlObject.pathname.startsWith(route));
-      
-      if (!isPublicRoute) {
-        // Check for user_session cookie
-        const cookies = req.headers.cookie || '';
-        const hasUserSession = cookies.includes('user_session=');
-        
-        if (!hasUserSession) {
-          console.log(`[Server Auth] No session for ${urlObject.pathname}, redirecting to login`);
-          res.writeHead(302, { Location: '/login' });
-          res.end();
-          return;
-        }
-      }
-      
       await handle(req, res, urlObject);
     } catch (err) {
       console.error('Error occurred handling', req.url, err);

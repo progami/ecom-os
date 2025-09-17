@@ -46,7 +46,6 @@ const PROTECTED_ROUTES = [
   '/reports'
 ]
 
-import { cookieDomain } from '@/lib/cookie-config';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -212,19 +211,6 @@ export async function middleware(request: NextRequest) {
   const requestId = crypto.randomUUID();
   requestHeaders.set('x-request-id', requestId);
   response.headers.set('x-request-id', requestId);
-  
-  // Set test session cookie only for Playwright tests
-  if (devBypassSession && !request.cookies.get('user_session') && isPlaywrightTest) {
-    response.cookies.set('user_session', JSON.stringify(devBypassSession), {
-      httpOnly: true,
-      secure: false, // Tests run on HTTP
-      sameSite: 'lax',
-      maxAge: 30 * 60, // 30 minutes for tests
-      path: '/',
-      domain: cookieDomain
-    });
-    console.log(`[Middleware] Set test session cookie for Playwright`);
-  }
   
   // For API routes, ensure cookies are properly forwarded
   if (request.nextUrl.pathname.startsWith('/api/v1/xero/')) {
