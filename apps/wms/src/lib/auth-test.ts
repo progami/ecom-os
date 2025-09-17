@@ -61,8 +61,11 @@ export function getAuthOptions(): NextAuthOptions {
   // Use test auth if USE_TEST_AUTH is explicitly set to 'true'
   // This works in both test and production environments for CI/CD
   if (process.env.USE_TEST_AUTH === 'true') {
+    if (process.env.NODE_ENV !== 'test') {
+      throw new Error('USE_TEST_AUTH may only be enabled when NODE_ENV=test')
+    }
     return testAuthOptions
   }
-  
+
   return productionAuthOptions
 }
