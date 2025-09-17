@@ -1,10 +1,12 @@
 "use client"
 
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import './login.css'
 
-export default function LoginPage({ searchParams }: { searchParams?: { callbackUrl?: string, error?: string } }) {
-  const callbackUrl = searchParams?.callbackUrl || '/'
+export default function LoginPage() {
+  const searchParams = useSearchParams()
+  const callbackUrl = searchParams.get('callbackUrl') || '/'
   const [csrfToken, setCsrfToken] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({ emailOrUsername: '', password: '' })
@@ -12,18 +14,19 @@ export default function LoginPage({ searchParams }: { searchParams?: { callbackU
   const [globalError, setGlobalError] = useState('')
 
   useEffect(() => {
-    if (!searchParams?.error) {
+    const error = searchParams.get('error')
+    if (!error) {
       setGlobalError('')
       return
     }
-    const code = searchParams.error
+    const code = error
     const friendly: Record<string, string> = {
       CredentialsSignin: 'Invalid email or password. Please try again.',
       AccessDenied: 'Your account does not have access. Contact an administrator.',
       default: 'Unable to sign in right now. Please try again or reach out to support.',
     }
     setGlobalError(friendly[code] || friendly.default)
-  }, [searchParams?.error])
+  }, [searchParams])
 
   useEffect(() => {
     let mounted = true
