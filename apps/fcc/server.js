@@ -1,4 +1,5 @@
-const { createServer } = require('https');
+const https = require('https');
+const http = require('http');
 const next = require('next');
 const fs = require('fs');
 const path = require('path');
@@ -33,11 +34,17 @@ if (dev) {
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
-// SSL certificate configuration
-const httpsOptions = {
-  key: fs.readFileSync(path.join(__dirname, 'certificates', 'localhost-key.pem')),
-  cert: fs.readFileSync(path.join(__dirname, 'certificates', 'localhost.pem'))
-};
+// SSL certificate configuration (optional)
+const certDir = path.join(__dirname, 'certificates');
+const keyPath = path.join(certDir, 'localhost-key.pem');
+const certPath = path.join(certDir, 'localhost.pem');
+const hasCertificates = fs.existsSync(keyPath) && fs.existsSync(certPath);
+const httpsOptions = hasCertificates
+  ? {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath),
+    }
+  : null;
 
 app.prepare().then(async () => {
   // Queue workers are initialized by Next.js instrumentation hook
@@ -46,10 +53,11 @@ app.prepare().then(async () => {
     console.log('Queue workers will be initialized by Next.js instrumentation hook');
   }
   
-  createServer(httpsOptions, async (req, res) => {
+  const requestHandler = async (req, res) => {
     try {
       // Use WHATWG URL API instead of deprecated url.parse()
-      const baseURL = `https://${hostname}:${port}`;
+      const protocol = hasCertificates ? 'https' : 'http';
+      const baseURL = `${protocol}://${hostname}:${port}`;
       const parsedUrl = new URL(req.url, baseURL);
       
       // Convert to Next.js expected format
@@ -75,7 +83,19 @@ app.prepare().then(async () => {
       res.statusCode = 500;
       res.end('internal server error');
     }
-  })
+  };
+
+  const createServer = hasCertificates
+    ? () => https.createServer(httpsOptions, requestHandler)
+    : () => http.createServer(requestHandler);
+
+  if (!hasCertificates) {
+    console.warn(
+      '[Dev Server] SSL certificates not found in apps/fcc/certificates; starting HTTP server instead.'
+    );
+  }
+
+  createServer()
     .once('error', (err) => {
       if (err.code === 'EADDRINUSE') {
         console.error(`Port ${port} is already in use. Please stop the other instance or use a different port.`);
@@ -85,7 +105,8 @@ app.prepare().then(async () => {
       process.exit(1);
     })
     .listen(port, hostname, () => {
-      console.log(`> Ready on https://${hostname}:${port}`);
+      const protocol = hasCertificates ? 'https' : 'http';
+      console.log(`> Ready on ${protocol}://${hostname}:${port}`);
       console.log('> Server PID:', process.pid);
     });
     

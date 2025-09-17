@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "npm-run-all --parallel dev:server workers:dev",
+    "dev": "npm-run-all --parallel dev:server",
     "dev:server": "node --expose-gc server.js",
     "dev:enhanced": "node --expose-gc server.js",
     "dev:log": "node server-with-logging.js",
