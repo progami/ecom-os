@@ -6,7 +6,20 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
-import { Search, RefreshCw, Building, Package, Archive, Truck } from '@/lib/lucide-icons'
+import {
+  Search,
+  RefreshCw,
+  Building,
+  Package,
+  Archive,
+  Truck,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Filter,
+} from '@/lib/lucide-icons'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
 import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
 import { toast } from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -54,15 +67,52 @@ interface InventoryResponse {
   summary?: InventorySummary
 }
 
+type SortKey = 'warehouse' | 'sku' | 'batch' | 'cartons' | 'pallets' | 'units' | 'lastTransaction'
+
+interface ColumnFiltersState {
+  warehouse: string[]
+  sku: string[]
+  batch: string[]
+  lastTransaction: string
+  cartonsMin: string
+  cartonsMax: string
+  palletsMin: string
+  palletsMax: string
+  unitsMin: string
+  unitsMax: string
+}
+
+const createColumnFilterDefaults = (): ColumnFiltersState => ({
+  warehouse: [],
+  sku: [],
+  batch: [],
+  lastTransaction: '',
+  cartonsMin: '',
+  cartonsMax: '',
+  palletsMin: '',
+  palletsMax: '',
+  unitsMin: '',
+  unitsMax: '',
+})
+
+type ColumnFilterKey = keyof ColumnFiltersState
+
+const balanceDateToTime = (value: string | null) => {
+  if (!value) {
+    return 0
+  }
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? 0 : date.getTime()
+}
+
 function InventoryPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [balances, setBalances] = useState<InventoryBalance[]>([])
   const [summary, setSummary] = useState<InventorySummary | null>(null)
-  const [search, setSearch] = useState('')
-  const [warehouseFilter, setWarehouseFilter] = useState('')
-  const [warehouses, setWarehouses] = useState<Array<{ id: string; name: string; code: string }>>([])
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() => createColumnFilterDefaults())
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -79,32 +129,12 @@ function InventoryPage() {
     }
   }, [session, status, router])
 
-  useEffect(() => {
-    const fetchWarehouses = async () => {
-      try {
-        const response = await fetch('/api/warehouses')
-        if (!response.ok) return
-        const data = await response.json()
-        setWarehouses(data)
-      } catch (_error) {
-        // ignore silently
-      }
-    }
-    fetchWarehouses()
-  }, [])
-
   const fetchBalances = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams({
         showZeroStock: 'false',
       })
-      if (warehouseFilter) {
-        params.append('warehouseId', warehouseFilter)
-      }
-      if (search) {
-        params.append('skuCode', search)
-      }
 
       const response = await fetch(`/api/inventory/balances?${params}`)
       if (!response.ok) {
@@ -128,13 +158,247 @@ function InventoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [search, warehouseFilter])
+  }, [])
 
   useEffect(() => {
     if (status === 'authenticated') {
       fetchBalances()
     }
   }, [fetchBalances, status])
+
+  const handleSort = useCallback((key: SortKey) => {
+    setSortConfig(current => {
+      if (current?.key === key) {
+        if (current.direction === 'asc') {
+          return { key, direction: 'desc' }
+        }
+        return null
+      }
+      return { key, direction: 'asc' }
+    })
+  }, [])
+
+  const updateColumnFilter = useCallback(<K extends ColumnFilterKey>(key: K, value: ColumnFiltersState[K]) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      [key]: value,
+    }))
+  }, [])
+
+  const toggleMultiValueFilter = useCallback(
+    (key: 'warehouse' | 'sku' | 'batch', value: string) => {
+      setColumnFilters(prev => {
+        const current = prev[key]
+        const nextValues = current.includes(value)
+          ? current.filter(item => item !== value)
+          : [...current, value]
+        return {
+          ...prev,
+          [key]: nextValues,
+        }
+      })
+    },
+    []
+  )
+
+  const clearColumnFilter = useCallback((keys: ColumnFilterKey[]) => {
+    setColumnFilters(prev => {
+      const defaults = createColumnFilterDefaults()
+      const next: ColumnFiltersState = { ...prev }
+      keys.forEach(key => {
+        next[key] = defaults[key]
+      })
+      return next
+    })
+  }, [])
+
+  const isFilterActive = useCallback(
+    (keys: ColumnFilterKey[]) =>
+      keys.some(key => {
+        const value = columnFilters[key]
+        return Array.isArray(value) ? value.length > 0 : value.trim().length > 0
+      }),
+    [columnFilters]
+  )
+
+  const uniqueWarehouseOptions = useMemo(() => {
+    const map = new Map<string, { name: string; code?: string | null }>()
+    balances.forEach(balance => {
+      const value = (balance.warehouseId || balance.warehouse.code || balance.warehouse.name)?.toString().trim()
+      if (!value) return
+      if (!map.has(value)) {
+        const name = balance.warehouse.name?.trim() || 'Unnamed Warehouse'
+        const code = balance.warehouse.code?.trim()
+        map.set(value, { name, code })
+      }
+    })
+    return Array.from(map.entries())
+      .map(([value, info]) => ({
+        value,
+        label: info.code ? `${info.name} (${info.code})` : info.name,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [balances])
+
+  const uniqueSkuOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    balances.forEach(balance => {
+      const code = balance.sku.skuCode?.trim()
+      if (!code) return
+      if (!map.has(code)) {
+        const description = balance.sku.description?.trim()
+        map.set(code, description ? `${code} — ${description}` : code)
+      }
+    })
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [balances])
+
+  const uniqueBatchOptions = useMemo(() => {
+    const set = new Set<string>()
+    balances.forEach(balance => {
+      const batch = balance.batchLot?.trim()
+      if (batch) {
+        set.add(batch)
+      }
+    })
+    return Array.from(set.values()).sort((a, b) => a.localeCompare(b)).map(value => ({
+      value,
+      label: value,
+    }))
+  }, [balances])
+
+  const processedBalances = useMemo(() => {
+    const parseNumber = (value: string) => {
+      const trimmed = value.trim()
+      if (!trimmed) return null
+      const parsed = Number(trimmed)
+      return Number.isNaN(parsed) ? null : parsed
+    }
+
+    const filtered = balances.filter(balance => {
+      if (columnFilters.warehouse.length > 0) {
+        const warehouseIdentifier = (balance.warehouseId || balance.warehouse.code || balance.warehouse.name)?.toString().trim()
+        if (!warehouseIdentifier || !columnFilters.warehouse.includes(warehouseIdentifier)) {
+          return false
+        }
+      }
+
+      if (columnFilters.sku.length > 0) {
+        const skuCode = balance.sku.skuCode?.trim()
+        if (!skuCode || !columnFilters.sku.includes(skuCode)) {
+          return false
+        }
+      }
+
+      if (columnFilters.batch.length > 0) {
+        const batchLot = balance.batchLot?.trim()
+        if (!batchLot || !columnFilters.batch.includes(batchLot)) {
+          return false
+        }
+      }
+
+      if (columnFilters.lastTransaction) {
+        const lastTransactionDisplay = balance.lastTransactionDate
+          ? format(new Date(balance.lastTransactionDate), 'PPpp')
+          : 'N/A'
+        if (!lastTransactionDisplay.toLowerCase().includes(columnFilters.lastTransaction.toLowerCase())) {
+          return false
+        }
+      }
+
+      const cartonsMin = parseNumber(columnFilters.cartonsMin)
+      const cartonsMax = parseNumber(columnFilters.cartonsMax)
+      if (cartonsMin !== null && balance.currentCartons < cartonsMin) {
+        return false
+      }
+      if (cartonsMax !== null && balance.currentCartons > cartonsMax) {
+        return false
+      }
+
+      const palletsMin = parseNumber(columnFilters.palletsMin)
+      const palletsMax = parseNumber(columnFilters.palletsMax)
+      if (palletsMin !== null && balance.currentPallets < palletsMin) {
+        return false
+      }
+      if (palletsMax !== null && balance.currentPallets > palletsMax) {
+        return false
+      }
+
+      const unitsMin = parseNumber(columnFilters.unitsMin)
+      const unitsMax = parseNumber(columnFilters.unitsMax)
+      if (unitsMin !== null && balance.currentUnits < unitsMin) {
+        return false
+      }
+      if (unitsMax !== null && balance.currentUnits > unitsMax) {
+        return false
+      }
+
+      return true
+    })
+
+    if (!sortConfig) {
+      return filtered
+    }
+
+    const sorted = [...filtered].sort((a, b) => {
+      let comparison = 0
+
+      switch (sortConfig.key) {
+        case 'warehouse':
+          comparison = `${a.warehouse.name} ${a.warehouse.code}`.localeCompare(
+            `${b.warehouse.name} ${b.warehouse.code}`,
+            undefined,
+            { sensitivity: 'base' }
+          )
+          break
+        case 'sku':
+          comparison = `${a.sku.skuCode} ${a.sku.description}`.localeCompare(
+            `${b.sku.skuCode} ${b.sku.description}`,
+            undefined,
+            { sensitivity: 'base' }
+          )
+          break
+        case 'batch':
+          comparison = a.batchLot.localeCompare(b.batchLot, undefined, { sensitivity: 'base' })
+          break
+        case 'cartons':
+          comparison = a.currentCartons - b.currentCartons
+          break
+        case 'pallets':
+          comparison = a.currentPallets - b.currentPallets
+          break
+        case 'units':
+          comparison = a.currentUnits - b.currentUnits
+          break
+        case 'lastTransaction': {
+          const timeA = balanceDateToTime(a.lastTransactionDate)
+          const timeB = balanceDateToTime(b.lastTransactionDate)
+          comparison = timeA - timeB
+          break
+        }
+        default:
+          comparison = 0
+      }
+
+      return sortConfig.direction === 'asc' ? comparison : -comparison
+    })
+
+    return sorted
+  }, [balances, columnFilters, sortConfig])
+
+  const getSortIcon = useCallback((key: SortKey) => {
+    if (!sortConfig || sortConfig.key !== key) {
+      return <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+    }
+
+    return sortConfig.direction === 'asc' ? (
+      <ArrowUp className="h-4 w-4 text-primary" />
+    ) : (
+      <ArrowDown className="h-4 w-4 text-primary" />
+    )
+  }, [sortConfig])
 
   const metrics = useMemo(() => {
     const totalCartons = balances.reduce((sum, balance) => sum + balance.currentCartons, 0)
@@ -158,6 +422,8 @@ function InventoryPage() {
     }
   }, [balances, summary])
 
+  const baseFilterInputClass = 'w-full rounded-md border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary'
+
   if (status === 'loading') {
     return (
       <DashboardLayout>
@@ -170,7 +436,7 @@ function InventoryPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col gap-6">
+      <div className="flex h-full min-h-0 flex-col gap-6 overflow-y-auto pr-2">
         <PageHeader
           title="Inventory Ledger"
           subtitle="Real-time inventory balances by warehouse and batch"
@@ -255,76 +521,443 @@ function InventoryPage() {
           />
         </StatsCardGrid>
 
-        <div className="flex flex-col md:flex-row gap-3 items-start">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              type="search"
-              placeholder="Search by SKU code"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="w-full pl-9 pr-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <select
-            value={warehouseFilter}
-            onChange={(event) => setWarehouseFilter(event.target.value)}
-            className="px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">All Warehouses</option>
-            {warehouses.map((warehouse) => (
-              <option key={warehouse.code} value={warehouse.id}>
-                {warehouse.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
         <div className="bg-white border rounded-lg shadow-sm overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-muted/40 text-muted-foreground">
-              <tr>
-                <th className="px-4 py-2 text-left font-medium">Warehouse</th>
-                <th className="px-4 py-2 text-left font-medium">SKU</th>
-                <th className="px-4 py-2 text-left font-medium">Batch</th>
-                <th className="px-4 py-2 text-right font-medium">Cartons</th>
-                <th className="px-4 py-2 text-right font-medium">Pallets</th>
-                <th className="px-4 py-2 text-right font-medium">Units</th>
-                <th className="px-4 py-2 text-left font-medium">Last Transaction</th>
+            <thead>
+              <tr className="bg-muted/40 text-muted-foreground">
+                <th className="px-4 py-2 text-left font-medium">
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      className="flex flex-1 items-center gap-1 text-left hover:text-primary focus:outline-none"
+                      onClick={() => handleSort('warehouse')}
+                    >
+                      Warehouse
+                      {getSortIcon('warehouse')}
+                    </button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter warehouses"
+                          className={cn(
+                            'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            isFilterActive(['warehouse'])
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-4 w-4" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-64 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Warehouse filter</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => clearColumnFilter(['warehouse'])}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+                          {uniqueWarehouseOptions.map(option => (
+                            <label
+                              key={option.value}
+                              className="flex items-center gap-2 text-sm text-foreground"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={columnFilters.warehouse.includes(option.value)}
+                                onChange={() => toggleMultiValueFilter('warehouse', option.value)}
+                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                              />
+                              <span className="flex-1 text-sm">{option.label}</span>
+                            </label>
+                          ))}
+                          {uniqueWarehouseOptions.length === 0 && (
+                            <p className="text-xs text-muted-foreground">No warehouse options available.</p>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
+                <th className="px-4 py-2 text-left font-medium">
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      className="flex flex-1 items-center gap-1 text-left hover:text-primary focus:outline-none"
+                      onClick={() => handleSort('sku')}
+                    >
+                      SKU
+                      {getSortIcon('sku')}
+                    </button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter SKUs"
+                          className={cn(
+                            'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            isFilterActive(['sku'])
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-4 w-4" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-64 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">SKU filter</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => clearColumnFilter(['sku'])}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+                          {uniqueSkuOptions.map(option => (
+                            <label
+                              key={option.value}
+                              className="flex items-center gap-2 text-sm text-foreground"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={columnFilters.sku.includes(option.value)}
+                                onChange={() => toggleMultiValueFilter('sku', option.value)}
+                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                              />
+                              <span className="flex-1 text-sm">{option.label}</span>
+                            </label>
+                          ))}
+                          {uniqueSkuOptions.length === 0 && (
+                            <p className="text-xs text-muted-foreground">No SKU options available.</p>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
+                <th className="px-4 py-2 text-left font-medium">
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      className="flex flex-1 items-center gap-1 text-left hover:text-primary focus:outline-none"
+                      onClick={() => handleSort('batch')}
+                    >
+                      Batch
+                      {getSortIcon('batch')}
+                    </button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter batches"
+                          className={cn(
+                            'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            isFilterActive(['batch'])
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-4 w-4" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-64 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Batch filter</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => clearColumnFilter(['batch'])}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+                          {uniqueBatchOptions.map(option => (
+                            <label
+                              key={option.value}
+                              className="flex items-center gap-2 text-sm text-foreground"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={columnFilters.batch.includes(option.value)}
+                                onChange={() => toggleMultiValueFilter('batch', option.value)}
+                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                              />
+                              <span className="flex-1 text-sm">{option.label}</span>
+                            </label>
+                          ))}
+                          {uniqueBatchOptions.length === 0 && (
+                            <p className="text-xs text-muted-foreground">No batch options available.</p>
+                          )}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
+                <th className="px-4 py-2 text-right font-medium">
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 hover:text-primary focus:outline-none"
+                      onClick={() => handleSort('cartons')}
+                    >
+                      Cartons
+                      {getSortIcon('cartons')}
+                    </button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter cartons"
+                          className={cn(
+                            'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            isFilterActive(['cartonsMin', 'cartonsMax'])
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-4 w-4" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-64 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Carton range</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => clearColumnFilter(['cartonsMin', 'cartonsMax'])}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={columnFilters.cartonsMin}
+                            onChange={(event) => updateColumnFilter('cartonsMin', event.target.value)}
+                            placeholder="Minimum cartons"
+                            className={`${baseFilterInputClass} text-right`}
+                          />
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={columnFilters.cartonsMax}
+                            onChange={(event) => updateColumnFilter('cartonsMax', event.target.value)}
+                            placeholder="Maximum cartons"
+                            className={`${baseFilterInputClass} text-right`}
+                          />
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
+                <th className="px-4 py-2 text-right font-medium">
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 hover:text-primary focus:outline-none"
+                      onClick={() => handleSort('pallets')}
+                    >
+                      Pallets
+                      {getSortIcon('pallets')}
+                    </button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter pallets"
+                          className={cn(
+                            'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            isFilterActive(['palletsMin', 'palletsMax'])
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-4 w-4" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-64 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Pallet range</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => clearColumnFilter(['palletsMin', 'palletsMax'])}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={columnFilters.palletsMin}
+                            onChange={(event) => updateColumnFilter('palletsMin', event.target.value)}
+                            placeholder="Minimum pallets"
+                            className={`${baseFilterInputClass} text-right`}
+                          />
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={columnFilters.palletsMax}
+                            onChange={(event) => updateColumnFilter('palletsMax', event.target.value)}
+                            placeholder="Maximum pallets"
+                            className={`${baseFilterInputClass} text-right`}
+                          />
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
+                <th className="px-4 py-2 text-right font-medium">
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 hover:text-primary focus:outline-none"
+                      onClick={() => handleSort('units')}
+                    >
+                      Units
+                      {getSortIcon('units')}
+                    </button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter units"
+                          className={cn(
+                            'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            isFilterActive(['unitsMin', 'unitsMax'])
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-4 w-4" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-64 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Unit range</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => clearColumnFilter(['unitsMin', 'unitsMax'])}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={columnFilters.unitsMin}
+                            onChange={(event) => updateColumnFilter('unitsMin', event.target.value)}
+                            placeholder="Minimum units"
+                            className={`${baseFilterInputClass} text-right`}
+                          />
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            value={columnFilters.unitsMax}
+                            onChange={(event) => updateColumnFilter('unitsMax', event.target.value)}
+                            placeholder="Maximum units"
+                            className={`${baseFilterInputClass} text-right`}
+                          />
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
+                <th className="px-4 py-2 text-left font-medium">
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      className="flex flex-1 items-center gap-1 text-left hover:text-primary focus:outline-none"
+                      onClick={() => handleSort('lastTransaction')}
+                    >
+                      Last Transaction
+                      {getSortIcon('lastTransaction')}
+                    </button>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter last transactions"
+                          className={cn(
+                            'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            isFilterActive(['lastTransaction'])
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-4 w-4" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="end" className="w-64 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Last transaction</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => clearColumnFilter(['lastTransaction'])}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={columnFilters.lastTransaction}
+                          onChange={(event) => updateColumnFilter('lastTransaction', event.target.value)}
+                          placeholder="Search date or user"
+                          className={baseFilterInputClass}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {balances.length === 0 && (
+              {processedBalances.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
-                    No inventory balances found for the selected filters.
+                    No inventory balances match the current filters.
                   </td>
                 </tr>
               )}
 
-              {balances.map((balance) => (
+              {processedBalances.map(balance => {
+                const lastTransactionDisplay = balance.lastTransactionDate
+                  ? format(new Date(balance.lastTransactionDate), 'PPpp')
+                  : 'N/A'
+
+                return (
                 <tr key={balance.id} className="odd:bg-muted/20">
                   <td className="px-4 py-2">
                     <div className="font-medium text-foreground">{balance.warehouse.name}</div>
-                    <div className="text-xs text-muted-foreground">Code: {balance.warehouse.code}</div>
                   </td>
-                  <td className="px-4 py-2">
-                    <div className="font-medium text-foreground">{balance.sku.skuCode}</div>
-                    <div className="text-xs text-muted-foreground">{balance.sku.description}</div>
-                  </td>
-                  <td className="px-4 py-2 text-xs text-muted-foreground">{balance.batchLot}</td>
-                  <td className="px-4 py-2 text-right font-semibold text-indigo-700">
-                    {balance.currentCartons.toLocaleString()}
-                  </td>
-                  <td className="px-4 py-2 text-right">{balance.currentPallets.toLocaleString()}</td>
-                  <td className="px-4 py-2 text-right">{balance.currentUnits.toLocaleString()}</td>
-                  <td className="px-4 py-2">
-                    {balance.lastTransactionDate
-                      ? format(new Date(balance.lastTransactionDate), 'PPpp')
-                      : 'N/A'}
-                  </td>
-                </tr>
-              ))}
+                    <td className="px-4 py-2">
+                      <div className="font-medium text-foreground">{balance.sku.skuCode}</div>
+                      <div className="text-xs text-muted-foreground">{balance.sku.description}</div>
+                    </td>
+                    <td className="px-4 py-2 text-xs text-muted-foreground">{balance.batchLot}</td>
+                    <td className="px-4 py-2 text-right font-semibold text-indigo-700">
+                      {balance.currentCartons.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2 text-right">{balance.currentPallets.toLocaleString()}</td>
+                    <td className="px-4 py-2 text-right">{balance.currentUnits.toLocaleString()}</td>
+                    <td className="px-4 py-2">{lastTransactionDisplay}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

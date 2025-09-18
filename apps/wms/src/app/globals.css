@@ -205,6 +205,10 @@ input:-webkit-autofill:active {
   @apply inline-flex items-center justify-center bg-primary text-white px-4 py-2 rounded-md hover:bg-primary/90 transition-all duration-200 hover:shadow-lg active:scale-95 font-medium text-sm;
 }
 
+.primary-button {
+  @apply inline-flex items-center justify-center bg-primary text-primary-foreground px-4 py-2 rounded-md shadow-sm hover:bg-primary/90 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-primary font-medium text-sm disabled:opacity-70 disabled:cursor-not-allowed;
+}
+
 .secondary-button {
   @apply inline-flex items-center justify-center bg-white text-gray-700 px-4 py-2 rounded-md border border-gray-200 hover:bg-gray-50 transition-all duration-200 hover:shadow-md active:scale-95 font-medium text-sm;
 }
