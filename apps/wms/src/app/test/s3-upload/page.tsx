@@ -4,9 +4,16 @@ import { useState } from 'react'
 import { useS3Upload } from '@/hooks/use-s3-upload'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 
+interface UploadResult {
+  s3Key: string
+  fileName: string
+  fileSize: number
+  viewUrl: string
+}
+
 export default function S3UploadTestPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [uploadResult, setUploadResult] = useState<unknown>(null)
+  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   
   const { uploadToS3, isUploading, progress } = useS3Upload({

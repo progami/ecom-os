@@ -2,6 +2,7 @@
 
 import React from 'react'
 import { AlertCircle } from '@/lib/lucide-icons'
+import { logErrorToService } from '@/lib/logger/client'
 
 interface ErrorBoundaryProps {
   children: React.ReactNode
@@ -30,11 +31,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     }
     
     // Log to service
-    if (typeof window !== 'undefined') {
-      import('@/lib/logger/client').then(({ logErrorToService }) => {
-        logErrorToService(error, errorInfo)
-      })
-    }
+    logErrorToService(error, errorInfo)
   }
 
   reset = () => {

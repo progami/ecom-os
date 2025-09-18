@@ -38,24 +38,54 @@ export async function POST(
     const s3Service = getS3Service()
     let deletedCount = 0
 
-    // Find and delete old S3 files for this document category
-    if (transaction.attachments && Array.isArray(transaction.attachments)) {
-      const attachments = transaction.attachments as unknown[]
-      
-      // Find the attachment for this category
-      const existingAttachment = attachments.find(
-        (att: unknown) => (att as Record<string, unknown>).category === documentCategory || 
-                      (att as Record<string, unknown>).category === documentCategory.replace(/([A-Z])/g, '_$1').toLowerCase()
-      )
+    const normalizeCategory = (value: string) => value.replace(/([A-Z])/g, '_$1').toLowerCase()
+    const targetCategory = documentCategory.toLowerCase()
+    const alternateCategory = normalizeCategory(documentCategory)
 
-      if (existingAttachment?.s3Key) {
+    const getCategory = (attachment: unknown): string | undefined => {
+      if (!attachment || typeof attachment !== 'object') return undefined
+      const record = attachment as Record<string, unknown>
+      const value = record.category
+      return typeof value === 'string' ? value.toLowerCase() : undefined
+    }
+
+    const getS3Key = (attachment: unknown): string | undefined => {
+      if (!attachment || typeof attachment !== 'object') return undefined
+      const record = attachment as Record<string, unknown>
+      return typeof record.s3Key === 'string' ? record.s3Key : undefined
+    }
+
+    const attachmentsValue = transaction.attachments as unknown
+
+    if (Array.isArray(attachmentsValue)) {
+      const existingAttachment = attachmentsValue.find(att => {
+        const category = getCategory(att)
+        return category === targetCategory || category === alternateCategory
+      })
+
+      const s3Key = getS3Key(existingAttachment)
+      if (s3Key) {
         try {
-          await s3Service.deleteFile(existingAttachment.s3Key)
+          await s3Service.deleteFile(s3Key)
           deletedCount++
-          // console.log(`Deleted old S3 file: ${existingAttachment.s3Key}`)
         } catch (_error) {
-          // console.error(`Failed to delete S3 file: ${existingAttachment.s3Key}`, _error)
-          // Continue even if delete fails - we don't want to block new uploads
+          // ignore deletion failures
+        }
+      }
+    } else if (attachmentsValue && typeof attachmentsValue === 'object') {
+      const attachmentsRecord = attachmentsValue as Record<string, unknown>
+      for (const [key, attachment] of Object.entries(attachmentsRecord)) {
+        const normalizedKey = key.toLowerCase()
+        if (normalizedKey === targetCategory || normalizedKey === alternateCategory) {
+          const s3Key = getS3Key(attachment)
+          if (s3Key) {
+            try {
+              await s3Service.deleteFile(s3Key)
+              deletedCount++
+            } catch (_error) {
+              // ignore
+            }
+          }
         }
       }
     }

@@ -55,25 +55,25 @@ async function checkStorageLedger() {
     console.log(`Total storage costs: ${costSummary._sum.totalStorageCost ? '$' + Number(costSummary._sum.totalStorageCost).toFixed(2) : '$0.00'}`)
 
     // Check recent transactions that should trigger storage entries
-    const recentTransactions = await prisma.inventoryTransaction.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 5,
-      select: {
-        id: true,
-        transactionType: true,
-        referenceNumber: true,
-        warehouseCode: true,
-        skuCode: true,
-        batchLot: true,
-        transactionDate: true,
-        createdAt: true
+  const recentTransactions = await prisma.inventoryTransaction.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 5,
+    select: {
+      id: true,
+      transactionType: true,
+      referenceId: true,
+      warehouseCode: true,
+      skuCode: true,
+      batchLot: true,
+      transactionDate: true,
+      createdAt: true
       }
     })
 
     console.log('\n📦 Recent Transactions:')
     console.log('========================')
     recentTransactions.forEach((tx, index) => {
-      console.log(`${index + 1}. ${tx.transactionType} - ${tx.referenceNumber}`)
+      console.log(`${index + 1}. ${tx.transactionType} - ${tx.referenceId ?? 'N/A'}`)
       console.log(`   Warehouse: ${tx.warehouseCode}, SKU: ${tx.skuCode}`)
       console.log(`   Transaction Date: ${tx.transactionDate.toISOString().split('T')[0]}`)
       console.log(`   Created: ${tx.createdAt.toISOString()}`)

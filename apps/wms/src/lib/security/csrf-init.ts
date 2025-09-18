@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * CSRF Token Store Initialization
  * 
@@ -6,8 +7,7 @@
  * In development, it falls back to in-memory storage.
  */
 
-import { createTokenStore, RedisTokenStore } from './csrf-redis-store'
-import type { TokenStore } from './csrf'
+import { createTokenStore, RedisTokenStore, type TokenStore } from './csrf-redis-store'
 
 let tokenStore: TokenStore | null = null
 
@@ -34,8 +34,8 @@ export function getTokenStore(): TokenStore {
  */
 export async function checkTokenStoreHealth(): Promise<{
   healthy: boolean
-  type: string
-  details?: any
+  type: 'redis' | 'memory'
+  details?: Record<string, unknown> | null
 }> {
   const store = getTokenStore()
   
@@ -46,7 +46,7 @@ export async function checkTokenStoreHealth(): Promise<{
     return {
       healthy,
       type: 'redis',
-      details: stats
+      details: stats as Record<string, unknown> | null
     }
   }
   

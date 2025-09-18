@@ -2,7 +2,24 @@ import { withAuth, ApiResponses } from '@/lib/api'
 import { prisma } from '@/lib/prisma'
 export const dynamic = 'force-dynamic'
 
-export const GET = withAuth(async (request, session) => {
+interface DashboardStatsResponse {
+  totalInventory: number
+  inventoryChange: string
+  inventoryTrend: 'up' | 'down' | 'neutral'
+  storageCost: string
+  costChange: string
+  costTrend: 'up' | 'down' | 'neutral'
+  activeSkus: number
+  pendingInvoices: number
+  overdueInvoices: number
+  chartData: {
+    inventoryTrend: Array<{ date: string; inventory: number }>
+    costTrend: Array<{ date: string; cost: number }>
+    warehouseDistribution: Array<{ name: string | null; value: number; percentage: number }>
+  }
+}
+
+export const GET = withAuth<DashboardStatsResponse>(async (request, session) => {
   if (!prisma) {
     // console.error('Prisma client is undefined!')
     return ApiResponses.serverError('Database connection error')
@@ -303,7 +320,7 @@ export const GET = withAuth(async (request, session) => {
       .filter(w => w.value > 0)
       .sort((a, b) => b.value - a.value)
 
-    return ApiResponses.success({
+    return ApiResponses.success<DashboardStatsResponse>({
       totalInventory: currentInventory,
       inventoryChange: inventoryChange.toFixed(1),
       inventoryTrend: inventoryChange > 0 ? 'up' : inventoryChange < 0 ? 'down' : 'neutral',

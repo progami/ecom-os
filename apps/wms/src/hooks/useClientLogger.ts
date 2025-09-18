@@ -5,6 +5,18 @@ import { clientLogger } from '@/lib/logger/client'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 
+const toMetadata = (metadata?: unknown): Record<string, unknown> => {
+  if (metadata === undefined || metadata === null) {
+    return {}
+  }
+
+  if (typeof metadata === 'object') {
+    return { ...(metadata as Record<string, unknown>) }
+  }
+
+  return { value: metadata }
+}
+
 export function useClientLogger() {
   const pathname = usePathname()
   const { data: session } = useSession()
@@ -24,7 +36,7 @@ export function useClientLogger() {
   const logAction = useCallback((action: string, metadata?: unknown) => {
     if (clientLogger) {
       clientLogger.action(action, {
-        ...metadata,
+        ...toMetadata(metadata),
         userId: session?.user?.id,
         userRole: session?.user?.role,
         page: pathname,
@@ -37,7 +49,7 @@ export function useClientLogger() {
   const logPerformance = useCallback((metric: string, value: number, metadata?: unknown) => {
     if (clientLogger) {
       clientLogger.performance(metric, value, {
-        ...metadata,
+        ...toMetadata(metadata),
         userId: session?.user?.id,
         page: pathname
       })

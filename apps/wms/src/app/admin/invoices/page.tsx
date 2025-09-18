@@ -1,7 +1,6 @@
 'use client'
 
 import { useSession } from 'next-auth/react'
-import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Plus, Search, Filter, Download, FileText, CheckCircle, AlertCircle, Clock } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'

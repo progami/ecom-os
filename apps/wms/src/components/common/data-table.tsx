@@ -84,7 +84,7 @@ export function DataTable<T extends Record<string, unknown>>({
       return column.render(value, row)
     }
     
-    return value ?? '-'
+    return (value ?? '-') as ReactNode
   }
 
   const SortIcon = ({ column }: { column: Column<T> }) => {

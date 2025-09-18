@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, Prisma } from '@prisma/client'
 import { Session } from 'next-auth'
 import DOMPurify from 'isomorphic-dompurify'
 import { businessLogger, perfLogger, securityLogger } from '@/lib/logger/server'
@@ -79,7 +79,7 @@ export abstract class BaseService {
     action: string,
     entityType: string,
     entityId: string,
-    details?: Record<string, unknown>
+    details?: Prisma.InputJsonValue
   ): Promise<void> {
     try {
       await this.prisma.auditLog.create({
@@ -88,7 +88,7 @@ export abstract class BaseService {
           action,
           entity: entityType,
           entityId: entityId,
-          newValue: details || null
+          newValue: details ?? Prisma.JsonNull
         }
       })
 
@@ -197,22 +197,20 @@ export abstract class BaseService {
    * Uses DOMPurify to properly sanitize HTML and prevent XSS attacks
    */
   protected sanitizeData<T extends Record<string, unknown>>(data: T): T {
-    const sanitized = { ...data } as T
-    
-    // Use DOMPurify for proper HTML sanitization
-    Object.keys(sanitized).forEach(key => {
-      if (typeof sanitized[key] === 'string') {
-        // DOMPurify removes dangerous elements and attributes
-        // This handles script tags, event handlers, data URIs, and other XSS vectors
-        sanitized[key] = DOMPurify.sanitize(sanitized[key] as string, {
-          ALLOWED_TAGS: [], // Strip ALL HTML tags for data storage
+    const sanitizedEntries = Object.entries(data).map(([key, value]) => {
+      if (typeof value === 'string') {
+        const cleanValue = DOMPurify.sanitize(value, {
+          ALLOWED_TAGS: [],
           ALLOWED_ATTR: [],
-          KEEP_CONTENT: true // Keep text content
-        }).trim() as T[keyof T]
+          KEEP_CONTENT: true
+        }).trim()
+        return [key, cleanValue]
       }
+
+      return [key, value]
     })
-    
-    return sanitized as T
+
+    return Object.fromEntries(sanitizedEntries) as T
   }
 
   /**

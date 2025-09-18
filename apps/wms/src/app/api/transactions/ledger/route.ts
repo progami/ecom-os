@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { Prisma, TransactionType } from '@prisma/client'
 import { parseLocalDate } from '@/lib/utils/date-helpers'
+import { aggregateInventoryTransactions } from '@ecom-os/ledger'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
@@ -24,16 +26,32 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: Prisma.InventoryTransactionWhereInput = {}
-    
-    // For staff, limit to their warehouse
+
+    let warehouseCodeFilter: string | undefined
+
     if (session.user.role === 'staff' && session.user.warehouseId) {
-      where.warehouseId = session.user.warehouseId
+      const staffWarehouse = await prisma.warehouse.findUnique({
+        where: { id: session.user.warehouseId },
+        select: { code: true },
+      })
+      warehouseCodeFilter = staffWarehouse?.code
     } else if (warehouse) {
-      where.warehouseId = warehouse
+      const warehouseById = await prisma.warehouse.findUnique({
+        where: { id: warehouse },
+        select: { code: true },
+      })
+      warehouseCodeFilter = warehouseById?.code ?? warehouse
     }
 
-    if (transactionType) {
-      where.transactionType = transactionType
+    if (warehouseCodeFilter) {
+      where.warehouseCode = warehouseCodeFilter
+    }
+
+    if (
+      transactionType &&
+      ['RECEIVE', 'SHIP', 'ADJUST_IN', 'ADJUST_OUT', 'TRANSFER'].includes(transactionType)
+    ) {
+      where.transactionType = transactionType as TransactionType
     }
 
     // Date filtering
@@ -57,7 +75,9 @@ export async function GET(request: NextRequest) {
       }
     }
     
-    // Fetch transactions with pagination support
+    const take = limit ? parseInt(limit, 10) : 50
+    const skipValue = offset ? parseInt(offset, 10) : 0
+
     const transactions = await prisma.inventoryTransaction.findMany({
       where,
       include: {
@@ -67,9 +87,8 @@ export async function GET(request: NextRequest) {
         { transactionDate: 'desc' as const },
         { createdAt: 'desc' as const }
       ],
-      // Add pagination - default to 50 if not specified
-      take: limit ? parseInt(limit) : 50,
-      skip: offset ? parseInt(offset) : 0
+      take,
+      skip: skipValue,
     })
 
     // If point-in-time view, calculate running balances and inventory summary
@@ -86,12 +105,15 @@ export async function GET(request: NextRequest) {
         ]
       })
 
-      // WarehouseSkuConfig model removed in v0.5.0
-      const configMap = new Map<string, unknown>()
-
       // Group transactions by warehouse + sku + batch
       const balances = new Map<string, number>()
-      const skuInfo = new Map<string, unknown>()
+      const skuInfo = new Map<string, {
+        warehouse: string
+        warehouseCode: string
+        skuCode: string
+        description: string
+        batchLot: string
+      }>()
       
       // Calculate running balances
       const transactionsWithBalance = allTransactions.map(transaction => {
@@ -139,23 +161,20 @@ export async function GET(request: NextRequest) {
       })
 
       // Create inventory summary
-      const inventorySummary = Array.from(balances.entries())
-        .filter(([_, balance]) => balance > 0) // Only show items with positive balance
-        .map(([key, balance]) => {
-          const info = skuInfo.get(key)
-          const configKey = `${info.warehouseCode}-${info.skuCode}`
-          const config = configMap.get(configKey)
-          
-          return {
-            ...info,
-            currentCartons: balance,
-            currentPallets: config 
-              ? Math.ceil(balance / config.storageCartonsPerPallet)
-              : 0
-          }
-        })
+      const aggregated = aggregateInventoryTransactions(allTransactions, { includeZeroStock: true })
+
+      const inventorySummary = aggregated.balances
+        .filter(balance => balance.currentCartons > 0)
+        .map(balance => ({
+          warehouse: balance.warehouseName,
+          warehouseCode: balance.warehouseCode,
+          skuCode: balance.skuCode,
+          description: balance.skuDescription,
+          batchLot: balance.batchLot,
+          currentCartons: balance.currentCartons,
+          currentPallets: balance.currentPallets,
+        }))
         .sort((a, b) => {
-          // Sort by warehouse, then SKU, then batch
           if (a.warehouse !== b.warehouse) return a.warehouse.localeCompare(b.warehouse)
           if (a.skuCode !== b.skuCode) return a.skuCode.localeCompare(b.skuCode)
           return a.batchLot.localeCompare(b.batchLot)
@@ -207,11 +226,43 @@ export async function GET(request: NextRequest) {
 }
 
 // Helper function to process attachments efficiently
-function processAttachments(attachments: unknown) {
-  // Attachments are stored as objects: { commercial_invoice: {...}, bill_of_lading: {...} }
-  // Just pass them through as-is
-  return { 
-    notes: null, 
-    docs: attachments || {} 
+type ProcessedAttachmentResult = {
+  notes: string | null
+  docs: Record<string, unknown>
+}
+
+function processAttachments(attachments: unknown): ProcessedAttachmentResult {
+  if (!attachments) {
+    return { notes: null, docs: {} }
   }
+
+  if (Array.isArray(attachments)) {
+    const docs: Record<string, unknown> = {}
+    let notes: string | null = null
+
+    for (const entry of attachments) {
+      if (!entry || typeof entry !== 'object') {
+        continue
+      }
+
+      const record = entry as Record<string, unknown>
+      const type = typeof record.type === 'string' ? record.type : undefined
+
+      if (type === 'notes' && typeof record.content === 'string') {
+        notes = record.content
+      } else if (type) {
+        docs[type] = record
+      }
+    }
+
+    return { notes, docs }
+  }
+
+  if (typeof attachments === 'object') {
+    const record = attachments as Record<string, unknown>
+    const notes = typeof record.notes === 'string' ? record.notes : null
+    return { notes, docs: record }
+  }
+
+  return { notes: null, docs: {} }
 }

@@ -1,8 +1,11 @@
 import { withAuth, withRole, ApiResponses, z } from '@/lib/api'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma, type Sku } from '@prisma/client'
 import { sanitizeForDisplay, sanitizeSearchQuery, escapeRegex } from '@/lib/security/input-sanitization'
 export const dynamic = 'force-dynamic'
+
+type SkuWithCounts = Sku & { _count: { inventoryTransactions: number } }
+type DeleteSkuResponse = { message: string } | { message: string; sku: Sku }
 
 // Validation schemas with sanitization
 const createSkuSchema = z.object({
@@ -25,7 +28,7 @@ const updateSkuSchema = createSkuSchema.partial().extend({
 })
 
 // GET /api/skus - List SKUs
-export const GET = withAuth(async (request, _session) => {
+export const GET = withAuth<SkuWithCounts[]>(async (request, _session) => {
 
     const searchParams = request.nextUrl.searchParams
     const search = searchParams.get('search') ? sanitizeSearchQuery(searchParams.get('search')!) : null
@@ -66,7 +69,7 @@ export const GET = withAuth(async (request, _session) => {
 
     const countMap = new Map(transactionCounts.map(tc => [tc.skuCode, tc._count.id]))
 
-    const skusWithCounts = skus.map(sku => ({
+    const skusWithCounts: SkuWithCounts[] = skus.map(sku => ({
       ...sku,
       _count: {
         inventoryTransactions: countMap.get(sku.skuCode) || 0
@@ -77,7 +80,7 @@ export const GET = withAuth(async (request, _session) => {
 })
 
 // POST /api/skus - Create new SKU
-export const POST = withRole(['admin', 'staff'], async (request, _session) => {
+export const POST = withRole<Sku>(['admin', 'staff'], async (request, _session) => {
 
     const body = await request.json()
     const validatedData = createSkuSchema.parse(body)
@@ -108,11 +111,11 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
       }
     })
 
-    return ApiResponses.created(sku)
+    return ApiResponses.created<Sku>(sku)
 })
 
 // PATCH /api/skus - Update SKU
-export const PATCH = withRole(['admin', 'staff'], async (request, _session) => {
+export const PATCH = withRole<Sku>(['admin', 'staff'], async (request, _session) => {
 
     const searchParams = request.nextUrl.searchParams
     const skuId = searchParams.get('id')
@@ -143,11 +146,11 @@ export const PATCH = withRole(['admin', 'staff'], async (request, _session) => {
       data: validatedData
     })
 
-    return ApiResponses.success(updatedSku)
+    return ApiResponses.success<Sku>(updatedSku)
 })
 
 // DELETE /api/skus - Delete SKU
-export const DELETE = withRole(['admin'], async (request, _session) => {
+export const DELETE = withRole<DeleteSkuResponse>(['admin'], async (request, _session) => {
 
     const searchParams = request.nextUrl.searchParams
     const skuId = searchParams.get('id')
@@ -177,7 +180,7 @@ export const DELETE = withRole(['admin'], async (request, _session) => {
         data: { isActive: false }
       })
 
-      return ApiResponses.success({
+      return ApiResponses.success<DeleteSkuResponse>({
         message: 'SKU deactivated (has related transactions)',
         sku: updatedSku
       })
@@ -187,7 +190,7 @@ export const DELETE = withRole(['admin'], async (request, _session) => {
         where: { id: skuId }
       })
 
-      return ApiResponses.success({
+      return ApiResponses.success<DeleteSkuResponse>({
         message: 'SKU deleted successfully'
       })
     }

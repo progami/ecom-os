@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma, TransactionType } from '@prisma/client'
 import * as XLSX from 'xlsx'
 import { generateExportConfig, applyExportConfig } from '@/lib/dynamic-export'
 import { inventoryTransactionConfig } from '@/lib/export-configurations'
@@ -32,26 +32,46 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const where: Prisma.InventoryTransactionWhereInput = {}
-    
-    // If full export is requested, skip all filters except staff warehouse restriction
-    if (!fullExport) {
-      // For staff, always limit to their warehouse
+
+    const warehouseIdFilter = (() => {
       if (session.user.role === 'staff' && session.user.warehouseId) {
-        where.warehouseId = session.user.warehouseId
-      } else if (warehouse) {
-        where.warehouseId = warehouse
+        return session.user.warehouseId
+      }
+      return warehouse
+    })()
+
+    const warehouseCode = await (async () => {
+      if (!warehouseIdFilter) return undefined
+
+      const warehouseRecord = await prisma.warehouse.findUnique({
+        where: { id: warehouseIdFilter }
+      })
+
+      if (warehouseRecord) {
+        return warehouseRecord.code
       }
 
-      if (transactionType) {
-        where.transactionType = transactionType
+      // Fallback: assume caller passed a warehouse code directly
+      return warehouseIdFilter
+    })()
+
+    const applyWarehouseFilter = (code: string | undefined) => {
+      if (code) {
+        where.warehouseCode = code
+      }
+    }
+
+    if (!fullExport) {
+      applyWarehouseFilter(warehouseCode)
+
+      if (transactionType && ['RECEIVE', 'SHIP', 'ADJUST_IN', 'ADJUST_OUT', 'TRANSFER'].includes(transactionType)) {
+        where.transactionType = transactionType as TransactionType
       }
 
       if (skuCode) {
-        where.sku = {
-          skuCode: {
-            contains: skuCode,
-            mode: 'insensitive'
-          }
+        where.skuCode = {
+          contains: skuCode,
+          mode: 'insensitive'
         }
       }
 
@@ -80,8 +100,8 @@ export async function GET(request: NextRequest) {
       }
     } else {
       // For full export, only apply warehouse restriction for staff users
-      if (session.user.role === 'staff' && session.user.warehouseId) {
-        where.warehouseId = session.user.warehouseId
+      if (session.user.role === 'staff') {
+        applyWarehouseFilter(warehouseCode)
       }
     }
 
@@ -136,38 +156,49 @@ export async function GET(request: NextRequest) {
     // If point-in-time, add inventory summary sheet
     if (viewMode === 'point-in-time' && date) {
       // Calculate inventory balances
-      const balances = new Map<string, { currentCartons: number; warehouseName: string; warehouseCode: string; skuCode: string; skuDescription: string; batchLot: string }>()
+      type BalanceSnapshot = {
+        warehouseName: string
+        warehouseCode: string
+        skuCode: string
+        skuDescription: string
+        batchLot: string
+        currentCartons: number
+        lastActivity: Date
+      }
+
+      const balances = new Map<string, BalanceSnapshot>()
       
       for (const transaction of transactions) {
         const key = `${transaction.warehouseCode}-${transaction.skuCode}-${transaction.batchLot}`
         const current = balances.get(key) || {
-          warehouse: transaction.warehouseName,
+          warehouseName: transaction.warehouseName,
+          warehouseCode: transaction.warehouseCode,
           skuCode: transaction.skuCode,
-          description: transaction.skuDescription,
+          skuDescription: transaction.skuDescription,
           batchLot: transaction.batchLot,
-          cartons: 0,
+          currentCartons: 0,
           lastActivity: transaction.transactionDate
         }
-        
-        current.cartons += transaction.cartonsIn - transaction.cartonsOut
+
+        current.currentCartons += transaction.cartonsIn - transaction.cartonsOut
         current.lastActivity = transaction.transactionDate
         balances.set(key, current)
       }
 
       // Convert to array and filter out zero balances
       const summaryData = Array.from(balances.values())
-        .filter(item => item.cartons > 0)
+        .filter(item => item.currentCartons > 0)
         .sort((a, b) => {
-          if (a.warehouse !== b.warehouse) return a.warehouse.localeCompare(b.warehouse)
+          if (a.warehouseName !== b.warehouseName) return a.warehouseName.localeCompare(b.warehouseName)
           if (a.skuCode !== b.skuCode) return a.skuCode.localeCompare(b.skuCode)
           return a.batchLot.localeCompare(b.batchLot)
         })
         .map(item => ({
-          'Warehouse': item.warehouse,
+          'Warehouse': item.warehouseName,
           'SKU Code': item.skuCode,
-          'Description': item.description,
+          'Description': item.skuDescription,
           'Batch/Lot': item.batchLot,
-          'Cartons': item.cartons,
+          'Cartons': item.currentCartons,
           'Last Activity': formatDateGMT(item.lastActivity)
         }))
 

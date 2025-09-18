@@ -4,7 +4,7 @@
  * Can optionally seed base data first
  */
 
-import { chromium, Browser, Page } from 'playwright'
+import { chromium, Browser, Page } from '@playwright/test'
 import { PrismaClient } from '@prisma/client'
 import * as bcrypt from 'bcryptjs'
 import { 
