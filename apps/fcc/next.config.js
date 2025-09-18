@@ -1,5 +1,13 @@
 const path = require('path')
 
+const devAuthSecret = 'dev-only-secret-change-me'
+if (!process.env.NEXTAUTH_SECRET) {
+  process.env.NEXTAUTH_SECRET = devAuthSecret
+}
+if (!process.env.CENTRAL_AUTH_SECRET) {
+  process.env.CENTRAL_AUTH_SECRET = devAuthSecret
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
