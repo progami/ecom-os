@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import {
   DollarSign,
   BarChart3,
-  RefreshCw,
   Filter,
   Download,
   Truck,
@@ -14,12 +13,16 @@ import {
   Package,
   type LucideIcon,
 } from '@/lib/lucide-icons'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'react-hot-toast'
 import type { CostLedgerBucketTotals, CostLedgerGroupResult } from '@ecom-os/ledger'
+
+const baseFilterInputClass = 'w-full rounded-md border border-muted px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary'
 
 interface CostLedgerResponse {
   groups: CostLedgerGroupResult[]
@@ -42,13 +45,33 @@ const defaultFilters: FilterState = {
 function CostLedgerPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
+  const [_loading, setLoading] = useState(true)
   const [ledgerData, setLedgerData] = useState<CostLedgerGroupResult[]>([])
   const [totals, setTotals] = useState<CostLedgerBucketTotals | null>(null)
-  const [warehouses, setWarehouses] = useState<Array<{ id: string; name: string; code: string }>>([])
-  const [filters, setFilters] = useState<FilterState>(defaultFilters)
+  const [filters] = useState<FilterState>(defaultFilters)
   const [groupBy, setGroupBy] = useState<'week' | 'month'>('week')
   const [exporting, setExporting] = useState(false)
+  const [columnFilters, setColumnFilters] = useState({
+    period: '',
+    storageMin: '',
+    storageMax: '',
+    containerMin: '',
+    containerMax: '',
+    palletMin: '',
+    palletMax: '',
+    cartonMin: '',
+    cartonMax: '',
+    unitMin: '',
+    unitMax: '',
+    transportationMin: '',
+    transportationMax: '',
+    accessorialMin: '',
+    accessorialMax: '',
+    otherMin: '',
+    otherMax: '',
+    totalMin: '',
+    totalMax: '',
+  })
 
   useEffect(() => {
     if (status === 'loading') return
@@ -64,43 +87,6 @@ function CostLedgerPage() {
       return
     }
   }, [session, status, router])
-
-  useEffect(() => {
-    const fetchWarehouses = async () => {
-      try {
-        const response = await fetch('/api/warehouses')
-        if (!response.ok) {
-          return
-        }
-
-        const data = await response.json()
-        if (!Array.isArray(data)) {
-          return
-        }
-
-        const mapped = data.map((warehouse) => ({
-          id: warehouse.id,
-          name: warehouse.name,
-          code: warehouse.code,
-        }))
-
-        setWarehouses(mapped)
-
-        if (!filters.warehouse && session?.user?.warehouseId) {
-          const match = mapped.find(wh => wh.id === session.user.warehouseId)
-          if (match) {
-            setFilters((prev) => ({ ...prev, warehouse: match.code }))
-          }
-        }
-      } catch (_error) {
-        // ignore
-      }
-    }
-
-    if (status === 'authenticated') {
-      void fetchWarehouses()
-    }
-  }, [session, status, filters.warehouse])
 
   const fetchCostLedger = useCallback(async () => {
     try {
@@ -136,6 +122,113 @@ function CostLedgerPage() {
       fetchCostLedger()
     }
   }, [fetchCostLedger, status])
+
+  const renderNumericFilter = (
+    label: string,
+    minKey: keyof typeof columnFilters,
+    maxKey: keyof typeof columnFilters
+  ) => (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Filter ${label}`}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-muted/30 hover:text-primary"
+        >
+          <Filter className="h-3.5 w-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-56 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-foreground">{label} range</span>
+          <button
+            type="button"
+            className="text-xs font-medium text-primary hover:underline"
+            onClick={() => setColumnFilters(prev => ({ ...prev, [minKey]: '', [maxKey]: '' }))}
+          >
+            Clear
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            inputMode="numeric"
+            value={columnFilters[minKey] as string}
+            onChange={(event) => setColumnFilters(prev => ({ ...prev, [minKey]: event.target.value }))}
+            placeholder="Min"
+            className={`${baseFilterInputClass} text-right`}
+          />
+          <input
+            type="number"
+            inputMode="numeric"
+            value={columnFilters[maxKey] as string}
+            onChange={(event) => setColumnFilters(prev => ({ ...prev, [maxKey]: event.target.value }))}
+            placeholder="Max"
+            className={`${baseFilterInputClass} text-right`}
+          />
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+
+  const filteredLedgerData = useMemo(() => {
+    const parseNumber = (value: string) => {
+      const trimmed = value.trim()
+      if (!trimmed) return null
+      const parsed = Number(trimmed)
+      return Number.isNaN(parsed) ? null : parsed
+    }
+
+    const storageMin = parseNumber(columnFilters.storageMin)
+    const storageMax = parseNumber(columnFilters.storageMax)
+    const containerMin = parseNumber(columnFilters.containerMin)
+    const containerMax = parseNumber(columnFilters.containerMax)
+    const palletMin = parseNumber(columnFilters.palletMin)
+    const palletMax = parseNumber(columnFilters.palletMax)
+    const cartonMin = parseNumber(columnFilters.cartonMin)
+    const cartonMax = parseNumber(columnFilters.cartonMax)
+    const unitMin = parseNumber(columnFilters.unitMin)
+    const unitMax = parseNumber(columnFilters.unitMax)
+    const transportationMin = parseNumber(columnFilters.transportationMin)
+    const transportationMax = parseNumber(columnFilters.transportationMax)
+    const accessorialMin = parseNumber(columnFilters.accessorialMin)
+    const accessorialMax = parseNumber(columnFilters.accessorialMax)
+    const otherMin = parseNumber(columnFilters.otherMin)
+    const otherMax = parseNumber(columnFilters.otherMax)
+    const totalMin = parseNumber(columnFilters.totalMin)
+    const totalMax = parseNumber(columnFilters.totalMax)
+
+    const matchesRange = (value: number | null | undefined, min: number | null, max: number | null) => {
+      const actual = value ?? 0
+      if (min !== null && actual < min) return false
+      if (max !== null && actual > max) return false
+      return true
+    }
+
+    return ledgerData.filter(group => {
+      const periodText = formatPeriod(group, groupBy).toLowerCase()
+      const rangeText = formatDateRange(group.rangeStart, group.rangeEnd).toLowerCase()
+      const periodFilter = columnFilters.period.trim().toLowerCase()
+
+      if (periodFilter && !periodText.includes(periodFilter) && !rangeText.includes(periodFilter)) {
+        return false
+      }
+
+      const costs = group.costs
+
+      if (!matchesRange(costs.storage, storageMin, storageMax)) return false
+      if (!matchesRange(costs.container, containerMin, containerMax)) return false
+      if (!matchesRange(costs.pallet, palletMin, palletMax)) return false
+      if (!matchesRange(costs.carton, cartonMin, cartonMax)) return false
+      if (!matchesRange(costs.unit, unitMin, unitMax)) return false
+      if (!matchesRange(costs.transportation, transportationMin, transportationMax)) return false
+      if (!matchesRange(costs.accessorial, accessorialMin, accessorialMax)) return false
+      if (!matchesRange(costs.other, otherMin, otherMax)) return false
+      if (!matchesRange(costs.total, totalMin, totalMax)) return false
+
+      return true
+    })
+  }, [ledgerData, columnFilters, groupBy])
 
   const handleExport = useCallback(async () => {
     try {
@@ -234,15 +327,6 @@ function CostLedgerPage() {
               <button
                 type="button"
                 className="secondary-button"
-                onClick={() => fetchCostLedger()}
-                disabled={loading}
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </button>
-              <button
-                type="button"
-                className="secondary-button"
                 onClick={handleExport}
                 disabled={exporting}
               >
@@ -253,53 +337,6 @@ function CostLedgerPage() {
           }
         />
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Start Date</label>
-            <input
-              type="date"
-              value={filters.startDate}
-              onChange={(event) => setFilters((prev) => ({ ...prev, startDate: event.target.value }))}
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">End Date</label>
-            <input
-              type="date"
-              value={filters.endDate}
-              onChange={(event) => setFilters((prev) => ({ ...prev, endDate: event.target.value }))}
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Warehouse</label>
-            <select
-              value={filters.warehouse}
-              onChange={(event) => setFilters((prev) => ({ ...prev, warehouse: event.target.value }))}
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">All Warehouses</option>
-              {warehouses.map((warehouse) => (
-                <option key={warehouse.code} value={warehouse.code}>
-                  {warehouse.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Group By</label>
-            <select
-              value={groupBy}
-              onChange={(event) => setGroupBy(event.target.value as 'week' | 'month')}
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="week">Weekly</option>
-              <option value="month">Monthly</option>
-            </select>
-          </div>
-        </div>
-
         <StatsCardGrid cols={6}>
           {summaryCards.map((card) => (
             <StatsCard key={card.title} {...card} />
@@ -307,33 +344,159 @@ function CostLedgerPage() {
         </StatsCardGrid>
 
         <div className="bg-white border rounded-lg shadow-sm">
-            <div className="flex items-center px-4 py-3 border-b">
-              <Filter className="h-4 w-4 text-muted-foreground mr-2" />
-              <span className="text-sm text-muted-foreground">
-                Showing {ledgerData.length} {groupBy === 'week' ? 'weeks' : 'months'} of cost activity
+          <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Filter className="h-4 w-4" />
+              <span>
+                Showing {filteredLedgerData.length} {groupBy === 'week' ? 'weeks' : 'months'} of cost activity
               </span>
             </div>
+            <div className="ml-auto flex items-center gap-2 rounded-lg border border-muted">
+              <button
+                type="button"
+                onClick={() => setGroupBy('week')}
+                className={cn(
+                  'px-3 py-1.5 rounded-l-lg text-sm transition-colors',
+                  groupBy === 'week'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-muted/30'
+                )}
+              >
+                Weekly
+              </button>
+              <button
+                type="button"
+                onClick={() => setGroupBy('month')}
+                className={cn(
+                  'px-3 py-1.5 rounded-r-lg text-sm transition-colors',
+                  groupBy === 'month'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-muted/30'
+                )}
+              >
+                Monthly
+              </button>
+            </div>
+          </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/40 text-muted-foreground">
+            <table className="w-full table-auto text-sm">
+              <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-2 text-left font-medium">Period</th>
-                  <th className="px-4 py-2 text-right font-medium">Storage</th>
-                  <th className="px-4 py-2 text-right font-medium">Container</th>
-                  <th className="px-4 py-2 text-right font-medium">Pallet</th>
-                  <th className="px-4 py-2 text-right font-medium">Carton</th>
-                  <th className="px-4 py-2 text-right font-medium">Unit</th>
-                  <th className="px-4 py-2 text-right font-medium">Transportation</th>
-                  <th className="px-4 py-2 text-right font-medium">Accessorial</th>
-                  <th className="px-4 py-2 text-right font-medium">Other</th>
-                  <th className="px-4 py-2 text-right font-medium">Total</th>
+                  <th className="px-3 py-2 text-left font-semibold">
+                    <div className="flex items-center justify-between gap-1">
+                      <span>Period</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Filter periods"
+                            className={cn(
+                              'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                              columnFilters.period
+                                ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                                : 'hover:bg-muted/30 hover:text-primary'
+                            )}
+                          >
+                            <Filter className="h-3.5 w-3.5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="start" className="w-64 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">Period filter</span>
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-primary hover:underline"
+                              onClick={() => setColumnFilters(prev => ({ ...prev, period: '' }))}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <input
+                            type="text"
+                            value={columnFilters.period}
+                            onChange={(event) => setColumnFilters(prev => ({ ...prev, period: event.target.value }))}
+                            placeholder="Search period or range"
+                            className={baseFilterInputClass}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-left font-semibold">Date Range</th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Storage</span>
+                      {renderNumericFilter('Storage', 'storageMin', 'storageMax')}
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Container</span>
+                      {renderNumericFilter('Container', 'containerMin', 'containerMax')}
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Pallet</span>
+                      {renderNumericFilter('Pallet', 'palletMin', 'palletMax')}
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Carton</span>
+                      {renderNumericFilter('Carton', 'cartonMin', 'cartonMax')}
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Unit</span>
+                      {renderNumericFilter('Unit', 'unitMin', 'unitMax')}
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Transportation</span>
+                      {renderNumericFilter('Transportation', 'transportationMin', 'transportationMax')}
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Accessorial</span>
+                      {renderNumericFilter('Accessorial', 'accessorialMin', 'accessorialMax')}
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Other</span>
+                      {renderNumericFilter('Other', 'otherMin', 'otherMax')}
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-end gap-1">
+                      <span>Total</span>
+                      {renderNumericFilter('Total', 'totalMin', 'totalMax')}
+                    </div>
+                  </th>
+                </tr>
+                <tr className="bg-white text-xs text-muted-foreground">
+                  <th className="px-3 py-2" />
+                  <th className="px-3 py-2" />
+                  <th className="px-3 py-2" />
+                  <th className="px-3 py-2" />
+                  <th className="px-3 py-2" />
+                  <th className="px-3 py-2" />
+                  <th className="px-3 py-2" />
+                  <th className="px-3 py-2" />
+                  <th className="px-3 py-2" />
+                  <th className="px-3 py-2" />
+                  <th className="px-3 py-2" />
                 </tr>
               </thead>
               <tbody>
-                {ledgerData.length === 0 && (
+                {filteredLedgerData.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-6">
+                    <td colSpan={11} className="px-4 py-10">
                       <div className="text-center text-muted-foreground">
                         No cost ledger data for the selected filters.
                       </div>
@@ -341,25 +504,23 @@ function CostLedgerPage() {
                   </tr>
                 )}
 
-                {ledgerData.map((group) => (
+                {filteredLedgerData.map((group) => (
                   <tr key={`${group.period}-${group.rangeStart}`} className="odd:bg-muted/20">
-                    <td className="px-4 py-2">
-                      <div className="font-medium text-foreground">
-                        {formatPeriod(group, groupBy)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {formatDateRange(group.rangeStart, group.rangeEnd)}
-                      </div>
+                    <td className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
+                      {formatPeriod(group, groupBy)}
                     </td>
-                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.storage)}</td>
-                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.container)}</td>
-                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.pallet)}</td>
-                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.carton)}</td>
-                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.unit)}</td>
-                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.transportation)}</td>
-                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.accessorial)}</td>
-                    <td className="px-4 py-2 text-right">{formatCurrency(group.costs.other)}</td>
-                    <td className="px-4 py-2 text-right font-semibold text-emerald-700">
+                    <td className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
+                      {formatDateRange(group.rangeStart, group.rangeEnd)}
+                    </td>
+                    <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.storage)}</td>
+                    <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.container)}</td>
+                    <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.pallet)}</td>
+                    <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.carton)}</td>
+                    <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.unit)}</td>
+                    <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.transportation)}</td>
+                    <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.accessorial)}</td>
+                    <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.other)}</td>
+                    <td className="px-3 py-2 text-right font-semibold text-emerald-700">
                       {formatCurrency(group.costs.total)}
                     </td>
                   </tr>
