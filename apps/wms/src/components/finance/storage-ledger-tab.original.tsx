@@ -254,7 +254,7 @@ export function StorageLedgerTab({
         <div className="flex flex-col gap-2">
           {/* Quick Date Range Buttons */}
           <div className="flex flex-wrap items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">Quick Select:</label>
+            <label className="text-sm font-medium text-muted-foreground">Quick Select:</label>
             <button
               type="button"
               onClick={(e) => {
@@ -268,7 +268,7 @@ export function StorageLedgerTab({
                   end: end.toISOString().split('T')[0]
                 })
               }}
-              className="px-3 py-1 text-sm border rounded-md hover:bg-gray-50 transition-colors"
+              className="px-3 py-1 text-sm border rounded-md hover:bg-muted/30 transition-colors"
             >
               Last 30 days
             </button>
@@ -285,7 +285,7 @@ export function StorageLedgerTab({
                   end: end.toISOString().split('T')[0]
                 })
               }}
-              className="px-3 py-1 text-sm border rounded-md hover:bg-gray-50 transition-colors"
+              className="px-3 py-1 text-sm border rounded-md hover:bg-muted/30 transition-colors"
             >
               Last 90 days
             </button>
@@ -302,7 +302,7 @@ export function StorageLedgerTab({
                   end: end.toISOString().split('T')[0]
                 })
               }}
-              className="px-3 py-1 text-sm border rounded-md hover:bg-gray-50 transition-colors"
+              className="px-3 py-1 text-sm border rounded-md hover:bg-muted/30 transition-colors"
             >
               Last 6 months
             </button>
@@ -318,7 +318,7 @@ export function StorageLedgerTab({
                   end: now.toISOString().split('T')[0]
                 })
               }}
-              className="px-3 py-1 text-sm border rounded-md hover:bg-gray-50 transition-colors"
+              className="px-3 py-1 text-sm border rounded-md hover:bg-muted/30 transition-colors"
             >
               Year to date
             </button>
@@ -334,7 +334,7 @@ export function StorageLedgerTab({
                   end: end.toISOString().split('T')[0]
                 })
               }}
-              className="px-3 py-1 text-sm border rounded-md hover:bg-gray-50 transition-colors"
+              className="px-3 py-1 text-sm border rounded-md hover:bg-muted/30 transition-colors"
             >
               All time
             </button>
@@ -344,7 +344,7 @@ export function StorageLedgerTab({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <div className="relative">
-                <label className="absolute -top-2 left-2 bg-white px-1 text-xs font-medium text-gray-500">From</label>
+                <label className="absolute -top-2 left-2 bg-white px-1 text-xs font-medium text-muted-foreground">From</label>
                 <input
                   type="date"
                   value={dateRange.start}
@@ -352,9 +352,9 @@ export function StorageLedgerTab({
                   className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
                 />
               </div>
-              <span className="text-gray-500">→</span>
+              <span className="text-muted-foreground">→</span>
               <div className="relative">
-                <label className="absolute -top-2 left-2 bg-white px-1 text-xs font-medium text-gray-500">To</label>
+                <label className="absolute -top-2 left-2 bg-white px-1 text-xs font-medium text-muted-foreground">To</label>
                 <input
                   type="date"
                   value={dateRange.end}
@@ -377,14 +377,14 @@ export function StorageLedgerTab({
             </div>
             
             <div className="flex items-center gap-2">
-              <div className="flex items-center bg-gray-100 rounded-md p-1">
+              <div className="flex items-center bg-muted/40 rounded-md p-1">
                 <button
                   type="button"
                   onClick={() => setAggregationView('weekly')}
                   className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
                     aggregationView === 'weekly' 
                       ? 'bg-white text-primary shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   Weekly
@@ -395,7 +395,7 @@ export function StorageLedgerTab({
                   className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
                     aggregationView === 'monthly' 
                       ? 'bg-white text-primary shadow-sm' 
-                      : 'text-gray-600 hover:text-gray-900'
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
                   Monthly
@@ -404,7 +404,7 @@ export function StorageLedgerTab({
               <button
                 type="button"
                 onClick={(e) => handleExport(e)}
-                className="inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium hover:bg-gray-50 transition-colors"
+                className="inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium hover:bg-muted/30 transition-colors"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Export
@@ -465,47 +465,47 @@ export function StorageLedgerTab({
 
       {/* Storage Ledger Table */}
       <div className="border rounded-lg overflow-hidden">
-        <div className="bg-gray-50 px-6 py-3 border-b">
+        <div className="bg-muted/30 px-3 py-2 border-b">
           <h3 className="text-lg font-semibold">
             {aggregationView === 'weekly' ? 'Weekly Storage Snapshots' : 'Monthly Storage Summary'}
           </h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Showing {displaySnapshots.length} {aggregationView} {aggregationView === 'weekly' ? 'snapshots' : 'periods'}
           </p>
         </div>
         <div className="overflow-x-auto" style={{ maxHeight: '65vh' }}>
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="w-full table-auto text-sm">
+            <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
                 {aggregationView === 'weekly' ? (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2 text-left font-semibold">
                     Week
                   </th>
                 ) : (
                   <>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 py-2 text-left font-semibold">
                       Billing Period
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 py-2 text-center font-semibold">
                       Weeks
                     </th>
                   </>
                 )}
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-left font-semibold">
                   Warehouse
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-right font-semibold">
                   {aggregationView === 'weekly' ? 'Total Pallets' : 'Total Pallet-Weeks'}
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-right font-semibold">
                   Total Cartons
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-3 py-2 text-center font-semibold">
                   SKUs
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white">
               {displaySnapshots.map((snapshot) => {
                 const key = aggregationView === 'weekly' 
                   ? `${snapshot.date}-${snapshot.warehouse.id}`
@@ -516,105 +516,100 @@ export function StorageLedgerTab({
                   <>
                     <tr
                       key={key}
-                      className="hover:bg-gray-50 cursor-pointer"
+                      className="cursor-pointer odd:bg-muted/10 hover:bg-muted/20 transition-colors"
                       onClick={() => toggleRow(key)}
                     >
                       {aggregationView === 'weekly' ? (
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-3 py-2 whitespace-nowrap text-sm text-foreground">
                           <div className="flex items-center gap-2">
                             {isExpanded ? (
-                              <ChevronDown className="h-4 w-4 text-gray-400" />
+                              <ChevronDown className="h-4 w-4 text-muted-foreground" />
                             ) : (
-                              <ChevronRight className="h-4 w-4 text-gray-400" />
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
                             )}
                             <span className="font-medium">W{getISOWeekNumber(new Date(snapshot.date))}</span>
-                            <span className="text-gray-500 text-xs">{new Date(snapshot.date).getFullYear()}</span>
+                            <span className="text-muted-foreground text-xs">{new Date(snapshot.date).getFullYear()}</span>
                           </div>
                         </td>
                       ) : (
                         <>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-foreground">
                             <div className="flex items-center gap-2">
                               {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-gray-400" />
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
                               ) : (
-                                <ChevronRight className="h-4 w-4 text-gray-400" />
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
                               )}
                               {snapshot.billingPeriod}
                             </div>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
+                          <td className="px-3 py-2 whitespace-nowrap text-sm text-foreground text-center">
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                               {snapshot.weekCount} weeks
                             </span>
                           </td>
                         </>
                       )}
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-3 py-2 whitespace-nowrap text-sm text-foreground">
                         {snapshot.warehouse.name}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                      <td className="px-3 py-2 whitespace-nowrap text-sm text-foreground text-right">
                         {aggregationView === 'weekly' 
                           ? snapshot.totalPallets.toLocaleString()
                           : snapshot.totalPalletWeeks.toLocaleString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
+                      <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-foreground text-right">
                         {snapshot.totalCartons?.toLocaleString() || '0'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                      <td className="px-3 py-2 whitespace-nowrap text-sm text-muted-foreground text-center">
                         {snapshot.items.length}
                       </td>
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td colSpan={aggregationView === 'weekly' ? 5 : 6} className="px-6 py-4 bg-gray-50">
+                        <td colSpan={aggregationView === 'weekly' ? 5 : 6} className="px-3 py-2 bg-muted/30">
                           <div className="text-sm">
                             <h4 className="font-medium mb-2">
                               {aggregationView === 'weekly' ? 'SKU Details' : 'Monthly SKU Summary'}
                             </h4>
                             {aggregationView === 'monthly' && (
-                              <p className="text-xs text-gray-600 mb-3">
+                              <p className="text-xs text-muted-foreground mb-3">
                                 Weeks included: {snapshot.weeks.join(', ')}
                               </p>
                             )}
-                            <table className="min-w-full">
-                              <thead>
-                                <tr className="text-xs text-gray-500 uppercase">
-                                  <th className="text-left pb-2">SKU Code</th>
-                                  <th className="text-left pb-2">Description</th>
-                                  <th className="text-left pb-2">Batch/Lot</th>
-                                  <th className="text-right pb-2">
+                            <table className="w-full table-auto text-sm">
+                              <thead className="text-xs uppercase tracking-wide text-muted-foreground">
+                                <tr>
+                                  <th className="px-2 py-1 text-left font-semibold">SKU Code</th>
+                                  <th className="px-2 py-1 text-left font-semibold">Description</th>
+                                  <th className="px-2 py-1 text-left font-semibold">Batch/Lot</th>
+                                  <th className="px-2 py-1 text-right font-semibold">
                                     {aggregationView === 'weekly' ? 'Cartons' : 'Total Cartons'}
                                   </th>
-                                  <th className="text-right pb-2">Config</th>
-                                  <th className="text-right pb-2">
+                                  <th className="px-2 py-1 text-right font-semibold">Config</th>
+                                  <th className="px-2 py-1 text-right font-semibold">
                                     {aggregationView === 'weekly' ? 'Pallets' : 'Total Pallets'}
                                   </th>
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-gray-200">
+                              <tbody>
                                 {snapshot.items.map((item: { sku: { skuCode: string; description: string }; batchLot: string; pallets: number; cartons: number; units: number }, idx: number) => {
                                   const pallets = aggregationView === 'weekly' ? item.pallets : item.totalPalletWeeks
                                   const totalPallets = aggregationView === 'weekly' ? snapshot.totalPallets : snapshot.totalPalletWeeks
                                   const _percentage = (pallets / totalPallets) * 100
                                   
                                   return (
-                                    <tr key={idx}>
-                                      <td className="py-2">{item.sku.skuCode}</td>
-                                      <td className="py-2">{item.sku.description}</td>
-                                      <td className="py-2">{item.batchLot}</td>
-                                      <td className="py-2 text-right">
+                                    <tr key={idx} className="odd:bg-white/60">
+                                      <td className="px-2 py-1 font-medium text-foreground">{item.sku.skuCode}</td>
+                                      <td className="px-2 py-1 text-muted-foreground">{item.sku.description}</td>
+                                      <td className="px-2 py-1 text-muted-foreground">{item.batchLot}</td>
+                                      <td className="px-2 py-1 text-right">
                                         {(aggregationView === 'weekly' ? item.cartons : item.totalCartonWeeks).toLocaleString()}
                                       </td>
-                                      <td className="py-2 text-right">
+                                      <td className="px-2 py-1 text-right text-xs text-muted-foreground">
                                         {item.cartonsPerPallet}/pallet
-                                        {item.cartons === item.pallets && item.cartons <= 5 && (
-                                          <span className="text-xs text-gray-500 ml-1" title="Minimum 1 pallet required">
-                                            (min)
-                                          </span>
-                                        )}
                                       </td>
-                                      <td className="py-2 text-right font-medium">{pallets}</td>
+                                      <td className="px-2 py-1 text-right font-semibold text-foreground">{pallets}</td>
                                     </tr>
                                   )
                                 })}
@@ -629,7 +624,10 @@ export function StorageLedgerTab({
               })}
               {displaySnapshots.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12">
+                  <td
+                    colSpan={aggregationView === 'weekly' ? 5 : 6}
+                    className="px-4 py-10"
+                  >
                     <EmptyState
                       icon={Calendar}
                       title={`No ${aggregationView} storage data found`}

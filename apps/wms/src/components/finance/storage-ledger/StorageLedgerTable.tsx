@@ -1,116 +1,394 @@
-'use client'
+"use client"
 
+import { useMemo } from 'react'
+import { format } from 'date-fns'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Filter } from '@/lib/lucide-icons'
+import { cn } from '@/lib/utils'
 import type { StorageEntry } from '@/hooks/useStorageLedger'
+import type { StorageLedgerColumnFilters } from '../storage-ledger-tab'
 
 interface StorageLedgerTableProps {
   entries: StorageEntry[]
-  showCosts?: boolean
+  aggregationView: 'weekly' | 'monthly'
+  filters: StorageLedgerColumnFilters
+  onFilterChange: (filters: StorageLedgerColumnFilters) => void
 }
 
-export function StorageLedgerTable({ 
+const baseFilterInputClass = 'w-full rounded-md border border-muted px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary'
+
+export function StorageLedgerTable({
   entries,
-  showCosts = true 
+  aggregationView: _aggregationView,
+  filters,
+  onFilterChange,
 }: StorageLedgerTableProps) {
+  const uniqueWarehouses = useMemo(() => {
+    const map = new Map<string, string>()
+    entries.forEach(entry => {
+      if (!map.has(entry.warehouseCode)) {
+        map.set(entry.warehouseCode, entry.warehouseName)
+      }
+    })
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [entries])
+
+  const uniqueSkus = useMemo(() => {
+    const set = new Set<string>()
+    entries.forEach(entry => {
+      set.add(entry.skuCode)
+    })
+    return Array.from(set.values()).sort().map(value => ({ value, label: value }))
+  }, [entries])
+
+  const uniqueStatuses = useMemo(() => [
+    { value: 'CALCULATED', label: 'Calculated' },
+    { value: 'PENDING', label: 'Pending' },
+  ], [])
+
+  const updateFilters = (partial: Partial<StorageLedgerColumnFilters>) => {
+    onFilterChange({ ...filters, ...partial })
+  }
+
+  const toggleSelection = (key: 'warehouseCodes' | 'skuCodes' | 'status', value: string) => {
+    const current = filters[key]
+    const exists = current.includes(value as never)
+    const next = exists
+      ? current.filter(item => item !== value)
+      : [...current, value] as typeof current
+    onFilterChange({ ...filters, [key]: next })
+  }
+
+  const renderNumericFilter = (
+    label: string,
+    minKey: keyof StorageLedgerColumnFilters,
+    maxKey: keyof StorageLedgerColumnFilters,
+  ) => (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Filter ${label}`}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-muted/30 hover:text-primary"
+        >
+          <Filter className="h-3.5 w-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-56 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-foreground">{label} range</span>
+          <button
+            type="button"
+            className="text-xs font-medium text-primary hover:underline"
+            onClick={() => updateFilters({ [minKey]: '', [maxKey]: '' } as Partial<StorageLedgerColumnFilters>)}
+          >
+            Clear
+          </button>
+        </div>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            inputMode="numeric"
+            value={filters[minKey] as string}
+            onChange={(event) => updateFilters({ [minKey]: event.target.value } as Partial<StorageLedgerColumnFilters>)}
+            placeholder="Min"
+            className={`${baseFilterInputClass} text-right`}
+          />
+          <input
+            type="number"
+            inputMode="numeric"
+            value={filters[maxKey] as string}
+            onChange={(event) => updateFilters({ [maxKey]: event.target.value } as Partial<StorageLedgerColumnFilters>)}
+            placeholder="Max"
+            className={`${baseFilterInputClass} text-right`}
+          />
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+
+  const renderTextFilter = (label: string, key: keyof StorageLedgerColumnFilters) => (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Filter ${label}`}
+          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-muted/30 hover:text-primary"
+        >
+          <Filter className="h-3.5 w-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium text-foreground">{label} filter</span>
+          <button
+            type="button"
+            className="text-xs font-medium text-primary hover:underline"
+            onClick={() => updateFilters({ [key]: '' } as Partial<StorageLedgerColumnFilters>)}
+          >
+            Clear
+          </button>
+        </div>
+        <input
+          type="text"
+          value={filters[key] as string}
+          onChange={(event) => updateFilters({ [key]: event.target.value } as Partial<StorageLedgerColumnFilters>)}
+          placeholder={`Search ${label.toLowerCase()}`}
+          className={baseFilterInputClass}
+        />
+      </PopoverContent>
+    </Popover>
+  )
+
 
   return (
     <div className="bg-white shadow rounded-lg overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+        <table className="w-full table-auto text-sm">
+          <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Week Ending
+              <th className="px-3 py-2 text-left font-semibold">
+                <div className="flex items-center justify-between gap-1">
+                  <span>Week Ending</span>
+                  {renderTextFilter('Week ending', 'weekEnding')}
+                </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Warehouse
+              <th className="px-3 py-2 text-left font-semibold">
+                <div className="flex items-center justify-between gap-1">
+                  <span>Warehouse</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="Filter warehouses"
+                        className={cn(
+                          'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                          filters.warehouseCodes.length > 0
+                            ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                            : 'hover:bg-muted/30 hover:text-primary'
+                        )}
+                      >
+                        <Filter className="h-3.5 w-3.5" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-64 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-foreground">Warehouse filter</span>
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-primary hover:underline"
+                          onClick={() => updateFilters({ warehouseCodes: [] })}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                      <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+                        {uniqueWarehouses.map(option => (
+                          <label key={option.value} className="flex items-center gap-2 text-sm text-foreground">
+                            <input
+                              type="checkbox"
+                              checked={filters.warehouseCodes.includes(option.value)}
+                              onChange={() => toggleSelection('warehouseCodes', option.value)}
+                              className="h-4 w-4 rounded border-muted text-primary focus:ring-primary"
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                SKU
+              <th className="px-3 py-2 text-left font-semibold">
+                Code
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Batch
+              <th className="px-3 py-2 text-left font-semibold">
+                <div className="flex items-center justify-between gap-1">
+                  <span>SKU</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="Filter SKUs"
+                        className={cn(
+                          'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                          filters.skuCodes.length > 0
+                            ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                            : 'hover:bg-muted/30 hover:text-primary'
+                        )}
+                      >
+                        <Filter className="h-3.5 w-3.5" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-64 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-foreground">SKU filter</span>
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-primary hover:underline"
+                          onClick={() => updateFilters({ skuCodes: [] })}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                      <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+                        {uniqueSkus.map(option => (
+                          <label key={option.value} className="flex items-center gap-2 text-sm text-foreground">
+                            <input
+                              type="checkbox"
+                              checked={filters.skuCodes.includes(option.value)}
+                              onChange={() => toggleSelection('skuCodes', option.value)}
+                              className="h-4 w-4 rounded border-muted text-primary focus:ring-primary"
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Cartons
+              <th className="px-3 py-2 text-left font-semibold">
+                <div className="flex items-center justify-between gap-1">
+                  <span>Description</span>
+                  {renderTextFilter('Description', 'description')}
+                </div>
               </th>
-              {showCosts && (
-                <>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Rate/Carton
-                  </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total Cost
-                  </th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                </>
-              )}
+              <th className="px-3 py-2 text-left font-semibold">
+                <div className="flex items-center justify-between gap-1">
+                  <span>Batch</span>
+                  {renderTextFilter('Batch', 'batch')}
+                </div>
+              </th>
+              <th className="px-3 py-2 text-right font-semibold">
+                <div className="flex items-center justify-end gap-1">
+                  <span>Cartons</span>
+                  {renderNumericFilter('Cartons', 'cartonsMin', 'cartonsMax')}
+                </div>
+              </th>
+              <th className="px-3 py-2 text-right font-semibold">
+                <div className="flex items-center justify-end gap-1">
+                  <span>Rate</span>
+                  {renderNumericFilter('Rate', 'rateMin', 'rateMax')}
+                </div>
+              </th>
+              <th className="px-3 py-2 text-right font-semibold">
+                <div className="flex items-center justify-end gap-1">
+                  <span>Total Cost</span>
+                  {renderNumericFilter('Total cost', 'totalCostMin', 'totalCostMax')}
+                </div>
+              </th>
+              <th className="px-3 py-2 text-left font-semibold">
+                <div className="flex items-center justify-between gap-1">
+                  <span>Status</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="Filter statuses"
+                        className={cn(
+                          'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                          filters.status.length > 0
+                            ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                            : 'hover:bg-muted/30 hover:text-primary'
+                        )}
+                      >
+                        <Filter className="h-3.5 w-3.5" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-48 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-foreground">Status filter</span>
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-primary hover:underline"
+                          onClick={() => updateFilters({ status: [] })}
+                        >
+                          Clear
+                        </button>
+                      </div>
+                      <div className="space-y-2">
+                        {uniqueStatuses.map(option => (
+                          <label key={option.value} className="flex items-center gap-2 text-sm text-foreground">
+                            <input
+                              type="checkbox"
+                              checked={filters.status.includes(option.value as 'CALCULATED' | 'PENDING')}
+                              onChange={() => toggleSelection('status', option.value)}
+                              className="h-4 w-4 rounded border-muted text-primary focus:ring-primary"
+                            />
+                            <span>{option.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {entries.map((entry) => (
-              <tr key={entry.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {new Date(entry.weekEndingDate).toLocaleDateString()}
+          <tbody>
+            {entries.length === 0 && (
+              <tr>
+                <td
+                  colSpan={10}
+                  className="px-4 py-10 text-center text-muted-foreground"
+                >
+                  No storage entries found. Adjust filters to see results.
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  <div>
-                    <div className="font-medium">{entry.warehouseName}</div>
-                    <div className="text-gray-500 text-xs">{entry.warehouseCode}</div>
-                  </div>
+              </tr>
+            )}
+
+            {entries.map(entry => (
+              <tr key={entry.id} className="odd:bg-muted/20">
+                <td className="px-3 py-2 text-sm text-foreground whitespace-nowrap">
+                  {format(new Date(entry.weekEndingDate), 'PP')}
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-900">
-                  <div>
-                    <div className="font-medium">{entry.skuCode}</div>
-                    <div className="text-gray-500 text-xs truncate max-w-xs" title={entry.skuDescription}>
-                      {entry.skuDescription}
-                    </div>
-                  </div>
+                <td className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
+                  {entry.warehouseName}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">
+                <td className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
+                  {entry.warehouseCode}
+                </td>
+                <td className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
+                  {entry.skuCode}
+                </td>
+                <td className="px-3 py-2 text-sm text-muted-foreground max-w-xs truncate" title={entry.skuDescription}>
+                  {entry.skuDescription}
+                </td>
+                <td className="px-3 py-2 text-sm text-muted-foreground font-mono whitespace-nowrap">
                   {entry.batchLot}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
+                <td className="px-3 py-2 text-sm font-semibold text-foreground text-right whitespace-nowrap">
                   {entry.closingBalance.toLocaleString()}
                 </td>
-                {showCosts && (
-                  <>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                      {entry.storageRatePerCarton 
-                        ? `$${Number(entry.storageRatePerCarton).toFixed(4)}`
-                        : <span className="text-gray-400">-</span>
-                      }
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-medium">
-                      {entry.totalStorageCost 
-                        ? `$${Number(entry.totalStorageCost).toFixed(2)}`
-                        : <span className="text-gray-400">-</span>
-                      }
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        entry.isCostCalculated
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {entry.isCostCalculated ? 'Calculated' : 'Pending'}
-                      </span>
-                    </td>
-                  </>
-                )}
+                <td className="px-3 py-2 text-sm text-right text-foreground whitespace-nowrap">
+                  {entry.storageRatePerCarton
+                    ? `$${Number(entry.storageRatePerCarton).toFixed(4)}`
+                    : <span className="text-muted-foreground">—</span>
+                  }
+                </td>
+                <td className="px-3 py-2 text-sm text-right font-semibold text-foreground whitespace-nowrap">
+                  {entry.totalStorageCost
+                    ? `$${Number(entry.totalStorageCost).toFixed(2)}`
+                    : <span className="text-muted-foreground">—</span>
+                  }
+                </td>
+                <td className="px-3 py-2 text-sm">
+                  <span
+                    className={entry.isCostCalculated
+                      ? 'inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700'
+                      : 'inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700'}
+                  >
+                    {entry.isCostCalculated ? 'Calculated' : 'Pending'}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      
-      {entries.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          <div className="text-lg">No storage entries found</div>
-          <div className="text-sm mt-1">No entries available for the selected criteria</div>
-        </div>
-      )}
     </div>
   )
 }

@@ -8,7 +8,6 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import {
   Search,
-  RefreshCw,
   Building,
   Package,
   Archive,
@@ -44,6 +43,8 @@ interface InventoryBalance {
   storageCartonsPerPallet?: number
   shippingCartonsPerPallet?: number
   lastTransactionDate: string | null
+  lastTransactionId?: string
+  lastTransactionType?: string
   receiveTransaction?: {
     createdBy?: {
       fullName: string
@@ -72,6 +73,7 @@ type SortKey = 'warehouse' | 'sku' | 'batch' | 'cartons' | 'pallets' | 'units' |
 interface ColumnFiltersState {
   warehouse: string[]
   sku: string[]
+  skuDescription: string
   batch: string[]
   lastTransaction: string
   cartonsMin: string
@@ -85,6 +87,7 @@ interface ColumnFiltersState {
 const createColumnFilterDefaults = (): ColumnFiltersState => ({
   warehouse: [],
   sku: [],
+  skuDescription: '',
   batch: [],
   lastTransaction: '',
   cartonsMin: '',
@@ -105,10 +108,41 @@ const balanceDateToTime = (value: string | null) => {
   return Number.isNaN(date.getTime()) ? 0 : date.getTime()
 }
 
+const formatTransactionType = (type?: string | null) => {
+  if (!type) return null
+  switch (type.toUpperCase()) {
+    case 'RECEIVE':
+      return 'Receive'
+    case 'SHIP':
+      return 'Ship'
+    default:
+      return type
+        .toLowerCase()
+        .split('_')
+        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ')
+  }
+}
+
+const transactionTypeClass = (type?: string | null) => {
+  if (!type) {
+    return 'bg-muted text-muted-foreground'
+  }
+
+  switch (type.toUpperCase()) {
+    case 'RECEIVE':
+      return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+    case 'SHIP':
+      return 'bg-blue-50 text-blue-700 border border-blue-200'
+    default:
+      return 'bg-muted text-muted-foreground border border-muted'
+  }
+}
+
 function InventoryPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [loading, setLoading] = useState(true)
+  const [_loading, setLoading] = useState(true)
   const [balances, setBalances] = useState<InventoryBalance[]>([])
   const [summary, setSummary] = useState<InventorySummary | null>(null)
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() => createColumnFilterDefaults())
@@ -292,6 +326,13 @@ function InventoryPage() {
         }
       }
 
+      if (columnFilters.skuDescription) {
+        const description = balance.sku.description?.trim().toLowerCase() ?? ''
+        if (!description.includes(columnFilters.skuDescription.toLowerCase())) {
+          return false
+        }
+      }
+
       if (columnFilters.batch.length > 0) {
         const batchLot = balance.batchLot?.trim()
         if (!batchLot || !columnFilters.batch.includes(batchLot)) {
@@ -303,7 +344,14 @@ function InventoryPage() {
         const lastTransactionDisplay = balance.lastTransactionDate
           ? format(new Date(balance.lastTransactionDate), 'PPpp')
           : 'N/A'
-        if (!lastTransactionDisplay.toLowerCase().includes(columnFilters.lastTransaction.toLowerCase())) {
+        const filterValue = columnFilters.lastTransaction.toLowerCase()
+        const typeMatch = balance.lastTransactionType
+          ? balance.lastTransactionType.toLowerCase().includes(filterValue)
+          : false
+        if (
+          !lastTransactionDisplay.toLowerCase().includes(filterValue) &&
+          !typeMatch
+        ) {
           return false
         }
       }
@@ -463,15 +511,6 @@ function InventoryPage() {
                 <Truck className="h-4 w-4 mr-2" />
                 Ship
               </Link>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => fetchBalances()}
-                disabled={loading}
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </button>
             </div>
           }
         />
@@ -522,11 +561,11 @@ function InventoryPage() {
         </StatsCardGrid>
 
         <div className="bg-white border rounded-lg shadow-sm overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full table-auto text-sm">
             <thead>
-              <tr className="bg-muted/40 text-muted-foreground">
-                <th className="px-4 py-2 text-left font-medium">
-                  <div className="flex items-center justify-between gap-2">
+              <tr className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-3 py-2 text-left font-semibold">
+                  <div className="flex items-center justify-between gap-1">
                     <button
                       type="button"
                       className="flex flex-1 items-center gap-1 text-left hover:text-primary focus:outline-none"
@@ -541,13 +580,13 @@ function InventoryPage() {
                           type="button"
                           aria-label="Filter warehouses"
                           className={cn(
-                            'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
                             isFilterActive(['warehouse'])
                               ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
                               : 'hover:bg-muted hover:text-primary'
                           )}
                         >
-                          <Filter className="h-4 w-4" />
+                          <Filter className="h-3.5 w-3.5" />
                         </button>
                       </PopoverTrigger>
                       <PopoverContent align="end" className="w-64 space-y-3">
@@ -584,8 +623,8 @@ function InventoryPage() {
                     </Popover>
                   </div>
                 </th>
-                <th className="px-4 py-2 text-left font-medium">
-                  <div className="flex items-center justify-between gap-2">
+                <th className="px-3 py-2 text-left font-semibold">
+                  <div className="flex items-center justify-between gap-1">
                     <button
                       type="button"
                       className="flex flex-1 items-center gap-1 text-left hover:text-primary focus:outline-none"
@@ -600,13 +639,13 @@ function InventoryPage() {
                           type="button"
                           aria-label="Filter SKUs"
                           className={cn(
-                            'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
                             isFilterActive(['sku'])
                               ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
                               : 'hover:bg-muted hover:text-primary'
                           )}
                         >
-                          <Filter className="h-4 w-4" />
+                          <Filter className="h-3.5 w-3.5" />
                         </button>
                       </PopoverTrigger>
                       <PopoverContent align="end" className="w-64 space-y-3">
@@ -643,8 +682,9 @@ function InventoryPage() {
                     </Popover>
                   </div>
                 </th>
-                <th className="px-4 py-2 text-left font-medium">
-                  <div className="flex items-center justify-between gap-2">
+                <th className="px-3 py-2 text-left font-semibold">Description</th>
+                <th className="px-3 py-2 text-left font-semibold">
+                  <div className="flex items-center justify-between gap-1">
                     <button
                       type="button"
                       className="flex flex-1 items-center gap-1 text-left hover:text-primary focus:outline-none"
@@ -659,13 +699,13 @@ function InventoryPage() {
                           type="button"
                           aria-label="Filter batches"
                           className={cn(
-                            'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
                             isFilterActive(['batch'])
                               ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
                               : 'hover:bg-muted hover:text-primary'
                           )}
                         >
-                          <Filter className="h-4 w-4" />
+                          <Filter className="h-3.5 w-3.5" />
                         </button>
                       </PopoverTrigger>
                       <PopoverContent align="end" className="w-64 space-y-3">
@@ -702,208 +742,65 @@ function InventoryPage() {
                     </Popover>
                   </div>
                 </th>
-                <th className="px-4 py-2 text-right font-medium">
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 hover:text-primary focus:outline-none"
-                      onClick={() => handleSort('cartons')}
-                    >
-                      Cartons
-                      {getSortIcon('cartons')}
-                    </button>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label="Filter cartons"
-                          className={cn(
-                            'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
-                            isFilterActive(['cartonsMin', 'cartonsMax'])
-                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
-                              : 'hover:bg-muted hover:text-primary'
-                          )}
-                        >
-                          <Filter className="h-4 w-4" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent align="end" className="w-64 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-foreground">Carton range</span>
-                          <button
-                            type="button"
-                            className="text-xs font-medium text-primary hover:underline"
-                            onClick={() => clearColumnFilter(['cartonsMin', 'cartonsMax'])}
-                          >
-                            Clear
-                          </button>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            value={columnFilters.cartonsMin}
-                            onChange={(event) => updateColumnFilter('cartonsMin', event.target.value)}
-                            placeholder="Minimum cartons"
-                            className={`${baseFilterInputClass} text-right`}
-                          />
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            value={columnFilters.cartonsMax}
-                            onChange={(event) => updateColumnFilter('cartonsMax', event.target.value)}
-                            placeholder="Maximum cartons"
-                            className={`${baseFilterInputClass} text-right`}
-                          />
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                <th className="px-3 py-2 text-right font-semibold">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-end gap-1 hover:text-primary focus:outline-none"
+                    onClick={() => handleSort('cartons')}
+                  >
+                    Cartons
+                    {getSortIcon('cartons')}
+                  </button>
                 </th>
-                <th className="px-4 py-2 text-right font-medium">
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 hover:text-primary focus:outline-none"
-                      onClick={() => handleSort('pallets')}
-                    >
-                      Pallets
-                      {getSortIcon('pallets')}
-                    </button>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label="Filter pallets"
-                          className={cn(
-                            'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
-                            isFilterActive(['palletsMin', 'palletsMax'])
-                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
-                              : 'hover:bg-muted hover:text-primary'
-                          )}
-                        >
-                          <Filter className="h-4 w-4" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent align="end" className="w-64 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-foreground">Pallet range</span>
-                          <button
-                            type="button"
-                            className="text-xs font-medium text-primary hover:underline"
-                            onClick={() => clearColumnFilter(['palletsMin', 'palletsMax'])}
-                          >
-                            Clear
-                          </button>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            value={columnFilters.palletsMin}
-                            onChange={(event) => updateColumnFilter('palletsMin', event.target.value)}
-                            placeholder="Minimum pallets"
-                            className={`${baseFilterInputClass} text-right`}
-                          />
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            value={columnFilters.palletsMax}
-                            onChange={(event) => updateColumnFilter('palletsMax', event.target.value)}
-                            placeholder="Maximum pallets"
-                            className={`${baseFilterInputClass} text-right`}
-                          />
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                <th className="px-3 py-2 text-right font-semibold">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-end gap-1 hover:text-primary focus:outline-none"
+                    onClick={() => handleSort('pallets')}
+                  >
+                    Pallets
+                    {getSortIcon('pallets')}
+                  </button>
                 </th>
-                <th className="px-4 py-2 text-right font-medium">
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      type="button"
-                      className="flex items-center gap-1 hover:text-primary focus:outline-none"
-                      onClick={() => handleSort('units')}
-                    >
-                      Units
-                      {getSortIcon('units')}
-                    </button>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label="Filter units"
-                          className={cn(
-                            'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
-                            isFilterActive(['unitsMin', 'unitsMax'])
-                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
-                              : 'hover:bg-muted hover:text-primary'
-                          )}
-                        >
-                          <Filter className="h-4 w-4" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent align="end" className="w-64 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-foreground">Unit range</span>
-                          <button
-                            type="button"
-                            className="text-xs font-medium text-primary hover:underline"
-                            onClick={() => clearColumnFilter(['unitsMin', 'unitsMax'])}
-                          >
-                            Clear
-                          </button>
-                        </div>
-                        <div className="flex flex-col gap-2">
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            value={columnFilters.unitsMin}
-                            onChange={(event) => updateColumnFilter('unitsMin', event.target.value)}
-                            placeholder="Minimum units"
-                            className={`${baseFilterInputClass} text-right`}
-                          />
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            value={columnFilters.unitsMax}
-                            onChange={(event) => updateColumnFilter('unitsMax', event.target.value)}
-                            placeholder="Maximum units"
-                            className={`${baseFilterInputClass} text-right`}
-                          />
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                <th className="px-3 py-2 text-right font-semibold">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-end gap-1 hover:text-primary focus:outline-none"
+                    onClick={() => handleSort('units')}
+                  >
+                    Units
+                    {getSortIcon('units')}
+                  </button>
                 </th>
-                <th className="px-4 py-2 text-left font-medium">
-                  <div className="flex items-center justify-between gap-2">
+                <th className="px-3 py-2 text-left font-semibold">Transaction</th>
+                <th className="px-3 py-2 text-left font-semibold">
+                  <div className="flex items-center justify-between gap-1">
                     <button
                       type="button"
                       className="flex flex-1 items-center gap-1 text-left hover:text-primary focus:outline-none"
                       onClick={() => handleSort('lastTransaction')}
                     >
-                      Last Transaction
+                      Transaction Date
                       {getSortIcon('lastTransaction')}
                     </button>
                     <Popover>
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          aria-label="Filter last transactions"
+                          aria-label="Filter latest transactions"
                           className={cn(
-                            'inline-flex h-8 w-8 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
                             isFilterActive(['lastTransaction'])
                               ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
                               : 'hover:bg-muted hover:text-primary'
                           )}
                         >
-                          <Filter className="h-4 w-4" />
+                          <Filter className="h-3.5 w-3.5" />
                         </button>
                       </PopoverTrigger>
                       <PopoverContent align="end" className="w-64 space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-foreground">Last transaction</span>
+                          <span className="text-sm font-medium text-foreground">Transaction filter</span>
                           <button
                             type="button"
                             className="text-xs font-medium text-primary hover:underline"
@@ -916,7 +813,7 @@ function InventoryPage() {
                           type="text"
                           value={columnFilters.lastTransaction}
                           onChange={(event) => updateColumnFilter('lastTransaction', event.target.value)}
-                          placeholder="Search date or user"
+                          placeholder="Search type or date"
                           className={baseFilterInputClass}
                         />
                       </PopoverContent>
@@ -924,11 +821,29 @@ function InventoryPage() {
                   </div>
                 </th>
               </tr>
+              <tr className="bg-white text-xs text-foreground">
+                <th className="px-3 py-2" />
+                <th className="px-3 py-2" />
+                <th className="px-3 py-2">
+                  <input
+                    type="text"
+                    value={columnFilters.skuDescription}
+                    onChange={(event) => updateColumnFilter('skuDescription', event.target.value)}
+                    placeholder="Search description"
+                    className={baseFilterInputClass}
+                  />
+                </th>
+                <th className="px-3 py-2" />
+                <th className="px-3 py-2" colSpan={4} />
+                <th className="px-3 py-2" />
+                <th className="px-3 py-2" />
+              </tr>
             </thead>
+
             <tbody>
               {processedBalances.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">
+                  <td colSpan={9} className="px-4 py-6 text-center text-muted-foreground">
                     No inventory balances match the current filters.
                   </td>
                 </tr>
@@ -937,24 +852,54 @@ function InventoryPage() {
               {processedBalances.map(balance => {
                 const lastTransactionDisplay = balance.lastTransactionDate
                   ? format(new Date(balance.lastTransactionDate), 'PPpp')
-                  : 'N/A'
+                  : null
+                const transactionTypeLabel = formatTransactionType(balance.lastTransactionType)
+                const transactionHref = balance.lastTransactionId
+                  ? `/operations/transactions/${balance.lastTransactionId}`
+                  : null
 
                 return (
-                <tr key={balance.id} className="odd:bg-muted/20">
-                  <td className="px-4 py-2">
-                    <div className="font-medium text-foreground">{balance.warehouse.name}</div>
-                  </td>
-                    <td className="px-4 py-2">
-                      <div className="font-medium text-foreground">{balance.sku.skuCode}</div>
-                      <div className="text-xs text-muted-foreground">{balance.sku.description}</div>
+                  <tr key={balance.id} className="odd:bg-muted/20">
+                    <td className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
+                      {balance.warehouse.name}
                     </td>
-                    <td className="px-4 py-2 text-xs text-muted-foreground">{balance.batchLot}</td>
-                    <td className="px-4 py-2 text-right font-semibold text-indigo-700">
+                    <td className="px-3 py-2 text-sm font-semibold text-foreground whitespace-nowrap">
+                      {balance.sku.skuCode}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-muted-foreground">
+                      {balance.sku.description || '—'}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground uppercase whitespace-nowrap">
+                      {balance.batchLot}
+                    </td>
+                    <td className="px-3 py-2 text-right text-sm font-semibold text-indigo-700 whitespace-nowrap">
                       {balance.currentCartons.toLocaleString()}
                     </td>
-                    <td className="px-4 py-2 text-right">{balance.currentPallets.toLocaleString()}</td>
-                    <td className="px-4 py-2 text-right">{balance.currentUnits.toLocaleString()}</td>
-                    <td className="px-4 py-2">{lastTransactionDisplay}</td>
+                    <td className="px-3 py-2 text-right text-sm whitespace-nowrap">
+                      {balance.currentPallets.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2 text-right text-sm whitespace-nowrap">
+                      {balance.currentUnits.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2">
+                      {transactionHref ? (
+                        <Link
+                          href={transactionHref}
+                          prefetch={false}
+                          className={cn(
+                            'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold transition-colors hover:brightness-105',
+                            transactionTypeClass(balance.lastTransactionType)
+                          )}
+                        >
+                          {transactionTypeLabel ?? 'View'}
+                        </Link>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
+                      {lastTransactionDisplay ?? '—'}
+                    </td>
                   </tr>
                 )
               })}

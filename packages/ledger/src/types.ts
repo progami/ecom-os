@@ -2,6 +2,7 @@ export type LedgerGroupBy = 'week' | 'month'
 
 export interface InventoryTransactionRecord {
   id?: string
+  transactionId?: string
   transactionDate: Date
   transactionType: string
   warehouseCode: string
@@ -38,6 +39,8 @@ export interface InventoryBalanceSnapshot {
   storageCartonsPerPallet: number | null
   shippingCartonsPerPallet: number | null
   lastTransactionDate: Date | null
+  lastTransactionId?: string | null
+  lastTransactionType?: string | null
   firstReceive?: InventoryReceiveMetadata
 }
 

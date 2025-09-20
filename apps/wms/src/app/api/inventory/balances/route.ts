@@ -124,6 +124,8 @@ export async function GET(req: NextRequest) {
         storageCartonsPerPallet: balance.storageCartonsPerPallet ?? undefined,
         shippingCartonsPerPallet: balance.shippingCartonsPerPallet ?? undefined,
         lastTransactionDate: balance.lastTransactionDate,
+        lastTransactionId: balance.lastTransactionId ?? undefined,
+        lastTransactionType: balance.lastTransactionType ?? undefined,
         receiveTransaction
       }
     })

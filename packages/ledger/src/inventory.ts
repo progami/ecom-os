@@ -17,6 +17,8 @@ interface BalanceAccumulator extends Omit<InventoryBalanceSnapshot, 'currentUnit
   storageCartonsPerPallet: number | null
   shippingCartonsPerPallet: number | null
   firstReceive?: InventoryBalanceSnapshot['firstReceive']
+  lastTransactionId: string | null
+  lastTransactionType: string | null
 }
 
 export function aggregateInventoryTransactions(
@@ -44,6 +46,8 @@ export function aggregateInventoryTransactions(
         storageCartonsPerPallet: transaction.storageCartonsPerPallet ?? null,
         shippingCartonsPerPallet: transaction.shippingCartonsPerPallet ?? null,
         lastTransactionDate: null,
+        lastTransactionId: null,
+        lastTransactionType: null,
         firstReceive: undefined
       }
       balances.set(key, current)
@@ -57,8 +61,13 @@ export function aggregateInventoryTransactions(
     current.currentCartons += (transaction.cartonsIn || 0) - (transaction.cartonsOut || 0)
     current.currentUnits = calculateUnits(current.currentCartons, current.unitsPerCarton)
 
-    if (!current.lastTransactionDate || current.lastTransactionDate < transaction.transactionDate) {
+    const transactionTime = transaction.transactionDate.getTime()
+    const lastTime = current.lastTransactionDate?.getTime() ?? 0
+
+    if (transactionTime >= lastTime) {
       current.lastTransactionDate = transaction.transactionDate
+      current.lastTransactionId = transaction.id ?? transaction.transactionId ?? null
+      current.lastTransactionType = transaction.transactionType ?? null
     }
 
     if (transaction.storageCartonsPerPallet && transaction.storageCartonsPerPallet > 0) {

@@ -1,13 +1,9 @@
 import { useState } from 'react'
-import { Calendar, Download, RefreshCw } from '@/lib/lucide-icons'
+import { Download, RefreshCw } from '@/lib/lucide-icons'
 import { toast } from 'react-hot-toast'
+import { cn } from '@/lib/utils'
 
 interface StorageLedgerHeaderProps {
-  dateRange: {
-    start: string
-    end: string
-  }
-  onDateRangeChange: (range: { start: string; end: string }) => void
   aggregationView: 'weekly' | 'monthly'
   onAggregationChange: (view: 'weekly' | 'monthly') => void
   onExport: () => void
@@ -15,12 +11,10 @@ interface StorageLedgerHeaderProps {
 }
 
 export function StorageLedgerHeader({
-  dateRange,
-  onDateRangeChange,
   aggregationView,
   onAggregationChange,
   onExport,
-  onRefresh
+  onRefresh,
 }: StorageLedgerHeaderProps) {
   const [isCalculating, setIsCalculating] = useState(false)
 
@@ -47,13 +41,12 @@ export function StorageLedgerHeader({
       const result = await response.json()
       toast.success(`Weekly sync completed: ${result.processed} entries processed, ${result.costCalculated} costs calculated`)
       
-      // Refresh the data
       if (onRefresh) {
         onRefresh()
       }
     } catch (error) {
-      console.error('Weekly sync error:', error)
-      toast.error(`Weekly sync failed: ${error.message}`)
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      toast.error(`Weekly sync failed: ${message}`)
     } finally {
       setIsCalculating(false)
     }
@@ -61,65 +54,51 @@ export function StorageLedgerHeader({
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-gray-500" />
-          <input
-            type="date"
-            value={dateRange.start}
-            onChange={(e) => onDateRangeChange({ ...dateRange, start: e.target.value })}
-            className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <span className="text-gray-500">to</span>
-          <input
-            type="date"
-            value={dateRange.end}
-            onChange={(e) => onDateRangeChange({ ...dateRange, end: e.target.value })}
-            className="px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        
-        <div className="flex items-center gap-2 border rounded-lg">
+      <div className="flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2 rounded-lg border border-muted">
           <button
             onClick={() => onAggregationChange('weekly')}
-            className={`px-3 py-2 ${
-              aggregationView === 'weekly' 
-                ? 'bg-blue-500 text-white' 
-                : 'text-gray-600 hover:bg-gray-100'
-            } rounded-l-lg transition-colors`}
+            className={cn(
+              'px-3 py-2 rounded-l-lg transition-colors',
+              aggregationView === 'weekly'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-muted/30'
+            )}
           >
             Weekly
           </button>
           <button
             onClick={() => onAggregationChange('monthly')}
-            className={`px-3 py-2 ${
-              aggregationView === 'monthly' 
-                ? 'bg-blue-500 text-white' 
-                : 'text-gray-600 hover:bg-gray-100'
-            } rounded-r-lg transition-colors`}
+            className={cn(
+              'px-3 py-2 rounded-r-lg transition-colors',
+              aggregationView === 'monthly'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground hover:bg-muted/30'
+            )}
           >
             Monthly
           </button>
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <button
           onClick={handleWeeklySync}
           disabled={isCalculating}
-          className={`flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-colors ${
-            isCalculating 
-              ? 'bg-gray-400 cursor-not-allowed' 
-              : 'bg-blue-600 hover:bg-blue-700'
-          }`}
+          className={cn(
+            'flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-white',
+            isCalculating
+              ? 'bg-muted text-muted-foreground cursor-not-allowed'
+              : 'bg-primary hover:bg-primary/90'
+          )}
         >
-          <RefreshCw className={`h-4 w-4 ${isCalculating ? 'animate-spin' : ''}`} />
-          {isCalculating ? 'Syncing...' : 'Weekly Sync'}
+          <RefreshCw className={cn('h-4 w-4', isCalculating && 'animate-spin')} />
+          {isCalculating ? 'Syncing…' : 'Weekly Sync'}
         </button>
         
         <button
           onClick={onExport}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white transition-colors hover:bg-emerald-700"
         >
           <Download className="h-4 w-4" />
           Export
