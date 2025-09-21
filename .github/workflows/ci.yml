@@ -41,6 +41,7 @@ jobs:
           CENTRAL_AUTH_SECRET: test-central-secret
           NEXTAUTH_URL: http://localhost:3000
           CENTRAL_AUTH_URL: https://example.com
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
 
   auto-merge-dev:
     needs: build-test
