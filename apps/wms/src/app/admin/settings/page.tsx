@@ -24,6 +24,9 @@ export default function AdminSettingsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [loading, setLoading] = useState<string | null>(null)
+  const version = process.env.NEXT_PUBLIC_VERSION || '0.7.0'
+  const releaseTag = `wms-${version}`
+  const releaseUrl = `https://github.com/progami/ecom-os/releases/tag/${releaseTag}`
 
   useEffect(() => {
     if (status === 'authenticated' && (!session || session.user.role !== 'admin')) {
@@ -174,8 +177,11 @@ export default function AdminSettingsPage() {
             <InfoItem 
               label="Version" 
               value={
-                <span 
-                  className="cursor-help"
+                <a
+                  href={releaseUrl}
+                  className="cursor-help underline hover:text-blue-600 dark:hover:text-blue-400"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   title={`Last deployed: ${new Date(process.env.NEXT_PUBLIC_BUILD_TIME || new Date()).toLocaleDateString('en-US', { 
                     year: 'numeric', 
                     month: 'short', 
@@ -184,8 +190,8 @@ export default function AdminSettingsPage() {
                     minute: '2-digit'
                   })}`}
                 >
-                  v{process.env.NEXT_PUBLIC_VERSION || '0.3.2'}
-                </span>
+                  v{version}
+                </a>
               } 
             />
             <InfoItem label="Database" value="PostgreSQL 15.4" />
