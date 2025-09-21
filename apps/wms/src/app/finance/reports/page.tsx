@@ -3,6 +3,7 @@ import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { FileText, Download, DollarSign, TrendingUp, Package2, Calendar } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { Button } from '@/components/ui/button'
 
 export default async function FinanceReportsPage() {
   const session = await getServerSession(authOptions)
@@ -75,10 +76,10 @@ export default async function FinanceReportsPage() {
               Generate and download financial reports
             </p>
           </div>
-          <button className="action-button">
-            <Calendar className="h-4 w-4 mr-2" />
+          <Button className="gap-2">
+            <Calendar className="h-4 w-4" />
             Schedule Reports
-          </button>
+          </Button>
         </div>
 
         {/* Featured Reports */}
@@ -102,10 +103,10 @@ export default async function FinanceReportsPage() {
                   <p className="text-xs text-gray-500">
                     Last generated: {report.lastGenerated}
                   </p>
-                  <button className="inline-flex items-center text-sm text-primary hover:text-primary/80 font-medium">
-                    <Download className="h-4 w-4 mr-1" />
+                  <Button variant="ghost" size="sm" className="gap-1 text-primary hover:text-primary">
+                    <Download className="h-4 w-4" />
                     Generate
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -135,10 +136,10 @@ export default async function FinanceReportsPage() {
                   <p className="text-xs text-gray-500">
                     {report.lastGenerated}
                   </p>
-                  <button className="inline-flex items-center text-sm text-primary hover:text-primary/80 font-medium">
-                    <Download className="h-4 w-4 mr-1" />
+                  <Button variant="ghost" size="sm" className="gap-1 text-primary hover:text-primary">
+                    <Download className="h-4 w-4" />
                     Export
-                  </button>
+                  </Button>
                 </div>
               </div>
             ))}
@@ -152,9 +153,7 @@ export default async function FinanceReportsPage() {
               <h3 className="text-lg font-semibold">Custom Report Builder</h3>
               <p className="text-sm text-gray-600">Create custom reports with specific filters</p>
             </div>
-            <button className="action-button">
-              Create Custom Report
-            </button>
+            <Button>Create Custom Report</Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-1 mt-2">
             <div className="bg-white p-2 rounded-lg text-center">

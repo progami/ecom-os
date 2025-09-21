@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Package } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
 export default function NewSkuPage() {
@@ -114,12 +115,11 @@ export default function NewSkuPage() {
     <DashboardLayout>
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
-          <Link
-            href="/config/products"
-            className="p-2 hover:bg-gray-100 rounded-md"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+          <Button asChild variant="ghost" size="icon">
+            <Link href="/config/products">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
           <div>
             <h1 className="text-3xl font-bold">Create New SKU</h1>
             <p className="text-muted-foreground">
@@ -389,29 +389,22 @@ export default function NewSkuPage() {
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-4">
-            <Link
-              href="/config/products"
-              className="secondary-button"
-            >
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              disabled={loading}
-              className="action-button"
-            >
+            <Button asChild variant="ghost">
+              <Link href="/config/products">Cancel</Link>
+            </Button>
+            <Button type="submit" disabled={loading} className="gap-2">
               {loading ? (
                 <>
-                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
                   Creating...
                 </>
               ) : (
                 <>
-                  <Save className="h-4 w-4 mr-2" />
+                  <Save className="h-4 w-4" />
                   Create SKU
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </form>
 

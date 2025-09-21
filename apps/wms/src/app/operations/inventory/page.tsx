@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
+import { Button } from '@/components/ui/button'
 import {
   Search,
   Building,
@@ -222,13 +223,13 @@ function InventoryPage() {
   const toggleMultiValueFilter = useCallback(
     (key: 'warehouse' | 'sku' | 'batch', value: string) => {
       setColumnFilters(prev => {
-        const current = prev[key]
+        const current = prev[key] as string[]
         const nextValues = current.includes(value)
           ? current.filter(item => item !== value)
           : [...current, value]
         return {
           ...prev,
-          [key]: nextValues,
+          [key]: nextValues as ColumnFiltersState[typeof key],
         }
       })
     },
@@ -238,10 +239,46 @@ function InventoryPage() {
   const clearColumnFilter = useCallback((keys: ColumnFilterKey[]) => {
     setColumnFilters(prev => {
       const defaults = createColumnFilterDefaults()
-      const next: ColumnFiltersState = { ...prev }
-      keys.forEach(key => {
-        next[key] = defaults[key]
-      })
+      const next = { ...prev }
+      for (const key of keys) {
+        switch (key) {
+          case 'warehouse':
+            next.warehouse = defaults.warehouse
+            break
+          case 'sku':
+            next.sku = defaults.sku
+            break
+          case 'skuDescription':
+            next.skuDescription = defaults.skuDescription
+            break
+          case 'batch':
+            next.batch = defaults.batch
+            break
+          case 'lastTransaction':
+            next.lastTransaction = defaults.lastTransaction
+            break
+          case 'cartonsMin':
+            next.cartonsMin = defaults.cartonsMin
+            break
+          case 'cartonsMax':
+            next.cartonsMax = defaults.cartonsMax
+            break
+          case 'palletsMin':
+            next.palletsMin = defaults.palletsMin
+            break
+          case 'palletsMax':
+            next.palletsMax = defaults.palletsMax
+            break
+          case 'unitsMin':
+            next.unitsMin = defaults.unitsMin
+            break
+          case 'unitsMax':
+            next.unitsMax = defaults.unitsMax
+            break
+          default:
+            break
+        }
+      }
       return next
     })
   }, [])
@@ -495,22 +532,18 @@ function InventoryPage() {
           textColor="text-indigo-800"
           actions={
             <div className="flex gap-2">
-              <Link
-                href="/operations/receive"
-                className="primary-button"
-                prefetch={false}
-              >
-                <Package className="h-4 w-4 mr-2" />
-                Receive
-              </Link>
-              <Link
-                href="/operations/ship"
-                className="secondary-button"
-                prefetch={false}
-              >
-                <Truck className="h-4 w-4 mr-2" />
-                Ship
-              </Link>
+              <Button asChild className="gap-2">
+                <Link href="/operations/receive" prefetch={false}>
+                  <Package className="h-4 w-4" />
+                  Receive
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="gap-2">
+                <Link href="/operations/ship" prefetch={false}>
+                  <Truck className="h-4 w-4" />
+                  Ship
+                </Link>
+              </Button>
             </div>
           }
         />
@@ -682,7 +715,46 @@ function InventoryPage() {
                     </Popover>
                   </div>
                 </th>
-                <th className="px-3 py-2 text-left font-semibold">Description</th>
+                <th className="px-3 py-2 text-left font-semibold">
+                  <div className="flex items-center gap-1">
+                    <span>Description</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter descriptions"
+                          className={cn(
+                            'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            isFilterActive(['skuDescription'])
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-3.5 w-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-64 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Description filter</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => clearColumnFilter(['skuDescription'])}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={columnFilters.skuDescription}
+                          onChange={(event) => updateColumnFilter('skuDescription', event.target.value)}
+                          placeholder="Search description"
+                          className={baseFilterInputClass}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
                 <th className="px-3 py-2 text-left font-semibold">
                   <div className="flex items-center justify-between gap-1">
                     <button
@@ -820,23 +892,6 @@ function InventoryPage() {
                     </Popover>
                   </div>
                 </th>
-              </tr>
-              <tr className="bg-white text-xs text-foreground">
-                <th className="px-3 py-2" />
-                <th className="px-3 py-2" />
-                <th className="px-3 py-2">
-                  <input
-                    type="text"
-                    value={columnFilters.skuDescription}
-                    onChange={(event) => updateColumnFilter('skuDescription', event.target.value)}
-                    placeholder="Search description"
-                    className={baseFilterInputClass}
-                  />
-                </th>
-                <th className="px-3 py-2" />
-                <th className="px-3 py-2" colSpan={4} />
-                <th className="px-3 py-2" />
-                <th className="px-3 py-2" />
               </tr>
             </thead>
 

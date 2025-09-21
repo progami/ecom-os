@@ -6,7 +6,20 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Filter } from '@/lib/lucide-icons'
 import { cn } from '@/lib/utils'
 import type { StorageEntry } from '@/hooks/useStorageLedger'
-import type { StorageLedgerColumnFilters } from '../storage-ledger-tab'
+export interface StorageLedgerColumnFilters {
+  warehouseCodes: string[]
+  skuCodes: string[]
+  weekEnding: string
+  description: string
+  batch: string
+  status: Array<'CALCULATED' | 'PENDING'>
+  cartonsMin: string
+  cartonsMax: string
+  rateMin: string
+  rateMax: string
+  totalCostMin: string
+  totalCostMax: string
+}
 
 interface StorageLedgerTableProps {
   entries: StorageEntry[]

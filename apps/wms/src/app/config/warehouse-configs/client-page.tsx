@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Building, Package2, Settings, AlertCircle, Edit, Plus } from '@/lib/lucide-icons'
 import { PageHeader } from '@/components/ui/page-header'
 import { ImportButton } from '@/components/ui/import-button'
+import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 
 export interface WarehouseConfig {
@@ -89,13 +90,12 @@ export default function WarehouseConfigsClientPage({
               entityName="warehouseSkuConfigs" 
               onImportComplete={handleImportComplete}
             />
-            <Link
-              href="/config/warehouse-configs/new"
-              className="action-button"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Configuration
-            </Link>
+            <Button asChild className="gap-2">
+              <Link href="/config/warehouse-configs/new">
+                <Plus className="h-4 w-4" />
+                Add Configuration
+              </Link>
+            </Button>
           </div>
         }
       />
@@ -275,13 +275,12 @@ export default function WarehouseConfigsClientPage({
             Get started by creating your first warehouse SKU configuration.
           </p>
           <div className="mt-6">
-            <Link
-              href="/config/warehouse-configs/new"
-              className="action-button"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Configuration
-            </Link>
+            <Button asChild className="gap-2">
+              <Link href="/config/warehouse-configs/new">
+                <Plus className="h-4 w-4" />
+                Add Configuration
+              </Link>
+            </Button>
           </div>
         </div>
       )}

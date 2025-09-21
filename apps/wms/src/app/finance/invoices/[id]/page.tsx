@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Download, Edit, Trash2, AlertCircle, CheckCircle, XCircle, Clock, DollarSign } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
 interface InvoiceDetail {
@@ -288,13 +289,12 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link
-              href="/finance/invoices"
-              className="p-2 hover:bg-gray-100 rounded-md"
-            >
+        <div className="flex items-center gap-4">
+          <Button asChild variant="ghost" size="icon">
+            <Link href="/finance/invoices">
               <ArrowLeft className="h-5 w-5" />
             </Link>
+          </Button>
             <div>
               <h1 className="text-3xl font-bold">Invoice {invoice.invoiceNumber}</h1>
               <p className="text-muted-foreground">
@@ -302,59 +302,43 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleExport}
-              className="secondary-button"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </button>
-            {invoice.status === 'reconciled' && (
-              <>
-                <button
-                  onClick={handleAcceptInvoice}
-                  className="action-button"
-                >
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Accept & Pay
-                </button>
-                <button
-                  onClick={handleDisputeInvoice}
-                  className="secondary-button"
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Dispute
-                </button>
-              </>
-            )}
-            {invoice.status === 'pending' && (
-              <button
-                onClick={handleDisputeInvoice}
-                className="secondary-button"
-              >
-                <AlertCircle className="h-4 w-4 mr-2" />
+        <div className="flex items-center gap-2">
+          <Button onClick={handleExport} variant="outline" className="gap-2">
+            <Download className="h-4 w-4" />
+            Export
+          </Button>
+          {invoice.status === 'reconciled' && (
+            <>
+              <Button onClick={handleAcceptInvoice} className="gap-2">
+                <CheckCircle className="h-4 w-4" />
+                Accept & Pay
+              </Button>
+              <Button onClick={handleDisputeInvoice} variant="ghost" className="gap-2 text-red-600 hover:text-red-700">
+                <XCircle className="h-4 w-4" />
                 Dispute
-              </button>
-            )}
-            {invoice.status !== 'paid' && (
-              <>
-                <Link
-                  href={`/finance/invoices/${id}/edit`}
-                  className="secondary-button"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
+              </Button>
+            </>
+          )}
+          {invoice.status === 'pending' && (
+            <Button onClick={handleDisputeInvoice} variant="ghost" className="gap-2 text-red-600 hover:text-red-700">
+              <AlertCircle className="h-4 w-4" />
+              Dispute
+            </Button>
+          )}
+          {invoice.status !== 'paid' && (
+            <>
+              <Button asChild variant="outline" className="gap-2">
+                <Link href={`/finance/invoices/${id}/edit`}>
+                  <Edit className="h-4 w-4" />
                   Edit
                 </Link>
-                <button
-                  onClick={handleDelete}
-                  className="text-red-600 hover:text-red-700 px-4 py-2"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </>
-            )}
-          </div>
+              </Button>
+              <Button onClick={handleDelete} variant="destructive" size="icon">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+        </div>
         </div>
 
         {/* Status and Summary Cards */}
@@ -648,12 +632,11 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                     </div>
 
                     <div className="flex justify-end mt-4">
-                      <Link
-                        href={`/finance/reconciliation?invoiceId=${invoice.id}`}
-                        className="action-button"
-                      >
-                        Manage Reconciliation
-                      </Link>
+                      <Button asChild className="gap-2">
+                        <Link href={`/finance/reconciliation?invoiceId=${invoice.id}`}>
+                          Manage Reconciliation
+                        </Link>
+                      </Button>
                     </div>
                   </>
                 )}

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save, Loader2 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
 interface Warehouse {
@@ -175,12 +176,11 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
     <DashboardLayout>
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
-          <Link
-            href="/config/warehouses"
-            className="p-2 hover:bg-gray-100 rounded-md"
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
+          <Button asChild variant="ghost" size="icon">
+            <Link href="/config/warehouses">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+          </Button>
           <div>
             <h1 className="text-3xl font-bold">Edit Warehouse</h1>
             <p className="text-muted-foreground">
@@ -342,29 +342,22 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
           </div>
 
           <div className="flex items-center justify-end gap-4 mt-6 pt-6 border-t">
-            <Link
-              href="/admin/settings/warehouses"
-              className="secondary-button"
-            >
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              disabled={saving}
-              className="action-button"
-            >
+            <Button asChild variant="ghost">
+              <Link href="/config/warehouses">Cancel</Link>
+            </Button>
+            <Button type="submit" disabled={saving} className="gap-2">
               {saving ? (
                 <>
-                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
                   Saving...
                 </>
               ) : (
                 <>
-                  <Save className="h-4 w-4 mr-2" />
+                  <Save className="h-4 w-4" />
                   Save Changes
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </form>
 
