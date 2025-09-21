@@ -15,6 +15,7 @@ import {
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Button } from '@/components/ui/button'
 import { toast } from 'react-hot-toast'
 
 interface CostMapping {
@@ -228,13 +229,10 @@ export default function InvoiceTemplatesPage() {
           borderColor="border-purple-200"
           textColor="text-purple-800"
           actions={
-            <button
-              onClick={() => handleOpenModal()}
-              className="primary-button"
-            >
-              <Plus className="h-4 w-4 mr-2" />
+            <Button onClick={() => handleOpenModal()} className="gap-2">
+              <Plus className="h-4 w-4" />
               New Template
-            </button>
+            </Button>
           }
         />
 
@@ -537,19 +535,16 @@ export default function InvoiceTemplatesPage() {
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4">
-                  <button
+                  <Button
                     onClick={() => setShowModal(false)}
-                    className="secondary-button"
+                    variant="ghost"
                   >
                     Cancel
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    className="primary-button"
-                  >
-                    <Save className="h-4 w-4 mr-2" />
+                  </Button>
+                  <Button onClick={handleSave} className="gap-2">
+                    <Save className="h-4 w-4" />
                     {editingTemplate ? 'Update' : 'Create'} Template
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>

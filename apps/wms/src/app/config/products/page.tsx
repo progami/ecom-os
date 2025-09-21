@@ -1,16 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Package2, Plus, Edit, Trash2, Search, Loader2 } from '@/lib/lucide-icons'
+import { Package2, Plus, Edit, Trash2, Search } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ImportButton } from '@/components/ui/import-button'
+import { Button } from '@/components/ui/button'
+import { DataTable, Column } from '@/components/common/data-table'
 
-interface SKU {
+interface SKU extends Record<string, unknown> {
   id: string
   skuCode: string
   description: string
@@ -39,13 +41,13 @@ export default function AdminSkusPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [skuToDelete, setSkuToDelete] = useState<SKU | null>(null)
 
-  const fetchSkus = async () => {
+  const fetchSkus = useCallback(async () => {
     setLoading(true)
     try {
       const params = new URLSearchParams()
       if (searchTerm) params.append('search', searchTerm)
       if (showInactive) params.append('includeInactive', 'true')
-      
+
       const response = await fetch(`/api/skus?${params}`)
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Failed to fetch SKUs' }))
@@ -60,19 +62,18 @@ export default function AdminSkusPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [searchTerm, showInactive])
 
   useEffect(() => {
     fetchSkus()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm, showInactive])
+  }, [fetchSkus])
 
-  const handleDeleteClick = (sku: SKU) => {
+  const handleDeleteClick = useCallback((sku: SKU) => {
     setSkuToDelete(sku)
     setDeleteConfirmOpen(true)
-  }
+  }, [])
 
-  const handleDeleteConfirm = async () => {
+  const handleDeleteConfirm = useCallback(async () => {
     if (!skuToDelete) return
 
     try {
@@ -89,9 +90,9 @@ export default function AdminSkusPage() {
       // console.error('Error deleting SKU:', error)
       alert('Failed to delete SKU')
     }
-  }
+  }, [fetchSkus, skuToDelete])
 
-  const handleToggleActive = async (sku: SKU) => {
+  const handleToggleActive = useCallback(async (sku: SKU) => {
     try {
       const response = await fetch(`/api/skus?id=${sku.id}`, {
         method: 'PATCH',
@@ -106,13 +107,13 @@ export default function AdminSkusPage() {
       // console.error('Error updating SKU:', error)
       alert('Failed to update SKU')
     }
-  }
+  }, [fetchSkus])
 
-  const handleEditSKU = (skuId: string) => {
+  const handleEditSKU = useCallback((skuId: string) => {
     router.push(`/config/products/${skuId}/edit`)
-  }
+  }, [router])
 
-  const filteredSkus = skus.filter(sku => {
+  const filteredSkus = useMemo(() => skus.filter(sku => {
     if (!showInactive && !sku.isActive) return false
     if (!searchTerm) return true
     
@@ -122,7 +123,105 @@ export default function AdminSkusPage() {
       sku.description.toLowerCase().includes(search) ||
       (sku.asin && sku.asin.toLowerCase().includes(search))
     )
-  })
+  }), [skus, showInactive, searchTerm])
+
+  const columns: Column<SKU>[] = useMemo(() => [
+    {
+      key: 'skuCode',
+      label: 'SKU Code',
+      sortable: true,
+      render: (value) => (
+        <div className="font-medium text-foreground">{value as string}</div>
+      )
+    },
+    {
+      key: 'description',
+      label: 'Description',
+      sortable: true,
+      render: (value) => <span className="text-sm text-foreground">{value as string}</span>
+    },
+    {
+      key: 'asin',
+      label: 'ASIN',
+      sortable: true,
+      render: (value) => <span className="text-sm text-muted-foreground">{(value as string) || '-'}</span>
+    },
+    {
+      key: 'unitsPerCarton',
+      label: 'Units/Carton',
+      sortable: true,
+      className: 'text-right',
+      render: (value) => <span className="font-medium">{value as number}</span>
+    },
+    {
+      key: 'unitDimensionsCm',
+      label: 'Unit Dimensions (L×W×H)',
+      render: (value) => <span className="text-sm text-foreground">{(value as string) || '-'}</span>
+    },
+    {
+      key: 'cartonDimensionsCm',
+      label: 'Carton Dimensions (L×W×H)',
+      render: (value) => <span className="text-sm text-foreground">{(value as string) || '-'}</span>
+    },
+    {
+      key: 'cartonWeightKg',
+      label: 'Carton Weight',
+      className: 'text-right',
+      render: (value) => <span className="text-sm text-foreground">{value ? `${value} kg` : '-'}</span>
+    },
+    {
+      key: 'packSize',
+      label: 'Pack Size',
+      className: 'text-center',
+      render: (value) => <span className="text-sm text-foreground">{value as number}</span>
+    },
+    {
+      key: 'isActive',
+      label: 'Status',
+      className: 'text-center',
+      render: (value) => (
+        <span className={(value as boolean) ? 'badge-success' : 'badge-secondary'}>
+          {(value as boolean) ? 'Active' : 'Inactive'}
+        </span>
+      )
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      className: 'text-right w-36',
+      render: (_, row) => (
+        <div className="flex items-center justify-end gap-2">
+          <Button
+            onClick={() => handleEditSKU(row.id)}
+            variant="outline"
+            size="icon"
+            className="h-9 w-9"
+            title="Edit SKU"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button
+            onClick={() => handleDeleteClick(row)}
+            variant="destructive"
+            size="icon"
+            className="h-9 w-9"
+            title="Delete SKU"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+          <Button
+            onClick={() => handleToggleActive(row)}
+            variant="ghost"
+            size="sm"
+            className="text-xs"
+            title={row.isActive ? 'Deactivate' : 'Activate'}
+          >
+            {row.isActive ? 'Deactivate' : 'Activate'}
+          </Button>
+        </div>
+      )
+    }
+  ], [handleDeleteClick, handleEditSKU, handleToggleActive])
 
   return (
     <DashboardLayout>
@@ -137,55 +236,46 @@ export default function AdminSkusPage() {
           borderColor="border-indigo-200"
           textColor="text-indigo-800"
           actions={
-            <div className="flex gap-2">
-              <ImportButton 
-                entityName="skus" 
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative w-64">
+                <label htmlFor="products-search" className="sr-only">
+                  Search products by SKU code, description, or ASIN
+                </label>
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                <input
+                  id="products-search"
+                  name="search"
+                  type="search"
+                  placeholder="Search SKUs..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full rounded-md border border-border/60 bg-white py-2 pl-9 pr-3 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  aria-label="Search products by SKU code, description, or ASIN"
+                />
+              </div>
+              <ImportButton
+                entityName="skus"
                 onImportComplete={fetchSkus}
               />
-              <Link 
-                href="/config/products/new"
-                className="action-button"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add SKU
-              </Link>
+              <Button asChild className="gap-2">
+                <Link href="/config/products/new">
+                  <Plus className="h-4 w-4" />
+                  Add SKU
+                </Link>
+              </Button>
             </div>
           }
         />
 
-        {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex-1">
-            <div className="relative">
-              <label htmlFor="products-search" className="sr-only">
-                Search products by SKU code, description, or ASIN
-              </label>
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
-              <input
-                id="products-search"
-                name="search"
-                type="search"
-                placeholder="Search by SKU code, description, or ASIN..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                aria-label="Search products by SKU code, description, or ASIN"
-                aria-describedby="products-search-help"
-                aria-controls="products-table"
-              />
-              <span id="products-search-help" className="sr-only">
-                Filter the products table below by entering search terms
-              </span>
-            </div>
-          </div>
-          <label className="flex items-center">
+        <div className="flex items-center justify-end">
+          <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
             <input
               type="checkbox"
               checked={showInactive}
               onChange={(e) => setShowInactive(e.target.checked)}
-              className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+              className="h-4 w-4 rounded border-gray-300"
             />
-            <span className="ml-2 text-sm text-gray-700">Show inactive</span>
+            Show inactive
           </label>
         </div>
 
@@ -194,132 +284,39 @@ export default function AdminSkusPage() {
           <div className="bg-gray-50 px-6 py-3 border-b">
             <h3 className="text-lg font-semibold">Products (SKUs)</h3>
             <p className="text-sm text-gray-600 mt-1">
-              Showing {skus.length} products
+              Showing {filteredSkus.length} products
             </p>
           </div>
-          <div className="overflow-x-auto" >
-            <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  SKU Code
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  ASIN
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Units/Carton
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Unit Dimensions (L×W×H)
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Carton Dimensions (L×W×H)
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Carton Weight
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Pack Size
-                </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="relative px-6 py-3">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-400" />
-                    <p className="mt-2 text-gray-500">Loading SKUs...</p>
-                  </td>
-                </tr>
-              ) : filteredSkus.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="px-6 py-12">
-                    <EmptyState
-                      icon={Package2}
-                      title={searchTerm || showInactive ? "No SKUs match your criteria" : "No SKUs defined yet"}
-                      description={searchTerm || showInactive 
-                        ? "Try adjusting your search or filters to find what you're looking for."
-                        : "Start by adding your first SKU to begin tracking inventory."}
-                      action={!searchTerm && !showInactive ? {
-                        label: "Add First SKU",
-                        onClick: () => router.push('/config/products/new')
-                      } : undefined}
-                    />
-                  </td>
-                </tr>
-              ) : (
-                filteredSkus.map((sku) => (
-                <tr key={sku.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {sku.skuCode}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-900">
-                    {sku.description}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {sku.asin || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                    {sku.unitsPerCarton}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {sku.unitDimensionsCm || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {sku.cartonDimensionsCm || '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                    {sku.cartonWeightKg ? `${sku.cartonWeightKg} kg` : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-center">
-                    {sku.packSize}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className={sku.isActive ? 'badge-success' : 'badge-secondary'}>
-                      {sku.isActive ? 'Active' : 'Inactive'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex items-center justify-end gap-2">
-                      <button 
-                        onClick={() => handleEditSKU(sku.id)}
-                        className="text-primary hover:text-primary/80"
-                        title="Edit SKU"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteClick(sku)}
-                        className="text-red-600 hover:text-red-700"
-                        title="Delete SKU"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                      <button
-                        onClick={() => handleToggleActive(sku)}
-                        className="text-xs text-primary hover:underline"
-                        title={sku.isActive ? 'Deactivate' : 'Activate'}
-                      >
-                        {sku.isActive ? 'Deactivate' : 'Activate'}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-                ))
-              )}
-            </tbody>
-            </table>
-          </div>
+          {loading ? (
+            <div className="py-12">
+              <DataTable
+                data={filteredSkus}
+                columns={columns}
+                loading
+                rowKey="id"
+              />
+            </div>
+          ) : filteredSkus.length === 0 ? (
+            <div className="px-6 py-12">
+              <EmptyState
+                icon={Package2}
+                title={searchTerm || showInactive ? 'No SKUs match your criteria' : 'No SKUs defined yet'}
+                description={searchTerm || showInactive
+                  ? 'Try adjusting your search or filters to find what you\'re looking for.'
+                  : 'Start by adding your first SKU to begin tracking inventory.'}
+                action={!searchTerm && !showInactive ? {
+                  label: 'Add First SKU',
+                  onClick: () => router.push('/config/products/new')
+                } : undefined}
+              />
+            </div>
+          ) : (
+            <DataTable
+              data={filteredSkus}
+              columns={columns}
+              rowKey="id"
+            />
+          )}
         </div>
 
         {/* SKU Summary */}

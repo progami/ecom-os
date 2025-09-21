@@ -26,8 +26,8 @@ const configModules = [
     color: 'bg-purple-100 text-purple-700'
   },
   {
-    title: 'Warehouses',
-    description: 'Configure warehouses',
+    title: 'Warehouse Configs',
+    description: 'Manage warehouses and pricing',
     href: '/config/warehouses',
     icon: Building,
     color: 'bg-green-100 text-green-700'
@@ -35,13 +35,13 @@ const configModules = [
   {
     title: 'Cost Rates',
     description: 'Set up pricing and rates',
-    href: '/config/rates',
+    href: '/config/warehouses?view=rates',
     icon: DollarSign,
     color: 'bg-amber-100 text-amber-700'
   },
   {
-    title: 'Warehouse Configs',
-    description: 'SKU-specific warehouse settings',
+    title: 'SKU Warehouse Settings',
+    description: 'Control SKU-specific warehouse rules',
     href: '/config/warehouse-configs',
     icon: Warehouse,
     color: 'bg-indigo-100 text-indigo-700'

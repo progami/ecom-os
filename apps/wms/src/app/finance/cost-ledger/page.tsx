@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
+import { Button } from '@/components/ui/button'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'react-hot-toast'
 import type { CostLedgerBucketTotals, CostLedgerGroupResult } from '@ecom-os/ledger'
@@ -323,17 +324,16 @@ function CostLedgerPage() {
           borderColor="border-emerald-200"
           textColor="text-emerald-800"
           actions={
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={handleExport}
-                disabled={exporting}
-              >
-                <Download className="h-4 w-4 mr-2" />
-                {exporting ? 'Exporting…' : 'Export'}
-              </button>
-            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={handleExport}
+              disabled={exporting}
+            >
+              <Download className="h-4 w-4" />
+              {exporting ? 'Exporting…' : 'Export'}
+            </Button>
           }
         />
 

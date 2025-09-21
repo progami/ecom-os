@@ -52,10 +52,10 @@ export function QuickStartGuide({ userRole }: QuickStartGuideProps) {
         link: '/config/products'
       },
       {
-        title: 'Define Cost Rates',
-        description: 'Set storage and handling rates for accurate billing',
+        title: 'Review Cost Rates',
+        description: 'Keep pricing current for storage and handling',
         icon: DollarSign,
-        link: '/config/rates'
+        link: '/config/warehouses?view=rates'
       },
     ],
     staff: [

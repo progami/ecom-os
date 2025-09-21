@@ -1,10 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { Download, FileText, Plus, Search, Eye, Check, X, Loader2 } from '@/lib/lucide-icons'
+import { Download, FileText, Plus, Search, Eye, Check, X, Loader2, Filter } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { PageHeader } from '@/components/ui/page-header'
+import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { format } from 'date-fns'
 
 interface Invoice {
   id: string
@@ -58,6 +61,9 @@ export default function FinanceInvoicesPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedWarehouse, setSelectedWarehouse] = useState('')
   const [selectedStatus, setSelectedStatus] = useState('')
+  const [selectedMonth, setSelectedMonth] = useState('')
+  const [selectedYear, setSelectedYear] = useState('')
+  const [showFilters, setShowFilters] = useState(false)
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -85,6 +91,8 @@ export default function FinanceInvoicesPage() {
       if (searchTerm) params.append('search', searchTerm)
       if (selectedWarehouse) params.append('warehouseId', selectedWarehouse)
       if (selectedStatus) params.append('status', selectedStatus)
+      if (selectedMonth) params.append('month', selectedMonth)
+      if (selectedYear) params.append('year', selectedYear)
 
       const response = await fetch(`/api/invoices?${params}`)
       if (!response.ok) throw new Error('Failed to fetch invoices')
@@ -113,7 +121,7 @@ export default function FinanceInvoicesPage() {
     fetchInvoices()
     fetchWarehouses()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.page, searchTerm, selectedWarehouse, selectedStatus])
+  }, [pagination.page, searchTerm, selectedWarehouse, selectedStatus, selectedMonth, selectedYear])
 
   // Handle file upload
   const _handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -224,11 +232,21 @@ export default function FinanceInvoicesPage() {
     }
   }
 
+  const clearFilters = () => {
+    setSelectedWarehouse('')
+    setSelectedStatus('')
+    setSelectedMonth('')
+    setSelectedYear('')
+  }
+
   // Handle export
   const handleExport = async () => {
     try {
       const params = new URLSearchParams({ type: 'invoices' })
       if (selectedWarehouse) params.append('warehouseId', selectedWarehouse)
+      if (selectedStatus) params.append('status', selectedStatus)
+      if (selectedMonth) params.append('month', selectedMonth)
+      if (selectedYear) params.append('year', selectedYear)
       
       const response = await fetch(`/api/export?${params}`)
       if (!response.ok) throw new Error('Export failed')
@@ -282,83 +300,118 @@ export default function FinanceInvoicesPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-2">
-        {/* Page Header with Description */}
-        <div className="bg-white border rounded-lg p-2">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Invoice Management</h1>
-              <p className="text-muted-foreground">
-                Process and manage warehouse invoices
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button 
+      <div className="space-y-4">
+        <PageHeader
+          title="Invoice Management"
+          subtitle="Process and manage warehouse invoices"
+          icon={FileText}
+          iconColor="text-amber-600"
+          bgColor="bg-amber-50"
+          borderColor="border-amber-200"
+          textColor="text-amber-800"
+          actions={
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative w-64">
+                <label htmlFor="invoices-search" className="sr-only">
+                  Search invoices by invoice number, warehouse, or amount
+                </label>
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+                <input
+                  id="invoices-search"
+                  name="search"
+                  type="search"
+                  placeholder="Search invoices..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full rounded-md border border-border/60 bg-white py-2 pl-9 pr-3 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  aria-label="Search invoices by invoice number, warehouse, or amount"
+                />
+              </div>
+              <Button
                 onClick={handleExport}
-                className="secondary-button"
+                variant="outline"
+                className="gap-2"
               >
-                <Download className="h-4 w-4 mr-2" />
+                <Download className="h-4 w-4" />
                 Export
-              </button>
-              <Link 
-                href="/finance/invoices/new"
-                className="action-button"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                New Invoice
-              </Link>
+              </Button>
+              <Button asChild className="gap-2">
+                <Link href="/finance/invoices/new">
+                  <Plus className="h-4 w-4" />
+                  New Invoice
+                </Link>
+              </Button>
             </div>
-          </div>
-        </div>
+          }
+        />
 
-        {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex-1">
-            <div className="relative">
-              <label htmlFor="invoices-search" className="sr-only">
-                Search invoices by invoice number, warehouse, or amount
-              </label>
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" aria-hidden="true" />
-              <input
-                id="invoices-search"
-                name="search"
-                type="search"
-                placeholder="Search by invoice number, warehouse, or amount..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                aria-label="Search invoices by invoice number, warehouse, or amount"
-                aria-describedby="invoices-search-help"
-                aria-controls="invoices-table"
-              />
-              <span id="invoices-search-help" className="sr-only">
-                Filter the invoices table below by entering search terms
-              </span>
-            </div>
+        <div className="flex flex-col gap-2 rounded-lg border bg-white p-4">
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <select 
+              value={selectedWarehouse}
+              onChange={(e) => setSelectedWarehouse(e.target.value)}
+              className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">All Warehouses</option>
+              {warehouses.map(warehouse => (
+                <option key={warehouse.id} value={warehouse.id}>
+                  {warehouse.name}
+                </option>
+              ))}
+            </select>
+            <select 
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="reconciled">Reconciled</option>
+              <option value="disputed">Disputed</option>
+              <option value="paid">Paid</option>
+            </select>
+            <select 
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">All Months</option>
+              {Array.from({ length: 12 }).map((_, index) => (
+                <option key={index} value={index + 1}>
+                  {format(new Date(2023, index, 1), 'MMMM')}
+                </option>
+              ))}
+            </select>
+            <select 
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">All Years</option>
+              {Array.from({ length: 5 }).map((_, index) => (
+                <option key={index} value={2023 - index}>{2023 - index}</option>
+              ))}
+            </select>
           </div>
-          <select 
-            value={selectedWarehouse}
-            onChange={(e) => setSelectedWarehouse(e.target.value)}
-            className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">All Warehouses</option>
-            {warehouses.map(warehouse => (
-              <option key={warehouse.id} value={warehouse.id}>
-                {warehouse.name}
-              </option>
-            ))}
-          </select>
-          <select 
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option value="">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="reconciled">Reconciled</option>
-            <option value="disputed">Disputed</option>
-            <option value="paid">Paid</option>
-          </select>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              onClick={() => setShowFilters(!showFilters)}
+              variant="ghost"
+              className="gap-2 text-sm text-muted-foreground hover:text-primary"
+            >
+              <Filter className="h-4 w-4" />
+              {showFilters ? 'Hide advanced filters' : 'Show advanced filters'}
+            </Button>
+            {(selectedWarehouse || selectedStatus || selectedMonth || selectedYear) && (
+              <Button
+                onClick={clearFilters}
+                variant="link"
+                className="text-sm"
+              >
+                Clear all filters
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Invoice Table */}
@@ -435,46 +488,56 @@ export default function FinanceInvoicesPage() {
                       {invoice.dueDate ? formatDate(invoice.dueDate) : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button 
+                      <Button
                         onClick={() => handleViewInvoice(invoice.id)}
-                        className="text-primary hover:text-primary/80 mr-3"
+                        variant="ghost"
+                        size="sm"
+                        className="px-0 mr-3 gap-1 text-primary hover:text-primary"
                       >
-                        <Eye className="h-4 w-4 inline" />
-                        <span className="ml-1">View</span>
-                      </button>
+                        <Eye className="h-4 w-4" />
+                        View
+                      </Button>
                       {invoice.status === 'pending' && (
                         <>
-                          <button 
+                          <Button
                             onClick={() => handleProcessInvoice(invoice.id)}
-                            className="text-primary hover:text-primary/80 mr-3"
+                            variant="ghost"
+                            size="sm"
+                            className="px-0 mr-3 text-primary hover:text-primary"
                           >
                             Process
-                          </button>
-                          <button 
+                          </Button>
+                          <Button
                             onClick={() => handleDisputeInvoice(invoice.id)}
-                            className="text-red-600 hover:text-red-700"
+                            variant="ghost"
+                            size="sm"
+                            className="px-0 gap-1 text-red-600 hover:text-red-700"
                           >
-                            <X className="h-4 w-4 inline" />
-                            <span className="ml-1">Dispute</span>
-                          </button>
+                            <X className="h-4 w-4" />
+                            Dispute
+                          </Button>
                         </>
                       )}
                       {invoice.status === 'reconciled' && (
                         <>
-                          <button 
+                          <Button
                             onClick={() => handlePayInvoice(invoice.id)}
-                            className="text-green-600 hover:text-green-700 mr-3"
+                            variant="ghost"
+                            size="sm"
+                            className="px-0 mr-3 gap-1 text-green-600 hover:text-green-700"
                           >
-                            <Check className="h-4 w-4 inline" />
-                            <span className="ml-1">Accept</span>
-                          </button>
-                          <button 
+                            <Check className="h-4 w-4" />
+                            Accept
+                          </Button>
+                          <Button
                             onClick={() => handleDisputeInvoice(invoice.id)}
-                            className="text-red-600 hover:text-red-700"
+                            variant="ghost"
+                            size="sm"
+                            className="px-0 gap-1 text-red-600 hover:text-red-700"
                           >
-                            <X className="h-4 w-4 inline" />
-                            <span className="ml-1">Dispute</span>
-                          </button>
+                            <X className="h-4 w-4" />
+                            Dispute
+                          </Button>
                         </>
                       )}
                     </td>

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, Save, Package, Loader2 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
 export default function EditSkuPage() {
@@ -187,12 +188,11 @@ export default function EditSkuPage() {
         {/* Page Header with Description */}
         <div className="bg-white border rounded-lg p-6">
           <div className="flex items-center gap-4 mb-4">
-            <Link
-              href="/config/products"
-              className="p-2 hover:bg-gray-100 rounded-md"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
+            <Button asChild variant="ghost" size="icon">
+              <Link href="/config/products">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
             <div className="flex-1">
               <h1 className="text-3xl font-bold">Edit SKU</h1>
               <p className="text-muted-foreground mt-1">
@@ -471,29 +471,22 @@ export default function EditSkuPage() {
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-4">
-            <Link
-              href="/config/products"
-              className="secondary-button"
-            >
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              disabled={saving}
-              className="action-button"
-            >
+            <Button asChild variant="ghost">
+              <Link href="/config/products">Cancel</Link>
+            </Button>
+            <Button type="submit" disabled={saving} className="gap-2">
               {saving ? (
                 <>
-                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
                   Saving...
                 </>
               ) : (
                 <>
-                  <Save className="h-4 w-4 mr-2" />
+                  <Save className="h-4 w-4" />
                   Save Changes
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </form>
 

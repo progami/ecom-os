@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
+import { Button } from '@/components/ui/button'
 import {
   Search,
   Building,
@@ -222,13 +223,13 @@ function InventoryPage() {
   const toggleMultiValueFilter = useCallback(
     (key: 'warehouse' | 'sku' | 'batch', value: string) => {
       setColumnFilters(prev => {
-        const current = prev[key]
+        const current = prev[key] as string[]
         const nextValues = current.includes(value)
           ? current.filter(item => item !== value)
           : [...current, value]
         return {
           ...prev,
-          [key]: nextValues,
+          [key]: nextValues as ColumnFiltersState[typeof key],
         }
       })
     },
@@ -238,10 +239,46 @@ function InventoryPage() {
   const clearColumnFilter = useCallback((keys: ColumnFilterKey[]) => {
     setColumnFilters(prev => {
       const defaults = createColumnFilterDefaults()
-      const next: ColumnFiltersState = { ...prev }
-      keys.forEach(key => {
-        next[key] = defaults[key]
-      })
+      const next = { ...prev }
+      for (const key of keys) {
+        switch (key) {
+          case 'warehouse':
+            next.warehouse = defaults.warehouse
+            break
+          case 'sku':
+            next.sku = defaults.sku
+            break
+          case 'skuDescription':
+            next.skuDescription = defaults.skuDescription
+            break
+          case 'batch':
+            next.batch = defaults.batch
+            break
+          case 'lastTransaction':
+            next.lastTransaction = defaults.lastTransaction
+            break
+          case 'cartonsMin':
+            next.cartonsMin = defaults.cartonsMin
+            break
+          case 'cartonsMax':
+            next.cartonsMax = defaults.cartonsMax
+            break
+          case 'palletsMin':
+            next.palletsMin = defaults.palletsMin
+            break
+          case 'palletsMax':
+            next.palletsMax = defaults.palletsMax
+            break
+          case 'unitsMin':
+            next.unitsMin = defaults.unitsMin
+            break
+          case 'unitsMax':
+            next.unitsMax = defaults.unitsMax
+            break
+          default:
+            break
+        }
+      }
       return next
     })
   }, [])
@@ -495,22 +532,18 @@ function InventoryPage() {
           textColor="text-indigo-800"
           actions={
             <div className="flex gap-2">
-              <Link
-                href="/operations/receive"
-                className="primary-button"
-                prefetch={false}
-              >
-                <Package className="h-4 w-4 mr-2" />
-                Receive
-              </Link>
-              <Link
-                href="/operations/ship"
-                className="secondary-button"
-                prefetch={false}
-              >
-                <Truck className="h-4 w-4 mr-2" />
-                Ship
-              </Link>
+              <Button asChild className="gap-2">
+                <Link href="/operations/receive" prefetch={false}>
+                  <Package className="h-4 w-4" />
+                  Receive
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="gap-2">
+                <Link href="/operations/ship" prefetch={false}>
+                  <Truck className="h-4 w-4" />
+                  Ship
+                </Link>
+              </Button>
             </div>
           }
         />

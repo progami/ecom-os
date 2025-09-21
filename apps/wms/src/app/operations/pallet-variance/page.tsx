@@ -17,6 +17,7 @@ import {
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
+import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { StatsCard } from '@/components/ui/stats-card'
 import { toast } from 'react-hot-toast'
@@ -172,20 +173,14 @@ export default function PalletVariancePage() {
           textColor="text-orange-800"
           actions={
             <div className="flex items-center gap-2">
-              <button
-                onClick={fetchVariances}
-                className="secondary-button"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
+              <Button onClick={fetchVariances} variant="outline" className="gap-2">
+                <RefreshCw className="h-4 w-4" />
                 Refresh
-              </button>
-              <button
-                onClick={handleExport}
-                className="secondary-button"
-              >
-                <Download className="h-4 w-4 mr-2" />
+              </Button>
+              <Button onClick={handleExport} variant="outline" className="gap-2">
+                <Download className="h-4 w-4" />
                 Export Report
-              </button>
+              </Button>
             </div>
           }
         />
@@ -363,7 +358,7 @@ export default function PalletVariancePage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {variance.status !== 'RESOLVED' && (
-                      <button
+                      <Button
                         onClick={() => {
                           setSelectedVariance(variance)
                           setAdjustmentData({
@@ -373,10 +368,12 @@ export default function PalletVariancePage() {
                           })
                           setShowAdjustModal(true)
                         }}
-                        className="text-primary hover:text-primary-dark"
+                        variant="ghost"
+                        size="icon"
+                        className="text-primary hover:text-primary"
                       >
                         <FileText className="h-4 w-4" />
-                      </button>
+                      </Button>
                     )}
                   </td>
                 </tr>
@@ -478,22 +475,22 @@ export default function PalletVariancePage() {
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
-                <button
+                <Button
                   onClick={() => {
                     setShowAdjustModal(false)
                     setSelectedVariance(null)
                   }}
-                  className="secondary-button"
+                  variant="ghost"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={handleCreateAdjustment}
                   disabled={!adjustmentData.reason || adjustmentData.actualPallets === selectedVariance.systemPallets}
-                  className="primary-button"
+                  className="gap-2"
                 >
                   Create Adjustment
-                </button>
+                </Button>
               </div>
             </div>
           </div>
