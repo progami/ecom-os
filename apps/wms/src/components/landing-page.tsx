@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 // import { signIn } from 'next-auth/react'
 import { toast } from 'react-hot-toast'
 import { 
@@ -18,7 +17,6 @@ import {
 } from '@/lib/lucide-icons'
 
 export default function LandingPage() {
-  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
 
   const handleTryDemo = async () => {

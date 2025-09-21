@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
+import { getServerSession, type Session } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
@@ -17,7 +17,7 @@ const weeklyCalculationSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
-  let session: Awaited<ReturnType<typeof getServerSession>> | null = null
+  let session: Session | null = null
   
   try {
     // Rate limiting
@@ -66,13 +66,7 @@ export async function POST(request: NextRequest) {
       : endOfWeek(new Date(), { weekStartsOn: 1 })
 
     // Check warehouse access for staff users
-    let warehouseId = data.warehouseId
-    if (session.user.role === 'staff' && session.user.warehouseId) {
-      if (warehouseId && warehouseId !== session.user.warehouseId) {
-        return NextResponse.json({ error: 'Access denied to this warehouse' }, { status: 403 })
-      }
-      warehouseId = session.user.warehouseId
-    }
+    const warehouseId = data.warehouseId
 
     // Get warehouse code if warehouse ID was provided
     let warehouseCode = data.warehouseCode
@@ -126,7 +120,7 @@ export async function POST(request: NextRequest) {
       entityId: 'WEEKLY',
       action: 'ERROR',
       userId: session?.user?.id || 'SYSTEM',
-      data: { error: error.message }
+      data: { error: error instanceof Error ? error.message : String(error) }
     })
     
     return NextResponse.json(

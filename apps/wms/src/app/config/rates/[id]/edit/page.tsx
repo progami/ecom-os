@@ -77,11 +77,11 @@ export default function EditRatePage() {
         })
       } else {
         toast.error('Rate not found')
-        router.push('/config/rates')
+        router.push('/config/warehouses?view=rates')
       }
     } catch (_error) {
       toast.error('Failed to load rate')
-      router.push('/config/rates')
+      router.push('/config/warehouses?view=rates')
     } finally {
       setLoading(false)
     }
@@ -150,7 +150,7 @@ export default function EditRatePage() {
 
       if (response.ok) {
         toast.success('Rate updated successfully')
-        router.push('/config/rates')
+        router.push('/config/warehouses?view=rates')
       } else {
         const error = await response.json()
         toast.error(error.error || 'Failed to update rate')
@@ -163,7 +163,7 @@ export default function EditRatePage() {
   }
 
   const handleCancel = () => {
-    router.push('/config/rates')
+    router.push('/config/warehouses?view=rates')
   }
 
   if (loading || !rate) {

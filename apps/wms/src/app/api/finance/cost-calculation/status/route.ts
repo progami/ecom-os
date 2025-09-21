@@ -31,89 +31,102 @@ export async function GET(request: NextRequest) {
     const startDate = startOfDay(subDays(new Date(), days))
     const endDate = endOfDay(new Date())
 
-    // Build where clause
-    const where: Prisma.CostLedgerWhereInput = {
+    let scopedWarehouseId: string | undefined = warehouseId || undefined
+    if (!scopedWarehouseId && session.user.role === 'staff') {
+      scopedWarehouseId = session.user.warehouseId || undefined
+    }
+
+    let warehouseCode: string | undefined
+    if (scopedWarehouseId) {
+      const warehouse = await prisma.warehouse.findUnique({
+        where: { id: scopedWarehouseId },
+        select: { code: true }
+      })
+
+      if (!warehouse) {
+        return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 })
+      }
+
+      warehouseCode = warehouse.code
+    }
+
+    const costWhere: Prisma.CostLedgerWhereInput = {
       createdAt: {
         gte: startDate,
         lte: endDate
-      }
+      },
+      ...(warehouseCode ? { warehouseCode } : {})
     }
 
-    if (warehouseId) {
-      where.warehouseId = warehouseId
-    } else if (session.user.role === 'staff' && session.user.warehouseId) {
-      where.warehouseId = session.user.warehouseId
+    const storageWhere: Prisma.StorageLedgerWhereInput = {
+      createdAt: {
+        gte: startDate,
+        lte: endDate
+      },
+      ...(warehouseCode ? { warehouseCode } : {})
     }
 
-    // Get cost calculation statistics - commented out as calculatedCost model no longer exists
-    // const [
-    //   totalCalculations,
-    //   transactionCosts,
-    //   storageCosts,
-    //   recentCalculations
-    // ] = await Promise.all([
-    //   // Total calculated costs
-    //   prisma.calculatedCost.count({ where }),
-    //   
-    //   // Transaction-based costs (RECEIVE, SHIP, etc.)
-    //   prisma.calculatedCost.groupBy({
-    //     by: ['transactionType'],
-    //     where: {
-    //       ...where,
-    //       transactionType: { not: 'STORAGE' }
-    //     },
-    //     _count: { id: true },
-    //     _sum: { calculatedCost: true }
-    //   }),
-    //   
-    //   // Storage costs
-    //   prisma.calculatedCost.aggregate({
-    //     where: {
-    //       ...where,
-    //       transactionType: 'STORAGE'
-    //     },
-    //     _count: { id: true },
-    //     _sum: { calculatedCost: true }
-    //   }),
-    //   
-    //   // Recent calculations
-    //   prisma.calculatedCost.findMany({
-    //     where,
-    //     include: {
-    //       warehouse: { select: { name: true, code: true } },
-    //       sku: { select: { skuCode: true, description: true } },
-    //       costRate: { select: { costCategory: true, costName: true } }
-    //     },
-    //     orderBy: { createdAt: 'desc' },
-    //     take: 10
-    //   })
-    // ])
-    
-    const totalCalculations = 0
-    const transactionCosts: unknown[] = []
-    const storageCosts = { _count: { id: 0 }, _sum: { calculatedCost: 0 } }
-    const recentCalculations: unknown[] = []
+    const [
+      costByCategory,
+      recentCosts,
+      storageAggregate,
+      storageByWeek
+    ] = await Promise.all([
+      prisma.costLedger.groupBy({
+        by: ['costCategory'],
+        where: costWhere,
+        _count: { id: true },
+        _sum: { totalCost: true, quantity: true }
+      }),
+      prisma.costLedger.findMany({
+        where: costWhere,
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+        select: {
+          id: true,
+          transactionId: true,
+          warehouseCode: true,
+          warehouseName: true,
+          costCategory: true,
+          costName: true,
+          quantity: true,
+          unitRate: true,
+          totalCost: true,
+          createdAt: true,
+          createdByName: true
+        }
+      }),
+      prisma.storageLedger.aggregate({
+        where: storageWhere,
+        _count: { id: true },
+        _sum: {
+          totalStorageCost: true,
+          closingBalance: true
+        }
+      }),
+      prisma.storageLedger.groupBy({
+        by: ['weekEndingDate'],
+        where: storageWhere,
+        _sum: { totalStorageCost: true },
+        orderBy: { weekEndingDate: 'desc' },
+        take: 6
+      })
+    ])
 
-    // Get pending calculations count
-    // Since the trigger function doesn't exist, return 0 for now
+    const totalCalculations = costByCategory.reduce((sum, item) => sum + item._count.id, 0)
+    const totalCostAmount = costByCategory.reduce((sum, item) => sum + Number(item._sum.totalCost || 0), 0)
     const pendingCount = 0
 
-    // Get storage ledger statistics
-    const storageLedgerStats = await prisma.storageLedger.aggregate({
-      where: {
-        createdAt: {
-          gte: startDate,
-          lte: endDate
-        },
-        ...(warehouseId ? { warehouseId } : {})
-      },
-      _count: { id: true },
-      _sum: { 
-        averageBalance: true
-      }
-    })
+    const transactionCosts = costByCategory.map(item => ({
+      type: item.costCategory,
+      count: item._count.id,
+      totalCost: Number(item._sum.totalCost || 0)
+    }))
 
-    // Format the response
+    const averageWeeklyCost = storageByWeek.length
+      ? storageByWeek.reduce((sum, week) => sum + Number(week._sum.totalStorageCost || 0), 0) / storageByWeek.length
+      : 0
+
     const stats = {
       period: {
         start: startDate.toISOString(),
@@ -123,35 +136,29 @@ export async function GET(request: NextRequest) {
       summary: {
         totalCalculations,
         pendingCalculations: pendingCount,
-        totalCostAmount: [
-          ...transactionCosts.map(t => Number(t._sum.calculatedCost || 0)),
-          Number(storageCosts._sum.calculatedCost || 0)
-        ].reduce((sum, val) => sum + val, 0)
+        totalCostAmount
       },
-      transactionCosts: transactionCosts.map(tc => ({
-        type: tc.transactionType,
-        count: tc._count.id,
-        totalCost: Number(tc._sum.calculatedCost || 0)
-      })),
+      transactionCosts,
       storageCosts: {
-        count: storageCosts._count.id,
-        totalCost: Number(storageCosts._sum.calculatedCost || 0),
-        ledgerEntries: storageLedgerStats._count.id,
-        totalPalletsCharged: 0,
-        totalWeeklyCost: Number(storageLedgerStats._sum.averageBalance || 0) * 0.5
+        count: storageAggregate._count.id,
+        totalCost: Number(storageAggregate._sum.totalStorageCost || 0),
+        ledgerEntries: storageAggregate._count.id,
+        totalPalletsCharged: Number(storageAggregate._sum.closingBalance || 0),
+        totalWeeklyCost: averageWeeklyCost
       },
-      recentCalculations: recentCalculations.map(calc => ({
-        id: calc.id,
-        calculatedCostId: calc.calculatedCostId,
-        transactionType: calc.transactionType,
-        warehouse: calc.warehouse.name,
-        sku: calc.sku.skuCode,
-        costCategory: calc.costRate.costCategory,
-        costName: calc.costRate.costName,
-        quantity: Number(calc.quantityCharged),
-        rate: Number(calc.applicableRate),
-        cost: Number(calc.calculatedCost),
-        createdAt: calc.createdAt
+      recentCalculations: recentCosts.map(cost => ({
+        id: cost.id,
+        calculatedCostId: cost.transactionId,
+        transactionType: cost.costCategory,
+        warehouse: cost.warehouseName,
+        sku: null,
+        costCategory: cost.costCategory,
+        costName: cost.costName,
+        quantity: Number(cost.quantity || 0),
+        rate: Number(cost.unitRate || 0),
+        cost: Number(cost.totalCost || 0),
+        createdAt: cost.createdAt,
+        createdBy: cost.createdByName
       }))
     }
 

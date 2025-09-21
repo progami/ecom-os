@@ -8,7 +8,6 @@ import {
   Home,
   Package,
   FileText,
-  DollarSign,
   Settings,
   Users,
   LogOut,
@@ -17,10 +16,8 @@ import {
   BarChart3,
   Calculator,
   Building,
-  TrendingUp,
   BookOpen,
   Calendar,
-  Cloud,
   AlertTriangle,
 } from '@/lib/lucide-icons'
 import { useState, useEffect } from 'react'
@@ -43,15 +40,6 @@ const baseNavigation: NavSection[] = [
     ]
   },
   {
-    title: 'Market',
-    items: [
-      { name: 'Shipment Planning', href: '/market/shipment-planning', icon: TrendingUp },
-      { name: 'Amazon FBA', href: '/market/amazon', icon: Cloud },
-      { name: 'Order Management', href: '/market/orders', icon: FileText },
-      { name: 'Reorder Alerts', href: '/market/reorder', icon: AlertTriangle },
-    ]
-  },
-  {
     title: 'Operations',
     items: [
       { name: 'Inventory Ledger', href: '/operations/inventory', icon: BookOpen },
@@ -71,10 +59,7 @@ const baseNavigation: NavSection[] = [
     title: 'Configuration',
     items: [
       { name: 'Products', href: '/config/products', icon: Package },
-      { name: 'Warehouses', href: '/config/warehouses', icon: Building },
-      { name: 'Cost Rates', href: '/config/rates', icon: DollarSign },
-      { name: 'Invoice Templates', href: '/config/invoice-templates', icon: FileText },
-      { name: 'Reports & Analytics', href: '/finance/reports', icon: BarChart3 },
+      { name: 'Warehouse Configs', href: '/config/warehouses', icon: Building },
     ]
   },
 ]
@@ -108,10 +93,15 @@ export function MainNav() {
   const userNavigation = baseNavigation
 
   // Get current page name for mobile header
+  const matchesPath = (href: string) => {
+    const [targetPath] = href.split('?')
+    return pathname.startsWith(targetPath)
+  }
+
   const getCurrentPageName = () => {
     for (const section of userNavigation) {
       for (const item of section.items) {
-        if (pathname.startsWith(item.href)) {
+        if (matchesPath(item.href)) {
           return item.name
         }
       }
@@ -228,7 +218,7 @@ export function MainNav() {
                               href={item.href}
                               scroll={false}
                               className={cn(
-                                pathname.startsWith(item.href)
+                                matchesPath(item.href)
                                   ? 'bg-gray-100 text-primary dark:bg-gray-800'
                                   : 'text-gray-700 hover:text-primary hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800',
                                 'group flex gap-x-3 rounded-md py-1.5 px-2 text-sm leading-5 font-medium'
@@ -236,7 +226,7 @@ export function MainNav() {
                             >
                               <item.icon
                                 className={cn(
-                                  pathname.startsWith(item.href)
+                                  matchesPath(item.href)
                                     ? 'text-primary'
                                     : 'text-gray-400 group-hover:text-primary',
                                   'h-5 w-5 shrink-0'
@@ -321,7 +311,7 @@ export function MainNav() {
                                     href={item.href}
                                     scroll={false}
                                     className={cn(
-                                      pathname.startsWith(item.href)
+                                      matchesPath(item.href)
                                         ? 'bg-gray-100 text-primary dark:bg-gray-800'
                                         : 'text-gray-700 hover:text-primary hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800',
                                       'group flex gap-x-3 rounded-md py-1.5 px-2 text-sm leading-5 font-medium'
@@ -330,7 +320,7 @@ export function MainNav() {
                                   >
                                     <item.icon
                                       className={cn(
-                                        pathname.startsWith(item.href)
+                                        matchesPath(item.href)
                                           ? 'text-primary'
                                           : 'text-gray-400 group-hover:text-primary',
                                         'h-5 w-5 shrink-0'

@@ -22,6 +22,56 @@ interface Attachment {
   file?: File
 }
 
+interface ApiAttachment {
+  fileName?: string
+  name?: string
+  contentType?: string
+  type?: string
+  size?: number
+  s3Key?: string
+  s3Url?: string
+  viewUrl?: string
+}
+
+const isAttachmentRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+const parseApiAttachment = (category: string, value: unknown): Attachment | null => {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+
+  const raw = value as ApiAttachment
+  const name = typeof raw.fileName === 'string'
+    ? raw.fileName
+    : typeof raw.name === 'string'
+      ? raw.name
+      : 'Unknown file'
+
+  const type = typeof raw.contentType === 'string'
+    ? raw.contentType
+    : typeof raw.type === 'string'
+      ? raw.type
+      : 'application/octet-stream'
+
+  const size = typeof raw.size === 'number' ? raw.size : 0
+
+  return {
+    name,
+    type,
+    size,
+    s3Key: typeof raw.s3Key === 'string' ? raw.s3Key : undefined,
+    viewUrl:
+      typeof raw.s3Url === 'string'
+        ? raw.s3Url
+        : typeof raw.viewUrl === 'string'
+          ? raw.viewUrl
+          : undefined,
+    category,
+  }
+}
+
 interface AttachmentsTabProps {
   transactionId?: string
   onAttachmentsChange: (attachments: Attachment[]) => void
@@ -41,32 +91,32 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
       fetch(`/api/transactions/${transactionId}/attachments`)
         .then(res => res.json())
         .then(data => {
-          if (data.attachments) {
-            // Handle object format (category as key)
-            if (typeof data.attachments === 'object' && !Array.isArray(data.attachments)) {
-              for (const [category, attachment] of Object.entries(data.attachments)) {
-                if (attachment && typeof attachment === 'object') {
-                  const att = attachment as Record<string, unknown>
-                  const parsedAttachment: Attachment = {
-                    name: att.fileName || att.name || 'Unknown file',
-                    type: att.contentType || att.type || 'application/octet-stream',
-                    size: att.size || 0,
-                    s3Key: att.s3Key,
-                    viewUrl: att.s3Url || att.viewUrl,
-                    category
-                  }
-                  
-                  if (category === 'proof_of_pickup') {
-                    setProofOfPickup(parsedAttachment)
-                  } else {
-                    setOtherAttachments(prev => [...prev, parsedAttachment])
-                  }
-                }
-              }
-            }
-            
-            updateParent()
+          if (!data.attachments || !isAttachmentRecord(data.attachments)) {
+            setProofOfPickup(null)
+            setOtherAttachments([])
+            onAttachmentsChange([])
+            return
           }
+
+          let proof: Attachment | null = null
+          const extras: Attachment[] = []
+
+          for (const [category, attachmentValue] of Object.entries(data.attachments)) {
+            const parsed = parseApiAttachment(category, attachmentValue)
+            if (!parsed) {
+              continue
+            }
+            if (category === 'proof_of_pickup') {
+              proof = parsed
+            } else {
+              extras.push(parsed)
+            }
+          }
+
+          setProofOfPickup(proof)
+          setOtherAttachments(extras)
+          const all = [...(proof ? [proof] : []), ...extras]
+          onAttachmentsChange(all)
         })
         .catch(err => console.error('Failed to load existing attachments:', err))
         .finally(() => setLoadingExisting(false))
@@ -145,13 +195,14 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
               }
             }
             
-            if (category === 'proof_of_pickup') {
-              setProofOfPickup(attachment)
-            } else {
-              setOtherAttachments(prev => [...prev, attachment])
-            }
-            
-            updateParent()
+            const nextProof = category === 'proof_of_pickup' ? attachment : proofOfPickup
+            const nextOthers = category === 'proof_of_pickup'
+              ? otherAttachments
+              : [...otherAttachments, attachment]
+            setProofOfPickup(nextProof)
+            setOtherAttachments(nextOthers)
+            const combined = [...(nextProof ? [nextProof] : []), ...nextOthers]
+            onAttachmentsChange(combined)
             toast.success(`${file.name} uploaded successfully`)
           } else {
             throw new Error('Upload failed')
@@ -166,13 +217,14 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
             file: file // Store the actual File object
           }
           
-          if (category === 'proof_of_pickup') {
-            setProofOfPickup(attachment)
-          } else {
-            setOtherAttachments(prev => [...prev, attachment])
-          }
-          
-          updateParent()
+          const nextProof = category === 'proof_of_pickup' ? attachment : proofOfPickup
+          const nextOthers = category === 'proof_of_pickup'
+            ? otherAttachments
+            : [...otherAttachments, attachment]
+          setProofOfPickup(nextProof)
+          setOtherAttachments(nextOthers)
+          const combined = [...(nextProof ? [nextProof] : []), ...nextOthers]
+          onAttachmentsChange(combined)
           toast.success(`${file.name} selected`)
         }
       } catch (_error) {
@@ -185,13 +237,6 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
     
     // Reset input
     event.target.value = ''
-  }
-
-  const updateParent = () => {
-    const allAttachments: Attachment[] = []
-    if (proofOfPickup) allAttachments.push(proofOfPickup)
-    allAttachments.push(...otherAttachments)
-    onAttachmentsChange(allAttachments)
   }
 
   const removeProofOfPickup = async () => {
@@ -216,7 +261,7 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
     }
     
     setProofOfPickup(null)
-    updateParent()
+    onAttachmentsChange([...otherAttachments])
   }
 
   const removeOtherAttachment = async (index: number) => {
@@ -242,8 +287,10 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
       }
     }
     
-    setOtherAttachments(prev => prev.filter((_, i) => i !== index))
-    updateParent()
+    const updated = otherAttachments.filter((_, i) => i !== index)
+    setOtherAttachments(updated)
+    const combined = [...(proofOfPickup ? [proofOfPickup] : []), ...updated]
+    onAttachmentsChange(combined)
   }
 
   const formatFileSize = (bytes: number): string => {

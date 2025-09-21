@@ -8,13 +8,22 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Database, Trash2, AlertCircle } from '@/lib/lucide-icons'
 import { useToast } from '@/components/ui/use-toast'
 
+interface DemoStats {
+  hasData: boolean
+  warehouses: number
+  users: number
+  skus: number
+  transactions: number
+  invoices: number
+}
+
 export function DemoDataManager() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isClearing, setIsClearing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [progressMessage, setProgressMessage] = useState('')
   const [sessionId, setSessionId] = useState<string | null>(null)
-  const [demoStats, setDemoStats] = useState<unknown>(null)
+  const [demoStats, setDemoStats] = useState<DemoStats | null>(null)
   const { toast } = useToast()
 
   // Check demo data status on mount
@@ -70,7 +79,7 @@ export function DemoDataManager() {
     try {
       const response = await fetch('/api/demo')
       if (response.ok) {
-        const stats = await response.json()
+        const stats = await response.json() as DemoStats
         setDemoStats(stats)
       }
     } catch (_error) {

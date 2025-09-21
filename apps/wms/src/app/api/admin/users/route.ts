@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma, UserRole } from '@prisma/client'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { invalidateAllUserSessions } from '@/lib/security/session-manager'
@@ -57,8 +57,8 @@ export async function GET(req: NextRequest) {
       ]
     }
 
-    if (role) {
-      where.role = role
+    if (role && ['admin', 'staff', 'finance'].includes(role)) {
+      where.role = role as UserRole
     }
 
     if (warehouseId) {
@@ -234,12 +234,12 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Prepare update data
-    const updateData: Prisma.UserUpdateInput = { ...validatedData }
-    
+    const { password, ...rest } = validatedData
+    const updateData: Prisma.UserUpdateInput = { ...rest }
+
     // Hash password if provided
-    if (validatedData.password) {
-      updateData.passwordHash = await bcrypt.hash(validatedData.password, 10)
-      delete updateData.password
+    if (password) {
+      updateData.passwordHash = await bcrypt.hash(password, 10)
     }
 
     // Update user

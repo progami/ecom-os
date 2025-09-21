@@ -15,6 +15,7 @@ import {
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Button } from '@/components/ui/button'
 import { toast } from 'react-hot-toast'
 
 interface CostMapping {
@@ -24,6 +25,17 @@ interface CostMapping {
   customRate?: number
   description?: string
 }
+
+const createDefaultMapping = (category: {
+  name: string
+  defaultType: CostMapping['calculationType']
+}): CostMapping => ({
+  enabled: false,
+  category: category.name,
+  calculationType: category.defaultType,
+  customRate: undefined,
+  description: '',
+})
 
 interface InvoiceTemplate {
   id: string
@@ -38,7 +50,11 @@ interface InvoiceTemplate {
   updatedAt: string
 }
 
-const defaultCostCategories = [
+const defaultCostCategories: ReadonlyArray<{
+  key: string
+  name: string
+  defaultType: CostMapping['calculationType']
+}> = [
   { key: 'storage', name: 'Storage', defaultType: 'PER_PALLET' },
   { key: 'container', name: 'Container Unloading', defaultType: 'FLAT_RATE' },
   { key: 'pallet', name: 'Pallet Handling', defaultType: 'PER_PALLET' },
@@ -124,12 +140,7 @@ export default function InvoiceTemplatesPage() {
       setEditingTemplate(null)
       const defaultMappings: Record<string, CostMapping> = {}
       defaultCostCategories.forEach(cat => {
-        defaultMappings[cat.key] = {
-          enabled: false,
-          category: cat.name,
-          calculationType: cat.defaultType,
-          description: ''
-        }
+        defaultMappings[cat.key] = createDefaultMapping(cat)
       })
       setFormData({
         warehouseId: '',
@@ -218,13 +229,10 @@ export default function InvoiceTemplatesPage() {
           borderColor="border-purple-200"
           textColor="text-purple-800"
           actions={
-            <button
-              onClick={() => handleOpenModal()}
-              className="primary-button"
-            >
-              <Plus className="h-4 w-4 mr-2" />
+            <Button onClick={() => handleOpenModal()} className="gap-2">
+              <Plus className="h-4 w-4" />
               New Template
-            </button>
+            </Button>
           }
         />
 
@@ -424,13 +432,7 @@ export default function InvoiceTemplatesPage() {
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
                         {defaultCostCategories.map(category => {
-                          const mapping = formData.costMappings[category.key] || {
-                            enabled: false,
-                            category: category.name,
-                            calculationType: category.defaultType,
-                            customRate: undefined,
-                            description: ''
-                          }
+                          const mapping = formData.costMappings[category.key] || createDefaultMapping(category)
 
                           return (
                             <tr key={category.key}>
@@ -533,19 +535,16 @@ export default function InvoiceTemplatesPage() {
                 </div>
 
                 <div className="flex justify-end gap-2 pt-4">
-                  <button
+                  <Button
                     onClick={() => setShowModal(false)}
-                    className="secondary-button"
+                    variant="ghost"
                   >
                     Cancel
-                  </button>
-                  <button
-                    onClick={handleSave}
-                    className="primary-button"
-                  >
-                    <Save className="h-4 w-4 mr-2" />
+                  </Button>
+                  <Button onClick={handleSave} className="gap-2">
+                    <Save className="h-4 w-4" />
                     {editingTemplate ? 'Update' : 'Create'} Template
-                  </button>
+                  </Button>
                 </div>
               </div>
             </div>

@@ -1,4 +1,4 @@
-import { BaseService } from './base.service'
+import { BaseService, type ServiceContext } from './base.service'
 
 /**
  * Finance Service
@@ -6,7 +6,7 @@ import { BaseService } from './base.service'
  * with the removal of Invoice, CalculatedCost, and related models
  */
 export class FinanceService extends BaseService {
-  constructor(context?: { user?: { id: string; role: string; warehouseId?: string } }) {
+  constructor(context: ServiceContext) {
     super(context)
   }
 

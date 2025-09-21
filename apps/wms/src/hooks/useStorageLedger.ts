@@ -30,7 +30,6 @@ export interface StorageLedgerFilters {
   warehouse?: string
   startDate: string
   endDate: string
-  search?: string
   includeCosts?: boolean
 }
 
@@ -68,7 +67,6 @@ export function useStorageLedger(filters: StorageLedgerFilters) {
       })
       
       if (filters.warehouse) params.set('warehouseCode', filters.warehouse)
-      if (filters.search) params.set('search', filters.search)
       
       const response = await fetch(`/api/finance/storage-ledger?${params}`)
       
@@ -87,7 +85,7 @@ export function useStorageLedger(filters: StorageLedgerFilters) {
     } finally {
       setLoading(false)
     }
-  }, [filters.startDate, filters.endDate, filters.warehouse, filters.search, filters.includeCosts])
+  }, [filters.startDate, filters.endDate, filters.warehouse, filters.includeCosts])
 
   useEffect(() => {
     const timer = setTimeout(() => {

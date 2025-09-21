@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Plus, Trash2, Save } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
 interface LineItem {
@@ -16,6 +17,20 @@ interface LineItem {
 }
 
 export default function NewInvoicePage() {
+  return (
+    <Suspense
+      fallback={
+        <DashboardLayout>
+          <div className="p-6">Loading invoice form...</div>
+        </DashboardLayout>
+      }
+    >
+      <NewInvoicePageContent />
+    </Suspense>
+  )
+}
+
+function NewInvoicePageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isManualEntry = searchParams.get('manual') === 'true'
@@ -144,12 +159,11 @@ export default function NewInvoicePage() {
       <div className="max-w-6xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link
-              href="/finance/invoices"
-              className="p-2 hover:bg-gray-100 rounded-md"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
+            <Button asChild variant="ghost" size="icon">
+              <Link href="/finance/invoices">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+            </Button>
             <div>
               <h1 className="text-3xl font-bold">Create New Invoice</h1>
               <p className="text-muted-foreground">
@@ -257,14 +271,10 @@ export default function NewInvoicePage() {
           <div className="bg-white border rounded-lg p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold">Line Items</h2>
-              <button
-                type="button"
-                onClick={addLineItem}
-                className="action-button"
-              >
-                <Plus className="h-4 w-4 mr-2" />
+              <Button type="button" onClick={addLineItem} className="gap-2">
+                <Plus className="h-4 w-4" />
                 Add Line Item
-              </button>
+              </Button>
             </div>
 
             <div className="overflow-x-auto">
@@ -369,29 +379,22 @@ export default function NewInvoicePage() {
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-4">
-            <Link
-              href="/finance/invoices"
-              className="secondary-button"
-            >
-              Cancel
-            </Link>
-            <button
-              type="submit"
-              disabled={loading}
-              className="action-button"
-            >
+            <Button asChild variant="ghost">
+              <Link href="/finance/invoices">Cancel</Link>
+            </Button>
+            <Button type="submit" disabled={loading} className="gap-2">
               {loading ? (
                 <>
-                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>
+                  <span className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-white"></span>
                   Creating...
                 </>
               ) : (
                 <>
-                  <Save className="h-4 w-4 mr-2" />
+                  <Save className="h-4 w-4" />
                   Create Invoice
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

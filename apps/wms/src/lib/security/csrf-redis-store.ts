@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /**
  * Redis-based CSRF Token Store
  * 
@@ -6,7 +7,19 @@
  */
 
 import { Redis } from 'ioredis'
-import type { TokenStore } from './csrf'
+
+/**
+ * Minimal contract for CSRF token stores. Implementations can expose
+ * additional helpers (e.g. health checks) as needed, but the core
+ * interface keeps read/write operations consistent across Redis and
+ * in-memory variants.
+ */
+export interface TokenStore {
+  get(key: string): Promise<string | null>
+  set(key: string, value: string, ttlMs?: number): Promise<void>
+  delete(key: string): Promise<void>
+  clear(): Promise<void>
+}
 
 /**
  * Redis implementation of TokenStore interface

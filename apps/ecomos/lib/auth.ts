@@ -1,9 +1,19 @@
-import type { NextAuthOptions } from 'next-auth'
+import type { NextAuthOptions, RequestInternal } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/prisma'
 import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 import { getUserEntitlements } from '@/lib/entitlements'
+import {
+  AuthRateLimitError,
+  getAuthRateLimiter,
+  resolveRateLimitContext,
+} from '@/lib/security/auth-rate-limiter'
+
+interface CredentialPayload {
+  emailOrUsername: string
+  password: string
+}
 
 const devPort = process.env.PORT || 3000
 const devBaseUrl = `http://localhost:${devPort}`
@@ -35,75 +45,33 @@ const baseAuthOptions: NextAuthOptions = {
         emailOrUsername: { label: 'Email or Username', type: 'text' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials) {
-        if (!credentials?.emailOrUsername || !credentials?.password) {
-          throw new Error('Invalid credentials')
-        }
-        // If DATABASE_URL is not configured in dev, allow a safe demo fallback
-        const hasDb = !!process.env.DATABASE_URL
-        const demoToggle = ['1','true','yes','on'].includes(String(process.env.DEMO_LOGIN_ENABLED || '').toLowerCase())
-        const demoUsername = String(process.env.DEMO_ADMIN_USERNAME || 'demo-admin')
-        const demoPass = String(process.env.DEMO_ADMIN_PASSWORD || 'demo-password')
-        const allowDemo = process.env.NODE_ENV !== 'production' && (!hasDb || demoToggle || credentials.emailOrUsername === demoUsername)
-        if (allowDemo && credentials.emailOrUsername === demoUsername && credentials.password === demoPass) {
-          const fauxUser = {
-            id: 'demo-admin-id',
-            email: process.env.DEMO_ADMIN_EMAIL || 'jarraramjad@targonglobal.com',
-            name: 'Jarrar Amjad',
-            role: 'admin',
-          }
-          const roles = getUserEntitlements(fauxUser)
-          const apps = Object.keys(roles)
-          return { id: fauxUser.id, email: fauxUser.email, name: fauxUser.name, role: fauxUser.role, roles, apps } as any
-        }
-        if (allowDemo && !hasDb) {
-          throw new Error('Invalid credentials')
-        }
-        // Normal DB-backed flow
+      async authorize(credentials, req) {
+        const limiter = getAuthRateLimiter()
+        const context = resolveRateLimitContext(req as RequestInternal | undefined, credentials?.emailOrUsername)
+
         try {
-          const identifier = credentials.emailOrUsername
-          let user = await prisma.user.findFirst({ where: { email: identifier } } as any)
-          // Optional username field support via env (e.g., USERNAME_FIELD=username)
-          if (!user && !identifier.includes('@')) {
-            const field = (process.env.USERNAME_FIELD || '').trim()
-            if (field) {
-              try {
-                const where: any = {}
-                where[field] = identifier
-                user = await prisma.user.findFirst({ where } as any)
-              } catch (_e) {
-                // If schema lacks the field, ignore and continue with invalid credentials
-              }
-            }
+          limiter.assertAllowed(context)
+        } catch (error) {
+          if (error instanceof AuthRateLimitError) {
+            throw new Error(error.message)
           }
-          const userFound = user
-          if (!user) throw new Error('Invalid credentials')
-          if (!userFound) throw new Error('Invalid credentials')
-          const isActive = (userFound as any).isActive ?? true
-          if (!isActive) throw new Error('Invalid credentials')
-          const hash = (userFound as any).passwordHash ?? (userFound as any).password
-          let isPasswordValid = false
-          if (typeof hash === 'string' && hash.startsWith('$2')) {
-            // Likely a bcrypt hash
-            isPasswordValid = await bcrypt.compare(credentials.password, hash)
-          } else {
-            // Fallback to plain-text match for legacy/dev records (dev only)
-            isPasswordValid = process.env.NODE_ENV !== 'production' && credentials.password === hash
+          throw error
+        }
+
+        if (!credentials?.emailOrUsername || !credentials?.password) {
+          limiter.recordFailure(context)
+          throw new Error('Invalid credentials')
+        }
+
+        try {
+          const user = await authenticateWithCredentials(credentials as CredentialPayload)
+          limiter.recordSuccess(context)
+          return user
+        } catch (error) {
+          limiter.recordFailure(context)
+          if (error instanceof AuthRateLimitError) {
+            throw error
           }
-          if (!isPasswordValid) throw new Error('Invalid credentials')
-          await prisma.user.update({ where: { id: (userFound as any).id }, data: { lastLoginAt: new Date() } } as any)
-          const roles = getUserEntitlements({ id: (userFound as any).id, email: (userFound as any).email, name: (userFound as any).fullName ?? (userFound as any).name, role: (userFound as any).role as any })
-          const apps = Object.keys(roles)
-          return {
-            id: (userFound as any).id,
-            email: (userFound as any).email,
-            name: (userFound as any).fullName ?? (userFound as any).name,
-            role: (userFound as any).role,
-            warehouseId: (userFound as any).warehouseId || undefined,
-            roles,
-            apps,
-          } as any
-        } catch (_e) {
           throw new Error('Invalid credentials')
         }
       },
@@ -165,3 +133,94 @@ export const authOptions: NextAuthOptions = withSharedAuth(baseAuthOptions, {
   cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
   appId: 'ecomos',
 })
+
+async function authenticateWithCredentials(credentials: CredentialPayload) {
+  const { emailOrUsername, password } = credentials
+
+  // If DATABASE_URL is not configured in dev, allow a safe demo fallback
+  const hasDb = !!process.env.DATABASE_URL
+  const demoToggle = ['1', 'true', 'yes', 'on'].includes(String(process.env.DEMO_LOGIN_ENABLED || '').toLowerCase())
+  const demoUsername = String(process.env.DEMO_ADMIN_USERNAME || 'demo-admin')
+  const demoPass = String(process.env.DEMO_ADMIN_PASSWORD || 'demo-password')
+  const allowDemo = process.env.NODE_ENV !== 'production' && (!hasDb || demoToggle || emailOrUsername === demoUsername)
+
+  if (allowDemo && emailOrUsername === demoUsername && password === demoPass) {
+    const fauxUser = {
+      id: 'demo-admin-id',
+      email: process.env.DEMO_ADMIN_EMAIL || 'jarraramjad@targonglobal.com',
+      name: 'Jarrar Amjad',
+      role: 'admin',
+    }
+    const roles = getUserEntitlements(fauxUser)
+    const apps = Object.keys(roles)
+    return { id: fauxUser.id, email: fauxUser.email, name: fauxUser.name, role: fauxUser.role, roles, apps } as any
+  }
+
+  if (allowDemo && !hasDb) {
+    throw new Error('Invalid credentials')
+  }
+
+  try {
+    const identifier = emailOrUsername
+    let user = await prisma.user.findFirst({ where: { email: identifier } } as any)
+
+    // Optional username field support via env (e.g., USERNAME_FIELD=username)
+    if (!user && !identifier.includes('@')) {
+      const field = (process.env.USERNAME_FIELD || '').trim()
+      if (field) {
+        try {
+          const where: any = {}
+          where[field] = identifier
+          user = await prisma.user.findFirst({ where } as any)
+        } catch (_e) {
+          // If schema lacks the field, ignore and continue with invalid credentials
+        }
+      }
+    }
+
+    const userFound = user
+    if (!user || !userFound) {
+      throw new Error('Invalid credentials')
+    }
+
+    const isActive = (userFound as any).isActive ?? true
+    if (!isActive) {
+      throw new Error('Invalid credentials')
+    }
+
+    const hash = (userFound as any).passwordHash ?? (userFound as any).password
+    let isPasswordValid = false
+    if (typeof hash === 'string' && hash.startsWith('$2')) {
+      // Likely a bcrypt hash
+      isPasswordValid = await bcrypt.compare(password, hash)
+    } else {
+      // Fallback to plain-text match for legacy/dev records (dev only)
+      isPasswordValid = process.env.NODE_ENV !== 'production' && password === hash
+    }
+
+    if (!isPasswordValid) {
+      throw new Error('Invalid credentials')
+    }
+
+    await prisma.user.update({ where: { id: (userFound as any).id }, data: { lastLoginAt: new Date() } } as any)
+    const roles = getUserEntitlements({
+      id: (userFound as any).id,
+      email: (userFound as any).email,
+      name: (userFound as any).fullName ?? (userFound as any).name,
+      role: (userFound as any).role as any,
+    })
+    const apps = Object.keys(roles)
+
+    return {
+      id: (userFound as any).id,
+      email: (userFound as any).email,
+      name: (userFound as any).fullName ?? (userFound as any).name,
+      role: (userFound as any).role,
+      warehouseId: (userFound as any).warehouseId || undefined,
+      roles,
+      apps,
+    } as any
+  } catch (_error) {
+    throw new Error('Invalid credentials')
+  }
+}

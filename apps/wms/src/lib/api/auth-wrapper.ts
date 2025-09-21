@@ -1,19 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
-import { Session } from 'next-auth'
+import type { Session } from 'next-auth'
 import { ApiResponses } from './responses'
+
+type SessionRole = string | undefined
+
+const getUserRole = (session: Session): SessionRole => {
+  const role = (session.user as { role?: unknown })?.role
+  return typeof role === 'string' ? role : undefined
+}
+
+const getUserDepartments = (session: Session): string[] | undefined => {
+  const departments = (session.user as { departments?: unknown })?.departments
+  if (!Array.isArray(departments)) {
+    return undefined
+  }
+  return departments.filter((dept): dept is string => typeof dept === 'string')
+}
 
 export type AuthenticatedHandler<T = unknown> = (
   request: NextRequest,
   session: Session
-) => Promise<NextResponse<T> | NextResponse<unknown>>
+) => Promise<NextResponse<T | { error: string }>>
 
 export type AuthenticatedHandlerWithParams<T = unknown> = (
   request: NextRequest,
   params: Record<string, unknown>,
   session: Session
-) => Promise<NextResponse<T> | NextResponse<unknown>>
+) => Promise<NextResponse<T | { error: string }>>
 
 /**
  * Higher-order function to wrap API routes with authentication
@@ -62,11 +77,15 @@ export function withAuthAndParams<T = unknown>(
  * Check if user has required role(s)
  */
 export function requireRole(session: Session, allowedRoles: string[]): boolean {
-  return allowedRoles.includes((session.user as any).role)
+  const role = getUserRole(session)
+  if (!role) {
+    return false
+  }
+  return allowedRoles.includes(role)
 }
 
 export function requireDept(session: Session, allowedDepts: string[]): boolean {
-  const depts: string[] | undefined = (session.user as any).departments
+  const depts = getUserDepartments(session)
   if (!allowedDepts.length) return true
   if (!depts?.length) return false
   return allowedDepts.some((d) => depts.includes(d))

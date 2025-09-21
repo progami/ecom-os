@@ -5,6 +5,9 @@ import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { perfLogger } from '@/lib/logger/server'
 import { Prisma } from '@prisma/client'
+import type { ExportFieldValue } from '@/lib/dynamic-export'
+
+type ReportRow = Record<string, ExportFieldValue>
 
 export interface ReportParams {
   reportType: string
@@ -27,7 +30,7 @@ export class ReportService extends BaseService {
     try {
       await this.requirePermission('report:generate')
 
-      let data: Record<string, unknown>[] = []
+      let data: ReportRow[] = []
       let fileName = ''
 
       switch (params.reportType) {
@@ -166,34 +169,31 @@ export class ReportService extends BaseService {
       'Batch/Lot': b.batchLot,
       'Current Cartons': b.currentCartons,
       'Current Pallets': b.currentPallets,
-      'Units per Carton (Current)': b.sku.unitsPerCarton,
+      'Units per Carton (Current)': null,
       'Total Units': b.currentUnits,
       'Report Date': new Date().toLocaleDateString()
     }))
   }
 
-  private async generateInventoryLedger(period: string, _warehouseId?: string) {
+  private async generateInventoryLedger(period: string, warehouseId?: string) {
     const [year, month] = period.split('-').map(Number)
     const startDate = startOfMonth(new Date(year, month - 1))
     const endDate = endOfMonth(new Date(year, month - 1))
 
+    const warehouseCode = await this.resolveWarehouseCode(warehouseId)
+
     const where: Prisma.InventoryTransactionWhereInput = {
-      ...(warehouseId 
-        ? { warehouseId: warehouseId } 
-        : {
-            warehouse: {
-              NOT: {
-                OR: [
-                  { code: 'AMZN' },
-                  { code: 'AMZN-UK' }
-                ]
-              }
-            }
-          }
-      ),
       transactionDate: {
         gte: startDate,
         lte: endDate
+      }
+    }
+
+    if (warehouseCode) {
+      where.warehouseCode = warehouseCode
+    } else {
+      where.warehouseCode = {
+        notIn: ['AMZN', 'AMZN-UK']
       }
     }
 
@@ -220,35 +220,29 @@ export class ReportService extends BaseService {
     }))
   }
 
-  private async generateStorageCharges(period: string, _warehouseId?: string) {
+  private async generateStorageCharges(period: string, warehouseId?: string) {
     const [year, month] = period.split('-').map(Number)
     
     // Billing periods run from 16th to 15th
     const billingStart = new Date(year, month - 2, 16)
     const billingEnd = new Date(year, month - 1, 15)
 
-    const where: Prisma.StorageLedgerWhereInput = {
-      ...(warehouseId 
-        ? { warehouseId: warehouseId } 
-        : {
-            warehouse: {
-              NOT: {
-                OR: [
-                  { code: 'AMZN' },
-                  { code: 'AMZN-UK' }
-                ]
-              }
-            }
-          }
-      ),
-      weekEndingDate: {
-        gte: billingStart,
-        lte: billingEnd
-      }
-    }
+    const warehouseCode = await this.resolveWarehouseCode(warehouseId)
 
     const storageLedger = await this.prisma.storageLedger.findMany({
-      where,
+      where: {
+        ...(warehouseCode
+          ? { warehouseCode }
+          : {
+              warehouseCode: {
+                notIn: ['AMZN', 'AMZN-UK']
+              }
+            }),
+        weekEndingDate: {
+          gte: billingStart,
+          lte: billingEnd
+        }
+      },
       // No includes needed - storage ledger has snapshot data
       orderBy: [
         { warehouseName: 'asc' },
@@ -269,14 +263,22 @@ export class ReportService extends BaseService {
     }))
   }
 
-  private async generateCostSummary(period: string, _warehouseId?: string) {
+  private async generateCostSummary(period: string, warehouseId?: string) {
     const [year, month] = period.split('-').map(Number)
     
     // Get storage costs
+    const warehouseCode = await this.resolveWarehouseCode(warehouseId)
+
     const storageCosts = await this.prisma.storageLedger.groupBy({
       by: ['warehouseCode'],
       where: {
-        ...(warehouseId ? { warehouseId: warehouseId } : {}),
+        ...(warehouseCode
+          ? { warehouseCode }
+          : {
+              warehouseCode: {
+                notIn: ['AMZN', 'AMZN-UK']
+              }
+            }),
         weekEndingDate: {
           gte: new Date(year, month - 2, 16),
           lte: new Date(year, month - 1, 15)
@@ -298,16 +300,19 @@ export class ReportService extends BaseService {
         }
       }
     })
-    const warehouseMap = new Map(warehouses.map(w => [w.id, w.name]))
+    const warehouseMap = new Map(warehouses.map(w => [w.code, w.name]))
 
-    return storageCosts.map(cost => ({
-      'Warehouse': warehouseMap.get(cost.warehouseCode) || 'Unknown',
-      'Storage Costs': cost._sum.averageBalance || 0,
-      'Handling Costs': 0, // To be calculated from calculated_costs table
-      'Other Costs': 0, // To be calculated
-      'Total Costs': cost._sum.averageBalance || 0,
-      'Period': `${period}`
-    }))
+    return storageCosts.map(cost => {
+      const storageTotal = Number(cost._sum.averageBalance ?? 0)
+      return {
+        'Warehouse': warehouseMap.get(cost.warehouseCode) || 'Unknown',
+        'Storage Costs': storageTotal,
+        'Handling Costs': 0, // To be calculated from calculated_costs table
+        'Other Costs': 0, // To be calculated
+        'Total Costs': storageTotal,
+        'Period': `${period}`
+      }
+    })
   }
 
   private async generateReconciliationReport(period: string, _warehouseId?: string) {
@@ -316,66 +321,34 @@ export class ReportService extends BaseService {
     const endDate = new Date(year, month - 1, 15)
 
     // Invoice model removed in v0.5.0
-    const invoices: Array<{
-      invoiceNumber: string
-      customerName: string
-      warehouseName: string
-      date: Date
-      dueDate: Date
-      totalAmount: number
-      status: string
-      lineItems: Array<{ description: string; quantity: number; rate: number; amount: number }>
-    }> = []
+    void startDate; void endDate; // Reserved for future use
 
-    // Get calculated costs for the same period
-    const calculatedCosts = await this.prisma.storageLedger.groupBy({
-      by: ['warehouseCode'],
-      where: {
-        weekEndingDate: {
-          gte: startDate,
-          lte: endDate
-        }
-      },
-      _sum: {
-        averageBalance: true
-      }
-    })
-
-    const costMap = new Map<string, number>(
-      calculatedCosts.map(c => [c.warehouseCode, Number(c._sum.averageBalance || 0)])
-    )
-
-    return invoices.map(invoice => ({
-      'Invoice Number': invoice.invoiceNumber,
-      'Invoice Date': invoice.invoiceDate.toLocaleDateString(),
-      'Warehouse': invoice.warehouse.name,
-      'Invoiced Amount': `£${Number(invoice.totalAmount).toFixed(2)}`,
-      'Calculated Amount': `£${(costMap.get(invoice.warehouseCode) || 0).toFixed(2)}`,
-      'Variance': `£${(Number(invoice.totalAmount) - (costMap.get(invoice.warehouseCode) || 0)).toFixed(2)}`,
-      'Status': Math.abs(Number(invoice.totalAmount) - (costMap.get(invoice.warehouseCode) || 0)) < 0.01 ? 'Matched' : 'Variance'
-    }))
+    // Invoices removed; reconciliation reporting is currently unavailable.
+    return []
   }
 
   private async generateInventoryBalanceReport(_warehouseId?: string) {
     // inventory_balances table removed - returning empty data
-    const data: Record<string, unknown>[] = []
+    const data: ReportRow[] = []
     return data
   }
 
   private async generateLowStockReport(_warehouseId?: string) {
     // inventory_balances table removed - returning empty data
-    const data: Record<string, unknown>[] = []
+    const data: ReportRow[] = []
     return data
   }
 
-  private async generateCostAnalysisReport(period: string, _warehouseId?: string) {
+  private async generateCostAnalysisReport(period: string, warehouseId?: string) {
     const [year, month] = period.split('-').map(Number)
     const startDate = new Date(year, month - 2, 16)
     const endDate = new Date(year, month - 1, 15)
 
+    const warehouseCode = await this.resolveWarehouseCode(warehouseId)
+
     const storageCosts = await this.prisma.storageLedger.findMany({
       where: {
-        ...(warehouseId ? { warehouseCode: warehouseId } : {}),
+        ...(warehouseCode ? { warehouseCode } : {}),
         weekEndingDate: {
           gte: startDate,
           lte: endDate
@@ -387,28 +360,37 @@ export class ReportService extends BaseService {
       ]
     })
 
-    const grouped = storageCosts.reduce((acc, item) => {
+    type CostGroup = {
+      warehouseName: string
+      skuCode: string
+      skuDescription: string
+      totalCartons: number
+      totalCost: number
+      weeks: number
+    }
+
+    const grouped = storageCosts.reduce<Record<string, CostGroup>>((acc, item) => {
       const key = `${item.warehouseCode}-${item.skuCode}`
       if (!acc[key]) {
         acc[key] = {
-          warehouse: 'Unknown',
-          sku: 'Unknown',
-          description: 'Unknown',
+          warehouseName: item.warehouseName,
+          skuCode: item.skuCode,
+          skuDescription: item.skuDescription ?? 'Unknown',
           totalCartons: 0,
           totalCost: 0,
           weeks: 0
         }
       }
       acc[key].totalCartons += item.closingBalance || 0
-      acc[key].totalCost += Number(item.averageBalance || 0)
+      acc[key].totalCost += Number(item.totalStorageCost || 0)
       acc[key].weeks += 1
       return acc
-    }, {} as Record<string, { warehouseId: string; warehouseName: string; metrics: Record<string, number> }>)
+    }, {})
 
-    return Object.values(grouped).map((item: { warehouseId: string; warehouseName: string; metrics: Record<string, number> }) => ({
-      'Warehouse': item.warehouse,
-      'SKU Code': item.sku,
-      'Description': item.description,
+    return Object.values(grouped).map(item => ({
+      'Warehouse': item.warehouseName,
+      'SKU Code': item.skuCode,
+      'Description': item.skuDescription,
       'Average Cartons': Math.round(item.totalCartons / item.weeks),
       'Total Storage Cost': `£${item.totalCost.toFixed(2)}`,
       'Average Weekly Cost': `£${(item.totalCost / item.weeks).toFixed(2)}`,
@@ -416,7 +398,7 @@ export class ReportService extends BaseService {
     }))
   }
 
-  private async generateMonthlyBillingReport(period: string, _warehouseId?: string) {
+  private async generateMonthlyBillingReport(period: string, warehouseId?: string) {
     const [year, month] = period.split('-').map(Number)
     const billingStart = new Date(year, month - 2, 16)
     const billingEnd = new Date(year, month - 1, 15)
@@ -482,7 +464,7 @@ export class ReportService extends BaseService {
     return billingData
   }
 
-  private async generateAnalyticsSummaryReport(period: string, _warehouseId?: string) {
+  private async generateAnalyticsSummaryReport(period: string, warehouseId?: string) {
     const [year, month] = period.split('-').map(Number)
     const startDate = startOfMonth(new Date(year, month - 1))
     const endDate = endOfMonth(new Date(year, month - 1))
@@ -509,11 +491,28 @@ export class ReportService extends BaseService {
 
     const analyticsData = await Promise.all(
       warehouses.map(async (warehouse) => {
-        const currentWarehouseMetrics = currentMetrics.get(warehouse.id) || {}
-        const previousWarehouseMetrics = previousMetrics.get(warehouse.id) || {}
+        const currentWarehouseMetrics = currentMetrics.get(warehouse.code) || {
+          totalTransactions: 0,
+          receiveTransactions: 0,
+          shipTransactions: 0,
+          cartonsIn: 0,
+          cartonsOut: 0,
+          uniqueSkus: new Set<string>()
+        }
+        const previousWarehouseMetrics = previousMetrics.get(warehouse.code) || {
+          totalTransactions: 0,
+          receiveTransactions: 0,
+          shipTransactions: 0,
+          cartonsIn: 0,
+          cartonsOut: 0,
+          uniqueSkus: new Set<string>()
+        }
 
-        const inventoryTurnover = currentWarehouseMetrics.shipments && currentWarehouseMetrics.avgInventory
-          ? (currentWarehouseMetrics.shipments / currentWarehouseMetrics.avgInventory) * 12
+        const avgInventory = (currentWarehouseMetrics.cartonsIn + currentWarehouseMetrics.cartonsOut) / 2
+        const shipments = currentWarehouseMetrics.cartonsOut
+
+        const inventoryTurnover = avgInventory > 0
+          ? (shipments / avgInventory) * 12
           : 0
 
         const growthRate = previousWarehouseMetrics.totalTransactions
@@ -524,11 +523,11 @@ export class ReportService extends BaseService {
           'Warehouse': warehouse.name,
           'Total Transactions': currentWarehouseMetrics.totalTransactions || 0,
           'Growth Rate': `${growthRate.toFixed(1)}%`,
-          'Avg Inventory (Cartons)': Math.round(currentWarehouseMetrics.avgInventory || 0),
+          'Avg Inventory (Cartons)': Math.round(avgInventory),
           'Inventory Turnover': inventoryTurnover.toFixed(2),
-          'Storage Utilization': `${((currentWarehouseMetrics.avgInventory || 0) / 10000 * 100).toFixed(1)}%`,
-          'Total SKUs': currentWarehouseMetrics.totalSkus || 0,
-          'Active SKUs': currentWarehouseMetrics.activeSkus || 0,
+          'Storage Utilization': `${((avgInventory) / 10000 * 100).toFixed(1)}%`,
+          'Total SKUs': currentWarehouseMetrics.uniqueSkus.size,
+          'Active SKUs': currentWarehouseMetrics.uniqueSkus.size,
           'Period': format(startDate, 'MMMM yyyy')
         }
       })
@@ -537,14 +536,16 @@ export class ReportService extends BaseService {
     return analyticsData
   }
 
-  private async generatePerformanceMetricsReport(period: string, _warehouseId?: string) {
+  private async generatePerformanceMetricsReport(period: string, warehouseId?: string) {
     const [year, month] = period.split('-').map(Number)
     const startDate = startOfMonth(new Date(year, month - 1))
     const endDate = endOfMonth(new Date(year, month - 1))
 
+    const warehouseCode = await this.resolveWarehouseCode(warehouseId)
+
     const transactions = await this.prisma.inventoryTransaction.findMany({
       where: {
-        ...(warehouseId ? { warehouseCode: warehouseId } : {}),
+        ...(warehouseCode ? { warehouseCode } : {}),
         transactionDate: {
           gte: startDate,
           lte: endDate
@@ -552,8 +553,17 @@ export class ReportService extends BaseService {
       }
     })
 
-    // Group by warehouse and calculate metrics
-    const warehouseMetrics = transactions.reduce((acc, trans) => {
+    type WarehousePerformanceMetrics = {
+      warehouseName: string
+      totalTransactions: number
+      receiveTransactions: number
+      shipTransactions: number
+      totalCartonsReceived: number
+      totalCartonsShipped: number
+      uniqueSkus: Set<string>
+    }
+
+    const warehouseMetrics = transactions.reduce<Record<string, WarehousePerformanceMetrics>>((acc, trans) => {
       if (!acc[trans.warehouseCode]) {
         acc[trans.warehouseCode] = {
           warehouseName: trans.warehouseName,
@@ -562,31 +572,30 @@ export class ReportService extends BaseService {
           shipTransactions: 0,
           totalCartonsReceived: 0,
           totalCartonsShipped: 0,
-          uniqueSkus: new Set(),
-          transactionDates: []
+          uniqueSkus: new Set<string>()
         }
       }
 
       const metrics = acc[trans.warehouseCode]
-      metrics.totalTransactions++
-      
+      metrics.totalTransactions += 1
+
       if (trans.transactionType === 'RECEIVE') {
-        metrics.receiveTransactions++
+        metrics.receiveTransactions += 1
         metrics.totalCartonsReceived += trans.cartonsIn
       } else if (trans.transactionType === 'SHIP') {
-        metrics.shipTransactions++
+        metrics.shipTransactions += 1
         metrics.totalCartonsShipped += trans.cartonsOut
       }
-      
+
       metrics.uniqueSkus.add(trans.skuCode)
-      metrics.transactionDates.push(trans.transactionDate)
-
       return acc
-    }, {} as Record<string, { warehouseId: string; warehouseName: string; metrics: Record<string, number> }>)
+    }, {})
 
-    return Object.values(warehouseMetrics).map((metrics: Record<string, unknown>) => {
-      const avgTransactionsPerDay = metrics.totalTransactions / 30
-      const receiveToShipRatio = metrics.shipTransactions > 0 
+    const totalDays = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)))
+
+    return Object.values(warehouseMetrics).map(metrics => {
+      const avgTransactionsPerDay = metrics.totalTransactions / totalDays
+      const receiveToShipRatio = metrics.shipTransactions > 0
         ? (metrics.receiveTransactions / metrics.shipTransactions).toFixed(2)
         : 'N/A'
 
@@ -608,70 +617,71 @@ export class ReportService extends BaseService {
   /**
    * Helper methods
    */
-  private async getMetricsForPeriod(startDate: Date, endDate: Date, _warehouseId?: string) {
-    const transactions = await this.prisma.inventoryTransaction.groupBy({
-      by: ['warehouseCode', 'transactionType'],
+  private async getMetricsForPeriod(startDate: Date, endDate: Date, warehouseId?: string) {
+    const warehouseCode = await this.resolveWarehouseCode(warehouseId)
+
+    const transactions = await this.prisma.inventoryTransaction.findMany({
       where: {
-        ...(warehouseId ? { warehouseCode: warehouseId } : {}),
+        ...(warehouseCode ? { warehouseCode } : {}),
         transactionDate: {
           gte: startDate,
           lte: endDate
         }
-      },
-      _count: true,
-      _sum: {
-        cartonsIn: true,
-        cartonsOut: true
       }
     })
 
-    // inventory_balances removed - using empty arrays
-    const inventoryStats: Array<{ category: string; value: number | string }> = []
-    const activeSkus: Array<{ skuCode: string; description: string; stock: number }> = []
+    type MetricsSnapshot = {
+      totalTransactions: number
+      receiveTransactions: number
+      shipTransactions: number
+      cartonsIn: number
+      cartonsOut: number
+      uniqueSkus: Set<string>
+    }
 
-    const metrics = new Map()
+    const metrics = new Map<string, MetricsSnapshot>()
 
-    // Process transactions
     transactions.forEach(t => {
-      if (!metrics.has(t.warehouseCode)) {
-        metrics.set(t.warehouseCode, {})
+      const existing = metrics.get(t.warehouseCode) ?? {
+        totalTransactions: 0,
+        receiveTransactions: 0,
+        shipTransactions: 0,
+        cartonsIn: 0,
+        cartonsOut: 0,
+        uniqueSkus: new Set<string>()
       }
-      const m = metrics.get(t.warehouseCode)
-      
-      m.totalTransactions = (m.totalTransactions || 0) + t._count
+
+      existing.totalTransactions += 1
+      existing.cartonsIn += t.cartonsIn
+      existing.cartonsOut += t.cartonsOut
+      if (t.transactionType === 'RECEIVE') {
+        existing.receiveTransactions += 1
+      }
       if (t.transactionType === 'SHIP') {
-        m.shipments = (m.shipments || 0) + (t._sum.cartonsOut || 0)
+        existing.shipTransactions += 1
       }
-    })
+      existing.uniqueSkus.add(t.skuCode)
 
-    // Process inventory stats (empty for now)
-    inventoryStats.forEach(stat => {
-      if (!metrics.has(stat.warehouseCode)) {
-        metrics.set(stat.warehouseCode, {})
-      }
-      const m = metrics.get(stat.warehouseCode)
-      m.avgInventory = stat._avg.currentCartons || 0
-      m.totalSkus = stat._count.skuCode
-    })
-
-    // Process active SKUs (empty for now)
-    activeSkus.forEach(stat => {
-      if (!metrics.has(stat.warehouseCode)) {
-        metrics.set(stat.warehouseCode, {})
-      }
-      const m = metrics.get(stat.warehouseCode)
-      m.activeSkus = stat._count.skuCode
+      metrics.set(t.warehouseCode, existing)
     })
 
     return metrics
   }
 
-  private generateCSV(data: Record<string, unknown>[]): string {
+  private async resolveWarehouseCode(warehouseId?: string): Promise<string | undefined> {
+    if (!warehouseId) {
+      return undefined
+    }
+    const warehouse = await this.prisma.warehouse.findUnique({ where: { id: warehouseId } })
+    return warehouse?.code ?? undefined
+  }
+
+  private generateCSV(data: ReportRow[]): string {
     if (data.length === 0) return ''
-    
+
     const headers = Object.keys(data[0])
     const csvRows = []
-    
+
     // Add headers
     csvRows.push(headers.join(','))
     
@@ -679,19 +689,32 @@ export class ReportService extends BaseService {
     for (const row of data) {
       const values = headers.map(header => {
         const value = row[header]
-        // Escape commas and quotes
-        if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-          return `"${value.replace(/"/g, '""')}"`
+
+        if (value === null || value === undefined) {
+          return ''
         }
-        return value
+
+        const normalized = value instanceof Date ? value.toISOString() : value
+
+        if (typeof normalized === 'string') {
+          return normalized.includes(',') || normalized.includes('"')
+            ? `"${normalized.replace(/"/g, '""')}"`
+            : normalized
+        }
+
+        if (typeof normalized === 'number' || typeof normalized === 'boolean') {
+          return String(normalized)
+        }
+
+        return ''
       })
       csvRows.push(values.join(','))
     }
-    
+
     return csvRows.join('\n')
   }
 
-  private async generatePDF(data: Record<string, unknown>[], reportType: string, period: string): Promise<Buffer> {
+  private async generatePDF(data: ReportRow[], reportType: string, period: string): Promise<Buffer> {
     const doc = new jsPDF()
     
     // Add title
@@ -713,7 +736,18 @@ export class ReportService extends BaseService {
     // Add table
     if (data.length > 0) {
       const headers = Object.keys(data[0])
-      const rows = data.map(item => headers.map(header => String(item[header])))
+      const rows = data.map(item =>
+        headers.map(header => {
+          const value = item[header]
+          if (value === null || value === undefined) {
+            return ''
+          }
+          if (value instanceof Date) {
+            return format(value, 'yyyy-MM-dd')
+          }
+          return String(value)
+        })
+      )
       
       ;(doc as jsPDF & { autoTable: (options: unknown) => void }).autoTable({
         head: [headers],

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { getS3Service } from '@/services/s3.service'
 import { validateFile, scanFileContent } from '@/lib/security/file-upload'
 
@@ -16,6 +17,11 @@ interface AttachmentData {
 }
 
 type AttachmentsRecord = Record<string, AttachmentData>
+type AttachmentInput = Partial<AttachmentData> & {
+  name?: string
+  category?: string
+  data?: string
+}
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // 60 seconds for file uploads
 
@@ -40,7 +46,7 @@ export async function POST(
     if (contentType?.includes('application/json')) {
       // Handle JSON with base64 attachments - migrate to S3
       const body = await request.json()
-      const { attachments } = body
+      const { attachments } = body as { attachments?: unknown }
       
       if (!attachments || !Array.isArray(attachments)) {
         return NextResponse.json({ error: 'Attachments array is required' }, { status: 400 })
@@ -56,10 +62,13 @@ export async function POST(
       }
       
       // Upload base64 attachments to S3
-      const uploadedAttachments: unknown[] = []
-      
-      for (const attachment of attachments) {
+      const attachmentInputs = attachments as AttachmentInput[]
+      const currentAttachments = (transaction.attachments as unknown as AttachmentsRecord) || {}
+      const updatedAttachments: AttachmentsRecord = { ...currentAttachments }
+
+      for (const attachment of attachmentInputs) {
         try {
+          const category = (attachment.category || 'general').toString()
           if (attachment.data && attachment.data.startsWith('data:')) {
             // Extract base64 data
             const matches = attachment.data.match(/^data:(.+);base64,(.+)$/)
@@ -113,49 +122,53 @@ export async function POST(
               expiresIn: 3600, // 1 hour
             })
             
-            uploadedAttachments.push({
-              ...attachment,
+            const attachmentData: AttachmentData = {
+              fileName: attachment.fileName || attachment.name || category,
+              uploadedAt: new Date().toISOString(),
+              uploadedBy: session.user.id,
               s3Key: uploadResult.key,
               s3Url: presignedUrl,
               size: uploadResult.size,
-              uploadedAt: new Date().toISOString(),
-              data: undefined, // Remove base64 data
-            })
+              contentType: uploadResult.contentType || mimeType
+            }
+
+            if (currentAttachments[category]?.s3Key && currentAttachments[category].s3Key !== attachmentData.s3Key) {
+              try {
+                await s3Service.deleteFile(currentAttachments[category].s3Key)
+              } catch (_error) {
+                // ignore deletion failure
+              }
+            }
+
+            updatedAttachments[category] = attachmentData
           } else {
             // Already has S3 key or no data
-            uploadedAttachments.push(attachment)
+            if (attachment.s3Key) {
+              updatedAttachments[category] = {
+                fileName: attachment.fileName || attachment.name || category,
+                uploadedAt: attachment.uploadedAt || new Date().toISOString(),
+                uploadedBy: attachment.uploadedBy || session.user.id,
+                s3Key: attachment.s3Key,
+                s3Url: attachment.s3Url || '',
+                size: attachment.size || 0,
+                contentType: attachment.contentType || 'application/octet-stream'
+              }
+            }
           }
         } catch (_error) {
           // console.error('Failed to upload attachment:', _error)
-          uploadedAttachments.push(attachment) // Keep original if upload fails
-        }
-      }
-      
-      // Get current attachments to check for replacements
-      const currentAttachments = (transaction.attachments as AttachmentsRecord) || {}
-      
-      // Delete old S3 files for any replaced attachments
-      for (const attachment of uploadedAttachments) {
-        if (attachment.category && currentAttachments[attachment.category]?.s3Key && 
-            currentAttachments[attachment.category].s3Key !== attachment.s3Key) {
-          try {
-            await s3Service.deleteFile(currentAttachments[attachment.category].s3Key)
-            // File deleted from S3
-          } catch (_error) {
-            // console.error('Failed to delete old S3 file:', _error)
-            // Continue even if deletion fails
-          }
+          // Keep existing attachment data if upload fails
         }
       }
       
       // Check if all required documents are now present
-      const hasAllRequiredDocs = checkIfAllRequiredDocsPresent(transaction.transactionType, uploadedAttachments)
+      const hasAllRequiredDocs = checkIfAllRequiredDocsPresent(transaction.transactionType, updatedAttachments)
       
       // Update transaction with S3 references
       await prisma.inventoryTransaction.update({
         where: { id },
         data: {
-          attachments: uploadedAttachments,
+          attachments: updatedAttachments as unknown as Prisma.InputJsonValue,
           // Automatically mark as reconciled if all required docs are present
           ...(hasAllRequiredDocs && { isReconciled: true })
         }
@@ -164,7 +177,7 @@ export async function POST(
       return NextResponse.json({ 
         success: true,
         message: 'Attachments uploaded to S3 successfully',
-        attachments: uploadedAttachments,
+        attachments: updatedAttachments,
         reconciled: hasAllRequiredDocs
       })
     } else {
@@ -228,7 +241,7 @@ export async function POST(
       })
 
       // Update transaction attachments
-      const currentAttachments = (transaction.attachments as AttachmentsRecord) || {}
+      const currentAttachments = (transaction.attachments as unknown as AttachmentsRecord) || {}
       
       // Delete old file from S3 if replacing an existing attachment
       if (currentAttachments[documentType]?.s3Key) {
@@ -260,7 +273,7 @@ export async function POST(
       await prisma.inventoryTransaction.update({
         where: { id },
         data: {
-          attachments: updatedAttachments,
+          attachments: updatedAttachments as unknown as Prisma.InputJsonValue,
           // Automatically mark as reconciled if all required docs are present
           ...(hasAllRequiredDocs && { isReconciled: true })
         }
@@ -326,10 +339,11 @@ export async function GET(
     }
 
     // Generate fresh presigned URLs for all attachments
-    const attachments = transaction.attachments as AttachmentsRecord
+    const attachmentsValue = transaction.attachments as unknown
+    const attachments = attachmentsValue as AttachmentsRecord | AttachmentInput[] | null
     const attachmentsWithUrls: Record<string, AttachmentData & { url?: string }> = {}
 
-    if (attachments && typeof attachments === 'object') {
+    if (attachments && !Array.isArray(attachments) && typeof attachments === 'object') {
       // Handle object-style attachments (documentType as key)
       for (const [docType, attachment] of Object.entries(attachments)) {
         if (attachment && typeof attachment === 'object') {
@@ -349,8 +363,8 @@ export async function GET(
       }
     } else if (Array.isArray(attachments)) {
       // Handle array-style attachments
-      const attachmentArray: unknown[] = []
-      for (const attachment of attachments) {
+      const attachmentArray: AttachmentInput[] = []
+      for (const attachment of attachments as AttachmentInput[]) {
         if (attachment.s3Key) {
           const presignedUrl = await s3Service.getPresignedUrl(attachment.s3Key, 'get', {
             expiresIn: 3600,
@@ -413,7 +427,7 @@ export async function DELETE(
     }
 
     // Remove the attachment from the specified category
-    const attachments = (transaction.attachments as AttachmentsRecord) || {}
+    const attachments = (transaction.attachments as unknown as AttachmentsRecord) || {}
     
     // If the attachment has an S3 key, we should delete it from S3
     const s3Service = getS3Service()
@@ -438,7 +452,7 @@ export async function DELETE(
     await prisma.inventoryTransaction.update({
       where: { id },
       data: {
-        attachments: attachments,
+        attachments: attachments as unknown as Prisma.InputJsonValue,
         // Un-reconcile if missing required docs
         isReconciled: hasAllRequiredDocs
       }
@@ -459,9 +473,12 @@ export async function DELETE(
 }
 
 // Helper function to check if all required documents are present
-function checkIfAllRequiredDocsPresent(transactionType: string, attachments: unknown): boolean {
-  if (!attachments || typeof attachments !== 'object') return false
-  
+function checkIfAllRequiredDocsPresent(
+  transactionType: string,
+  attachments: AttachmentsRecord | AttachmentInput[] | null
+): boolean {
+  if (!attachments) return false
+
   // Define required documents for each transaction type
   const requiredDocs: Record<string, string[]> = {
     RECEIVE: [
@@ -484,20 +501,36 @@ function checkIfAllRequiredDocsPresent(transactionType: string, attachments: unk
   const required = requiredDocs[transactionType]
   if (!required) return true // No requirements defined, consider reconciled
   
-  // Check if all required documents are present
-  for (const docKey of required) {
-    // Check both snake_case and camelCase versions
-    const camelKey = docKey.replace(/_([a-z])/g, (_: string, letter: string) => letter.toUpperCase())
-    
-    if (!(docKey in attachments || camelKey in attachments)) {
-      return false // Missing a required document
+  const checkRecord = (record: AttachmentsRecord): boolean => {
+    for (const docKey of required) {
+      const camelKey = docKey.replace(/_([a-z])/g, (_: string, letter: string) => letter.toUpperCase())
+
+      const recordEntry = record[docKey] || record[camelKey]
+      if (!recordEntry || !recordEntry.s3Key) {
+        return false
+      }
     }
-    
-    // Also check that the value is not null
-    if (!attachments[docKey] && !attachments[camelKey]) {
-      return false
-    }
+    return true
   }
-  
-  return true // All required documents are present
+
+  if (Array.isArray(attachments)) {
+    const recordFromArray: AttachmentsRecord = {}
+    for (const item of attachments as AttachmentInput[]) {
+      const category = (item.category || 'general').toString()
+      if (item.s3Key) {
+        recordFromArray[category] = {
+          fileName: item.fileName || item.name || category,
+          uploadedAt: item.uploadedAt || new Date().toISOString(),
+          uploadedBy: item.uploadedBy || 'unknown',
+          s3Key: item.s3Key,
+          s3Url: item.s3Url || '',
+          size: item.size || 0,
+          contentType: item.contentType || 'application/octet-stream'
+        }
+      }
+    }
+    return checkRecord(recordFromArray)
+  }
+
+  return checkRecord(attachments)
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 import { parseLocalDate } from '@/lib/utils/date-helpers'
 
@@ -38,28 +39,32 @@ export async function PATCH(
     } = body
 
     // Sanitize inputs
-    const sanitizedData: Partial<{
-      shipName: string | null;
-      trackingNumber: string | null;
-      pickupDate: Date | null;
-      isReconciled: boolean;
-    }> = {}
+    const sanitizedData: Prisma.InventoryTransactionUpdateInput = {}
+
+    let sanitizedShipName: string | null | undefined
+    let sanitizedTrackingNumber: string | null | undefined
+    let sanitizedSupplier: string | null | undefined
+    let sanitizedReferenceId: string | null | undefined
     
     if (shipName !== undefined) {
-      sanitizedData.shipName = shipName ? sanitizeForDisplay(shipName) : null
+      sanitizedShipName = shipName ? sanitizeForDisplay(shipName) : null
+      sanitizedData.shipName = sanitizedShipName
     }
     if (trackingNumber !== undefined) {
-      sanitizedData.trackingNumber = trackingNumber ? sanitizeForDisplay(trackingNumber) : null
+      sanitizedTrackingNumber = trackingNumber ? sanitizeForDisplay(trackingNumber) : null
+      sanitizedData.trackingNumber = sanitizedTrackingNumber
     }
     if (pickupDate !== undefined) {
       const parsedDate = parseLocalDate(pickupDate)
       sanitizedData.pickupDate = parsedDate
     }
     if (supplier !== undefined) {
-      sanitizedData.supplier = supplier ? sanitizeForDisplay(supplier) : null
+      sanitizedSupplier = supplier ? sanitizeForDisplay(supplier) : null
+      sanitizedData.supplier = sanitizedSupplier
     }
     if (referenceId !== undefined) {
-      sanitizedData.referenceId = referenceId ? sanitizeForDisplay(referenceId) : null
+      sanitizedReferenceId = referenceId ? sanitizeForDisplay(referenceId) : null
+      sanitizedData.referenceId = sanitizedReferenceId
     }
     
     // Handle quantity fields
@@ -111,7 +116,9 @@ export async function PATCH(
         updatedAttachments = [...updatedAttachments, ...attachments]
       }
       
-      sanitizedData.attachments = updatedAttachments.length > 0 ? updatedAttachments : null
+      sanitizedData.attachments = updatedAttachments.length > 0 
+        ? (updatedAttachments as unknown as Prisma.InputJsonValue)
+        : Prisma.JsonNull
     }
 
     // Get current transaction for audit log
@@ -167,25 +174,25 @@ export async function PATCH(
     }
 
     // Track what changed
-    if (shipName !== undefined && currentTransaction?.shipName !== sanitizedData.shipName) {
+    if (shipName !== undefined && currentTransaction?.shipName !== sanitizedShipName) {
       changes.fields.push('shipName')
       changes.before.shipName = currentTransaction?.shipName
-      changes.after.shipName = sanitizedData.shipName
+      changes.after.shipName = sanitizedShipName ?? null
     }
-    if (trackingNumber !== undefined && currentTransaction?.trackingNumber !== sanitizedData.trackingNumber) {
+    if (trackingNumber !== undefined && currentTransaction?.trackingNumber !== sanitizedTrackingNumber) {
       changes.fields.push('trackingNumber')
       changes.before.trackingNumber = currentTransaction?.trackingNumber
-      changes.after.trackingNumber = sanitizedData.trackingNumber
+      changes.after.trackingNumber = sanitizedTrackingNumber ?? null
     }
-    if (supplier !== undefined && currentTransaction?.supplier !== sanitizedData.supplier) {
+    if (supplier !== undefined && currentTransaction?.supplier !== sanitizedSupplier) {
       changes.fields.push('supplier')
       changes.before.supplier = currentTransaction?.supplier
-      changes.after.supplier = sanitizedData.supplier
+      changes.after.supplier = sanitizedSupplier ?? null
     }
-    if (referenceId !== undefined && currentTransaction?.referenceId !== sanitizedData.referenceId) {
+    if (referenceId !== undefined && currentTransaction?.referenceId !== sanitizedReferenceId) {
       changes.fields.push('referenceId')
       changes.before.referenceId = currentTransaction?.referenceId
-      changes.after.referenceId = sanitizedData.referenceId
+      changes.after.referenceId = sanitizedReferenceId ?? null
     }
 
     if (changes.fields.length > 0) {
@@ -194,7 +201,7 @@ export async function PATCH(
           entity: 'inventory_transactions',
           entityId: id,
           action: 'UPDATE',
-          newValue: changes,
+          newValue: changes as unknown as Prisma.InputJsonValue,
           userId: session.user.id
         }
       })

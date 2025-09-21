@@ -49,7 +49,7 @@ export async function middleware(request: NextRequest) {
     : ['next-auth.session-token', 'ecomos.next-auth.session-token', 'wms.next-auth.session-token']
 
   const hasSession = await hasCentralSession({
-    request: request as any,
+    request,
     cookieNames,
     centralUrl: process.env.CENTRAL_AUTH_URL,
     debug: process.env.NODE_ENV !== 'production',

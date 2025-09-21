@@ -25,7 +25,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@ecom-os/ledger": ["../../packages/ledger/src"]
     },
     "types": ["node"]
   },

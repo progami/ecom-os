@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { Suspense, useState, useEffect } from 'react'
 import { Calculator, AlertCircle, CheckCircle, XCircle, FileText, Save, Loader2, ChevronDown, ChevronRight } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { Button } from '@/components/ui/button'
 import { StatsCard } from '@/components/ui/stats-card'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -39,6 +40,20 @@ interface ReconciliationItem {
   }[]
 }
 
+export default function FinanceReconciliationPage() {
+  return (
+    <Suspense
+      fallback={
+        <DashboardLayout>
+          <div className="p-6">Loading reconciliation data...</div>
+        </DashboardLayout>
+      }
+    >
+      <FinanceReconciliationPageContent />
+    </Suspense>
+  )
+}
+
 interface InvoiceReconciliation {
   id: string
   invoiceNumber: string
@@ -54,7 +69,7 @@ interface InvoiceReconciliation {
   reconciliations: ReconciliationItem[]
 }
 
-export default function FinanceReconciliationPage() {
+function FinanceReconciliationPageContent() {
   const searchParams = useSearchParams()
   const invoiceId = searchParams.get('invoiceId')
   
@@ -349,32 +364,29 @@ export default function FinanceReconciliationPage() {
                   <option value="2023-12">Dec 16 - Jan 15, 2024</option>
                   <option value="2023-11">Nov 16 - Dec 15, 2023</option>
                 </select>
-                <button 
+                <Button
                   onClick={runReconciliation}
                   disabled={processing}
-                  className="action-button"
+                  className="gap-2"
                 >
                   {processing ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Processing...
                     </>
                   ) : (
                     <>
-                      <Calculator className="h-4 w-4 mr-2" />
+                      <Calculator className="h-4 w-4" />
                       Run Reconciliation
                     </>
                   )}
-                </button>
+                </Button>
               </>
             )}
             {invoiceId && (
-              <Link
-                href="/finance/reconciliation"
-                className="secondary-button"
-              >
-                View All Reconciliations
-              </Link>
+              <Button asChild variant="ghost">
+                <Link href="/finance/reconciliation">View All Reconciliations</Link>
+              </Button>
             )}
             </div>
           </div>
@@ -645,12 +657,9 @@ export default function FinanceReconciliationPage() {
                             View Invoice Details
                           </Link>
                           {invoiceTotals.difference !== 0 && invoice.status !== 'disputed' && (
-                            <button 
-                              onClick={() => handleCreateDispute(invoice.id)}
-                              className="action-button"
-                            >
+                            <Button onClick={() => handleCreateDispute(invoice.id)} className="gap-2">
                               Create Dispute
-                            </button>
+                            </Button>
                           )}
                         </div>
                       </>
@@ -684,24 +693,24 @@ export default function FinanceReconciliationPage() {
                 placeholder="Enter resolution notes..."
               />
               <div className="flex justify-end gap-2 mt-4">
-                <button
+                <Button
                   onClick={() => {
                     setNoteModalOpen(false)
                     setResolutionNote('')
                     setSelectedItem(null)
                   }}
-                  className="secondary-button"
+                  variant="ghost"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={handleAddNote}
                   disabled={!resolutionNote.trim()}
-                  className="action-button"
+                  className="gap-2"
                 >
-                  <Save className="h-4 w-4 mr-2" />
+                  <Save className="h-4 w-4" />
                   Save Note
-                </button>
+                </Button>
               </div>
             </div>
           </div>

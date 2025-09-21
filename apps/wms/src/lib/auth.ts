@@ -1,9 +1,8 @@
 import { NextAuthOptions } from 'next-auth'
+import type { Session } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
+import { applyDevAuthDefaults, withSharedAuth, getAppEntitlement } from '@ecom-os/auth'
 import { UserRole } from '@prisma/client'
-
-const secure = process.env.NODE_ENV === 'production'
 
 const devPort = process.env.PORT || process.env.WMS_PORT || 3001
 const devBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${devPort}`
@@ -46,21 +45,25 @@ const baseAuthOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       // WMS is decode-only; preserve central claims
-      if (user && (user as any).id) {
-        token.sub = (user as any).id
+      const userId = (user as { id?: unknown } | null)?.id
+      if (typeof userId === 'string') {
+        token.sub = userId
       }
       return token
     },
     async session({ session, token }) {
-      session.user.id = (token.sub as string) || session.user.id
-      // Prefer central roles claim for WMS
-      const roles: any = (token as any).roles
-      const wmsEnt = roles?.wms as { role?: string; depts?: string[] } | undefined
-      if (wmsEnt?.role) {
-        session.user.role = (wmsEnt.role as string) as UserRole
+      if (typeof token.sub === 'string') {
+        session.user.id = token.sub
       }
-      // @ts-expect-error augment
-      session.user.departments = wmsEnt?.depts
+      // Prefer central roles claim for WMS
+      const rolesClaim = (token as { roles?: unknown }).roles
+      const wmsEnt = getAppEntitlement(rolesClaim, 'wms')
+      const allowedRoles: UserRole[] = ['admin', 'staff']
+      if (wmsEnt?.role && allowedRoles.includes(wmsEnt.role as UserRole)) {
+        session.user.role = wmsEnt.role as UserRole
+      }
+      const sessionUser = session.user as Session['user'] & { departments?: string[] }
+      sessionUser.departments = wmsEnt?.depts
       return session
     },
   },

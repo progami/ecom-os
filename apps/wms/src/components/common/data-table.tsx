@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, ReactNode } from 'react'
+import { useState, ReactNode, Fragment } from 'react'
 import { ChevronUp, ChevronDown, ArrowUpDown } from '@/lib/lucide-icons'
 
 export interface Column<T> {
@@ -24,6 +24,7 @@ export interface DataTableProps<T> {
     renderExpanded: (row: T) => ReactNode
   }
   className?: string
+  getRowClassName?: (row: T, index: number) => string
 }
 
 export function DataTable<T extends Record<string, unknown>>({
@@ -34,7 +35,8 @@ export function DataTable<T extends Record<string, unknown>>({
   rowKey,
   onRowClick,
   expandable,
-  className = ''
+  className = '',
+  getRowClassName
 }: DataTableProps<T>) {
   const [sortColumn, setSortColumn] = useState<string | null>(null)
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
@@ -58,7 +60,7 @@ export function DataTable<T extends Record<string, unknown>>({
     const bValue = getNestedValue(b, sortColumn)
 
     if (aValue === bValue) return 0
-    
+
     const comparison = aValue > bValue ? 1 : -1
     return sortDirection === 'asc' ? comparison : -comparison
   })
@@ -73,7 +75,7 @@ export function DataTable<T extends Record<string, unknown>>({
     return String(index)
   }
 
-  const getNestedValue = (obj: unknown, path: string): unknown => {
+  function getNestedValue(obj: unknown, path: string): unknown {
     return path.split('.').reduce((current, key) => (current as Record<string, unknown>)?.[key], obj)
   }
 
@@ -84,7 +86,7 @@ export function DataTable<T extends Record<string, unknown>>({
       return column.render(value, row)
     }
     
-    return value ?? '-'
+    return (value ?? '-') as ReactNode
   }
 
   const SortIcon = ({ column }: { column: Column<T> }) => {
@@ -120,16 +122,16 @@ export function DataTable<T extends Record<string, unknown>>({
 
   return (
     <div className={`overflow-x-auto ${className}`}>
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+      <table className="w-full table-auto text-sm">
+        <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
             {columns.map((column) => (
               <th
                 key={column.key as string}
                 onClick={() => handleSort(column)}
                 className={`
-                  px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider
-                  ${column.sortable ? 'cursor-pointer hover:bg-gray-100' : ''}
+                  px-3 py-2 text-left font-semibold border-b border-border/60
+                  ${column.sortable ? 'cursor-pointer text-foreground hover:text-primary' : ''}
                   ${column.className || ''}
                 `}
               >
@@ -141,25 +143,27 @@ export function DataTable<T extends Record<string, unknown>>({
             ))}
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-white">
           {sortedData.map((row, rowIndex) => {
             const key = getRowKey(row, rowIndex)
             const isExpanded = expandable?.isExpanded(row) || false
+            const rowClassName = getRowClassName?.(row, rowIndex) || ''
 
             return (
-              <>
+              <Fragment key={key}>
                 <tr
-                  key={key}
                   onClick={() => onRowClick?.(row)}
                   className={`
-                    ${onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}
-                    ${isExpanded ? 'bg-gray-50' : ''}
+                    border-b border-border/60 last:border-0
+                    ${onRowClick ? 'cursor-pointer hover:bg-muted/20' : ''}
+                    ${isExpanded ? 'bg-muted/20' : ''}
+                    ${rowClassName}
                   `}
                 >
                   {columns.map((column) => (
                     <td
                       key={`${key}-${column.key as string}`}
-                      className={`px-6 py-4 whitespace-nowrap text-sm ${column.className || ''}`}
+                      className={`px-3 py-2 align-middle text-sm text-foreground ${column.className || ''}`}
                     >
                       {getCellValue(row, column)}
                     </td>
@@ -172,7 +176,7 @@ export function DataTable<T extends Record<string, unknown>>({
                     </td>
                   </tr>
                 )}
-              </>
+              </Fragment>
             )
           })}
         </tbody>

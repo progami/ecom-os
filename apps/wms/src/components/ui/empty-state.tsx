@@ -1,5 +1,6 @@
 import React from 'react'
 import { LucideIcon } from '@/lib/lucide-icons'
+import { Button } from '@/components/ui/button'
 
 interface EmptyStateProps {
   icon: LucideIcon
@@ -18,12 +19,9 @@ export function EmptyState({ icon: Icon, title, description, action }: EmptyStat
       <h3 className="text-lg font-medium text-gray-900 mb-2">{title}</h3>
       <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto">{description}</p>
       {action && (
-        <button
-          onClick={action.onClick}
-          className="action-button"
-        >
+        <Button onClick={action.onClick} className="gap-2">
           {action.label}
-        </button>
+        </Button>
       )}
     </div>
   )

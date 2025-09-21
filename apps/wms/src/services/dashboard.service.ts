@@ -1,5 +1,5 @@
 import { BaseService, ServiceContext } from './base.service'
-import { Prisma } from '@prisma/client'
+import { Prisma, TransactionType } from '@prisma/client'
 
 export interface DashboardStats {
   inventory: {
@@ -34,23 +34,39 @@ export class DashboardService extends BaseService {
     super(context)
   }
 
+  private async getScopedWarehouseCode(): Promise<string | undefined> {
+    if (!this.session?.user) {
+      return undefined
+    }
+
+    if (this.session.user.role !== 'staff' || !this.session.user.warehouseId) {
+      return undefined
+    }
+
+    const warehouse = await this.prisma.warehouse.findUnique({
+      where: { id: this.session.user.warehouseId },
+      select: { code: true }
+    })
+
+    return warehouse?.code
+  }
+
   /**
    * Get comprehensive dashboard statistics
    */
   async getDashboardStats(): Promise<DashboardStats> {
-    const warehouseFilter = this.getWarehouseFilter()
-    
-    // Run all queries in parallel for performance
+    const warehouseCode = await this.getScopedWarehouseCode()
+
     const [
       inventoryStats,
       transactionStats,
       financeStats,
       warehouseStats
     ] = await Promise.all([
-      this.getInventoryStats(warehouseFilter),
-      this.getTransactionStats(warehouseFilter),
-      this.getFinanceStats(warehouseFilter),
-      this.getWarehouseStats(warehouseFilter)
+      this.getInventoryStats(warehouseCode),
+      this.getTransactionStats(warehouseCode),
+      this.getFinanceStats(warehouseCode),
+      this.getWarehouseStats(warehouseCode)
     ])
 
     return {
@@ -64,36 +80,27 @@ export class DashboardService extends BaseService {
   /**
    * Get inventory statistics
    */
-  private async getInventoryStats(warehouseFilter: Prisma.InventoryTransactionWhereInput) {
-    const [
-      totalSkus,
-      inventoryLevels,
-      lowStockItems,
-      outOfStockItems
-    ] = await Promise.all([
-      // Total unique SKUs (SKUs don't have warehouseId)
+  private async getInventoryStats(warehouseCode?: string) {
+    const [totalSkus, balances] = await Promise.all([
       this.prisma.sku.count(),
-      
-      // Total quantity across all SKUs
-      this.calculateTotalInventory(warehouseFilter),
-      
-      // Low stock items (less than reorder point)
-      this.prisma.sku.count({
-        where: {
-          ...warehouseFilter,
-          reorderPoint: { gt: 0 }
-          // Would need current inventory level calculation
-        }
-      }),
-      
-      // Out of stock items
-      this.countOutOfStockItems(warehouseFilter)
+      this.getInventoryBalances(warehouseCode)
     ])
+
+    let totalQuantity = 0
+    let outOfStockItems = 0
+
+    balances.forEach(quantity => {
+      if (quantity > 0) {
+        totalQuantity += quantity
+      } else {
+        outOfStockItems += 1
+      }
+    })
 
     return {
       totalSkus,
-      totalQuantity: inventoryLevels,
-      lowStockItems,
+      totalQuantity,
+      lowStockItems: 0,
       outOfStockItems
     }
   }
@@ -101,13 +108,25 @@ export class DashboardService extends BaseService {
   /**
    * Get transaction statistics
    */
-  private async getTransactionStats(warehouseFilter: Prisma.InventoryTransactionWhereInput) {
+  private async getTransactionStats(warehouseCode?: string) {
     const now = new Date()
-    const startOfDay = new Date(now.setHours(0, 0, 0, 0))
-    const startOfWeek = new Date(now.setDate(now.getDate() - 7))
-    const startOfMonth = new Date(now.setDate(1))
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const startOfWeek = new Date(startOfDay)
+    startOfWeek.setDate(startOfWeek.getDate() - 7)
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-    const baseWhere = warehouseFilter ? { warehouseCode: warehouseFilter.warehouseId } : {}
+    const baseWhere: Prisma.InventoryTransactionWhereInput = warehouseCode
+      ? { warehouseCode }
+      : {}
+
+    const countByType = (type: TransactionType, date: Date) =>
+      this.prisma.inventoryTransaction.count({
+        where: {
+          ...baseWhere,
+          transactionType: type,
+          transactionDate: { gte: date }
+        }
+      })
 
     const [
       todayReceived,
@@ -117,53 +136,12 @@ export class DashboardService extends BaseService {
       monthReceived,
       monthShipped
     ] = await Promise.all([
-      // Today's transactions
-      this.prisma.inventoryTransaction.count({
-        where: {
-          ...baseWhere,
-          transactionType: 'RECEIVE',
-          transactionDate: { gte: startOfDay }
-        }
-      }),
-      this.prisma.inventoryTransaction.count({
-        where: {
-          ...baseWhere,
-          transactionType: 'SHIP',
-          transactionDate: { gte: startOfDay }
-        }
-      }),
-      
-      // Week's transactions
-      this.prisma.inventoryTransaction.count({
-        where: {
-          ...baseWhere,
-          transactionType: 'RECEIVE',
-          transactionDate: { gte: startOfWeek }
-        }
-      }),
-      this.prisma.inventoryTransaction.count({
-        where: {
-          ...baseWhere,
-          transactionType: 'SHIP',
-          transactionDate: { gte: startOfWeek }
-        }
-      }),
-      
-      // Month's transactions
-      this.prisma.inventoryTransaction.count({
-        where: {
-          ...baseWhere,
-          transactionType: 'RECEIVE',
-          transactionDate: { gte: startOfMonth }
-        }
-      }),
-      this.prisma.inventoryTransaction.count({
-        where: {
-          ...baseWhere,
-          transactionType: 'SHIP',
-          transactionDate: { gte: startOfMonth }
-        }
-      })
+      countByType('RECEIVE', startOfDay),
+      countByType('SHIP', startOfDay),
+      countByType('RECEIVE', startOfWeek),
+      countByType('SHIP', startOfWeek),
+      countByType('RECEIVE', startOfMonth),
+      countByType('SHIP', startOfMonth)
     ])
 
     return {
@@ -179,39 +157,24 @@ export class DashboardService extends BaseService {
   /**
    * Get finance statistics
    */
-  private async getFinanceStats(_warehouseFilter: Prisma.InventoryTransactionWhereInput) {
-    const startOfMonth = new Date(new Date().setDate(1))
-    
-    const [
-      pendingInvoices,
-      disputedInvoices,
-      monthlyRevenue,
-      monthlyExpenses
-    ] = await Promise.all([
-      // Pending invoices (placeholder - invoice table not implemented)
-      Promise.resolve(0),
-      
-      // Disputed invoices (placeholder - invoice table not implemented)
-      Promise.resolve(0),
-      
-      // Monthly revenue (placeholder - invoice table not implemented)
-      Promise.resolve({
-        _sum: { totalAmount: 0 }
-      }),
-      
-      // Monthly expenses (sum of cost ledger)
-      this.prisma.costLedger.aggregate({
-        where: {
-          createdAt: { gte: startOfMonth }
-        },
-        _sum: { totalCost: true }
-      })
-    ])
+  private async getFinanceStats(warehouseCode?: string) {
+    const now = new Date()
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+    const costWhere: Prisma.CostLedgerWhereInput = {
+      createdAt: { gte: startOfMonth },
+      ...(warehouseCode ? { warehouseCode } : {})
+    }
+
+    const monthlyExpenses = await this.prisma.costLedger.aggregate({
+      where: costWhere,
+      _sum: { totalCost: true }
+    })
 
     return {
-      pendingInvoices,
-      disputedInvoices,
-      monthlyRevenue: monthlyRevenue._sum.totalAmount || 0,
+      pendingInvoices: 0,
+      disputedInvoices: 0,
+      monthlyRevenue: 0,
       monthlyExpenses: Number(monthlyExpenses._sum.totalCost || 0)
     }
   }
@@ -219,132 +182,68 @@ export class DashboardService extends BaseService {
   /**
    * Get warehouse statistics
    */
-  private async getWarehouseStats(warehouseFilter: Prisma.WarehouseWhereInput) {
-    const whereClause = warehouseFilter || {}
-    
-    const [
-      activeCount,
-      warehouseConfigs
-    ] = await Promise.all([
+  private async getWarehouseStats(warehouseCode?: string) {
+    const warehouseWhere: Prisma.WarehouseWhereInput = warehouseCode
+      ? { code: warehouseCode }
+      : {}
+
+    const [activeCount, utilizedWarehouses] = await Promise.all([
       this.prisma.warehouse.count({
         where: {
-          ...whereClause,
+          ...warehouseWhere,
           isActive: true
         }
       }),
-      
-      // Placeholder - warehouseConfig table not implemented
-      Promise.resolve([])
+      this.prisma.inventoryTransaction.groupBy({
+        by: ['warehouseCode'],
+        where: warehouseCode ? { warehouseCode } : {}
+      })
     ])
 
-    const totalCapacity = warehouseConfigs.reduce(
-      (sum, config) => sum + (config.maxPalletCapacity || 0), 
-      0
-    )
-    
-    const currentUsage = warehouseConfigs.reduce(
-      (sum, config) => sum + (config.currentPalletCount || 0), 
-      0
-    )
-    
-    const utilizationRate = totalCapacity > 0 
-      ? (currentUsage / totalCapacity) * 100 
+    const utilizationRate = activeCount > 0
+      ? Math.min(100, Math.round((utilizedWarehouses.length / activeCount) * 1000) / 10)
       : 0
 
     return {
       activeCount,
-      totalCapacity,
-      utilizationRate: Math.round(utilizationRate * 10) / 10
+      totalCapacity: 0,
+      utilizationRate
     }
   }
 
   /**
-   * Calculate total inventory across all warehouses
+   * Retrieve net inventory balances per SKU/batch combination
    */
-  private async calculateTotalInventory(warehouseFilter: Prisma.InventoryTransactionWhereInput): Promise<number> {
-    const transactions = await this.prisma.inventoryTransaction.groupBy({
-      by: ['skuCode', 'batchLot', 'transactionType'],
-      where: warehouseFilter ? { warehouseCode: warehouseFilter.warehouseId } : {},
+  private async getInventoryBalances(warehouseCode?: string): Promise<Map<string, number>> {
+    const aggregates = await this.prisma.inventoryTransaction.groupBy({
+      by: ['skuCode', 'batchLot'],
+      where: warehouseCode ? { warehouseCode } : {},
       _sum: {
         cartonsIn: true,
         cartonsOut: true
       }
     })
 
-    let totalQuantity = 0
-    const inventory = new Map<string, number>()
+    const balances = new Map<string, number>()
 
-    for (const tx of transactions) {
-      const key = `${tx.skuCode}-${tx.batchLot}`
-      const current = inventory.get(key) || 0
-      
-      if (tx.transactionType === 'RECEIVE' || tx.transactionType === 'ADJUST_IN') {
-        inventory.set(key, current + (tx._sum.cartonsIn || 0))
-      } else if (tx.transactionType === 'SHIP' || tx.transactionType === 'ADJUST_OUT') {
-        inventory.set(key, current - (tx._sum.cartonsOut || 0))
-      }
+    for (const aggregate of aggregates) {
+      const key = `${aggregate.skuCode}-${aggregate.batchLot}`
+      const cartonsIn = Number(aggregate._sum.cartonsIn || 0)
+      const cartonsOut = Number(aggregate._sum.cartonsOut || 0)
+      balances.set(key, cartonsIn - cartonsOut)
     }
 
-    for (const quantity of inventory.values()) {
-      if (quantity > 0) {
-        totalQuantity += quantity
-      }
-    }
-
-    return totalQuantity
-  }
-
-  /**
-   * Count items that are out of stock
-   */
-  private async countOutOfStockItems(warehouseFilter: Prisma.InventoryTransactionWhereInput): Promise<number> {
-    // Get all SKUs
-    const skus = await this.prisma.sku.findMany({
-      where: warehouseFilter,
-      select: { skuCode: true }
-    })
-
-    let outOfStockCount = 0
-
-    // Check inventory level for each SKU
-    for (const sku of skus) {
-      const inventory = await this.prisma.inventoryTransaction.groupBy({
-        by: ['transactionType'],
-        where: {
-          skuCode: sku.skuCode,
-          ...(warehouseFilter && { warehouseCode: warehouseFilter.warehouseId })
-        },
-        _sum: {
-          cartonsIn: true,
-          cartonsOut: true
-        }
-      })
-
-      let balance = 0
-      for (const tx of inventory) {
-        if (tx.transactionType === 'RECEIVE' || tx.transactionType === 'ADJUST_IN') {
-          balance += tx._sum.cartonsIn || 0
-        } else if (tx.transactionType === 'SHIP' || tx.transactionType === 'ADJUST_OUT') {
-          balance -= tx._sum.cartonsOut || 0
-        }
-      }
-
-      if (balance <= 0) {
-        outOfStockCount++
-      }
-    }
-
-    return outOfStockCount
+    return balances
   }
 
   /**
    * Get real-time activity feed
    */
   async getActivityFeed(limit: number = 10) {
-    const warehouseFilter = this.getWarehouseFilter()
-    
+    const warehouseCode = await this.getScopedWarehouseCode()
+
     const recentTransactions = await this.prisma.inventoryTransaction.findMany({
-      where: warehouseFilter ? { warehouseCode: warehouseFilter.warehouseId } : {},
+      where: warehouseCode ? { warehouseCode } : {},
       orderBy: { createdAt: 'desc' },
       take: limit,
       select: {
@@ -372,11 +271,19 @@ export class DashboardService extends BaseService {
   /**
    * Format activity description for display
    */
-  private formatActivityDescription(tx: { type: string; skuCode: string; cartonsIn: number; cartonsOut: number }): string {
-    const quantity = tx.cartonsIn || tx.cartonsOut || 0
-    const action = tx.transactionType === 'RECEIVE' ? 'received' : 
-                   tx.transactionType === 'SHIP' ? 'shipped' : 'adjusted'
-    
+  private formatActivityDescription(tx: { transactionType: TransactionType; skuCode: string; cartonsIn: number; cartonsOut: number }): string {
+    const action = tx.transactionType === 'RECEIVE'
+      ? 'received'
+      : tx.transactionType === 'SHIP'
+        ? 'shipped'
+        : tx.transactionType === 'ADJUST_IN'
+          ? 'adjusted in'
+          : 'adjusted out'
+
+    const quantity = tx.transactionType === 'SHIP' || tx.transactionType === 'ADJUST_OUT'
+      ? tx.cartonsOut
+      : tx.cartonsIn
+
     return `${action} ${quantity} cartons of ${tx.skuCode}`
   }
 }

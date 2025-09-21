@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
@@ -13,6 +13,20 @@ interface Warehouse {
   id: string
   name: string
   code: string
+}
+
+export default function NewRatePage() {
+  return (
+    <Suspense
+      fallback={
+        <DashboardLayout>
+          <div className="p-6">Loading rate form...</div>
+        </DashboardLayout>
+      }
+    >
+      <NewRatePageContent />
+    </Suspense>
+  )
 }
 
 const costCategories = [
@@ -45,8 +59,9 @@ const commonRateNames: { [key: string]: string[] } = {
   Accessorial: ['Hourly labor', 'Special handling', 'Additional service', 'Custom charge']
 }
 
-export default function NewRatePage() {
+function NewRatePageContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { data: session, status } = useSession()
   const [loading, setLoading] = useState(false)
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -73,6 +88,16 @@ export default function NewRatePage() {
     }
     fetchWarehouses()
   }, [session, status, router])
+
+  useEffect(() => {
+    const warehouseId = searchParams.get('warehouseId')
+    if (!warehouseId) return
+    if (!warehouses.some((warehouse) => warehouse.id === warehouseId)) return
+    setFormData((current) => {
+      if (current.warehouseId) return current
+      return { ...current, warehouseId }
+    })
+  }, [searchParams, warehouses])
 
   const fetchWarehouses = async () => {
     try {
@@ -150,7 +175,7 @@ export default function NewRatePage() {
 
       if (response.ok) {
         toast.success('Rate created successfully')
-        router.push('/config/rates')
+        router.push('/config/warehouses?view=rates')
       } else {
         const error = await response.json()
         toast.error(error.error || 'Failed to create rate')
@@ -163,7 +188,7 @@ export default function NewRatePage() {
   }
 
   const handleCancel = () => {
-    router.push('/config/rates')
+    router.push('/config/warehouses?view=rates')
   }
 
   const handleCategoryChange = (category: string) => {
