@@ -36,6 +36,11 @@ jobs:
         run: pnpm --filter @ecom-os/wms type-check
       - name: Build WMS
         run: pnpm --filter @ecom-os/wms build
+        env:
+          NEXTAUTH_SECRET: test-nextauth-secret
+          CENTRAL_AUTH_SECRET: test-central-secret
+          NEXTAUTH_URL: http://localhost:3000
+          CENTRAL_AUTH_URL: https://example.com
 
   auto-merge-dev:
     needs: build-test
