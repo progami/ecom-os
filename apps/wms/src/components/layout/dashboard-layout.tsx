@@ -3,7 +3,9 @@ import { Breadcrumb } from '@/components/ui/breadcrumb'
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   // Use Next.js injected version from package.json
-  const version = process.env.NEXT_PUBLIC_VERSION || '0.5.4'
+  const version = process.env.NEXT_PUBLIC_VERSION || '0.7.0'
+  const releaseTag = `wms-${version}`
+  const releaseUrl = `https://github.com/progami/ecom-os/releases/tag/${releaseTag}`
   
   return (
     <>
@@ -22,7 +24,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
               WMS{' '}
               <a 
-                href={`https://github.com/progami/wms-ecomos/releases/tag/v${version}`}
+                href={releaseUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="hover:text-blue-600 dark:hover:text-blue-400 underline"
