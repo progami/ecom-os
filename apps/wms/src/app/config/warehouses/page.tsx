@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { Suspense, useState, useEffect, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import {
@@ -39,6 +39,20 @@ interface Warehouse extends Record<string, unknown> {
   }
 }
 
+export default function WarehouseAndRatesPage() {
+  return (
+    <Suspense
+      fallback={
+        <DashboardLayout>
+          <div className="p-6">Loading warehouse configuration...</div>
+        </DashboardLayout>
+      }
+    >
+      <WarehouseAndRatesPageContent />
+    </Suspense>
+  )
+}
+
 interface CostRate extends Record<string, unknown> {
   id: string
   warehouseId: string
@@ -53,7 +67,7 @@ interface CostRate extends Record<string, unknown> {
 
 const costCategories = ['Storage', 'Container', 'Carton', 'Pallet', 'Unit', 'Shipment', 'Accessorial'] as const
 
-export default function WarehouseAndRatesPage() {
+function WarehouseAndRatesPageContent() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()

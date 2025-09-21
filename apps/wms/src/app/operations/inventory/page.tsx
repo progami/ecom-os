@@ -715,7 +715,46 @@ function InventoryPage() {
                     </Popover>
                   </div>
                 </th>
-                <th className="px-3 py-2 text-left font-semibold">Description</th>
+                <th className="px-3 py-2 text-left font-semibold">
+                  <div className="flex items-center gap-1">
+                    <span>Description</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter descriptions"
+                          className={cn(
+                            'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            isFilterActive(['skuDescription'])
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-3.5 w-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-64 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Description filter</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => clearColumnFilter(['skuDescription'])}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={columnFilters.skuDescription}
+                          onChange={(event) => updateColumnFilter('skuDescription', event.target.value)}
+                          placeholder="Search description"
+                          className={baseFilterInputClass}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
                 <th className="px-3 py-2 text-left font-semibold">
                   <div className="flex items-center justify-between gap-1">
                     <button
@@ -853,23 +892,6 @@ function InventoryPage() {
                     </Popover>
                   </div>
                 </th>
-              </tr>
-              <tr className="bg-white text-xs text-foreground">
-                <th className="px-3 py-2" />
-                <th className="px-3 py-2" />
-                <th className="px-3 py-2">
-                  <input
-                    type="text"
-                    value={columnFilters.skuDescription}
-                    onChange={(event) => updateColumnFilter('skuDescription', event.target.value)}
-                    placeholder="Search description"
-                    className={baseFilterInputClass}
-                  />
-                </th>
-                <th className="px-3 py-2" />
-                <th className="px-3 py-2" colSpan={4} />
-                <th className="px-3 py-2" />
-                <th className="px-3 py-2" />
               </tr>
             </thead>
 

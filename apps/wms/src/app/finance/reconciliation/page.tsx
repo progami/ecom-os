@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { Suspense, useState, useEffect } from 'react'
 import { Calculator, AlertCircle, CheckCircle, XCircle, FileText, Save, Loader2, ChevronDown, ChevronRight } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { Button } from '@/components/ui/button'
@@ -40,6 +40,20 @@ interface ReconciliationItem {
   }[]
 }
 
+export default function FinanceReconciliationPage() {
+  return (
+    <Suspense
+      fallback={
+        <DashboardLayout>
+          <div className="p-6">Loading reconciliation data...</div>
+        </DashboardLayout>
+      }
+    >
+      <FinanceReconciliationPageContent />
+    </Suspense>
+  )
+}
+
 interface InvoiceReconciliation {
   id: string
   invoiceNumber: string
@@ -55,7 +69,7 @@ interface InvoiceReconciliation {
   reconciliations: ReconciliationItem[]
 }
 
-export default function FinanceReconciliationPage() {
+function FinanceReconciliationPageContent() {
   const searchParams = useSearchParams()
   const invoiceId = searchParams.get('invoiceId')
   

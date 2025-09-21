@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Plus, Trash2, Save } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
@@ -17,6 +17,20 @@ interface LineItem {
 }
 
 export default function NewInvoicePage() {
+  return (
+    <Suspense
+      fallback={
+        <DashboardLayout>
+          <div className="p-6">Loading invoice form...</div>
+        </DashboardLayout>
+      }
+    >
+      <NewInvoicePageContent />
+    </Suspense>
+  )
+}
+
+function NewInvoicePageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isManualEntry = searchParams.get('manual') === 'true'

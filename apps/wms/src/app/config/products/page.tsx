@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Package2, Plus, Edit, Trash2, Search } from '@/lib/lucide-icons'
+import { Package2, Plus, Edit, Trash2, Search, CheckCircle2, Archive, Link2 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -11,6 +11,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ImportButton } from '@/components/ui/import-button'
 import { Button } from '@/components/ui/button'
 import { DataTable, Column } from '@/components/common/data-table'
+import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
 
 interface SKU extends Record<string, unknown> {
   id: string
@@ -124,6 +125,29 @@ export default function AdminSkusPage() {
       (sku.asin && sku.asin.toLowerCase().includes(search))
     )
   }), [skus, showInactive, searchTerm])
+
+  const skuSummary = useMemo(() => {
+    const total = filteredSkus.length
+    if (total === 0) {
+      return {
+        total: 0,
+        active: 0,
+        inactive: 0,
+        withAsin: 0
+      }
+    }
+
+    const active = filteredSkus.filter(sku => sku.isActive).length
+    const inactive = total - active
+    const withAsin = filteredSkus.filter(sku => !!sku.asin).length
+
+    return {
+      total,
+      active,
+      inactive,
+      withAsin
+    }
+  }, [filteredSkus])
 
   const columns: Column<SKU>[] = useMemo(() => [
     {
@@ -279,6 +303,40 @@ export default function AdminSkusPage() {
           </label>
         </div>
 
+        <StatsCardGrid cols={4} gap="gap-4" className="pt-2">
+          <StatsCard
+            title="Total SKUs"
+            value={skuSummary.total}
+            subtitle="Across current filters"
+            icon={Package2}
+            size="sm"
+          />
+          <StatsCard
+            title="Active"
+            value={skuSummary.active}
+            subtitle="Ready for fulfillment"
+            icon={CheckCircle2}
+            variant="success"
+            size="sm"
+          />
+          <StatsCard
+            title="Inactive"
+            value={skuSummary.inactive}
+            subtitle="Hidden from workflows"
+            icon={Archive}
+            variant="warning"
+            size="sm"
+          />
+          <StatsCard
+            title="With ASIN"
+            value={skuSummary.withAsin}
+            subtitle="Amazon-linked"
+            icon={Link2}
+            variant="info"
+            size="sm"
+          />
+        </StatsCardGrid>
+
         {/* SKU Table */}
         <div className="border rounded-lg overflow-hidden">
           <div className="bg-gray-50 px-6 py-3 border-b">
@@ -317,36 +375,6 @@ export default function AdminSkusPage() {
               rowKey="id"
             />
           )}
-        </div>
-
-        {/* SKU Summary */}
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-2">
-          <h3 className="text-lg font-semibold mb-4">SKU Summary</h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-1">
-            <div className="bg-white p-2 rounded-lg text-center">
-              <Package2 className="h-8 w-8 mx-auto mb-2 text-indigo-600" />
-              <p className="text-2xl font-bold">{filteredSkus.length}</p>
-              <p className="text-sm text-gray-600">Total SKUs</p>
-            </div>
-            <div className="bg-white p-2 rounded-lg text-center">
-              <p className="text-2xl font-bold text-green-600">
-                {filteredSkus.filter(s => s.isActive).length}
-              </p>
-              <p className="text-sm text-gray-600">Active SKUs</p>
-            </div>
-            <div className="bg-white p-2 rounded-lg text-center">
-              <p className="text-2xl font-bold text-amber-600">
-                {filteredSkus.filter(s => !s.isActive).length}
-              </p>
-              <p className="text-sm text-gray-600">Inactive SKUs</p>
-            </div>
-            <div className="bg-white p-2 rounded-lg text-center">
-              <p className="text-2xl font-bold text-blue-600">
-                {filteredSkus.filter(s => s.asin).length}
-              </p>
-              <p className="text-sm text-gray-600">With ASIN</p>
-            </div>
-          </div>
         </div>
 
         {/* Delete Confirmation Dialog */}

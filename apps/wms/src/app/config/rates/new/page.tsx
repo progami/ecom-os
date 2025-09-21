@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
@@ -13,6 +13,20 @@ interface Warehouse {
   id: string
   name: string
   code: string
+}
+
+export default function NewRatePage() {
+  return (
+    <Suspense
+      fallback={
+        <DashboardLayout>
+          <div className="p-6">Loading rate form...</div>
+        </DashboardLayout>
+      }
+    >
+      <NewRatePageContent />
+    </Suspense>
+  )
 }
 
 const costCategories = [
@@ -45,7 +59,7 @@ const commonRateNames: { [key: string]: string[] } = {
   Accessorial: ['Hourly labor', 'Special handling', 'Additional service', 'Custom charge']
 }
 
-export default function NewRatePage() {
+function NewRatePageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { data: session, status } = useSession()
