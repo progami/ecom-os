@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { format } from 'date-fns'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
@@ -50,10 +51,9 @@ function CostLedgerPage() {
   const [ledgerData, setLedgerData] = useState<CostLedgerGroupResult[]>([])
   const [totals, setTotals] = useState<CostLedgerBucketTotals | null>(null)
   const [filters] = useState<FilterState>(defaultFilters)
-  const [groupBy, setGroupBy] = useState<'week' | 'month'>('week')
   const [exporting, setExporting] = useState(false)
   const [columnFilters, setColumnFilters] = useState({
-    period: '',
+    weekEnding: '',
     storageMin: '',
     storageMax: '',
     containerMin: '',
@@ -95,7 +95,7 @@ function CostLedgerPage() {
       const params = new URLSearchParams({
         startDate: filters.startDate,
         endDate: filters.endDate,
-        groupBy,
+        groupBy: 'week',
       })
       if (filters.warehouse) {
         params.append('warehouseCode', filters.warehouse)
@@ -116,7 +116,7 @@ function CostLedgerPage() {
     } finally {
       setLoading(false)
     }
-  }, [filters, groupBy])
+  }, [filters])
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -207,11 +207,10 @@ function CostLedgerPage() {
     }
 
     return ledgerData.filter(group => {
-      const periodText = formatPeriod(group, groupBy).toLowerCase()
-      const rangeText = formatDateRange(group.rangeStart, group.rangeEnd).toLowerCase()
-      const periodFilter = columnFilters.period.trim().toLowerCase()
+      const weekEndingFilter = columnFilters.weekEnding.trim().toLowerCase()
+      const weekEndingText = formatWeekEnding(group.rangeEnd).toLowerCase()
 
-      if (periodFilter && !periodText.includes(periodFilter) && !rangeText.includes(periodFilter)) {
+      if (weekEndingFilter && !weekEndingText.includes(weekEndingFilter)) {
         return false
       }
 
@@ -229,7 +228,7 @@ function CostLedgerPage() {
 
       return true
     })
-  }, [ledgerData, columnFilters, groupBy])
+  }, [ledgerData, columnFilters])
 
   const handleExport = useCallback(async () => {
     try {
@@ -237,7 +236,7 @@ function CostLedgerPage() {
       const params = new URLSearchParams({
         startDate: filters.startDate,
         endDate: filters.endDate,
-        groupBy,
+        groupBy: 'week',
       })
       if (filters.warehouse) {
         params.append('warehouseCode', filters.warehouse)
@@ -262,7 +261,7 @@ function CostLedgerPage() {
     } finally {
       setExporting(false)
     }
-  }, [filters.startDate, filters.endDate, filters.warehouse, groupBy])
+  }, [filters.endDate, filters.startDate, filters.warehouse])
 
   const summaryCards = useMemo(() => {
     if (!totals) return []
@@ -317,7 +316,7 @@ function CostLedgerPage() {
       <div className="flex flex-col gap-6">
         <PageHeader
           title="Cost Ledger"
-          subtitle="Weekly and monthly cost allocations"
+        subtitle="Weekly cost allocations"
           icon={DollarSign}
           iconColor="text-emerald-600"
           bgColor="bg-emerald-50"
@@ -348,34 +347,8 @@ function CostLedgerPage() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Filter className="h-4 w-4" />
               <span>
-                Showing {filteredLedgerData.length} {groupBy === 'week' ? 'weeks' : 'months'} of cost activity
+                Showing {filteredLedgerData.length} weeks of cost activity
               </span>
-            </div>
-            <div className="ml-auto flex items-center gap-2 rounded-lg border border-muted">
-              <button
-                type="button"
-                onClick={() => setGroupBy('week')}
-                className={cn(
-                  'px-3 py-1.5 rounded-l-lg text-sm transition-colors',
-                  groupBy === 'week'
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-muted/30'
-                )}
-              >
-                Weekly
-              </button>
-              <button
-                type="button"
-                onClick={() => setGroupBy('month')}
-                className={cn(
-                  'px-3 py-1.5 rounded-r-lg text-sm transition-colors',
-                  groupBy === 'month'
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-muted/30'
-                )}
-              >
-                Monthly
-              </button>
             </div>
           </div>
 
@@ -385,15 +358,15 @@ function CostLedgerPage() {
                 <tr>
                   <th className="px-3 py-2 text-left font-semibold">
                     <div className="flex items-center justify-between gap-1">
-                      <span>Period</span>
+                  <span>Week Ending</span>
                       <Popover>
                         <PopoverTrigger asChild>
                           <button
                             type="button"
-                            aria-label="Filter periods"
+                        aria-label="Filter week ending"
                             className={cn(
                               'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
-                              columnFilters.period
+                              columnFilters.weekEnding
                                 ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
                                 : 'hover:bg-muted/30 hover:text-primary'
                             )}
@@ -403,27 +376,26 @@ function CostLedgerPage() {
                         </PopoverTrigger>
                         <PopoverContent align="start" className="w-64 space-y-2">
                           <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-foreground">Period filter</span>
+                            <span className="text-sm font-medium text-foreground">Week ending filter</span>
                             <button
                               type="button"
                               className="text-xs font-medium text-primary hover:underline"
-                              onClick={() => setColumnFilters(prev => ({ ...prev, period: '' }))}
+                              onClick={() => setColumnFilters(prev => ({ ...prev, weekEnding: '' }))}
                             >
                               Clear
                             </button>
                           </div>
                           <input
                             type="text"
-                            value={columnFilters.period}
-                            onChange={(event) => setColumnFilters(prev => ({ ...prev, period: event.target.value }))}
-                            placeholder="Search period or range"
+                            value={columnFilters.weekEnding}
+                            onChange={(event) => setColumnFilters(prev => ({ ...prev, weekEnding: event.target.value }))}
+                            placeholder="Search week ending"
                             className={baseFilterInputClass}
                           />
                         </PopoverContent>
                       </Popover>
                     </div>
                   </th>
-                  <th className="px-3 py-2 text-left font-semibold">Date Range</th>
                   <th className="px-3 py-2 text-right font-semibold">
                     <div className="flex items-center justify-end gap-1">
                       <span>Storage</span>
@@ -490,13 +462,12 @@ function CostLedgerPage() {
                   <th className="px-3 py-2" />
                   <th className="px-3 py-2" />
                   <th className="px-3 py-2" />
-                  <th className="px-3 py-2" />
                 </tr>
               </thead>
               <tbody>
                 {filteredLedgerData.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="px-4 py-10">
+                    <td colSpan={10} className="px-4 py-10">
                       <div className="text-center text-muted-foreground">
                         No cost ledger data for the selected filters.
                       </div>
@@ -507,10 +478,7 @@ function CostLedgerPage() {
                 {filteredLedgerData.map((group) => (
                   <tr key={`${group.period}-${group.rangeStart}`} className="odd:bg-muted/20">
                     <td className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
-                      {formatPeriod(group, groupBy)}
-                    </td>
-                    <td className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
-                      {formatDateRange(group.rangeStart, group.rangeEnd)}
+                      {formatPeriod(group)}
                     </td>
                     <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.storage)}</td>
                     <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.container)}</td>
@@ -534,20 +502,12 @@ function CostLedgerPage() {
   )
 }
 
-function formatDateRange(start: string, end: string) {
-  const startDate = new Date(start)
-  const endDate = new Date(end)
-  return `${startDate.toLocaleDateString()} – ${endDate.toLocaleDateString()}`
+function formatWeekEnding(rangeEnd: string) {
+  return format(new Date(rangeEnd), 'PP')
 }
 
-function formatPeriod(group: CostLedgerGroupResult, groupBy: 'week' | 'month') {
-  if (groupBy === 'month') {
-    const date = new Date(group.rangeStart)
-    return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
-  }
-  const startDate = new Date(group.rangeStart)
-  const endDate = new Date(group.rangeEnd)
-  return `Week of ${startDate.toLocaleDateString()} (${endDate.toLocaleDateString()})`
+function formatPeriod(group: CostLedgerGroupResult) {
+  return `Week ending ${formatWeekEnding(group.rangeEnd)}`
 }
 
 export default CostLedgerPage
