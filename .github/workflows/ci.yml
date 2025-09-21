@@ -22,6 +22,8 @@ jobs:
         run: corepack enable && corepack prepare pnpm@9.0.0 --activate
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Generate Prisma client
+        run: pnpm --filter @ecom-os/wms db:generate
       - name: Lint website
         run: pnpm --filter @ecom-os/website lint
       - name: Type-check website
