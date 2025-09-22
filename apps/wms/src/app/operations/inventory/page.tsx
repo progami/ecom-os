@@ -54,6 +54,8 @@ interface InventoryBalance {
   }
 }
 
+type MovementType = 'positive' | 'negative' | 'netZero'
+
 const LEDGER_TIME_FORMAT = 'PPP p'
 
 function formatLedgerTimestamp(value: string | Date | null | undefined) {
@@ -67,6 +69,44 @@ function formatLedgerTimestamp(value: string | Date | null | undefined) {
   }
 
   return format(date, LEDGER_TIME_FORMAT)
+}
+
+const NEGATIVE_MOVEMENT_TYPES = new Set([
+  'SHIP',
+  'TRANSFER_OUT',
+  'ADJUST_OUT',
+  'ADJUSTMENT_OUT',
+  'WRITE_OFF',
+])
+
+const POSITIVE_MOVEMENT_TYPES = new Set([
+  'RECEIVE',
+  'TRANSFER_IN',
+  'ADJUST_IN',
+  'ADJUSTMENT_IN',
+  'RETURN',
+  'RETURN_IN',
+])
+
+function getMovementTypeFromTransaction(type?: string | null): MovementType {
+  if (!type) {
+    return 'netZero'
+  }
+  const normalized = type.toUpperCase()
+  if (NEGATIVE_MOVEMENT_TYPES.has(normalized)) {
+    return 'negative'
+  }
+  if (POSITIVE_MOVEMENT_TYPES.has(normalized)) {
+    return 'positive'
+  }
+  return 'netZero'
+}
+
+function getMovementMultiplier(type?: string | null) {
+  const movement = getMovementTypeFromTransaction(type)
+  if (movement === 'negative') return -1
+  if (movement === 'positive') return 1
+  return 0
 }
 
 interface InventorySummary {
@@ -92,6 +132,7 @@ interface ColumnFiltersState {
   skuDescription: string
   batch: string[]
   lastTransaction: string
+  movement: MovementType[]
   cartonsMin: string
   cartonsMax: string
   palletsMin: string
@@ -106,6 +147,7 @@ const createColumnFilterDefaults = (): ColumnFiltersState => ({
   skuDescription: '',
   batch: [],
   lastTransaction: '',
+  movement: [],
   cartonsMin: '',
   cartonsMax: '',
   palletsMin: '',
@@ -364,6 +406,8 @@ function InventoryPage() {
     }
 
     const filtered = balances.filter(balance => {
+      const movementType = getMovementTypeFromTransaction(balance.lastTransactionType)
+
       if (columnFilters.warehouse.length > 0) {
         const warehouseIdentifier = (balance.warehouseId || balance.warehouse.code || balance.warehouse.name)?.toString().trim()
         if (!warehouseIdentifier || !columnFilters.warehouse.includes(warehouseIdentifier)) {
@@ -390,6 +434,10 @@ function InventoryPage() {
         if (!batchLot || !columnFilters.batch.includes(batchLot)) {
           return false
         }
+      }
+
+      if (columnFilters.movement.length > 0 && !columnFilters.movement.includes(movementType)) {
+        return false
       }
 
       if (columnFilters.lastTransaction) {
@@ -489,9 +537,14 @@ function InventoryPage() {
   const tableTotals = useMemo(() => {
     return processedBalances.reduce(
       (acc, balance) => {
-        acc.cartons += balance.currentCartons
-        acc.pallets += balance.currentPallets
-        acc.units += balance.currentUnits
+        const multiplier = getMovementMultiplier(balance.lastTransactionType)
+        const baseCartons = Math.abs(balance.currentCartons)
+        const basePallets = Math.abs(balance.currentPallets)
+        const baseUnits = Math.abs(balance.currentUnits)
+
+        acc.cartons += multiplier === 0 ? balance.currentCartons : multiplier * baseCartons
+        acc.pallets += multiplier === 0 ? balance.currentPallets : multiplier * basePallets
+        acc.units += multiplier === 0 ? balance.currentUnits : multiplier * baseUnits
         return acc
       },
       { cartons: 0, pallets: 0, units: 0 }
@@ -608,7 +661,7 @@ function InventoryPage() {
             }}
           >
             <table className="w-full min-w-[1200px] table-auto text-sm">
-              <thead>
+            <thead>
               <tr className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-3 py-2 text-left font-semibold w-56">
                   <div className="flex items-center justify-between gap-1">
@@ -830,6 +883,66 @@ function InventoryPage() {
                 <th className="px-3 py-2 text-left font-semibold w-40">
                   <span>Reference</span>
                 </th>
+                <th className="px-3 py-2 text-left font-semibold w-36">
+                  <div className="flex items-center justify-between gap-1">
+                    <span>Movement</span>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter movement type"
+                          className={cn(
+                            'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            columnFilters.movement.length > 0
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-3.5 w-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-48 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Movement filter</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => setColumnFilters(prev => ({ ...prev, movement: [] }))}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {[
+                            { value: 'positive', label: 'Receive / Positive' },
+                            { value: 'negative', label: 'Ship / Negative' },
+                            { value: 'netZero', label: 'Zero Balance' },
+                          ].map(option => (
+                            <label key={option.value} className="flex items-center gap-2 text-sm text-foreground">
+                              <input
+                                type="checkbox"
+                                checked={columnFilters.movement.includes(option.value as MovementType)}
+                                onChange={() => {
+                                  setColumnFilters(prev => {
+                                    const hasValue = prev.movement.includes(option.value as MovementType)
+                                    return {
+                                      ...prev,
+                                      movement: hasValue
+                                        ? prev.movement.filter(item => item !== option.value)
+                                        : [...prev.movement, option.value as MovementType],
+                                    }
+                                  })
+                                }}
+                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                              />
+                              <span>{option.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
                 <th className="px-3 py-2 text-right font-semibold">
                   <button
                     type="button"
@@ -926,6 +1039,27 @@ function InventoryPage() {
                 const transactionHref = balance.lastTransactionId
                   ? `/operations/transactions/${balance.lastTransactionId}`
                   : null
+                const movementType = getMovementTypeFromTransaction(balance.lastTransactionType)
+                const movementMultiplier = getMovementMultiplier(balance.lastTransactionType)
+                const signedCartons = movementMultiplier === 0
+                  ? balance.currentCartons
+                  : movementMultiplier * Math.abs(balance.currentCartons)
+                const signedPallets = movementMultiplier === 0
+                  ? balance.currentPallets
+                  : movementMultiplier * Math.abs(balance.currentPallets)
+                const signedUnits = movementMultiplier === 0
+                  ? balance.currentUnits
+                  : movementMultiplier * Math.abs(balance.currentUnits)
+                const movementLabel = movementType === 'positive'
+                  ? 'Receive'
+                  : movementType === 'negative'
+                    ? 'Ship'
+                    : 'Flat'
+                const movementBadgeClasses = movementType === 'positive'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : movementType === 'negative'
+                    ? 'border-red-200 bg-red-50 text-red-700'
+                    : 'border-muted bg-muted/20 text-muted-foreground'
 
                 return (
                   <tr key={balance.id} className="odd:bg-muted/20">
@@ -953,14 +1087,24 @@ function InventoryPage() {
                     >
                       {balance.lastTransactionReference ?? '—'}
                     </td>
+                    <td className="px-3 py-2 text-sm font-semibold whitespace-nowrap">
+                      <span
+                        className={cn(
+                          'rounded-full border px-2 py-0.5 text-xs font-medium',
+                          movementBadgeClasses
+                        )}
+                      >
+                        {movementLabel}
+                      </span>
+                    </td>
                     <td className="px-3 py-2 text-right text-sm font-semibold text-indigo-700 whitespace-nowrap">
-                      {balance.currentCartons.toLocaleString()}
+                      {signedCartons.toLocaleString()}
                     </td>
                     <td className="px-3 py-2 text-right text-sm whitespace-nowrap">
-                      {balance.currentPallets.toLocaleString()}
+                      {signedPallets.toLocaleString()}
                     </td>
                     <td className="px-3 py-2 text-right text-sm whitespace-nowrap">
-                      {balance.currentUnits.toLocaleString()}
+                      {signedUnits.toLocaleString()}
                     </td>
                     <td className="px-3 py-2">
                       {transactionHref ? (
@@ -987,7 +1131,7 @@ function InventoryPage() {
             </tbody>
             <tfoot className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <td className="px-3 py-2 text-left font-semibold" colSpan={5}>
+                <td className="px-3 py-2 text-left font-semibold" colSpan={6}>
                   Totals
                 </td>
                 <td className="px-3 py-2 text-right font-semibold text-indigo-700 whitespace-nowrap">
