@@ -11,7 +11,6 @@ import {
   Search,
   Building,
   Package,
-  Archive,
   Truck,
   ArrowUpDown,
   ArrowUp,
@@ -562,7 +561,7 @@ function InventoryPage() {
           }
         />
 
-        <StatsCardGrid cols={6}>
+        <StatsCardGrid cols={3}>
           <StatsCard
             title="Total Cartons"
             value={metrics.totalCartons}
@@ -583,27 +582,6 @@ function InventoryPage() {
             subtitle="Reporting inventory"
             icon={Search}
             variant="default"
-          />
-          <StatsCard
-            title="Tracked Batches"
-            value={metrics.summary.totalBatchCount}
-            subtitle="Across all warehouses"
-            icon={Archive}
-            variant="default"
-          />
-          <StatsCard
-            title="Batches In Stock"
-            value={metrics.summary.batchesWithInventory}
-            subtitle="Positive balance"
-            icon={Building}
-            variant="success"
-          />
-          <StatsCard
-            title="Out of Stock Batches"
-            value={metrics.summary.batchesOutOfStock}
-            subtitle="Needs attention"
-            icon={Building}
-            variant="danger"
           />
         </StatsCardGrid>
 
