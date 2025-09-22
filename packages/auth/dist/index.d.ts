@@ -1,6 +1,5 @@
 import type { NextAuthOptions } from 'next-auth';
 import { z } from 'zod';
-import type { NextRequest } from 'next/server';
 export type SameSite = 'lax' | 'strict' | 'none';
 export interface CookieDomainOptions {
     domain: string;
@@ -49,8 +48,10 @@ export declare function withSharedAuth(base: NextAuthOptions, optsOrDomain: Shar
  * In dev, returns both generic and app-prefixed variants for robustness.
  */
 export declare function getCandidateSessionCookieNames(appId?: string): string[];
+export { getCentralAuthPrisma } from './db.js';
+export { authenticateWithCentralDirectory, getUserEntitlements } from './user-service.js';
 export interface CentralSessionProbeOptions {
-    request: NextRequest;
+    request: Request;
     appId?: string;
     cookieNames?: string[];
     secret?: string;

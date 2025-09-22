@@ -1,87 +1,70 @@
 ---
-# Database setup tasks - idempotent
+# Provision the central PostgreSQL database and per-app schemas.
 - name: Ensure PostgreSQL is started and enabled
   systemd:
     name: postgresql
     state: started
     enabled: yes
 
-- name: Configure PostgreSQL for production
-  lineinfile:
-    path: "/etc/postgresql/{{ postgres_version | default('16') }}/main/postgresql.conf"
-    regexp: "^#?{{ item.key }} ="
-    line: "{{ item.key }} = {{ item.value }}"
-    state: present
-  loop:
-    - { key: 'shared_buffers', value: '256MB' }
-    - { key: 'effective_cache_size', value: '1GB' }
-    - { key: 'maintenance_work_mem', value: '64MB' }
-    - { key: 'checkpoint_completion_target', value: '0.9' }
-    - { key: 'wal_buffers', value: '16MB' }
-    - { key: 'default_statistics_target', value: '100' }
-    - { key: 'random_page_cost', value: '1.1' }
-    - { key: 'effective_io_concurrency', value: '200' }
-    - { key: 'work_mem', value: '4MB' }
-    - { key: 'min_wal_size', value: '1GB' }
-    - { key: 'max_wal_size', value: '2GB' }
-  notify: restart postgresql
-
-- name: Check if database user exists
-  postgresql_query:
-    db: postgres
-    query: "SELECT 1 FROM pg_user WHERE usename = '{{ db_user }}'"
+- name: Ensure central database exists
   become_user: postgres
-  register: db_user_exists
-  changed_when: false
-
-- name: Create database user
-  postgresql_user:
-    name: "{{ db_user }}"
-    password: "{{ db_password }}"
-    role_attr_flags: CREATEDB,NOSUPERUSER
-    state: present
-  become_user: postgres
-  when: db_user_exists.rowcount == 0
-
-- name: Check if database exists
-  postgresql_query:
-    db: postgres
-    query: "SELECT 1 FROM pg_database WHERE datname = '{{ db_name }}'"
-  become_user: postgres
-  register: db_exists
-  changed_when: false
-
-- name: Create application database
   postgresql_db:
-    name: "{{ db_name }}"
-    owner: "{{ db_user }}"
-    encoding: UTF-8
-    lc_collate: 'en_US.UTF-8'
-    lc_ctype: 'en_US.UTF-8'
-    template: template0
+    name: "{{ central_db_name }}"
     state: present
-  become_user: postgres
-  when: db_exists.rowcount == 0
+    encoding: UTF8
 
-- name: Grant all privileges on database
-  postgresql_privs:
-    database: "{{ db_name }}"
-    roles: "{{ db_user }}"
-    type: database
-    privs: ALL
+- name: Create service roles for central schemas
+  become_user: postgres
+  postgresql_user:
+    name: "{{ item.user }}"
+    password: "{{ item.password }}"
+    role_attr_flags: "LOGIN"
     state: present
-  become_user: postgres
+  loop: "{{ central_db_schemas }}"
 
-- name: Configure PostgreSQL authentication
+- name: Ensure schemas exist with ownership
+  become_user: postgres
+  postgresql_query:
+    db: "{{ central_db_name }}"
+    query: |
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.schemata
+          WHERE schema_name = '{{ item.name }}'
+        ) THEN
+          EXECUTE format('CREATE SCHEMA %I AUTHORIZATION %I', '{{ item.name }}', '{{ item.user }}');
+        ELSE
+          EXECUTE format('ALTER SCHEMA %I OWNER TO %I', '{{ item.name }}', '{{ item.user }}');
+        END IF;
+      END$$;
+  loop: "{{ central_db_schemas }}"
+
+- name: Configure default search_path for schema roles
+  become_user: postgres
+  postgresql_query:
+    db: "{{ central_db_name }}"
+    query: "ALTER ROLE {{ item.user | quote }} IN DATABASE {{ central_db_name | quote }} SET search_path TO {{ item.name | quote }};"
+  loop: "{{ central_db_schemas }}"
+
+- name: Grant usage on schema to owner role
+  become_user: postgres
+  postgresql_query:
+    db: "{{ central_db_name }}"
+    query: "GRANT ALL ON SCHEMA {{ item.name | quote }} TO {{ item.user | quote }};"
+  loop: "{{ central_db_schemas }}"
+
+- name: Ensure pg_hba entry for schema roles
   lineinfile:
     path: "/etc/postgresql/{{ postgres_version | default('16') }}/main/pg_hba.conf"
-    regexp: "^local\\s+all\\s+{{ db_user }}"
-    line: "local   all             {{ db_user }}                                md5"
+    regexp: "^local\\s+{{ central_db_name }}\\s+{{ item.user }}"
+    line: "local   {{ central_db_name }}   {{ item.user }}                                md5"
     insertafter: "^local   all             postgres"
     state: present
+  loop: "{{ central_db_schemas }}"
   notify: restart postgresql
 
-- name: Create backup directory
+- name: Ensure backup directory exists
   file:
     path: "{{ app_dir }}/backups"
     state: directory
@@ -91,16 +74,16 @@
 
 - name: Setup database backup cron job
   cron:
-    name: "Daily database backup"
-    user: "{{ app_user }}"
-    job: "pg_dump -h localhost -U {{ db_user }} {{ db_name }} | gzip > {{ app_dir }}/backups/wms_$(date +\\%Y\\%m\\%d_\\%H\\%M\\%S).sql.gz"
+    name: "Daily central DB backup"
+    user: postgres
+    job: "pg_dump {{ central_db_name }} | gzip > {{ app_dir }}/backups/central_$(date +\\%Y\\%m\\%d_\\%H\\%M\\%S).sql.gz"
     minute: "0"
     hour: "2"
     state: present
 
 - name: Setup backup cleanup cron job
   cron:
-    name: "Cleanup old backups"
+    name: "Cleanup old central DB backups"
     user: "{{ app_user }}"
     job: "find {{ app_dir }}/backups -name '*.sql.gz' -mtime +7 -delete"
     minute: "0"
