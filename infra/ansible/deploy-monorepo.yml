@@ -198,6 +198,7 @@
         pm2 delete wms || true
         lsof -ti:{{ wms_port }} | xargs -r kill -9 || true
         rm -rf apps/wms/.next
+        pnpm --filter @ecom-os/wms db:generate
         pnpm --filter @ecom-os/wms build
         pm2 delete wms || true
         PORT={{ wms_port }} NODE_ENV=production pm2 start server.js --name wms --cwd {{ app_base }}/repo/apps/wms --update-env
