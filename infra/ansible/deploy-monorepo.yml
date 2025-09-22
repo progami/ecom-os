@@ -189,6 +189,46 @@
             echo "Content verification OK"; break; fi; sleep 3; done
         curl -fsS -H "Host: {{ website_server_name | default('www.targonglobal.com') }}" "http://127.0.0.1:{{ website_port }}/" | grep -Eiq '(INNOVATION TO IMPACT|Everyday, Done Better)' || (echo 'ERROR: Content verification failed on localhost' >&2; exit 1)
       args: { chdir: "{{ app_base }}/repo" }
+
+    - name: Start WMS with PM2 (clean restart + verify)
+      shell: |
+        set -e
+        cd {{ app_base }}/repo
+        pm2 delete wms-app || true
+        pm2 delete wms || true
+        lsof -ti:{{ wms_port }} | xargs -r kill -9 || true
+        rm -rf apps/wms/.next
+        pnpm --filter @ecom-os/wms build
+        pm2 delete wms || true
+        PORT={{ wms_port }} NODE_ENV=production pm2 start server.js --name wms --cwd {{ app_base }}/repo/apps/wms --update-env
+        pm2 save
+        # Verify WMS health returns 200 and new version string
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+          if curl -fsS -H "Host: {{ wms_server_name | default('wms.targonglobal.com') }}" "http://127.0.0.1:{{ wms_port }}/api/health" | grep -q '"status":"ok"'; then
+            echo "WMS health check OK"; break; fi; sleep 3; done
+        curl -fsS -H "Host: {{ wms_server_name | default('wms.targonglobal.com') }}" "http://127.0.0.1:{{ wms_port }}/api/health" | grep -q '"status":"ok"' || (echo 'ERROR: WMS health check failed on localhost' >&2; exit 1)
+      args: { chdir: "{{ app_base }}/repo" }
+
+    - name: Install ecomos housekeeping script
+      template:
+        src: ecomos-cleanup.sh.j2
+        dest: /usr/local/bin/ecomos-cleanup.sh
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Install ecomos housekeeping cron job
+      template:
+        src: ecomos-cleanup-cron.sh.j2
+        dest: /etc/cron.weekly/ecomos-cleanup
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Run housekeeping cleanup now
+      command: /usr/local/bin/ecomos-cleanup.sh
+      args:
+        warn: false
   handlers:
     - name: restart nginx
       systemd: { name: nginx, state: restarted }

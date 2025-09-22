@@ -24,6 +24,7 @@ jobs:
       AWS_REGION: ${{ secrets.AWS_REGION }}
       EC2_HOST_SECRET: ${{ secrets.EC2_HOST }}
       EC2_USER_SECRET: ${{ secrets.EC2_USER }}
+      EC2_INSTANCE_ID_SECRET: ${{ secrets.EC2_INSTANCE_ID }}
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
     concurrency:
       group: prod-main
@@ -57,9 +58,18 @@ jobs:
       - name: Discover EC2 host (if AWS creds available)
         if: ${{ env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' }}
         run: |
-          read INST_ID INST_AZ INST_IP < <(aws ec2 describe-instances \
-            --filters Name=instance-state-name,Values=running \
-            --query 'Reservations[0].Instances[0].[InstanceId,Placement.AvailabilityZone,PublicIpAddress]' --output text)
+          set -euo pipefail
+          if [ -n "${EC2_INSTANCE_ID_SECRET:-}" ]; then
+            QUERY_OPTS=(--instance-ids "$EC2_INSTANCE_ID_SECRET")
+          else
+            QUERY_OPTS=(--filters "Name=instance-state-name,Values=running")
+          fi
+          read INST_ID INST_AZ INST_IP < <(aws ec2 describe-instances "${QUERY_OPTS[@]}" \
+            --query 'Reservations[0].Instances[0].[InstanceId,Placement.AvailabilityZone,PublicIpAddress]' --output text || true)
+          if [ -z "${INST_IP:-}" ] || [ "${INST_IP}" = "None" ]; then
+            echo "No matching EC2 instance with public IP found via AWS lookup" >&2
+            exit 0
+          fi
           echo "EC2_HOST=$INST_IP" >> $GITHUB_ENV
           echo "EIC_INSTANCE_ID=$INST_ID" >> $GITHUB_ENV
           echo "EIC_INSTANCE_AZ=$INST_AZ" >> $GITHUB_ENV
@@ -72,9 +82,12 @@ jobs:
           fi
           echo "EC2_USER=${EC2_USER_SECRET}" >> $GITHUB_ENV
 
-      - name: Append known_hosts for EC2
+      - name: Validate EC2 host resolved
         run: |
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+          if [ -z "${EC2_HOST:-}" ]; then
+            echo "::error title=Missing EC2 host::Failed to resolve EC2 host. Provide AWS filters or set EC2_HOST secret." >&2
+            exit 1
+          fi
 
       - name: Generate and inject CI SSH key via EC2 Instance Connect
         if: ${{ env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' }}
@@ -95,6 +108,35 @@ jobs:
             "mkdir -p ~/.ssh && touch ~/.ssh/authorized_keys && grep -qxF '$(cat ~/.ssh/ci_key.pub)' ~/.ssh/authorized_keys || echo '$(cat ~/.ssh/ci_key.pub)' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"
           # Switch default key for subsequent steps
           install -m 600 -D ~/.ssh/ci_key ~/.ssh/id_rsa
+
+      - name: Append known_hosts for EC2
+        run: |
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Check remote disk usage before deploy
+        continue-on-error: true
+        env:
+          OS_USER: ${{ env.EC2_USER_SECRET }}
+        run: |
+          set -e
+          OS_USER=${OS_USER:-${EC2_USER:-ubuntu}}
+          ssh -o StrictHostKeyChecking=no "$OS_USER@$EC2_HOST" 'bash -s' <<'REMOTE'
+set -e
+df -h
+echo
+echo "Top-level usage:"
+sudo du -sh /opt/ecom-os /var/log || true
+echo
+echo "/opt/ecom-os breakdown:"
+sudo du -sh /opt/ecom-os/* 2>/dev/null | sort -hr | head || true
+echo
+echo "User cache breakdown:"
+sudo du -sh "$HOME/.local/share/pnpm" "$HOME/.local/state/pnpm" "$HOME/.pnpm-store" 2>/dev/null || true
+sudo du -sh "$HOME/.cache" 2>/dev/null | sort -hr | head || true
+echo
+echo "PM2 logs:"
+sudo du -sh "$HOME/.pm2/logs" 2>/dev/null || true
+REMOTE
 
       - name: Update Cloudflare DNS (apex + www) to EC2
         continue-on-error: true
