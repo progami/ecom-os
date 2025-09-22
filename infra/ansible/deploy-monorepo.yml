@@ -207,6 +207,27 @@
             echo "WMS health check OK"; break; fi; sleep 3; done
         curl -fsS -H "Host: {{ wms_server_name | default('wms.targonglobal.com') }}" "http://127.0.0.1:{{ wms_port }}/api/health" | grep -q '"status":"ok"' || (echo 'ERROR: WMS health check failed on localhost' >&2; exit 1)
       args: { chdir: "{{ app_base }}/repo" }
+
+    - name: Install ecomos housekeeping script
+      template:
+        src: ecomos-cleanup.sh.j2
+        dest: /usr/local/bin/ecomos-cleanup.sh
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Install ecomos housekeeping cron job
+      template:
+        src: ecomos-cleanup-cron.sh.j2
+        dest: /etc/cron.weekly/ecomos-cleanup
+        mode: '0755'
+        owner: root
+        group: root
+
+    - name: Run housekeeping cleanup now
+      command: /usr/local/bin/ecomos-cleanup.sh
+      args:
+        warn: false
   handlers:
     - name: restart nginx
       systemd: { name: nginx, state: restarted }
