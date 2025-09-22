@@ -258,27 +258,32 @@ enum ErrorCode {
 ## Authentication & Authorization
 
 ### Current State
-- Each app has independent auth
-- JWT tokens with app-specific secrets
-- Role-based access (Admin/Staff)
+- `@ecom-os/auth` owns the Prisma schema for the central `auth` schema inside the shared `central_db` database.
+- The EcomOS portal is the only app running NextAuth; it authenticates against the central `User` table and projects entitlements into the JWT.
+- Downstream apps (WMS, HRMS, FCC, etc.) consume the shared cookie, decode claims via `@ecom-os/auth`, and never touch the user tables directly.
+- The `central_db` Postgres instance hosts per-app schemas (`auth`, `wms`, …) so services can keep their domain data while sharing the auth tables.
 
-### Future SSO Architecture
-```typescript
-// Centralized auth flow
-1. User logs into Navigation Hub
-2. Hub generates master JWT token
-3. Token includes app permissions
-4. Apps validate token with shared secret
-5. Apps create local sessions
+### SSO Data Flow
+```mermaid
+flowchart LR
+    User -->|Credentials| Portal
+    Portal -->|Prisma (auth schema)| CentralDB[(central_db)]
+    Portal -->|JWT with entitlements| Browser
+    Browser -->|cookie| WMS
+    Browser -->|cookie| HRMS
+    WMS -->|claim validation| @ecom-os/auth
+    HRMS -->|claim validation| @ecom-os/auth
+```
 
-// Token structure
+JWT payload shape
+```json
 {
   "sub": "user-id",
   "email": "user@example.com",
+  "roles": ["admin"],
   "apps": {
-    "wms": { "role": "admin", "warehouse": "WH001" },
-    "bookkeeping": { "role": "user" },
-    "centraldb": { "role": "viewer" }
+    "wms": { "role": "admin", "departments": ["Ops"] },
+    "fcc": { "role": "viewer", "departments": ["Finance"] }
   }
 }
 ```

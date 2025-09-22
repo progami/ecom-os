@@ -1,7 +1,6 @@
 import type { NextAuthOptions } from 'next-auth';
 import { getToken } from 'next-auth/jwt';
 import { z } from 'zod';
-import type { NextRequest } from 'next/server';
 
 export type SameSite = 'lax' | 'strict' | 'none';
 
@@ -204,8 +203,11 @@ export function getCandidateSessionCookieNames(appId?: string): string[] {
   return names;
 }
 
+export { getCentralAuthPrisma } from './db.js'
+export { authenticateWithCentralDirectory, getUserEntitlements } from './user-service.js'
+
 export interface CentralSessionProbeOptions {
-  request: NextRequest;
+  request: Request;
   appId?: string;
   cookieNames?: string[];
   secret?: string;

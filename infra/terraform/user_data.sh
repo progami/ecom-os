@@ -7,6 +7,13 @@ exec 2>&1
 
 echo "Starting WMS deployment at $(date)"
 
+# Default database parameters if not provided
+: "${central_db_name:=central_db}"
+: "${auth_db_user:=central_portal}"
+: "${auth_db_password:=central_portal_password_2024}"
+: "${wms_db_user:=central_wms}"
+: "${wms_db_password:=central_wms_password_2024}"
+
 # Update system
 apt-get update
 apt-get upgrade -y
@@ -33,12 +40,34 @@ npm install -g pm2
 systemctl start postgresql
 systemctl enable postgresql
 
-# Create database and user
+# Create central database and schemas
 sudo -u postgres psql <<EOF
-CREATE USER ${db_user} WITH PASSWORD '${db_password}';
-CREATE DATABASE ${db_name} OWNER ${db_user};
-GRANT ALL PRIVILEGES ON DATABASE ${db_name} TO ${db_user};
-ALTER USER ${db_user} CREATEDB;
+CREATE DATABASE ${central_db_name} OWNER postgres;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${auth_db_user}') THEN
+    EXECUTE 'CREATE USER ${auth_db_user} WITH PASSWORD ''${auth_db_password}''';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${wms_db_user}') THEN
+    EXECUTE 'CREATE USER ${wms_db_user} WITH PASSWORD ''${wms_db_password}''';
+  END IF;
+END$$;
+\c ${central_db_name}
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'auth') THEN
+    EXECUTE 'CREATE SCHEMA auth AUTHORIZATION ${auth_db_user}';
+  ELSE
+    EXECUTE 'ALTER SCHEMA auth OWNER TO ${auth_db_user}';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'wms') THEN
+    EXECUTE 'CREATE SCHEMA wms AUTHORIZATION ${wms_db_user}';
+  ELSE
+    EXECUTE 'ALTER SCHEMA wms OWNER TO ${wms_db_user}';
+  END IF;
+END$$;
+ALTER ROLE ${auth_db_user} IN DATABASE ${central_db_name} SET search_path TO auth;
+ALTER ROLE ${wms_db_user} IN DATABASE ${central_db_name} SET search_path TO wms;
 EOF
 
 # Create app user
@@ -50,12 +79,13 @@ sudo -u wms git clone https://github.com/progami/WMS_EcomOS.git app
 
 # Create .env file
 cat > /home/wms/app/.env <<EOF
-DATABASE_URL="postgresql://${db_user}:${db_password}@localhost:5432/${db_name}"
+DATABASE_URL="postgresql://${wms_db_user}:${wms_db_password}@localhost:5432/${central_db_name}?schema=wms"
 NEXTAUTH_URL="http://$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4):${app_port}"
 NEXTAUTH_SECRET="production_secret_key_change_in_production"
 NODE_ENV="production"
 DEMO_ADMIN_PASSWORD="SecureWarehouse2024!"
 DEMO_STAFF_PASSWORD="DemoStaff2024!"
+CENTRAL_DB_URL="postgresql://${auth_db_user}:${auth_db_password}@localhost:5432/${central_db_name}?schema=auth"
 PORT=${app_port}
 EOF
 chown wms:wms /home/wms/app/.env

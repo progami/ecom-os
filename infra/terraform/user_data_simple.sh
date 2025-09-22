@@ -7,6 +7,13 @@ exec 2>&1
 
 echo "Starting WMS setup at $(date)"
 
+# Default database parameters if not provided
+: "${central_db_name:=central_db}"
+: "${auth_db_user:=central_portal}"
+: "${auth_db_password:=central_portal_password_2024}"
+: "${wms_db_user:=central_wms}"
+: "${wms_db_password:=central_wms_password_2024}"
+
 # Update system
 apt-get update
 apt-get upgrade -y
@@ -35,10 +42,32 @@ systemctl enable postgresql
 
 # Create database and user
 sudo -u postgres psql <<EOF
-CREATE USER wms WITH PASSWORD 'wms_secure_password_2024';
-CREATE DATABASE wms_production OWNER wms;
-GRANT ALL PRIVILEGES ON DATABASE wms_production TO wms;
-ALTER USER wms CREATEDB;
+CREATE DATABASE ${central_db_name} OWNER postgres;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${auth_db_user}') THEN
+    EXECUTE 'CREATE USER ${auth_db_user} WITH PASSWORD ''${auth_db_password}''';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${wms_db_user}') THEN
+    EXECUTE 'CREATE USER ${wms_db_user} WITH PASSWORD ''${wms_db_password}''';
+  END IF;
+END$$;
+\c ${central_db_name}
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'auth') THEN
+    EXECUTE 'CREATE SCHEMA auth AUTHORIZATION ${auth_db_user}';
+  ELSE
+    EXECUTE 'ALTER SCHEMA auth OWNER TO ${auth_db_user}';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'wms') THEN
+    EXECUTE 'CREATE SCHEMA wms AUTHORIZATION ${wms_db_user}';
+  ELSE
+    EXECUTE 'ALTER SCHEMA wms OWNER TO ${wms_db_user}';
+  END IF;
+END$$;
+ALTER ROLE ${auth_db_user} IN DATABASE ${central_db_name} SET search_path TO auth;
+ALTER ROLE ${wms_db_user} IN DATABASE ${central_db_name} SET search_path TO wms;
 EOF
 
 # Create app user
