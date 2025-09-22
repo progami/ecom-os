@@ -227,7 +227,7 @@
         group: root
 
     - name: Run housekeeping cleanup now
-      command: /usr/local/bin/ecomos-cleanup.sh
+      shell: /usr/local/bin/ecomos-cleanup.sh
       args:
         warn: false
   handlers:
