@@ -7,13 +7,17 @@
     node_version: "20"
     repo_url: "git@github.com:YOUR_ORG/YOUR_REPO.git"
     use_local_copy: true
-    website_port: 3000
+    website_port: 3005
     wms_port: 3001
     fcc_port: 3003
     hrms_port: 3006
+    ecomos_port: 3000
     central_db_port: 3004
     margin_master_port: 3007
     jason_port: 3008
+    central_portal_url: "https://{{ ecomos_server_name | default('ecomos.targonglobal.com') }}"
+    wms_public_url: "{{ central_portal_url }}/wms"
+    wms_nextauth_url: "{{ central_portal_url }}/wms/api/auth"
   tasks:
     - name: Ensure system deps
       apt:
@@ -121,6 +125,16 @@
             mode: '0600'
           no_log: true
           when: (lookup('env', 'JASON_ENV') | default('', true)) | length > 0
+
+        - name: Write EcomOS env
+          copy:
+            dest: "{{ app_base }}/repo/apps/ecomos/.env"
+            content: "{{ lookup('env', 'ECOMOS_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'ECOMOS_ENV') | default('', true)) | length > 0
     - name: Write Nginx config
       template:
         src: nginx-monorepo.conf.j2
@@ -190,6 +204,27 @@
         curl -fsS -H "Host: {{ website_server_name | default('www.targonglobal.com') }}" "http://127.0.0.1:{{ website_port }}/" | grep -Eiq '(INNOVATION TO IMPACT|Everyday, Done Better)' || (echo 'ERROR: Content verification failed on localhost' >&2; exit 1)
       args: { chdir: "{{ app_base }}/repo" }
 
+    - name: Build EcomOS portal
+      shell: |
+        set -e
+        pnpm --filter @ecom-os/ecomos build
+      args: { chdir: "{{ app_base }}/repo" }
+
+    - name: Start EcomOS portal with PM2 (clean restart + verify)
+      shell: |
+        set -e
+        cd {{ app_base }}/repo
+        pm2 delete ecomos || true
+        lsof -ti:{{ ecomos_port }} | xargs -r kill -9 || true
+        rm -rf apps/ecomos/.next
+        PORT={{ ecomos_port }} NODE_ENV=production NEXTAUTH_URL={{ central_portal_url }}/api/auth COOKIE_DOMAIN=.targonglobal.com CENTRAL_AUTH_URL={{ central_portal_url }} pm2 start pnpm --name ecomos --cwd {{ app_base }}/repo/apps/ecomos --update-env -- start
+        pm2 save
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+          if curl -fsS -o /dev/null -H "Host: {{ ecomos_server_name | default('ecomos.targonglobal.com') }}" "http://127.0.0.1:{{ ecomos_port }}/login"; then
+            echo "Portal verification OK"; break; fi; sleep 3; done
+        curl -fsS -o /dev/null -H "Host: {{ ecomos_server_name | default('ecomos.targonglobal.com') }}" "http://127.0.0.1:{{ ecomos_port }}/"
+      args: { chdir: "{{ app_base }}/repo" }
+
     - name: Start WMS with PM2 (clean restart + verify)
       shell: |
         set -e
@@ -198,16 +233,16 @@
         pm2 delete wms || true
         lsof -ti:{{ wms_port }} | xargs -r kill -9 || true
         rm -rf apps/wms/.next
-        pnpm --filter @ecom-os/wms db:generate
-        pnpm --filter @ecom-os/wms build
+        BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_nextauth_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} pnpm --filter @ecom-os/wms db:generate
+        BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_nextauth_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} pnpm --filter @ecom-os/wms build
         pm2 delete wms || true
-        PORT={{ wms_port }} NODE_ENV=production pm2 start server.js --name wms --cwd {{ app_base }}/repo/apps/wms --update-env
+        BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_nextauth_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} PORT={{ wms_port }} NODE_ENV=production pm2 start server.js --name wms --cwd {{ app_base }}/repo/apps/wms --update-env
         pm2 save
         # Verify WMS health returns 200 and new version string
         for i in 1 2 3 4 5 6 7 8 9 10; do
-          if curl -fsS -H "Host: {{ wms_server_name | default('wms.targonglobal.com') }}" "http://127.0.0.1:{{ wms_port }}/api/health" | grep -q '"status":"ok"'; then
+          if curl -fsS -H "Host: {{ ecomos_server_name | default('ecomos.targonglobal.com') }}" "http://127.0.0.1:{{ wms_port }}/wms/api/health" | grep -q '"status":"ok"'; then
             echo "WMS health check OK"; break; fi; sleep 3; done
-        curl -fsS -H "Host: {{ wms_server_name | default('wms.targonglobal.com') }}" "http://127.0.0.1:{{ wms_port }}/api/health" | grep -q '"status":"ok"' || (echo 'ERROR: WMS health check failed on localhost' >&2; exit 1)
+        curl -fsS -H "Host: {{ ecomos_server_name | default('ecomos.targonglobal.com') }}" "http://127.0.0.1:{{ wms_port }}/wms/api/health" | grep -q '"status":"ok"' || (echo 'ERROR: WMS health check failed on localhost' >&2; exit 1)
       args: { chdir: "{{ app_base }}/repo" }
 
     - name: Install ecomos housekeeping script
