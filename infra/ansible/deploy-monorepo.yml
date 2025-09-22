@@ -228,8 +228,6 @@
 
     - name: Run housekeeping cleanup now
       shell: /usr/local/bin/ecomos-cleanup.sh
-      args:
-        warn: false
   handlers:
     - name: restart nginx
       systemd: { name: nginx, state: restarted }
