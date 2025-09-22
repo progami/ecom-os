@@ -44,6 +44,11 @@ jobs:
       - name: Generate Prisma client for auth package
         run: pnpm --filter @ecom-os/auth prisma:generate
       - name: Build production apps
+        env:
+          NEXTAUTH_SECRET: test-nextauth-secret
+          CENTRAL_AUTH_SECRET: test-central-secret
+          CENTRAL_AUTH_URL: https://example.com
+          NEXTAUTH_URL: https://example.com/api/auth
         run: pnpm turbo run build --filter=@ecom-os/website --filter=@ecom-os/ecomos --filter=@ecom-os/wms || (echo "Build failed" && exit 1)
 
       - name: Configure SSH
