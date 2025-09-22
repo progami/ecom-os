@@ -46,6 +46,7 @@ interface InventoryBalance {
   lastTransactionDate: string | null
   lastTransactionId?: string
   lastTransactionType?: string
+  lastTransactionReference?: string | null
   receiveTransaction?: {
     createdBy?: {
       fullName: string
@@ -616,10 +617,10 @@ function InventoryPage() {
               minHeight: 320
             }}
           >
-            <table className="w-full min-w-[1100px] table-auto text-sm">
+            <table className="w-full min-w-[1200px] table-auto text-sm">
               <thead>
               <tr className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="px-3 py-2 text-left font-semibold">
+                <th className="px-3 py-2 text-left font-semibold w-56">
                   <div className="flex items-center justify-between gap-1">
                     <button
                       type="button"
@@ -678,7 +679,7 @@ function InventoryPage() {
                     </Popover>
                   </div>
                 </th>
-                <th className="px-3 py-2 text-left font-semibold">
+                <th className="px-3 py-2 text-left font-semibold w-40">
                   <div className="flex items-center justify-between gap-1">
                     <button
                       type="button"
@@ -737,7 +738,7 @@ function InventoryPage() {
                     </Popover>
                   </div>
                 </th>
-                <th className="px-3 py-2 text-left font-semibold">
+                <th className="px-3 py-2 text-left font-semibold w-64">
                   <div className="flex items-center gap-1">
                     <span>Description</span>
                     <Popover>
@@ -777,7 +778,7 @@ function InventoryPage() {
                     </Popover>
                   </div>
                 </th>
-                <th className="px-3 py-2 text-left font-semibold">
+                <th className="px-3 py-2 text-left font-semibold w-40">
                   <div className="flex items-center justify-between gap-1">
                     <button
                       type="button"
@@ -835,6 +836,9 @@ function InventoryPage() {
                       </PopoverContent>
                     </Popover>
                   </div>
+                </th>
+                <th className="px-3 py-2 text-left font-semibold w-40">
+                  <span>Reference</span>
                 </th>
                 <th className="px-3 py-2 text-right font-semibold">
                   <button
@@ -920,7 +924,7 @@ function InventoryPage() {
             <tbody>
               {processedBalances.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-6 text-center text-muted-foreground">
+                  <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
                     No inventory balances match the current filters.
                   </td>
                 </tr>
@@ -941,11 +945,23 @@ function InventoryPage() {
                     <td className="px-3 py-2 text-sm font-semibold text-foreground whitespace-nowrap">
                       {balance.sku.skuCode}
                     </td>
-                    <td className="px-3 py-2 text-sm text-muted-foreground">
+                    <td
+                      className="px-3 py-2 text-sm text-muted-foreground max-w-[16rem] truncate"
+                      title={balance.sku.description || undefined}
+                    >
                       {balance.sku.description || '—'}
                     </td>
-                    <td className="px-3 py-2 text-xs text-muted-foreground uppercase whitespace-nowrap">
+                    <td
+                      className="px-3 py-2 text-xs text-muted-foreground uppercase whitespace-nowrap max-w-[10rem] truncate"
+                      title={balance.batchLot}
+                    >
                       {balance.batchLot}
+                    </td>
+                    <td
+                      className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap max-w-[10rem] truncate"
+                      title={balance.lastTransactionReference || undefined}
+                    >
+                      {balance.lastTransactionReference ?? '—'}
                     </td>
                     <td className="px-3 py-2 text-right text-sm font-semibold text-indigo-700 whitespace-nowrap">
                       {balance.currentCartons.toLocaleString()}

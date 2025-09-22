@@ -126,6 +126,7 @@ export async function GET(req: NextRequest) {
         lastTransactionDate: balance.lastTransactionDate,
         lastTransactionId: balance.lastTransactionId ?? undefined,
         lastTransactionType: balance.lastTransactionType ?? undefined,
+        lastTransactionReference: balance.lastTransactionReference ?? undefined,
         receiveTransaction
       }
     })
