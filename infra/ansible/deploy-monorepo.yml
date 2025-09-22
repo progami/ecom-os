@@ -216,7 +216,6 @@
         cd {{ app_base }}/repo
         pm2 delete ecomos || true
         lsof -ti:{{ ecomos_port }} | xargs -r kill -9 || true
-        rm -rf apps/ecomos/.next
         PORT={{ ecomos_port }} NODE_ENV=production NEXTAUTH_URL={{ central_portal_url }}/api/auth COOKIE_DOMAIN=.targonglobal.com CENTRAL_AUTH_URL={{ central_portal_url }} pm2 start pnpm --name ecomos --cwd {{ app_base }}/repo/apps/ecomos --update-env -- start
         pm2 save
         for i in 1 2 3 4 5 6 7 8 9 10; do
