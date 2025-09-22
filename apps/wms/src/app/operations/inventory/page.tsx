@@ -54,6 +54,21 @@ interface InventoryBalance {
   }
 }
 
+const LEDGER_TIME_FORMAT = 'PPP p'
+
+function formatLedgerTimestamp(value: string | Date | null | undefined) {
+  if (!value) {
+    return null
+  }
+
+  const date = typeof value === 'string' ? new Date(value) : value
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  return format(date, LEDGER_TIME_FORMAT)
+}
+
 interface InventorySummary {
   totalSkuCount: number
   totalBatchCount: number
@@ -378,9 +393,7 @@ function InventoryPage() {
       }
 
       if (columnFilters.lastTransaction) {
-        const lastTransactionDisplay = balance.lastTransactionDate
-          ? format(new Date(balance.lastTransactionDate), 'PPpp')
-          : 'N/A'
+        const lastTransactionDisplay = formatLedgerTimestamp(balance.lastTransactionDate) ?? 'N/A'
         const filterValue = columnFilters.lastTransaction.toLowerCase()
         const typeMatch = balance.lastTransactionType
           ? balance.lastTransactionType.toLowerCase().includes(filterValue)
@@ -593,9 +606,18 @@ function InventoryPage() {
           />
         </StatsCardGrid>
 
-        <div className="bg-white border rounded-lg shadow-sm overflow-x-auto">
-          <table className="w-full table-auto text-sm">
-            <thead>
+        <div className="flex min-h-0 flex-col rounded-lg border bg-white shadow-sm">
+          {/* Reserve space for filters/stats before the table scroll area */}
+          <div
+            className="min-h-0 overflow-x-auto overflow-y-auto"
+            style={{
+              maxHeight: 'calc(100vh - 320px)',
+              height: 'calc(100vh - 320px)',
+              minHeight: 320
+            }}
+          >
+            <table className="w-full min-w-[1100px] table-auto text-sm">
+              <thead>
               <tr className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-3 py-2 text-left font-semibold">
                   <div className="flex items-center justify-between gap-1">
@@ -905,9 +927,7 @@ function InventoryPage() {
               )}
 
               {processedBalances.map(balance => {
-                const lastTransactionDisplay = balance.lastTransactionDate
-                  ? format(new Date(balance.lastTransactionDate), 'PPpp')
-                  : null
+                const lastTransactionDisplay = formatLedgerTimestamp(balance.lastTransactionDate)
                 const transactionTypeLabel = formatTransactionType(balance.lastTransactionType)
                 const transactionHref = balance.lastTransactionId
                   ? `/operations/transactions/${balance.lastTransactionId}`
@@ -959,7 +979,8 @@ function InventoryPage() {
                 )
               })}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       </div>
     </DashboardLayout>

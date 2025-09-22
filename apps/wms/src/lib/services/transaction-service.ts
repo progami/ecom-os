@@ -6,6 +6,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { Prisma, TransactionType } from '@prisma/client'
+import { addMinutes } from 'date-fns'
 import { handleTransactionCosts } from '@/lib/events/transaction-cost-handler'
 
 interface TransactionCosts {
@@ -28,9 +29,8 @@ interface CreateTransactionInput {
  */
 export async function createTransaction(input: CreateTransactionInput) {
   const { data, costs } = input
-  
-  // Create the transaction
-  const transaction = await prisma.inventoryTransaction.create({ data })
+
+  const transaction = await createInventoryTransactionWithUniqueMinute(prisma, data)
   
   // Handle costs if provided and transaction type supports them
   if (costs && shouldProcessCosts(transaction.transactionType)) {
@@ -87,9 +87,7 @@ export async function createTransactionBatch(
       }
       
       // Create transaction using the transaction context
-      const transaction = await tx.inventoryTransaction.create({ 
-        data: input.data 
-      })
+      const transaction = await createInventoryTransactionWithUniqueMinute(tx, input.data)
       
       // Handle costs if provided
       if (adjustedCosts && shouldProcessCosts(transaction.transactionType)) {
@@ -125,4 +123,50 @@ export async function createTransactionBatch(
  */
 function shouldProcessCosts(type: TransactionType): boolean {
   return type === 'RECEIVE' || type === 'SHIP'
+}
+
+type TransactionClient = typeof prisma | Prisma.TransactionClient
+
+async function createInventoryTransactionWithUniqueMinute(
+  client: TransactionClient,
+  data: Prisma.InventoryTransactionCreateInput,
+  maxAttempts = 30
+) {
+  const baseDate = normalizeTransactionDate(data.transactionDate)
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const candidate = addMinutes(baseDate, attempt)
+    try {
+      return await client.inventoryTransaction.create({
+        data: {
+          ...data,
+          transactionDate: candidate,
+        },
+      })
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const target = error.meta?.target
+        const isTransactionDateTarget = Array.isArray(target)
+          ? target.includes('transaction_date')
+          : target === 'transaction_date'
+
+        if (isTransactionDateTarget) {
+          continue
+        }
+      }
+
+      throw error
+    }
+  }
+
+  throw new Error('Unable to assign a unique transactionDate minute after multiple attempts')
+}
+
+function normalizeTransactionDate(value: Date | string | null | undefined) {
+  const date = value ? new Date(value) : new Date()
+  if (Number.isNaN(date.getTime())) {
+    throw new Error('Invalid transactionDate value')
+  }
+  date.setSeconds(0, 0)
+  return date
 }

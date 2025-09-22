@@ -114,13 +114,10 @@ export function aggregateInventoryTransactions(
 
   if (options.sort !== false) {
     balanceArray.sort((a, b) => {
-      if (a.skuCode !== b.skuCode) {
-        return a.skuCode.localeCompare(b.skuCode)
-      }
-      if (a.batchLot !== b.batchLot) {
-        return a.batchLot.localeCompare(b.batchLot)
-      }
-      return a.warehouseCode.localeCompare(b.warehouseCode)
+      const aTime = a.lastTransactionDate ? a.lastTransactionDate.getTime() : Number.NEGATIVE_INFINITY
+      const bTime = b.lastTransactionDate ? b.lastTransactionDate.getTime() : Number.NEGATIVE_INFINITY
+
+      return bTime - aTime
     })
   }
 
