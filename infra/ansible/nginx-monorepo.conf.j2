@@ -5,7 +5,10 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Host $host;
-    proxy_pass http://127.0.0.1:{{ website_port | default(3000) }};
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_pass http://127.0.0.1:{{ website_port | default(3005) }};
   }
 }
 
@@ -18,13 +21,37 @@ server {
 
 server {
   listen 80;
-  server_name {{ wms_server_name | default('wms.targonglobal.com') }};
+  server_name {{ ecomos_server_name | default('ecomos.targonglobal.com') }};
+
+  location /wms/ {
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_pass http://127.0.0.1:{{ wms_port | default(3001) }};
+  }
+
+  location = /wms {
+    return 301 $scheme://$host/wms/;
+  }
+
   location / {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Host $host;
-    proxy_pass http://127.0.0.1:{{ wms_port | default(3001) }};
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_pass http://127.0.0.1:{{ ecomos_port | default(3000) }};
   }
+}
+
+server {
+  listen 80;
+  server_name {{ wms_server_name | default('wms.targonglobal.com') }};
+  return 301 https://{{ ecomos_server_name | default('ecomos.targonglobal.com') }}$request_uri;
 }
 
 server {
@@ -34,6 +61,9 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Host $host;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
     proxy_pass http://127.0.0.1:{{ fcc_port | default(3003) }};
   }
 }
@@ -45,6 +75,9 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Host $host;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
     proxy_pass http://127.0.0.1:{{ hrms_port | default(3006) }};
   }
 }
@@ -58,6 +91,9 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Host $host;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
     proxy_pass http://127.0.0.1:{{ central_db_port | default(3004) }};
   }
 }
@@ -71,6 +107,9 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Host $host;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
     proxy_pass http://127.0.0.1:{{ margin_master_port | default(3007) }};
   }
 }
@@ -84,6 +123,9 @@ server {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Host $host;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection $connection_upgrade;
     proxy_pass http://127.0.0.1:{{ jason_port | default(3008) }};
   }
 }
