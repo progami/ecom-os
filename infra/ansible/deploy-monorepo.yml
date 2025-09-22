@@ -173,9 +173,11 @@
 
     - name: Obtain/ensure Let's Encrypt cert for apex + www
       command: >-
-        certbot --nginx --reinstall
+        certbot --nginx --reinstall --expand
         -d {{ root_server_name | default('targonglobal.com') }}
         -d {{ website_server_name | default('www.targonglobal.com') }}
+        -d {{ ecomos_server_name | default('ecomos.targonglobal.com') }}
+        -d {{ wms_server_name | default('wms.targonglobal.com') }}
         --non-interactive --agree-tos
         --email {{ certbot_email | default('admin@targonglobal.com') }}
         --redirect
