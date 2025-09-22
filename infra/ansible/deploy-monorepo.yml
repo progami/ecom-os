@@ -23,6 +23,11 @@
     central_db_auth_url: "postgresql://{{ central_auth_schema.user }}:{{ central_auth_schema.password }}@localhost:5432/{{ central_db_name }}?schema=auth"
     central_db_wms_url: "postgresql://{{ central_wms_schema.user }}:{{ central_wms_schema.password }}@localhost:5432/{{ central_db_name }}?schema=wms"
   tasks:
+    - name: Upgrade system packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+        autoremove: yes
     - name: Ensure system deps
       apt:
         update_cache: yes
