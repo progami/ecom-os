@@ -194,6 +194,7 @@
       shell: |
         set -e
         cd {{ app_base }}/repo
+        pm2 delete wms-app || true
         pm2 delete wms || true
         lsof -ti:{{ wms_port }} | xargs -r kill -9 || true
         rm -rf apps/wms/.next
