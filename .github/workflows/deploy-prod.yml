@@ -9,7 +9,7 @@ on:
       - 'infra/ansible/**'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 jobs:
   deploy:
