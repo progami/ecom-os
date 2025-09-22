@@ -18,7 +18,7 @@ export const ALL_APPS: AppDef[] = [
     id: 'wms',
     name: 'Warehouse Management',
     description: 'Inbound, outbound, inventory and reporting.',
-    url: 'https://wms.targonglobal.com',
+    url: 'https://ecomos.targonglobal.com/wms',
     category: 'Ops',
     roles: ['admin', 'manager', 'staff']
   },

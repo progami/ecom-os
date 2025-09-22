@@ -26,6 +26,7 @@ jobs:
       EC2_USER_SECRET: ${{ secrets.EC2_USER }}
       EC2_INSTANCE_ID_SECRET: ${{ secrets.EC2_INSTANCE_ID }}
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      ECOMOS_ENV: ${{ secrets.ECOMOS_ENV }}
     concurrency:
       group: prod-main
       cancel-in-progress: false
@@ -166,6 +167,8 @@ jobs:
           }
           upsert_a "$CF_ZONE_NAME" "$EC2_HOST" false
           upsert_a "www.$CF_ZONE_NAME" "$EC2_HOST" false
+          upsert_a "ecomos.$CF_ZONE_NAME" "$EC2_HOST" false
+          upsert_a "wms.$CF_ZONE_NAME" "$EC2_HOST" false
 
       - name: Write inventory
         run: |
@@ -199,6 +202,7 @@ jobs:
           CENTRAL_DB_ENV: ${{ secrets.CENTRAL_DB_ENV }}
           MARGIN_MASTER_ENV: ${{ secrets.MARGIN_MASTER_ENV }}
           JASON_ENV: ${{ secrets.JASON_ENV }}
+          ECOMOS_ENV: ${{ secrets.ECOMOS_ENV }}
         run: |
           set -e
           echo "Inventory:" && cat infra/ansible/inventory/hosts.ini

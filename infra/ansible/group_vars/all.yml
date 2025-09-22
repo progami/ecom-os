@@ -9,10 +9,10 @@ git_branch: main
 github_deploy_key_path: ~/.ssh/github_deploy
 
 # Application Configuration
-nextauth_url: "https://targonglobal.com/WMS"
+nextauth_url: "https://ecomos.targonglobal.com/wms/api/auth"
 nextauth_secret: production_secret_key_change_in_production
 node_env: production
-base_path: "/WMS"
+base_path: "/wms"
 app_port: 3001
 
 # Demo Data
@@ -44,6 +44,7 @@ s3_presigned_url_expiry: 3600
 # Monorepo vhost configuration (used by deploy-monorepo.yml)
 website_server_name: www.targonglobal.com
 wms_server_name: wms.targonglobal.com
+ecomos_server_name: ecomos.targonglobal.com
 fcc_server_name: fcc.targonglobal.com
 hrms_server_name: hrms.targonglobal.com
 central_db_server_name: centraldb.targonglobal.com
