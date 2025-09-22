@@ -486,6 +486,18 @@ function InventoryPage() {
     return sorted
   }, [balances, columnFilters, sortConfig])
 
+  const tableTotals = useMemo(() => {
+    return processedBalances.reduce(
+      (acc, balance) => {
+        acc.cartons += balance.currentCartons
+        acc.pallets += balance.currentPallets
+        acc.units += balance.currentUnits
+        return acc
+      },
+      { cartons: 0, pallets: 0, units: 0 }
+    )
+  }, [processedBalances])
+
   const getSortIcon = useCallback((key: SortKey) => {
     if (!sortConfig || sortConfig.key !== key) {
       return <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
@@ -973,7 +985,24 @@ function InventoryPage() {
                 )
               })}
             </tbody>
-            </table>
+            <tfoot className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+              <tr>
+                <td className="px-3 py-2 text-left font-semibold" colSpan={5}>
+                  Totals
+                </td>
+                <td className="px-3 py-2 text-right font-semibold text-indigo-700 whitespace-nowrap">
+                  {tableTotals.cartons.toLocaleString()}
+                </td>
+                <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">
+                  {tableTotals.pallets.toLocaleString()}
+                </td>
+                <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">
+                  {tableTotals.units.toLocaleString()}
+                </td>
+                <td className="px-3 py-2" colSpan={2} />
+              </tr>
+            </tfoot>
+          </table>
           </div>
         </div>
       </div>
