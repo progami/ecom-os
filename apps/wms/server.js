@@ -11,7 +11,19 @@ if (!process.env.CI) {
   });
 }
 
-require('./src/lib/utils/patch-fetch')
+const basePath = process.env.BASE_PATH || process.env.NEXT_PUBLIC_BASE_PATH || ''
+
+if (basePath && typeof global.fetch === 'function') {
+  const originalFetch = global.fetch
+
+  global.fetch = function (input, init) {
+    if (typeof input === 'string' && input.startsWith('/api/')) {
+      const normalizedBase = basePath.startsWith('/') ? basePath : `/${basePath}`
+      input = `${normalizedBase}${input}`
+    }
+    return originalFetch.call(this, input, init)
+  }
+}
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOST || (process.env.CI ? '0.0.0.0' : 'localhost');
