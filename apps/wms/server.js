@@ -11,6 +11,8 @@ if (!process.env.CI) {
   });
 }
 
+require('./src/lib/utils/patch-fetch')
+
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOST || (process.env.CI ? '0.0.0.0' : 'localhost');
 const port = parseInt(process.env.PORT || '3000', 10);
