@@ -1,0 +1,69 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("CENTRAL_DB_URL")
+}
+
+model User {
+  id            String      @id @default(uuid())
+  email         String      @unique
+  username      String?     @unique
+  passwordHash  String
+  firstName     String?
+  lastName      String?
+  isActive      Boolean     @default(true)
+  isDemo        Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  roles         UserRole[]
+  appAccess     UserApp[]
+}
+
+model Role {
+  id          String      @id @default(uuid())
+  name        String      @unique
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  users       UserRole[]
+}
+
+model UserRole {
+  userId    String
+  roleId    String
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model App {
+  id          String    @id @default(uuid())
+  slug        String    @unique
+  name        String
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  assignments UserApp[]
+}
+
+model UserApp {
+  userId       String
+  appId        String
+  accessLevel  String    @default("member")
+  assignedById String?
+  assignedAt   DateTime  @default(now())
+  departments  Json?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  app  App  @relation(fields: [appId], references: [id], onDelete: Cascade)
+
+  @@id([userId, appId])
+  @@index([appId])
+}

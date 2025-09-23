@@ -1,9 +1,6 @@
 import type { NextAuthOptions, RequestInternal } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import bcrypt from 'bcryptjs'
-import { prisma } from '@/lib/prisma'
-import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
-import { getUserEntitlements } from '@/lib/entitlements'
+import { applyDevAuthDefaults, withSharedAuth, authenticateWithCentralDirectory } from '@ecom-os/auth'
 import {
   AuthRateLimitError,
   getAuthRateLimiter,
@@ -137,90 +134,19 @@ export const authOptions: NextAuthOptions = withSharedAuth(baseAuthOptions, {
 async function authenticateWithCredentials(credentials: CredentialPayload) {
   const { emailOrUsername, password } = credentials
 
-  // If DATABASE_URL is not configured in dev, allow a safe demo fallback
-  const hasDb = !!process.env.DATABASE_URL
-  const demoToggle = ['1', 'true', 'yes', 'on'].includes(String(process.env.DEMO_LOGIN_ENABLED || '').toLowerCase())
-  const demoUsername = String(process.env.DEMO_ADMIN_USERNAME || 'demo-admin')
-  const demoPass = String(process.env.DEMO_ADMIN_PASSWORD || 'demo-password')
-  const allowDemo = process.env.NODE_ENV !== 'production' && (!hasDb || demoToggle || emailOrUsername === demoUsername)
-
-  if (allowDemo && emailOrUsername === demoUsername && password === demoPass) {
-    const fauxUser = {
-      id: 'demo-admin-id',
-      email: process.env.DEMO_ADMIN_EMAIL || 'jarraramjad@targonglobal.com',
-      name: 'Jarrar Amjad',
-      role: 'admin',
-    }
-    const roles = getUserEntitlements(fauxUser)
-    const apps = Object.keys(roles)
-    return { id: fauxUser.id, email: fauxUser.email, name: fauxUser.name, role: fauxUser.role, roles, apps } as any
-  }
-
-  if (allowDemo && !hasDb) {
+  const user = await authenticateWithCentralDirectory({ emailOrUsername, password })
+  if (!user) {
     throw new Error('Invalid credentials')
   }
 
-  try {
-    const identifier = emailOrUsername
-    let user = await prisma.user.findFirst({ where: { email: identifier } } as any)
+  const apps = Object.keys(user.entitlements)
 
-    // Optional username field support via env (e.g., USERNAME_FIELD=username)
-    if (!user && !identifier.includes('@')) {
-      const field = (process.env.USERNAME_FIELD || '').trim()
-      if (field) {
-        try {
-          const where: any = {}
-          where[field] = identifier
-          user = await prisma.user.findFirst({ where } as any)
-        } catch (_e) {
-          // If schema lacks the field, ignore and continue with invalid credentials
-        }
-      }
-    }
-
-    const userFound = user
-    if (!user || !userFound) {
-      throw new Error('Invalid credentials')
-    }
-
-    const isActive = (userFound as any).isActive ?? true
-    if (!isActive) {
-      throw new Error('Invalid credentials')
-    }
-
-    const hash = (userFound as any).passwordHash ?? (userFound as any).password
-    let isPasswordValid = false
-    if (typeof hash === 'string' && hash.startsWith('$2')) {
-      // Likely a bcrypt hash
-      isPasswordValid = await bcrypt.compare(password, hash)
-    } else {
-      // Fallback to plain-text match for legacy/dev records (dev only)
-      isPasswordValid = process.env.NODE_ENV !== 'production' && password === hash
-    }
-
-    if (!isPasswordValid) {
-      throw new Error('Invalid credentials')
-    }
-
-    await prisma.user.update({ where: { id: (userFound as any).id }, data: { lastLoginAt: new Date() } } as any)
-    const roles = getUserEntitlements({
-      id: (userFound as any).id,
-      email: (userFound as any).email,
-      name: (userFound as any).fullName ?? (userFound as any).name,
-      role: (userFound as any).role as any,
-    })
-    const apps = Object.keys(roles)
-
-    return {
-      id: (userFound as any).id,
-      email: (userFound as any).email,
-      name: (userFound as any).fullName ?? (userFound as any).name,
-      role: (userFound as any).role,
-      warehouseId: (userFound as any).warehouseId || undefined,
-      roles,
-      apps,
-    } as any
-  } catch (_error) {
-    throw new Error('Invalid credentials')
-  }
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.fullName,
+    role: user.roles[0] ?? null,
+    roles: user.entitlements,
+    apps,
+  } as any
 }

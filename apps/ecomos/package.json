@@ -13,14 +13,11 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "next-auth": "^4.24.11",
-    "@prisma/client": "^5.11.0",
-    "bcryptjs": "^3.0.2",
     "zod": "^3.22.4",
     "@ecom-os/auth": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.2",
-    "prisma": "^5.11.0",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
     "@playwright/test": "^1.54.2"

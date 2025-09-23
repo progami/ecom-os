@@ -25,7 +25,7 @@ Environment
 - NEXTAUTH_SECRET: strong secret shared by all apps (required)
 - COOKIE_DOMAIN: `.targonglobal.com`
 - NEXTAUTH_URL: `https://ecomos.targonglobal.com`
-- DATABASE_URL: points at the canonical user DB (e.g., WMS Postgres)
+- CENTRAL_DB_URL: `postgresql://central_portal:***@localhost:5432/central_db?schema=auth`
 
 Dev
 ---

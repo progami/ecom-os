@@ -1,7 +1,16 @@
 # Database Configuration
-db_user: wms
-db_password: wms_secure_password_2024
-db_name: wms_production
+central_db_name: central_db
+central_db_schemas:
+  - name: auth
+    user: central_portal
+    password: central_portal_password_2024
+  - name: wms
+    user: central_wms
+    password: central_wms_password_2024
+
+# Central portal bootstrap credentials
+central_portal_admin_email: ""
+central_portal_admin_password: ""
 
 # GitHub Configuration
 github_repo_url: git@github.com:progami/WMS_EcomOS.git
