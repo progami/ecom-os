@@ -4,8 +4,16 @@ import bcrypt from 'bcryptjs'
 const prisma = new PrismaClient()
 
 async function main() {
-  const portalAdminEmail = process.env.SEED_PORTAL_ADMIN_EMAIL || 'admin@targonglobal.com'
-  const portalAdminPassword = process.env.SEED_PORTAL_ADMIN_PASSWORD || 'ChangeMe123!'
+  const portalAdminEmail = process.env.SEED_PORTAL_ADMIN_EMAIL?.trim().toLowerCase()
+  const portalAdminPassword = process.env.SEED_PORTAL_ADMIN_PASSWORD
+
+  if (!portalAdminEmail) {
+    throw new Error('SEED_PORTAL_ADMIN_EMAIL is required for seeding. Provide a real admin email via the environment.')
+  }
+
+  if (!portalAdminPassword || portalAdminPassword.length < 12) {
+    throw new Error('SEED_PORTAL_ADMIN_PASSWORD is required and must be at least 12 characters long.')
+  }
 
   const passwordHash = await bcrypt.hash(portalAdminPassword, 12)
 
@@ -32,6 +40,8 @@ async function main() {
     }),
   ])
 
+  const username = portalAdminEmail.split('@')[0] ?? portalAdminEmail
+
   const apps = [
     { slug: 'wms', name: 'Warehouse Management' },
     { slug: 'hrms', name: 'HRMS' },
@@ -52,15 +62,16 @@ async function main() {
   )
 
   const adminUser = await prisma.user.upsert({
-    where: { email: portalAdminEmail.toLowerCase() },
+    where: { email: portalAdminEmail },
     update: {
       passwordHash,
       isActive: true,
       isDemo: false,
+      username,
     },
     create: {
-      email: portalAdminEmail.toLowerCase(),
-      username: 'portal-admin',
+      email: portalAdminEmail,
+      username,
       passwordHash,
       firstName: 'Portal',
       lastName: 'Admin',
