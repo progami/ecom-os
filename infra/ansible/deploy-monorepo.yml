@@ -31,7 +31,7 @@
     - name: Ensure system deps
       apt:
         update_cache: yes
-        name: [curl, git, nginx, build-essential, rsync, certbot, python3-certbot-nginx, lsof]
+        name: [curl, git, nginx, build-essential, rsync, certbot, python3-certbot-nginx, lsof, acl]
         state: present
     - name: Install Node.js
       shell: |
