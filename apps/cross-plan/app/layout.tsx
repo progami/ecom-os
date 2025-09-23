@@ -7,9 +7,9 @@ import { clsx } from 'clsx'
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 
 export const metadata: Metadata = {
-  title: 'Cross Plan | Ecom OS',
+  title: 'X-Plan | Ecom OS',
   description:
-    'Collaborative demand and supply planning that mirrors the Cross Plan workbook experience for ops, sales, and finance.',
+    'Collaborative demand, supply, and finance planning that mirrors the X-Plan workbook experience while staying web-first.',
 }
 
 export default function RootLayout({

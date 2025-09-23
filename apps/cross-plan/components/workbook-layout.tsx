@@ -82,7 +82,7 @@ export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, 
             <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 sm:px-6 lg:px-8">
               <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-col gap-1">
-                  <span className="text-xs uppercase tracking-[0.25em] text-slate-400">Cross Plan</span>
+                  <span className="text-xs uppercase tracking-[0.25em] text-slate-400">X-Plan</span>
                   <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{activeSheet?.label ?? 'Workbook'}</h1>
                   <p className="max-w-3xl text-sm text-slate-500 dark:text-slate-400">{activeSheet?.description}</p>
                 </div>

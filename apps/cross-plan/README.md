@@ -1,6 +1,6 @@
-# Cross Plan
+# X-Plan
 
-Next.js 15 application that mirrors the Cross Plan workbook so ops, sales, and finance can collaborate without leaving the web. The UI reproduces the Excel tabs (product setup, operations planning, sales forecasting, financial planning, dashboard) and stores data in the shared `central_db.cross_plan` schema.
+Next.js 15 application that mirrors the X-Plan workbook so ops, sales, and finance can collaborate without leaving the web. The UI reproduces the Excel tabs (product setup, operations planning, sales forecasting, financial planning, dashboard) and stores data in the shared `central_db.cross_plan` schema.
 
 ## Getting Started
 
@@ -16,7 +16,7 @@ The app runs on http://localhost:3008. Authentication delegates to the central p
 
 ### Local database
 
-Cross Plan expects a PostgreSQL instance with the `cross_plan` schema. For local work you can start a Dockerised database with:
+X-Plan expects a PostgreSQL instance with the `cross_plan` schema. For local work you can start a Dockerised database with:
 
 ```bash
 docker run --rm \
