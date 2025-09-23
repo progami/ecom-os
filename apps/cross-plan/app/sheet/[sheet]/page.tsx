@@ -13,6 +13,7 @@ import type {
 } from '@prisma/client'
 import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
 import { OpsPlanningGrid } from '@/components/sheets/ops-planning-grid'
+import { PurchasePaymentsGrid } from '@/components/sheets/purchase-payments-grid'
 import { BusinessParametersPanel } from '@/components/sheets/product-setup-panels'
 import { SalesPlanningGrid } from '@/components/sheets/sales-planning-grid'
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
@@ -137,11 +138,10 @@ async function getBusinessParametersView() {
 async function getOpsPlanningView() {
   const purchaseOrders = await prisma.purchaseOrder.findMany({
     orderBy: { orderCode: 'asc' },
-    include: { product: true },
+    include: { product: true, payments: { orderBy: { paymentIndex: 'asc' } } },
   })
 
-  return {
-    purchaseOrders: purchaseOrders.map((po) => ({
+  const timeline = purchaseOrders.map((po) => ({
       id: po.id,
       orderCode: po.orderCode,
       productId: po.productId,
@@ -151,15 +151,6 @@ async function getOpsPlanningView() {
       sourcePrepWeeks: formatDecimal(po.sourcePrepWeeks),
       oceanWeeks: formatDecimal(po.oceanWeeks),
       finalMileWeeks: formatDecimal(po.finalMileWeeks),
-      pay1Date: formatDate(po.pay1Date),
-      pay1Percent: formatDecimal(po.pay1Percent),
-      pay1Amount: formatDecimal(po.pay1Amount),
-      pay2Date: formatDate(po.pay2Date),
-      pay2Percent: formatDecimal(po.pay2Percent),
-      pay2Amount: formatDecimal(po.pay2Amount),
-      pay3Date: formatDate(po.pay3Date),
-      pay3Percent: formatDecimal(po.pay3Percent),
-      pay3Amount: formatDecimal(po.pay3Amount),
       productionStart: formatDate(po.productionStart),
       productionComplete: formatDate(po.productionComplete),
       sourceDeparture: formatDate(po.sourceDeparture),
@@ -172,7 +163,24 @@ async function getOpsPlanningView() {
       weeksUntilArrival: po.weeksUntilArrival?.toString() ?? '',
       statusIcon: po.statusIcon ?? '',
       notes: po.notes ?? '',
-    })),
+    }))
+
+  const payments = purchaseOrders.flatMap((po) =>
+    po.payments.map((payment) => ({
+      id: payment.id,
+      purchaseOrderId: po.id,
+      orderCode: po.orderCode,
+      paymentIndex: payment.paymentIndex,
+      dueDate: formatDate(payment.dueDate),
+      percentage: formatDecimal(payment.percentage),
+      amount: formatDecimal(payment.amount),
+      status: payment.status,
+    }))
+  )
+
+  return {
+    purchaseOrders: timeline,
+    payments,
   }
 }
 
@@ -412,7 +420,12 @@ export default async function SheetPage({ params }: SheetPageProps) {
     }
     case '2-ops-planning': {
       const view = await getOpsPlanningView()
-      content = <OpsPlanningGrid purchaseOrders={view.purchaseOrders} />
+      content = (
+        <div className="space-y-6">
+          <OpsPlanningGrid purchaseOrders={view.purchaseOrders} />
+          <PurchasePaymentsGrid payments={view.payments} />
+        </div>
+      )
       break
     }
     case '3-sales-planning': {

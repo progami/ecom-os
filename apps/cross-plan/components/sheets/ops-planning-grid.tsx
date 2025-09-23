@@ -21,15 +21,6 @@ type PurchaseOrderRow = {
   sourcePrepWeeks: string
   oceanWeeks: string
   finalMileWeeks: string
-  pay1Date: string
-  pay1Percent: string
-  pay1Amount: string
-  pay2Date: string
-  pay2Percent: string
-  pay2Amount: string
-  pay3Date: string
-  pay3Percent: string
-  pay3Amount: string
   productionStart: string
   productionComplete: string
   sourceDeparture: string
@@ -52,15 +43,6 @@ const columnSettings: Handsontable.ColumnSettings[] = [
   { data: 'sourcePrepWeeks', type: 'numeric', numericFormat: { pattern: '0.00' }, className: 'cell-editable' },
   { data: 'oceanWeeks', type: 'numeric', numericFormat: { pattern: '0.00' }, className: 'cell-editable' },
   { data: 'finalMileWeeks', type: 'numeric', numericFormat: { pattern: '0.00' }, className: 'cell-editable' },
-  { data: 'pay1Date', type: 'date', dateFormat: 'MMM D YYYY', correctFormat: true, className: 'cell-editable' },
-  { data: 'pay1Percent', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable' },
-  { data: 'pay1Amount', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable' },
-  { data: 'pay2Date', type: 'date', dateFormat: 'MMM D YYYY', correctFormat: true, className: 'cell-editable' },
-  { data: 'pay2Percent', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable' },
-  { data: 'pay2Amount', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable' },
-  { data: 'pay3Date', type: 'date', dateFormat: 'MMM D YYYY', correctFormat: true, className: 'cell-editable' },
-  { data: 'pay3Percent', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable' },
-  { data: 'pay3Amount', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable' },
   { data: 'productionStart', type: 'date', dateFormat: 'MMM D YYYY', correctFormat: true, className: 'cell-editable' },
   { data: 'productionComplete', type: 'date', dateFormat: 'MMM D YYYY', correctFormat: true, className: 'cell-editable' },
   { data: 'sourceDeparture', type: 'date', dateFormat: 'MMM D YYYY', correctFormat: true, className: 'cell-editable' },
@@ -122,12 +104,6 @@ const NUMERIC_FIELDS: Array<keyof PurchaseOrderRow> = [
   'sourcePrepWeeks',
   'oceanWeeks',
   'finalMileWeeks',
-  'pay1Percent',
-  'pay1Amount',
-  'pay2Percent',
-  'pay2Amount',
-  'pay3Percent',
-  'pay3Amount',
 ]
 
 const MOVEMENT_STATUSES = new Set(['IN_TRANSIT', 'ARRIVED', 'CLOSED'])
