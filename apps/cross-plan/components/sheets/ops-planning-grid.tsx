@@ -11,7 +11,7 @@ import { GridLegend } from '@/components/grid-legend'
 
 registerAllModules()
 
-type PurchaseOrderRow = {
+export type OpsTimelineRow = {
   id: string
   orderCode: string
   productId: string
@@ -33,6 +33,12 @@ type PurchaseOrderRow = {
   weeksUntilArrival: string
   statusIcon: string
   notes: string
+}
+
+type OpsGridProps = {
+  purchaseOrders: OpsTimelineRow[]
+  activeOrderId?: string | null
+  onSelectOrder?: (orderId: string) => void
 }
 
 const columnSettings: Handsontable.ColumnSettings[] = [
@@ -95,10 +101,10 @@ const COLUMN_HEADERS = [
 
 type PurchaseOrderUpdate = {
   id: string
-  values: Partial<Record<keyof PurchaseOrderRow, string>>
+  values: Partial<Record<keyof OpsTimelineRow, string>>
 }
 
-const NUMERIC_FIELDS: Array<keyof PurchaseOrderRow> = [
+const NUMERIC_FIELDS: Array<keyof OpsTimelineRow> = [
   'quantity',
   'productionWeeks',
   'sourcePrepWeeks',
@@ -115,12 +121,12 @@ function normalizeNumeric(value: unknown) {
   return numeric.toFixed(2)
 }
 
-export function OpsPlanningGrid({ purchaseOrders }: { purchaseOrders: PurchaseOrderRow[] }) {
+export function OpsPlanningGrid({ purchaseOrders, activeOrderId, onSelectOrder }: OpsGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<string, PurchaseOrderUpdate>>(new Map())
   const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [statusFilter, setStatusFilter] = useState<'ALL' | PurchaseOrderRow['status']>('ALL')
+  const [statusFilter, setStatusFilter] = useState<'ALL' | OpsTimelineRow['status']>('ALL')
 
   const statusCounts = useMemo(() => {
     return purchaseOrders.reduce<Record<string, number>>((acc, po) => {
@@ -208,13 +214,26 @@ export function OpsPlanningGrid({ purchaseOrders }: { purchaseOrders: PurchaseOr
         height="auto"
         dropdownMenu
         filters
+        cells={(row) => {
+          const props: Handsontable.CellProperties = {}
+          const record = data[row]
+          if (record && activeOrderId && record.id === activeOrderId) {
+            props.className = props.className ? `${props.className} row-active` : 'row-active'
+          }
+          return props
+        }}
+        afterSelectionEnd={(row) => {
+          if (!onSelectOrder) return
+          const record = data[row]
+          if (record) onSelectOrder(record.id)
+        }}
         afterChange={(changes, source) => {
           if (!changes || source === 'loadData' || source === 'movement-proof-revert' || source === 'movement-proof-note') return
           const hot = hotRef.current
           if (!hot) return
           for (const change of changes) {
-            const [rowIndex, prop, oldValue, newValue] = change as [number, keyof PurchaseOrderRow, any, any]
-            const record = hot.getSourceDataAtRow(rowIndex) as PurchaseOrderRow | null
+            const [rowIndex, prop, oldValue, newValue] = change as [number, keyof OpsTimelineRow, any, any]
+            const record = hot.getSourceDataAtRow(rowIndex) as OpsTimelineRow | null
             if (!record) continue
             if (prop === 'status') {
               if (newValue === oldValue) continue

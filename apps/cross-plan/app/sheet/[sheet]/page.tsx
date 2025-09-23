@@ -12,8 +12,7 @@ import type {
   QuarterlySummary,
 } from '@prisma/client'
 import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
-import { OpsPlanningGrid } from '@/components/sheets/ops-planning-grid'
-import { PurchasePaymentsGrid } from '@/components/sheets/purchase-payments-grid'
+import { OpsPlanningWorkspace } from '@/components/sheets/ops-planning-workspace'
 import { BusinessParametersPanel } from '@/components/sheets/product-setup-panels'
 import { SalesPlanningGrid } from '@/components/sheets/sales-planning-grid'
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
@@ -420,12 +419,7 @@ export default async function SheetPage({ params }: SheetPageProps) {
     }
     case '2-ops-planning': {
       const view = await getOpsPlanningView()
-      content = (
-        <div className="space-y-6">
-          <OpsPlanningGrid purchaseOrders={view.purchaseOrders} />
-          <PurchasePaymentsGrid payments={view.payments} />
-        </div>
-      )
+      content = <OpsPlanningWorkspace timeline={view.purchaseOrders} payments={view.payments} />
       break
     }
     case '3-sales-planning': {

@@ -11,7 +11,7 @@ import { GridLegend } from '@/components/grid-legend'
 
 registerAllModules()
 
-type PaymentRow = {
+export type PurchasePaymentRow = {
   id: string
   purchaseOrderId: string
   orderCode: string
@@ -24,11 +24,16 @@ type PaymentRow = {
 
 type PaymentUpdate = {
   id: string
-  values: Partial<Record<keyof PaymentRow, string>>
+  values: Partial<Record<keyof PurchasePaymentRow, string>>
 }
 
 interface PurchasePaymentsGridProps {
-  payments: PaymentRow[]
+  payments: PurchasePaymentRow[]
+  activeOrderId?: string | null
+  onSelectOrder?: (orderId: string) => void
+  onAddPayment?: () => void
+  onRowsChange?: (rows: PurchasePaymentRow[]) => void
+  isLoading?: boolean
 }
 
 const HEADERS = ['PO', '#', 'Due Date', 'Percent', 'Amount', 'Status']
@@ -47,7 +52,7 @@ const COLUMNS: Handsontable.ColumnSettings[] = [
   },
 ]
 
-const NUMERIC_FIELDS: Array<keyof PaymentRow> = ['percentage', 'amount']
+const NUMERIC_FIELDS: Array<keyof PurchasePaymentRow> = ['percentage', 'amount']
 
 function normalizeNumeric(value: unknown) {
   if (value === '' || value === null || value === undefined) return ''
@@ -56,12 +61,15 @@ function normalizeNumeric(value: unknown) {
   return numeric.toFixed(2)
 }
 
-export function PurchasePaymentsGrid({ payments }: PurchasePaymentsGridProps) {
+export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, onAddPayment, onRowsChange, isLoading }: PurchasePaymentsGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<string, PaymentUpdate>>(new Map())
   const flushTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  const data = useMemo(() => payments.map((payment) => ({ ...payment })), [payments])
+  const data = useMemo(() => {
+    const scoped = activeOrderId ? payments.filter((payment) => payment.purchaseOrderId === activeOrderId) : payments
+    return scoped.map((payment) => ({ ...payment }))
+  }, [activeOrderId, payments])
 
   useEffect(() => {
     if (hotRef.current) {
@@ -82,6 +90,10 @@ export function PurchasePaymentsGrid({ payments }: PurchasePaymentsGridProps) {
           body: JSON.stringify({ updates: payload }),
         })
         if (!res.ok) throw new Error('Failed to update payments')
+        if (onRowsChange && hotRef.current) {
+          const updated = (hotRef.current.getSourceData() as PurchasePaymentRow[]).map((row) => ({ ...row }))
+          onRowsChange(updated)
+        }
         toast.success('Payment schedule updated')
       } catch (error) {
         console.error(error)
@@ -94,7 +106,16 @@ export function PurchasePaymentsGrid({ payments }: PurchasePaymentsGridProps) {
     <div className="space-y-3 p-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Supplier Payments</h2>
-        <GridLegend hint="Add additional payments in the spreadsheet or upcoming form flow." />
+        <div className="flex items-center gap-2 text-xs">
+          <GridLegend hint="Edit payout schedule per PO." />
+          <button
+            onClick={onAddPayment}
+            disabled={!activeOrderId || isLoading}
+            className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 transition enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:enabled:hover:bg-slate-800"
+          >
+            Add Payment
+          </button>
+        </div>
       </div>
       <HotTable
         ref={(instance) => {
@@ -110,13 +131,26 @@ export function PurchasePaymentsGrid({ payments }: PurchasePaymentsGridProps) {
         className="cross-plan-hot"
         dropdownMenu
         filters
+        cells={(row) => {
+          const props: Handsontable.CellProperties = {}
+          const record = data[row]
+          if (record && activeOrderId && record.purchaseOrderId === activeOrderId) {
+            props.className = props.className ? `${props.className} row-active` : 'row-active'
+          }
+          return props
+        }}
+        afterSelectionEnd={(row) => {
+          if (!onSelectOrder) return
+          const record = data[row]
+          if (record) onSelectOrder(record.purchaseOrderId)
+        }}
         afterChange={(changes, source) => {
           if (!changes || source === 'loadData') return
           const hot = hotRef.current
           if (!hot) return
           for (const change of changes) {
-            const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof PaymentRow, any, any]
-            const record = hot.getSourceDataAtRow(rowIndex) as PaymentRow | null
+            const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof PurchasePaymentRow, any, any]
+            const record = hot.getSourceDataAtRow(rowIndex) as PurchasePaymentRow | null
             if (!record) continue
             if (!pendingRef.current.has(record.id)) {
               pendingRef.current.set(record.id, { id: record.id, values: {} })
