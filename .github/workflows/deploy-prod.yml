@@ -1,19 +1,20 @@
 name: CD
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'infra/ansible/**'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'workflow_run' &&
+           github.event.workflow_run.conclusion == 'success' &&
+           github.event.workflow_run.event == 'push' &&
+           github.event.workflow_run.head_branch == 'main') }}
     permissions:
       id-token: write
       contents: read
