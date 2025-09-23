@@ -49,6 +49,7 @@ jobs:
           CENTRAL_AUTH_SECRET: test-central-secret
           CENTRAL_AUTH_URL: https://example.com
           NEXTAUTH_URL: https://example.com/api/auth
+          COOKIE_DOMAIN: .example.com
         run: pnpm turbo run build --filter=@ecom-os/website --filter=@ecom-os/ecomos --filter=@ecom-os/wms || (echo "Build failed" && exit 1)
 
       - name: Configure SSH
