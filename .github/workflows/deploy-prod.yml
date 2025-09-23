@@ -43,6 +43,10 @@ jobs:
       - run: pnpm install
       - name: Generate Prisma client for auth package
         run: pnpm --filter @ecom-os/auth prisma:generate
+      - name: Generate Prisma client for WMS
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: pnpm --filter @ecom-os/wms db:generate
       - name: Build production apps
         env:
           NEXTAUTH_SECRET: test-nextauth-secret
@@ -50,6 +54,12 @@ jobs:
           CENTRAL_AUTH_URL: https://example.com
           NEXTAUTH_URL: https://example.com/api/auth
           COOKIE_DOMAIN: .example.com
+          BASE_PATH: /wms
+          NEXT_PUBLIC_BASE_PATH: /wms
+          NEXT_PUBLIC_APP_URL: https://example.com/wms
+          NEXT_PUBLIC_CENTRAL_AUTH_URL: https://example.com
+          CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/wms
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
         run: pnpm turbo run build --filter=@ecom-os/website --filter=@ecom-os/ecomos --filter=@ecom-os/wms || (echo "Build failed" && exit 1)
 
       - name: Configure SSH
