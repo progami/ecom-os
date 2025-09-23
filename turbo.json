@@ -3,7 +3,14 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**"]
+      "outputs": ["dist/**", ".next/**"],
+      "env": [
+        "NEXTAUTH_SECRET",
+        "CENTRAL_AUTH_SECRET",
+        "CENTRAL_AUTH_URL",
+        "NEXTAUTH_URL",
+        "COOKIE_DOMAIN"
+      ]
     },
     "dev": {
       "cache": false,
