@@ -63,12 +63,16 @@
       vars:
         app_user: ubuntu
         app_dir: "{{ app_base }}"
-    - name: Prepare central auth schema
+    - name: Prepare central auth schema (optional seed)
       shell: |
         set -e
         CENTRAL_DB_URL={{ central_db_auth_url }} pnpm --filter @ecom-os/auth prisma:generate
         CENTRAL_DB_URL={{ central_db_auth_url }} pnpm --filter @ecom-os/auth prisma:migrate
-        CENTRAL_DB_URL={{ central_db_auth_url }} SEED_PORTAL_ADMIN_EMAIL={{ central_portal_admin_email }} SEED_PORTAL_ADMIN_PASSWORD={{ central_portal_admin_password }} pnpm --filter @ecom-os/auth prisma:seed
+        if [ -n "{{ central_portal_admin_email | default('', true) }}" ] && [ -n "{{ central_portal_admin_password | default('', true) }}" ]; then
+          CENTRAL_DB_URL={{ central_db_auth_url }} SEED_PORTAL_ADMIN_EMAIL={{ central_portal_admin_email }} SEED_PORTAL_ADMIN_PASSWORD={{ central_portal_admin_password }} pnpm --filter @ecom-os/auth prisma:seed
+        else
+          echo "Skipping auth seed: central_portal_admin_email/password not set."
+        fi
       args: { chdir: "{{ app_base }}/repo" }
     - name: Build website only (no turbo)
       shell: |
