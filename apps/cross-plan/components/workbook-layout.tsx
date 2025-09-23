@@ -1,8 +1,6 @@
 "use client"
 
-"use client"
-
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { SheetTabs } from '@/components/sheet-tabs'
 import type { WorkbookSheetStatus } from '@/lib/workbook'
 import { useRouter } from 'next/navigation'
@@ -29,12 +27,15 @@ export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, 
   const [contextWidth, setContextWidth] = useState(360)
   const [isResizing, setIsResizing] = useState(false)
   const hasContextPane = Boolean(contextPane)
+  const [isPending, startTransition] = useTransition()
 
   const goToSheet = useCallback(
     (slug: SheetSlug) => {
-      if (slug && slug !== activeSlug) {
+      if (!slug || slug === activeSlug) return
+      startTransition(() => {
+        router.prefetch(`/sheet/${slug}`).catch(() => undefined)
         router.push(`/sheet/${slug}`)
-      }
+      })
     },
     [activeSlug, router]
   )
@@ -86,7 +87,10 @@ export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, 
                   <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{activeSheet?.label ?? 'Workbook'}</h1>
                   <p className="max-w-3xl text-sm text-slate-500 dark:text-slate-400">{activeSheet?.description}</p>
                 </div>
-                {ribbon && <div className="flex shrink-0 items-center gap-2">{ribbon}</div>}
+                <div className="flex shrink-0 items-center gap-2">
+                  {isPending && <span className="text-xs text-slate-400">Loading…</span>}
+                  {ribbon}
+                </div>
               </div>
               {meta && (meta.rows || meta.updated) && (
                 <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
