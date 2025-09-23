@@ -234,7 +234,7 @@
     - name: Build EcomOS portal
       shell: |
         set -e
-        pnpm --filter @ecom-os/ecomos build
+        NEXTAUTH_URL={{ central_portal_url }}/api/auth COOKIE_DOMAIN=.targonglobal.com CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} pnpm --filter @ecom-os/ecomos build
       args: { chdir: "{{ app_base }}/repo" }
 
     - name: Start EcomOS portal with PM2 (clean restart + verify)
@@ -243,7 +243,7 @@
         cd {{ app_base }}/repo
         pm2 delete ecomos || true
         lsof -ti:{{ ecomos_port }} | xargs -r kill -9 || true
-        PORT={{ ecomos_port }} NODE_ENV=production NEXTAUTH_URL={{ central_portal_url }}/api/auth COOKIE_DOMAIN=.targonglobal.com CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_DB_URL={{ central_db_auth_url }} pm2 start pnpm --name ecomos --cwd {{ app_base }}/repo/apps/ecomos --update-env -- start
+        PORT={{ ecomos_port }} NODE_ENV=production NEXTAUTH_URL={{ central_portal_url }}/api/auth COOKIE_DOMAIN=.targonglobal.com CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CENTRAL_DB_URL={{ central_db_auth_url }} pm2 start pnpm --name ecomos --cwd {{ app_base }}/repo/apps/ecomos --update-env -- start
         pm2 save
         for i in 1 2 3 4 5 6 7 8 9 10; do
           if curl -fsS -o /dev/null -H "Host: {{ ecomos_server_name | default('ecomos.targonglobal.com') }}" "http://127.0.0.1:{{ ecomos_port }}/login"; then
@@ -259,10 +259,10 @@
         pm2 delete wms || true
         lsof -ti:{{ wms_port }} | xargs -r kill -9 || true
         rm -rf apps/wms/.next
-        BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_nextauth_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} DATABASE_URL={{ central_db_wms_url }} pnpm --filter @ecom-os/wms db:generate
-        BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_nextauth_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} DATABASE_URL={{ central_db_wms_url }} pnpm --filter @ecom-os/wms build
+        BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_nextauth_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} DATABASE_URL={{ central_db_wms_url }} pnpm --filter @ecom-os/wms db:generate
+        BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_nextauth_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} DATABASE_URL={{ central_db_wms_url }} pnpm --filter @ecom-os/wms build
         pm2 delete wms || true
-        BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_nextauth_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} DATABASE_URL={{ central_db_wms_url }} PORT={{ wms_port }} NODE_ENV=production pm2 start server.js --name wms --cwd {{ app_base }}/repo/apps/wms --update-env
+        BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_nextauth_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} DATABASE_URL={{ central_db_wms_url }} PORT={{ wms_port }} NODE_ENV=production pm2 start server.js --name wms --cwd {{ app_base }}/repo/apps/wms --update-env
         pm2 save
         # Verify WMS health returns 200 and new version string
         for i in 1 2 3 4 5 6 7 8 9 10; do
