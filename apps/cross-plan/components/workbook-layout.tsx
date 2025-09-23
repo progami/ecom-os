@@ -1,5 +1,7 @@
 "use client"
 
+"use client"
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { SheetTabs } from '@/components/sheet-tabs'
 import type { WorkbookSheetStatus } from '@/lib/workbook'
@@ -10,6 +12,10 @@ type SheetSlug = WorkbookSheetStatus['slug']
 interface WorkbookLayoutProps {
   sheets: WorkbookSheetStatus[]
   activeSlug: SheetSlug
+  meta?: {
+    rows?: number
+    updated?: string
+  }
   ribbon?: React.ReactNode
   contextPane?: React.ReactNode
   children: React.ReactNode
@@ -18,7 +24,7 @@ interface WorkbookLayoutProps {
 const MIN_CONTEXT_WIDTH = 320
 const MAX_CONTEXT_WIDTH = 560
 
-export function WorkbookLayout({ sheets, activeSlug, ribbon, contextPane, children }: WorkbookLayoutProps) {
+export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, children }: WorkbookLayoutProps) {
   const router = useRouter()
   const [contextWidth, setContextWidth] = useState(360)
   const [isResizing, setIsResizing] = useState(false)
@@ -80,39 +86,45 @@ export function WorkbookLayout({ sheets, activeSlug, ribbon, contextPane, childr
             </div>
             {ribbon && <div className="flex shrink-0 items-center gap-2">{ribbon}</div>}
           </div>
+          {meta && (meta.rows || meta.updated) && (
+            <p className="text-xs text-slate-400 dark:text-slate-500">
+              {[meta.rows != null ? `${meta.rows} rows` : null, meta.updated ? `Updated ${meta.updated}` : null]
+                .filter(Boolean)
+                .join(' • ')}
+            </p>
+          )}
         </div>
       </header>
 
       <main className="flex flex-1 overflow-hidden">
-        <aside className="hidden w-56 flex-shrink-0 border-r border-slate-200 bg-white/90 px-2 py-4 text-sm shadow-inner dark:border-slate-800 dark:bg-slate-950/80 lg:block">
-          <SheetTabs sheets={sheets} activeSlug={activeSlug} variant="stack" onSheetSelect={goToSheet} />
-        </aside>
-
-        <section className="flex flex-1 flex-col overflow-hidden">
-          <div className="flex flex-shrink-0 items-center border-b border-slate-200 bg-white/90 px-2 py-2 text-xs text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-950/80">
-            <span className="mr-2 font-semibold text-slate-600 dark:text-slate-300">Sheets</span>
-            <SheetTabs sheets={sheets} activeSlug={activeSlug} variant="scroll" onSheetSelect={goToSheet} />
+        <section className="flex flex-1 overflow-hidden">
+          <div className="flex-1 overflow-auto bg-white p-4 dark:bg-slate-900">
+            {children}
           </div>
-          <div className="flex flex-1 overflow-hidden">
-            <div className="flex-1 overflow-auto bg-white p-4 dark:bg-slate-900">
-              {children}
-            </div>
-            {hasContextPane && (
-              <div className="relative hidden h-full shrink-0 border-l border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950 lg:block" style={{ width: contextWidth }}>
-                <div
-                  role="separator"
-                  aria-orientation="vertical"
-                  className="absolute left-0 top-0 h-full w-1 cursor-ew-resize bg-transparent"
-                  onMouseDown={() => setIsResizing(true)}
-                />
-                <div className="h-full overflow-auto px-4 py-4">
-                  {contextPane}
-                </div>
+          {hasContextPane && (
+            <div
+              className="relative hidden h-full shrink-0 border-l border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950 lg:block"
+              style={{ width: contextWidth }}
+            >
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                className="absolute left-0 top-0 h-full w-1 cursor-ew-resize bg-transparent"
+                onMouseDown={() => setIsResizing(true)}
+              />
+              <div className="h-full overflow-auto px-4 py-4">
+                {contextPane}
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </section>
       </main>
+
+      <footer className="border-t border-slate-200 bg-white/90 px-2 py-2 shadow-inner backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+        <div className="mx-auto flex w-full max-w-[1600px] items-center gap-2">
+          <SheetTabs sheets={sheets} activeSlug={activeSlug} variant="scroll" onSheetSelect={goToSheet} />
+        </div>
+      </footer>
     </div>
   )
 }

@@ -464,10 +464,16 @@ export default async function SheetPage({ params }: SheetPageProps) {
       )
   }
 
+  const meta = {
+    rows: sheetStatus?.recordCount,
+    updated: sheetStatus?.lastUpdated ? formatDisplayDate(sheetStatus.lastUpdated) : undefined,
+  }
+
   return (
     <WorkbookLayout
       sheets={workbookStatus.sheets}
       activeSlug={config.slug}
+      meta={meta}
       ribbon={
         <a
           href="/import"
