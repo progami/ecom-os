@@ -115,8 +115,8 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="mb-4 space-y-3">
+    <div className="space-y-3 p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             3. Sales Planning
@@ -137,11 +137,8 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
             </select>
           </label>
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Narrow to a single product to reveal its six-week pulse, or show all SKUs to sense portfolio coverage.
-        </p>
-        <GridLegend hint="Blue cells accept edits; grey cells mirror workbook calculations." />
       </div>
+      <GridLegend hint="Blue cells accept edits; grey cells mirror workbook calculations." />
       <HotTable
         ref={(instance) => {
           hotRef.current = instance?.hotInstance ?? null

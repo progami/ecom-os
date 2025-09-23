@@ -186,43 +186,38 @@ export function OpsPlanningGrid({ purchaseOrders }: { purchaseOrders: PurchaseOr
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="mb-4 space-y-3">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            2. Ops Planning
-          </h2>
-          <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
-            <label className="flex items-center gap-2">
-              <span>Status view</span>
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
-                className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-              >
-                <option value="ALL">All</option>
-                <option value="PLANNED">Planned</option>
-                <option value="PRODUCTION">Production</option>
-                <option value="IN_TRANSIT">In Transit</option>
-                <option value="ARRIVED">Arrived</option>
-                <option value="CLOSED">Closed</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {['PLANNED', 'PRODUCTION', 'IN_TRANSIT', 'ARRIVED'].map((status) => (
-                <span key={status} className="rounded-full bg-slate-100 px-2 py-1 text-xs dark:bg-slate-800">
-                  {status.replace('_', ' ')} • {statusCounts[status] ?? 0}
-                </span>
-              ))}
-            </div>
+    <div className="space-y-4 p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          2. Ops Planning
+        </h2>
+        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+          <label className="flex items-center gap-2">
+            <span>Status view</span>
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            >
+              <option value="ALL">All</option>
+              <option value="PLANNED">Planned</option>
+              <option value="PRODUCTION">Production</option>
+              <option value="IN_TRANSIT">In Transit</option>
+              <option value="ARRIVED">Arrived</option>
+              <option value="CLOSED">Closed</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {['PLANNED', 'PRODUCTION', 'IN_TRANSIT', 'ARRIVED'].map((status) => (
+              <span key={status} className="rounded-full bg-slate-100 px-2 py-1 text-xs dark:bg-slate-800">
+                {status.replace('_', ' ')} • {statusCounts[status] ?? 0}
+              </span>
+            ))}
           </div>
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Shift focus by status to reduce noise. Editable cells save in batches; locked calculations refresh after sync.
-        </p>
-        <GridLegend hint="Filters only adjust visibility—edits still sync against full dataset." />
       </div>
+      <GridLegend hint="Filters only adjust visibility—edits still sync against full dataset." />
       <HotTable
         ref={(instance) => {
           hotRef.current = instance?.hotInstance ?? null
@@ -238,39 +233,39 @@ export function OpsPlanningGrid({ purchaseOrders }: { purchaseOrders: PurchaseOr
         dropdownMenu
         filters
         afterChange={(changes, source) => {
-        if (!changes || source === 'loadData' || source === 'movement-proof-revert' || source === 'movement-proof-note') return
+          if (!changes || source === 'loadData' || source === 'movement-proof-revert' || source === 'movement-proof-note') return
           const hot = hotRef.current
           if (!hot) return
           for (const change of changes) {
-        const [rowIndex, prop, oldValue, newValue] = change as [number, keyof PurchaseOrderRow, any, any]
-        const record = hot.getSourceDataAtRow(rowIndex) as PurchaseOrderRow | null
-        if (!record) continue
-        if (prop === 'status') {
-          if (newValue === oldValue) continue
-          if (MOVEMENT_STATUSES.has(String(newValue))) {
-            const existingNote = record.notes ?? ''
-            const note = window.prompt('Provide movement proof (required before updating status).', existingNote)
-            if (!note || !note.trim()) {
-              hot.setDataAtRowProp(rowIndex, prop, oldValue, 'movement-proof-revert')
+            const [rowIndex, prop, oldValue, newValue] = change as [number, keyof PurchaseOrderRow, any, any]
+            const record = hot.getSourceDataAtRow(rowIndex) as PurchaseOrderRow | null
+            if (!record) continue
+            if (prop === 'status') {
+              if (newValue === oldValue) continue
+              if (MOVEMENT_STATUSES.has(String(newValue))) {
+                const existingNote = record.notes ?? ''
+                const note = window.prompt('Provide movement proof (required before updating status).', existingNote)
+                if (!note || !note.trim()) {
+                  hot.setDataAtRowProp(rowIndex, prop, oldValue, 'movement-proof-revert')
+                  continue
+                }
+                hot.setDataAtRowProp(rowIndex, 'notes', note.trim(), 'movement-proof-note')
+              }
+            }
+            if (!pendingRef.current.has(record.id)) {
+              pendingRef.current.set(record.id, { id: record.id, values: {} })
+            }
+            const entry = pendingRef.current.get(record.id)
+            if (!entry) continue
+            if (prop === 'notes') {
+              entry.values[prop] = String(newValue ?? '')
               continue
             }
-            hot.setDataAtRowProp(rowIndex, 'notes', note.trim(), 'movement-proof-note')
+            entry.values[prop] = NUMERIC_FIELDS.includes(prop) ? normalizeNumeric(newValue) : String(newValue ?? '')
           }
-        }
-        if (!pendingRef.current.has(record.id)) {
-          pendingRef.current.set(record.id, { id: record.id, values: {} })
-        }
-        const entry = pendingRef.current.get(record.id)
-        if (!entry) continue
-        if (prop === 'notes') {
-          entry.values[prop] = String(newValue ?? '')
-          continue
-        }
-        entry.values[prop] = NUMERIC_FIELDS.includes(prop) ? normalizeNumeric(newValue) : String(newValue ?? '')
-      }
-      flush()
-    }}
-  />
+          flush()
+        }}
+      />
     </div>
   )
 }

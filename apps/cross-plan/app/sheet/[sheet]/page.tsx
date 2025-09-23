@@ -20,9 +20,8 @@ import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid'
 import { DashboardSheet } from '@/components/sheets/dashboard'
 import prisma from '@/lib/prisma'
 import { getSheetConfig } from '@/lib/sheets'
-import { WorkbookSidebar } from '@/components/workbook-sidebar'
-import { SheetHeader } from '@/components/sheet-header'
 import { getWorkbookStatus } from '@/lib/workbook'
+import { WorkbookLayout } from '@/components/workbook-layout'
 
 const SALES_METRICS = ['stockStart', 'actualSales', 'forecastSales', 'finalSales', 'stockWeeks', 'stockEnd'] as const
 type SalesMetric = (typeof SALES_METRICS)[number]
@@ -403,6 +402,7 @@ export default async function SheetPage({ params }: SheetPageProps) {
   const sheetStatus = workbookStatus.sheets.find((item) => item.slug === config.slug)
 
   let content: React.ReactNode = null
+  let contextPane: React.ReactNode = null
 
   switch (config.slug) {
     case '1-product-setup': {
@@ -431,15 +431,13 @@ export default async function SheetPage({ params }: SheetPageProps) {
     case '4-fin-planning-pl': {
       const [view, parameters] = await Promise.all([getProfitAndLossView(), getBusinessParametersView()])
       content = (
-        <div className="space-y-6">
-          <ProfitAndLossGrid
-            weekly={view.weekly}
-            monthlySummary={view.monthlySummary}
-            quarterlySummary={view.quarterlySummary}
-          />
-          <BusinessParametersPanel parameters={parameters} />
-        </div>
+        <ProfitAndLossGrid
+          weekly={view.weekly}
+          monthlySummary={view.monthlySummary}
+          quarterlySummary={view.quarterlySummary}
+        />
       )
+      contextPane = <BusinessParametersPanel parameters={parameters} />
       break
     }
     case '5-fin-planning-cash-flow': {
@@ -467,35 +465,20 @@ export default async function SheetPage({ params }: SheetPageProps) {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-8 dark:bg-slate-950 sm:px-6 lg:px-8">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 lg:flex-row">
-        <WorkbookSidebar
-          items={workbookStatus.sheets}
-          activeSlug={config.slug}
-          completionRatio={{ completed: workbookStatus.completedCount, total: workbookStatus.totalCount }}
-        />
-
-        <div className="flex w-full flex-1 flex-col gap-6">
-          <SheetHeader
-            title={config.label}
-            description={config.description}
-            recordCount={sheetStatus?.recordCount}
-            lastUpdated={sheetStatus?.lastUpdated}
-            controls={
-              <a
-                href="/import"
-                className="rounded-md border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-              >
-                Import / Export
-              </a>
-            }
-          />
-
-          <div className="space-y-6">
-            {content}
-          </div>
-        </div>
-      </div>
-    </main>
+    <WorkbookLayout
+      sheets={workbookStatus.sheets}
+      activeSlug={config.slug}
+      ribbon={
+        <a
+          href="/import"
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          Import / Export
+        </a>
+      }
+      contextPane={contextPane}
+    >
+      {content}
+    </WorkbookLayout>
   )
 }

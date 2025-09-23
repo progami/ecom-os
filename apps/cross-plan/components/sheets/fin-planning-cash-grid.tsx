@@ -117,8 +117,8 @@ export function CashFlowGrid({ weekly, monthlySummary, quarterlySummary }: CashF
   }
 
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <div className="space-y-6 p-4">
+      <div className="space-y-4">
         <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">

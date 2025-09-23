@@ -135,13 +135,10 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
     }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="mb-4 space-y-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">1. Product Setup</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Break out the margin drivers into smaller tables to keep numbers straight while you update SKUs.
-        </p>
-        <GridLegend hint="Autosave batches changes after you stop typing." />
+    <div className="space-y-6 p-4">
+      <div className="space-y-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Product Pricing</h2>
+        <GridLegend hint="Blue cells accept edits; changes sync within a moment." />
       </div>
 
       <div className="space-y-6">
