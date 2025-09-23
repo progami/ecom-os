@@ -33,7 +33,6 @@ export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, 
     (slug: SheetSlug) => {
       if (!slug || slug === activeSlug) return
       startTransition(() => {
-        router.prefetch(`/sheet/${slug}`).catch(() => undefined)
         router.push(`/sheet/${slug}`)
       })
     },
