@@ -657,7 +657,7 @@ async function getDashboardView(): Promise<DashboardView> {
   const pnlOverrides = mapProfitAndLossWeeks(
     await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
   )
-  const { weekly: pnlWeekly } = computeProfitAndLoss(
+  const { weekly: pnlWeekly, monthly: pnlMonthly, quarterly: pnlQuarterly } = computeProfitAndLoss(
     salesPlan,
     context.productIndex,
     context.parameters,
