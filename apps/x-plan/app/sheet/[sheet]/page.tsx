@@ -701,16 +701,14 @@ export default async function SheetPage({ params }: SheetPageProps) {
       content = (
         <div className="space-y-6">
           <ProductSetupGrid products={view.products} />
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {parameterSections.map((section) => (
-              <ProductSetupParametersPanel
-                key={section.key}
-                title={section.title}
-                description={section.description}
-                parameters={section.parameters}
-              />
-            ))}
-          </div>
+          {parameterSections.map((section) => (
+            <ProductSetupParametersPanel
+              key={section.key}
+              title={section.title}
+              description={section.description}
+              parameters={section.parameters}
+            />
+          ))}
         </div>
       )
       contextPane = null

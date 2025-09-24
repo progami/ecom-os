@@ -120,11 +120,11 @@ export function ProductSetupParametersPanel({ title, description, parameters }: 
   if (!isClient) return null
 
   return (
-    <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="space-y-1">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{title}</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">{description}</p>
-      </div>
+    <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-teal-600 dark:text-teal-300">{title}</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400">{description}</p>
+      </header>
       <HotTable
         ref={(instance) => {
           hotRef.current = instance?.hotInstance ?? null
@@ -179,6 +179,6 @@ export function ProductSetupParametersPanel({ title, description, parameters }: 
           queueFlush()
         }}
       />
-    </div>
+    </section>
   )
 }

@@ -50,8 +50,7 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [newProductSku, setNewProductSku] = useState('')
-  const [newProductName, setNewProductName] = useState('')
+  const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
     dataRef.current = products.map(mapProductToRow)
@@ -59,6 +58,10 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
       hotRef.current.loadData(dataRef.current)
     }
   }, [products])
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const queueFlush = () => {
     if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current)
@@ -81,11 +84,12 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
     }, 400)
   }
 
-  const handleAddProduct = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const sku = newProductSku.trim()
-    const name = newProductName.trim()
-    if (!sku || !name) {
+  const handleAddProduct = async () => {
+    const sku = window.prompt('Enter SKU')
+    const name = window.prompt('Enter product name')
+    const nextSku = sku?.trim() ?? ''
+    const nextName = name?.trim() ?? ''
+    if (!nextSku || !nextName) {
       toast.error('Enter both a SKU and product name')
       return
     }
@@ -95,20 +99,19 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
       const res = await fetch('/api/v1/x-plan/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sku, name }),
+        body: JSON.stringify({ sku: nextSku, name: nextName }),
       })
       if (!res.ok) throw new Error('Failed to create product')
       const json = await res.json()
       const created = mapProductToRow(json.product)
-      const updated = [...dataRef.current, created]
+      const updated = [...dataRef.current, created].sort((a, b) => a.name.localeCompare(b.name))
       dataRef.current = updated
       if (hotRef.current) {
         hotRef.current.loadData(updated)
-        hotRef.current.selectCell(updated.length - 1, 0)
+        const rowIndex = updated.findIndex((row) => row.id === created.id)
+        if (rowIndex >= 0) hotRef.current.selectCell(rowIndex, 0)
       }
       setSelectedProductId(created.id)
-      setNewProductSku('')
-      setNewProductName('')
       toast.success('Product added')
     } catch (error) {
       console.error(error)
@@ -149,39 +152,25 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
     setSelectedProductId(record?.id ?? null)
   }
 
+  const hasProducts = dataRef.current.length > 0
+
   return (
-    <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-1">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Product catalogue
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Add SKUs and keep their names in sync — downstream sheets pick up the latest list automatically.
-          </p>
+    <section className="space-y-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-teal-600 dark:text-teal-300">Catalogue</p>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Product setup</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Manage the SKU roster that powers Ops, Sales, and Finance planning.</p>
         </div>
-        <form onSubmit={handleAddProduct} className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <input
-            value={newProductSku}
-            onChange={(event) => setNewProductSku(event.target.value)}
-            placeholder="SKU"
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-slate-500"
-          />
-          <input
-            value={newProductName}
-            onChange={(event) => setNewProductName(event.target.value)}
-            placeholder="Product name"
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:focus:border-slate-500"
-          />
-          <button
-            type="submit"
-            disabled={isCreating}
-            className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:enabled:hover:bg-slate-800"
-          >
-            {isCreating ? 'Adding…' : 'Add SKU'}
-          </button>
-        </form>
-      </div>
+        <button
+          type="button"
+          onClick={handleAddProduct}
+          disabled={isCreating}
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:enabled:hover:bg-slate-800"
+        >
+          {isCreating ? 'Adding…' : '+ Add SKU'}
+        </button>
+      </header>
       <div className="flex items-center justify-end">
         <button
           type="button"
@@ -192,60 +181,69 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
           {isDeleting ? 'Removing…' : 'Delete selected'}
         </button>
       </div>
-      <HotTable
-        ref={(instance) => {
-          hotRef.current = instance?.hotInstance ?? null
-        }}
-        data={dataRef.current}
-        licenseKey="non-commercial-and-evaluation"
-        colHeaders={COLUMN_HEADERS}
-        columns={COLUMN_SETTINGS}
-        rowHeaders={false}
-        height="auto"
-        stretchH="all"
-        className="x-plan-hot"
-        dropdownMenu
-        filters
-        afterGetColHeader={(col, TH) => {
-          if (col <= 1) TH.classList.add('htLeft')
-        }}
-        afterSelection={handleSelection}
-        afterDeselect={() => setSelectedProductId(null)}
-        afterChange={(changes, source) => {
-          const changeSource = String(source)
-          if (!changes || changeSource === 'loadData') return
-          const rows = dataRef.current
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800">
+        {isClient ? (
+          <HotTable
+            ref={(instance) => {
+              hotRef.current = instance?.hotInstance ?? null
+            }}
+            data={dataRef.current}
+            licenseKey="non-commercial-and-evaluation"
+            colHeaders={COLUMN_HEADERS}
+            columns={COLUMN_SETTINGS}
+            rowHeaders={false}
+            height="auto"
+            stretchH="all"
+            className="x-plan-hot"
+            dropdownMenu
+            filters
+            afterGetColHeader={(col, TH) => {
+              if (col <= 1) TH.classList.add('htLeft')
+            }}
+            afterSelection={handleSelection}
+            afterDeselect={() => setSelectedProductId(null)}
+            afterChange={(changes, source) => {
+              const changeSource = String(source)
+              if (!changes || changeSource === 'loadData') return
+              const rows = dataRef.current
 
-          for (const change of changes) {
-            const [rowIndex, propKey, _oldValue, newValue] = change as [number, keyof ProductRow, any, any]
-            if (!EDITABLE_FIELDS.has(propKey)) continue
-            const record = rows[rowIndex]
-            if (!record) continue
+              for (const change of changes) {
+                const [rowIndex, propKey, _oldValue, newValue] = change as [number, keyof ProductRow, any, any]
+                if (!EDITABLE_FIELDS.has(propKey)) continue
+                const record = rows[rowIndex]
+                if (!record) continue
 
-            const trimmed = typeof newValue === 'string' ? newValue.trim() : ''
-            if (!trimmed) {
-              if (hotRef.current) {
-                hotRef.current.setDataAtRowProp(rowIndex, propKey, record[propKey], 'loadData')
+                const trimmed = typeof newValue === 'string' ? newValue.trim() : ''
+                if (!trimmed) {
+                  if (hotRef.current) {
+                    hotRef.current.setDataAtRowProp(rowIndex, propKey, record[propKey], 'loadData')
+                  }
+                  continue
+                }
+
+                if (!pendingUpdatesRef.current.has(record.id)) {
+                  pendingUpdatesRef.current.set(record.id, { id: record.id, values: {} })
+                }
+                const entry = pendingUpdatesRef.current.get(record.id)
+                if (!entry) continue
+
+                entry.values[propKey] = trimmed
+                record[propKey] = trimmed
+                if (hotRef.current) {
+                  hotRef.current.setDataAtRowProp(rowIndex, propKey, trimmed, 'loadData')
+                }
               }
-              continue
-            }
 
-            if (!pendingUpdatesRef.current.has(record.id)) {
-              pendingUpdatesRef.current.set(record.id, { id: record.id, values: {} })
-            }
-            const entry = pendingUpdatesRef.current.get(record.id)
-            if (!entry) continue
-
-            entry.values[propKey] = trimmed
-            record[propKey] = trimmed
-            if (hotRef.current) {
-              hotRef.current.setDataAtRowProp(rowIndex, propKey, trimmed, 'loadData')
-            }
-          }
-
-          queueFlush()
-        }}
-      />
+              queueFlush()
+            }}
+          />
+        ) : (
+          <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800/60" aria-hidden />
+        )}
+        {hasProducts ? null : (
+          <p className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">Add your first SKU to start planning.</p>
+        )}
+      </div>
     </section>
   )
 }
