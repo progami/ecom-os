@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
 import { OpsPlanningWorkspace } from '@/components/sheets/ops-planning-workspace'
-import { ProductSetupFinancePanel } from '@/components/sheets/product-setup-panels'
+import { ProductSetupParametersSection } from '@/components/sheets/product-setup-panels'
 import { SalesPlanningGrid } from '@/components/sheets/sales-planning-grid'
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
 import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid'
@@ -151,12 +151,51 @@ type BusinessParameterView = {
   type: 'numeric' | 'text'
 }
 
+type ParameterSectionKey = 'operations' | 'sales' | 'finance'
+
+type BusinessParameterSection = {
+  key: ParameterSectionKey
+  title: string
+  description: string
+  parameters: BusinessParameterView[]
+}
+
 const FINANCE_PARAMETER_LABELS = new Set(
   ['amazon payout delay (weeks)', 'starting cash', 'weekly fixed costs'].map((label) => label.toLowerCase())
 )
 
-function isFinanceParameterLabel(label: string) {
-  return FINANCE_PARAMETER_LABELS.has(label.trim().toLowerCase())
+const OPERATIONS_PARAMETER_LABELS = new Set(
+  [
+    'supplier payment terms (weeks)',
+    'supplier payment split 1 (%)',
+    'supplier payment split 2 (%)',
+    'supplier payment split 3 (%)',
+  ].map((label) => label.toLowerCase())
+)
+
+const SALES_PARAMETER_LABELS = new Set(['weeks of stock warning threshold'].map((label) => label.toLowerCase()))
+
+const PARAMETER_SECTION_METADATA: Record<ParameterSectionKey, { title: string; description: string }> = {
+  operations: {
+    title: 'Operations',
+    description: 'Configure supplier payment terms and other operational guardrails.',
+  },
+  sales: {
+    title: 'Sales',
+    description: 'Set guardrails for your demand plan like weeks of stock warnings.',
+  },
+  finance: {
+    title: 'Finance',
+    description: 'Set the cash assumptions that feed every financial plan.',
+  },
+}
+
+function getParameterSectionKey(label: string): ParameterSectionKey {
+  const normalized = label.trim().toLowerCase()
+  if (FINANCE_PARAMETER_LABELS.has(normalized)) return 'finance'
+  if (SALES_PARAMETER_LABELS.has(normalized)) return 'sales'
+  if (OPERATIONS_PARAMETER_LABELS.has(normalized)) return 'operations'
+  return 'operations'
 }
 
 function columnKey(productIndex: number, metric: SalesMetric) {
@@ -205,9 +244,15 @@ async function getProductSetupView() {
   const filteredProducts = productInputs.filter((product) => !excludedNames.has(product.name.toLowerCase()))
   const productSummaries = filteredProducts.map((product) => computeProductCostSummary(product))
 
-  const financeParameters = parameterInputs
-    .filter((parameter) => isFinanceParameterLabel(parameter.label))
-    .map<BusinessParameterView>((parameter) => ({
+  const parameterBuckets: Record<ParameterSectionKey, BusinessParameterView[]> = {
+    operations: [],
+    sales: [],
+    finance: [],
+  }
+
+  for (const parameter of parameterInputs) {
+    const sectionKey = getParameterSectionKey(parameter.label)
+    parameterBuckets[sectionKey].push({
       id: parameter.id,
       label: parameter.label,
       value:
@@ -215,7 +260,17 @@ async function getProductSetupView() {
           ? formatNumeric(parameter.valueNumeric)
           : parameter.valueText ?? '',
       type: parameter.valueNumeric != null ? 'numeric' : 'text',
+    })
+  }
+
+  const parameterSections: BusinessParameterSection[] = (Object.keys(parameterBuckets) as ParameterSectionKey[])
+    .map((key) => ({
+      key,
+      title: PARAMETER_SECTION_METADATA[key].title,
+      description: PARAMETER_SECTION_METADATA[key].description,
+      parameters: parameterBuckets[key].sort((a, b) => a.label.localeCompare(b.label)),
     }))
+    .filter((section) => section.parameters.length > 0)
 
   return {
     products: productSummaries.map((summary) => ({
@@ -233,7 +288,7 @@ async function getProductSetupView() {
       grossContribution: formatNumeric(summary.grossContribution),
       grossMarginPercent: summary.grossMarginPercent.toFixed(4),
     })),
-    financeParameters,
+    parameterSections,
   }
 }
 
@@ -648,11 +703,23 @@ export default async function SheetPage({ params }: SheetPageProps) {
   switch (config.slug) {
     case '1-product-setup': {
       const view = await getProductSetupView()
-      content = <ProductSetupGrid products={view.products} />
-      contextPane =
-        view.financeParameters.length > 0 ? (
-          <ProductSetupFinancePanel parameters={view.financeParameters} />
-        ) : null
+      content = (
+        <div className="space-y-6">
+          <ProductSetupGrid products={view.products} />
+          {view.parameterSections.length > 0 ? (
+            <div className="grid gap-6 lg:grid-cols-3">
+              {view.parameterSections.map((section) => (
+                <ProductSetupParametersSection
+                  key={section.key}
+                  title={section.title}
+                  description={section.description}
+                  parameters={section.parameters}
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
+      )
       break
     }
     case '2-ops-planning': {

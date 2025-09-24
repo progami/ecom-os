@@ -146,7 +146,7 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
   }
 
   return (
-    <div className="space-y-4 p-4">
+    <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Product Pricing & Costs</h2>
       <HotTable
         ref={(instance) => {
@@ -196,6 +196,6 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
           queueFlush()
         }}
       />
-    </div>
+    </section>
   )
 }

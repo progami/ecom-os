@@ -24,7 +24,17 @@ function toCellValue(value: unknown) {
   return String(value)
 }
 
-export function ProductSetupFinancePanel({ parameters }: { parameters: BusinessParameter[] }) {
+interface ProductSetupParametersSectionProps {
+  title: string
+  description?: string
+  parameters: BusinessParameter[]
+}
+
+export function ProductSetupParametersSection({
+  title,
+  description,
+  parameters,
+}: ProductSetupParametersSectionProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<string, string>>(new Map())
   const flushTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -109,12 +119,12 @@ export function ProductSetupFinancePanel({ parameters }: { parameters: BusinessP
   if (parameters.length === 0) return null
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="space-y-1">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Finance</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Set the cash assumptions that feed every financial plan.
-        </p>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{title}</h2>
+        {description ? (
+          <p className="text-xs text-slate-500 dark:text-slate-400">{description}</p>
+        ) : null}
       </div>
       <HotTable
         ref={(instance) => {
