@@ -151,6 +151,35 @@ type BusinessParameterView = {
   type: 'numeric' | 'text'
 }
 
+type ProfitAndLossAggregates = ReturnType<typeof computeProfitAndLoss>
+type CashFlowAggregates = ReturnType<typeof computeCashFlow>
+type DashboardSummaryPayload = ReturnType<typeof computeDashboardSummary>
+
+type DashboardView = {
+  overview: {
+    revenueYTD: number
+    netProfitYTD: number
+    cashBalance: number
+    netMargin: number
+  }
+  pipeline: DashboardSummaryPayload['pipeline']
+  inventory: Array<{
+    productName: string
+    stockEnd: number
+    stockWeeks: number
+  }>
+  rollups: {
+    profitAndLoss: {
+      monthly: ProfitAndLossAggregates['monthly']
+      quarterly: ProfitAndLossAggregates['quarterly']
+    }
+    cashFlow: {
+      monthly: CashFlowAggregates['monthly']
+      quarterly: CashFlowAggregates['quarterly']
+    }
+  }
+}
+
 function columnKey(productIndex: number, metric: SalesMetric) {
   return `p${productIndex}_${metric}`
 }
@@ -528,7 +557,11 @@ async function getCashFlowView() {
   const pnlOverrides = mapProfitAndLossWeeks(
     await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
   )
-  const { weekly: pnlWeekly } = computeProfitAndLoss(
+  const {
+    weekly: pnlWeekly,
+    monthly: pnlMonthly,
+    quarterly: pnlQuarterly,
+  } = computeProfitAndLoss(
     salesPlan,
     context.productIndex,
     context.parameters,
@@ -575,7 +608,7 @@ async function getCashFlowView() {
   }
 }
 
-async function getDashboardView() {
+async function getDashboardView(): Promise<DashboardView> {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context)
   const salesPlan = computeSalesPlan(
@@ -595,7 +628,11 @@ async function getDashboardView() {
   const cashOverrides = mapCashFlowWeeks(
     await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })
   )
-  const { weekly: cashWeekly } = computeCashFlow(
+  const {
+    weekly: cashWeekly,
+    monthly: cashMonthly,
+    quarterly: cashQuarterly,
+  } = computeCashFlow(
     pnlWeekly,
     derivedOrders.map((item) => item.derived),
     context.parameters,
@@ -611,16 +648,28 @@ async function getDashboardView() {
   )
 
   return {
-    revenueYTD: dashboard.revenueYtd.toFixed(2),
-    netProfitYTD: dashboard.netProfitYtd.toFixed(2),
-    cashBalance: dashboard.cashBalance.toFixed(2),
-    netMargin: dashboard.netMarginPercent.toFixed(2),
+    overview: {
+      revenueYTD: dashboard.revenueYtd,
+      netProfitYTD: dashboard.netProfitYtd,
+      cashBalance: dashboard.cashBalance,
+      netMargin: dashboard.netMarginPercent,
+    },
     pipeline: dashboard.pipeline,
     inventory: dashboard.inventory.map((item) => ({
       productName: item.productName,
       stockEnd: item.stockEnd,
-      stockWeeks: item.stockWeeks.toFixed(1),
+      stockWeeks: item.stockWeeks,
     })),
+    rollups: {
+      profitAndLoss: {
+        monthly: pnlMonthly,
+        quarterly: pnlQuarterly,
+      },
+      cashFlow: {
+        monthly: cashMonthly,
+        quarterly: cashQuarterly,
+      },
+    },
   }
 }
 

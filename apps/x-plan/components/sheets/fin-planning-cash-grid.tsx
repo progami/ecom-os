@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
+import { useEffect, useMemo, useRef } from 'react'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
@@ -50,11 +51,10 @@ function normalizeEditable(value: unknown) {
   return numeric.toFixed(2)
 }
 
-export function CashFlowGrid({ weekly, monthlySummary, quarterlySummary }: CashFlowGridProps) {
+export function CashFlowGrid({ weekly }: CashFlowGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<number, UpdatePayload>>(new Map())
   const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [showSummary, setShowSummary] = useState(true)
 
   const data = useMemo(() => weekly, [weekly])
 
@@ -119,21 +119,13 @@ export function CashFlowGrid({ weekly, monthlySummary, quarterlySummary }: CashF
   return (
     <div className="space-y-6 p-4">
       <div className="space-y-4">
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              5. Fin Planning Cash Flow
-            </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Update cash drivers; derived net cash and balance cells update automatically.
-            </p>
-          </div>
-          <button
-            onClick={() => setShowSummary((prev) => !prev)}
-            className="self-start rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-          >
-            {showSummary ? 'Hide rollups' : 'Show rollups'}
-          </button>
+        <div className="mb-4 space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            5. Fin Planning Cash Flow
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Update cash drivers; derived net cash and balance cells update automatically.
+          </p>
         </div>
         <GridLegend />
         <HotTable
@@ -172,52 +164,20 @@ export function CashFlowGrid({ weekly, monthlySummary, quarterlySummary }: CashF
       />
       </div>
 
-      {showSummary && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <CashSummaryTable title="Monthly Cash Flow Summary" rows={monthlySummary} />
-          <CashSummaryTable title="Quarterly Cash Flow Summary" rows={quarterlySummary} />
-        </div>
-      )}
-    </div>
-  )
-}
-
-function CashSummaryTable({ title, rows }: { title: string; rows: SummaryRow[] }) {
-  const headers = ['Period', 'Amazon Payout', 'Inventory Purchase', 'Fixed Costs', 'Net Cash', 'Closing Cash']
-  const formatValue = (value?: string) => {
-    if (!value) return ''
-    const numeric = Number(value)
-    if (Number.isNaN(numeric)) return value
-    return numeric.toFixed(2)
-  }
-  return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{title}</h3>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-          <thead className="bg-slate-50 text-xs uppercase dark:bg-slate-800">
-            <tr>
-              {headers.map((header) => (
-                <th key={header} className="px-3 py-2 text-left font-semibold tracking-wide text-slate-500 dark:text-slate-400">
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {rows.map((row) => (
-              <tr key={row.periodLabel} className="text-slate-700 dark:text-slate-200">
-                <td className="px-3 py-2 font-medium">{row.periodLabel}</td>
-                <td className="px-3 py-2">{formatValue(row.amazonPayout)}</td>
-                <td className="px-3 py-2">{formatValue(row.inventorySpend)}</td>
-                <td className="px-3 py-2">{formatValue(row.fixedCosts)}</td>
-                <td className="px-3 py-2">{formatValue(row.netCash)}</td>
-                <td className="px-3 py-2">{formatValue(row.closingCash)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+          Cash rollups moved to the dashboard
+        </h3>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          Monthly and quarterly cash flow summaries are now consolidated on the Dashboard sheet alongside the P&amp;L rollups.
+        </p>
+        <Link
+          href="/sheet/6-dashboard"
+          className="mt-3 inline-flex text-xs font-medium text-slate-700 underline-offset-4 hover:underline dark:text-slate-200"
+        >
+          Review dashboard rollups
+        </Link>
       </div>
-    </section>
+    </div>
   )
 }
