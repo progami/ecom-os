@@ -52,7 +52,7 @@ export function OpsPlanningTimelineTable({ rows, activeOrderId, onSelectOrder }:
       </header>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-200 text-sm text-slate-600 dark:divide-slate-800 dark:text-slate-200">
-          <thead className="bg-slate-50 text-xs uppercase tracking-[0.12em] text-slate-400 dark:bg-slate-800 dark:text-slate-500">
+          <thead className="bg-[#00C2B9]/10 text-xs uppercase tracking-[0.08em] text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
             <tr>
               {HEADERS.map((header) => (
                 <th key={header} className="px-3 py-2 text-left font-semibold">
@@ -69,8 +69,8 @@ export function OpsPlanningTimelineTable({ rows, activeOrderId, onSelectOrder }:
                   key={row.id}
                   onClick={() => onSelectOrder?.(row.id)}
                   className={clsx(
-                    'cursor-pointer bg-white transition hover:bg-slate-100 dark:bg-slate-900 dark:hover:bg-slate-800',
-                    isActive && 'bg-indigo-50/80 dark:bg-indigo-500/10'
+                    'cursor-pointer bg-white transition hover:bg-[#00C2B9]/10 dark:bg-slate-900 dark:hover:bg-slate-800',
+                    isActive && 'bg-[#CCF7F3] dark:bg-teal-500/15'
                   )}
                 >
                   <td className="px-3 py-2 font-medium text-slate-700 dark:text-slate-100">{row.orderCode}</td>

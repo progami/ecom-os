@@ -147,7 +147,15 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
 
   return (
     <div className="space-y-4 p-4">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Product Pricing & Costs</h2>
+      <div className="space-y-1">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          Product pricing &amp; costs
+        </h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Tune each SKU’s inputs to keep landed cost and margin outputs current.
+        </p>
+      </div>
+      <GridLegend />
       <HotTable
         ref={(instance) => {
           hotRef.current = instance?.hotInstance ?? null

@@ -156,19 +156,22 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
 
   return (
     <div className="space-y-3 p-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Supplier Payments</h2>
-        <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          Supplier payments
+        </h2>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
           {summaryText && <span>{summaryText}</span>}
           <button
             onClick={onAddPayment}
             disabled={!activeOrderId || isLoading || isFullyAllocated}
             className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 transition enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:enabled:hover:bg-slate-800"
           >
-            Add Payment
+            Add payment
           </button>
         </div>
       </div>
+      <GridLegend />
       <HotTable
         ref={(instance) => {
           hotRef.current = instance?.hotInstance ?? null
