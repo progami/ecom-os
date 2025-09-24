@@ -17,8 +17,7 @@ type SalesRow = {
 }
 
 type ColumnMeta = Record<string, { productId: string; field: string }>
-
-const metrics = ['stockStart', 'actualSales', 'forecastSales', 'finalSales', 'stockWeeks', 'stockEnd'] as const
+type NestedHeaderCell = string | { label: string; colspan?: number; rowspan?: number }
 const editableMetrics = new Set(['actualSales', 'forecastSales'])
 
 type SalesUpdate = {
@@ -30,7 +29,7 @@ type SalesUpdate = {
 interface SalesPlanningGridProps {
   rows: SalesRow[]
   columnMeta: ColumnMeta
-  nestedHeaders: (string | { label: string; colspan: number })[][]
+  nestedHeaders: NestedHeaderCell[][]
   columnKeys: string[]
   productOptions: Array<{ id: string; name: string }>
   stockWarningWeeks: number

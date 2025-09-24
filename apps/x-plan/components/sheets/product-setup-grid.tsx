@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
@@ -47,6 +47,7 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
   const dataRef = useRef<ProductRow[]>(products.map(mapProductToRow))
   const pendingUpdatesRef = useRef<Map<string, ProductUpdate>>(new Map())
   const flushTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const skipNextDeselectRef = useRef(false)
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -147,6 +148,11 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
     }
   }
 
+  const preserveSelectionForDelete = (event: MouseEvent<HTMLButtonElement>) => {
+    skipNextDeselectRef.current = true
+    event.preventDefault()
+  }
+
   const handleSelection = (_row: number, _col: number, row2: number) => {
     const record = dataRef.current[row2]
     setSelectedProductId(record?.id ?? null)
@@ -175,6 +181,7 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
         <button
           type="button"
           onClick={handleDeleteSelected}
+          onMouseDown={preserveSelectionForDelete}
           disabled={!selectedProductId || isDeleting}
           className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-rose-600 transition enabled:hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-rose-300 dark:enabled:hover:bg-rose-900/20"
         >
@@ -195,13 +202,20 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
             height="auto"
             stretchH="all"
             className="x-plan-hot"
+            outsideClickDeselects={false}
             dropdownMenu
             filters
             afterGetColHeader={(col, TH) => {
               if (col <= 1) TH.classList.add('htLeft')
             }}
             afterSelection={handleSelection}
-            afterDeselect={() => setSelectedProductId(null)}
+            afterDeselect={() => {
+              if (skipNextDeselectRef.current) {
+                skipNextDeselectRef.current = false
+                return
+              }
+              setSelectedProductId(null)
+            }}
             afterChange={(changes, source) => {
               const changeSource = String(source)
               if (!changes || changeSource === 'loadData') return

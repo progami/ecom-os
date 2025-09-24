@@ -645,11 +645,6 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
         onSelectOrder={(orderId) => setActiveOrderId(orderId)}
         onRowsChange={handleInputRowsChange}
       />
-      <OpsPlanningTimelineTable
-        rows={timelineRows}
-        activeOrderId={activeOrderId}
-        onSelectOrder={(orderId) => setActiveOrderId(orderId)}
-      />
       <PurchasePaymentsGrid
         payments={visiblePayments}
         activeOrderId={activeOrderId}
@@ -659,6 +654,11 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
         isLoading={isPending}
         orderSummaries={orderSummaries}
         summaryLine={summaryLine ?? undefined}
+      />
+      <OpsPlanningTimelineTable
+        rows={timelineRows}
+        activeOrderId={activeOrderId}
+        onSelectOrder={(orderId) => setActiveOrderId(orderId)}
       />
     </div>
   )

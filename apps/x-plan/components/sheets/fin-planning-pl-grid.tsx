@@ -1,6 +1,5 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useMemo, useRef } from 'react'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
@@ -195,20 +194,6 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
           flush()
         }}
       />
-      </div>
-
-      <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-        </h3>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          Monthly and quarterly summaries now live on the Dashboard tab so this grid stays focused on updating weekly drivers.
-        </p>
-        <Link
-          href="/sheet/6-dashboard"
-          className="mt-3 inline-flex text-xs font-medium text-slate-700 underline-offset-4 hover:underline dark:text-slate-200"
-        >
-          Open dashboard rollups
-        </Link>
       </div>
     </div>
   )

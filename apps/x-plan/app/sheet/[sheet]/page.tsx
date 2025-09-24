@@ -150,6 +150,8 @@ type BusinessParameterView = {
   type: 'numeric' | 'text'
 }
 
+type NestedHeaderCell = string | { label: string; colspan?: number; rowspan?: number }
+
 type ProfitAndLossAggregates = ReturnType<typeof computeProfitAndLoss>
 type CashFlowAggregates = ReturnType<typeof computeCashFlow>
 type DashboardSummaryPayload = ReturnType<typeof computeDashboardSummary>
@@ -457,14 +459,22 @@ async function getSalesPlanningView() {
   const weeks = Array.from({ length: 52 }, (_, index) => index + 1)
   const columnMeta: Record<string, { productId: string; field: string }> = {}
   const columnKeys: string[] = []
-  const nestedHeaders: (string | { label: string; colspan: number })[][] = [
-    ['Week', 'Date'],
-    ['Week', 'Date'],
-  ]
+  const hasProducts = productList.length > 0
+  const nestedHeaders: NestedHeaderCell[][] = hasProducts
+    ? [
+        [
+          { label: 'Week', rowspan: 2 },
+          { label: 'Date', rowspan: 2 },
+        ],
+        [],
+      ]
+    : [['Week', 'Date']]
 
   productList.forEach((product, productIdx) => {
     nestedHeaders[0].push({ label: product.name, colspan: SALES_METRICS.length })
-    nestedHeaders[1].push(...SALES_METRICS.map((metric) => metricLabel(metric)))
+    if (hasProducts) {
+      nestedHeaders[1]?.push(...SALES_METRICS.map((metric) => metricLabel(metric)))
+    }
     SALES_METRICS.forEach((metric) => {
       const key = columnKey(productIdx, metric)
       columnKeys.push(key)
