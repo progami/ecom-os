@@ -7,7 +7,6 @@ import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
-import { GridLegend } from '@/components/grid-legend'
 
 registerAllModules()
 
@@ -151,9 +150,14 @@ export function OpsPlanningGrid({ rows, activeOrderId, onSelectOrder, onRowsChan
 
   return (
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-        Lead & Schedule Inputs
-      </h2>
+      <div className="space-y-1">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          Lead &amp; schedule inputs
+        </h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Update production timing and statuses — the highlighted row stays in sync with the detail view.
+        </p>
+      </div>
       <HotTable
         ref={(instance) => {
           hotRef.current = instance?.hotInstance ?? null

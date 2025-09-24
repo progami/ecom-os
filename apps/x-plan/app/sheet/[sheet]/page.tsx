@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
-import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
 import { OpsPlanningWorkspace } from '@/components/sheets/ops-planning-workspace'
-import { BusinessParametersPanel } from '@/components/sheets/product-setup-panels'
+import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
+import { ProductSetupParametersPanel } from '@/components/sheets/product-setup-panels'
 import { SalesPlanningGrid } from '@/components/sheets/sales-planning-grid'
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
 import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid'
@@ -25,7 +25,6 @@ import {
   mapCashFlowWeeks,
 } from '@/lib/calculations/adapters'
 import {
-  computeProductCostSummary,
   buildProductCostIndex,
   buildLeadTimeProfiles,
   getLeadTimeProfile,
@@ -180,6 +179,26 @@ type DashboardView = {
   }
 }
 
+const FINANCE_PARAMETER_LABELS = new Set(
+  ['amazon payout delay (weeks)', 'starting cash', 'weekly fixed costs'].map((label) => label.toLowerCase())
+)
+const SALES_PARAMETER_LABELS = new Set(['weeks of stock warning threshold'].map((label) => label.toLowerCase()))
+const OPERATIONS_PARAMETER_EXCLUDES = new Set([
+  'product ordering',
+  'supplier payment split 1 (%)',
+  'supplier payment split 2 (%)',
+  'supplier payment split 3 (%)',
+  'supplier payment terms (weeks)',
+])
+
+function isFinanceParameterLabel(label: string) {
+  return FINANCE_PARAMETER_LABELS.has(label.trim().toLowerCase())
+}
+
+function isSalesParameterLabel(label: string) {
+  return SALES_PARAMETER_LABELS.has(label.trim().toLowerCase())
+}
+
 function columnKey(productIndex: number, metric: SalesMetric) {
   return `p${productIndex}_${metric}`
 }
@@ -204,56 +223,75 @@ function metricLabel(metric: SalesMetric) {
 }
 
 async function getProductSetupView() {
-  const [products, leadStages, businessParameters] = await Promise.all([
+  const [products, businessParameters] = await Promise.all([
     prisma.product.findMany({ orderBy: { name: 'asc' } }),
-    prisma.leadStageTemplate.findMany({ orderBy: { sequence: 'asc' } }),
     prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }),
   ])
 
-  const excludedNames = new Set(
-    [...leadStages.map((stage) => stage.label.toLowerCase()), ...businessParameters.map((parameter) => parameter.label.toLowerCase())]
-  )
+  const activeProducts = products.filter((product) => {
+    const sku = product.sku?.trim()
+    return product.isActive && sku && sku.length > 0
+  })
 
-  const productInputs = mapProducts(
-    products.filter((product) => {
-      const sku = product.sku?.trim()
-      return product.isActive && sku && sku.length > 0
+  const parameterInputs = mapBusinessParameters(businessParameters)
+
+  const operationsParameters = parameterInputs
+    .filter((parameter) => {
+      const normalized = parameter.label.trim().toLowerCase()
+      return (
+        !isFinanceParameterLabel(parameter.label) &&
+        !isSalesParameterLabel(parameter.label) &&
+        !OPERATIONS_PARAMETER_EXCLUDES.has(normalized)
+      )
     })
-  )
+    .map<BusinessParameterView>((parameter) => ({
+      id: parameter.id,
+      label: parameter.label,
+      value:
+        parameter.valueNumeric != null
+          ? formatNumeric(parameter.valueNumeric)
+          : parameter.valueText ?? '',
+      type: parameter.valueNumeric != null ? 'numeric' : 'text',
+    }))
 
-  const filteredProducts = productInputs.filter((product) => !excludedNames.has(product.name.toLowerCase()))
-  const productSummaries = filteredProducts.map((product) => computeProductCostSummary(product))
+  const salesParameters = parameterInputs
+    .filter((parameter) => isSalesParameterLabel(parameter.label))
+    .map<BusinessParameterView>((parameter) => ({
+      id: parameter.id,
+      label: parameter.label,
+      value:
+        parameter.valueNumeric != null
+          ? formatNumeric(parameter.valueNumeric)
+          : parameter.valueText ?? '',
+      type: parameter.valueNumeric != null ? 'numeric' : 'text',
+    }))
+
+  const financeParameters = parameterInputs
+    .filter((parameter) => isFinanceParameterLabel(parameter.label))
+    .map<BusinessParameterView>((parameter) => ({
+      id: parameter.id,
+      label: parameter.label,
+      value:
+        parameter.valueNumeric != null
+          ? formatNumeric(parameter.valueNumeric)
+          : parameter.valueText ?? '',
+      type: parameter.valueNumeric != null ? 'numeric' : 'text',
+    }))
+
+  const productRows = activeProducts
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((product) => ({
+      id: product.id,
+      sku: product.sku ?? '',
+      name: product.name,
+    }))
 
   return {
-    products: productSummaries.map((summary) => ({
-      id: summary.id,
-      name: summary.name,
-      sellingPrice: formatNumeric(summary.sellingPrice),
-      manufacturingCost: formatNumeric(summary.manufacturingCost),
-      freightCost: formatNumeric(summary.freightCost),
-      tariffRate: formatPercentDecimal(summary.tariffRate),
-      tacosPercent: formatPercentDecimal(summary.tacosPercent),
-      fbaFee: formatNumeric(summary.fbaFee),
-      amazonReferralRate: formatPercentDecimal(summary.amazonReferralRate),
-      storagePerMonth: formatNumeric(summary.storagePerMonth),
-      landedCost: formatNumeric(summary.landedUnitCost),
-      grossContribution: formatNumeric(summary.grossContribution),
-      grossMarginPercent: summary.grossMarginPercent.toFixed(4),
-    })),
+    products: productRows,
+    operationsParameters,
+    salesParameters,
+    financeParameters,
   }
-}
-
-async function getBusinessParametersView(): Promise<BusinessParameterView[]> {
-  const parameters = mapBusinessParameters(await prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }))
-  return parameters.map<BusinessParameterView>((parameter) => ({
-    id: parameter.id,
-    label: parameter.label,
-    value:
-      parameter.valueNumeric != null
-        ? formatNumeric(parameter.valueNumeric)
-        : parameter.valueText ?? '',
-    type: parameter.valueNumeric != null ? 'numeric' : 'text',
-  }))
 }
 
 async function loadOperationsContext() {
@@ -486,6 +524,7 @@ async function getSalesPlanningView() {
     columnKeys,
     nestedHeaders,
     productOptions: productList.map((product) => ({ id: product.id, name: product.name })),
+    stockWarningWeeks: context.parameters.stockWarningWeeks,
   }
 }
 
@@ -687,7 +726,41 @@ export default async function SheetPage({ params }: SheetPageProps) {
   switch (config.slug) {
     case '1-product-setup': {
       const view = await getProductSetupView()
-      content = <ProductSetupGrid products={view.products} />
+      const parameterSections = [
+        {
+          key: 'operations',
+          title: 'Operations',
+          description: 'Tune supply chain defaults that feed ordering and lead time models.',
+          parameters: view.operationsParameters,
+        },
+        {
+          key: 'sales',
+          title: 'Sales',
+          description: 'Set demand-planning thresholds such as stock warnings and forecast assumptions.',
+          parameters: view.salesParameters,
+        },
+        {
+          key: 'finance',
+          title: 'Finance',
+          description: 'Set the cash assumptions that flow into every financial plan.',
+          parameters: view.financeParameters,
+        },
+      ] as const
+
+      content = (
+        <div className="space-y-6">
+          <ProductSetupGrid products={view.products} />
+          {parameterSections.map((section) => (
+            <ProductSetupParametersPanel
+              key={section.key}
+              title={section.title}
+              description={section.description}
+              parameters={section.parameters}
+            />
+          ))}
+        </div>
+      )
+      contextPane = null
       break
     }
     case '2-ops-planning': {
@@ -711,20 +784,13 @@ export default async function SheetPage({ params }: SheetPageProps) {
           columnKeys={view.columnKeys}
           nestedHeaders={view.nestedHeaders}
           productOptions={view.productOptions}
+          stockWarningWeeks={view.stockWarningWeeks}
         />
       )
       break
     }
     case '4-fin-planning-pl': {
-      const [view, parameters] = await Promise.all([getProfitAndLossView(), getBusinessParametersView()])
-      const financeParameterLabels = new Set([
-        'amazon payout delay (weeks)',
-        'starting cash',
-        'weekly fixed costs',
-      ])
-      const financeParameters = parameters.filter((parameter) =>
-        financeParameterLabels.has(parameter.label.toLowerCase())
-      )
+      const view = await getProfitAndLossView()
       content = (
         <ProfitAndLossGrid
           weekly={view.weekly}
@@ -732,7 +798,6 @@ export default async function SheetPage({ params }: SheetPageProps) {
           quarterlySummary={view.quarterlySummary}
         />
       )
-      contextPane = <BusinessParametersPanel parameters={financeParameters} />
       break
     }
     case '5-fin-planning-cash-flow': {

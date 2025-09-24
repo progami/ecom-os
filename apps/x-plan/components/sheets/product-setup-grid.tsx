@@ -1,30 +1,19 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
-import { GridLegend } from '@/components/grid-legend'
 
 registerAllModules()
 
 type ProductRow = {
   id: string
+  sku: string
   name: string
-  sellingPrice: string
-  manufacturingCost: string
-  freightCost: string
-  tariffRate: string
-  tacosPercent: string
-  fbaFee: string
-  amazonReferralRate: string
-  storagePerMonth: string
-  landedCost: string
-  grossContribution: string
-  grossMarginPercent: string
 }
 
 type ProductUpdate = {
@@ -33,96 +22,46 @@ type ProductUpdate = {
 }
 
 interface ProductSetupGridProps {
-  products: Array<ProductRow>
+  products: Array<{ id: string; sku: string; name: string }>
 }
 
-const COLUMN_HEADERS = [
-  'Product',
-  'Selling Price',
-  'Manufacturing',
-  'Freight',
-  'Tariff %',
-  'TACoS %',
-  'FBA Fee',
-  'Referral %',
-  'Storage/Mo',
-  'Landed Cost',
-  'Gross Contribution',
-  'Gross Margin %',
+const COLUMN_HEADERS = ['SKU', 'Product Name']
+
+const COLUMN_SETTINGS: Handsontable.ColumnSettings[] = [
+  { data: 'sku', type: 'text', className: 'cell-editable htLeft' },
+  { data: 'name', type: 'text', className: 'cell-editable htLeft' },
 ]
 
-const COLUMN_CONFIG: Handsontable.ColumnSettings[] = [
-  { data: 'name', readOnly: true, className: 'cell-readonly' },
-  { data: 'sellingPrice', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable' },
-  { data: 'manufacturingCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable' },
-  { data: 'freightCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable' },
-  { data: 'tariffRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable' },
-  { data: 'tacosPercent', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable' },
-  { data: 'fbaFee', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable' },
-  { data: 'amazonReferralRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable' },
-  { data: 'storagePerMonth', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable' },
-  { data: 'landedCost', readOnly: true, className: 'cell-readonly', type: 'numeric', numericFormat: { pattern: '$0,0.00' } },
-  { data: 'grossContribution', readOnly: true, className: 'cell-readonly', type: 'numeric', numericFormat: { pattern: '$0,0.00' } },
-  { data: 'grossMarginPercent', readOnly: true, className: 'cell-readonly', type: 'numeric', numericFormat: { pattern: '0.00%' } },
-]
+const EDITABLE_FIELDS = new Set<keyof ProductRow>(['sku', 'name'])
 
-const NUMERIC_FIELDS: Array<keyof ProductRow> = [
-  'sellingPrice',
-  'manufacturingCost',
-  'freightCost',
-  'tariffRate',
-  'tacosPercent',
-  'fbaFee',
-  'amazonReferralRate',
-  'storagePerMonth',
-]
-
-const DERIVED_FIELDS: Array<keyof ProductRow> = ['landedCost', 'grossContribution', 'grossMarginPercent']
-
-function normalizeNumeric(value: unknown) {
-  if (value === '' || value === null || value === undefined) return ''
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return String(value ?? '')
-  return numeric.toFixed(2)
-}
-
-function parseNumeric(value: string) {
-  const numeric = Number(value)
-  return Number.isNaN(numeric) ? 0 : numeric
-}
-
-function recalculateDerived(row: ProductRow) {
-  const price = parseNumeric(row.sellingPrice)
-  const manufacturing = parseNumeric(row.manufacturingCost)
-  const freight = parseNumeric(row.freightCost)
-  const tariffRate = parseNumeric(row.tariffRate)
-  const tacosRate = parseNumeric(row.tacosPercent)
-  const fba = parseNumeric(row.fbaFee)
-  const storage = parseNumeric(row.storagePerMonth)
-
-  const tariffCost = price * tariffRate
-  const advertising = price * tacosRate
-  const landedCost = manufacturing + freight + tariffCost + fba + storage
-  const grossContribution = price - landedCost - advertising
-  const marginPercent = price === 0 ? 0 : grossContribution / price
-
-  row.landedCost = landedCost.toFixed(2)
-  row.grossContribution = grossContribution.toFixed(2)
-  row.grossMarginPercent = marginPercent.toFixed(4)
+function mapProductToRow(product: ProductSetupGridProps['products'][number]): ProductRow {
+  return {
+    id: product.id,
+    sku: product.sku ?? '',
+    name: product.name ?? '',
+  }
 }
 
 export function ProductSetupGrid({ products }: ProductSetupGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
+  const dataRef = useRef<ProductRow[]>(products.map(mapProductToRow))
   const pendingUpdatesRef = useRef<Map<string, ProductUpdate>>(new Map())
   const flushTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-
-  const data = useMemo<ProductRow[]>(() => products.map((product) => ({ ...product })), [products])
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
+  const [isCreating, setIsCreating] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
+    dataRef.current = products.map(mapProductToRow)
     if (hotRef.current) {
-      hotRef.current.loadData(data)
+      hotRef.current.loadData(dataRef.current)
     }
-  }, [data])
+  }, [products])
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const queueFlush = () => {
     if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current)
@@ -140,62 +79,171 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
         toast.success('Product setup updated')
       } catch (error) {
         console.error(error)
-        toast.error('Unable to save product updates')
+        toast.error('Unable to save product changes')
       }
-    }, 500)
+    }, 400)
   }
 
+  const handleAddProduct = async () => {
+    const sku = window.prompt('Enter SKU')
+    const name = window.prompt('Enter product name')
+    const nextSku = sku?.trim() ?? ''
+    const nextName = name?.trim() ?? ''
+    if (!nextSku || !nextName) {
+      toast.error('Enter both a SKU and product name')
+      return
+    }
+
+    setIsCreating(true)
+    try {
+      const res = await fetch('/api/v1/x-plan/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sku: nextSku, name: nextName }),
+      })
+      if (!res.ok) throw new Error('Failed to create product')
+      const json = await res.json()
+      const created = mapProductToRow(json.product)
+      const updated = [...dataRef.current, created].sort((a, b) => a.name.localeCompare(b.name))
+      dataRef.current = updated
+      if (hotRef.current) {
+        hotRef.current.loadData(updated)
+        const rowIndex = updated.findIndex((row) => row.id === created.id)
+        if (rowIndex >= 0) hotRef.current.selectCell(rowIndex, 0)
+      }
+      setSelectedProductId(created.id)
+      toast.success('Product added')
+    } catch (error) {
+      console.error(error)
+      toast.error('Unable to add product')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const handleDeleteSelected = async () => {
+    if (!selectedProductId) return
+    setIsDeleting(true)
+    try {
+      const res = await fetch('/api/v1/x-plan/products', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [selectedProductId] }),
+      })
+      if (!res.ok) throw new Error('Failed to delete product')
+      pendingUpdatesRef.current.delete(selectedProductId)
+      const remaining = dataRef.current.filter((row) => row.id !== selectedProductId)
+      dataRef.current = remaining
+      if (hotRef.current) {
+        hotRef.current.loadData(remaining)
+      }
+      setSelectedProductId(null)
+      toast.success('Product removed')
+    } catch (error) {
+      console.error(error)
+      toast.error('Unable to delete product')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const handleSelection = (_row: number, _col: number, row2: number) => {
+    const record = dataRef.current[row2]
+    setSelectedProductId(record?.id ?? null)
+  }
+
+  const hasProducts = dataRef.current.length > 0
+
   return (
-    <div className="space-y-4 p-4">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Product Pricing & Costs</h2>
-      <HotTable
-        ref={(instance) => {
-          hotRef.current = instance?.hotInstance ?? null
-        }}
-        data={data}
-        licenseKey="non-commercial-and-evaluation"
-        colHeaders={COLUMN_HEADERS}
-        columns={COLUMN_CONFIG}
-        rowHeaders={false}
-        height="auto"
-        stretchH="all"
-        className="x-plan-hot"
-        dropdownMenu
-        filters
-        afterGetColHeader={(col, TH) => {
-          if (col === 0) TH.classList.add('htLeft')
-        }}
-        afterChange={(changes, source) => {
-          const changeSource = String(source)
-          if (!changes || changeSource === 'loadData' || changeSource === 'derived-update') return
-          const hot = hotRef.current
-          if (!hot) return
-          const rowsRef = hot.getSourceData() as ProductRow[]
-          for (const change of changes) {
-            const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof ProductRow, any, any]
-            if (newValue === undefined) continue
-            const record = rowsRef[rowIndex]
-            if (!record) continue
-            if (DERIVED_FIELDS.includes(prop)) continue
-            if (!pendingUpdatesRef.current.has(record.id)) {
-              pendingUpdatesRef.current.set(record.id, { id: record.id, values: {} })
-            }
-            const entry = pendingUpdatesRef.current.get(record.id)
-            if (!entry) continue
-            entry.values[prop] = NUMERIC_FIELDS.includes(prop) ? normalizeNumeric(newValue) : String(newValue ?? '')
-            const updatedRow = {
-              ...record,
-              [prop]: entry.values[prop],
-            }
-            recalculateDerived(updatedRow)
-            hot.setDataAtRowProp(rowIndex, 'landedCost', updatedRow.landedCost, 'derived-update')
-            hot.setDataAtRowProp(rowIndex, 'grossContribution', updatedRow.grossContribution, 'derived-update')
-            hot.setDataAtRowProp(rowIndex, 'grossMarginPercent', updatedRow.grossMarginPercent, 'derived-update')
-            Object.assign(record, updatedRow)
-          }
-          queueFlush()
-        }}
-      />
-    </div>
+    <section className="space-y-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <header className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-teal-600 dark:text-teal-300">Catalogue</p>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Product setup</h2>
+          <p className="text-sm text-slate-500 dark:text-slate-400">Manage the SKU roster that powers Ops, Sales, and Finance planning.</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleAddProduct}
+          disabled={isCreating}
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:enabled:hover:bg-slate-800"
+        >
+          {isCreating ? 'Adding…' : '+ Add SKU'}
+        </button>
+      </header>
+      <div className="flex items-center justify-end">
+        <button
+          type="button"
+          onClick={handleDeleteSelected}
+          disabled={!selectedProductId || isDeleting}
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-rose-600 transition enabled:hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-rose-300 dark:enabled:hover:bg-rose-900/20"
+        >
+          {isDeleting ? 'Removing…' : 'Delete selected'}
+        </button>
+      </div>
+      <div className="rounded-lg border border-slate-200 dark:border-slate-800">
+        {isClient ? (
+          <HotTable
+            ref={(instance) => {
+              hotRef.current = instance?.hotInstance ?? null
+            }}
+            data={dataRef.current}
+            licenseKey="non-commercial-and-evaluation"
+            colHeaders={COLUMN_HEADERS}
+            columns={COLUMN_SETTINGS}
+            rowHeaders={false}
+            height="auto"
+            stretchH="all"
+            className="x-plan-hot"
+            dropdownMenu
+            filters
+            afterGetColHeader={(col, TH) => {
+              if (col <= 1) TH.classList.add('htLeft')
+            }}
+            afterSelection={handleSelection}
+            afterDeselect={() => setSelectedProductId(null)}
+            afterChange={(changes, source) => {
+              const changeSource = String(source)
+              if (!changes || changeSource === 'loadData') return
+              const rows = dataRef.current
+
+              for (const change of changes) {
+                const [rowIndex, propKey, _oldValue, newValue] = change as [number, keyof ProductRow, any, any]
+                if (!EDITABLE_FIELDS.has(propKey)) continue
+                const record = rows[rowIndex]
+                if (!record) continue
+
+                const trimmed = typeof newValue === 'string' ? newValue.trim() : ''
+                if (!trimmed) {
+                  if (hotRef.current) {
+                    hotRef.current.setDataAtRowProp(rowIndex, propKey, record[propKey], 'loadData')
+                  }
+                  continue
+                }
+
+                if (!pendingUpdatesRef.current.has(record.id)) {
+                  pendingUpdatesRef.current.set(record.id, { id: record.id, values: {} })
+                }
+                const entry = pendingUpdatesRef.current.get(record.id)
+                if (!entry) continue
+
+                entry.values[propKey] = trimmed
+                record[propKey] = trimmed
+                if (hotRef.current) {
+                  hotRef.current.setDataAtRowProp(rowIndex, propKey, trimmed, 'loadData')
+                }
+              }
+
+              queueFlush()
+            }}
+          />
+        ) : (
+          <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800/60" aria-hidden />
+        )}
+        {hasProducts ? null : (
+          <p className="px-4 py-6 text-sm text-slate-500 dark:text-slate-400">Add your first SKU to start planning.</p>
+        )}
+      </div>
+    </section>
   )
 }

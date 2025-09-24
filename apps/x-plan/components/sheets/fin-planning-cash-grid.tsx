@@ -8,7 +8,6 @@ import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
-import { GridLegend } from '@/components/grid-legend'
 
 registerAllModules()
 
@@ -127,7 +126,6 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
             Update cash drivers; derived net cash and balance cells update automatically.
           </p>
         </div>
-        <GridLegend />
         <HotTable
           ref={(instance) => {
             hotRef.current = instance?.hotInstance ?? null
