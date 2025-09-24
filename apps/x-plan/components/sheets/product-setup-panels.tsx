@@ -102,3 +102,19 @@ export function BusinessParametersPanel({ parameters }: { parameters: BusinessPa
     </section>
   )
 }
+
+export function ProductSetupFinancePanel({ parameters }: { parameters: BusinessParameter[] }) {
+  if (parameters.length === 0) return null
+
+  return (
+    <section className="space-y-4">
+      <header>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Finance</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          Set the cash assumptions that feed every financial plan.
+        </p>
+      </header>
+      <BusinessParametersPanel parameters={parameters} />
+    </section>
+  )
+}
