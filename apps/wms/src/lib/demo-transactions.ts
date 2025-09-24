@@ -290,6 +290,8 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
           notes: null,
         })
 
+        const normalizedBatchLot = poDetails.batchLot
+
         const transaction = await tx.inventoryTransaction.create({
           data: {
             warehouseCode: plan.warehouse.code,
@@ -303,7 +305,7 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
             cartonWeightKg: sku.cartonWeightKg,
             packagingType: sku.packagingType,
             unitsPerCarton: sku.unitsPerCarton,
-            batchLot,
+            batchLot: normalizedBatchLot,
             transactionType: 'RECEIVE',
             referenceId: plan.orderNumber,
             cartonsIn: cartons,
@@ -328,7 +330,7 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
         addInventory({
           warehouse: plan.warehouse,
           sku,
-          batchLot,
+          batchLot: normalizedBatchLot,
           cartons,
           storageCartonsPerPallet,
           shippingCartonsPerPallet,
@@ -434,6 +436,8 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
           notes: null,
         })
 
+        const normalizedBatchLot = poDetails.batchLot
+
         const transaction = await tx.inventoryTransaction.create({
           data: {
             warehouseCode: plan.warehouse.code,
@@ -447,7 +451,7 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
             cartonWeightKg: line.sku.cartonWeightKg,
             packagingType: line.sku.packagingType,
             unitsPerCarton: line.sku.unitsPerCarton,
-            batchLot: line.batchLot,
+            batchLot: normalizedBatchLot,
             transactionType: 'SHIP',
             referenceId: plan.orderNumber,
             cartonsIn: 0,
@@ -468,7 +472,7 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
         })
 
         createdTransactions.push(transaction)
-        decrementInventory(plan.warehouse, line.sku, line.batchLot, line.cartons)
+        decrementInventory(plan.warehouse, line.sku, normalizedBatchLot, line.cartons)
 
         await new Promise(resolve => setTimeout(resolve, 10))
       }
@@ -496,6 +500,8 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
           notes: null,
         })
 
+        const normalizedBatchLot = poDetails.batchLot
+
         const transaction = await tx.inventoryTransaction.create({
           data: {
             warehouseCode: plan.warehouse.code,
@@ -509,7 +515,7 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
             cartonWeightKg: line.sku.cartonWeightKg,
             packagingType: line.sku.packagingType,
             unitsPerCarton: line.sku.unitsPerCarton,
-            batchLot: line.batchLot,
+            batchLot: normalizedBatchLot,
             transactionType: 'RECEIVE',
             referenceId: plan.orderNumber,
             cartonsIn: line.cartons,
@@ -532,7 +538,7 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
         addInventory({
           warehouse: plan.warehouse,
           sku: line.sku,
-          batchLot: line.batchLot,
+          batchLot: normalizedBatchLot,
           cartons: line.cartons,
           storageCartonsPerPallet: line.storageCartonsPerPallet,
           shippingCartonsPerPallet: line.shippingCartonsPerPallet,

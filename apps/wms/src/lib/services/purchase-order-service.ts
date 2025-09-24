@@ -1,3 +1,5 @@
+import { createHash } from 'crypto'
+
 import { prisma } from '@/lib/prisma'
 import { NotFoundError, ConflictError, ValidationError } from '@/lib/api'
 import {
@@ -34,6 +36,7 @@ export interface EnsurePurchaseOrderForTransactionInput {
 export interface EnsurePurchaseOrderResult {
   purchaseOrderId: string
   purchaseOrderLineId: string
+  batchLot: string
 }
 
 export type PurchaseOrderWithLines = Prisma.PurchaseOrderGetPayload<{
@@ -62,7 +65,6 @@ export interface UpdatePurchaseOrderInput {
   notes?: string | null
 }
 
-const DEFAULT_BATCH = 'UNSPECIFIED'
 const SYSTEM_FALLBACK_ID = 'system'
 const SYSTEM_FALLBACK_NAME = 'System'
 
@@ -71,26 +73,42 @@ function normalizeNullable(value?: string | null): string | null {
   return trimmed && trimmed.length > 0 ? trimmed : null
 }
 
-function normalizeBatchLot(value?: string | null): string {
-  return normalizeNullable(value) ?? DEFAULT_BATCH
-}
-
-function normalizeOrderNumber(value?: string | null, type?: PurchaseOrderType): string {
+function normalizeOrderNumber(value?: string | null): string {
   const provided = normalizeNullable(value)
   if (provided) return provided
 
-  const now = new Date()
-  const datePart = now.toISOString().slice(0, 10).replace(/-/g, '')
-  const randomPart = Math.floor(Math.random() * 9000) + 1000
+  throw new ValidationError('A purchase order number or reference is required to link transactions')
+}
 
-  let prefix = 'PO'
-  if (type === PurchaseOrderType.FULFILLMENT) {
-    prefix = 'FUL'
-  } else if (type === PurchaseOrderType.ADJUSTMENT) {
-    prefix = 'ADJ'
+function generateBatchHash(seedParts: string[]): string {
+  const hash = createHash('sha256')
+  for (const part of seedParts) {
+    hash.update(part)
+    hash.update('::')
+  }
+  return hash.digest('hex').slice(0, 12).toUpperCase()
+}
+
+export function resolveBatchLot(params: {
+  rawBatchLot?: string | null
+  orderNumber: string
+  warehouseCode: string
+  skuCode: string
+  transactionDate: Date
+}): string {
+  const normalized = normalizeNullable(params.rawBatchLot)
+  if (normalized) {
+    return normalized
   }
 
-  return `${prefix}-${datePart}-${randomPart}`
+  const fallback = generateBatchHash([
+    params.orderNumber,
+    params.warehouseCode,
+    params.skuCode,
+    params.transactionDate.toISOString()
+  ])
+
+  return `BATCH-${fallback}`
 }
 
 function mapTransactionToOrderType(type: TransactionType): PurchaseOrderType {
@@ -254,51 +272,97 @@ export async function ensurePurchaseOrderForTransaction(
   input: EnsurePurchaseOrderForTransactionInput
 ): Promise<EnsurePurchaseOrderResult> {
   const orderType = mapTransactionToOrderType(input.transactionType)
-  const orderNumber = normalizeOrderNumber(input.orderNumber, orderType)
+  const orderNumber = normalizeOrderNumber(input.orderNumber)
   const transactionDate = input.transactionDate
   const expectedDate = input.expectedDate ?? transactionDate
   const counterparty = normalizeNullable(input.counterpartyName)
   const notes = normalizeNullable(input.notes)
   const skuDescription = normalizeNullable(input.skuDescription)
-  const batchLot = normalizeBatchLot(input.batchLot)
+  const batchLot = resolveBatchLot({
+    rawBatchLot: input.batchLot,
+    orderNumber,
+    warehouseCode: input.warehouseCode,
+    skuCode: input.skuCode,
+    transactionDate
+  })
   const absoluteQuantity = Math.abs(input.quantity)
   const isOutbound = input.transactionType === 'SHIP' || input.transactionType === 'ADJUST_OUT'
   const signedQuantity = isOutbound ? -absoluteQuantity : absoluteQuantity
 
-  const order = await client.purchaseOrder.upsert({
-    where: { orderNumber },
-    update: {
-      type: orderType,
-      status: PurchaseOrderStatus.POSTED,
+  const orderKey = {
+    warehouseCode_orderNumber: {
       warehouseCode: input.warehouseCode,
-      warehouseName: input.warehouseName,
-      counterpartyName: counterparty,
-      expectedDate,
-      postedAt: transactionDate,
-      notes,
-    },
-    create: {
       orderNumber,
-      type: orderType,
-      status: PurchaseOrderStatus.POSTED,
-      warehouseCode: input.warehouseCode,
-      warehouseName: input.warehouseName,
-      counterpartyName: counterparty,
-      expectedDate,
-      postedAt: transactionDate,
-      notes,
-      createdById: normalizeNullable(input.createdById) ?? undefined,
-      createdByName: normalizeNullable(input.createdByName) ?? undefined,
     },
-  })
+  }
 
-  const existingLine = await client.purchaseOrderLine.findFirst({
-    where: {
+  const existingOrder = await client.purchaseOrder.findUnique({ where: orderKey })
+
+  if (existingOrder && existingOrder.status === PurchaseOrderStatus.CANCELLED) {
+    throw new ConflictError('Transactions cannot be linked to a cancelled purchase order')
+  }
+
+  if (existingOrder && existingOrder.status === PurchaseOrderStatus.CLOSED) {
+    throw new ConflictError('Transactions cannot be linked to a closed purchase order')
+  }
+
+  let order = existingOrder
+
+  if (!order) {
+    order = await client.purchaseOrder.create({
+      data: {
+        orderNumber,
+        type: orderType,
+        status: PurchaseOrderStatus.AWAITING_PROOF,
+        warehouseCode: input.warehouseCode,
+        warehouseName: input.warehouseName,
+        counterpartyName: counterparty,
+        expectedDate,
+        notes,
+        createdById: normalizeNullable(input.createdById) ?? undefined,
+        createdByName: normalizeNullable(input.createdByName) ?? undefined,
+      },
+    })
+  } else {
+    const updateData: Prisma.PurchaseOrderUpdateInput = {}
+
+    if (order.type !== orderType) {
+      updateData.type = orderType
+    }
+
+    if (order.warehouseName !== input.warehouseName) {
+      updateData.warehouseName = input.warehouseName
+    }
+
+    if (!order.counterpartyName && counterparty) {
+      updateData.counterpartyName = counterparty
+    }
+
+    if (!order.expectedDate && expectedDate) {
+      updateData.expectedDate = expectedDate
+    }
+
+    if (notes && notes !== order.notes) {
+      updateData.notes = notes
+    }
+
+    if (Object.keys(updateData).length > 0) {
+      order = await client.purchaseOrder.update({
+        where: orderKey,
+        data: updateData,
+      })
+    }
+  }
+
+  const lineKey = {
+    purchaseOrderId_skuCode_batchLot: {
       purchaseOrderId: order.id,
       skuCode: input.skuCode,
       batchLot,
     },
-  })
+  }
+
+  const existingLine = await client.purchaseOrderLine.findUnique({ where: lineKey })
 
   if (!existingLine) {
     const line = await client.purchaseOrderLine.create({
@@ -309,30 +373,43 @@ export async function ensurePurchaseOrderForTransaction(
         batchLot,
         quantity: absoluteQuantity,
         postedQuantity: signedQuantity,
-        status: PurchaseOrderLineStatus.POSTED,
+        status: Math.abs(signedQuantity) >= absoluteQuantity
+          ? PurchaseOrderLineStatus.POSTED
+          : PurchaseOrderLineStatus.PENDING,
       },
     })
 
     return {
       purchaseOrderId: order.id,
       purchaseOrderLineId: line.id,
+      batchLot,
     }
   }
 
+  const nextQuantity = isOutbound
+    ? Math.max(existingLine.quantity, absoluteQuantity)
+    : existingLine.quantity + absoluteQuantity
+
+  const nextPostedQuantity = existingLine.postedQuantity + signedQuantity
+  const lineStatus = Math.abs(nextPostedQuantity) >= nextQuantity
+    ? PurchaseOrderLineStatus.POSTED
+    : PurchaseOrderLineStatus.PENDING
+
   const updatedLine = await client.purchaseOrderLine.update({
-    where: { id: existingLine.id },
+    where: lineKey,
     data: {
       skuDescription: skuDescription ?? existingLine.skuDescription ?? null,
       batchLot,
-      quantity: existingLine.quantity + absoluteQuantity,
-      postedQuantity: existingLine.postedQuantity + signedQuantity,
-      status: PurchaseOrderLineStatus.POSTED,
+      quantity: nextQuantity,
+      postedQuantity: nextPostedQuantity,
+      status: lineStatus,
     },
   })
 
   return {
     purchaseOrderId: order.id,
     purchaseOrderLineId: updatedLine.id,
+    batchLot,
   }
 }
 
