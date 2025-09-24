@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
-import { endOfWeek } from 'date-fns'
+import { Prisma, TransactionType } from '@prisma/client'
+import { endOfWeek, startOfWeek } from 'date-fns'
 import { randomUUID } from 'crypto'
 import { getStorageRate, calculateStorageCost, type StorageRateResult } from './storageRate.service'
 
@@ -24,66 +24,144 @@ export async function recordStorageCostEntry({
   skuCode,
   skuDescription,
   batchLot,
-  transactionDate
+  transactionDate,
 }: RecordStorageCostParams) {
   const weekEndingDate = endOfWeek(transactionDate, { weekStartsOn: 1 })
+  const weekStartingDate = startOfWeek(transactionDate, { weekStartsOn: 1 })
 
-  // Check if entry already exists for this week
+  // Calculate opening balance (inventory prior to the start of the week)
+  const openingAggregate = await prisma.inventoryTransaction.aggregate({
+    _sum: {
+      cartonsIn: true,
+      cartonsOut: true,
+    },
+    where: {
+      warehouseCode,
+      skuCode,
+      batchLot,
+      transactionDate: { lt: weekStartingDate },
+    },
+  })
+
+  const openingBalance =
+    Number(openingAggregate._sum.cartonsIn || 0) - Number(openingAggregate._sum.cartonsOut || 0)
+
+  // Gather all transactions for the week to understand weekly movement
+  const weeklyTransactions = await prisma.inventoryTransaction.findMany({
+    where: {
+      warehouseCode,
+      skuCode,
+      batchLot,
+      transactionDate: {
+        gte: weekStartingDate,
+        lte: weekEndingDate,
+      },
+    },
+    select: {
+      transactionType: true,
+      cartonsIn: true,
+      cartonsOut: true,
+    },
+  })
+
+  let weeklyReceive = 0
+  let weeklyShip = 0
+  let weeklyAdjust = 0
+
+  for (const movement of weeklyTransactions) {
+    const inValue = Number(movement.cartonsIn || 0)
+    const outValue = Number(movement.cartonsOut || 0)
+
+    switch (movement.transactionType) {
+      case TransactionType.RECEIVE:
+        weeklyReceive += inValue
+        break
+      case TransactionType.SHIP:
+        weeklyShip += outValue
+        break
+      case TransactionType.ADJUST_IN:
+        weeklyAdjust += inValue
+        break
+      case TransactionType.ADJUST_OUT:
+        weeklyAdjust -= outValue
+        break
+      default:
+        weeklyAdjust += inValue - outValue
+        break
+    }
+  }
+
+  const closingBalance = openingBalance + weeklyReceive - weeklyShip + weeklyAdjust
+  const normalizedClosingBalance = closingBalance
+  const averageBalance = Math.max(0, (openingBalance + normalizedClosingBalance) / 2)
+
+  const hasMovement =
+    openingBalance !== 0 || weeklyReceive !== 0 || weeklyShip !== 0 || weeklyAdjust !== 0
+
+  if (!hasMovement) {
+    return null
+  }
+
   const existing = await prisma.storageLedger.findUnique({
     where: {
       warehouseCode_skuCode_batchLot_weekEndingDate: {
         warehouseCode,
         skuCode,
         batchLot,
-        weekEndingDate
-      }
-    }
+        weekEndingDate,
+      },
+    },
   })
+
+  let storageRate: StorageRateResult | null = null
+  let ratePerCarton: number | null = existing?.storageRatePerCarton
+    ? Number(existing.storageRatePerCarton)
+    : null
+  let rateEffectiveDate = existing?.rateEffectiveDate ?? null
+  let costRateId = existing?.costRateId ?? null
+  let isCostCalculated = existing?.isCostCalculated ?? false
+
+  if (ratePerCarton === null) {
+    try {
+      storageRate = await getStorageRate(warehouseCode, weekEndingDate)
+      if (storageRate) {
+        ratePerCarton = storageRate.ratePerCarton
+        rateEffectiveDate = storageRate.effectiveDate
+        costRateId = storageRate.costRateId ?? null
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error'
+      console.warn(`Storage rate lookup failed for ${warehouseCode}:`, message)
+    }
+  }
+
+  let totalCost: number | null = null
+  if (ratePerCarton !== null) {
+    totalCost = await calculateStorageCost(averageBalance, ratePerCarton)
+    isCostCalculated = true
+  }
 
   if (existing) {
-    return existing
+    return prisma.storageLedger.update({
+      where: { id: existing.id },
+      data: {
+        warehouseName,
+        skuDescription,
+        openingBalance,
+        weeklyReceive,
+        weeklyShip,
+        weeklyAdjust,
+        closingBalance: normalizedClosingBalance,
+        averageBalance,
+        storageRatePerCarton: ratePerCarton,
+        totalStorageCost: totalCost,
+        rateEffectiveDate,
+        costRateId,
+        isCostCalculated,
+      },
+    })
   }
 
-  // Calculate current inventory balance for this batch
-  const aggregate = await prisma.inventoryTransaction.aggregate({
-    _sum: {
-      cartonsIn: true,
-      cartonsOut: true
-    },
-    where: {
-      warehouseCode,
-      skuCode,
-      batchLot,
-      transactionDate: { lte: transactionDate }
-    }
-  })
-
-  const closingBalance = 
-    Number(aggregate._sum.cartonsIn || 0) - Number(aggregate._sum.cartonsOut || 0)
-
-  // Skip if no inventory (batch was completely shipped out)
-  if (closingBalance <= 0) {
-    return null
-  }
-
-  // Attempt to get storage rate and calculate cost
-  let storageRate: StorageRateResult | null = null
-  let totalCost: number = 0
-  let isCostCalculated = false
-
-  try {
-    storageRate = await getStorageRate(warehouseCode, weekEndingDate)
-    if (storageRate) {
-      totalCost = await calculateStorageCost(closingBalance, storageRate.ratePerCarton)
-      isCostCalculated = true
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error'
-    console.warn(`Storage rate lookup failed for ${warehouseCode}:`, message)
-    // Continue without cost calculation - entry will be marked as pending
-  }
-
-  // Create storage ledger entry with or without cost calculation
   return prisma.storageLedger.create({
     data: {
       storageLedgerId: randomUUID(),
@@ -93,21 +171,20 @@ export async function recordStorageCostEntry({
       skuDescription,
       batchLot,
       weekEndingDate,
-      openingBalance: closingBalance,
-      weeklyReceive: 0,
-      weeklyShip: 0,
-      weeklyAdjust: 0,
-      closingBalance,
-      averageBalance: closingBalance,
+      openingBalance,
+      weeklyReceive,
+      weeklyShip,
+      weeklyAdjust,
+      closingBalance: normalizedClosingBalance,
+      averageBalance,
       dailyBalanceData: null,
-      // Storage cost fields
-      storageRatePerCarton: storageRate?.ratePerCarton || null,
-      totalStorageCost: totalCost || null,
-      rateEffectiveDate: storageRate?.effectiveDate || null,
-      costRateId: storageRate?.costRateId || null,
+      storageRatePerCarton: ratePerCarton,
+      totalStorageCost: totalCost,
+      rateEffectiveDate,
+      costRateId,
       isCostCalculated,
-      createdByName: 'System'
-    }
+      createdByName: 'System',
+    },
   })
 }
 
@@ -160,7 +237,7 @@ export async function ensureWeeklyStorageEntries(date: Date = new Date()) {
           skuCode: agg.skuCode,
           skuDescription: agg.skuDescription,
           batchLot: agg.batchLot,
-          transactionDate: date
+          transactionDate: date,
         })
 
         if (result) {

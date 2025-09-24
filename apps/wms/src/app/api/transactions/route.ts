@@ -8,7 +8,7 @@ import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 // handleTransactionCosts removed - costs are handled via frontend pre-filling
 import { parseLocalDateTime } from '@/lib/utils/date-helpers'
 import { recordStorageCostEntry } from '@/services/storageCost.service'
-import { ensurePurchaseOrderForTransaction } from '@/lib/services/purchase-order-service'
+import { ensurePurchaseOrderForTransaction, resolveBatchLot } from '@/lib/services/purchase-order-service'
 export const dynamic = 'force-dynamic'
 
 type MutableTransactionLine = {
@@ -492,6 +492,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 })
     }
 
+    for (const item of validatedItems) {
+      item.batchLot = resolveBatchLot({
+        rawBatchLot: item.batchLot,
+        orderNumber: refNumber,
+        warehouseCode: warehouse.code,
+        skuCode: item.skuCode,
+        transactionDate: transactionDateObj,
+      })
+    }
+
     // Verify all SKUs exist and check inventory for SHIP transactions
     for (const item of validatedItems) {
       const sku = await prisma.sku.findFirst({
@@ -597,7 +607,7 @@ export async function POST(request: NextRequest) {
             ? sanitizedSupplier ?? null
             : sanitizedShipName ?? sanitizedSupplier ?? null
 
-          const { purchaseOrderId, purchaseOrderLineId } = await ensurePurchaseOrderForTransaction(tx, {
+          const { purchaseOrderId, purchaseOrderLineId, batchLot: normalizedBatchLot } = await ensurePurchaseOrderForTransaction(tx, {
             orderNumber: refNumber,
             transactionType: txType as TransactionType,
             warehouseCode: warehouse.code,
@@ -629,7 +639,7 @@ export async function POST(request: NextRequest) {
               cartonDimensionsCm: sku.cartonDimensionsCm,
               cartonWeightKg: sku.cartonWeightKg,
               packagingType: sku.packagingType,
-              batchLot: item.batchLot || 'NONE',
+              batchLot: normalizedBatchLot,
               transactionType: txType as TransactionType,
               referenceId: referenceId,
               cartonsIn: ['RECEIVE', 'ADJUST_IN'].includes(txType) ? item.cartons : 0,

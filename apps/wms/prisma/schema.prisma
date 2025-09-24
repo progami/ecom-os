@@ -149,7 +149,7 @@ model InventoryTransaction {
 
 model PurchaseOrder {
   id               String                 @id @default(uuid())
-  orderNumber      String                 @unique @map("order_number")
+  orderNumber      String                 @map("order_number")
   type             PurchaseOrderType
   status           PurchaseOrderStatus    @default(DRAFT)
   warehouseCode    String                 @map("warehouse_code")
@@ -169,6 +169,7 @@ model PurchaseOrder {
 
   @@index([status])
   @@index([type, status])
+  @@unique([warehouseCode, orderNumber])
   @@map("purchase_orders")
 }
 
@@ -190,6 +191,7 @@ model PurchaseOrderLine {
   invoiceLines      WarehouseInvoiceLine[]
 
   @@index([purchaseOrderId])
+  @@unique([purchaseOrderId, skuCode, batchLot])
   @@map("purchase_order_lines")
 }
 

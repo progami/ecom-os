@@ -8,6 +8,7 @@ import {
   TransactionType,
 } from '@prisma/client'
 import { ValidationError, ConflictError, NotFoundError } from '@/lib/api'
+import { resolveBatchLot } from '@/lib/services/purchase-order-service'
 
 export interface UserContext {
   id?: string | null
@@ -243,7 +244,13 @@ export async function postMovementNote(id: string, user: UserContext) {
           cartonWeightKg: sku?.cartonWeightKg ?? null,
           packagingType: sku?.packagingType ?? null,
           unitsPerCarton,
-          batchLot: line.batchLot ?? poLine.batchLot ?? 'UNSPECIFIED',
+          batchLot: resolveBatchLot({
+            rawBatchLot: line.batchLot ?? poLine.batchLot,
+            orderNumber: po.orderNumber,
+            warehouseCode: po.warehouseCode,
+            skuCode: poLine.skuCode,
+            transactionDate: transactionDate,
+          }),
           transactionType,
           referenceId: note.referenceNumber ?? po.orderNumber,
           cartonsIn: isInbound ? line.quantity : 0,
