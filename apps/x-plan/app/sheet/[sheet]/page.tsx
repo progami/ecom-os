@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
 import { OpsPlanningWorkspace } from '@/components/sheets/ops-planning-workspace'
-import { BusinessParametersPanel } from '@/components/sheets/product-setup-panels'
+import { ProductSetupFinancePanel } from '@/components/sheets/product-setup-panels'
 import { SalesPlanningGrid } from '@/components/sheets/sales-planning-grid'
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
 import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid'
@@ -151,6 +151,14 @@ type BusinessParameterView = {
   type: 'numeric' | 'text'
 }
 
+const FINANCE_PARAMETER_LABELS = new Set(
+  ['amazon payout delay (weeks)', 'starting cash', 'weekly fixed costs'].map((label) => label.toLowerCase())
+)
+
+function isFinanceParameterLabel(label: string) {
+  return FINANCE_PARAMETER_LABELS.has(label.trim().toLowerCase())
+}
+
 function columnKey(productIndex: number, metric: SalesMetric) {
   return `p${productIndex}_${metric}`
 }
@@ -181,8 +189,10 @@ async function getProductSetupView() {
     prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }),
   ])
 
+  const parameterInputs = mapBusinessParameters(businessParameters)
+
   const excludedNames = new Set(
-    [...leadStages.map((stage) => stage.label.toLowerCase()), ...businessParameters.map((parameter) => parameter.label.toLowerCase())]
+    [...leadStages.map((stage) => stage.label.toLowerCase()), ...parameterInputs.map((parameter) => parameter.label.toLowerCase())]
   )
 
   const productInputs = mapProducts(
@@ -194,6 +204,18 @@ async function getProductSetupView() {
 
   const filteredProducts = productInputs.filter((product) => !excludedNames.has(product.name.toLowerCase()))
   const productSummaries = filteredProducts.map((product) => computeProductCostSummary(product))
+
+  const financeParameters = parameterInputs
+    .filter((parameter) => isFinanceParameterLabel(parameter.label))
+    .map<BusinessParameterView>((parameter) => ({
+      id: parameter.id,
+      label: parameter.label,
+      value:
+        parameter.valueNumeric != null
+          ? formatNumeric(parameter.valueNumeric)
+          : parameter.valueText ?? '',
+      type: parameter.valueNumeric != null ? 'numeric' : 'text',
+    }))
 
   return {
     products: productSummaries.map((summary) => ({
@@ -211,20 +233,8 @@ async function getProductSetupView() {
       grossContribution: formatNumeric(summary.grossContribution),
       grossMarginPercent: summary.grossMarginPercent.toFixed(4),
     })),
+    financeParameters,
   }
-}
-
-async function getBusinessParametersView(): Promise<BusinessParameterView[]> {
-  const parameters = mapBusinessParameters(await prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }))
-  return parameters.map<BusinessParameterView>((parameter) => ({
-    id: parameter.id,
-    label: parameter.label,
-    value:
-      parameter.valueNumeric != null
-        ? formatNumeric(parameter.valueNumeric)
-        : parameter.valueText ?? '',
-    type: parameter.valueNumeric != null ? 'numeric' : 'text',
-  }))
 }
 
 async function loadOperationsContext() {
@@ -639,6 +649,10 @@ export default async function SheetPage({ params }: SheetPageProps) {
     case '1-product-setup': {
       const view = await getProductSetupView()
       content = <ProductSetupGrid products={view.products} />
+      contextPane =
+        view.financeParameters.length > 0 ? (
+          <ProductSetupFinancePanel parameters={view.financeParameters} />
+        ) : null
       break
     }
     case '2-ops-planning': {
@@ -667,15 +681,7 @@ export default async function SheetPage({ params }: SheetPageProps) {
       break
     }
     case '4-fin-planning-pl': {
-      const [view, parameters] = await Promise.all([getProfitAndLossView(), getBusinessParametersView()])
-      const financeParameterLabels = new Set([
-        'amazon payout delay (weeks)',
-        'starting cash',
-        'weekly fixed costs',
-      ])
-      const financeParameters = parameters.filter((parameter) =>
-        financeParameterLabels.has(parameter.label.toLowerCase())
-      )
+      const view = await getProfitAndLossView()
       content = (
         <ProfitAndLossGrid
           weekly={view.weekly}
@@ -683,7 +689,6 @@ export default async function SheetPage({ params }: SheetPageProps) {
           quarterlySummary={view.quarterlySummary}
         />
       )
-      contextPane = <BusinessParametersPanel parameters={financeParameters} />
       break
     }
     case '5-fin-planning-cash-flow': {
