@@ -68,6 +68,7 @@ export async function createTransaction(input: CreateTransactionInput) {
       await handleTransactionCosts({
         transactionId: transaction.id,
         warehouseCode: transaction.warehouseCode,
+        warehouseName: transaction.warehouseName,
         skuCode: transaction.skuCode,
         batchLot: transaction.batchLot,
         transactionType: transaction.transactionType,
@@ -146,6 +147,7 @@ export async function createTransactionBatch(
         await handleTransactionCosts({
           transactionId: transaction.id,
           warehouseCode: transaction.warehouseCode,
+          warehouseName: transaction.warehouseName,
           skuCode: transaction.skuCode,
           batchLot: transaction.batchLot,
           transactionType: transaction.transactionType,

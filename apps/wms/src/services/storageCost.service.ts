@@ -92,7 +92,7 @@ export async function recordStorageCostEntry({
   }
 
   const closingBalance = openingBalance + weeklyReceive - weeklyShip + weeklyAdjust
-  const normalizedClosingBalance = closingBalance
+  const normalizedClosingBalance = Math.max(0, closingBalance)
   const averageBalance = Math.max(0, (openingBalance + normalizedClosingBalance) / 2)
 
   const hasMovement =
@@ -208,15 +208,6 @@ export async function ensureWeeklyStorageEntries(date: Date = new Date()) {
   const errors: string[] = []
 
   for (const agg of aggregates) {
-    const closingBalance = 
-      Number(agg._sum.cartonsIn || 0) - Number(agg._sum.cartonsOut || 0)
-    
-    // Skip batches with no inventory
-    if (closingBalance <= 0) {
-      skipped++
-      continue
-    }
-
     try {
       // Check if entry already exists
       const exists = await prisma.storageLedger.findUnique({
@@ -245,6 +236,8 @@ export async function ensureWeeklyStorageEntries(date: Date = new Date()) {
           if (result.isCostCalculated) {
             costCalculated++
           }
+        } else {
+          skipped++
         }
       }
     } catch (error) {

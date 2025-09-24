@@ -104,8 +104,7 @@ export function resolveBatchLot(params: {
   const fallback = generateBatchHash([
     params.orderNumber,
     params.warehouseCode,
-    params.skuCode,
-    params.transactionDate.toISOString()
+    params.skuCode
   ])
 
   return `BATCH-${fallback}`
@@ -274,9 +273,13 @@ export async function ensurePurchaseOrderForTransaction(
   const orderType = mapTransactionToOrderType(input.transactionType)
   const orderNumber = normalizeOrderNumber(input.orderNumber)
   const transactionDate = input.transactionDate
-  const expectedDate = input.expectedDate ?? transactionDate
-  const counterparty = normalizeNullable(input.counterpartyName)
-  const notes = normalizeNullable(input.notes)
+  const hasExpectedDateUpdate = Object.prototype.hasOwnProperty.call(input, 'expectedDate')
+  const providedExpectedDate = hasExpectedDateUpdate ? input.expectedDate ?? null : undefined
+  const defaultExpectedDate = providedExpectedDate ?? transactionDate
+  const hasCounterpartyUpdate = Object.prototype.hasOwnProperty.call(input, 'counterpartyName')
+  const counterparty = hasCounterpartyUpdate ? normalizeNullable(input.counterpartyName) : undefined
+  const hasNotesUpdate = Object.prototype.hasOwnProperty.call(input, 'notes')
+  const notes = hasNotesUpdate ? normalizeNullable(input.notes) : undefined
   const skuDescription = normalizeNullable(input.skuDescription)
   const batchLot = resolveBatchLot({
     rawBatchLot: input.batchLot,
@@ -316,9 +319,9 @@ export async function ensurePurchaseOrderForTransaction(
         status: PurchaseOrderStatus.AWAITING_PROOF,
         warehouseCode: input.warehouseCode,
         warehouseName: input.warehouseName,
-        counterpartyName: counterparty,
-        expectedDate,
-        notes,
+        counterpartyName: counterparty ?? null,
+        expectedDate: defaultExpectedDate,
+        notes: notes ?? null,
         createdById: normalizeNullable(input.createdById) ?? undefined,
         createdByName: normalizeNullable(input.createdByName) ?? undefined,
       },
@@ -326,7 +329,9 @@ export async function ensurePurchaseOrderForTransaction(
   } else {
     const updateData: Prisma.PurchaseOrderUpdateInput = {}
 
-    if (order.type !== orderType) {
+    const existingOrderType = order.type
+
+    if (existingOrderType !== orderType && existingOrderType !== PurchaseOrderType.PURCHASE) {
       updateData.type = orderType
     }
 
@@ -334,16 +339,28 @@ export async function ensurePurchaseOrderForTransaction(
       updateData.warehouseName = input.warehouseName
     }
 
-    if (!order.counterpartyName && counterparty) {
-      updateData.counterpartyName = counterparty
+    if (hasCounterpartyUpdate && counterparty !== order.counterpartyName) {
+      updateData.counterpartyName = counterparty ?? null
     }
 
-    if (!order.expectedDate && expectedDate) {
-      updateData.expectedDate = expectedDate
+    if (hasExpectedDateUpdate) {
+      const normalizedExpectedDate = providedExpectedDate ?? null
+      const existingExpectedDate = order.expectedDate ?? null
+
+      const hasChanged =
+        (normalizedExpectedDate === null && existingExpectedDate !== null) ||
+        (normalizedExpectedDate !== null &&
+          (existingExpectedDate === null || existingExpectedDate.getTime() !== normalizedExpectedDate.getTime()))
+
+      if (hasChanged) {
+        updateData.expectedDate = normalizedExpectedDate
+      }
+    } else if (!order.expectedDate && defaultExpectedDate) {
+      updateData.expectedDate = defaultExpectedDate
     }
 
-    if (notes && notes !== order.notes) {
-      updateData.notes = notes
+    if (hasNotesUpdate && notes !== order.notes) {
+      updateData.notes = notes ?? null
     }
 
     if (Object.keys(updateData).length > 0) {
@@ -386,9 +403,19 @@ export async function ensurePurchaseOrderForTransaction(
     }
   }
 
-  const nextQuantity = isOutbound
-    ? Math.max(existingLine.quantity, absoluteQuantity)
-    : existingLine.quantity + absoluteQuantity
+  const existingOrderType = order.type
+
+  let nextQuantity = existingLine.quantity
+
+  if (isOutbound) {
+    if (existingOrderType === PurchaseOrderType.PURCHASE) {
+      nextQuantity = Math.max(0, existingLine.quantity - absoluteQuantity)
+    } else {
+      nextQuantity = Math.max(existingLine.quantity, absoluteQuantity)
+    }
+  } else {
+    nextQuantity = Math.max(existingLine.quantity, absoluteQuantity)
+  }
 
   const nextPostedQuantity = existingLine.postedQuantity + signedQuantity
   const lineStatus = Math.abs(nextPostedQuantity) >= nextQuantity
