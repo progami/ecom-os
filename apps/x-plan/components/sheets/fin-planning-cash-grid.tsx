@@ -164,7 +164,6 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
 
       <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-900/40 dark:text-slate-300">
         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
-          Cash rollups moved to the dashboard
         </h3>
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
           Monthly and quarterly cash flow summaries are now consolidated on the Dashboard sheet alongside the P&amp;L rollups.
