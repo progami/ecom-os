@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import { OpsPlanningWorkspace } from '@/components/sheets/ops-planning-workspace'
+import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
 import { ProductSetupParametersPanel } from '@/components/sheets/product-setup-panels'
 import { SalesPlanningGrid } from '@/components/sheets/sales-planning-grid'
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
@@ -24,7 +25,6 @@ import {
   mapCashFlowWeeks,
 } from '@/lib/calculations/adapters'
 import {
-  computeProductCostSummary,
   buildProductCostIndex,
   buildLeadTimeProfiles,
   getLeadTimeProfile,
@@ -194,7 +194,15 @@ function metricLabel(metric: SalesMetric) {
 }
 
 async function getProductSetupView() {
-  const businessParameters = await prisma.businessParameter.findMany({ orderBy: { label: 'asc' } })
+  const [products, businessParameters] = await Promise.all([
+    prisma.product.findMany({ orderBy: { name: 'asc' } }),
+    prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }),
+  ])
+
+  const activeProducts = products.filter((product) => {
+    const sku = product.sku?.trim()
+    return product.isActive && sku && sku.length > 0
+  })
 
   const parameterInputs = mapBusinessParameters(businessParameters)
 
@@ -241,7 +249,16 @@ async function getProductSetupView() {
       type: parameter.valueNumeric != null ? 'numeric' : 'text',
     }))
 
+  const productRows = activeProducts
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((product) => ({
+      id: product.id,
+      sku: product.sku ?? '',
+      name: product.name,
+    }))
+
   return {
+    products: productRows,
     operationsParameters,
     salesParameters,
     financeParameters,
@@ -682,15 +699,18 @@ export default async function SheetPage({ params }: SheetPageProps) {
       ] as const
 
       content = (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {parameterSections.map((section) => (
-            <ProductSetupParametersPanel
-              key={section.key}
-              title={section.title}
-              description={section.description}
-              parameters={section.parameters}
-            />
-          ))}
+        <div className="space-y-6">
+          <ProductSetupGrid products={view.products} />
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {parameterSections.map((section) => (
+              <ProductSetupParametersPanel
+                key={section.key}
+                title={section.title}
+                description={section.description}
+                parameters={section.parameters}
+              />
+            ))}
+          </div>
         </div>
       )
       contextPane = null

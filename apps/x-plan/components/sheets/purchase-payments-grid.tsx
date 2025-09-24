@@ -7,7 +7,6 @@ import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
-import { GridLegend } from '@/components/grid-legend'
 
 registerAllModules()
 
@@ -171,7 +170,6 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
           </button>
         </div>
       </div>
-      <GridLegend />
       <HotTable
         ref={(instance) => {
           hotRef.current = instance?.hotInstance ?? null
