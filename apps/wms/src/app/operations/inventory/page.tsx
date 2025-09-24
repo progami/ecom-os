@@ -1,22 +1,11 @@
 'use client'
 
-import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
-import { Button } from '@/components/ui/button'
-import {
-  Search,
-  Building,
-  Package,
-  Truck,
-  ArrowUpDown,
-  ArrowUp,
-  ArrowDown,
-  Filter,
-} from '@/lib/lucide-icons'
+import { Search, Building, Package, ArrowUpDown, ArrowUp, ArrowDown, Filter } from '@/lib/lucide-icons'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
@@ -46,6 +35,8 @@ interface InventoryBalance {
   lastTransactionId?: string
   lastTransactionType?: string
   lastTransactionReference?: string | null
+  purchaseOrderId: string | null
+  purchaseOrderNumber: string | null
   receiveTransaction?: {
     createdBy?: {
       fullName: string
@@ -166,37 +157,6 @@ const balanceDateToTime = (value: string | null) => {
   return Number.isNaN(date.getTime()) ? 0 : date.getTime()
 }
 
-const formatTransactionType = (type?: string | null) => {
-  if (!type) return null
-  switch (type.toUpperCase()) {
-    case 'RECEIVE':
-      return 'Receive'
-    case 'SHIP':
-      return 'Ship'
-    default:
-      return type
-        .toLowerCase()
-        .split('_')
-        .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ')
-  }
-}
-
-const transactionTypeClass = (type?: string | null) => {
-  if (!type) {
-    return 'bg-muted text-muted-foreground'
-  }
-
-  switch (type.toUpperCase()) {
-    case 'RECEIVE':
-      return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-    case 'SHIP':
-      return 'bg-blue-50 text-blue-700 border border-blue-200'
-    default:
-      return 'bg-muted text-muted-foreground border border-muted'
-  }
-}
-
 function InventoryPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -257,6 +217,8 @@ function InventoryPage() {
       fetchBalances()
     }
   }, [fetchBalances, status])
+
+  const headerActions = useMemo(() => null, [])
 
   const handleSort = useCallback((key: SortKey) => {
     setSortConfig(current => {
@@ -608,22 +570,7 @@ function InventoryPage() {
           bgColor="bg-indigo-50"
           borderColor="border-indigo-200"
           textColor="text-indigo-800"
-          actions={
-            <div className="flex gap-2">
-              <Button asChild className="gap-2">
-                <Link href="/operations/receive" prefetch={false}>
-                  <Package className="h-4 w-4" />
-                  Receive
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="gap-2">
-                <Link href="/operations/ship" prefetch={false}>
-                  <Truck className="h-4 w-4" />
-                  Ship
-                </Link>
-              </Button>
-            </div>
-          }
+          actions={headerActions}
         />
 
         <StatsCardGrid cols={3}>
@@ -653,7 +600,7 @@ function InventoryPage() {
         <div className="flex min-h-0 flex-col rounded-lg border bg-white shadow-sm">
           {/* Reserve space for filters/stats before the table scroll area */}
           <div
-            className="min-h-0 overflow-x-auto overflow-y-auto"
+            className="relative min-h-0 overflow-x-auto overflow-y-auto"
             style={{
               maxHeight: 'calc(100vh - 320px)',
               height: 'calc(100vh - 320px)',
@@ -663,6 +610,9 @@ function InventoryPage() {
             <table className="w-full min-w-[1200px] table-auto text-sm">
             <thead>
               <tr className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-3 py-2 text-left font-semibold w-48">
+                  <span>PO Number</span>
+                </th>
                 <th className="px-3 py-2 text-left font-semibold w-56">
                   <div className="flex items-center justify-between gap-1">
                     <button
@@ -783,12 +733,12 @@ function InventoryPage() {
                 </th>
                 <th className="px-3 py-2 text-left font-semibold w-64">
                   <div className="flex items-center gap-1">
-                    <span>Description</span>
+                    <span>SKU Description</span>
                     <Popover>
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          aria-label="Filter descriptions"
+                          aria-label="Filter SKU descriptions"
                           className={cn(
                             'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
                             isFilterActive(['skuDescription'])
@@ -801,7 +751,7 @@ function InventoryPage() {
                       </PopoverTrigger>
                       <PopoverContent align="start" className="w-64 space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-foreground">Description filter</span>
+                          <span className="text-sm font-medium text-foreground">SKU description filter</span>
                           <button
                             type="button"
                             className="text-xs font-medium text-primary hover:underline"
@@ -814,7 +764,7 @@ function InventoryPage() {
                           type="text"
                           value={columnFilters.skuDescription}
                           onChange={(event) => updateColumnFilter('skuDescription', event.target.value)}
-                          placeholder="Search description"
+                          placeholder="Search SKU description"
                           className={baseFilterInputClass}
                         />
                       </PopoverContent>
@@ -828,14 +778,14 @@ function InventoryPage() {
                       className="flex flex-1 items-center gap-1 text-left hover:text-primary focus:outline-none"
                       onClick={() => handleSort('batch')}
                     >
-                      Batch
+                      Batch / Lot
                       {getSortIcon('batch')}
                     </button>
                     <Popover>
                       <PopoverTrigger asChild>
                         <button
                           type="button"
-                          aria-label="Filter batches"
+                          aria-label="Filter batch / lot values"
                           className={cn(
                             'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
                             isFilterActive(['batch'])
@@ -848,7 +798,7 @@ function InventoryPage() {
                       </PopoverTrigger>
                       <PopoverContent align="end" className="w-64 space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-foreground">Batch filter</span>
+                          <span className="text-sm font-medium text-foreground">Batch / lot filter</span>
                           <button
                             type="button"
                             className="text-xs font-medium text-primary hover:underline"
@@ -881,67 +831,7 @@ function InventoryPage() {
                   </div>
                 </th>
                 <th className="px-3 py-2 text-left font-semibold w-40">
-                  <span>Reference</span>
-                </th>
-                <th className="px-3 py-2 text-left font-semibold w-36">
-                  <div className="flex items-center justify-between gap-1">
-                    <span>Movement</span>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          aria-label="Filter movement type"
-                          className={cn(
-                            'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
-                            columnFilters.movement.length > 0
-                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
-                              : 'hover:bg-muted hover:text-primary'
-                          )}
-                        >
-                          <Filter className="h-3.5 w-3.5" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent align="start" className="w-48 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-foreground">Movement filter</span>
-                          <button
-                            type="button"
-                            className="text-xs font-medium text-primary hover:underline"
-                            onClick={() => setColumnFilters(prev => ({ ...prev, movement: [] }))}
-                          >
-                            Clear
-                          </button>
-                        </div>
-                        <div className="space-y-2">
-                          {[
-                            { value: 'positive', label: 'Receive / Positive' },
-                            { value: 'negative', label: 'Ship / Negative' },
-                            { value: 'netZero', label: 'Zero Balance' },
-                          ].map(option => (
-                            <label key={option.value} className="flex items-center gap-2 text-sm text-foreground">
-                              <input
-                                type="checkbox"
-                                checked={columnFilters.movement.includes(option.value as MovementType)}
-                                onChange={() => {
-                                  setColumnFilters(prev => {
-                                    const hasValue = prev.movement.includes(option.value as MovementType)
-                                    return {
-                                      ...prev,
-                                      movement: hasValue
-                                        ? prev.movement.filter(item => item !== option.value)
-                                        : [...prev.movement, option.value as MovementType],
-                                    }
-                                  })
-                                }}
-                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                              />
-                              <span>{option.label}</span>
-                            </label>
-                          ))}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                  <span>Reference ID</span>
                 </th>
                 <th className="px-3 py-2 text-right font-semibold">
                   <button
@@ -973,7 +863,7 @@ function InventoryPage() {
                     {getSortIcon('units')}
                   </button>
                 </th>
-                <th className="px-3 py-2 text-left font-semibold">Transaction</th>
+                <th className="px-3 py-2 text-left font-semibold">Movement Type</th>
                 <th className="px-3 py-2 text-left font-semibold">
                   <div className="flex items-center justify-between gap-1">
                     <button
@@ -1027,7 +917,7 @@ function InventoryPage() {
             <tbody>
               {processedBalances.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
+                  <td colSpan={11} className="px-4 py-6 text-center text-muted-foreground">
                     No inventory balances match the current filters.
                   </td>
                 </tr>
@@ -1035,10 +925,6 @@ function InventoryPage() {
 
               {processedBalances.map(balance => {
                 const lastTransactionDisplay = formatLedgerTimestamp(balance.lastTransactionDate)
-                const transactionTypeLabel = formatTransactionType(balance.lastTransactionType)
-                const transactionHref = balance.lastTransactionId
-                  ? `/operations/transactions/${balance.lastTransactionId}`
-                  : null
                 const movementType = getMovementTypeFromTransaction(balance.lastTransactionType)
                 const movementMultiplier = getMovementMultiplier(balance.lastTransactionType)
                 const signedCartons = movementMultiplier === 0
@@ -1061,8 +947,16 @@ function InventoryPage() {
                     ? 'border-red-200 bg-red-50 text-red-700'
                     : 'border-muted bg-muted/20 text-muted-foreground'
 
+                const purchaseOrderLabel = balance.purchaseOrderNumber ?? '—'
+
                 return (
                   <tr key={balance.id} className="odd:bg-muted/20">
+                    <td
+                      className="px-3 py-2 text-sm font-semibold text-foreground whitespace-nowrap"
+                      title={balance.purchaseOrderNumber || undefined}
+                    >
+                      {purchaseOrderLabel}
+                    </td>
                     <td className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
                       {balance.warehouse.name}
                     </td>
@@ -1087,16 +981,6 @@ function InventoryPage() {
                     >
                       {balance.lastTransactionReference ?? '—'}
                     </td>
-                    <td className="px-3 py-2 text-sm font-semibold whitespace-nowrap">
-                      <span
-                        className={cn(
-                          'rounded-full border px-2 py-0.5 text-xs font-medium',
-                          movementBadgeClasses
-                        )}
-                      >
-                        {movementLabel}
-                      </span>
-                    </td>
                     <td className="px-3 py-2 text-right text-sm font-semibold text-indigo-700 whitespace-nowrap">
                       {signedCartons.toLocaleString()}
                     </td>
@@ -1106,21 +990,15 @@ function InventoryPage() {
                     <td className="px-3 py-2 text-right text-sm whitespace-nowrap">
                       {signedUnits.toLocaleString()}
                     </td>
-                    <td className="px-3 py-2">
-                      {transactionHref ? (
-                        <Link
-                          href={transactionHref}
-                          prefetch={false}
-                          className={cn(
-                            'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold transition-colors hover:brightness-105',
-                            transactionTypeClass(balance.lastTransactionType)
-                          )}
-                        >
-                          {transactionTypeLabel ?? 'View'}
-                        </Link>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
+                    <td className="px-3 py-2 text-sm whitespace-nowrap">
+                      <span
+                        className={cn(
+                          'inline-flex w-fit items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium uppercase',
+                          movementBadgeClasses
+                        )}
+                      >
+                        {movementLabel}
+                      </span>
                     </td>
                     <td className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
                       {lastTransactionDisplay ?? '—'}
@@ -1129,28 +1007,28 @@ function InventoryPage() {
                 )
               })}
             </tbody>
-            <tfoot className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <td className="px-3 py-2 text-left font-semibold" colSpan={6}>
-                  Totals
-                </td>
-                <td className="px-3 py-2 text-right font-semibold text-indigo-700 whitespace-nowrap">
-                  {tableTotals.cartons.toLocaleString()}
-                </td>
-                <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">
-                  {tableTotals.pallets.toLocaleString()}
-                </td>
-                <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">
-                  {tableTotals.units.toLocaleString()}
-                </td>
-                <td className="px-3 py-2" colSpan={2} />
-              </tr>
-            </tfoot>
           </table>
+          <div className="sticky bottom-0 left-0 right-0 border-t bg-muted/80 backdrop-blur supports-[backdrop-filter]:bg-muted/60">
+            <div className="grid grid-cols-[repeat(6,minmax(0,1fr))] md:grid-cols-[repeat(11,minmax(0,1fr))] text-xs uppercase tracking-wide text-muted-foreground">
+              <div className="col-span-6 md:col-span-6 px-3 py-2 font-semibold text-left">
+                Totals
+              </div>
+              <div className="col-span-1 px-3 py-2 text-right font-semibold text-indigo-700 whitespace-nowrap">
+                {tableTotals.cartons.toLocaleString()}
+              </div>
+              <div className="col-span-1 px-3 py-2 text-right font-semibold whitespace-nowrap">
+                {tableTotals.pallets.toLocaleString()}
+              </div>
+              <div className="col-span-1 px-3 py-2 text-right font-semibold whitespace-nowrap">
+                {tableTotals.units.toLocaleString()}
+              </div>
+              <div className="hidden md:block col-span-2" />
+            </div>
           </div>
         </div>
       </div>
-    </DashboardLayout>
+    </div>
+  </DashboardLayout>
   )
 }
 

@@ -485,14 +485,14 @@ function checkIfAllRequiredDocsPresent(
       'commercial_invoice',
       'bill_of_lading', 
       'packing_list',
-      'delivery_note',
+      'movement_note',
       'cube_master',
       'transaction_certificate',
       'custom_declaration'
     ],
     SHIP: [
       'packing_list',
-      'delivery_note'
+      'movement_note'
     ],
     ADJUST_IN: ['proof_of_pickup'],
     ADJUST_OUT: ['proof_of_pickup']
@@ -501,11 +501,22 @@ function checkIfAllRequiredDocsPresent(
   const required = requiredDocs[transactionType]
   if (!required) return true // No requirements defined, consider reconciled
   
+  const attachmentSynonyms: Record<string, string[]> = {
+    movement_note: ['movement_note', 'movementNote', 'delivery_note', 'deliveryNote']
+  }
+
   const checkRecord = (record: AttachmentsRecord): boolean => {
     for (const docKey of required) {
-      const camelKey = docKey.replace(/_([a-z])/g, (_: string, letter: string) => letter.toUpperCase())
+      const aliases = attachmentSynonyms[docKey] ?? [docKey]
+      const possibleKeys = aliases.flatMap(alias => {
+        const camelCase = alias.replace(/_([a-z])/g, (_: string, letter: string) => letter.toUpperCase())
+        return [alias, camelCase]
+      })
 
-      const recordEntry = record[docKey] || record[camelKey]
+      const recordEntry = possibleKeys.reduce<AttachmentData | undefined>((found, key) => {
+        if (found) return found
+        return record[key]
+      }, undefined)
       if (!recordEntry || !recordEntry.s3Key) {
         return false
       }

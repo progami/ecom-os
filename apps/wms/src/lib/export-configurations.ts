@@ -95,7 +95,7 @@ function generateExportFields(columns: typeof INVENTORY_TRANSACTION_COLUMNS): Fi
       if (col.fieldName === 'hasDeliveryNote') {
         field.fieldName = 'attachments'
         field.format = (value: unknown): ExportFieldValue =>
-          attachmentsContain(value, ['deliveryNote', 'delivery_note']) ? 'Yes' : 'No'
+          attachmentsContain(value, ['movementNote', 'movement_note', 'deliveryNote', 'delivery_note']) ? 'Yes' : 'No'
       }
       
       if (col.fieldName === 'hasCubeMaster') {

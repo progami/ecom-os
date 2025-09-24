@@ -18,6 +18,8 @@ export interface InventoryTransactionRecord {
   createdByName?: string | null
   createdById?: string | null
   referenceId?: string | null
+  purchaseOrderId?: string | null
+  purchaseOrderNumber?: string | null
 }
 
 export interface InventoryReceiveMetadata {
@@ -43,6 +45,8 @@ export interface InventoryBalanceSnapshot {
   lastTransactionId?: string | null
   lastTransactionType?: string | null
   lastTransactionReference?: string | null
+  purchaseOrderId?: string | null
+  purchaseOrderNumber?: string | null
   firstReceive?: InventoryReceiveMetadata
 }
 

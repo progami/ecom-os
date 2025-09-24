@@ -88,11 +88,17 @@ export class ApiResponses {
   /**
    * Validation error response with field details
    */
-  static validationError(errors: Record<string, string>): NextResponse<{ error: string; details: Record<string, string> }> {
+  static validationError(
+    errors: Record<string, string | string[]>
+  ): NextResponse<{ error: string; details: Record<string, string> }> {
+    const normalizedErrors = Object.fromEntries(
+      Object.entries(errors).map(([key, value]) => [key, Array.isArray(value) ? value.join(', ') : value ?? 'Invalid value'])
+    )
+
     return NextResponse.json(
       { 
         error: 'Validation failed',
-        details: errors
+        details: normalizedErrors
       },
       { status: 400 }
     )

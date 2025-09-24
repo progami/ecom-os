@@ -12,8 +12,18 @@ import { Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { createDemoTransactions } from '@/lib/demo-transactions'
 
-export async function POST(_request: NextRequest) {
+async function cleanupDemoData() {
+  await prisma.costLedger.deleteMany({})
+  await prisma.inventoryTransaction.deleteMany({})
+  await prisma.purchaseOrderLine.deleteMany({})
+  await prisma.purchaseOrder.deleteMany({})
+  await prisma.costRate.deleteMany({})
+  await prisma.user.deleteMany({ where: { isDemo: true } })
+}
+
+export async function POST(request: NextRequest) {
   try {
+    const force = request.nextUrl.searchParams.get('force') === 'true'
     // Check if demo users already exist
     const demoUser = await prisma.user.findFirst({
       where: {
@@ -21,11 +31,15 @@ export async function POST(_request: NextRequest) {
       }
     })
     
-    if (demoUser) {
+    if (demoUser && !force) {
       return NextResponse.json({
         success: false,
-        message: 'Demo users already exist'
-      })
+        message: 'Demo environment already exists. Pass force=true to recreate.'
+      }, { status: 409 })
+    }
+
+    if (force) {
+      await cleanupDemoData()
     }
 
     // Start transaction to ensure atomic operation
@@ -62,7 +76,6 @@ export async function POST(_request: NextRequest) {
       // Create demo transactions using the v0.5.0 schema
       const transactionResult = await createDemoTransactions({
         tx,
-        adminUserId: demoAdmin.id,
         staffUserId: staffUser.id,
         warehouses,
         skus

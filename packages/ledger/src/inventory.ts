@@ -50,6 +50,8 @@ export function aggregateInventoryTransactions(
         lastTransactionId: null,
         lastTransactionType: null,
         lastTransactionReference: null,
+        purchaseOrderId: null,
+        purchaseOrderNumber: null,
         firstReceive: undefined
       }
       balances.set(key, current)
@@ -71,6 +73,8 @@ export function aggregateInventoryTransactions(
       current.lastTransactionId = transaction.id ?? transaction.transactionId ?? null
       current.lastTransactionType = transaction.transactionType ?? null
       current.lastTransactionReference = transaction.referenceId ?? null
+      current.purchaseOrderId = transaction.purchaseOrderId ?? null
+      current.purchaseOrderNumber = transaction.purchaseOrderNumber ?? null
     }
 
     if (transaction.storageCartonsPerPallet && transaction.storageCartonsPerPallet > 0) {
