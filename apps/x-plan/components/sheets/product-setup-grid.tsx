@@ -7,6 +7,7 @@ import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 registerAllModules()
 
@@ -51,6 +52,7 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
   const [isCreating, setIsCreating] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isClient, setIsClient] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     dataRef.current = products.map(mapProductToRow)
@@ -113,6 +115,7 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
       }
       setSelectedProductId(created.id)
       toast.success('Product added')
+      router.refresh()
     } catch (error) {
       console.error(error)
       toast.error('Unable to add product')
@@ -139,6 +142,7 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
       }
       setSelectedProductId(null)
       toast.success('Product removed')
+      router.refresh()
     } catch (error) {
       console.error(error)
       toast.error('Unable to delete product')
