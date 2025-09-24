@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { OpsPlanningWorkspace } from '@/components/sheets/ops-planning-workspace'
-import { ProductSetupFinancePanel } from '@/components/sheets/product-setup-panels'
+import { ProductSetupParametersPanel } from '@/components/sheets/product-setup-panels'
 import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
 import { SalesPlanningGrid } from '@/components/sheets/sales-planning-grid'
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
@@ -155,8 +155,14 @@ const FINANCE_PARAMETER_LABELS = new Set(
   ['amazon payout delay (weeks)', 'starting cash', 'weekly fixed costs'].map((label) => label.toLowerCase())
 )
 
+const SALES_PARAMETER_LABELS = new Set(['weeks of stock warning threshold'].map((label) => label.toLowerCase()))
+
 function isFinanceParameterLabel(label: string) {
   return FINANCE_PARAMETER_LABELS.has(label.trim().toLowerCase())
+}
+
+function isSalesParameterLabel(label: string) {
+  return SALES_PARAMETER_LABELS.has(label.trim().toLowerCase())
 }
 
 function columnKey(productIndex: number, metric: SalesMetric) {
@@ -205,6 +211,30 @@ async function getProductSetupView() {
   const filteredProducts = productInputs.filter((product) => !excludedNames.has(product.name.toLowerCase()))
   const productSummaries = filteredProducts.map((product) => computeProductCostSummary(product))
 
+  const operationsParameters = parameterInputs
+    .filter((parameter) => !isFinanceParameterLabel(parameter.label) && !isSalesParameterLabel(parameter.label))
+    .map<BusinessParameterView>((parameter) => ({
+      id: parameter.id,
+      label: parameter.label,
+      value:
+        parameter.valueNumeric != null
+          ? formatNumeric(parameter.valueNumeric)
+          : parameter.valueText ?? '',
+      type: parameter.valueNumeric != null ? 'numeric' : 'text',
+    }))
+
+  const salesParameters = parameterInputs
+    .filter((parameter) => isSalesParameterLabel(parameter.label))
+    .map<BusinessParameterView>((parameter) => ({
+      id: parameter.id,
+      label: parameter.label,
+      value:
+        parameter.valueNumeric != null
+          ? formatNumeric(parameter.valueNumeric)
+          : parameter.valueText ?? '',
+      type: parameter.valueNumeric != null ? 'numeric' : 'text',
+    }))
+
   const financeParameters = parameterInputs
     .filter((parameter) => isFinanceParameterLabel(parameter.label))
     .map<BusinessParameterView>((parameter) => ({
@@ -233,6 +263,8 @@ async function getProductSetupView() {
       grossContribution: formatNumeric(summary.grossContribution),
       grossMarginPercent: summary.grossMarginPercent.toFixed(4),
     })),
+    operationsParameters,
+    salesParameters,
     financeParameters,
   }
 }
@@ -648,11 +680,45 @@ export default async function SheetPage({ params }: SheetPageProps) {
   switch (config.slug) {
     case '1-product-setup': {
       const view = await getProductSetupView()
-      content = <ProductSetupGrid products={view.products} />
-      contextPane =
-        view.financeParameters.length > 0 ? (
-          <ProductSetupFinancePanel parameters={view.financeParameters} />
-        ) : null
+      const parameterSections = [
+        {
+          key: 'operations',
+          title: 'Operations',
+          description: 'Tune supply chain defaults that feed ordering and lead-time models.',
+          parameters: view.operationsParameters,
+        },
+        {
+          key: 'sales',
+          title: 'Sales',
+          description: 'Set demand-planning thresholds such as stock warnings and forecasting defaults.',
+          parameters: view.salesParameters,
+        },
+        {
+          key: 'finance',
+          title: 'Finance',
+          description: 'Set the cash assumptions that feed every financial plan.',
+          parameters: view.financeParameters,
+        },
+      ] as const
+
+      content = (
+        <div className="space-y-6">
+          <ProductSetupGrid products={view.products} />
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {parameterSections
+              .filter((section) => section.parameters.length > 0)
+              .map((section) => (
+                <ProductSetupParametersPanel
+                  key={section.key}
+                  title={section.title}
+                  description={section.description}
+                  parameters={section.parameters}
+                />
+              ))}
+          </div>
+        </div>
+      )
+      contextPane = null
       break
     }
     case '2-ops-planning': {

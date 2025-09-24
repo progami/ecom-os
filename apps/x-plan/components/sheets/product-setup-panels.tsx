@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
@@ -19,15 +19,22 @@ interface BusinessParameter {
 
 type BusinessParameterUpdate = { id: string; valueNumeric?: string; valueText?: string }
 
+export interface ProductSetupParametersPanelProps {
+  title: string
+  description: string
+  parameters: BusinessParameter[]
+}
+
 function toCellValue(value: unknown) {
   if (value === null || value === undefined) return ''
   return String(value)
 }
 
-export function ProductSetupFinancePanel({ parameters }: { parameters: BusinessParameter[] }) {
+export function ProductSetupParametersPanel({ title, description, parameters }: ProductSetupParametersPanelProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<string, string>>(new Map())
   const flushTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [isClient, setIsClient] = useState(false)
 
   const data = useMemo<BusinessParameter[]>(() => parameters.map((parameter) => ({ ...parameter })), [parameters])
 
@@ -48,6 +55,10 @@ export function ProductSetupFinancePanel({ parameters }: { parameters: BusinessP
         clearTimeout(flushTimeoutRef.current)
       }
     }
+  }, [])
+
+  useEffect(() => {
+    setIsClient(true)
   }, [])
 
   const queueFlush = () => {
@@ -96,25 +107,23 @@ export function ProductSetupFinancePanel({ parameters }: { parameters: BusinessP
           })
         }
 
-        toast.success('Business parameters updated')
+        toast.success('Parameters updated')
       } catch (error) {
         console.error(error)
-        toast.error('Unable to update business parameters')
+        toast.error('Unable to update parameters')
       } finally {
         flushTimeoutRef.current = null
       }
     }, 400)
   }
 
-  if (parameters.length === 0) return null
+  if (!isClient || parameters.length === 0) return null
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="space-y-1">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Finance</h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Set the cash assumptions that feed every financial plan.
-        </p>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{title}</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400">{description}</p>
       </div>
       <HotTable
         ref={(instance) => {
@@ -144,7 +153,11 @@ export function ProductSetupFinancePanel({ parameters }: { parameters: BusinessP
               cellProperties.type = 'numeric'
               cellProperties.numericFormat = { pattern: '0,0.00' }
               cellProperties.className = 'cell-editable htRight'
+            } else {
+              cellProperties.className = 'cell-editable htLeft'
             }
+          } else {
+            cellProperties.className = 'cell-readonly htLeft'
           }
           return cellProperties
         }}
