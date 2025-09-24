@@ -154,7 +154,13 @@ const FINANCE_PARAMETER_LABELS = new Set(
   ['amazon payout delay (weeks)', 'starting cash', 'weekly fixed costs'].map((label) => label.toLowerCase())
 )
 const SALES_PARAMETER_LABELS = new Set(['weeks of stock warning threshold'].map((label) => label.toLowerCase()))
-const OPERATIONS_PARAMETER_EXCLUDES = new Set(['product ordering'])
+const OPERATIONS_PARAMETER_EXCLUDES = new Set([
+  'product ordering',
+  'supplier payment split 1 (%)',
+  'supplier payment split 2 (%)',
+  'supplier payment split 3 (%)',
+  'supplier payment terms (weeks)',
+])
 
 function isFinanceParameterLabel(label: string) {
   return FINANCE_PARAMETER_LABELS.has(label.trim().toLowerCase())

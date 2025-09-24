@@ -117,7 +117,7 @@ export function ProductSetupParametersPanel({ title, description, parameters }: 
     }, 400)
   }
 
-  if (!isClient || parameters.length === 0) return null
+  if (!isClient) return null
 
   return (
     <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">

@@ -119,27 +119,31 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
   return (
     <div className="space-y-3 p-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-1">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            3. Sales Planning
+            3. Sales planning
           </h2>
-          <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-            <span>Focus SKU</span>
-            <select
-              value={focusProductId}
-              onChange={(event) => setFocusProductId(event.target.value)}
-              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
-            >
-              <option value="ALL">Show all</option>
-              {productOptions.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Use the focus filter to isolate one SKU while keeping weekly totals intact.
+          </p>
         </div>
+        <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+          <span>Focus SKU</span>
+          <select
+            value={focusProductId}
+            onChange={(event) => setFocusProductId(event.target.value)}
+            className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+          >
+            <option value="ALL">Show all</option>
+            {productOptions.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.name}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
+      <GridLegend />
       <HotTable
         ref={(instance) => {
           hotRef.current = instance?.hotInstance ?? null
