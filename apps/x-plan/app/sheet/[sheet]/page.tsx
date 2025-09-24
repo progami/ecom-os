@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation'
 import { OpsPlanningWorkspace } from '@/components/sheets/ops-planning-workspace'
 import { ProductSetupParametersPanel } from '@/components/sheets/product-setup-panels'
-import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
 import { SalesPlanningGrid } from '@/components/sheets/sales-planning-grid'
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
 import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid'
@@ -154,8 +153,8 @@ type BusinessParameterView = {
 const FINANCE_PARAMETER_LABELS = new Set(
   ['amazon payout delay (weeks)', 'starting cash', 'weekly fixed costs'].map((label) => label.toLowerCase())
 )
-
 const SALES_PARAMETER_LABELS = new Set(['weeks of stock warning threshold'].map((label) => label.toLowerCase()))
+const OPERATIONS_PARAMETER_EXCLUDES = new Set(['product ordering'])
 
 function isFinanceParameterLabel(label: string) {
   return FINANCE_PARAMETER_LABELS.has(label.trim().toLowerCase())
@@ -189,30 +188,19 @@ function metricLabel(metric: SalesMetric) {
 }
 
 async function getProductSetupView() {
-  const [products, leadStages, businessParameters] = await Promise.all([
-    prisma.product.findMany({ orderBy: { name: 'asc' } }),
-    prisma.leadStageTemplate.findMany({ orderBy: { sequence: 'asc' } }),
-    prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }),
-  ])
+  const businessParameters = await prisma.businessParameter.findMany({ orderBy: { label: 'asc' } })
 
   const parameterInputs = mapBusinessParameters(businessParameters)
 
-  const excludedNames = new Set(
-    [...leadStages.map((stage) => stage.label.toLowerCase()), ...parameterInputs.map((parameter) => parameter.label.toLowerCase())]
-  )
-
-  const productInputs = mapProducts(
-    products.filter((product) => {
-      const sku = product.sku?.trim()
-      return product.isActive && sku && sku.length > 0
-    })
-  )
-
-  const filteredProducts = productInputs.filter((product) => !excludedNames.has(product.name.toLowerCase()))
-  const productSummaries = filteredProducts.map((product) => computeProductCostSummary(product))
-
   const operationsParameters = parameterInputs
-    .filter((parameter) => !isFinanceParameterLabel(parameter.label) && !isSalesParameterLabel(parameter.label))
+    .filter((parameter) => {
+      const normalized = parameter.label.trim().toLowerCase()
+      return (
+        !isFinanceParameterLabel(parameter.label) &&
+        !isSalesParameterLabel(parameter.label) &&
+        !OPERATIONS_PARAMETER_EXCLUDES.has(normalized)
+      )
+    })
     .map<BusinessParameterView>((parameter) => ({
       id: parameter.id,
       label: parameter.label,
@@ -248,21 +236,6 @@ async function getProductSetupView() {
     }))
 
   return {
-    products: productSummaries.map((summary) => ({
-      id: summary.id,
-      name: summary.name,
-      sellingPrice: formatNumeric(summary.sellingPrice),
-      manufacturingCost: formatNumeric(summary.manufacturingCost),
-      freightCost: formatNumeric(summary.freightCost),
-      tariffRate: formatPercentDecimal(summary.tariffRate),
-      tacosPercent: formatPercentDecimal(summary.tacosPercent),
-      fbaFee: formatNumeric(summary.fbaFee),
-      amazonReferralRate: formatPercentDecimal(summary.amazonReferralRate),
-      storagePerMonth: formatNumeric(summary.storagePerMonth),
-      landedCost: formatNumeric(summary.landedUnitCost),
-      grossContribution: formatNumeric(summary.grossContribution),
-      grossMarginPercent: summary.grossMarginPercent.toFixed(4),
-    })),
     operationsParameters,
     salesParameters,
     financeParameters,
@@ -499,6 +472,7 @@ async function getSalesPlanningView() {
     columnKeys,
     nestedHeaders,
     productOptions: productList.map((product) => ({ id: product.id, name: product.name })),
+    stockWarningWeeks: context.parameters.stockWarningWeeks,
   }
 }
 
@@ -684,38 +658,33 @@ export default async function SheetPage({ params }: SheetPageProps) {
         {
           key: 'operations',
           title: 'Operations',
-          description: 'Tune supply chain defaults that feed ordering and lead-time models.',
+          description: 'Tune supply chain defaults that feed ordering and lead time models.',
           parameters: view.operationsParameters,
         },
         {
           key: 'sales',
           title: 'Sales',
-          description: 'Set demand-planning thresholds such as stock warnings and forecasting defaults.',
+          description: 'Set demand-planning thresholds such as stock warnings and forecast assumptions.',
           parameters: view.salesParameters,
         },
         {
           key: 'finance',
           title: 'Finance',
-          description: 'Set the cash assumptions that feed every financial plan.',
+          description: 'Set the cash assumptions that flow into every financial plan.',
           parameters: view.financeParameters,
         },
       ] as const
 
       content = (
-        <div className="space-y-6">
-          <ProductSetupGrid products={view.products} />
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {parameterSections
-              .filter((section) => section.parameters.length > 0)
-              .map((section) => (
-                <ProductSetupParametersPanel
-                  key={section.key}
-                  title={section.title}
-                  description={section.description}
-                  parameters={section.parameters}
-                />
-              ))}
-          </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {parameterSections.map((section) => (
+            <ProductSetupParametersPanel
+              key={section.key}
+              title={section.title}
+              description={section.description}
+              parameters={section.parameters}
+            />
+          ))}
         </div>
       )
       contextPane = null
@@ -742,6 +711,7 @@ export default async function SheetPage({ params }: SheetPageProps) {
           columnKeys={view.columnKeys}
           nestedHeaders={view.nestedHeaders}
           productOptions={view.productOptions}
+          stockWarningWeeks={view.stockWarningWeeks}
         />
       )
       break

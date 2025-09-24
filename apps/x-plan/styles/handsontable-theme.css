@@ -42,6 +42,12 @@
 }
 
 
+.x-plan-hot .cell-warning {
+  background-color: rgba(239, 68, 68, 0.18) !important;
+  color: #b91c1c !important;
+}
+
+
 
 .x-plan-hot .area {
   background: rgba(59, 130, 246, 0.15);

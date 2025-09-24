@@ -34,6 +34,7 @@ interface SalesPlanningGridProps {
   nestedHeaders: (string | { label: string; colspan: number })[][]
   columnKeys: string[]
   productOptions: Array<{ id: string; name: string }>
+  stockWarningWeeks: number
 }
 
 function normalizeEditableValue(value: unknown) {
@@ -43,11 +44,12 @@ function normalizeEditableValue(value: unknown) {
   return numeric.toFixed(2)
 }
 
-export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys, productOptions }: SalesPlanningGridProps) {
+export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys, productOptions, stockWarningWeeks }: SalesPlanningGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<string, SalesUpdate>>(new Map())
   const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [focusProductId, setFocusProductId] = useState<string>('ALL')
+  const warningThreshold = Number.isFinite(stockWarningWeeks) ? stockWarningWeeks : Number.POSITIVE_INFINITY
 
   const data = useMemo(() => rows, [rows])
 
@@ -154,6 +156,23 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         dropdownMenu
         filters
         hiddenColumns={{ columns: hiddenColumns, indicators: true }}
+        cells={(row, col) => {
+          const cell: Handsontable.CellMeta = {}
+          const offset = 2
+          if (col >= offset) {
+            const key = columnKeys[col - offset]
+            const meta = columnMeta[key]
+            if (meta?.field === 'stockWeeks') {
+              const record = data[row]
+              const rawValue = record?.[key]
+              const numeric = rawValue ? Number(rawValue) : Number.NaN
+              if (!Number.isNaN(numeric) && numeric <= warningThreshold) {
+                cell.className = cell.className ? `${cell.className} cell-warning` : 'cell-warning'
+              }
+            }
+          }
+          return cell
+        }}
         afterChange={(changes, source) => {
           if (!changes || source === 'loadData') return
           const hot = hotRef.current
