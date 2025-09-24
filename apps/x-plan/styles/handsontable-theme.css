@@ -1,0 +1,74 @@
+.x-plan-hot .ht_clone_master .wtHolder {
+  background-color: var(--hot-background, #ffffff);
+}
+
+.x-plan-hot .htCore th,
+.x-plan-hot .htCore td {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.dark .x-plan-hot .htCore th,
+.dark .x-plan-hot .htCore td {
+  color: #e2e8f0;
+}
+
+.x-plan-hot .htCore thead th {
+  background-color: #f8fafc;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.dark .x-plan-hot .htCore thead th {
+  background-color: #1e293b;
+}
+
+.x-plan-hot .htCore td {
+  border-color: #e2e8f0;
+}
+
+.dark .x-plan-hot .htCore td {
+  border-color: #334155;
+}
+
+.x-plan-hot .cell-editable { background-color: rgba(20, 148, 223, 0.14); color: #0f172a; }
+
+.dark .x-plan-hot .cell-editable { background-color: rgba(20, 148, 223, 0.14); color: #0f172a; }
+
+.x-plan-hot .cell-readonly {
+  background-color: #f8fafc;
+  color: #475569;
+}
+
+
+
+.x-plan-hot .area {
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.6);
+}
+
+.x-plan-hot .htDimmed {
+  color: #64748b;
+}
+
+.dark .x-plan-hot .htDimmed {
+  color: #94a3b8;
+}
+
+.x-plan-hot .wtBorder.current {
+  border: 2px solid #2563eb;
+}
+
+.x-plan-hot .row-active {
+  background-color: #eef2ff !important;
+  color: #1e1b4b !important;
+}
+
+.dark .x-plan-hot .row-active {
+  background-color: rgba(129, 140, 248, 0.2) !important;
+  color: #e0e7ff !important;
+}
+
+.x-plan-hot .cell-readonly { background-color: rgba(15, 23, 42, 0.04); color: #475569; }
+.dark .x-plan-hot .cell-readonly { background-color: rgba(148, 163, 184, 0.08); color: #e2e8f0; }
