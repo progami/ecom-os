@@ -38,6 +38,7 @@ export function computeDashboardSummary(
 
   const pipelineMap = new Map<string, number>()
   for (const order of purchaseOrders) {
+    if (order.status === 'CANCELLED') continue
     pipelineMap.set(order.status, (pipelineMap.get(order.status) ?? 0) + order.quantity)
   }
   const pipeline: PipelineBucket[] = Array.from(pipelineMap.entries()).map(([status, quantity]) => ({

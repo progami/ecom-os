@@ -58,6 +58,17 @@ const PERCENT_PRECISION: Record<string, number> = {
   referralRate: 4,
 }
 
+const OVERRIDE_FIELD_MAP: Partial<Record<keyof OpsInputRow, string>> = {
+  sellingPrice: 'overrideSellingPrice',
+  manufacturingCost: 'overrideManufacturingCost',
+  freightCost: 'overrideFreightCost',
+  tariffRate: 'overrideTariffRate',
+  tacosPercent: 'overrideTacosPercent',
+  fbaFee: 'overrideFbaFee',
+  referralRate: 'overrideReferralRate',
+  storagePerMonth: 'overrideStoragePerMonth',
+}
+
 function normalizeCurrency(value: unknown, fractionDigits = 2) {
   if (value === '' || value === null || value === undefined) return ''
   const numeric = Number(value)
@@ -159,15 +170,18 @@ export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRows
             const entry = pendingRef.current.get(record.id)
             if (!entry) continue
 
+            const overrideKey = OVERRIDE_FIELD_MAP[prop]
+            if (!overrideKey) continue
+
             if (prop in NUMERIC_PRECISION) {
               const precision = NUMERIC_PRECISION[prop as keyof typeof NUMERIC_PRECISION]
               const normalized = normalizeCurrency(newValue, precision)
-              entry.values[prop] = normalized
+              entry.values[overrideKey] = normalized
               record[prop] = normalized as OpsInputRow[typeof prop]
             } else if (prop in PERCENT_PRECISION) {
               const precision = PERCENT_PRECISION[prop as keyof typeof PERCENT_PRECISION]
               const normalized = normalizePercent(newValue, precision)
-              entry.values[prop] = normalized
+              entry.values[overrideKey] = normalized
               record[prop] = normalized as OpsInputRow[typeof prop]
             }
           }

@@ -37,6 +37,14 @@ export interface PurchaseOrderDerived {
   availableDate: Date | null
   totalLeadDays: number | null
   weeksUntilArrival: number | null
+  resolvedSellingPrice: number
+  resolvedManufacturingCost: number
+  resolvedFreightCost: number
+  resolvedTariffRate: number
+  resolvedTacosPercent: number
+  resolvedFbaFee: number
+  resolvedReferralRate: number
+  resolvedStoragePerMonth: number
   landedUnitCost: number
   plannedPoValue: number
   plannedPayments: PaymentPlanItem[]
@@ -272,6 +280,14 @@ export function computePurchaseOrderDerived(
     availableDate,
     totalLeadDays,
     weeksUntilArrival,
+    resolvedSellingPrice: sellingPrice,
+    resolvedManufacturingCost: manufacturingCost,
+    resolvedFreightCost: freightCost,
+    resolvedTariffRate: tariffRate,
+    resolvedTacosPercent: tacosPercent,
+    resolvedFbaFee: fbaFee,
+    resolvedReferralRate: referralRate,
+    resolvedStoragePerMonth: storagePerMonth,
     landedUnitCost,
     plannedPoValue: poValue,
     plannedPayments: payments,

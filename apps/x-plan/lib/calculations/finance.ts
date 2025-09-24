@@ -251,6 +251,7 @@ export function computeCashFlow(
 
   const inventorySpendByWeek = new Map<number, number>()
   for (const order of purchaseOrders) {
+    if (order.status === 'CANCELLED') continue
     for (const payment of order.plannedPayments) {
       const date = payment.actualDate ?? payment.plannedDate
       const weekNumber = weekNumberForDate(date ?? null, calendar)

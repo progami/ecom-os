@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { differenceInCalendarDays } from 'date-fns'
 import {
   buildProductCostIndex,
+  buildProductCostIndexWithOverrides,
   computeCashFlow,
   computeDashboardSummary,
   computeProductCostSummary,
@@ -182,6 +183,43 @@ describe('computeProfitAndLoss', () => {
     expect(week1.ppcSpend).toBeCloseTo(50)
     expect(week1.fixedCosts).toBe(parameters.weeklyFixedCosts)
     expect(week1.netProfit).toBeCloseTo(-275)
+  })
+
+  it('reflects overridden unit economics across downstream plans', () => {
+    const overrideOrderInput: PurchaseOrderInput = {
+      ...purchaseOrderInput,
+      overrideSellingPrice: 12,
+      overrideManufacturingCost: 4,
+      overrideFreightCost: 1.5,
+      overrideTariffRate: 0.08,
+      overrideTacosPercent: 0.15,
+      overrideFbaFee: 2.5,
+      overrideReferralRate: 0.2,
+      overrideStoragePerMonth: 0.6,
+    }
+
+    const derivedOverride = computePurchaseOrderDerived(
+      overrideOrderInput,
+      productSummary,
+      leadProfile,
+      parameters
+    )
+
+    const overrideSalesPlan = computeSalesPlan(salesWeeks, [derivedOverride])
+    const overrideProductIndex = buildProductCostIndexWithOverrides([product], [derivedOverride])
+    const overrideResult = computeProfitAndLoss(
+      overrideSalesPlan,
+      overrideProductIndex,
+      parameters,
+      []
+    )
+
+    const firstWeek = overrideResult.weekly[0]
+    expect(firstWeek.revenue).toBeCloseTo(12 * 50)
+    expect(firstWeek.cogs).toBeCloseTo(9.56 * 50)
+    expect(firstWeek.amazonFees).toBeCloseTo(245)
+    expect(firstWeek.ppcSpend).toBeCloseTo(90)
+    expect(firstWeek.grossMargin).toBeCloseTo(122 / 600)
   })
 })
 

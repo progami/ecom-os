@@ -26,6 +26,7 @@ import {
 } from '@/lib/calculations/adapters'
 import {
   buildProductCostIndex,
+  buildProductCostIndexWithOverrides,
   buildLeadTimeProfiles,
   getLeadTimeProfile,
   normalizeBusinessParameters,
@@ -531,9 +532,11 @@ async function getSalesPlanningView() {
 async function getProfitAndLossView() {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context)
+  const derivedOrderList = derivedOrders.map((item) => item.derived)
+  const resolvedProductIndex = buildProductCostIndexWithOverrides(context.productInputs, derivedOrderList)
   const salesPlan = computeSalesPlan(
     mapSalesWeeks(await prisma.salesWeek.findMany()),
-    derivedOrders.map((item) => item.derived)
+    derivedOrderList
   )
   const overrides = mapProfitAndLossWeeks(
     await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
@@ -541,7 +544,7 @@ async function getProfitAndLossView() {
 
   const { weekly, monthly, quarterly } = computeProfitAndLoss(
     salesPlan,
-    context.productIndex,
+    resolvedProductIndex,
     context.parameters,
     overrides
   )
@@ -589,9 +592,11 @@ async function getProfitAndLossView() {
 async function getCashFlowView() {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context)
+  const derivedOrderList = derivedOrders.map((item) => item.derived)
+  const resolvedProductIndex = buildProductCostIndexWithOverrides(context.productInputs, derivedOrderList)
   const salesPlan = computeSalesPlan(
     mapSalesWeeks(await prisma.salesWeek.findMany()),
-    derivedOrders.map((item) => item.derived)
+    derivedOrderList
   )
   const pnlOverrides = mapProfitAndLossWeeks(
     await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
@@ -602,7 +607,7 @@ async function getCashFlowView() {
     quarterly: pnlQuarterly,
   } = computeProfitAndLoss(
     salesPlan,
-    context.productIndex,
+    resolvedProductIndex,
     context.parameters,
     pnlOverrides
   )
@@ -613,7 +618,7 @@ async function getCashFlowView() {
 
   const { weekly, monthly, quarterly } = computeCashFlow(
     pnlWeekly,
-    derivedOrders.map((item) => item.derived),
+    derivedOrderList,
     context.parameters,
     cashOverrides
   )
@@ -650,16 +655,18 @@ async function getCashFlowView() {
 async function getDashboardView(): Promise<DashboardView> {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context)
+  const derivedOrderList = derivedOrders.map((item) => item.derived)
+  const resolvedProductIndex = buildProductCostIndexWithOverrides(context.productInputs, derivedOrderList)
   const salesPlan = computeSalesPlan(
     mapSalesWeeks(await prisma.salesWeek.findMany()),
-    derivedOrders.map((item) => item.derived)
+    derivedOrderList
   )
   const pnlOverrides = mapProfitAndLossWeeks(
     await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
   )
   const { weekly: pnlWeekly, monthly: pnlMonthly, quarterly: pnlQuarterly } = computeProfitAndLoss(
     salesPlan,
-    context.productIndex,
+    resolvedProductIndex,
     context.parameters,
     pnlOverrides
   )
@@ -673,7 +680,7 @@ async function getDashboardView(): Promise<DashboardView> {
     quarterly: cashQuarterly,
   } = computeCashFlow(
     pnlWeekly,
-    derivedOrders.map((item) => item.derived),
+    derivedOrderList,
     context.parameters,
     cashOverrides
   )
@@ -681,9 +688,9 @@ async function getDashboardView(): Promise<DashboardView> {
   const dashboard = computeDashboardSummary(
     pnlWeekly,
     cashWeekly,
-    derivedOrders.map((item) => item.derived),
+    derivedOrderList,
     salesPlan,
-    context.productIndex
+    resolvedProductIndex
   )
 
   return {

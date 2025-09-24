@@ -136,6 +136,32 @@ function normalizePaymentRows(rows: PurchasePaymentRow[]): PurchasePaymentRow[] 
   }))
 }
 
+function mergePaymentRowsForOrder(
+  existing: PurchasePaymentRow[],
+  updates: PurchasePaymentRow[],
+  orderId: string | null
+): PurchasePaymentRow[] {
+  if (!orderId) {
+    return updates.length > 0 ? updates : existing
+  }
+
+  const updateMap = new Map(updates.map((row) => [row.id, row]))
+
+  const next = existing.map((row) => {
+    if (row.purchaseOrderId !== orderId) return row
+    const replacement = updateMap.get(row.id)
+    if (!replacement) return row
+    updateMap.delete(row.id)
+    return replacement
+  })
+
+  for (const remaining of updateMap.values()) {
+    next.push(remaining)
+  }
+
+  return next
+}
+
 function parseDateValue(value: string | null | undefined): Date | null {
   if (!value) return null
   const date = new Date(value)
@@ -563,11 +589,14 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
   const handlePaymentRowsChange = useCallback(
     (rows: PurchasePaymentRow[]) => {
       const normalized = normalizePaymentRows(rows)
-      paymentRowsRef.current = normalized
-      setPaymentRows(normalized)
-      applyTimelineUpdate(ordersRef.current, inputRowsRef.current, normalized)
+      setPaymentRows((previous) => {
+        const merged = mergePaymentRowsForOrder(previous, normalized, activeOrderId)
+        paymentRowsRef.current = merged
+        applyTimelineUpdate(ordersRef.current, inputRowsRef.current, merged)
+        return merged
+      })
     },
-    [applyTimelineUpdate]
+    [applyTimelineUpdate, activeOrderId]
   )
 
   const orderSummaries = useMemo(() => {

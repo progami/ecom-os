@@ -28,6 +28,7 @@ function buildArrivalSchedule(
   const schedule = new Map<string, number>()
 
   for (const order of purchaseOrders) {
+    if (order.status === 'CANCELLED') continue
     const arrivalDate = order.availableDate ?? order.inboundEta
     if (!arrivalDate) continue
     const weekNumber = weekNumberForDate(arrivalDate, calendar)

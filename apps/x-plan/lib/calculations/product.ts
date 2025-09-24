@@ -1,4 +1,5 @@
 import { ProductInput } from './types'
+import type { PurchaseOrderDerived } from './ops'
 
 export interface ProductCostSummary {
   id: string
@@ -62,4 +63,59 @@ export function computeProductCostSummary(product: ProductInput): ProductCostSum
 
 export function buildProductCostIndex(products: ProductInput[]): Map<string, ProductCostSummary> {
   return new Map(products.map((product) => [product.id, computeProductCostSummary(product)]))
+}
+
+function orderPriorityTimestamp(order: PurchaseOrderDerived): number {
+  const candidates = [order.availableDate, order.inboundEta, order.productionComplete, order.productionStart]
+  for (const value of candidates) {
+    if (value) {
+      const timestamp = value instanceof Date ? value.getTime() : new Date(value).getTime()
+      if (!Number.isNaN(timestamp)) return timestamp
+    }
+  }
+  return 0
+}
+
+export function buildProductCostIndexWithOverrides(
+  products: ProductInput[],
+  purchaseOrders: PurchaseOrderDerived[]
+): Map<string, ProductCostSummary> {
+  const latestOrderByProduct = new Map<string, PurchaseOrderDerived>()
+
+  for (const order of purchaseOrders) {
+    if (order.status === 'CANCELLED') continue
+    const current = latestOrderByProduct.get(order.productId)
+    if (!current) {
+      latestOrderByProduct.set(order.productId, order)
+      continue
+    }
+    const existingTimestamp = orderPriorityTimestamp(current)
+    const candidateTimestamp = orderPriorityTimestamp(order)
+    if (candidateTimestamp >= existingTimestamp) {
+      latestOrderByProduct.set(order.productId, order)
+    }
+  }
+
+  return new Map(
+    products.map((product) => {
+      const latest = latestOrderByProduct.get(product.id)
+      if (!latest) {
+        return [product.id, computeProductCostSummary(product)] as const
+      }
+
+      const overriddenInput: ProductInput = {
+        ...product,
+        sellingPrice: latest.resolvedSellingPrice,
+        manufacturingCost: latest.resolvedManufacturingCost,
+        freightCost: latest.resolvedFreightCost,
+        tariffRate: latest.resolvedTariffRate,
+        tacosPercent: latest.resolvedTacosPercent,
+        fbaFee: latest.resolvedFbaFee,
+        amazonReferralRate: latest.resolvedReferralRate,
+        storagePerMonth: latest.resolvedStoragePerMonth,
+      }
+
+      return [product.id, computeProductCostSummary(overriddenInput)] as const
+    })
+  )
 }
