@@ -460,7 +460,7 @@ export default function ShipTabbedPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Reference Number * <span className="text-xs text-gray-500">(FBA Shipment ID)</span>
+                    PO # * <span className="text-xs text-gray-500">(Reference Number / FBA Shipment ID)</span>
                   </label>
                   <input
                     type="text"

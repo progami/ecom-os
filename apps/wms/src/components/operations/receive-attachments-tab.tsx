@@ -38,7 +38,7 @@ interface ApiAttachment {
   viewUrl?: string
 }
 
-const ATTACHMENT_CATEGORIES = [
+export const ATTACHMENT_CATEGORIES = [
   {
     id: 'commercial_invoice',
     label: 'Commercial Invoice',
@@ -58,9 +58,9 @@ const ATTACHMENT_CATEGORIES = [
     required: false
   },
   {
-    id: 'delivery_note',
-    label: 'Delivery Note',
-    description: 'Proof of delivery',
+    id: 'movement_note',
+    label: 'Movement Note',
+    description: 'Proof of movement',
     required: false
   },
   {
@@ -72,7 +72,7 @@ const ATTACHMENT_CATEGORIES = [
   {
     id: 'transaction_certificate',
     label: 'TC GRS',
-    description: 'Goods Receipt Slip',
+    description: 'Movement Note Slip',
     required: false
   },
   {

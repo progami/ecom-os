@@ -22,6 +22,7 @@ export async function middleware(request: NextRequest) {
     '/auth/error',
     '/api/health',
     '/api/logs',
+    '/api/demo/setup',
   ]
 
   // Routes that should be prefix-matched
@@ -38,8 +39,17 @@ export async function middleware(request: NextRequest) {
   // Combine both checks
   const isPublicRoute = isExactPublicRoute || isPublicPrefix
 
-  // Skip auth check for public routes and static assets
-  if (isPublicRoute || normalizedPath.startsWith('/_next') || normalizedPath === '/favicon.ico') {
+  const bypassAuthEnv = process.env.BYPASS_AUTH === 'true'
+  const bypassAuthHeader = request.headers.get('x-bypass-auth') === 'true'
+
+  // Skip auth check for public routes, static assets, or when bypass flag is set
+  if (
+    isPublicRoute ||
+    normalizedPath.startsWith('/_next') ||
+    normalizedPath === '/favicon.ico' ||
+    bypassAuthEnv ||
+    bypassAuthHeader
+  ) {
     return NextResponse.next()
   }
 

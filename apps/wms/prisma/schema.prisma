@@ -131,6 +131,10 @@ model InventoryTransaction {
   trackingNumber           String?         @map("tracking_number")
   attachments              Json?
   supplier                 String?         @map("supplier")
+  purchaseOrderId          String?         @map("purchase_order_id")
+  purchaseOrderLineId      String?         @map("purchase_order_line_id")
+  purchaseOrder            PurchaseOrder?  @relation("TransactionPurchaseOrder", fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  purchaseOrderLine        PurchaseOrderLine? @relation("TransactionPurchaseOrderLine", fields: [purchaseOrderLineId], references: [id], onDelete: SetNull)
   costLedger               CostLedger[]
 
   @@index([transactionDate])
@@ -138,7 +142,150 @@ model InventoryTransaction {
   @@index([transactionDate(sort: Desc)], map: "idx_inventory_transactions_date")
   @@index([warehouseCode, skuCode, batchLot], map: "idx_inventory_transactions_warehouse_sku_batch")
   @@index([createdAt(sort: Desc)], map: "idx_inventory_transactions_created_at")
+  @@index([purchaseOrderId], map: "idx_inventory_transactions_purchase_order")
+  @@index([purchaseOrderLineId], map: "idx_inventory_transactions_purchase_order_line")
   @@map("inventory_transactions")
+}
+
+model PurchaseOrder {
+  id               String                 @id @default(uuid())
+  orderNumber      String                 @unique @map("order_number")
+  type             PurchaseOrderType
+  status           PurchaseOrderStatus    @default(DRAFT)
+  warehouseCode    String                 @map("warehouse_code")
+  warehouseName    String                 @map("warehouse_name")
+  counterpartyName String?                @map("counterparty_name")
+  expectedDate     DateTime?              @map("expected_date")
+  postedAt         DateTime?              @map("posted_at")
+  notes            String?
+  createdById      String?                @map("created_by")
+  createdByName    String?                @map("created_by_name")
+  createdAt        DateTime               @default(now()) @map("created_at")
+  updatedAt        DateTime               @updatedAt @map("updated_at")
+  lines            PurchaseOrderLine[]
+  transactions     InventoryTransaction[] @relation("TransactionPurchaseOrder")
+  movementNotes    MovementNote[]
+  invoiceLines     WarehouseInvoiceLine[] @relation("WarehouseInvoiceLinePurchaseOrder")
+
+  @@index([status])
+  @@index([type, status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id                String                 @id @default(uuid())
+  purchaseOrderId   String                 @map("purchase_order_id")
+  purchaseOrder     PurchaseOrder          @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  skuCode           String                 @map("sku_code")
+  skuDescription    String?                @map("sku_description")
+  batchLot          String?                @map("batch_lot")
+  quantity          Int
+  unitCost          Decimal?               @map("unit_cost") @db.Decimal(12, 2)
+  status            PurchaseOrderLineStatus @default(PENDING)
+  postedQuantity    Int                    @default(0) @map("posted_quantity")
+  createdAt         DateTime               @default(now()) @map("created_at")
+  updatedAt         DateTime               @updatedAt @map("updated_at")
+  transactions      InventoryTransaction[] @relation("TransactionPurchaseOrderLine")
+  movementNoteLines MovementNoteLine[]
+  invoiceLines      WarehouseInvoiceLine[]
+
+  @@index([purchaseOrderId])
+  @@map("purchase_order_lines")
+}
+
+model MovementNote {
+  id                String              @id @default(uuid())
+  purchaseOrderId   String              @map("purchase_order_id")
+  purchaseOrder     PurchaseOrder       @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  status            MovementNoteStatus  @default(DRAFT)
+  referenceNumber   String?             @map("reference_number")
+  receivedAt        DateTime            @default(now()) @map("received_at")
+  receivedById      String?             @map("received_by_id")
+  receivedByName    String?             @map("received_by_name")
+  warehouseId       String?             @map("warehouse_id")
+  warehouseCode     String              @map("warehouse_code")
+  warehouseName     String              @map("warehouse_name")
+  notes             String?
+  attachments       Json?               @map("attachments")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+  lines             MovementNoteLine[]
+
+  @@index([purchaseOrderId])
+  @@index([warehouseCode])
+  @@map("goods_receipts")
+}
+
+model MovementNoteLine {
+  id                        String             @id @default(uuid())
+  movementNoteId            String             @map("goods_receipt_id")
+  movementNote              MovementNote       @relation(fields: [movementNoteId], references: [id], onDelete: Cascade)
+  purchaseOrderLineId       String?            @map("purchase_order_line_id")
+  purchaseOrderLine         PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id], onDelete: SetNull)
+  skuCode                   String             @map("sku_code")
+  skuDescription            String?            @map("sku_description")
+  batchLot                  String?            @map("batch_lot")
+  quantity                  Int
+  varianceQuantity          Int                @default(0) @map("variance_quantity")
+  storageCartonsPerPallet   Int?               @map("storage_cartons_per_pallet")
+  shippingCartonsPerPallet  Int?               @map("shipping_cartons_per_pallet")
+  attachments               Json?              @map("attachments")
+  createdAt                 DateTime           @default(now()) @map("created_at")
+  updatedAt                 DateTime           @updatedAt @map("updated_at")
+  invoiceLines              WarehouseInvoiceLine[]
+
+  @@index([movementNoteId])
+  @@index([purchaseOrderLineId])
+  @@map("goods_receipt_lines")
+}
+
+model WarehouseInvoice {
+  id              String                 @id @default(uuid())
+  invoiceNumber   String                 @map("invoice_number")
+  status          WarehouseInvoiceStatus @default(DRAFT)
+  issuedAt        DateTime?              @map("issued_at")
+  dueAt           DateTime?              @map("due_at")
+  warehouseId     String?                @map("warehouse_id")
+  warehouseCode   String                 @map("warehouse_code")
+  warehouseName   String                 @map("warehouse_name")
+  currency        String                 @default("USD")
+  subtotal        Decimal                @default(0) @map("subtotal") @db.Decimal(14, 2)
+  total           Decimal                @default(0) @map("total") @db.Decimal(14, 2)
+  notes           String?
+  createdAt       DateTime               @default(now()) @map("created_at")
+  updatedAt       DateTime               @updatedAt @map("updated_at")
+  lines           WarehouseInvoiceLine[]
+
+  @@index([invoiceNumber])
+  @@index([status])
+  @@index([warehouseCode])
+  @@map("warehouse_invoices")
+}
+
+model WarehouseInvoiceLine {
+  id                   String             @id @default(uuid())
+  warehouseInvoiceId   String             @map("warehouse_invoice_id")
+  warehouseInvoice     WarehouseInvoice   @relation(fields: [warehouseInvoiceId], references: [id], onDelete: Cascade)
+  purchaseOrderId      String?            @map("purchase_order_id")
+  purchaseOrder        PurchaseOrder?     @relation("WarehouseInvoiceLinePurchaseOrder", fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  purchaseOrderLineId  String?            @map("purchase_order_line_id")
+  purchaseOrderLine    PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id], onDelete: SetNull)
+  movementNoteLineId   String?            @map("goods_receipt_line_id")
+  movementNoteLine     MovementNoteLine?  @relation(fields: [movementNoteLineId], references: [id], onDelete: SetNull)
+  chargeCode           String             @map("charge_code")
+  description          String?            @map("description")
+  quantity             Decimal            @default(0) @map("quantity") @db.Decimal(14, 4)
+  unitRate             Decimal            @default(0) @map("unit_rate") @db.Decimal(14, 4)
+  total                Decimal            @default(0) @map("total") @db.Decimal(14, 2)
+  varianceAmount       Decimal?           @map("variance_amount") @db.Decimal(14, 2)
+  notes                String?
+  createdAt            DateTime           @default(now()) @map("created_at")
+  updatedAt            DateTime           @updatedAt @map("updated_at")
+
+  @@index([warehouseInvoiceId])
+  @@index([purchaseOrderId])
+  @@index([movementNoteLineId])
+  @@map("warehouse_invoice_lines")
 }
 
 model StorageLedger {
@@ -238,4 +385,50 @@ enum TransactionType {
   TRANSFER
 
   @@map("TransactionType")
+}
+
+enum PurchaseOrderType {
+  PURCHASE
+  FULFILLMENT
+  ADJUSTMENT
+
+  @@map("PurchaseOrderType")
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  AWAITING_PROOF
+  REVIEW
+  POSTED
+  CANCELLED
+  CLOSED
+
+  @@map("PurchaseOrderStatus")
+}
+
+enum PurchaseOrderLineStatus {
+  PENDING
+  POSTED
+  CANCELLED
+
+  @@map("PurchaseOrderLineStatus")
+}
+
+enum MovementNoteStatus {
+  DRAFT
+  POSTED
+  CANCELLED
+  RECONCILED
+
+  @@map("GoodsReceiptStatus")
+}
+
+enum WarehouseInvoiceStatus {
+  DRAFT
+  IMPORTED
+  MATCHED
+  DISPUTED
+  CLOSED
+
+  @@map("WarehouseInvoiceStatus")
 }
