@@ -26,7 +26,7 @@ export default async function HomePage() {
     >
       <div className="flex flex-col gap-3 text-sm text-slate-600 dark:text-slate-300">
         <p>X-Plan centralizes Sales, Operations, and Finance planning in a single grid-first workspace.</p>
-        <SheetTabs sheets={status.sheets} activeSlug="1-product-setup" onSheetSelect={(slug) => (window.location.href = `/sheet/${slug}`)} variant="scroll" />
+        <SheetTabs sheets={status.sheets} activeSlug="1-product-setup" variant="scroll" />
         <a
           href="/sheet/1-product-setup"
           className="inline-flex w-max items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-700 dark:bg-slate-50 dark:text-slate-900 dark:hover:bg-slate-200"

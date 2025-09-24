@@ -30,6 +30,11 @@
       {
         "name": "next"
       }
+    ],
+    "types": [
+      "vitest/config",
+      "vitest/globals",
+      "@testing-library/jest-dom"
     ]
   },
   "include": [

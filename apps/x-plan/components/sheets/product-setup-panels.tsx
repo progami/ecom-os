@@ -137,7 +137,7 @@ export function ProductSetupFinancePanel({ parameters }: { parameters: BusinessP
           if (col === 0) TH.classList.add('htLeft')
         }}
         cells={(row, col) => {
-          const cellProperties: Handsontable.CellProperties = {}
+          const cellProperties = {} as Handsontable.CellProperties
           if (col === 1) {
             const record = data[row]
             if (record?.type === 'numeric') {

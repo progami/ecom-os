@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { OpsPlanningWorkspace } from '@/components/sheets/ops-planning-workspace'
 import { ProductSetupFinancePanel } from '@/components/sheets/product-setup-panels'
+import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
 import { SalesPlanningGrid } from '@/components/sheets/sales-planning-grid'
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
 import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid'
@@ -217,6 +218,21 @@ async function getProductSetupView() {
     }))
 
   return {
+    products: productSummaries.map((summary) => ({
+      id: summary.id,
+      name: summary.name,
+      sellingPrice: formatNumeric(summary.sellingPrice),
+      manufacturingCost: formatNumeric(summary.manufacturingCost),
+      freightCost: formatNumeric(summary.freightCost),
+      tariffRate: formatPercentDecimal(summary.tariffRate),
+      tacosPercent: formatPercentDecimal(summary.tacosPercent),
+      fbaFee: formatNumeric(summary.fbaFee),
+      amazonReferralRate: formatPercentDecimal(summary.amazonReferralRate),
+      storagePerMonth: formatNumeric(summary.storagePerMonth),
+      landedCost: formatNumeric(summary.landedUnitCost),
+      grossContribution: formatNumeric(summary.grossContribution),
+      grossMarginPercent: summary.grossMarginPercent.toFixed(4),
+    })),
     financeParameters,
   }
 }
@@ -361,6 +377,7 @@ async function getOpsPlanningView(): Promise<{
 
   const calculator: OpsPlanningCalculatorPayload = {
     parameters: context.parameters,
+    products: context.productInputs,
     leadProfiles: leadProfilesPayload,
     purchaseOrders: context.purchaseOrderInputs.map(serializePurchaseOrder),
   }
@@ -631,7 +648,7 @@ export default async function SheetPage({ params }: SheetPageProps) {
   switch (config.slug) {
     case '1-product-setup': {
       const view = await getProductSetupView()
-      content = null
+      content = <ProductSetupGrid products={view.products} />
       contextPane =
         view.financeParameters.length > 0 ? (
           <ProductSetupFinancePanel parameters={view.financeParameters} />
