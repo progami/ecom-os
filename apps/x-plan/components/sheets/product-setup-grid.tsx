@@ -7,13 +7,13 @@ import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
-import { GridLegend } from '@/components/grid-legend'
 
 registerAllModules()
 
 type ProductRow = {
   id: string
   name: string
+  sku: string
   sellingPrice: string
   manufacturingCost: string
   freightCost: string
@@ -22,9 +22,6 @@ type ProductRow = {
   fbaFee: string
   amazonReferralRate: string
   storagePerMonth: string
-  landedCost: string
-  grossContribution: string
-  grossMarginPercent: string
 }
 
 type ProductUpdate = {
@@ -38,6 +35,7 @@ interface ProductSetupGridProps {
 
 const COLUMN_HEADERS = [
   'Product',
+  'SKU',
   'Selling Price',
   'Manufacturing',
   'Freight',
@@ -46,13 +44,11 @@ const COLUMN_HEADERS = [
   'FBA Fee',
   'Referral %',
   'Storage/Mo',
-  'Landed Cost',
-  'Gross Contribution',
-  'Gross Margin %',
 ]
 
 const COLUMN_CONFIG: Handsontable.ColumnSettings[] = [
   { data: 'name', readOnly: true, className: 'cell-readonly' },
+  { data: 'sku', readOnly: true, className: 'cell-readonly' },
   { data: 'sellingPrice', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable' },
   { data: 'manufacturingCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable' },
   { data: 'freightCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable' },
@@ -61,9 +57,6 @@ const COLUMN_CONFIG: Handsontable.ColumnSettings[] = [
   { data: 'fbaFee', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable' },
   { data: 'amazonReferralRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable' },
   { data: 'storagePerMonth', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable' },
-  { data: 'landedCost', readOnly: true, className: 'cell-readonly', type: 'numeric', numericFormat: { pattern: '$0,0.00' } },
-  { data: 'grossContribution', readOnly: true, className: 'cell-readonly', type: 'numeric', numericFormat: { pattern: '$0,0.00' } },
-  { data: 'grossMarginPercent', readOnly: true, className: 'cell-readonly', type: 'numeric', numericFormat: { pattern: '0.00%' } },
 ]
 
 const NUMERIC_FIELDS: Array<keyof ProductRow> = [
@@ -77,38 +70,18 @@ const NUMERIC_FIELDS: Array<keyof ProductRow> = [
   'storagePerMonth',
 ]
 
-const DERIVED_FIELDS: Array<keyof ProductRow> = ['landedCost', 'grossContribution', 'grossMarginPercent']
+const PRECISION: Partial<Record<keyof ProductRow, number>> = {
+  tariffRate: 4,
+  tacosPercent: 4,
+  amazonReferralRate: 4,
+}
 
-function normalizeNumeric(value: unknown) {
+function normalizeNumeric(value: unknown, field: keyof ProductRow) {
   if (value === '' || value === null || value === undefined) return ''
   const numeric = Number(value)
   if (Number.isNaN(numeric)) return String(value ?? '')
-  return numeric.toFixed(2)
-}
-
-function parseNumeric(value: string) {
-  const numeric = Number(value)
-  return Number.isNaN(numeric) ? 0 : numeric
-}
-
-function recalculateDerived(row: ProductRow) {
-  const price = parseNumeric(row.sellingPrice)
-  const manufacturing = parseNumeric(row.manufacturingCost)
-  const freight = parseNumeric(row.freightCost)
-  const tariffRate = parseNumeric(row.tariffRate)
-  const tacosRate = parseNumeric(row.tacosPercent)
-  const fba = parseNumeric(row.fbaFee)
-  const storage = parseNumeric(row.storagePerMonth)
-
-  const tariffCost = price * tariffRate
-  const advertising = price * tacosRate
-  const landedCost = manufacturing + freight + tariffCost + fba + storage
-  const grossContribution = price - landedCost - advertising
-  const marginPercent = price === 0 ? 0 : grossContribution / price
-
-  row.landedCost = landedCost.toFixed(2)
-  row.grossContribution = grossContribution.toFixed(2)
-  row.grossMarginPercent = marginPercent.toFixed(4)
+  const precision = PRECISION[field] ?? 2
+  return numeric.toFixed(precision)
 }
 
 export function ProductSetupGrid({ products }: ProductSetupGridProps) {
@@ -163,11 +136,11 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
         dropdownMenu
         filters
         afterGetColHeader={(col, TH) => {
-          if (col === 0) TH.classList.add('htLeft')
+          if (col === 0 || col === 1) TH.classList.add('htLeft')
         }}
         afterChange={(changes, source) => {
           const changeSource = String(source)
-          if (!changes || changeSource === 'loadData' || changeSource === 'derived-update') return
+          if (!changes || changeSource === 'loadData' || changeSource === 'normalize-update') return
           const hot = hotRef.current
           if (!hot) return
           const rowsRef = hot.getSourceData() as ProductRow[]
@@ -176,22 +149,17 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
             if (newValue === undefined) continue
             const record = rowsRef[rowIndex]
             if (!record) continue
-            if (DERIVED_FIELDS.includes(prop)) continue
             if (!pendingUpdatesRef.current.has(record.id)) {
               pendingUpdatesRef.current.set(record.id, { id: record.id, values: {} })
             }
             const entry = pendingUpdatesRef.current.get(record.id)
             if (!entry) continue
-            entry.values[prop] = NUMERIC_FIELDS.includes(prop) ? normalizeNumeric(newValue) : String(newValue ?? '')
-            const updatedRow = {
-              ...record,
-              [prop]: entry.values[prop],
-            }
-            recalculateDerived(updatedRow)
-            hot.setDataAtRowProp(rowIndex, 'landedCost', updatedRow.landedCost, 'derived-update')
-            hot.setDataAtRowProp(rowIndex, 'grossContribution', updatedRow.grossContribution, 'derived-update')
-            hot.setDataAtRowProp(rowIndex, 'grossMarginPercent', updatedRow.grossMarginPercent, 'derived-update')
-            Object.assign(record, updatedRow)
+            const normalizedValue = NUMERIC_FIELDS.includes(prop)
+              ? normalizeNumeric(newValue, prop)
+              : String(newValue ?? '')
+            entry.values[prop] = normalizedValue
+            hot.setDataAtRowProp(rowIndex, prop, normalizedValue, 'normalize-update')
+            record[prop] = normalizedValue
           }
           queueFlush()
         }}

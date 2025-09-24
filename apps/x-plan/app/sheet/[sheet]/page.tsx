@@ -25,7 +25,6 @@ import {
   mapCashFlowWeeks,
 } from '@/lib/calculations/adapters'
 import {
-  computeProductCostSummary,
   buildProductCostIndex,
   buildLeadTimeProfiles,
   getLeadTimeProfile,
@@ -193,23 +192,20 @@ async function getProductSetupView() {
   )
 
   const filteredProducts = productInputs.filter((product) => !excludedNames.has(product.name.toLowerCase()))
-  const productSummaries = filteredProducts.map((product) => computeProductCostSummary(product))
 
   return {
-    products: productSummaries.map((summary) => ({
-      id: summary.id,
-      name: summary.name,
-      sellingPrice: formatNumeric(summary.sellingPrice),
-      manufacturingCost: formatNumeric(summary.manufacturingCost),
-      freightCost: formatNumeric(summary.freightCost),
-      tariffRate: formatPercentDecimal(summary.tariffRate),
-      tacosPercent: formatPercentDecimal(summary.tacosPercent),
-      fbaFee: formatNumeric(summary.fbaFee),
-      amazonReferralRate: formatPercentDecimal(summary.amazonReferralRate),
-      storagePerMonth: formatNumeric(summary.storagePerMonth),
-      landedCost: formatNumeric(summary.landedUnitCost),
-      grossContribution: formatNumeric(summary.grossContribution),
-      grossMarginPercent: summary.grossMarginPercent.toFixed(4),
+    products: filteredProducts.map((product) => ({
+      id: product.id,
+      name: product.name,
+      sku: product.sku ?? '',
+      sellingPrice: formatNumeric(product.sellingPrice),
+      manufacturingCost: formatNumeric(product.manufacturingCost),
+      freightCost: formatNumeric(product.freightCost),
+      tariffRate: formatPercentDecimal(product.tariffRate),
+      tacosPercent: formatPercentDecimal(product.tacosPercent),
+      fbaFee: formatNumeric(product.fbaFee),
+      amazonReferralRate: formatPercentDecimal(product.amazonReferralRate),
+      storagePerMonth: formatNumeric(product.storagePerMonth),
     })),
   }
 }
