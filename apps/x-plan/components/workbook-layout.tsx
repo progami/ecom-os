@@ -75,18 +75,38 @@ export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, 
   const activeSheet = useMemo(() => sheets.find((sheet) => sheet.slug === activeSlug), [sheets, activeSlug])
 
   const metaSummary = useMemo(() => {
-    if (!meta?.updated) return undefined
+    if (!meta) return undefined
+    if (!meta.updated) {
+      return {
+        display: 'Updated —',
+        tooltip: 'No updates recorded yet',
+      }
+    }
+
     const parsed = new Date(meta.updated)
-    const formatted = Number.isNaN(parsed.getTime())
-      ? meta.updated
-      : new Intl.DateTimeFormat('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric',
-        })
-          .format(parsed)
-          .replace(',', '')
-    return `Updated ${formatted}`
+    if (Number.isNaN(parsed.getTime())) {
+      return {
+        display: `Updated ${meta.updated}`,
+        tooltip: `Updated ${meta.updated}`,
+      }
+    }
+
+    const display = `Updated ${new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+      .format(parsed)
+      .replace(',', '')}`
+
+    const tooltip = `Updated ${new Intl.DateTimeFormat('en-US', {
+      dateStyle: 'full',
+      timeStyle: 'long',
+    }).format(parsed)}`
+
+    return { display, tooltip }
   }, [meta])
 
   return (
@@ -101,7 +121,12 @@ export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, 
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{activeSheet?.label ?? 'Workbook'}</h1>
                     {metaSummary && (
-                      <span className="text-xs font-medium text-slate-400 dark:text-slate-500">{metaSummary}</span>
+                      <span
+                        className="text-xs font-medium text-slate-400 dark:text-slate-500"
+                        title={metaSummary.tooltip}
+                      >
+                        {metaSummary.display}
+                      </span>
                     )}
                   </div>
                   <p className="max-w-3xl text-sm text-slate-500 dark:text-slate-400">{activeSheet?.description}</p>
