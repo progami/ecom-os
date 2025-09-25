@@ -1,7 +1,13 @@
 import { MainNav } from './main-nav'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 
-export function DashboardLayout({ children }: { children: React.ReactNode }) {
+interface DashboardLayoutProps {
+  children: React.ReactNode
+  hideBreadcrumb?: boolean
+  customBreadcrumb?: React.ReactNode
+}
+
+export function DashboardLayout({ children, hideBreadcrumb = false, customBreadcrumb }: DashboardLayoutProps) {
   // Use Next.js injected version from package.json
   const version = process.env.NEXT_PUBLIC_VERSION || '0.7.0'
   const releaseTag = `wms-${version}`
@@ -13,7 +19,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <div className="md:pl-16 lg:pl-64 transition-all duration-300 h-screen flex flex-col overflow-hidden">
         <main className="flex-1 flex flex-col min-h-0">
           <div className="px-4 sm:px-6 md:px-8 py-4">
-            <Breadcrumb />
+            {hideBreadcrumb ? customBreadcrumb ?? null : customBreadcrumb ?? <Breadcrumb />}
           </div>
           <div className="flex-1 px-4 sm:px-6 md:px-8 pb-4 min-h-0">
             {children}

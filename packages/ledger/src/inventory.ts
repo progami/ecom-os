@@ -19,6 +19,7 @@ interface BalanceAccumulator extends Omit<InventoryBalanceSnapshot, 'currentUnit
   firstReceive?: InventoryBalanceSnapshot['firstReceive']
   lastTransactionId: string | null
   lastTransactionType: string | null
+  lastTransactionReference: string | null
 }
 
 export function aggregateInventoryTransactions(
@@ -48,6 +49,9 @@ export function aggregateInventoryTransactions(
         lastTransactionDate: null,
         lastTransactionId: null,
         lastTransactionType: null,
+        lastTransactionReference: null,
+        purchaseOrderId: null,
+        purchaseOrderNumber: null,
         firstReceive: undefined
       }
       balances.set(key, current)
@@ -68,6 +72,9 @@ export function aggregateInventoryTransactions(
       current.lastTransactionDate = transaction.transactionDate
       current.lastTransactionId = transaction.id ?? transaction.transactionId ?? null
       current.lastTransactionType = transaction.transactionType ?? null
+      current.lastTransactionReference = transaction.referenceId ?? null
+      current.purchaseOrderId = transaction.purchaseOrderId ?? null
+      current.purchaseOrderNumber = transaction.purchaseOrderNumber ?? null
     }
 
     if (transaction.storageCartonsPerPallet && transaction.storageCartonsPerPallet > 0) {
@@ -104,7 +111,8 @@ export function aggregateInventoryTransactions(
       currentUnits: Math.max(0, balance.currentUnits),
       currentPallets,
       storageCartonsPerPallet: balance.storageCartonsPerPallet ?? effectiveCartonsPerPallet,
-      shippingCartonsPerPallet: balance.shippingCartonsPerPallet ?? effectiveCartonsPerPallet
+      shippingCartonsPerPallet: balance.shippingCartonsPerPallet ?? effectiveCartonsPerPallet,
+      lastTransactionReference: balance.lastTransactionReference
     }
   })
 
@@ -114,13 +122,10 @@ export function aggregateInventoryTransactions(
 
   if (options.sort !== false) {
     balanceArray.sort((a, b) => {
-      if (a.skuCode !== b.skuCode) {
-        return a.skuCode.localeCompare(b.skuCode)
-      }
-      if (a.batchLot !== b.batchLot) {
-        return a.batchLot.localeCompare(b.batchLot)
-      }
-      return a.warehouseCode.localeCompare(b.warehouseCode)
+      const aTime = a.lastTransactionDate ? a.lastTransactionDate.getTime() : Number.NEGATIVE_INFINITY
+      const bTime = b.lastTransactionDate ? b.lastTransactionDate.getTime() : Number.NEGATIVE_INFINITY
+
+      return bTime - aTime
     })
   }
 
