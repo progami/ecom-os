@@ -663,21 +663,61 @@ function Sparkline({ values, labels, color, title, format, activeIndex, onHover,
   const height = 220
   const width = 360
   const padding = 18
-  const min = values.length > 0 ? Math.min(...values) : 0
-  const max = values.length > 0 ? Math.max(...values) : 0
-  const range = max - min
   const innerHeight = height - padding * 2
   const innerWidth = width - padding * 2
+  const { domainMin, domainMax, minValue, maxValue } = useMemo(() => {
+    if (values.length === 0) {
+      return { domainMin: -1, domainMax: 1, minValue: 0, maxValue: 0 }
+    }
+
+    const minValue = Math.min(...values)
+    const maxValue = Math.max(...values)
+    const hasPositive = values.some((value) => value > 0)
+    const hasNegative = values.some((value) => value < 0)
+
+    let minBound = minValue
+    let maxBound = maxValue
+
+    if (hasPositive) {
+      minBound = Math.min(0, minBound)
+    }
+    if (hasNegative) {
+      maxBound = Math.max(0, maxBound)
+    }
+
+    const span = maxBound - minBound
+    const basePadding = span === 0 ? Math.max(1, Math.abs(maxBound) || Math.abs(minBound) || 1) * 0.1 : span * 0.1
+
+    if (hasPositive && !hasNegative) {
+      minBound -= basePadding
+    } else if (!hasPositive && hasNegative) {
+      maxBound += basePadding
+    } else if (hasPositive && hasNegative) {
+      minBound -= basePadding * 0.5
+      maxBound += basePadding * 0.5
+    } else {
+      minBound = -1
+      maxBound = 1
+    }
+
+    if (minBound === maxBound) {
+      minBound -= 1
+      maxBound += 1
+    }
+
+    return { domainMin: minBound, domainMax: maxBound, minValue, maxValue }
+  }, [values])
+  const range = domainMax - domainMin || 1
+  const zeroLineY = minValue <= 0 && domainMin < 0 && domainMax > 0 ? padding + innerHeight - ((0 - domainMin) / range) * innerHeight : null
   const points = useMemo(
     () =>
       values.map((value, index) => {
         const x = padding + (values.length === 1 ? innerWidth / 2 : (index / (values.length - 1)) * innerWidth)
-        const denominator = range === 0 ? 1 : range
-        const normalized = range === 0 ? 0.5 : (value - min) / denominator
+        const normalized = range === 0 ? 0.5 : (value - domainMin) / range
         const y = padding + innerHeight - normalized * innerHeight
         return { x, y }
       }),
-    [values, padding, innerHeight, innerWidth, range, min]
+    [values, padding, innerHeight, innerWidth, range, domainMin]
   )
   const latestPoint = points.at(-1)
   const activePoint = activeIndex != null ? points[activeIndex] ?? null : null
@@ -749,6 +789,17 @@ function Sparkline({ values, labels, color, title, format, activeIndex, onHover,
         fill={`url(#${gradientId})`}
         opacity={0.6}
       />
+      {zeroLineY != null ? (
+        <line
+          x1={padding}
+          x2={width - padding}
+          y1={zeroLineY}
+          y2={zeroLineY}
+          stroke="rgba(148, 163, 184, 0.35)"
+          strokeWidth={1}
+          strokeDasharray="4 4"
+        />
+      ) : null}
       <polyline
         fill="none"
         stroke={color}
