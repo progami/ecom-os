@@ -80,13 +80,33 @@ type ProductCostTerm = {
 
 type ProductWithTerms = ProductRow & { salesTerms: ProductCostTerm[] }
 
+type ProductSalesTermRow = {
+  id: string
+  productId: string
+  startDate: Date | null
+  endDate: Date | null
+  sellingPrice: NumericLike
+  tacosPercent: NumericLike
+  fbaFee: NumericLike
+  referralRate: NumericLike
+  storagePerMonth: NumericLike
+  product?: { id: string; sku: string | null; name: string } | null
+}
+
 const FALLBACK_TERM_START = new Date('1970-01-01T00:00:00.000Z')
 
-function isMissingSalesTermsRelation(error: unknown): error is Prisma.PrismaClientValidationError {
-  return (
-    error instanceof Prisma.PrismaClientValidationError &&
-    error.message.toLowerCase().includes('salesterms')
-  )
+function isMissingSalesTermsRelation(error: unknown): boolean {
+  if (!error) return false
+  if (error instanceof Prisma.PrismaClientValidationError) {
+    return error.message.toLowerCase().includes('salesterms')
+  }
+
+  if (typeof error === 'object' && 'message' in error) {
+    const message = String((error as { message?: unknown }).message ?? '')
+    return message.toLowerCase().includes('salesterms')
+  }
+
+  return false
 }
 
 function toTermNumeric(value: NumericLike): number | { toNumber(): number } {
@@ -468,7 +488,7 @@ async function getProductSetupView() {
         storagePerMonth: true,
         product: { select: { id: true, sku: true, name: true } },
       },
-    }),
+    }) as Promise<ProductSalesTermRow[]>,
   ])
 
   const activeProducts = products.filter((product) => {
@@ -533,7 +553,7 @@ async function getProductSetupView() {
     .map((product) => ({ id: product.id, sku: product.sku ?? '', name: product.name }))
     .sort((a, b) => a.sku.localeCompare(b.sku))
 
-  const toNumber = (value: number | { toNumber(): number } | null | undefined) => {
+  const toNumber = (value: NumericLike) => {
     if (value == null) return 0
     if (typeof value === 'number') return value
     if (typeof value === 'object' && 'toNumber' in value && typeof value.toNumber === 'function') {
