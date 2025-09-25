@@ -520,7 +520,7 @@ function getSalesPlanningView(
           { label: 'Week', rowspan: 2 },
           { label: 'Date', rowspan: 2 },
         ],
-        [],
+        ['', ''],
       ]
     : [['Week', 'Date']]
 
