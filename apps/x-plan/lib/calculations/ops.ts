@@ -213,9 +213,9 @@ export function computePurchaseOrderDerived(
   )
   const weeksUntilArrival = computeWeeksUntil(inboundEta)
 
-  const poValue = landedUnitCost * quantity
   const manufacturingInvoice = manufacturingCost * quantity
   const freightInvoice = freightCost * quantity
+  const poValue = manufacturingInvoice + freightInvoice
 
   const paymentSplits = params.supplierPaymentSplit
   const payments: PaymentPlanItem[] = []
@@ -240,7 +240,7 @@ export function computePurchaseOrderDerived(
     const actualAmount = recordedAmount != null ? toNumber(recordedAmount) : 0
     const recordedPercent = actualPayment?.percentage ?? percentOverride
     const actualPercent = normalizePercentValue(recordedPercent) ?? (poValue > 0 ? actualAmount / poValue : 0)
-    const actualDate = actualPayment?.dueDate ?? dateOverride ?? plannedDate
+    const actualDate = actualPayment?.paymentDate ?? dateOverride ?? plannedDate
 
     payments.push({
       paymentIndex: index,

@@ -15,7 +15,7 @@ export type PurchasePaymentRow = {
   purchaseOrderId: string
   orderCode: string
   paymentIndex: number
-  dueDate: string
+  paymentDate: string
   percentage: string
   amount: string
   status: string
@@ -48,12 +48,12 @@ interface PurchasePaymentsGridProps {
   summaryLine?: string | null
 }
 
-const HEADERS = ['PO', '#', 'Due Date', 'Percent', 'Amount', 'Status']
+const HEADERS = ['PO', '#', 'Payment Date', 'Percent', 'Amount', 'Status']
 
 const COLUMNS: Handsontable.ColumnSettings[] = [
   { data: 'orderCode', readOnly: true, className: 'cell-readonly' },
   { data: 'paymentIndex', readOnly: true, className: 'cell-readonly' },
-  { data: 'dueDate', type: 'date', dateFormat: 'MMM D YYYY', correctFormat: true, className: 'cell-editable' },
+  { data: 'paymentDate', type: 'date', dateFormat: 'MMM D YYYY', correctFormat: true, className: 'cell-editable' },
   { data: 'percentage', type: 'numeric', numericFormat: { pattern: '0.00%' }, readOnly: true, className: 'cell-readonly' },
   { data: 'amount', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable' },
   {
@@ -214,7 +214,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
             }
             const entry = pendingRef.current.get(record.id)
             if (!entry) continue
-            if (prop === 'dueDate') {
+            if (prop === 'paymentDate') {
               entry.values[prop] = newValue ?? ''
             } else if (NUMERIC_FIELDS.includes(prop)) {
               const normalizedAmount = normalizeNumeric(newValue)

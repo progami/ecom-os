@@ -108,8 +108,11 @@ const salesPlan = computeSalesPlan(salesWeeks, [derivedOrder])
 
 describe('computePurchaseOrderDerived', () => {
   it('calculates landed cost and payment schedule', () => {
-    expect(derivedOrder.plannedPoValue).toBeCloseTo(700)
-    expect(derivedOrder.plannedPayments[0].plannedAmount).toBeCloseTo(210)
+    expect(derivedOrder.plannedPoValue).toBeCloseTo(
+      product.manufacturingCost * purchaseOrderInput.quantity +
+        product.freightCost * purchaseOrderInput.quantity
+    )
+    expect(derivedOrder.plannedPayments[0].plannedAmount).toBeCloseTo(120)
     expect(derivedOrder.plannedPayments[0].plannedPercent).toBeCloseTo(0.3)
     expect(derivedOrder.manufacturingUnitCost).toBeCloseTo(product.manufacturingCost)
     expect(derivedOrder.freightUnitCost).toBeCloseTo(product.freightCost)
@@ -148,7 +151,10 @@ describe('computePurchaseOrderDerived', () => {
     )
 
     expect(overridden.landedUnitCost).toBeCloseTo(5 + 2 + (overrideOrder.overrideSellingPrice ?? product.sellingPrice) * 0.1 + 1 + 0.3)
-    expect(overridden.plannedPoValue).toBeCloseTo(overridden.landedUnitCost * overrideOrder.quantity)
+    expect(overridden.plannedPoValue).toBeCloseTo(
+      (overrideOrder.overrideManufacturingCost ?? 0) * overrideOrder.quantity +
+        (overrideOrder.overrideFreightCost ?? 0) * overrideOrder.quantity
+    )
     expect(overridden.manufacturingUnitCost).toBeCloseTo(overrideOrder.overrideManufacturingCost ?? 0)
     expect(overridden.freightUnitCost).toBeCloseTo(overrideOrder.overrideFreightCost ?? 0)
     expect(overridden.manufacturingInvoice).toBeCloseTo((overrideOrder.overrideManufacturingCost ?? 0) * overrideOrder.quantity)

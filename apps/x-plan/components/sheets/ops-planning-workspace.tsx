@@ -67,7 +67,7 @@ export type PurchaseOrderSerialized = {
     paymentIndex: number
     percentage?: number | null
     amount?: number | null
-    dueDate?: string | null
+    paymentDate?: string | null
     status?: string | null
   }>
   overrideSellingPrice?: number | null
@@ -146,7 +146,7 @@ function normalizePercent(value: string | undefined) {
 function normalizePaymentRows(rows: PurchasePaymentRow[]): PurchasePaymentRow[] {
   return rows.map((payment) => ({
     ...payment,
-    dueDate: formatDisplayDate(payment.dueDate),
+    paymentDate: formatDisplayDate(payment.paymentDate),
     percentage: normalizePercent(payment.percentage),
   }))
 }
@@ -166,6 +166,17 @@ function parseNumber(value: string | number | null | undefined): number | null {
   if (trimmed === '') return null
   const numeric = Number(trimmed)
   return Number.isNaN(numeric) ? null : numeric
+}
+
+function parseTotalOverride(
+  value: string | number | null | undefined,
+  quantity: number
+): number | null {
+  const numeric = parseNumber(value)
+  if (numeric == null) return null
+  if (!Number.isFinite(quantity) || quantity <= 0) return null
+  const perUnit = numeric / quantity
+  return Number.isFinite(perUnit) ? perUnit : null
 }
 
 function parseInteger(value: string | number | null | undefined, fallback: number): number {
@@ -226,7 +237,7 @@ function deserializeOrders(purchaseOrders: PurchaseOrderSerialized[]): PurchaseO
         paymentIndex: payment.paymentIndex,
         percentage: payment.percentage ?? null,
         amount: payment.amount ?? null,
-        dueDate: parseDateValue(payment.dueDate ?? null),
+        paymentDate: parseDateValue(payment.paymentDate ?? null),
         status: payment.status ?? null,
       })) ?? [],
     overrideSellingPrice: order.overrideSellingPrice ?? null,
@@ -249,6 +260,20 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       orderCode: row.orderCode,
       productId: row.productId,
       quantity: parseInteger(row.quantity, 0),
+      ...(() => {
+        const quantity = parseInteger(row.quantity, 0)
+        const quantityForCosts = quantity > 0 ? quantity : 0
+        return {
+          overrideSellingPrice: parseNumber(row.sellingPrice),
+          overrideManufacturingCost: parseTotalOverride(row.manufacturingCost, quantityForCosts),
+          overrideFreightCost: parseTotalOverride(row.freightCost, quantityForCosts),
+          overrideTariffRate: parsePercent(row.tariffRate),
+          overrideTacosPercent: parsePercent(row.tacosPercent),
+          overrideFbaFee: parseTotalOverride(row.fbaFee, quantityForCosts),
+          overrideReferralRate: parsePercent(row.referralRate),
+          overrideStoragePerMonth: parseTotalOverride(row.storagePerMonth, quantityForCosts),
+        }
+      })(),
       productionWeeks: parseNumber(row.productionWeeks),
       sourcePrepWeeks: parseNumber(row.sourcePrepWeeks),
       oceanWeeks: parseNumber(row.oceanWeeks),
@@ -273,14 +298,6 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       status: (row.status as PurchaseOrderStatus) ?? 'PLANNED',
       notes: row.notes ? row.notes : null,
       payments: [],
-      overrideSellingPrice: parseNumber(row.sellingPrice),
-      overrideManufacturingCost: parseNumber(row.manufacturingCost),
-      overrideFreightCost: parseNumber(row.freightCost),
-      overrideTariffRate: parsePercent(row.tariffRate),
-      overrideTacosPercent: parsePercent(row.tacosPercent),
-      overrideFbaFee: parseNumber(row.fbaFee),
-      overrideReferralRate: parsePercent(row.referralRate),
-      overrideStoragePerMonth: parseNumber(row.storagePerMonth),
     }
 
     return {
@@ -296,14 +313,20 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       transportReference: row.transportReference ? row.transportReference : null,
       status: (row.status as PurchaseOrderStatus) ?? base.status,
       notes: row.notes ? row.notes : null,
-      overrideSellingPrice: parseNumber(row.sellingPrice),
-      overrideManufacturingCost: parseNumber(row.manufacturingCost),
-      overrideFreightCost: parseNumber(row.freightCost),
-      overrideTariffRate: parsePercent(row.tariffRate),
-      overrideTacosPercent: parsePercent(row.tacosPercent),
-      overrideFbaFee: parseNumber(row.fbaFee),
-      overrideReferralRate: parsePercent(row.referralRate),
-      overrideStoragePerMonth: parseNumber(row.storagePerMonth),
+      ...(() => {
+        const quantity = parseInteger(row.quantity, base.quantity ?? 0)
+        const quantityForCosts = quantity > 0 ? quantity : base.quantity ?? 0
+        return {
+          overrideSellingPrice: parseNumber(row.sellingPrice),
+          overrideManufacturingCost: parseTotalOverride(row.manufacturingCost, quantityForCosts),
+          overrideFreightCost: parseTotalOverride(row.freightCost, quantityForCosts),
+          overrideTariffRate: parsePercent(row.tariffRate),
+          overrideTacosPercent: parsePercent(row.tacosPercent),
+          overrideFbaFee: parseTotalOverride(row.fbaFee, quantityForCosts),
+          overrideReferralRate: parsePercent(row.referralRate),
+          overrideStoragePerMonth: parseTotalOverride(row.storagePerMonth, quantityForCosts),
+        }
+      })(),
     }
   })
 }
@@ -318,7 +341,7 @@ function buildPaymentsByOrder(paymentRows: PurchasePaymentRow[]): Map<string, Pu
       paymentIndex: payment.paymentIndex,
       percentage,
       amount,
-      dueDate: parseDateValue(payment.dueDate),
+      paymentDate: parseDateValue(payment.paymentDate),
       status: payment.status ?? null,
     })
     map.set(payment.purchaseOrderId, list)
@@ -592,6 +615,24 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
         if (!createdOrder) throw new Error('Missing order payload')
 
         const productInfo = productMetadata.get(createdOrder.productId) ?? { name: '', sku: '' }
+        const quantity = Number(createdOrder.quantity ?? 0)
+        const manufacturingTotal =
+          createdOrder.overrideManufacturingCost != null && Number.isFinite(createdOrder.overrideManufacturingCost)
+            ? Number(createdOrder.overrideManufacturingCost) * quantity
+            : null
+        const freightTotal =
+          createdOrder.overrideFreightCost != null && Number.isFinite(createdOrder.overrideFreightCost)
+            ? Number(createdOrder.overrideFreightCost) * quantity
+            : null
+        const fbaTotal =
+          createdOrder.overrideFbaFee != null && Number.isFinite(createdOrder.overrideFbaFee)
+            ? Number(createdOrder.overrideFbaFee) * quantity
+            : null
+        const storageTotal =
+          createdOrder.overrideStoragePerMonth != null && Number.isFinite(createdOrder.overrideStoragePerMonth)
+            ? Number(createdOrder.overrideStoragePerMonth) * quantity
+            : null
+
         const nextRow: OpsInputRow = {
           id: createdOrder.id,
           productId: createdOrder.productId,
@@ -606,13 +647,13 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
           oceanWeeks: formatNumericValue(createdOrder.oceanWeeks),
           finalMileWeeks: formatNumericValue(createdOrder.finalMileWeeks),
           sellingPrice: formatNumericValue(createdOrder.overrideSellingPrice),
-          manufacturingCost: formatNumericValue(createdOrder.overrideManufacturingCost),
-          freightCost: formatNumericValue(createdOrder.overrideFreightCost),
+          manufacturingCost: formatNumericValue(manufacturingTotal),
+          freightCost: formatNumericValue(freightTotal),
           tariffRate: formatPercentDecimalValue(createdOrder.overrideTariffRate),
           tacosPercent: formatPercentDecimalValue(createdOrder.overrideTacosPercent),
-          fbaFee: formatNumericValue(createdOrder.overrideFbaFee),
+          fbaFee: formatNumericValue(fbaTotal),
           referralRate: formatPercentDecimalValue(createdOrder.overrideReferralRate),
-          storagePerMonth: formatNumericValue(createdOrder.overrideStoragePerMonth),
+          storagePerMonth: formatNumericValue(storageTotal),
           status: createdOrder.status,
           notes: createdOrder.notes ?? '',
         }
@@ -660,7 +701,7 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
         const created = (await response.json()) as PurchasePaymentRow
         const normalizedCreated: PurchasePaymentRow = {
           ...created,
-          dueDate: formatDisplayDate(created.dueDate),
+          paymentDate: formatDisplayDate(created.paymentDate),
           percentage: normalizePercent(created.percentage),
         }
         setPaymentRows((previous) => {

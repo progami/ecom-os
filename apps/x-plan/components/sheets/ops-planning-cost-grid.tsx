@@ -26,13 +26,13 @@ const COST_HEADERS = [
   'SKU',
   'Product',
   'Sell $',
-  'Mfg $',
-  'Freight $',
+  'Mfg Invoice $',
+  'Freight Invoice $',
   'Tariff %',
   'TACoS %',
-  'FBA $',
+  'FBA Total $',
   'Referral %',
-  'Storage $',
+  'Storage Total $',
 ]
 
 const NUMERIC_PRECISION: Record<string, number> = {
@@ -49,6 +49,24 @@ const PERCENT_PRECISION: Record<string, number> = {
   referralRate: 4,
 }
 
+const TOTALIZED_FIELDS = new Set<keyof OpsInputRow>([
+  'manufacturingCost',
+  'freightCost',
+  'fbaFee',
+  'storagePerMonth',
+])
+
+const FIELD_TO_OVERRIDE_KEY: Partial<Record<keyof OpsInputRow, string>> = {
+  sellingPrice: 'overrideSellingPrice',
+  manufacturingCost: 'overrideManufacturingCost',
+  freightCost: 'overrideFreightCost',
+  tariffRate: 'overrideTariffRate',
+  tacosPercent: 'overrideTacosPercent',
+  fbaFee: 'overrideFbaFee',
+  referralRate: 'overrideReferralRate',
+  storagePerMonth: 'overrideStoragePerMonth',
+}
+
 function normalizeCurrency(value: unknown, fractionDigits = 2) {
   if (value === '' || value === null || value === undefined) return ''
   const numeric = Number(value)
@@ -62,6 +80,18 @@ function normalizePercent(value: unknown, fractionDigits = 4) {
   if (Number.isNaN(numeric)) return String(value ?? '')
   const base = numeric > 1 ? numeric / 100 : numeric
   return base.toFixed(fractionDigits)
+}
+
+function toPerUnitValue(totalString: string, quantityString: string): string | null {
+  const quantity = Number(quantityString ?? 0)
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    return null
+  }
+  const total = Number(totalString)
+  if (!Number.isFinite(total)) return null
+  const perUnit = total / quantity
+  if (!Number.isFinite(perUnit)) return null
+  return perUnit.toFixed(6)
 }
 
 export function OpsPlanningCostGrid({ rows, products, activeOrderId, onSelectOrder, onRowsChange }: OpsPlanningCostGridProps) {
@@ -215,13 +245,34 @@ export function OpsPlanningCostGrid({ rows, products, activeOrderId, onSelectOrd
             if (prop in NUMERIC_PRECISION) {
               const precision = NUMERIC_PRECISION[prop as keyof typeof NUMERIC_PRECISION]
               const normalized = normalizeCurrency(newValue, precision)
-              entry.values[prop] = normalized
               record[prop] = normalized as OpsInputRow[typeof prop]
+              const overrideKey = FIELD_TO_OVERRIDE_KEY[prop]
+              if (overrideKey) {
+                if (normalized === '') {
+                  entry.values[overrideKey] = ''
+                } else if (TOTALIZED_FIELDS.has(prop)) {
+                  const perUnit = toPerUnitValue(normalized, record.quantity)
+                  if (!perUnit) {
+                    toast.error('Enter a unit quantity before setting total costs')
+                    const previousValue = typeof oldValue === 'string' ? oldValue : ''
+                    record[prop] = previousValue as OpsInputRow[typeof prop]
+                    hot.setDataAtRowProp(rowIndex, prop, previousValue, 'derived-update')
+                    entry.values[overrideKey] = ''
+                  } else {
+                    entry.values[overrideKey] = perUnit
+                  }
+                } else {
+                  entry.values[overrideKey] = normalized
+                }
+              }
             } else if (prop in PERCENT_PRECISION) {
               const precision = PERCENT_PRECISION[prop as keyof typeof PERCENT_PRECISION]
               const normalized = normalizePercent(newValue, precision)
-              entry.values[prop] = normalized
               record[prop] = normalized as OpsInputRow[typeof prop]
+              const overrideKey = FIELD_TO_OVERRIDE_KEY[prop]
+              if (overrideKey) {
+                entry.values[overrideKey] = normalized
+              }
             }
           }
 

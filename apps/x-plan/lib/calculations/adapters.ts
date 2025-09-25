@@ -123,7 +123,7 @@ export function mapPurchaseOrders(orders: Array<PurchaseOrder & { payments: Purc
       paymentIndex: payment.paymentIndex,
       percentage: payment.percentage != null ? toNumber(payment.percentage) : null,
       amount: payment.amount != null ? toNumber(payment.amount) : null,
-      dueDate: payment.dueDate,
+      paymentDate: payment.dueDate,
       status: payment.status,
     })),
   }))

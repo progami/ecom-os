@@ -125,7 +125,7 @@ function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSeriali
         paymentIndex: payment.paymentIndex,
         percentage: payment.percentage ?? null,
         amount: payment.amount ?? null,
-        dueDate: serializeDate(payment.dueDate),
+        paymentDate: serializeDate(payment.paymentDate),
         status: payment.status ?? null,
       })) ?? [],
     overrideSellingPrice: order.overrideSellingPrice ?? null,
@@ -360,30 +360,55 @@ async function getOpsPlanningView(): Promise<{
 
   const derivedOrders = deriveOrders(context)
 
-  const inputRows: OpsInputRow[] = derivedOrders.map(({ input, productName }) => ({
-    id: input.id,
-    productId: input.productId,
-    productSku: context.productSkuById.get(input.productId) ?? '',
-    orderCode: input.orderCode,
-    transportReference: input.transportReference ?? '',
-    productName,
-    quantity: formatNumeric(input.quantity ?? null, 0),
-    pay1Date: formatDate(input.pay1Date ?? null),
-    productionWeeks: formatNumeric(input.productionWeeks ?? null),
-    sourcePrepWeeks: formatNumeric(input.sourcePrepWeeks ?? null),
-    oceanWeeks: formatNumeric(input.oceanWeeks ?? null),
-    finalMileWeeks: formatNumeric(input.finalMileWeeks ?? null),
-    sellingPrice: formatNumeric(input.overrideSellingPrice ?? null),
-    manufacturingCost: formatNumeric(input.overrideManufacturingCost ?? null),
-    freightCost: formatNumeric(input.overrideFreightCost ?? null),
-    tariffRate: formatPercentDecimal(input.overrideTariffRate ?? null),
-    tacosPercent: formatPercentDecimal(input.overrideTacosPercent ?? null),
-    fbaFee: formatNumeric(input.overrideFbaFee ?? null),
-    referralRate: formatPercentDecimal(input.overrideReferralRate ?? null),
-    storagePerMonth: formatNumeric(input.overrideStoragePerMonth ?? null),
-    status: input.status,
-    notes: input.notes ?? '',
-  }))
+  const inputRows: OpsInputRow[] = derivedOrders.map(({ input, productName }) => {
+    const quantity = Number(input.quantity ?? 0)
+    const manufacturingOverride =
+      input.overrideManufacturingCost != null && Number.isFinite(input.overrideManufacturingCost)
+        ? Number(input.overrideManufacturingCost)
+        : null
+    const freightOverride =
+      input.overrideFreightCost != null && Number.isFinite(input.overrideFreightCost)
+        ? Number(input.overrideFreightCost)
+        : null
+    const fbaOverride =
+      input.overrideFbaFee != null && Number.isFinite(input.overrideFbaFee)
+        ? Number(input.overrideFbaFee)
+        : null
+    const storageOverride =
+      input.overrideStoragePerMonth != null && Number.isFinite(input.overrideStoragePerMonth)
+        ? Number(input.overrideStoragePerMonth)
+        : null
+
+    const manufacturingTotal = manufacturingOverride != null ? manufacturingOverride * quantity : null
+    const freightTotal = freightOverride != null ? freightOverride * quantity : null
+    const fbaTotal = fbaOverride != null ? fbaOverride * quantity : null
+    const storageTotal = storageOverride != null ? storageOverride * quantity : null
+
+    return {
+      id: input.id,
+      productId: input.productId,
+      productSku: context.productSkuById.get(input.productId) ?? '',
+      orderCode: input.orderCode,
+      transportReference: input.transportReference ?? '',
+      productName,
+      quantity: formatNumeric(input.quantity ?? null, 0),
+      pay1Date: formatDate(input.pay1Date ?? null),
+      productionWeeks: formatNumeric(input.productionWeeks ?? null),
+      sourcePrepWeeks: formatNumeric(input.sourcePrepWeeks ?? null),
+      oceanWeeks: formatNumeric(input.oceanWeeks ?? null),
+      finalMileWeeks: formatNumeric(input.finalMileWeeks ?? null),
+      sellingPrice: formatNumeric(input.overrideSellingPrice ?? null),
+      manufacturingCost: formatNumeric(manufacturingTotal),
+      freightCost: formatNumeric(freightTotal),
+      tariffRate: formatPercentDecimal(input.overrideTariffRate ?? null),
+      tacosPercent: formatPercentDecimal(input.overrideTacosPercent ?? null),
+      fbaFee: formatNumeric(fbaTotal),
+      referralRate: formatPercentDecimal(input.overrideReferralRate ?? null),
+      storagePerMonth: formatNumeric(storageTotal),
+      status: input.status,
+      notes: input.notes ?? '',
+    }
+  })
 
   const timelineRows: OpsTimelineRow[] = derivedOrders.map(({ derived, productName }) => ({
     id: derived.id,
@@ -422,7 +447,7 @@ async function getOpsPlanningView(): Promise<{
         purchaseOrderId: order.id,
         orderCode: order.orderCode,
         paymentIndex: payment.paymentIndex,
-        dueDate: formatDate(payment.dueDate ?? null),
+        paymentDate: formatDate(payment.dueDate ?? null),
         percentage: formatPercentDecimal(percentNumeric),
         amount: formatNumeric(amountNumeric),
         status: payment.status,

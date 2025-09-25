@@ -7,7 +7,7 @@ type UpdatePayload = {
   values: Record<string, string | null | undefined>
 }
 
-const allowedFields = ['dueDate', 'percentage', 'amount', 'status'] as const
+const allowedFields = ['paymentDate', 'percentage', 'amount', 'status'] as const
 
 function parseNumber(value: string | null | undefined) {
   if (!value) return null
@@ -42,12 +42,16 @@ export async function PUT(request: Request) {
         if (!(field in values)) continue
         const incoming = values[field]
         if (incoming === null || incoming === undefined || incoming === '') {
-          data[field] = null
+          if (field === 'paymentDate') {
+            data.dueDate = null
+          } else {
+            data[field] = null
+          }
           continue
         }
 
-        if (field === 'dueDate') {
-          data[field] = parseDate(incoming)
+        if (field === 'paymentDate') {
+          data.dueDate = parseDate(incoming)
         } else if (field === 'percentage') {
           const parsed = parseNumber(incoming)
           data[field] = parsed == null ? null : parsed > 1 ? parsed / 100 : parsed
@@ -79,7 +83,7 @@ export async function POST(request: Request) {
   const paymentIndex: number = Number(body.paymentIndex ?? 1)
   const percentage = parseNumber(body.percentage ?? null)
   const amount = parseNumber(body.amount ?? null)
-  const dueDate = parseDate(body.dueDate ?? null)
+  const paymentDate = parseDate(body.paymentDate ?? null)
 
   try {
     const nextIndex = Number.isNaN(paymentIndex) ? 1 : paymentIndex
@@ -89,7 +93,7 @@ export async function POST(request: Request) {
         paymentIndex: nextIndex,
         percentage: percentage != null ? new Prisma.Decimal(percentage.toFixed(4)) : null,
         amount: amount != null ? new Prisma.Decimal(amount.toFixed(2)) : null,
-        dueDate,
+        dueDate: paymentDate,
       },
       include: { purchaseOrder: true },
     })
@@ -99,7 +103,7 @@ export async function POST(request: Request) {
       purchaseOrderId: created.purchaseOrderId,
       orderCode: created.purchaseOrder.orderCode,
       paymentIndex: created.paymentIndex,
-      dueDate: created.dueDate?.toISOString() ?? '',
+      paymentDate: created.dueDate?.toISOString() ?? '',
       percentage: created.percentage ? Number(created.percentage).toFixed(2) : '',
       amount: created.amount ? Number(created.amount).toFixed(2) : '',
       status: created.status,
