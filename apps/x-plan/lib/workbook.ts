@@ -27,8 +27,16 @@ function formatRelative(date?: Date | null) {
   return formatDistanceToNow(date, { addSuffix: true })
 }
 
+function latestDate(dates: Array<Date | null | undefined>): Date | undefined {
+  return dates.reduce<Date | undefined>((latest, current) => {
+    if (!current) return latest
+    if (!latest || current.getTime() > latest.getTime()) return current
+    return latest
+  }, undefined)
+}
+
 export async function getWorkbookStatus(): Promise<WorkbookStatus> {
-  const [productAgg, purchaseOrderAgg, salesAgg, profitAgg, cashAgg] = await Promise.all([
+  const [productAgg, purchaseOrderAgg, salesAgg, profitAgg, cashAgg, businessAgg] = await Promise.all([
     prisma.product.aggregate({
       _count: { id: true },
       _max: { updatedAt: true },
@@ -49,7 +57,15 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
       _count: { id: true },
       _max: { updatedAt: true },
     }),
+    prisma.businessParameter.aggregate({
+      _count: { id: true },
+      _max: { updatedAt: true },
+    }),
   ])
+
+  const productUpdatedAt = latestDate([productAgg._max.updatedAt, businessAgg._max.updatedAt])
+  const profitUpdatedAt = latestDate([profitAgg._max.updatedAt, businessAgg._max.updatedAt])
+  const cashUpdatedAt = latestDate([cashAgg._max.updatedAt, businessAgg._max.updatedAt])
 
   const sheetStatus: Record<SheetSlug, WorkbookSheetStatus> = {
     '1-product-setup': {
@@ -57,8 +73,8 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
       label: '1. Product Setup',
       description: 'SKU pricing, cost inputs, and lead-time defaults.',
       recordCount: productAgg._count.id,
-      lastUpdated: formatIso(productAgg._max.updatedAt),
-      relativeUpdatedAt: formatRelative(productAgg._max.updatedAt),
+      lastUpdated: formatIso(productUpdatedAt ?? productAgg._max.updatedAt),
+      relativeUpdatedAt: formatRelative(productUpdatedAt ?? productAgg._max.updatedAt),
       status: productAgg._count.id > 0 ? 'complete' : 'todo',
     },
     '2-ops-planning': {
@@ -84,8 +100,8 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
       label: '4. Fin Planning P&L',
       description: 'Weekly profitability and monthly rollups.',
       recordCount: profitAgg._count.id,
-      lastUpdated: formatIso(profitAgg._max.updatedAt),
-      relativeUpdatedAt: formatRelative(profitAgg._max.updatedAt),
+      lastUpdated: formatIso(profitUpdatedAt ?? profitAgg._max.updatedAt),
+      relativeUpdatedAt: formatRelative(profitUpdatedAt ?? profitAgg._max.updatedAt),
       status: profitAgg._count.id > 0 ? 'complete' : 'todo',
     },
     '5-fin-planning-cash-flow': {
@@ -93,8 +109,8 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
       label: '5. Fin Planning Cash Flow',
       description: 'Cash movement, payouts, and runway visibility.',
       recordCount: cashAgg._count.id,
-      lastUpdated: formatIso(cashAgg._max.updatedAt),
-      relativeUpdatedAt: formatRelative(cashAgg._max.updatedAt),
+      lastUpdated: formatIso(cashUpdatedAt ?? cashAgg._max.updatedAt),
+      relativeUpdatedAt: formatRelative(cashUpdatedAt ?? cashAgg._max.updatedAt),
       status: cashAgg._count.id > 0 ? 'complete' : 'todo',
     },
     '6-dashboard': {
@@ -109,22 +125,24 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
         cashAgg._count.id,
       ),
       lastUpdated: formatIso(
-        [
-          productAgg._max.updatedAt,
+        latestDate([
+          productUpdatedAt ?? productAgg._max.updatedAt,
           purchaseOrderAgg._max.updatedAt,
           salesAgg._max.updatedAt,
-          profitAgg._max.updatedAt,
-          cashAgg._max.updatedAt,
-        ].filter(Boolean).sort((a, b) => (a && b ? a.getTime() - b.getTime() : 0)).at(-1) ?? null,
+          profitUpdatedAt ?? profitAgg._max.updatedAt,
+          cashUpdatedAt ?? cashAgg._max.updatedAt,
+          businessAgg._max.updatedAt,
+        ]) ?? null,
       ),
       relativeUpdatedAt: formatRelative(
-        [
-          productAgg._max.updatedAt,
+        latestDate([
+          productUpdatedAt ?? productAgg._max.updatedAt,
           purchaseOrderAgg._max.updatedAt,
           salesAgg._max.updatedAt,
-          profitAgg._max.updatedAt,
-          cashAgg._max.updatedAt,
-        ].filter(Boolean).sort((a, b) => (a && b ? a.getTime() - b.getTime() : 0)).at(-1) ?? null,
+          profitUpdatedAt ?? profitAgg._max.updatedAt,
+          cashUpdatedAt ?? cashAgg._max.updatedAt,
+          businessAgg._max.updatedAt,
+        ]) ?? null,
       ),
       status:
         productAgg._count.id > 0 ||
@@ -146,4 +164,3 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
     sheets: items,
   }
 }
-
