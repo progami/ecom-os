@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import { Prisma } from '@prisma/client'
 import { OpsPlanningWorkspace } from '@/components/sheets/ops-planning-workspace'
 import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
 import { ProductSetupParametersPanel } from '@/components/sheets/product-setup-panels'
@@ -24,6 +25,7 @@ import {
   mapSalesWeeks,
   mapProfitAndLossWeeks,
   mapCashFlowWeeks,
+  type NumericLike,
   type ProductRow,
   type LeadStageTemplateRow,
   type LeadTimeOverrideRow,
@@ -74,6 +76,147 @@ type ProductCostTerm = {
   fbaFee: number | { toNumber(): number }
   referralRate: number | { toNumber(): number }
   storagePerMonth: number | { toNumber(): number }
+}
+
+type ProductWithTerms = ProductRow & { salesTerms: ProductCostTerm[] }
+
+const FALLBACK_TERM_START = new Date('1970-01-01T00:00:00.000Z')
+
+function isMissingSalesTermsRelation(error: unknown): error is Prisma.PrismaClientValidationError {
+  return (
+    error instanceof Prisma.PrismaClientValidationError &&
+    error.message.toLowerCase().includes('salesterms')
+  )
+}
+
+function toTermNumeric(value: NumericLike): number | { toNumber(): number } {
+  if (value == null) return 0
+  if (typeof value === 'number') return value
+  if (typeof value === 'object' && 'toNumber' in value && typeof value.toNumber === 'function') {
+    return value
+  }
+  const numeric = Number(value)
+  return Number.isNaN(numeric) ? 0 : numeric
+}
+
+async function loadProductsWithTerms(): Promise<ProductWithTerms[]> {
+  try {
+    return (await prisma.product.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        isActive: true,
+        sellingPrice: true,
+        manufacturingCost: true,
+        freightCost: true,
+        tariffRate: true,
+        tacosPercent: true,
+        fbaFee: true,
+        amazonReferralRate: true,
+        storagePerMonth: true,
+        salesTerms: {
+          orderBy: { startDate: 'asc' },
+          select: {
+            startDate: true,
+            endDate: true,
+            sellingPrice: true,
+            tacosPercent: true,
+            fbaFee: true,
+            referralRate: true,
+            storagePerMonth: true,
+          },
+        },
+      },
+    })) as Array<ProductWithTerms>
+  } catch (error) {
+    if (!isMissingSalesTermsRelation(error)) throw error
+
+    const products = (await prisma.product.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        isActive: true,
+        sellingPrice: true,
+        manufacturingCost: true,
+        freightCost: true,
+        tariffRate: true,
+        tacosPercent: true,
+        fbaFee: true,
+        amazonReferralRate: true,
+        storagePerMonth: true,
+      },
+    })) as ProductRow[]
+
+    type TermRow = ProductCostTerm & { productId: string }
+    const delegate = (prisma as unknown as { productSalesTerm?: { findMany: (args: unknown) => Promise<unknown> } })
+      .productSalesTerm
+
+    let termRows: TermRow[] = []
+    if (delegate && typeof delegate.findMany === 'function') {
+      try {
+        termRows = (await delegate.findMany({
+          orderBy: { startDate: 'asc' },
+          select: {
+            productId: true,
+            startDate: true,
+            endDate: true,
+            sellingPrice: true,
+            tacosPercent: true,
+            fbaFee: true,
+            referralRate: true,
+            storagePerMonth: true,
+          },
+        })) as TermRow[]
+      } catch {
+        termRows = []
+      }
+    }
+
+    const grouped = new Map<string, ProductCostTerm[]>()
+    for (const term of termRows) {
+      const existing = grouped.get(term.productId)
+      const normalized: ProductCostTerm = {
+        startDate: term.startDate,
+        endDate: term.endDate,
+        sellingPrice: term.sellingPrice,
+        tacosPercent: term.tacosPercent,
+        fbaFee: term.fbaFee,
+        referralRate: term.referralRate,
+        storagePerMonth: term.storagePerMonth,
+      }
+      if (existing) {
+        existing.push(normalized)
+      } else {
+        grouped.set(term.productId, [normalized])
+      }
+    }
+
+    return products.map((product) => {
+      const terms = grouped.get(product.id)
+      if (terms && terms.length > 0) {
+        return { ...product, salesTerms: terms }
+      }
+
+      return {
+        ...product,
+        salesTerms: [
+          {
+            startDate: new Date(FALLBACK_TERM_START),
+            endDate: null,
+            sellingPrice: toTermNumeric(product.sellingPrice),
+            tacosPercent: toTermNumeric(product.tacosPercent),
+            fbaFee: toTermNumeric(product.fbaFee),
+            referralRate: toTermNumeric(product.amazonReferralRate),
+            storagePerMonth: toTermNumeric(product.storagePerMonth),
+          },
+        ],
+      }
+    })
+  }
 }
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -426,35 +569,7 @@ async function getProductSetupView() {
 
 async function loadOperationsContext() {
   const [products, leadStages, overrides, businessParameters, purchaseOrders] = await Promise.all([
-    prisma.product.findMany({
-      orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        sku: true,
-        isActive: true,
-        sellingPrice: true,
-        manufacturingCost: true,
-        freightCost: true,
-        tariffRate: true,
-        tacosPercent: true,
-        fbaFee: true,
-        amazonReferralRate: true,
-        storagePerMonth: true,
-        salesTerms: {
-          orderBy: { startDate: 'asc' },
-          select: {
-            startDate: true,
-            endDate: true,
-            sellingPrice: true,
-            tacosPercent: true,
-            fbaFee: true,
-            referralRate: true,
-            storagePerMonth: true,
-          },
-        },
-      },
-    }) as Promise<Array<ProductRow & { salesTerms: ProductCostTerm[] }>>,
+    loadProductsWithTerms(),
     prisma.leadStageTemplate.findMany({
       orderBy: { sequence: 'asc' },
       select: { id: true, label: true, defaultWeeks: true, sequence: true },
