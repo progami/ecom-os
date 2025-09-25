@@ -666,11 +666,12 @@ type SparklineProps = {
 
 function Sparkline({ values, labels, color, title, format, activeIndex, onHover, onLeave }: SparklineProps) {
   const gradientId = useId()
-  const height = 220
-  const width = 360
-  const padding = 18
-  const innerHeight = height - padding * 2
-  const innerWidth = width - padding * 2
+  const height = 240
+  const width = 420
+  const paddingX = 12
+  const paddingY = 16
+  const innerHeight = height - paddingY * 2
+  const innerWidth = width - paddingX * 2
   const { domainMin, domainMax, minValue, maxValue } = useMemo(() => {
     if (values.length === 0) {
       return { domainMin: -1, domainMax: 1, minValue: 0, maxValue: 0 }
@@ -714,16 +715,19 @@ function Sparkline({ values, labels, color, title, format, activeIndex, onHover,
     return { domainMin: minBound, domainMax: maxBound, minValue, maxValue }
   }, [values])
   const range = domainMax - domainMin || 1
-  const zeroLineY = minValue <= 0 && domainMin < 0 && domainMax > 0 ? padding + innerHeight - ((0 - domainMin) / range) * innerHeight : null
+  const zeroLineY =
+    minValue <= 0 && domainMin < 0 && domainMax > 0
+      ? paddingY + innerHeight - ((0 - domainMin) / range) * innerHeight
+      : null
   const points = useMemo(
     () =>
       values.map((value, index) => {
-        const x = padding + (values.length === 1 ? innerWidth / 2 : (index / (values.length - 1)) * innerWidth)
+        const x = paddingX + (values.length === 1 ? innerWidth / 2 : (index / (values.length - 1)) * innerWidth)
         const normalized = range === 0 ? 0.5 : (value - domainMin) / range
-        const y = padding + innerHeight - normalized * innerHeight
+        const y = paddingY + innerHeight - normalized * innerHeight
         return { x, y }
       }),
-    [values, padding, innerHeight, innerWidth, range, domainMin]
+    [values, paddingX, paddingY, innerHeight, innerWidth, range, domainMin]
   )
   const latestPoint = points.at(-1)
   const activePoint = activeIndex != null ? points[activeIndex] ?? null : null
@@ -734,15 +738,18 @@ function Sparkline({ values, labels, color, title, format, activeIndex, onHover,
   const handlePointerMove = (event: PointerEvent<SVGSVGElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect()
     const relativeX = event.clientX - bounds.left
-    const clampedX = Math.max(padding, Math.min(bounds.width - padding, relativeX))
-    const normalized = (clampedX - padding) / Math.max(1, bounds.width - padding * 2)
+    const scaleX = bounds.width / width || 1
+    const paddingXPx = paddingX * scaleX
+    const clampedX = Math.max(paddingXPx, Math.min(bounds.width - paddingXPx, relativeX))
+    const normalized = (clampedX - paddingXPx) / Math.max(1, bounds.width - paddingXPx * 2)
     const maxIndex = Math.max(0, values.length - 1)
     const index = Math.round(normalized * maxIndex)
     const point = points[index]
     if (!point) return
 
-    const px = (point.x / width) * bounds.width
-    const py = (point.y / height) * bounds.height
+    const scaleY = bounds.height / height || 1
+    const px = point.x * scaleX
+    const py = point.y * scaleY
     onHover({ index, x: px, y: py })
   }
 
@@ -765,10 +772,12 @@ function Sparkline({ values, labels, color, title, format, activeIndex, onHover,
     const point = points[nextIndex]
     if (!point) return
     const bounds = event.currentTarget.getBoundingClientRect()
+    const scaleX = bounds.width / width || 1
+    const scaleY = bounds.height / height || 1
     onHover({
       index: nextIndex,
-      x: (point.x / width) * (bounds.width || width),
-      y: (point.y / height) * (bounds.height || height),
+      x: point.x * scaleX,
+      y: point.y * scaleY,
     })
   }
 
@@ -789,16 +798,16 @@ function Sparkline({ values, labels, color, title, format, activeIndex, onHover,
         <stop offset="100%" stopColor={color} stopOpacity={0} />
       </linearGradient>
       <path
-        d={`M${padding} ${height - padding} ${points
+        d={`M${paddingX} ${height - paddingY} ${points
           .map((point) => `L${point.x} ${point.y}`)
-          .join(' ')} L${width - padding} ${height - padding} Z`}
+          .join(' ')} L${width - paddingX} ${height - paddingY} Z`}
         fill={`url(#${gradientId})`}
         opacity={0.6}
       />
       {zeroLineY != null ? (
         <line
-          x1={padding}
-          x2={width - padding}
+          x1={paddingX}
+          x2={width - paddingX}
           y1={zeroLineY}
           y2={zeroLineY}
           stroke="rgba(148, 163, 184, 0.35)"
@@ -832,8 +841,8 @@ function Sparkline({ values, labels, color, title, format, activeIndex, onHover,
         <line
           x1={activePoint.x}
           x2={activePoint.x}
-          y1={padding}
-          y2={height - padding}
+          y1={paddingY}
+          y2={height - paddingY}
           stroke={color}
           strokeWidth={1}
           strokeDasharray="4 4"
@@ -844,10 +853,10 @@ function Sparkline({ values, labels, color, title, format, activeIndex, onHover,
         <circle cx={latestPoint.x} cy={latestPoint.y} r={4.5} fill={color} opacity={activeIndex == null ? 1 : 0.4} />
       ) : null}
       <line
-        x1={padding}
-        x2={width - padding}
-        y1={height - padding}
-        y2={height - padding}
+        x1={paddingX}
+        x2={width - paddingX}
+        y1={height - paddingY}
+        y2={height - paddingY}
         stroke="rgba(148, 163, 184, 0.25)"
         strokeWidth={1}
         strokeDasharray="4 4"
