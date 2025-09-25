@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useEffect, useId, useMemo, useState, type KeyboardEvent, type PointerEvent } from 'react'
 
 import type {
   CashFlowSummaryRow,
@@ -41,6 +41,8 @@ type MetricDefinition = {
   tone?: 'neutral' | 'positive' | 'negative'
 }
 
+type TrendGranularity = 'monthly' | 'quarterly'
+
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',
@@ -56,6 +58,7 @@ const unitFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 
 const weeksFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 
 export function DashboardSheet({ data }: { data: DashboardData }) {
+  const [granularity, setGranularity] = useState<TrendGranularity>('monthly')
   const metrics: MetricDefinition[] = [
     {
       label: 'Revenue YTD',
@@ -92,12 +95,58 @@ export function DashboardSheet({ data }: { data: DashboardData }) {
     .sort((a, b) => b.stockEnd - a.stockEnd)
     .slice(0, 6)
 
-  const pnlMonthly = limitRows(data.rollups.profitAndLoss.monthly, 6)
-  const cashMonthly = limitRows(data.rollups.cashFlow.monthly, 6)
+  const pnlMonthly = limitRows(data.rollups.profitAndLoss.monthly, 12)
+  const pnlQuarterly = limitRows(data.rollups.profitAndLoss.quarterly, 8)
+  const cashMonthly = limitRows(data.rollups.cashFlow.monthly, 12)
+  const cashQuarterly = limitRows(data.rollups.cashFlow.quarterly, 8)
 
-  const revenueTrend = buildTrendSeries(pnlMonthly, 'revenue')
-  const netProfitTrend = buildTrendSeries(pnlMonthly, 'netProfit')
-  const cashBalanceTrend = buildTrendSeries(cashMonthly, 'closingCash')
+  const revenueTrend = useMemo(
+    () => ({
+      monthly: buildTrendSeries(pnlMonthly, 'revenue'),
+      quarterly: buildTrendSeries(pnlQuarterly, 'revenue'),
+    }),
+    [pnlMonthly, pnlQuarterly]
+  )
+  const netProfitTrend = useMemo(
+    () => ({
+      monthly: buildTrendSeries(pnlMonthly, 'netProfit'),
+      quarterly: buildTrendSeries(pnlQuarterly, 'netProfit'),
+    }),
+    [pnlMonthly, pnlQuarterly]
+  )
+  const cashBalanceTrend = useMemo(
+    () => ({
+      monthly: buildTrendSeries(cashMonthly, 'closingCash'),
+      quarterly: buildTrendSeries(cashQuarterly, 'closingCash'),
+    }),
+    [cashMonthly, cashQuarterly]
+  )
+  const granularityAvailability = useMemo(
+    () => ({
+      monthly:
+        pnlMonthly.some((row) => Number.isFinite(row.revenue)) ||
+        pnlMonthly.some((row) => Number.isFinite(row.netProfit)) ||
+        cashMonthly.some((row) => Number.isFinite(row.closingCash)),
+      quarterly:
+        pnlQuarterly.some((row) => Number.isFinite(row.revenue)) ||
+        pnlQuarterly.some((row) => Number.isFinite(row.netProfit)) ||
+        cashQuarterly.some((row) => Number.isFinite(row.closingCash)),
+    }),
+    [pnlMonthly, pnlQuarterly, cashMonthly, cashQuarterly]
+  )
+
+  useEffect(() => {
+    if (!granularityAvailability[granularity]) {
+      const fallback: TrendGranularity | null = granularityAvailability.monthly
+        ? 'monthly'
+        : granularityAvailability.quarterly
+          ? 'quarterly'
+          : null
+      if (fallback && granularity !== fallback) {
+        setGranularity(fallback)
+      }
+    }
+  }, [granularity, granularityAvailability])
 
   return (
     <div className="space-y-10">
@@ -123,35 +172,42 @@ export function DashboardSheet({ data }: { data: DashboardData }) {
       </section>
 
       <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <header className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Performance graphs</p>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">Visualize headline trends</h2>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Track revenue, profitability, and cash balance at a glance. These visuals update with the same data that powers the planning grids.
-          </p>
+        <header className="space-y-4 lg:flex lg:items-end lg:justify-between lg:space-y-0">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Performance graphs</p>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">Visualize headline trends</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Track revenue, profitability, and cash balance at a glance. These visuals update with the same data that powers the planning grids.
+            </p>
+          </div>
+          <GranularityToggle
+            value={granularity}
+            onChange={setGranularity}
+            availability={granularityAvailability}
+          />
         </header>
         <div className="space-y-6">
           <TrendCard
             title="Revenue"
             description="Monthly booked revenue"
-            labels={revenueTrend.labels}
-            values={revenueTrend.values}
+            series={revenueTrend}
+            granularity={granularity}
             format="currency"
             accent="sky"
           />
           <TrendCard
             title="Net Profit"
             description="Profit after COGS and OpEx"
-            labels={netProfitTrend.labels}
-            values={netProfitTrend.values}
+            series={netProfitTrend}
+            granularity={granularity}
             format="currency"
             accent="emerald"
           />
           <TrendCard
             title="Cash Balance"
             description="Ending cash from the cash flow model"
-            labels={cashBalanceTrend.labels}
-            values={cashBalanceTrend.values}
+            series={cashBalanceTrend}
+            granularity={granularity}
             format="currency"
             accent="violet"
           />
@@ -288,13 +344,63 @@ function limitRows<T>(rows: T[], limit: number) {
   return rows.slice(-limit)
 }
 
+type TrendSeries = Record<TrendGranularity, { labels: string[]; values: number[] }>
+
 type TrendCardProps = {
   title: string
   description: string
-  labels: string[]
-  values: number[]
+  series: TrendSeries
+  granularity: TrendGranularity
   format: 'currency' | 'number' | 'percent'
   accent: 'sky' | 'emerald' | 'violet'
+}
+
+const granularityOptions: { value: TrendGranularity; label: string; helper: string }[] = [
+  { value: 'monthly', label: 'Monthly', helper: 'View month-over-month results' },
+  { value: 'quarterly', label: 'Quarterly', helper: 'Review quarter-close pacing' },
+]
+
+function GranularityToggle({
+  value,
+  onChange,
+  availability,
+}: {
+  value: TrendGranularity
+  onChange: (value: TrendGranularity) => void
+  availability: Record<TrendGranularity, boolean>
+}) {
+  return (
+    <div className="flex flex-col items-end gap-2 text-xs text-slate-500 dark:text-slate-400">
+      <span className="font-medium uppercase tracking-wide">Rollup cadence</span>
+      <div
+        role="group"
+        aria-label="Select performance granularity"
+        className="inline-flex rounded-full border border-slate-200 bg-slate-100 p-1 text-sm font-medium dark:border-slate-700 dark:bg-slate-800/60"
+      >
+        {granularityOptions.map((option) => {
+          const isActive = option.value === value
+          const isAvailable = availability[option.value]
+          return (
+            <button
+              key={option.value}
+              type="button"
+              className={`relative rounded-full px-4 py-1 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 ${
+                isActive
+                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+              } ${!isAvailable ? 'cursor-not-allowed opacity-50 hover:text-slate-500 dark:hover:text-slate-400' : ''}`}
+              onClick={() => isAvailable && onChange(option.value)}
+              aria-pressed={isActive}
+              aria-disabled={!isAvailable}
+              title={!isAvailable ? 'No data available for this cadence yet' : option.helper}
+            >
+              {option.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 const accentPalette: Record<TrendCardProps['accent'], { hex: string; badge: string; badgeDark: string }> = {
@@ -317,9 +423,14 @@ const accentPalette: Record<TrendCardProps['accent'], { hex: string; badge: stri
 
 type TrendHover = { index: number; x: number; y: number } | null
 
-function TrendCard({ title, description, labels, values, format, accent }: TrendCardProps) {
+function TrendCard({ title, description, series, granularity, format, accent }: TrendCardProps) {
   const palette = accentPalette[accent]
   const [hover, setHover] = useState<TrendHover>(null)
+  const { labels, values } = series[granularity]
+
+  useEffect(() => {
+    setHover(null)
+  }, [granularity, series])
 
   const { activeIndex, change, changePercent } = useMemo(() => {
     if (!values.length) return { activeIndex: null, change: null, changePercent: null }
@@ -359,9 +470,12 @@ function TrendCard({ title, description, labels, values, format, accent }: Trend
           </div>
           <div className="text-right">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
+              {granularity === 'quarterly' ? 'Quarterly rollup' : 'Monthly rollup'}
+            </p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
               {activeLabel ?? latestLabel ?? '—'}
             </p>
-            <p className="mt-2 text-4xl font-semibold text-slate-900 dark:text-slate-50">
+            <p className="mt-3 text-4xl font-semibold text-slate-900 dark:text-slate-50">
               {activeValue != null ? formatSimpleValue(activeValue, format) : '—'}
             </p>
           </div>
@@ -442,9 +556,9 @@ type SparklineProps = {
 
 function Sparkline({ values, labels, color, title, format, activeIndex, onHover, onLeave }: SparklineProps) {
   const gradientId = useId()
-  const height = 180
-  const width = 320
-  const padding = 16
+  const height = 220
+  const width = 360
+  const padding = 18
   const min = Math.min(...values)
   const max = Math.max(...values)
   const range = max - min || 1
