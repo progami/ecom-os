@@ -209,6 +209,14 @@ export async function postPurchaseOrder(id: string, user: UserContext): Promise<
       const sku = await tx.sku.findFirst({ where: { skuCode: line.skuCode } })
       const unitsPerCarton = sku?.unitsPerCarton ?? 1
 
+      const normalizedBatchLot = resolveBatchLot({
+        rawBatchLot: line.batchLot,
+        orderNumber: order.orderNumber,
+        warehouseCode: order.warehouseCode,
+        skuCode: line.skuCode,
+        transactionDate: postedAt,
+      })
+
       await tx.inventoryTransaction.create({
         data: {
           warehouseCode: order.warehouseCode,
@@ -222,7 +230,7 @@ export async function postPurchaseOrder(id: string, user: UserContext): Promise<
           cartonWeightKg: sku?.cartonWeightKg ?? null,
           packagingType: sku?.packagingType ?? null,
           unitsPerCarton,
-          batchLot: normalizeBatchLot(line.batchLot),
+          batchLot: normalizedBatchLot,
           transactionType,
           referenceId: order.orderNumber,
           cartonsIn: isInbound ? line.quantity : 0,
