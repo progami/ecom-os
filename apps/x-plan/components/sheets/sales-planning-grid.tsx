@@ -66,15 +66,17 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
     for (const key of columnKeys) {
       const meta = columnMeta[key]
       if (!meta) {
-        base.push({ data: key, readOnly: true, className: 'cell-readonly' })
+        base.push({ data: key, readOnly: true, className: 'cell-readonly', editor: false })
         continue
       }
+      const isEditable = editableMetrics.has(meta.field)
       base.push({
         data: key,
         type: 'numeric',
-        numericFormat: editableMetrics.has(meta.field) ? { pattern: '0,0.00' } : { pattern: '0.00' },
-        readOnly: !editableMetrics.has(meta.field),
-        className: editableMetrics.has(meta.field) ? 'cell-editable' : 'cell-readonly',
+        numericFormat: isEditable ? { pattern: '0,0.00' } : { pattern: '0.00' },
+        readOnly: !isEditable,
+        editor: isEditable ? Handsontable.editors.NumericEditor : false,
+        className: isEditable ? 'cell-editable' : 'cell-readonly',
       })
     }
     return base
