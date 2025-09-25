@@ -9,12 +9,18 @@ export const metadata = {
 
 export default async function ImportPage() {
   const status = await getWorkbookStatus()
+  const rows = status.sheets.reduce((sum, item) => sum + item.recordCount, 0)
+  const latestUpdated = status.sheets.reduce<string | undefined>((latest, sheet) => {
+    if (!sheet.lastUpdated) return latest
+    if (!latest) return sheet.lastUpdated
+    return new Date(sheet.lastUpdated) > new Date(latest) ? sheet.lastUpdated : latest
+  }, undefined)
 
   return (
     <WorkbookLayout
       sheets={status.sheets}
       activeSlug="1-product-setup"
-      meta={{}}
+      meta={{ rows, updated: latestUpdated }}
     >
       <div className="space-y-4">
         <SheetTabs sheets={status.sheets} activeSlug="1-product-setup" variant="scroll" />

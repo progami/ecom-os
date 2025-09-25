@@ -836,7 +836,7 @@ export default async function SheetPage({ params }: SheetPageProps) {
 
   const meta = {
     rows: sheetStatus?.recordCount,
-    updated: sheetStatus?.lastUpdated ? formatDisplayDate(sheetStatus.lastUpdated) : undefined,
+    updated: sheetStatus?.lastUpdated,
   }
 
   return (

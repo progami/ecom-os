@@ -5,9 +5,15 @@ import { SheetTabs } from '@/components/sheet-tabs'
 export default async function HomePage() {
   const status = await getWorkbookStatus()
   const rows = status.sheets.reduce((sum, item) => sum + item.recordCount, 0)
+  const latestUpdated = status.sheets.reduce<string | undefined>((latest, sheet) => {
+    if (!sheet.lastUpdated) return latest
+    if (!latest) return sheet.lastUpdated
+    return new Date(sheet.lastUpdated) > new Date(latest) ? sheet.lastUpdated : latest
+  }, undefined)
+
   const meta = {
     rows,
-    updated: status.sheets.find((sheet) => sheet.slug === '1-product-setup')?.relativeUpdatedAt,
+    updated: latestUpdated,
   }
 
   return (

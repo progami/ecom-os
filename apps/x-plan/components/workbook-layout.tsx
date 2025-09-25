@@ -74,6 +74,28 @@ export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, 
 
   const activeSheet = useMemo(() => sheets.find((sheet) => sheet.slug === activeSlug), [sheets, activeSlug])
 
+  const metaSummary = useMemo(() => {
+    if (!meta) return undefined
+    const parts: string[] = []
+    if (typeof meta.rows === 'number') {
+      parts.push(`${meta.rows.toLocaleString()} rows`)
+    }
+    if (meta.updated) {
+      const parsed = new Date(meta.updated)
+      const formatted = Number.isNaN(parsed.getTime())
+        ? meta.updated
+        : new Intl.DateTimeFormat('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })
+            .format(parsed)
+            .replace(',', '')
+      parts.push(`Updated ${formatted}`)
+    }
+    return parts.length > 0 ? parts.join(' • ') : undefined
+  }, [meta])
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-100/60">
       <main className="flex flex-1 overflow-hidden">
@@ -83,7 +105,12 @@ export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, 
               <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-col gap-1">
                   <span className="text-xs uppercase tracking-[0.25em] text-slate-400">X-Plan</span>
-                  <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{activeSheet?.label ?? 'Workbook'}</h1>
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{activeSheet?.label ?? 'Workbook'}</h1>
+                    {metaSummary && (
+                      <span className="text-xs font-medium text-slate-400 dark:text-slate-500">{metaSummary}</span>
+                    )}
+                  </div>
                   <p className="max-w-3xl text-sm text-slate-500 dark:text-slate-400">{activeSheet?.description}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -91,13 +118,6 @@ export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, 
                   {ribbon}
                 </div>
               </div>
-              {meta && (meta.rows || meta.updated) && (
-                <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">
-                  {[meta.rows != null ? `${meta.rows} rows` : null, meta.updated ? `Updated ${meta.updated}` : null]
-                    .filter(Boolean)
-                    .join(' • ')}
-                </p>
-              )}
               <div className="mt-3 hidden items-center gap-2 text-xs text-slate-500 dark:text-slate-400 lg:flex">
                 <SheetTabs sheets={sheets} activeSlug={activeSlug} variant="scroll" onSheetSelect={goToSheet} />
               </div>
