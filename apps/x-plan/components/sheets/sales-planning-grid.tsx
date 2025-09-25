@@ -13,7 +13,8 @@ registerAllModules()
 type SalesRow = {
   weekNumber: string
   weekDate: string
-  [key: string]: string
+  actualWeekNumber?: number
+  [key: string]: string | number | undefined
 }
 
 type ColumnMeta = Record<string, { productId: string; field: string }>
@@ -184,11 +185,13 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
             if (!meta || !editableMetrics.has(meta.field)) continue
             const record = hot.getSourceDataAtRow(rowIndex) as SalesRow | null
             if (!record) continue
-            const key = `${meta.productId}-${record.weekNumber}`
+            const weekNumberValue =
+              typeof record.actualWeekNumber === 'number' ? record.actualWeekNumber : Number(record.weekNumber)
+            const key = `${meta.productId}-${weekNumberValue}`
             if (!pendingRef.current.has(key)) {
               pendingRef.current.set(key, {
                 productId: meta.productId,
-                weekNumber: Number(record.weekNumber),
+                weekNumber: weekNumberValue,
                 values: {},
               })
             }

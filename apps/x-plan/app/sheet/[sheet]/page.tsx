@@ -13,6 +13,8 @@ import type { OpsPlanningCalculatorPayload, PurchaseOrderSerialized } from '@/co
 import prisma from '@/lib/prisma'
 import { getSheetConfig } from '@/lib/sheets'
 import { getWorkbookStatus } from '@/lib/workbook'
+import { loadSalesCalendar } from '@/lib/workbook/year-navigation'
+import { getCalendarDateForWeek, type WeekCalendar, type YearSegment } from '@/lib/calculations/calendar'
 import { WorkbookLayout } from '@/components/workbook-layout'
 import {
   mapProducts,
@@ -20,7 +22,6 @@ import {
   mapLeadOverrides,
   mapBusinessParameters,
   mapPurchaseOrders,
-  mapSalesWeeks,
   mapProfitAndLossWeeks,
   mapCashFlowWeeks,
 } from '@/lib/calculations/adapters'
@@ -35,6 +36,7 @@ import {
   computeCashFlow,
   computeDashboardSummary,
   type SalesWeekDerived,
+  type SalesWeekInput,
   type PurchaseOrderDerived,
   type PurchaseOrderInput,
   type LeadTimeProfile,
@@ -46,7 +48,8 @@ type SalesMetric = (typeof SALES_METRICS)[number]
 type SalesRow = {
   weekNumber: string
   weekDate: string
-  [key: string]: string
+  actualWeekNumber: number
+  [key: string]: string | number
 }
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -141,6 +144,15 @@ function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSeriali
 
 type SheetPageProps = {
   params: Promise<{ sheet: string }>
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
+}
+
+type YearContext = {
+  salesWeekInputs: SalesWeekInput[]
+  calendar: WeekCalendar
+  yearSegments: YearSegment[]
+  activeSegment?: YearSegment
+  activeYear?: number
 }
 
 type BusinessParameterView = {
@@ -192,6 +204,30 @@ const OPERATIONS_PARAMETER_EXCLUDES = new Set([
   'supplier payment split 3 (%)',
   'supplier payment terms (weeks)',
 ])
+
+function parseYearParam(value: string | string[] | undefined): number | null {
+  if (Array.isArray(value)) {
+    return parseYearParam(value[0])
+  }
+  if (!value) return null
+  const numeric = Number.parseInt(value, 10)
+  return Number.isFinite(numeric) ? numeric : null
+}
+
+function isWeekInSegment(weekNumber: number, segment?: YearSegment): boolean {
+  if (!segment) return true
+  return weekNumber >= segment.startWeekNumber && weekNumber <= segment.endWeekNumber
+}
+
+function filterSummariesByYear<T extends { periodLabel: string }>(items: T[], year?: number): T[] {
+  if (!year) return items
+  return items.filter((item) => {
+    const match = item.periodLabel.match(/(\d{4})$/)
+    if (!match) return false
+    const parsed = Number.parseInt(match[1], 10)
+    return Number.isFinite(parsed) && parsed === year
+  })
+}
 
 function isFinanceParameterLabel(label: string) {
   return FINANCE_PARAMETER_LABELS.has(label.trim().toLowerCase())
@@ -449,14 +485,16 @@ async function getOpsPlanningView(): Promise<{
   }
 }
 
-async function getSalesPlanningView() {
+async function getSalesPlanningView(yearContext: YearContext) {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context).map((item) => item.derived)
-  const salesWeekInputs = mapSalesWeeks(await prisma.salesWeek.findMany())
-  const salesPlan = computeSalesPlan(salesWeekInputs, derivedOrders)
+  const salesPlan = computeSalesPlan(yearContext.salesWeekInputs, derivedOrders)
 
   const productList = [...context.productInputs].sort((a, b) => a.name.localeCompare(b.name))
-  const weeks = Array.from({ length: 52 }, (_, index) => index + 1)
+  const segment = yearContext.activeSegment
+  const weeks = segment
+    ? Array.from({ length: Math.max(segment.weekCount, 0) }, (_, index) => segment.startWeekNumber + index)
+    : []
   const columnMeta: Record<string, { productId: string; field: string }> = {}
   const columnKeys: string[] = []
   const hasProducts = productList.length > 0
@@ -487,17 +525,20 @@ async function getSalesPlanningView() {
     salesLookup.set(`${row.productId}-${row.weekNumber}`, row)
   })
 
-  const rows = weeks.map((weekNumber) => {
+  const rows = weeks.map((weekNumber, index) => {
     const row: SalesRow = {
-      weekNumber: String(weekNumber),
+      weekNumber: String(index + 1),
       weekDate: '',
+      actualWeekNumber: weekNumber,
     }
 
     productList.forEach((product, productIdx) => {
       const keyRoot = `${product.id}-${weekNumber}`
       const derived = salesLookup.get(keyRoot)
-      if (derived && !row.weekDate && derived.weekDate) {
-        row.weekDate = formatDate(derived.weekDate)
+      if (!row.weekDate) {
+        const calendarDate = getCalendarDateForWeek(weekNumber, yearContext.calendar)
+        const fallbackDate = derived?.weekDate ?? null
+        row.weekDate = calendarDate ? formatDate(calendarDate) : formatDate(fallbackDate)
       }
 
       SALES_METRICS.forEach((metric) => {
@@ -538,11 +579,11 @@ async function getSalesPlanningView() {
   }
 }
 
-async function getProfitAndLossView() {
+async function getProfitAndLossView(yearContext: YearContext) {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context)
   const salesPlan = computeSalesPlan(
-    mapSalesWeeks(await prisma.salesWeek.findMany()),
+    yearContext.salesWeekInputs,
     derivedOrders.map((item) => item.derived)
   )
   const overrides = mapProfitAndLossWeeks(
@@ -556,22 +597,30 @@ async function getProfitAndLossView() {
     overrides
   )
 
+  const segment = yearContext.activeSegment
+  const filteredWeekly = weekly.filter((entry) => isWeekInSegment(entry.weekNumber, segment))
+  const filteredMonthly = filterSummariesByYear(monthly, yearContext.activeYear)
+  const filteredQuarterly = filterSummariesByYear(quarterly, yearContext.activeYear)
+
   return {
-    weekly: weekly.map((entry) => ({
-      weekNumber: String(entry.weekNumber),
-      weekDate: entry.weekDate ? formatDate(entry.weekDate) : '',
-      units: formatNumeric(entry.units, 0),
-      revenue: formatNumeric(entry.revenue),
-      cogs: formatNumeric(entry.cogs),
-      grossProfit: formatNumeric(entry.grossProfit),
-      grossMargin: formatPercentDecimal(entry.grossMargin),
-      amazonFees: formatNumeric(entry.amazonFees),
-      ppcSpend: formatNumeric(entry.ppcSpend),
-      fixedCosts: formatNumeric(entry.fixedCosts),
-      totalOpex: formatNumeric(entry.totalOpex),
-      netProfit: formatNumeric(entry.netProfit),
-    })),
-    monthlySummary: monthly.map((entry) => ({
+    weekly: filteredWeekly.map((entry) => {
+      const calendarDate = entry.weekDate ?? getCalendarDateForWeek(entry.weekNumber, yearContext.calendar)
+      return {
+        weekNumber: String(entry.weekNumber),
+        weekDate: calendarDate ? formatDate(calendarDate) : '',
+        units: formatNumeric(entry.units, 0),
+        revenue: formatNumeric(entry.revenue),
+        cogs: formatNumeric(entry.cogs),
+        grossProfit: formatNumeric(entry.grossProfit),
+        grossMargin: formatPercentDecimal(entry.grossMargin),
+        amazonFees: formatNumeric(entry.amazonFees),
+        ppcSpend: formatNumeric(entry.ppcSpend),
+        fixedCosts: formatNumeric(entry.fixedCosts),
+        totalOpex: formatNumeric(entry.totalOpex),
+        netProfit: formatNumeric(entry.netProfit),
+      }
+    }),
+    monthlySummary: filteredMonthly.map((entry) => ({
       periodLabel: entry.periodLabel,
       revenue: formatNumeric(entry.revenue),
       cogs: formatNumeric(entry.cogs),
@@ -582,7 +631,7 @@ async function getProfitAndLossView() {
       totalOpex: formatNumeric(entry.totalOpex),
       netProfit: formatNumeric(entry.netProfit),
     })),
-    quarterlySummary: quarterly.map((entry) => ({
+    quarterlySummary: filteredQuarterly.map((entry) => ({
       periodLabel: entry.periodLabel,
       revenue: formatNumeric(entry.revenue),
       cogs: formatNumeric(entry.cogs),
@@ -596,11 +645,11 @@ async function getProfitAndLossView() {
   }
 }
 
-async function getCashFlowView() {
+async function getCashFlowView(yearContext: YearContext) {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context)
   const salesPlan = computeSalesPlan(
-    mapSalesWeeks(await prisma.salesWeek.findMany()),
+    yearContext.salesWeekInputs,
     derivedOrders.map((item) => item.derived)
   )
   const pnlOverrides = mapProfitAndLossWeeks(
@@ -628,17 +677,25 @@ async function getCashFlowView() {
     cashOverrides
   )
 
+  const segment = yearContext.activeSegment
+  const filteredWeekly = weekly.filter((entry) => isWeekInSegment(entry.weekNumber, segment))
+  const filteredMonthly = filterSummariesByYear(monthly, yearContext.activeYear)
+  const filteredQuarterly = filterSummariesByYear(quarterly, yearContext.activeYear)
+
   return {
-    weekly: weekly.map((entry) => ({
-      weekNumber: String(entry.weekNumber),
-      weekDate: entry.weekDate ? formatDate(entry.weekDate) : '',
-      amazonPayout: formatNumeric(entry.amazonPayout),
-      inventorySpend: formatNumeric(entry.inventorySpend),
-      fixedCosts: formatNumeric(entry.fixedCosts),
-      netCash: formatNumeric(entry.netCash),
-      cashBalance: formatNumeric(entry.cashBalance),
-    })),
-    monthlySummary: monthly.map((entry) => ({
+    weekly: filteredWeekly.map((entry) => {
+      const calendarDate = entry.weekDate ?? getCalendarDateForWeek(entry.weekNumber, yearContext.calendar)
+      return {
+        weekNumber: String(entry.weekNumber),
+        weekDate: calendarDate ? formatDate(calendarDate) : '',
+        amazonPayout: formatNumeric(entry.amazonPayout),
+        inventorySpend: formatNumeric(entry.inventorySpend),
+        fixedCosts: formatNumeric(entry.fixedCosts),
+        netCash: formatNumeric(entry.netCash),
+        cashBalance: formatNumeric(entry.cashBalance),
+      }
+    }),
+    monthlySummary: filteredMonthly.map((entry) => ({
       periodLabel: entry.periodLabel,
       amazonPayout: formatNumeric(entry.amazonPayout),
       inventorySpend: formatNumeric(entry.inventorySpend),
@@ -646,7 +703,7 @@ async function getCashFlowView() {
       netCash: formatNumeric(entry.netCash),
       closingCash: formatNumeric(entry.closingCash),
     })),
-    quarterlySummary: quarterly.map((entry) => ({
+    quarterlySummary: filteredQuarterly.map((entry) => ({
       periodLabel: entry.periodLabel,
       amazonPayout: formatNumeric(entry.amazonPayout),
       inventorySpend: formatNumeric(entry.inventorySpend),
@@ -657,11 +714,11 @@ async function getCashFlowView() {
   }
 }
 
-async function getDashboardView(): Promise<DashboardView> {
+async function getDashboardView(yearContext: YearContext): Promise<DashboardView> {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context)
   const salesPlan = computeSalesPlan(
-    mapSalesWeeks(await prisma.salesWeek.findMany()),
+    yearContext.salesWeekInputs,
     derivedOrders.map((item) => item.derived)
   )
   const pnlOverrides = mapProfitAndLossWeeks(
@@ -688,11 +745,20 @@ async function getDashboardView(): Promise<DashboardView> {
     cashOverrides
   )
 
+  const segment = yearContext.activeSegment
+  const filteredSales = salesPlan.filter((row) => isWeekInSegment(row.weekNumber, segment))
+  const filteredPnlWeekly = pnlWeekly.filter((row) => isWeekInSegment(row.weekNumber, segment))
+  const filteredCashWeekly = cashWeekly.filter((row) => isWeekInSegment(row.weekNumber, segment))
+  const filteredPnlMonthly = filterSummariesByYear(pnlMonthly, yearContext.activeYear)
+  const filteredPnlQuarterly = filterSummariesByYear(pnlQuarterly, yearContext.activeYear)
+  const filteredCashMonthly = filterSummariesByYear(cashMonthly, yearContext.activeYear)
+  const filteredCashQuarterly = filterSummariesByYear(cashQuarterly, yearContext.activeYear)
+
   const dashboard = computeDashboardSummary(
-    pnlWeekly,
-    cashWeekly,
+    filteredPnlWeekly,
+    filteredCashWeekly,
     derivedOrders.map((item) => item.derived),
-    salesPlan,
+    filteredSales,
     context.productIndex
   )
 
@@ -711,19 +777,34 @@ async function getDashboardView(): Promise<DashboardView> {
     })),
     rollups: {
       profitAndLoss: {
-        monthly: pnlMonthly,
-        quarterly: pnlQuarterly,
+        monthly: filteredPnlMonthly,
+        quarterly: filteredPnlQuarterly,
       },
       cashFlow: {
-        monthly: cashMonthly,
-        quarterly: cashQuarterly,
+        monthly: filteredCashMonthly,
+        quarterly: filteredCashQuarterly,
       },
     },
   }
 }
 
-export default async function SheetPage({ params }: SheetPageProps) {
+export default async function SheetPage({ params, searchParams }: SheetPageProps) {
   const { sheet } = await params
+  const resolvedSearch = searchParams ? await searchParams : {}
+  const { salesWeekInputs, calendar, yearSegments } = await loadSalesCalendar()
+  const requestedYear = parseYearParam(resolvedSearch?.year)
+  const activeSegment =
+    yearSegments.find((segment) => segment.year === requestedYear) ?? yearSegments[0] ?? undefined
+  const activeYear = activeSegment?.year
+  const yearContext: YearContext = {
+    salesWeekInputs,
+    calendar,
+    yearSegments,
+    activeSegment,
+    activeYear,
+  }
+  const yearOptions = yearSegments.map((segment) => ({ year: segment.year, weekCount: segment.weekCount }))
+
   const config = getSheetConfig(sheet)
   if (!config) notFound()
 
@@ -786,7 +867,7 @@ export default async function SheetPage({ params }: SheetPageProps) {
       break
     }
     case '3-sales-planning': {
-      const view = await getSalesPlanningView()
+      const view = await getSalesPlanningView(yearContext)
       content = (
         <SalesPlanningGrid
           rows={view.rows}
@@ -800,7 +881,7 @@ export default async function SheetPage({ params }: SheetPageProps) {
       break
     }
     case '4-fin-planning-pl': {
-      const view = await getProfitAndLossView()
+      const view = await getProfitAndLossView(yearContext)
       content = (
         <ProfitAndLossGrid
           weekly={view.weekly}
@@ -811,7 +892,7 @@ export default async function SheetPage({ params }: SheetPageProps) {
       break
     }
     case '5-fin-planning-cash-flow': {
-      const view = await getCashFlowView()
+      const view = await getCashFlowView(yearContext)
       content = (
         <CashFlowGrid
           weekly={view.weekly}
@@ -822,7 +903,7 @@ export default async function SheetPage({ params }: SheetPageProps) {
       break
     }
     case '6-dashboard': {
-      const view = await getDashboardView()
+      const view = await getDashboardView(yearContext)
       content = <DashboardSheet data={view} />
       break
     }
@@ -844,6 +925,8 @@ export default async function SheetPage({ params }: SheetPageProps) {
       sheets={workbookStatus.sheets}
       activeSlug={config.slug}
       meta={meta}
+      activeYear={activeYear ?? undefined}
+      yearOptions={yearOptions}
       ribbon={
         <a
           href="/import"

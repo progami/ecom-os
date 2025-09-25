@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { differenceInCalendarDays } from 'date-fns'
 import {
+  buildWeekCalendar,
+  buildYearSegments,
+  getCalendarDateForWeek,
+} from '@/lib/calculations/calendar'
+import {
   buildProductCostIndex,
   computeCashFlow,
   computeDashboardSummary,
@@ -203,6 +208,20 @@ describe('computeCashFlow', () => {
     expect(week3?.amazonPayout).toBeCloseTo(500)
     expect(week3?.cashBalance).toBeCloseTo(900)
   })
+
+  it('carries delayed payouts into future planning years', () => {
+    const delayed = computeCashFlow(
+      profitResult.weekly,
+      [derivedOrder],
+      { ...parameters, amazonPayoutDelayWeeks: 60 },
+      []
+    )
+
+    const payoutWeek = delayed.weekly.find((row) => row.weekNumber === 61)
+    expect(payoutWeek).toBeDefined()
+    expect(payoutWeek?.amazonPayout).toBeCloseTo(500)
+    expect(payoutWeek?.cashBalance).toBeGreaterThan(0)
+  })
 })
 
 describe('computeDashboardSummary', () => {
@@ -218,5 +237,61 @@ describe('computeDashboardSummary', () => {
     expect(dashboard.cashBalance).toBeCloseTo(1800)
     expect(dashboard.pipeline).toEqual([{ status: 'PLANNED', quantity: 100 }])
     expect(dashboard.inventory[0]?.stockEnd).toBe(420)
+  })
+})
+
+describe('calendar continuity', () => {
+  it('fills missing weeks and derives year segments through 2027', () => {
+    const multiYearWeeks: SalesWeekInput[] = [
+      {
+        id: 'w1',
+        productId: product.id,
+        weekNumber: 1,
+        weekDate: new Date('2025-01-06T00:00:00.000Z'),
+        stockStart: 500,
+      },
+      {
+        id: 'w60',
+        productId: product.id,
+        weekNumber: 60,
+        actualSales: 40,
+      },
+      {
+        id: 'w120',
+        productId: product.id,
+        weekNumber: 120,
+        forecastSales: 50,
+      },
+      {
+        id: 'w156',
+        productId: product.id,
+        weekNumber: 156,
+      },
+    ]
+
+    const calendar = buildWeekCalendar(multiYearWeeks)
+    expect(calendar.calendarStart).toBeInstanceOf(Date)
+    expect(calendar.weekDates.has(2)).toBe(true)
+
+    const weekTwoDate = getCalendarDateForWeek(2, calendar)
+    expect(weekTwoDate).toBeInstanceOf(Date)
+    expect(weekTwoDate?.getFullYear()).toBe(2025)
+
+    const segments = buildYearSegments(calendar)
+    const years = segments.map((segment) => segment.year)
+    expect(years).toEqual([2025, 2026, 2027])
+
+    const segment2025 = segments.find((segment) => segment.year === 2025)
+    const segment2026 = segments.find((segment) => segment.year === 2026)
+    const segment2027 = segments.find((segment) => segment.year === 2027)
+
+    expect(segment2025?.startWeekNumber).toBe(1)
+    expect(segment2026?.startWeekNumber).toBe((segment2025?.endWeekNumber ?? 0) + 1)
+    expect(segment2027?.endWeekNumber).toBe(156)
+
+    const first2027Date = segment2027
+      ? getCalendarDateForWeek(segment2027.startWeekNumber, calendar)
+      : null
+    expect(first2027Date?.getFullYear()).toBe(2027)
   })
 })

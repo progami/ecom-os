@@ -3,6 +3,8 @@ import * as XLSX from 'xlsx'
 
 type Decimalish = number | string | Date | null | undefined
 
+const DEFAULT_IMPORT_YEAR = 2025
+
 function toDecimal(value: Decimalish): Prisma.Decimal | null {
   if (value === null || value === undefined || value === '') return null
   const num = typeof value === 'number' ? value : Number(value)
@@ -277,14 +279,20 @@ async function importProfitAndLoss(workbook: XLSX.WorkBook, prisma: PrismaClient
     for (const row of matrix.slice(monthlyStart + 1)) {
       const label = row?.[14]
       if (!label) continue
-      const monthNumber = monthNameToNumber(String(label))
-      if (!monthNumber) continue
+      const period = parseMonthPeriod(String(label), DEFAULT_IMPORT_YEAR)
+      if (!period) continue
       await prisma.monthlySummary.upsert({
-        where: { year_month_periodLabel: { year: 2025, month: monthNumber, periodLabel: String(label) } },
+        where: {
+          year_month_periodLabel: {
+            year: period.year,
+            month: period.month,
+            periodLabel: String(label),
+          },
+        },
         create: {
           periodLabel: String(label),
-          year: 2025,
-          month: monthNumber,
+          year: period.year,
+          month: period.month,
           revenue: toDecimal(row?.[15]),
           cogs: toDecimal(row?.[16]),
           grossProfit: toDecimal(row?.[17]),
@@ -312,14 +320,21 @@ async function importProfitAndLoss(workbook: XLSX.WorkBook, prisma: PrismaClient
   if (quarterlyStart >= 0) {
     for (const row of matrix.slice(quarterlyStart + 2)) {
       const label = row?.[14]
-      const quarterNumber = quarterLabelToNumber(String(label))
-      if (!label || !quarterNumber) continue
+      if (!label) continue
+      const period = parseQuarterPeriod(String(label), DEFAULT_IMPORT_YEAR)
+      if (!period) continue
       await prisma.quarterlySummary.upsert({
-        where: { year_quarter_periodLabel: { year: 2025, quarter: quarterNumber, periodLabel: String(label) } },
+        where: {
+          year_quarter_periodLabel: {
+            year: period.year,
+            quarter: period.quarter,
+            periodLabel: String(label),
+          },
+        },
         create: {
           periodLabel: String(label),
-          year: 2025,
-          quarter: quarterNumber,
+          year: period.year,
+          quarter: period.quarter,
           revenue: toDecimal(row?.[15]),
           cogs: toDecimal(row?.[16]),
           grossProfit: toDecimal(row?.[17]),
@@ -374,14 +389,20 @@ async function importCashFlow(workbook: XLSX.WorkBook, prisma: PrismaClient) {
     for (const row of matrix.slice(monthlyStart + 1)) {
       const label = row?.[9]
       if (!label) continue
-      const monthNumber = monthNameToNumber(String(label))
-      if (!monthNumber) continue
+      const period = parseMonthPeriod(String(label), DEFAULT_IMPORT_YEAR)
+      if (!period) continue
       await prisma.monthlySummary.upsert({
-        where: { year_month_periodLabel: { year: 2025, month: monthNumber, periodLabel: String(label) } },
+        where: {
+          year_month_periodLabel: {
+            year: period.year,
+            month: period.month,
+            periodLabel: String(label),
+          },
+        },
         create: {
           periodLabel: String(label),
-          year: 2025,
-          month: monthNumber,
+          year: period.year,
+          month: period.month,
           amazonPayout: toDecimal(row?.[10]),
           inventorySpend: toDecimal(row?.[11]),
           fixedCosts: toDecimal(row?.[12]),
@@ -403,14 +424,21 @@ async function importCashFlow(workbook: XLSX.WorkBook, prisma: PrismaClient) {
   if (quarterlyStart >= 0) {
     for (const row of matrix.slice(quarterlyStart + 2)) {
       const label = row?.[9]
-      const quarterNumber = quarterLabelToNumber(String(label))
-      if (!label || !quarterNumber) continue
+      if (!label) continue
+      const period = parseQuarterPeriod(String(label), DEFAULT_IMPORT_YEAR)
+      if (!period) continue
       await prisma.quarterlySummary.upsert({
-        where: { year_quarter_periodLabel: { year: 2025, quarter: quarterNumber, periodLabel: String(label) } },
+        where: {
+          year_quarter_periodLabel: {
+            year: period.year,
+            quarter: period.quarter,
+            periodLabel: String(label),
+          },
+        },
         create: {
           periodLabel: String(label),
-          year: 2025,
-          quarter: quarterNumber,
+          year: period.year,
+          quarter: period.quarter,
           amazonPayout: toDecimal(row?.[10]),
           inventorySpend: toDecimal(row?.[11]),
           fixedCosts: toDecimal(row?.[12]),
@@ -429,25 +457,56 @@ async function importCashFlow(workbook: XLSX.WorkBook, prisma: PrismaClient) {
   }
 }
 
+function normalizeMonthToken(label: string): string {
+  const token = label.trim().slice(0, 3).toLowerCase()
+  return token
+}
+
 export function monthNameToNumber(label: string) {
   const lookup: Record<string, number> = {
-    Jan: 1,
-    Feb: 2,
-    Mar: 3,
-    Apr: 4,
-    May: 5,
-    Jun: 6,
-    Jul: 7,
-    Aug: 8,
-    Sep: 9,
-    Oct: 10,
-    Nov: 11,
-    Dec: 12,
+    jan: 1,
+    feb: 2,
+    mar: 3,
+    apr: 4,
+    may: 5,
+    jun: 6,
+    jul: 7,
+    aug: 8,
+    sep: 9,
+    oct: 10,
+    nov: 11,
+    dec: 12,
   }
-  return lookup[label] ?? null
+  return lookup[normalizeMonthToken(label)] ?? null
 }
 
 export function quarterLabelToNumber(label: string) {
-  const lookup: Record<string, number> = { Q1: 1, Q2: 2, Q3: 3, Q4: 4 }
-  return lookup[label] ?? null
+  const token = label.trim().split(/\s+/)[0]?.toUpperCase()
+  if (!token) return null
+  const match = token.match(/^Q([1-4])$/i)
+  if (!match) return null
+  const quarter = Number.parseInt(match[1], 10)
+  return Number.isFinite(quarter) ? quarter : null
+}
+
+function parseMonthPeriod(label: string, defaultYear: number): { year: number; month: number } | null {
+  const trimmed = String(label).trim()
+  if (!trimmed) return null
+  const month = monthNameToNumber(trimmed)
+  if (!month) return null
+  const yearMatch = trimmed.match(/(\d{4})$/)
+  const year = yearMatch ? Number.parseInt(yearMatch[1], 10) : defaultYear
+  if (!Number.isFinite(year)) return null
+  return { year, month }
+}
+
+function parseQuarterPeriod(label: string, defaultYear: number): { year: number; quarter: number } | null {
+  const trimmed = String(label).trim()
+  if (!trimmed) return null
+  const quarter = quarterLabelToNumber(trimmed)
+  if (!quarter) return null
+  const yearMatch = trimmed.match(/(\d{4})$/)
+  const year = yearMatch ? Number.parseInt(yearMatch[1], 10) : defaultYear
+  if (!Number.isFinite(year)) return null
+  return { year, quarter }
 }
