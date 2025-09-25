@@ -264,14 +264,14 @@ function InventoryCard({ rows }: { rows: DashboardInventoryRow[] }) {
   )
 }
 
-type RollupColumn<T> = {
+type RollupColumn<T extends object> = {
   key: keyof T
   label: string
   format?: 'currency' | 'number' | 'plain'
   highlight?: boolean
 }
 
-type RollupCardProps<T> = {
+type RollupCardProps<T extends object> = {
   title: string
   description: string
   monthlyLabel: string
@@ -283,7 +283,7 @@ type RollupCardProps<T> = {
   columns: RollupColumn<T>[]
 }
 
-function RollupCard<T extends Record<string, unknown>>({
+function RollupCard<T extends object>({
   title,
   description,
   monthlyLabel,
@@ -308,14 +308,14 @@ function RollupCard<T extends Record<string, unknown>>({
   )
 }
 
-type RollupTableProps<T> = {
+type RollupTableProps<T extends object> = {
   label: string
   rows: T[]
   totalCount: number
   columns: RollupColumn<T>[]
 }
 
-function RollupTable<T extends Record<string, unknown>>({ label, rows, totalCount, columns }: RollupTableProps<T>) {
+function RollupTable<T extends object>({ label, rows, totalCount, columns }: RollupTableProps<T>) {
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
@@ -407,7 +407,9 @@ function formatStatus(status: string) {
   return status.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
-function formatRollupValue(value: unknown, format: RollupColumn<unknown>['format']) {
+type RollupFormat = RollupColumn<Record<string, unknown>>['format']
+
+function formatRollupValue(value: unknown, format: RollupFormat) {
   if (typeof value === 'number') {
     if (format === 'currency') return formatCurrency(value)
     if (format === 'number') return value.toLocaleString('en-US', { maximumFractionDigits: 1 })

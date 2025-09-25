@@ -18,6 +18,7 @@ type SalesRow = {
 
 type ColumnMeta = Record<string, { productId: string; field: string }>
 type NestedHeaderCell = string | { label: string; colspan?: number; rowspan?: number }
+type HandsontableNestedHeaders = NonNullable<Handsontable.GridSettings['nestedHeaders']>
 const editableMetrics = new Set(['actualSales', 'forecastSales'])
 
 type SalesUpdate = {
@@ -149,7 +150,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         licenseKey="non-commercial-and-evaluation"
         colHeaders={false}
         columns={columns}
-        nestedHeaders={nestedHeaders}
+        nestedHeaders={nestedHeaders as unknown as HandsontableNestedHeaders}
         stretchH="all"
         className="x-plan-hot"
         height="auto"

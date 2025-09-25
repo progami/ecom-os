@@ -2,6 +2,11 @@ import { formatDistanceToNow } from 'date-fns'
 import { SHEETS, type SheetConfig, type SheetSlug } from './sheets'
 import prisma from './prisma'
 
+type AggregateSummary = {
+  _count: { id: number }
+  _max: { updatedAt: Date | null }
+}
+
 type WorkbookStatus = {
   completedCount: number
   totalCount: number
@@ -36,7 +41,7 @@ function latestDate(dates: Array<Date | null | undefined>): Date | undefined {
 }
 
 export async function getWorkbookStatus(): Promise<WorkbookStatus> {
-  const [productAgg, purchaseOrderAgg, salesAgg, profitAgg, cashAgg, businessAgg] = await Promise.all([
+  const [productAgg, purchaseOrderAgg, salesAgg, profitAgg, cashAgg, businessAgg] = (await Promise.all([
     prisma.product.aggregate({
       _count: { id: true },
       _max: { updatedAt: true },
@@ -61,7 +66,7 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
       _count: { id: true },
       _max: { updatedAt: true },
     }),
-  ])
+  ])) as AggregateSummary[]
 
   const productUpdatedAt = latestDate([productAgg._max.updatedAt, businessAgg._max.updatedAt])
   const profitUpdatedAt = latestDate([profitAgg._max.updatedAt, businessAgg._max.updatedAt])

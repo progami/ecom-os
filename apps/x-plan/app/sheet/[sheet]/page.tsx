@@ -471,7 +471,7 @@ async function getOpsPlanningView(): Promise<{
         dueDate: formatDate(payment.dueDate ?? null),
         percentage: formatPercentDecimal(percentNumeric),
         amount: formatNumeric(amountNumeric),
-        status: payment.status,
+        status: payment.status ?? '',
       }
     })
   })
