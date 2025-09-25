@@ -80,6 +80,93 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
 
   const stopResizing = useCallback(() => setIsResizing(false), [])
 
+  const handleYearSelect = useCallback(
+    (year: number) => {
+      if (resolvedYear === year) return
+      startTransition(() => {
+        const params = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams()
+        params.set('year', String(year))
+        const query = params.toString()
+        router.push(`${pathname}${query ? `?${query}` : ''}`)
+      })
+    },
+    [pathname, resolvedYear, router, searchParams, startTransition],
+  )
+
+  const activeYearIndex = useMemo(() => {
+    if (resolvedYear == null) return -1
+    return sortedYears.findIndex((segment) => segment.year === resolvedYear)
+  }, [resolvedYear, sortedYears])
+
+  const goToAdjacentYear = useCallback(
+    (offset: -1 | 1) => {
+      if (!sortedYears.length) return
+      const fallbackIndex = resolvedYear == null ? 0 : activeYearIndex
+      const currentIndex = fallbackIndex >= 0 ? fallbackIndex : 0
+      const target = sortedYears[currentIndex + offset]
+      if (!target) return
+      handleYearSelect(target.year)
+    },
+    [activeYearIndex, handleYearSelect, resolvedYear, sortedYears],
+  )
+
+  const yearSwitcher = useMemo(() => {
+    if (!sortedYears.length) return null
+    const previous = activeYearIndex > 0 ? sortedYears[activeYearIndex - 1] : null
+    const next = activeYearIndex >= 0 && activeYearIndex < sortedYears.length - 1 ? sortedYears[activeYearIndex + 1] : null
+
+    return (
+      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <span className="text-[10px] uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">Year</span>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => goToAdjacentYear(-1)}
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:bg-slate-800 dark:focus-visible:ring-slate-600"
+            aria-label="Previous year"
+            title="Previous year (Ctrl + ←)"
+            disabled={!previous || isPending}
+          >
+            <span aria-hidden>‹</span>
+          </button>
+          <div className="flex flex-wrap gap-1">
+            {sortedYears.map((segment) => {
+              const isActiveYear = resolvedYear === segment.year
+              return (
+                <button
+                  key={segment.year}
+                  type="button"
+                  onClick={() => handleYearSelect(segment.year)}
+                  className={clsx(
+                    'rounded-md px-2.5 py-1 font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 dark:focus-visible:ring-slate-600',
+                    isActiveYear
+                      ? 'bg-slate-900 text-white shadow-sm dark:bg-slate-50 dark:text-slate-900'
+                      : 'bg-slate-100 text-slate-600 hover:bg-white dark:bg-slate-800 dark:text-slate-300 dark:hover(bg-slate-700)'
+                  )}
+                  aria-pressed={isActiveYear}
+                  disabled={isActiveYear && isPending}
+                >
+                  <span>{segment.year}</span>
+                  <span className="ml-1 text-[10px] font-normal text-slate-400 dark:text-slate-500">{segment.weekCount}w</span>
+                </button>
+              )
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => goToAdjacentYear(1)}
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:bg-slate-800 dark:focus-visible:ring-slate-600"
+            aria-label="Next year"
+            title="Next year (Ctrl + →)"
+            disabled={!next || isPending}
+          >
+            <span aria-hidden>›</span>
+          </button>
+        </div>
+      </div>
+    )
+  }, [activeYearIndex, goToAdjacentYear, handleYearSelect, isPending, resolvedYear, sortedYears])
+
   useEffect(() => {
     if (!isResizing) return
     window.addEventListener('mousemove', handleMouseMove)
@@ -92,18 +179,28 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
-      if (!event.ctrlKey) return
+      if (!event.ctrlKey || event.altKey || event.metaKey) return
       if (event.key === 'PageUp' || event.key === 'PageDown') {
         event.preventDefault()
         const index = sheets.findIndex((sheet) => sheet.slug === activeSlug)
         if (index === -1) return
         const nextIndex = event.key === 'PageUp' ? (index - 1 + sheets.length) % sheets.length : (index + 1) % sheets.length
         goToSheet(sheets[nextIndex].slug)
+        return
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        goToAdjacentYear(-1)
+        return
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        goToAdjacentYear(1)
       }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [activeSlug, goToSheet, sheets])
+  }, [activeSlug, goToAdjacentYear, goToSheet, sheets])
 
   const activeSheet = useMemo(() => sheets.find((sheet) => sheet.slug === activeSlug), [sheets, activeSlug])
 
@@ -142,50 +239,6 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
     return { display, tooltip }
   }, [meta])
 
-  const handleYearSelect = useCallback(
-    (year: number) => {
-      if (resolvedYear === year) return
-      startTransition(() => {
-        const params = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams()
-        params.set('year', String(year))
-        const query = params.toString()
-        router.push(`${pathname}${query ? `?${query}` : ''}`)
-      })
-    },
-    [pathname, resolvedYear, router, searchParams, startTransition]
-  )
-
-  const yearSwitcher = useMemo(() => {
-    if (!sortedYears.length) return null
-    return (
-      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-        <span className="text-[10px] uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">Year</span>
-        <div className="flex flex-wrap gap-1">
-          {sortedYears.map((segment) => {
-            const isActiveYear = resolvedYear === segment.year
-            return (
-              <button
-                key={segment.year}
-                type="button"
-                onClick={() => handleYearSelect(segment.year)}
-                className={clsx(
-                  'rounded-md px-2.5 py-1 font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 dark:focus-visible:ring-slate-600',
-                  isActiveYear
-                    ? 'bg-slate-900 text-white shadow-sm dark:bg-slate-50 dark:text-slate-900'
-                    : 'bg-slate-100 text-slate-600 hover:bg-white dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
-                )}
-                aria-pressed={isActiveYear}
-                disabled={isActiveYear && isPending}
-              >
-                <span>{segment.year}</span>
-                <span className="ml-1 text-[10px] font-normal text-slate-400 dark:text-slate-500">{segment.weekCount}w</span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }, [handleYearSelect, isPending, resolvedYear, sortedYears])
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-100/60">
