@@ -162,7 +162,12 @@ function parseNumber(value: string | number | null | undefined): number | null {
   if (typeof value === 'number') {
     return Number.isNaN(value) ? null : value
   }
-  const trimmed = value.trim()
+  if (value instanceof Number) {
+    const numericObject = Number(value.valueOf())
+    return Number.isNaN(numericObject) ? null : numericObject
+  }
+  const stringValue = typeof value === 'string' ? value : String(value)
+  const trimmed = stringValue.trim()
   if (trimmed === '') return null
   const numeric = Number(trimmed)
   return Number.isNaN(numeric) ? null : numeric
@@ -184,7 +189,12 @@ function parseInteger(value: string | number | null | undefined, fallback: numbe
   if (typeof value === 'number') {
     return Number.isNaN(value) ? fallback : Math.round(value)
   }
-  const trimmed = value.trim()
+  if (value instanceof Number) {
+    const numericObject = Number(value.valueOf())
+    return Number.isNaN(numericObject) ? fallback : Math.round(numericObject)
+  }
+  const stringValue = typeof value === 'string' ? value : String(value)
+  const trimmed = stringValue.trim()
   if (trimmed === '') return fallback
   const numeric = Number(trimmed)
   return Number.isNaN(numeric) ? fallback : Math.round(numeric)
@@ -196,7 +206,13 @@ function parsePercent(value: string | number | null | undefined): number | null 
     if (Number.isNaN(value)) return null
     return value > 1 ? value / 100 : value
   }
-  const trimmed = value.trim()
+  if (value instanceof Number) {
+    const numericObject = Number(value.valueOf())
+    if (Number.isNaN(numericObject)) return null
+    return numericObject > 1 ? numericObject / 100 : numericObject
+  }
+  const stringValue = typeof value === 'string' ? value : String(value)
+  const trimmed = stringValue.trim()
   if (trimmed === '') return null
   const numeric = Number(trimmed)
   if (Number.isNaN(numeric)) return null
