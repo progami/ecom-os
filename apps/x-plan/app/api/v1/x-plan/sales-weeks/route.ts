@@ -8,7 +8,7 @@ const updateSchema = z.object({
   updates: z.array(
     z.object({
       productId: z.string().min(1),
-      weekNumber: z.number().int().min(1).max(52),
+      weekNumber: z.number().int().min(1),
       values: z.record(z.string(), z.string().nullable().optional()),
     })
   ),

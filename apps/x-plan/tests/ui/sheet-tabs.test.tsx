@@ -17,4 +17,12 @@ describe('SheetTabs', () => {
     const inactive = screen.getByRole('link', { name: '2. Ops Planning' })
     expect(inactive).toHaveAttribute('href', '/sheet/2-ops-planning')
   })
+
+  it('applies custom href builder when provided', () => {
+    const getHref = (sheet: typeof SHEETS[number]) => `/sheet/${sheet.slug}?year=2026`
+    render(<SheetTabs sheets={SHEETS} activeSlug="1-product-setup" getHref={getHref} />)
+    const inactive = screen.getByRole('link', { name: '2. Ops Planning' })
+    expect(inactive).toHaveAttribute('href', '/sheet/2-ops-planning?year=2026')
+  })
+
 })

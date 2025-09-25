@@ -11,9 +11,10 @@ interface SheetTabsProps {
   suffix?: React.ReactNode
   variant?: 'scroll' | 'stack'
   onSheetSelect?: (slug: SheetSlug) => void
+  getHref?: (sheet: SheetConfig) => string
 }
 
-export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSheetSelect }: SheetTabsProps) {
+export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSheetSelect, getHref }: SheetTabsProps) {
   const pathname = usePathname()
   const isStack = variant === 'stack'
   const navClassName = clsx(
@@ -33,7 +34,7 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
     <div className={clsx('flex w-full', isStack ? 'flex-col gap-3' : 'items-center justify-between gap-3 py-2')}> 
       <nav className={navClassName}>
         {sheets.map((sheet) => {
-          const href = `/sheet/${sheet.slug}`
+          const href = getHref ? getHref(sheet) : `/sheet/${sheet.slug}`
           const isActive = activeSlug === sheet.slug || pathname === href
           return (
             <Link
