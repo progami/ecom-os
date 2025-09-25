@@ -11,18 +11,17 @@ import type {
   CashFlowWeekRow,
 } from '@/lib/calculations/adapters'
 
-type ProductCostRow = Pick<
-  ProductRow,
-  | 'name'
-  | 'sellingPrice'
-  | 'manufacturingCost'
-  | 'freightCost'
-  | 'tariffRate'
-  | 'tacosPercent'
-  | 'fbaFee'
-  | 'amazonReferralRate'
-  | 'storagePerMonth'
->
+type ProductCostRow = Pick<ProductRow, 'name' | 'sku' | 'manufacturingCost' | 'freightCost' | 'tariffRate'>
+type ProductSalesTermExportRow = {
+  product: Pick<ProductRow, 'name' | 'sku'>
+  startDate: Date
+  endDate: Date | null
+  sellingPrice: number | { toNumber(): number }
+  tacosPercent: number | { toNumber(): number }
+  fbaFee: number | { toNumber(): number }
+  referralRate: number | { toNumber(): number }
+  storagePerMonth: number | { toNumber(): number }
+}
 type LeadStageRow = Pick<LeadStageTemplateRow, 'label' | 'defaultWeeks'>
 type BusinessParameterExportRow = Pick<BusinessParameterRow, 'label' | 'valueNumeric' | 'valueText'>
 type ProductNameRow = Pick<ProductRow, 'id' | 'name'>
@@ -123,21 +122,45 @@ export async function exportWorkbook(prisma: PrismaClient) {
   return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer
 }
 
+function toNumber(value: unknown) {
+  if (value == null) return 0
+  if (typeof value === 'number') return value
+  if (typeof value === 'object' && value && 'toNumber' in value && typeof (value as any).toNumber === 'function') {
+    return (value as { toNumber(): number }).toNumber()
+  }
+  const numeric = Number(value)
+  return Number.isNaN(numeric) ? 0 : numeric
+}
+
+function formatDateCell(value: Date | null | undefined) {
+  if (!value) return ''
+  return value.toISOString().slice(0, 10)
+}
+
 async function addProductSetupSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
   const products = (await prisma.product.findMany({
     orderBy: { name: 'asc' },
     select: {
       name: true,
-      sellingPrice: true,
+      sku: true,
       manufacturingCost: true,
       freightCost: true,
       tariffRate: true,
-      tacosPercent: true,
-      fbaFee: true,
-      amazonReferralRate: true,
-      storagePerMonth: true,
     },
   })) as ProductCostRow[]
+  const salesTerms = (await prisma.productSalesTerm.findMany({
+    orderBy: [{ product: { name: 'asc' } }, { startDate: 'asc' }],
+    select: {
+      startDate: true,
+      endDate: true,
+      sellingPrice: true,
+      tacosPercent: true,
+      fbaFee: true,
+      referralRate: true,
+      storagePerMonth: true,
+      product: { select: { name: true, sku: true } },
+    },
+  })) as ProductSalesTermExportRow[]
   const leadStages = (await prisma.leadStageTemplate.findMany({
     orderBy: { sequence: 'asc' },
     select: { label: true, defaultWeeks: true },
@@ -151,17 +174,27 @@ async function addProductSetupSheet(workbook: XLSX.WorkBook, prisma: PrismaClien
     [],
     ['PRODUCT CONFIGURATION'],
     [],
-    ['Product Name', 'Selling Price', 'Manufacturing', 'Freight', 'Tariff Rate', 'TACoS %', 'FBA Fee', 'Referral %', 'Storage/Mo'],
+    ['SKU', 'Product Name', 'Manufacturing', 'Freight', 'Tariff Rate'],
     ...products.map((product) => [
+      product.sku ?? '',
       product.name,
-      Number(product.sellingPrice ?? 0),
-      Number(product.manufacturingCost ?? 0),
-      Number(product.freightCost ?? 0),
-      Number(product.tariffRate ?? 0),
-      Number(product.tacosPercent ?? 0),
-      Number(product.fbaFee ?? 0),
-      Number(product.amazonReferralRate ?? 0),
-      Number(product.storagePerMonth ?? 0),
+      toNumber(product.manufacturingCost),
+      toNumber(product.freightCost),
+      toNumber(product.tariffRate),
+    ]),
+    [],
+    ['SALES TERMS'],
+    ['SKU', 'Product Name', 'Start Date', 'End Date', 'Selling Price', 'TACoS %', 'FBA Fee', 'Referral %', 'Storage/Mo'],
+    ...salesTerms.map((term) => [
+      term.product.sku ?? '',
+      term.product.name,
+      formatDateCell(term.startDate),
+      formatDateCell(term.endDate),
+      toNumber(term.sellingPrice),
+      toNumber(term.tacosPercent),
+      toNumber(term.fbaFee),
+      toNumber(term.referralRate),
+      toNumber(term.storagePerMonth),
     ]),
     [],
     ['LEAD TIME CONFIGURATION (WEEKS)'],

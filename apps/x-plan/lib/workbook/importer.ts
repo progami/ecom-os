@@ -57,43 +57,113 @@ async function importProductSetup(workbook: XLSX.WorkBook, prisma: PrismaClient)
   if (!sheet) throw new Error('Sheet "1. Product Setup" not found')
   const matrix = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, range: 'B2:J200', blankrows: false })
 
+  const productHeaderIndex = matrix.findIndex((row) => row?.[0] === 'SKU' && row?.[1] === 'Product Name')
+  const salesTermsIndex = matrix.findIndex((row) => row?.[0] === 'SALES TERMS')
   const leadHeaderIndex = matrix.findIndex((row) => row?.[0] === 'Stage')
   const businessParametersIndex = matrix.findIndex((row) => row?.[0] === 'BUSINESS PARAMETERS')
 
-  const productSectionEnd = businessParametersIndex >= 0
-    ? businessParametersIndex
-    : leadHeaderIndex >= 0
-    ? leadHeaderIndex
-    : matrix.length
+  const productRowsStart = productHeaderIndex >= 0 ? productHeaderIndex + 1 : 0
+  const productRowsEnd = (() => {
+    if (salesTermsIndex > productHeaderIndex) return salesTermsIndex
+    if (leadHeaderIndex > productHeaderIndex) return leadHeaderIndex
+    if (businessParametersIndex > productHeaderIndex) return businessParametersIndex
+    return matrix.length
+  })()
 
-  const productSection = matrix.slice(0, productSectionEnd)
+  const skuToId = new Map<string, string>()
 
-  const bannedLabels = new Set(
-    ['PRODUCT CONFIGURATION', 'Product Name', 'LEAD TIME CONFIGURATION (WEEKS)', 'BUSINESS PARAMETERS']
-      .map((label) => label.toLowerCase())
-  )
-
-  const productRows = productSection.filter((row) => {
-    const name = row?.[0]
-    if (!name || typeof name !== 'string') return false
-    if (bannedLabels.has(name.trim().toLowerCase())) return false
-    return typeof row[1] === 'number'
-  })
+  const productRows = matrix
+    .slice(productRowsStart, productRowsEnd)
+    .filter((row) => row && row[0] && row[1])
 
   for (const row of productRows) {
-    const [name, sellingPrice, manufacturing, freight, tariffRate, tacos, fbaFee, referral, storage] = row
+    const [rawSku, rawName, manufacturing, freight, tariffRate] = row
+    const sku = String(rawSku ?? '').trim()
+    const name = String((rawName ?? sku) || 'Unnamed Product').trim()
+    const safeSku = sku.length > 0 ? sku : name
+
     const product = await prisma.product.create({
       data: {
-        name: String(name),
-        sku: String(name),
-        sellingPrice: toDecimal(sellingPrice) ?? new Prisma.Decimal(0),
+        name,
+        sku: safeSku,
+        sellingPrice: new Prisma.Decimal(0),
         manufacturingCost: toDecimal(manufacturing) ?? new Prisma.Decimal(0),
         freightCost: toDecimal(freight) ?? new Prisma.Decimal(0),
         tariffRate: toDecimal(tariffRate) ?? new Prisma.Decimal(0),
-        tacosPercent: toDecimal(tacos) ?? new Prisma.Decimal(0),
-        fbaFee: toDecimal(fbaFee) ?? new Prisma.Decimal(0),
-        amazonReferralRate: toDecimal(referral) ?? new Prisma.Decimal(0),
-        storagePerMonth: toDecimal(storage) ?? new Prisma.Decimal(0),
+        tacosPercent: new Prisma.Decimal(0),
+        fbaFee: new Prisma.Decimal(0),
+        amazonReferralRate: new Prisma.Decimal(0),
+        storagePerMonth: new Prisma.Decimal(0),
+      },
+    })
+
+    skuToId.set(safeSku, product.id)
+  }
+
+  const salesHeaderIndex = salesTermsIndex >= 0 ? salesTermsIndex + 1 : -1
+  const salesRowsStart = salesHeaderIndex >= 0 ? salesHeaderIndex + 1 : -1
+  const salesRowsEnd = (() => {
+    if (leadHeaderIndex > salesHeaderIndex) return leadHeaderIndex
+    if (businessParametersIndex > salesHeaderIndex) return businessParametersIndex
+    return matrix.length
+  })()
+
+  const latestTermByProduct = new Map<string, { startDate: Date; sellingPrice: Prisma.Decimal; tacosPercent: Prisma.Decimal; fbaFee: Prisma.Decimal; referralRate: Prisma.Decimal; storagePerMonth: Prisma.Decimal }>()
+
+  if (salesRowsStart >= 0) {
+    const salesRows = matrix.slice(salesRowsStart, salesRowsEnd)
+    for (const row of salesRows) {
+      const [rawSku, _name, start, end, sellingPrice, tacos, fbaFee, referral, storage] = row
+      const sku = String(rawSku ?? '').trim()
+      if (!sku) continue
+      const productId = skuToId.get(sku)
+      if (!productId) continue
+
+      const startDate = toDate(start)
+      if (!startDate) continue
+      const endDate = toDate(end)
+      const selling = toDecimal(sellingPrice) ?? new Prisma.Decimal(0)
+      const tacosDecimal = toDecimal(tacos) ?? new Prisma.Decimal(0)
+      const fbaDecimal = toDecimal(fbaFee) ?? new Prisma.Decimal(0)
+      const referralDecimal = toDecimal(referral) ?? new Prisma.Decimal(0)
+      const storageDecimal = toDecimal(storage) ?? new Prisma.Decimal(0)
+
+      await prisma.productSalesTerm.create({
+        data: {
+          productId,
+          startDate,
+          endDate,
+          sellingPrice: selling,
+          tacosPercent: tacosDecimal,
+          fbaFee: fbaDecimal,
+          referralRate: referralDecimal,
+          storagePerMonth: storageDecimal,
+        },
+      })
+
+      const latest = latestTermByProduct.get(productId)
+      if (!latest || latest.startDate.getTime() <= startDate.getTime()) {
+        latestTermByProduct.set(productId, {
+          startDate,
+          sellingPrice: selling,
+          tacosPercent: tacosDecimal,
+          fbaFee: fbaDecimal,
+          referralRate: referralDecimal,
+          storagePerMonth: storageDecimal,
+        })
+      }
+    }
+  }
+
+  for (const [productId, term] of latestTermByProduct.entries()) {
+    await prisma.product.update({
+      where: { id: productId },
+      data: {
+        sellingPrice: term.sellingPrice,
+        tacosPercent: term.tacosPercent,
+        fbaFee: term.fbaFee,
+        amazonReferralRate: term.referralRate,
+        storagePerMonth: term.storagePerMonth,
       },
     })
   }

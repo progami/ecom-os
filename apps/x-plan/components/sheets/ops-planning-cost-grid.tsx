@@ -21,50 +21,23 @@ interface OpsPlanningCostGridProps {
   onRowsChange?: (rows: OpsInputRow[]) => void
 }
 
-const COST_HEADERS = [
-  'PO Code',
-  'SKU',
-  'Product',
-  'Sell $',
-  'Mfg Invoice $',
-  'Freight Invoice $',
-  'Tariff %',
-  'TACoS %',
-  'FBA Total $',
-  'Referral %',
-  'Storage Total $',
-]
+const COST_HEADERS = ['PO Code', 'SKU', 'Product', 'Mfg Invoice $', 'Freight Invoice $', 'Tariff %']
 
 const NUMERIC_PRECISION: Record<string, number> = {
-  sellingPrice: 2,
   manufacturingCost: 2,
   freightCost: 2,
-  fbaFee: 2,
-  storagePerMonth: 2,
 }
 
 const PERCENT_PRECISION: Record<string, number> = {
   tariffRate: 4,
-  tacosPercent: 4,
-  referralRate: 4,
 }
 
-const TOTALIZED_FIELDS = new Set<keyof OpsInputRow>([
-  'manufacturingCost',
-  'freightCost',
-  'fbaFee',
-  'storagePerMonth',
-])
+const TOTALIZED_FIELDS = new Set<keyof OpsInputRow>(['manufacturingCost', 'freightCost'])
 
 const FIELD_TO_OVERRIDE_KEY: Partial<Record<keyof OpsInputRow, string>> = {
-  sellingPrice: 'overrideSellingPrice',
   manufacturingCost: 'overrideManufacturingCost',
   freightCost: 'overrideFreightCost',
   tariffRate: 'overrideTariffRate',
-  tacosPercent: 'overrideTacosPercent',
-  fbaFee: 'overrideFbaFee',
-  referralRate: 'overrideReferralRate',
-  storagePerMonth: 'overrideStoragePerMonth',
 }
 
 function normalizeCurrency(value: unknown, fractionDigits = 2) {
@@ -132,14 +105,9 @@ export function OpsPlanningCostGrid({ rows, products, activeOrderId, onSelectOrd
         width: 140,
       },
       { data: 'productName', readOnly: true, className: 'cell-readonly', width: 200 },
-      { data: 'sellingPrice', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
       { data: 'manufacturingCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
       { data: 'freightCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
       { data: 'tariffRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
-      { data: 'tacosPercent', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
-      { data: 'fbaFee', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 110 },
-      { data: 'referralRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
-      { data: 'storagePerMonth', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
     ],
     [skuChoices]
   )

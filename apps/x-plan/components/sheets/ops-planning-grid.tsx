@@ -23,14 +23,9 @@ export type OpsInputRow = {
   sourcePrepWeeks: string
   oceanWeeks: string
   finalMileWeeks: string
-  sellingPrice: string
   manufacturingCost: string
   freightCost: string
   tariffRate: string
-  tacosPercent: string
-  fbaFee: string
-  referralRate: string
-  storagePerMonth: string
   status: string
   notes: string
 }
@@ -84,14 +79,9 @@ const NUMERIC_PRECISION: Partial<Record<keyof OpsInputRow, number>> = {
   sourcePrepWeeks: 2,
   oceanWeeks: 2,
   finalMileWeeks: 2,
-  sellingPrice: 2,
   manufacturingCost: 2,
   freightCost: 2,
   tariffRate: 4,
-  tacosPercent: 4,
-  fbaFee: 2,
-  referralRate: 4,
-  storagePerMonth: 2,
 }
 
 const NUMERIC_FIELDS = new Set<keyof OpsInputRow>([
@@ -100,14 +90,9 @@ const NUMERIC_FIELDS = new Set<keyof OpsInputRow>([
   'sourcePrepWeeks',
   'oceanWeeks',
   'finalMileWeeks',
-  'sellingPrice',
   'manufacturingCost',
   'freightCost',
   'tariffRate',
-  'tacosPercent',
-  'fbaFee',
-  'referralRate',
-  'storagePerMonth',
 ])
 const DATE_FIELDS = new Set<keyof OpsInputRow>(['pay1Date'])
 

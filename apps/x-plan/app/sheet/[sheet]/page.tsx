@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { OpsPlanningWorkspace } from '@/components/sheets/ops-planning-workspace'
 import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
 import { ProductSetupParametersPanel } from '@/components/sheets/product-setup-panels'
+import { ProductSalesTermsGrid } from '@/components/sheets/product-sales-terms-grid'
 import { SalesPlanningGrid } from '@/components/sheets/sales-planning-grid'
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
 import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid'
@@ -65,6 +66,27 @@ type PurchaseOrderWithRelations = PurchaseOrderRow & {
   payments: PurchaseOrderPaymentRow[]
   product: Pick<ProductRow, 'id' | 'sku' | 'name'>
 }
+type ProductSalesTermRow = {
+  id: string
+  productId: string
+  startDate: Date
+  endDate: Date | null
+  sellingPrice: number
+  tacosPercent: number
+  fbaFee: number
+  referralRate: number
+  storagePerMonth: number
+  product: { id: string; sku: string | null; name: string }
+}
+type ProductCostTerm = {
+  startDate: Date
+  endDate: Date | null
+  sellingPrice: number | { toNumber(): number }
+  tacosPercent: number | { toNumber(): number }
+  fbaFee: number | { toNumber(): number }
+  referralRate: number | { toNumber(): number }
+  storagePerMonth: number | { toNumber(): number }
+}
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -106,6 +128,51 @@ function formatPercent(value: number | null | undefined, fractionDigits = 1): st
 
 function serializeDate(value: Date | null | undefined) {
   return value ? value.toISOString() : null
+}
+
+function formatInputDate(value: Date | null | undefined) {
+  if (!value) return ''
+  const iso = value.toISOString()
+  return iso.slice(0, 10)
+}
+
+function coerceDate(value: Date | string) {
+  if (value instanceof Date) return value
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function selectActiveSalesTerm(
+  terms: ProductCostTerm[] | undefined,
+  referenceDate: Date
+): ProductCostTerm | null {
+  if (!terms || terms.length === 0) return null
+  let candidate: ProductCostTerm | null = null
+  const referenceTime = referenceDate.getTime()
+
+  for (const term of terms) {
+    const start = coerceDate(term.startDate)
+    if (!start) continue
+    const end = term.endDate ? coerceDate(term.endDate) : null
+    const startTime = start.getTime()
+    const endTime = end ? end.getTime() : Number.POSITIVE_INFINITY
+    if (startTime <= referenceTime && referenceTime <= endTime) {
+      if (!candidate || coerceDate(candidate.startDate)!.getTime() < startTime) {
+        candidate = term
+      }
+    }
+  }
+
+  if (candidate) return candidate
+
+  return terms
+    .slice()
+    .sort((a, b) => {
+      const aStart = coerceDate(a.startDate)?.getTime() ?? 0
+      const bStart = coerceDate(b.startDate)?.getTime() ?? 0
+      return aStart - bStart
+    })
+    .pop() ?? null
 }
 
 function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSerialized {
@@ -242,7 +309,7 @@ function metricLabel(metric: SalesMetric) {
 }
 
 async function getProductSetupView() {
-  const [products, businessParameters] = await Promise.all([
+  const [products, businessParameters, salesTerms] = await Promise.all([
     prisma.product.findMany({
       orderBy: { name: 'asc' },
       select: {
@@ -256,6 +323,21 @@ async function getProductSetupView() {
       orderBy: { label: 'asc' },
       select: { id: true, label: true, valueNumeric: true, valueText: true },
     }) as Promise<BusinessParameterRow[]>,
+    prisma.productSalesTerm.findMany({
+      orderBy: [{ startDate: 'asc' }],
+      select: {
+        id: true,
+        productId: true,
+        startDate: true,
+        endDate: true,
+        sellingPrice: true,
+        tacosPercent: true,
+        fbaFee: true,
+        referralRate: true,
+        storagePerMonth: true,
+        product: { select: { id: true, sku: true, name: true } },
+      },
+    }) as Promise<ProductSalesTermRow[]>,
   ])
 
   const activeProducts = products.filter((product) => {
@@ -316,8 +398,38 @@ async function getProductSetupView() {
       name: product.name,
     }))
 
+  const productOptions = products
+    .map((product) => ({ id: product.id, sku: product.sku ?? '', name: product.name }))
+    .sort((a, b) => a.sku.localeCompare(b.sku))
+
+  const toNumber = (value: number | { toNumber(): number } | null | undefined) => {
+    if (value == null) return 0
+    if (typeof value === 'number') return value
+    if (typeof value === 'object' && 'toNumber' in value && typeof value.toNumber === 'function') {
+      return value.toNumber()
+    }
+    const numeric = Number(value)
+    return Number.isNaN(numeric) ? 0 : numeric
+  }
+
+  const salesTermRows = salesTerms.map((term) => ({
+    id: term.id,
+    productId: term.productId,
+    productSku: term.product?.sku?.trim() ?? '',
+    productName: term.product?.name ?? '',
+    startDate: formatInputDate(term.startDate),
+    endDate: formatInputDate(term.endDate),
+    sellingPrice: toNumber(term.sellingPrice),
+    tacosPercent: toNumber(term.tacosPercent),
+    fbaFee: toNumber(term.fbaFee),
+    referralRate: toNumber(term.referralRate),
+    storagePerMonth: toNumber(term.storagePerMonth),
+  }))
+
   return {
     products: productRows,
+    productOptions,
+    salesTerms: salesTermRows,
     operationsParameters,
     salesParameters,
     financeParameters,
@@ -341,8 +453,20 @@ async function loadOperationsContext() {
         fbaFee: true,
         amazonReferralRate: true,
         storagePerMonth: true,
+        salesTerms: {
+          orderBy: { startDate: 'asc' },
+          select: {
+            startDate: true,
+            endDate: true,
+            sellingPrice: true,
+            tacosPercent: true,
+            fbaFee: true,
+            referralRate: true,
+            storagePerMonth: true,
+          },
+        },
       },
-    }) as Promise<ProductRow[]>,
+    }) as Promise<Array<ProductRow & { salesTerms: ProductCostTerm[] }>>,
     prisma.leadStageTemplate.findMany({
       orderBy: { sequence: 'asc' },
       select: { id: true, label: true, defaultWeeks: true, sequence: true },
@@ -409,7 +533,26 @@ async function loadOperationsContext() {
     }) as Promise<PurchaseOrderWithRelations[]>,
   ])
 
-  const productInputs = mapProducts(products)
+  const today = new Date()
+  const normalizedProducts: ProductRow[] = products.map((product) => {
+    const activeTerm = selectActiveSalesTerm(product.salesTerms, today)
+    return {
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      isActive: product.isActive,
+      sellingPrice: activeTerm?.sellingPrice ?? product.sellingPrice,
+      manufacturingCost: product.manufacturingCost,
+      freightCost: product.freightCost,
+      tariffRate: product.tariffRate,
+      tacosPercent: activeTerm?.tacosPercent ?? product.tacosPercent,
+      fbaFee: activeTerm?.fbaFee ?? product.fbaFee,
+      amazonReferralRate: activeTerm?.referralRate ?? product.amazonReferralRate,
+      storagePerMonth: activeTerm?.storagePerMonth ?? product.storagePerMonth,
+    }
+  })
+
+  const productInputs = mapProducts(normalizedProducts)
   const productIndex = buildProductCostIndex(productInputs)
   const productNameById = new Map(products.map((product) => [product.id, product.name]))
   const productSkuById = new Map(products.map((product) => [product.id, product.sku ?? '']))
@@ -471,19 +614,8 @@ async function getOpsPlanningView(): Promise<{
       input.overrideFreightCost != null && Number.isFinite(input.overrideFreightCost)
         ? Number(input.overrideFreightCost)
         : null
-    const fbaOverride =
-      input.overrideFbaFee != null && Number.isFinite(input.overrideFbaFee)
-        ? Number(input.overrideFbaFee)
-        : null
-    const storageOverride =
-      input.overrideStoragePerMonth != null && Number.isFinite(input.overrideStoragePerMonth)
-        ? Number(input.overrideStoragePerMonth)
-        : null
-
     const manufacturingTotal = manufacturingOverride != null ? manufacturingOverride * quantity : null
     const freightTotal = freightOverride != null ? freightOverride * quantity : null
-    const fbaTotal = fbaOverride != null ? fbaOverride * quantity : null
-    const storageTotal = storageOverride != null ? storageOverride * quantity : null
 
     return {
       id: input.id,
@@ -498,14 +630,9 @@ async function getOpsPlanningView(): Promise<{
       sourcePrepWeeks: formatNumeric(input.sourcePrepWeeks ?? null),
       oceanWeeks: formatNumeric(input.oceanWeeks ?? null),
       finalMileWeeks: formatNumeric(input.finalMileWeeks ?? null),
-      sellingPrice: formatNumeric(input.overrideSellingPrice ?? null),
       manufacturingCost: formatNumeric(manufacturingTotal),
       freightCost: formatNumeric(freightTotal),
       tariffRate: formatPercentDecimal(input.overrideTariffRate ?? null),
-      tacosPercent: formatPercentDecimal(input.overrideTacosPercent ?? null),
-      fbaFee: formatNumeric(fbaTotal),
-      referralRate: formatPercentDecimal(input.overrideReferralRate ?? null),
-      storagePerMonth: formatNumeric(storageTotal),
       status: input.status,
       notes: input.notes ?? '',
     }
@@ -1030,6 +1157,7 @@ export default async function SheetPage({ params }: SheetPageProps) {
       content = (
         <div className="space-y-6">
           <ProductSetupGrid products={view.products} />
+          <ProductSalesTermsGrid terms={view.salesTerms} products={view.productOptions} />
           {parameterSections.map((section) => (
             <ProductSetupParametersPanel
               key={section.key}

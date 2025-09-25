@@ -255,14 +255,9 @@ function deserializeOrders(purchaseOrders: PurchaseOrderSerialized[]): PurchaseO
         paymentDate: parseDateValue(payment.paymentDate ?? null),
         status: payment.status ?? null,
       })) ?? [],
-    overrideSellingPrice: order.overrideSellingPrice ?? null,
     overrideManufacturingCost: order.overrideManufacturingCost ?? null,
     overrideFreightCost: order.overrideFreightCost ?? null,
     overrideTariffRate: order.overrideTariffRate ?? null,
-    overrideTacosPercent: order.overrideTacosPercent ?? null,
-    overrideFbaFee: order.overrideFbaFee ?? null,
-    overrideReferralRate: order.overrideReferralRate ?? null,
-    overrideStoragePerMonth: order.overrideStoragePerMonth ?? null,
   }))
 }
 
@@ -279,14 +274,9 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
         const quantity = parseInteger(row.quantity, 0)
         const quantityForCosts = quantity > 0 ? quantity : 0
         return {
-          overrideSellingPrice: parseNumber(row.sellingPrice),
           overrideManufacturingCost: parseTotalOverride(row.manufacturingCost, quantityForCosts),
           overrideFreightCost: parseTotalOverride(row.freightCost, quantityForCosts),
           overrideTariffRate: parsePercent(row.tariffRate),
-          overrideTacosPercent: parsePercent(row.tacosPercent),
-          overrideFbaFee: parseTotalOverride(row.fbaFee, quantityForCosts),
-          overrideReferralRate: parsePercent(row.referralRate),
-          overrideStoragePerMonth: parseTotalOverride(row.storagePerMonth, quantityForCosts),
         }
       })(),
       productionWeeks: parseNumber(row.productionWeeks),
@@ -332,14 +322,9 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
         const quantity = parseInteger(row.quantity, base.quantity ?? 0)
         const quantityForCosts = quantity > 0 ? quantity : base.quantity ?? 0
         return {
-          overrideSellingPrice: parseNumber(row.sellingPrice),
           overrideManufacturingCost: parseTotalOverride(row.manufacturingCost, quantityForCosts),
           overrideFreightCost: parseTotalOverride(row.freightCost, quantityForCosts),
           overrideTariffRate: parsePercent(row.tariffRate),
-          overrideTacosPercent: parsePercent(row.tacosPercent),
-          overrideFbaFee: parseTotalOverride(row.fbaFee, quantityForCosts),
-          overrideReferralRate: parsePercent(row.referralRate),
-          overrideStoragePerMonth: parseTotalOverride(row.storagePerMonth, quantityForCosts),
         }
       })(),
     }
@@ -639,15 +624,6 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
           createdOrder.overrideFreightCost != null && Number.isFinite(createdOrder.overrideFreightCost)
             ? Number(createdOrder.overrideFreightCost) * quantity
             : null
-        const fbaTotal =
-          createdOrder.overrideFbaFee != null && Number.isFinite(createdOrder.overrideFbaFee)
-            ? Number(createdOrder.overrideFbaFee) * quantity
-            : null
-        const storageTotal =
-          createdOrder.overrideStoragePerMonth != null && Number.isFinite(createdOrder.overrideStoragePerMonth)
-            ? Number(createdOrder.overrideStoragePerMonth) * quantity
-            : null
-
         const nextRow: OpsInputRow = {
           id: createdOrder.id,
           productId: createdOrder.productId,
@@ -661,14 +637,9 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
           sourcePrepWeeks: formatNumericValue(createdOrder.sourcePrepWeeks),
           oceanWeeks: formatNumericValue(createdOrder.oceanWeeks),
           finalMileWeeks: formatNumericValue(createdOrder.finalMileWeeks),
-          sellingPrice: formatNumericValue(createdOrder.overrideSellingPrice),
           manufacturingCost: formatNumericValue(manufacturingTotal),
           freightCost: formatNumericValue(freightTotal),
           tariffRate: formatPercentDecimalValue(createdOrder.overrideTariffRate),
-          tacosPercent: formatPercentDecimalValue(createdOrder.overrideTacosPercent),
-          fbaFee: formatNumericValue(fbaTotal),
-          referralRate: formatPercentDecimalValue(createdOrder.overrideReferralRate),
-          storagePerMonth: formatNumericValue(storageTotal),
           status: createdOrder.status,
           notes: createdOrder.notes ?? '',
         }

@@ -27,8 +27,27 @@ model Product {
   leadTimeOverrides  LeadTimeOverride[]
   purchaseOrders     PurchaseOrder[]
   salesWeeks         SalesWeek[]
+  salesTerms         ProductSalesTerm[]
 
   @@index([name])
+}
+
+model ProductSalesTerm {
+  id                 String   @id @default(cuid())
+  productId          String
+  startDate          DateTime
+  endDate            DateTime?
+  sellingPrice       Decimal  @db.Decimal(10, 2)
+  tacosPercent       Decimal  @db.Decimal(5, 4)
+  fbaFee             Decimal  @db.Decimal(10, 2)
+  referralRate       Decimal  @db.Decimal(5, 4)
+  storagePerMonth    Decimal  @db.Decimal(10, 2)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  product            Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, startDate, endDate])
 }
 
 /// Default lead time configuration ("1. Product Setup" -> LEAD TIME CONFIGURATION)

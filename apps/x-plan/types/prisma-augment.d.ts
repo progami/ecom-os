@@ -51,6 +51,7 @@ declare module '@prisma/client' {
     businessParameter: PrismaDelegate
     cashFlowWeek: PrismaDelegate
     product: PrismaDelegate
+    productSalesTerm: PrismaDelegate
     salesWeek: PrismaDelegate
     purchaseOrder: PrismaDelegate
     purchaseOrderPayment: PrismaDelegate
