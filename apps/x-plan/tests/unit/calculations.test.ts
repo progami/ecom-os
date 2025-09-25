@@ -4,6 +4,7 @@ import {
   buildWeekCalendar,
   buildYearSegments,
   getCalendarDateForWeek,
+  weekNumberForDate,
 } from '@/lib/calculations/calendar'
 import {
   buildProductCostIndex,
@@ -293,5 +294,49 @@ describe('calendar continuity', () => {
       ? getCalendarDateForWeek(segment2027.startWeekNumber, calendar)
       : null
     expect(first2027Date?.getFullYear()).toBe(2027)
+  })
+
+  it('anchors relative weeks when the first dated row is not week 1', () => {
+    const anchoredWeeks: SalesWeekInput[] = [
+      {
+        id: 'w40',
+        productId: product.id,
+        weekNumber: 40,
+      },
+      {
+        id: 'w41',
+        productId: product.id,
+        weekNumber: 41,
+      },
+      {
+        id: 'w42',
+        productId: product.id,
+        weekNumber: 42,
+        weekDate: new Date('2025-10-20T00:00:00.000Z'),
+      },
+      {
+        id: 'w60',
+        productId: product.id,
+        weekNumber: 60,
+      },
+    ]
+
+    const calendar = buildWeekCalendar(anchoredWeeks)
+    expect(calendar.calendarStart?.toISOString()).toBe('2025-10-20T00:00:00.000Z')
+    expect(calendar.anchorWeekNumber).toBe(42)
+
+    const filledWeek40 = getCalendarDateForWeek(40, calendar)
+    expect(filledWeek40?.toISOString()).toBe('2025-10-05T00:00:00.000Z')
+
+    const filledWeek60 = getCalendarDateForWeek(60, calendar)
+    expect(filledWeek60?.toISOString()).toBe('2026-02-22T00:00:00.000Z')
+
+    const derivedWeek42 = weekNumberForDate(new Date('2025-10-20T12:00:00.000Z'), calendar)
+    const derivedWeek40 = weekNumberForDate(new Date('2025-10-06T00:00:00.000Z'), calendar)
+    const derivedWeekBefore = weekNumberForDate(new Date('2025-09-29T00:00:00.000Z'), calendar)
+
+    expect(derivedWeek42).toBe(42)
+    expect(derivedWeek40).toBe(40)
+    expect(derivedWeekBefore).toBeNull()
   })
 })

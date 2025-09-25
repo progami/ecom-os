@@ -1,6 +1,5 @@
 'use client'
 
-import { useMemo } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { clsx } from 'clsx'
@@ -12,10 +11,9 @@ interface SheetTabsProps {
   suffix?: React.ReactNode
   variant?: 'scroll' | 'stack'
   onSheetSelect?: (slug: SheetSlug) => void
-  searchParams?: Record<string, string | undefined>
 }
 
-export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSheetSelect, searchParams }: SheetTabsProps) {
+export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSheetSelect }: SheetTabsProps) {
   const pathname = usePathname()
   const isStack = variant === 'stack'
   const navClassName = clsx(
@@ -24,18 +22,6 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
   )
   const linkBase =
     'min-w-[140px] rounded-md px-3 py-1.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300'
-
-  const query = useMemo(() => {
-    if (!searchParams) return ''
-    const params = new URLSearchParams()
-    for (const [key, value] of Object.entries(searchParams)) {
-      if (value != null && value !== '') {
-        params.set(key, value)
-      }
-    }
-    const serialized = params.toString()
-    return serialized ? `?${serialized}` : ''
-  }, [searchParams])
 
   const handleClick = (slug: SheetSlug, event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!onSheetSelect) return
@@ -47,8 +33,8 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
     <div className={clsx('flex w-full', isStack ? 'flex-col gap-3' : 'items-center justify-between gap-3 py-2')}> 
       <nav className={navClassName}>
         {sheets.map((sheet) => {
-          const href = `/sheet/${sheet.slug}${query}`
-          const isActive = activeSlug === sheet.slug || pathname === `/sheet/${sheet.slug}`
+          const href = `/sheet/${sheet.slug}`
+          const isActive = activeSlug === sheet.slug || pathname === href
           return (
             <Link
               key={sheet.slug}

@@ -4,6 +4,9 @@ import { SalesWeekInput } from './types'
 export interface WeekCalendar {
   calendarStart: Date | null
   weekDates: Map<number, Date | null>
+  anchorWeekNumber: number | null
+  minWeekNumber: number | null
+  maxWeekNumber: number | null
 }
 
 export interface YearSegment {
@@ -26,6 +29,7 @@ export function buildWeekCalendar(salesWeeks: SalesWeekInput[]): WeekCalendar {
 
   let minWeekNumber: number | null = null
   let maxWeekNumber: number | null = null
+  let anchorWeekNumber: number | null = null
 
   for (const week of sorted) {
     weekDates.set(week.weekNumber, coerceDate(week.weekDate ?? null))
@@ -35,17 +39,22 @@ export function buildWeekCalendar(salesWeeks: SalesWeekInput[]): WeekCalendar {
     if (maxWeekNumber == null || week.weekNumber > maxWeekNumber) {
       maxWeekNumber = week.weekNumber
     }
+    const coerced = weekDates.get(week.weekNumber)
+    if (anchorWeekNumber == null && coerced && isValid(coerced)) {
+      anchorWeekNumber = week.weekNumber
+    }
   }
 
-  const calendarStart = Array.from(weekDates.values()).find((date): date is Date => Boolean(date)) ?? null
+  const calendarStart =
+    (anchorWeekNumber != null ? weekDates.get(anchorWeekNumber) : null) ?? null
 
   if (minWeekNumber != null && maxWeekNumber != null) {
-    if (calendarStart) {
+    if (calendarStart && anchorWeekNumber != null) {
       const base = startOfWeek(calendarStart, { weekStartsOn: 0 })
       for (let weekNumber = minWeekNumber; weekNumber <= maxWeekNumber; weekNumber += 1) {
         const existing = weekDates.get(weekNumber)
         if (!existing || !isValid(existing)) {
-          weekDates.set(weekNumber, addWeeks(base, weekNumber - 1))
+          weekDates.set(weekNumber, addWeeks(base, weekNumber - anchorWeekNumber))
         }
       }
     } else {
@@ -61,7 +70,13 @@ export function buildWeekCalendar(salesWeeks: SalesWeekInput[]): WeekCalendar {
     Array.from(weekDates.entries()).sort((a, b) => a[0] - b[0])
   )
 
-  return { calendarStart, weekDates: ordered }
+  return {
+    calendarStart,
+    weekDates: ordered,
+    anchorWeekNumber,
+    minWeekNumber,
+    maxWeekNumber,
+  }
 }
 
 export function getCalendarDateForWeek(weekNumber: number, calendar: WeekCalendar): Date | null {
@@ -70,19 +85,25 @@ export function getCalendarDateForWeek(weekNumber: number, calendar: WeekCalenda
     return direct
   }
 
-  if (!calendar.calendarStart) return null
+  if (!calendar.calendarStart || calendar.anchorWeekNumber == null) return null
 
   const base = startOfWeek(calendar.calendarStart, { weekStartsOn: 0 })
-  return addWeeks(base, weekNumber - 1)
+  return addWeeks(base, weekNumber - calendar.anchorWeekNumber)
 }
 
 export function weekNumberForDate(date: Date | null, calendar: WeekCalendar): number | null {
-  if (!date || !calendar.calendarStart) return null
+  if (!date || !calendar.calendarStart || calendar.anchorWeekNumber == null) return null
   const base = startOfWeek(calendar.calendarStart, { weekStartsOn: 0 })
   const target = startOfWeek(date, { weekStartsOn: 0 })
   const offset = differenceInCalendarWeeks(target, base)
-  if (offset < 0) return null
-  return offset + 1
+  const weekNumber = calendar.anchorWeekNumber + offset
+  if (
+    (calendar.minWeekNumber != null && weekNumber < calendar.minWeekNumber) ||
+    (calendar.maxWeekNumber != null && weekNumber > calendar.maxWeekNumber)
+  ) {
+    return null
+  }
+  return weekNumber
 }
 
 export function buildYearSegments(calendar: WeekCalendar): YearSegment[] {
