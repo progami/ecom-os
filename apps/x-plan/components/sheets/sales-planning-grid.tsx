@@ -21,6 +21,10 @@ type NestedHeaderCell = string | { label: string; colspan?: number; rowspan?: nu
 type HandsontableNestedHeaders = NonNullable<Handsontable.GridSettings['nestedHeaders']>
 const editableMetrics = new Set(['actualSales', 'forecastSales'])
 
+function isEditableMetric(field: string | undefined) {
+  return Boolean(field && editableMetrics.has(field))
+}
+
 type SalesUpdate = {
   productId: string
   weekNumber: number
@@ -69,14 +73,14 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         base.push({ data: key, readOnly: true, className: 'cell-readonly', editor: false })
         continue
       }
-      const isEditable = editableMetrics.has(meta.field)
+      const editable = isEditableMetric(meta.field)
       base.push({
         data: key,
         type: 'numeric',
-        numericFormat: isEditable ? { pattern: '0,0.00' } : { pattern: '0.00' },
-        readOnly: !isEditable,
-        editor: isEditable ? Handsontable.editors.NumericEditor : false,
-        className: isEditable ? 'cell-editable' : 'cell-readonly',
+        numericFormat: editable ? { pattern: '0,0.00' } : { pattern: '0.00' },
+        readOnly: !editable,
+        editor: editable ? Handsontable.editors.NumericEditor : false,
+        className: editable ? 'cell-editable' : 'cell-readonly',
       })
     }
     return base
@@ -163,16 +167,21 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         cells={(row, col) => {
           const cell: Handsontable.CellMeta = {}
           const offset = 2
-          if (col >= offset) {
-            const key = columnKeys[col - offset]
-            const meta = columnMeta[key]
-            if (meta?.field === 'stockWeeks') {
-              const record = data[row]
-              const rawValue = record?.[key]
-              const numeric = rawValue ? Number(rawValue) : Number.NaN
-              if (!Number.isNaN(numeric) && numeric <= warningThreshold) {
-                cell.className = cell.className ? `${cell.className} cell-warning` : 'cell-warning'
-              }
+          if (col < offset) {
+            return cell
+          }
+          const key = columnKeys[col - offset]
+          const meta = columnMeta[key]
+          const editable = isEditableMetric(meta?.field)
+          cell.readOnly = !editable
+          cell.className = editable ? 'cell-editable' : 'cell-readonly'
+
+          if (meta?.field === 'stockWeeks') {
+            const record = data[row]
+            const rawValue = record?.[key]
+            const numeric = rawValue ? Number(rawValue) : Number.NaN
+            if (!Number.isNaN(numeric) && numeric <= warningThreshold) {
+              cell.className = cell.className ? `${cell.className} cell-warning` : 'cell-warning'
             }
           }
           return cell
