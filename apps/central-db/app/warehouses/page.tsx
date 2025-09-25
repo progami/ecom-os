@@ -15,7 +15,7 @@ import {
 
 export default function WarehousesPage() {
   // This would come from your database
-  const warehouses = []
+  const warehouses: Array<Record<string, unknown>> = []
 
   return (
     <div className="container mx-auto p-6">
