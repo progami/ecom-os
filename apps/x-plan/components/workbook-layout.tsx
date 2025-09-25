@@ -75,25 +75,18 @@ export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, 
   const activeSheet = useMemo(() => sheets.find((sheet) => sheet.slug === activeSlug), [sheets, activeSlug])
 
   const metaSummary = useMemo(() => {
-    if (!meta) return undefined
-    const parts: string[] = []
-    if (typeof meta.rows === 'number') {
-      parts.push(`${meta.rows.toLocaleString()} rows`)
-    }
-    if (meta.updated) {
-      const parsed = new Date(meta.updated)
-      const formatted = Number.isNaN(parsed.getTime())
-        ? meta.updated
-        : new Intl.DateTimeFormat('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          })
-            .format(parsed)
-            .replace(',', '')
-      parts.push(`Updated ${formatted}`)
-    }
-    return parts.length > 0 ? parts.join(' • ') : undefined
+    if (!meta?.updated) return undefined
+    const parsed = new Date(meta.updated)
+    const formatted = Number.isNaN(parsed.getTime())
+      ? meta.updated
+      : new Intl.DateTimeFormat('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })
+          .format(parsed)
+          .replace(',', '')
+    return `Updated ${formatted}`
   }, [meta])
 
   return (
