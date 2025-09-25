@@ -90,6 +90,21 @@ const nextConfig = {
       }
     ]
   },
+
+  async rewrites() {
+    const basePath = process.env.BASE_PATH || process.env.NEXT_PUBLIC_BASE_PATH || ''
+
+    if (!basePath) {
+      return []
+    }
+
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${basePath}/api/:path*`,
+      },
+    ]
+  },
   
   // Environment variables validation
   env: {

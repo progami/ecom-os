@@ -9,8 +9,8 @@ central_db_schemas:
     password: central_wms_password_2024
 
 # Central portal bootstrap credentials
-central_portal_admin_email: admin@targonglobal.com
-central_portal_admin_password: ChangeMe123!
+central_portal_admin_email: ""
+central_portal_admin_password: ""
 
 # GitHub Configuration
 github_repo_url: git@github.com:progami/WMS_EcomOS.git
