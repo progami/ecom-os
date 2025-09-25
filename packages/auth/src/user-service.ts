@@ -4,14 +4,6 @@ import { z } from 'zod'
 import { getCentralAuthPrisma } from './db.js'
 
 type AppEntitlementMap = Record<string, { role: string; departments: string[] }>
-type UserAppRecord = {
-  app: { slug: string }
-  accessLevel: string
-  departments: unknown
-}
-type UserRoleRecord = {
-  role: { name: string }
-}
 
 const DEFAULT_DEMO_USERNAME = 'demo-admin'
 const DEFAULT_DEMO_PASSWORD = 'demo-password'
@@ -51,15 +43,31 @@ export async function authenticateWithCentralDirectory(input: unknown): Promise<
       ],
       isActive: true,
     },
-    include: {
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      firstName: true,
+      lastName: true,
+      passwordHash: true,
       roles: {
-        include: {
-          role: true,
+        select: {
+          role: {
+            select: {
+              name: true,
+            },
+          },
         },
       },
       appAccess: {
-        include: {
-          app: true,
+        select: {
+          accessLevel: true,
+          departments: true,
+          app: {
+            select: {
+              slug: true,
+            },
+          },
         },
       },
     },
@@ -74,10 +82,12 @@ export async function authenticateWithCentralDirectory(input: unknown): Promise<
     return null
   }
 
-  const entitlements = (user.appAccess as unknown as UserAppRecord[]).reduce<AppEntitlementMap>((map, assignment) => {
+  const entitlements = user.appAccess.reduce<AppEntitlementMap>((map, assignment) => {
     map[assignment.app.slug] = {
       role: assignment.accessLevel,
-      departments: Array.isArray(assignment.departments) ? assignment.departments : [],
+      departments: Array.isArray(assignment.departments)
+        ? (assignment.departments as string[])
+        : [],
     }
     return map
   }, {})
@@ -87,7 +97,7 @@ export async function authenticateWithCentralDirectory(input: unknown): Promise<
     email: user.email,
     username: user.username,
     fullName: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
-    roles: (user.roles as unknown as UserRoleRecord[]).map(r => r.role.name),
+    roles: user.roles.map(r => r.role.name),
     entitlements,
   }
 }
@@ -130,13 +140,23 @@ export async function getUserEntitlements(userId: string) {
 
   const assignments = await prisma.userApp.findMany({
     where: { userId },
-    include: { app: true },
+    select: {
+      accessLevel: true,
+      departments: true,
+      app: {
+        select: {
+          slug: true,
+        },
+      },
+    },
   })
 
-  return (assignments as unknown as UserAppRecord[]).reduce<AppEntitlementMap>((map, assignment) => {
+  return assignments.reduce<AppEntitlementMap>((map, assignment) => {
     map[assignment.app.slug] = {
       role: assignment.accessLevel,
-      departments: Array.isArray(assignment.departments) ? assignment.departments : [],
+      departments: Array.isArray(assignment.departments)
+        ? (assignment.departments as string[])
+        : [],
     }
     return map
   }, {})

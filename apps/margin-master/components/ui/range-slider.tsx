@@ -36,10 +36,14 @@ export function RangeSlider({
     return ((val - min) / (max - min)) * 100;
   };
 
-  const getValue = (percentage: number) => {
-    const rawValue = (percentage / 100) * (max - min) + min;
-    return Math.round(rawValue / step) * step;
-  };
+  const getValue = React.useCallback(
+    (percentage: number) => {
+      const rawValue = (percentage / 100) * (max - min) + min;
+      const stepped = Math.round(rawValue / step) * step;
+      return Math.min(max, Math.max(min, stepped));
+    },
+    [max, min, step]
+  );
 
   const handleMouseDown = (type: 'min' | 'max') => (e: React.MouseEvent) => {
     if (disabled) return;
@@ -114,10 +118,13 @@ export function RangeSlider({
           style={{ left: `${minPercentage}%` }}
           onMouseDown={handleMouseDown('min')}
           disabled={disabled}
+          role="slider"
+          type="button"
           aria-label="Minimum value"
           aria-valuenow={localValue[0]}
           aria-valuemin={min}
           aria-valuemax={localValue[1]}
+          aria-orientation="horizontal"
         />
         <button
           className={cn(
@@ -128,10 +135,13 @@ export function RangeSlider({
           style={{ left: `${maxPercentage}%` }}
           onMouseDown={handleMouseDown('max')}
           disabled={disabled}
+          role="slider"
+          type="button"
           aria-label="Maximum value"
           aria-valuenow={localValue[1]}
           aria-valuemin={localValue[0]}
           aria-valuemax={max}
+          aria-orientation="horizontal"
         />
       </div>
     </div>

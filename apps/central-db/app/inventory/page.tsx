@@ -15,7 +15,7 @@ import {
 
 export default function InventoryPage() {
   // This would come from your database
-  const inventory = []
+  const inventory: Array<Record<string, unknown>> = []
 
   return (
     <div className="container mx-auto p-6">
