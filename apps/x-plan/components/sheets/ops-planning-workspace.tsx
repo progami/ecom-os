@@ -142,22 +142,30 @@ function parseDateValue(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-function parseNumber(value: string | null | undefined): number | null {
-  if (value == null || value.trim() === '') return null
-  const numeric = Number(value)
+function isBlankInput(value: unknown): boolean {
+  if (value === null || value === undefined) return true
+  if (typeof value === 'string') return value.trim() === ''
+  return false
+}
+
+function toNumber(value: string | number | null | undefined): number | null {
+  if (isBlankInput(value)) return null
+  const numeric = typeof value === 'number' ? value : Number(value)
   return Number.isNaN(numeric) ? null : numeric
 }
 
-function parseInteger(value: string | null | undefined, fallback: number): number {
-  if (value == null || value.trim() === '') return fallback
-  const numeric = Number(value)
-  return Number.isNaN(numeric) ? fallback : Math.round(numeric)
+function parseNumber(value: string | number | null | undefined): number | null {
+  return toNumber(value)
 }
 
-function parsePercent(value: string | null | undefined): number | null {
-  if (value == null || value.trim() === '') return null
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return null
+function parseInteger(value: string | number | null | undefined, fallback: number): number {
+  const numeric = toNumber(value)
+  return numeric == null ? fallback : Math.round(numeric)
+}
+
+function parsePercent(value: string | number | null | undefined): number | null {
+  const numeric = toNumber(value)
+  if (numeric == null) return null
   return numeric > 1 ? numeric / 100 : numeric
 }
 
