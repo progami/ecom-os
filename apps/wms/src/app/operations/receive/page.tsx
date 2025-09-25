@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
 // Next.js imports
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 // Third-party libraries
 import { toast } from 'react-hot-toast'
@@ -82,6 +82,27 @@ interface FileAttachment {
   data?: string
   category: string
   file?: File
+}
+
+interface LinkedPurchaseOrderLine {
+  id: string
+  skuCode: string
+  skuDescription: string | null
+  batchLot: string | null
+  quantity: number
+  postedQuantity: number
+}
+
+interface LinkedPurchaseOrderSummary {
+  id: string
+  orderNumber: string
+  warehouseCode: string
+  warehouseName: string
+  status: 'DRAFT' | 'AWAITING_PROOF' | 'REVIEW' | 'POSTED' | 'CANCELLED' | 'CLOSED'
+  type: 'PURCHASE' | 'FULFILLMENT' | 'ADJUSTMENT'
+  counterpartyName: string | null
+  expectedDate: string | null
+  lines: LinkedPurchaseOrderLine[]
 }
 
 interface ReceiveFormData {
@@ -584,7 +605,7 @@ export default function ReceiveTabbedPage() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Reference Number * <span className="text-xs text-gray-500">(Commercial Invoice / PO Number)</span>
+                    PO # * <span className="text-xs text-gray-500">(Reference Number / Commercial Invoice)</span>
                   </label>
                   <input
                     type="text"

@@ -33,7 +33,10 @@ export async function GET(_request: NextRequest) {
       const hasPackingList = attachments.packingList || attachments.packing_list ? 'Yes' : 'No'
       const hasCommercialInvoice = attachments.commercialInvoice || attachments.commercial_invoice ? 'Yes' : 'No'
       const hasBillOfLading = attachments.billOfLading || attachments.bill_of_lading ? 'Yes' : 'No'
-      const hasDeliveryNote = attachments.deliveryNote || attachments.delivery_note ? 'Yes' : 'No'
+      const hasDeliveryNote =
+        attachments.movementNote || attachments.movement_note || attachments.deliveryNote || attachments.delivery_note
+          ? 'Yes'
+          : 'No'
       const hasCubeMaster = attachments.cubeMaster || attachments.cube_master ? 'Yes' : 'No'
       const hasTransactionCertificate = attachments.transactionCertificate || attachments.transaction_certificate ? 'Yes' : 'No'
       const hasCustomDeclaration = attachments.customDeclaration || attachments.custom_declaration ? 'Yes' : 'No'
@@ -47,7 +50,7 @@ export async function GET(_request: NextRequest) {
         ],
         SHIP: [
           { check: hasPackingList === 'No', label: 'Packing List' },
-          { check: hasDeliveryNote === 'No', label: 'Delivery Note' }
+          { check: hasDeliveryNote === 'No', label: 'Movement Note' }
         ],
         ADJUST_IN: [
           { check: hasProofOfPickup === 'No', label: 'Proof of Pickup' }
@@ -183,7 +186,7 @@ export async function GET(_request: NextRequest) {
       'Has Packing List',
       'Has Commercial Invoice',
       'Has Bill of Lading',
-      'Has Delivery Note',
+      'Has Movement Note',
       'Has Cube Master',
       'Has TC (GRS)',
       'Has CDS',

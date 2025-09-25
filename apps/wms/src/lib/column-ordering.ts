@@ -230,8 +230,8 @@ export const INVENTORY_TRANSACTION_COLUMNS: ColumnDefinition[] = [
   },
   {
     fieldName: 'hasDeliveryNote',
-    displayName: 'Has Delivery Note',
-    exportName: 'Has Delivery Note',
+    displayName: 'Has Movement Note',
+    exportName: 'Has Movement Note',
     group: 'metadata',
     order: 23,
     showInUI: false,

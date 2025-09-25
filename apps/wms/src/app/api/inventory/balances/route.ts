@@ -72,10 +72,20 @@ export async function GET(req: NextRequest) {
       orderBy: [
         { transactionDate: 'asc' },
         { createdAt: 'asc' }
-      ]
+      ],
+      include: {
+        purchaseOrder: {
+          select: { orderNumber: true }
+        }
+      }
     })
 
-    const aggregated = aggregateInventoryTransactions(transactions, {
+    const ledgerTransactions = transactions.map(({ purchaseOrder, ...transaction }) => ({
+      ...transaction,
+      purchaseOrderNumber: purchaseOrder?.orderNumber ?? null
+    }))
+
+    const aggregated = aggregateInventoryTransactions(ledgerTransactions, {
       includeZeroStock: showZeroStock
     })
 
@@ -126,6 +136,9 @@ export async function GET(req: NextRequest) {
         lastTransactionDate: balance.lastTransactionDate,
         lastTransactionId: balance.lastTransactionId ?? undefined,
         lastTransactionType: balance.lastTransactionType ?? undefined,
+        lastTransactionReference: balance.lastTransactionReference ?? undefined,
+        purchaseOrderId: balance.purchaseOrderId ?? null,
+        purchaseOrderNumber: balance.purchaseOrderNumber ?? null,
         receiveTransaction
       }
     })

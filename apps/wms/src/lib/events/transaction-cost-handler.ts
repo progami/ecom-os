@@ -6,6 +6,7 @@ import { getValidCostCategories, getCostRate } from '@/lib/cost-validation'
 interface TransactionWithCosts {
   transactionId: string
   warehouseCode: string
+  warehouseName?: string
   skuCode?: string
   batchLot?: string
   transactionType: TransactionType
@@ -27,6 +28,46 @@ interface TransactionWithCosts {
   createdByName?: string
 }
 
+function resolveLedgerQuantity(transaction: TransactionWithCosts): number {
+  const cartonsIn = Number(transaction.cartonsIn || 0)
+  const cartonsOut = Number(transaction.cartonsOut || 0)
+  const cartonQuantity = Math.max(cartonsIn, cartonsOut)
+  if (cartonQuantity > 0) {
+    return cartonQuantity
+  }
+
+  const palletsIn = Number(transaction.storagePalletsIn || 0)
+  const palletsOut = Number(transaction.shippingPalletsOut || 0)
+  const palletQuantity = Math.max(palletsIn, palletsOut)
+  if (palletQuantity > 0) {
+    const cartonsPerPallet = Math.max(
+      Number(transaction.storageCartonsPerPallet || 0),
+      Number(transaction.shippingCartonsPerPallet || 0)
+    )
+
+    if (cartonsPerPallet > 0) {
+      return palletQuantity * cartonsPerPallet
+    }
+
+    return palletQuantity
+  }
+
+  return 1
+}
+
+async function resolveWarehouseName(transaction: TransactionWithCosts): Promise<string> {
+  if (transaction.warehouseName && transaction.warehouseName.trim().length > 0) {
+    return transaction.warehouseName
+  }
+
+  const warehouse = await prisma.warehouse.findUnique({
+    where: { code: transaction.warehouseCode },
+    select: { name: true }
+  })
+
+  return warehouse?.name ?? transaction.warehouseCode
+}
+
 /**
  * Handles cost calculation for a transaction
  * This is called automatically by Prisma middleware when a transaction is created with costs
@@ -44,6 +85,9 @@ export async function handleTransactionCosts(transaction: TransactionWithCosts) 
       // console.warn(`No cost rates defined for warehouse ${transaction.warehouseCode}`)
     }
 
+    const warehouseName = await resolveWarehouseName(transaction)
+    const quantity = resolveLedgerQuantity(transaction)
+    const safeQuantity = quantity > 0 ? quantity : 1
     const costEntries = []
     
     // Create handling cost entry if provided
@@ -60,11 +104,11 @@ export async function handleTransactionCosts(transaction: TransactionWithCosts) 
           transactionId: transaction.transactionId,
           costCategory: 'Carton' as const,
           costName: rate?.costName || costName,
-          quantity: transaction.cartonsIn || transaction.cartonsOut,
-          unitRate: transaction.costs.handling / (transaction.cartonsIn || transaction.cartonsOut || 1),
+          quantity: safeQuantity,
+          unitRate: transaction.costs.handling / safeQuantity,
           totalCost: transaction.costs.handling,
           warehouseCode: transaction.warehouseCode,
-          warehouseName: transaction.warehouseCode,
+          warehouseName,
           createdByName: transaction.createdByName || 'System',
           createdAt: transaction.transactionDate
         })
@@ -83,11 +127,11 @@ export async function handleTransactionCosts(transaction: TransactionWithCosts) 
           transactionId: transaction.transactionId,
           costCategory: 'Storage' as const,
           costName: rate?.costName || 'Storage Fee',
-          quantity: transaction.cartonsIn || transaction.cartonsOut,
-          unitRate: transaction.costs.storage / (transaction.cartonsIn || transaction.cartonsOut || 1),
+          quantity: safeQuantity,
+          unitRate: transaction.costs.storage / safeQuantity,
           totalCost: transaction.costs.storage,
           warehouseCode: transaction.warehouseCode,
-          warehouseName: transaction.warehouseCode,
+          warehouseName,
           createdByName: transaction.createdByName || 'System',
           createdAt: transaction.transactionDate
         })
@@ -105,11 +149,11 @@ export async function handleTransactionCosts(transaction: TransactionWithCosts) 
               transactionId: transaction.transactionId,
               costCategory: 'Accessorial' as const,
               costName: customCost.name || 'Custom Cost',
-              quantity: transaction.cartonsIn || transaction.cartonsOut,
-              unitRate: customCost.amount / (transaction.cartonsIn || transaction.cartonsOut || 1),
+              quantity: safeQuantity,
+              unitRate: customCost.amount / safeQuantity,
               totalCost: customCost.amount,
               warehouseCode: transaction.warehouseCode,
-              warehouseName: transaction.warehouseCode,
+              warehouseName,
               createdByName: transaction.createdByName || 'System',
               createdAt: transaction.transactionDate
             })

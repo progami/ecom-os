@@ -503,11 +503,24 @@ function CostLedgerPage() {
 }
 
 function formatWeekEnding(rangeEnd: string) {
-  return format(new Date(rangeEnd), 'PP')
+  const parsed = new Date(rangeEnd)
+  if (Number.isNaN(parsed.getTime())) {
+    return ''
+  }
+  return format(parsed, 'PP')
 }
 
 function formatPeriod(group: CostLedgerGroupResult) {
-  return `Week ending ${formatWeekEnding(group.rangeEnd)}`
+  const formatted = formatWeekEnding(group.rangeEnd)
+  if (formatted) {
+    return formatted
+  }
+
+  if (typeof group.period === 'string') {
+    return group.period.replace(/^week ending\s*/i, '').trim()
+  }
+
+  return ''
 }
 
 export default CostLedgerPage
