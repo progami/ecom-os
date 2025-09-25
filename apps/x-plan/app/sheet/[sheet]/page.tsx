@@ -150,7 +150,7 @@ type BusinessParameterView = {
   type: 'numeric' | 'text'
 }
 
-type NestedHeaderCell = string | { label: string; colspan?: number; rowspan?: number }
+type NestedHeaderCell = string | { label: string; colspan: number; rowspan?: number }
 
 type ProfitAndLossAggregates = ReturnType<typeof computeProfitAndLoss>
 type CashFlowAggregates = ReturnType<typeof computeCashFlow>
@@ -492,12 +492,17 @@ async function getSalesPlanningView() {
   const nestedHeaders: NestedHeaderCell[][] = hasProducts
     ? [
         [
-          { label: 'Week', rowspan: 2 },
-          { label: 'Date', rowspan: 2 },
+          { label: 'Week', colspan: 1, rowspan: 2 },
+          { label: 'Date', colspan: 1, rowspan: 2 },
         ],
         [],
       ]
-    : [['Week', 'Date']]
+    : [
+        [
+          { label: 'Week', colspan: 1 },
+          { label: 'Date', colspan: 1 },
+        ],
+      ]
 
   productList.forEach((product, productIdx) => {
     nestedHeaders[0].push({ label: product.name, colspan: SALES_METRICS.length })

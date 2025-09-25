@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { formatDistanceToNow } from 'date-fns'
 import { SHEETS, type SheetConfig, type SheetSlug } from './sheets'
 import prisma from './prisma'
@@ -36,32 +37,37 @@ function latestDate(dates: Array<Date | null | undefined>): Date | undefined {
 }
 
 export async function getWorkbookStatus(): Promise<WorkbookStatus> {
-  const [productAgg, purchaseOrderAgg, salesAgg, profitAgg, cashAgg, businessAgg] = await Promise.all([
-    prisma.product.aggregate({
-      _count: { id: true },
-      _max: { updatedAt: true },
-    }),
-    prisma.purchaseOrder.aggregate({
-      _count: { id: true },
-      _max: { updatedAt: true },
-    }),
-    prisma.salesWeek.aggregate({
-      _count: { id: true },
-      _max: { updatedAt: true },
-    }),
-    prisma.profitAndLossWeek.aggregate({
-      _count: { id: true },
-      _max: { updatedAt: true },
-    }),
-    prisma.cashFlowWeek.aggregate({
-      _count: { id: true },
-      _max: { updatedAt: true },
-    }),
-    prisma.businessParameter.aggregate({
-      _count: { id: true },
-      _max: { updatedAt: true },
-    }),
-  ])
+  if (!process.env.DATABASE_URL) {
+    console.warn('DATABASE_URL missing. Returning empty workbook status.')
+    return buildEmptyWorkbookStatus()
+  }
+  try {
+    const [productAgg, purchaseOrderAgg, salesAgg, profitAgg, cashAgg, businessAgg] = await Promise.all([
+      prisma.product.aggregate({
+        _count: { id: true },
+        _max: { updatedAt: true },
+      }),
+      prisma.purchaseOrder.aggregate({
+        _count: { id: true },
+        _max: { updatedAt: true },
+      }),
+      prisma.salesWeek.aggregate({
+        _count: { id: true },
+        _max: { updatedAt: true },
+      }),
+      prisma.profitAndLossWeek.aggregate({
+        _count: { id: true },
+        _max: { updatedAt: true },
+      }),
+      prisma.cashFlowWeek.aggregate({
+        _count: { id: true },
+        _max: { updatedAt: true },
+      }),
+      prisma.businessParameter.aggregate({
+        _count: { id: true },
+        _max: { updatedAt: true },
+      }),
+    ])
 
   const productUpdatedAt = latestDate([productAgg._max.updatedAt, businessAgg._max.updatedAt])
   const profitUpdatedAt = latestDate([profitAgg._max.updatedAt, businessAgg._max.updatedAt])
@@ -155,12 +161,46 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
     },
   }
 
-  const items: WorkbookSheetStatus[] = SHEETS.map((sheet: SheetConfig) => sheetStatus[sheet.slug])
-  const completedCount = items.filter((item) => item.status === 'complete').length
+    const items: WorkbookSheetStatus[] = SHEETS.map((sheet: SheetConfig) => sheetStatus[sheet.slug])
+    const completedCount = items.filter((item) => item.status === 'complete').length
+
+    return {
+      completedCount,
+      totalCount: items.length,
+      sheets: items,
+    }
+  } catch (error) {
+    if (isPrismaUnavailable(error)) {
+      console.warn('Prisma unavailable while building workbook status. Returning empty status set.', error)
+      return buildEmptyWorkbookStatus()
+    }
+    throw error
+  }
+}
+
+function isPrismaUnavailable(error: unknown): boolean {
+  if (error instanceof Prisma.PrismaClientInitializationError) return true
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return error.code === 'P1001' || error.code === 'P1002'
+  }
+  if (error instanceof Error) {
+    return error.message.includes('Environment variable not found') || error.message.includes('find an available port')
+  }
+  return false
+}
+
+function buildEmptyWorkbookStatus(): WorkbookStatus {
+  const sheets: WorkbookSheetStatus[] = SHEETS.map((sheet) => ({
+    slug: sheet.slug,
+    label: sheet.label,
+    description: sheet.description,
+    recordCount: 0,
+    status: 'todo',
+  }))
 
   return {
-    completedCount,
-    totalCount: items.length,
-    sheets: items,
+    completedCount: 0,
+    totalCount: sheets.length,
+    sheets,
   }
 }
