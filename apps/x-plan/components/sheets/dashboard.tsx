@@ -550,6 +550,7 @@ function TrendCard({ title, description, helper, series, granularity, format, ac
       : null
 
   const latestLabel = labels.at(-1)
+  const zeroSeries = values.length > 0 && values.every((value) => value === 0)
 
   return (
     <article className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -602,6 +603,15 @@ function TrendCard({ title, description, helper, series, granularity, format, ac
               onHover={setHover}
               onLeave={() => setHover(null)}
             />
+            {zeroSeries ? (
+              <div
+                className="pointer-events-none absolute inset-6 flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-300/80 bg-white/70 text-xs font-medium text-slate-500 shadow-inner dark:border-slate-700/70 dark:bg-slate-900/70 dark:text-slate-400"
+                aria-hidden="true"
+              >
+                <span>All recorded periods are 0</span>
+                <span className="mt-1 text-2xl font-semibold tracking-tight text-slate-400 dark:text-slate-500">0</span>
+              </div>
+            ) : null}
             {hover && activeValue != null ? (
               <div
                 className="pointer-events-none absolute -translate-x-1/2 -translate-y-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 shadow-md dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
@@ -653,16 +663,17 @@ function Sparkline({ values, labels, color, title, format, activeIndex, onHover,
   const height = 220
   const width = 360
   const padding = 18
-  const min = Math.min(...values)
-  const max = Math.max(...values)
-  const range = max - min || 1
+  const min = values.length > 0 ? Math.min(...values) : 0
+  const max = values.length > 0 ? Math.max(...values) : 0
+  const range = max - min
   const innerHeight = height - padding * 2
   const innerWidth = width - padding * 2
   const points = useMemo(
     () =>
       values.map((value, index) => {
         const x = padding + (values.length === 1 ? innerWidth / 2 : (index / (values.length - 1)) * innerWidth)
-        const normalized = range === 0 ? 0.5 : (value - min) / range
+        const denominator = range === 0 ? 1 : range
+        const normalized = range === 0 ? 0.5 : (value - min) / denominator
         const y = padding + innerHeight - normalized * innerHeight
         return { x, y }
       }),
