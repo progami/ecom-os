@@ -58,6 +58,11 @@ const preciseCurrencyFormatter = new Intl.NumberFormat('en-US', {
 })
 const unitFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
 const weeksFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
+const ZERO_EPSILON = 0.0001
+
+function snapNearZero(value: number) {
+  return Math.abs(value) < ZERO_EPSILON ? 0 : value
+}
 
 type TrendMetricKey = 'revenue' | 'netProfit' | 'cashBalance'
 
@@ -518,18 +523,19 @@ function TrendCard({ title, description, helper, series, granularity, format, ac
   const palette = accentPalette[accent]
   const [hover, setHover] = useState<TrendHover>(null)
   const { labels, values } = series[granularity]
+  const snappedValues = useMemo(() => values.map(snapNearZero), [values])
 
   useEffect(() => {
     setHover(null)
   }, [granularity, series])
 
   const { activeIndex, change, changePercent } = useMemo(() => {
-    if (!values.length) return { activeIndex: null, change: null, changePercent: null }
+    if (!snappedValues.length) return { activeIndex: null, change: null, changePercent: null }
 
-    const index = hover?.index ?? values.length - 1
+    const index = hover?.index ?? snappedValues.length - 1
     const previousIndex = index > 0 ? index - 1 : null
-    const previousValue = previousIndex != null ? values[previousIndex] ?? null : null
-    const activeValue = values[index] ?? null
+    const previousValue = previousIndex != null ? snappedValues[previousIndex] ?? null : null
+    const activeValue = snappedValues[index] ?? null
 
     if (activeValue == null || previousValue == null) {
       return { activeIndex: index, change: null, changePercent: null }
@@ -539,9 +545,9 @@ function TrendCard({ title, description, helper, series, granularity, format, ac
     const deltaPercent = previousValue !== 0 ? delta / Math.abs(previousValue) : null
 
     return { activeIndex: index, change: delta, changePercent: deltaPercent }
-  }, [hover, values])
+  }, [hover, snappedValues])
 
-  const activeValue = activeIndex != null ? values[activeIndex] ?? null : null
+  const activeValue = activeIndex != null ? snappedValues[activeIndex] ?? null : null
   const activeLabel = activeIndex != null ? labels[activeIndex] ?? null : null
   const changeDisplay = change != null ? formatChangeValue(change, format) : null
   const percentDisplay =
@@ -550,7 +556,7 @@ function TrendCard({ title, description, helper, series, granularity, format, ac
       : null
 
   const latestLabel = labels.at(-1)
-  const zeroSeries = values.length > 0 && values.every((value) => value === 0)
+  const zeroSeries = snappedValues.length > 0 && snappedValues.every((value) => value === 0)
 
   return (
     <article className="flex flex-col justify-between rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -591,10 +597,10 @@ function TrendCard({ title, description, helper, series, granularity, format, ac
       </div>
 
       <div className="relative mt-8 h-64 sm:h-72 lg:h-80">
-        {values.length >= 2 ? (
+        {snappedValues.length >= 2 ? (
           <>
             <Sparkline
-              values={values}
+              values={snappedValues}
               labels={labels}
               color={palette.hex}
               format={format}
@@ -621,7 +627,7 @@ function TrendCard({ title, description, helper, series, granularity, format, ac
                   {labels[hover.index] ?? '—'}
                 </p>
                 <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-50">
-                  {formatSimpleValue(values[hover.index] ?? 0, format)}
+                  {formatSimpleValue(snappedValues[hover.index] ?? 0, format)}
                 </p>
               </div>
             ) : null}
