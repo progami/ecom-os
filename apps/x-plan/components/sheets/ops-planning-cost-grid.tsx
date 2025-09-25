@@ -11,51 +11,33 @@ import type { OpsInputRow } from '@/components/sheets/ops-planning-grid'
 
 registerAllModules()
 
+type NormalizedProductOption = { id: string; sku: string; name: string }
+
 interface OpsPlanningCostGridProps {
   rows: OpsInputRow[]
+  products: Array<{ id: string; sku?: string | null; name: string }>
   activeOrderId?: string | null
   onSelectOrder?: (orderId: string) => void
   onRowsChange?: (rows: OpsInputRow[]) => void
 }
 
-const COST_HEADERS = [
-  'PO Code',
-  'Product',
-  'Sell $',
-  'Mfg $',
-  'Freight $',
-  'Tariff %',
-  'TACoS %',
-  'FBA $',
-  'Referral %',
-  'Storage $',
-]
-
-const COST_COLUMNS: Handsontable.ColumnSettings[] = [
-  { data: 'orderCode', readOnly: true, className: 'cell-readonly', width: 140 },
-  { data: 'productName', readOnly: true, className: 'cell-readonly', width: 180 },
-  { data: 'sellingPrice', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'manufacturingCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'freightCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'tariffRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'tacosPercent', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'fbaFee', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'referralRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'storagePerMonth', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
-]
+const COST_HEADERS = ['PO Code', 'SKU', 'Product', 'Mfg Invoice $', 'Freight Invoice $', 'Tariff %']
 
 const NUMERIC_PRECISION: Record<string, number> = {
-  sellingPrice: 2,
   manufacturingCost: 2,
   freightCost: 2,
-  fbaFee: 2,
-  storagePerMonth: 2,
 }
 
 const PERCENT_PRECISION: Record<string, number> = {
   tariffRate: 4,
-  tacosPercent: 4,
-  referralRate: 4,
+}
+
+const TOTALIZED_FIELDS = new Set<keyof OpsInputRow>(['manufacturingCost', 'freightCost'])
+
+const FIELD_TO_OVERRIDE_KEY: Partial<Record<keyof OpsInputRow, string>> = {
+  manufacturingCost: 'overrideManufacturingCost',
+  freightCost: 'overrideFreightCost',
+  tariffRate: 'overrideTariffRate',
 }
 
 function normalizeCurrency(value: unknown, fractionDigits = 2) {
@@ -73,12 +55,62 @@ function normalizePercent(value: unknown, fractionDigits = 4) {
   return base.toFixed(fractionDigits)
 }
 
-export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRowsChange }: OpsPlanningCostGridProps) {
+function toPerUnitValue(totalString: string, quantityString: string): string | null {
+  const quantity = Number(quantityString ?? 0)
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    return null
+  }
+  const total = Number(totalString)
+  if (!Number.isFinite(total)) return null
+  const perUnit = total / quantity
+  if (!Number.isFinite(perUnit)) return null
+  return perUnit.toFixed(6)
+}
+
+export function OpsPlanningCostGrid({ rows, products, activeOrderId, onSelectOrder, onRowsChange }: OpsPlanningCostGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<string, { id: string; values: Record<string, string> }>>(new Map())
   const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const data = useMemo(() => rows, [rows])
+  const productOptions = useMemo<NormalizedProductOption[]>(
+    () =>
+      products
+        .map((product) => ({
+          id: product.id,
+          sku: product.sku?.trim() ?? '',
+          name: product.name,
+        }))
+        .sort((a, b) => a.sku.localeCompare(b.sku)),
+    [products]
+  )
+  const skuChoices = useMemo(() => {
+    const choices = productOptions.map((option) => option.sku).filter((sku) => sku.length > 0)
+    if (rows.some((row) => !row.productSku)) {
+      choices.unshift('')
+    }
+    return choices
+  }, [productOptions, rows])
+  const productBySku = useMemo(() => new Map(productOptions.map((option) => [option.sku, option])), [productOptions])
+  const columns = useMemo<Handsontable.ColumnSettings[]>(
+    () => [
+      { data: 'orderCode', readOnly: true, className: 'cell-readonly', width: 140 },
+      {
+        data: 'productSku',
+        type: 'dropdown',
+        source: skuChoices,
+        allowInvalid: false,
+        strict: true,
+        className: 'cell-editable',
+        width: 140,
+      },
+      { data: 'productName', readOnly: true, className: 'cell-readonly', width: 200 },
+      { data: 'manufacturingCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
+      { data: 'freightCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
+      { data: 'tariffRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
+    ],
+    [skuChoices]
+  )
 
   useEffect(() => {
     if (hotRef.current) {
@@ -122,7 +154,7 @@ export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRows
         }}
         data={data}
         licenseKey="non-commercial-and-evaluation"
-        columns={COST_COLUMNS}
+        columns={columns}
         colHeaders={COST_HEADERS}
         stretchH="all"
         className="x-plan-hot"
@@ -149,7 +181,7 @@ export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRows
           if (!hot) return
 
           for (const change of changes) {
-            const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof OpsInputRow, any, any]
+            const [rowIndex, prop, oldValue, newValue] = change as [number, keyof OpsInputRow, any, any]
             const record = hot.getSourceDataAtRow(rowIndex) as OpsInputRow | null
             if (!record) continue
 
@@ -159,16 +191,56 @@ export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRows
             const entry = pendingRef.current.get(record.id)
             if (!entry) continue
 
+            if (prop === 'productSku') {
+              const sku = typeof newValue === 'string' ? newValue.trim() : ''
+              if (!sku.length) {
+                record.productSku = typeof oldValue === 'string' ? oldValue : record.productSku
+                continue
+              }
+              const product = productBySku.get(sku)
+              if (!product) {
+                toast.error('Select a valid SKU')
+                record.productSku = typeof oldValue === 'string' ? oldValue : record.productSku
+                continue
+              }
+              entry.values.productId = product.id
+              record.productId = product.id
+              record.productSku = product.sku
+              record.productName = product.name
+              continue
+            }
+
             if (prop in NUMERIC_PRECISION) {
               const precision = NUMERIC_PRECISION[prop as keyof typeof NUMERIC_PRECISION]
               const normalized = normalizeCurrency(newValue, precision)
-              entry.values[prop] = normalized
               record[prop] = normalized as OpsInputRow[typeof prop]
+              const overrideKey = FIELD_TO_OVERRIDE_KEY[prop]
+              if (overrideKey) {
+                if (normalized === '') {
+                  entry.values[overrideKey] = ''
+                } else if (TOTALIZED_FIELDS.has(prop)) {
+                  const perUnit = toPerUnitValue(normalized, record.quantity)
+                  if (!perUnit) {
+                    toast.error('Enter a unit quantity before setting total costs')
+                    const previousValue = typeof oldValue === 'string' ? oldValue : ''
+                    record[prop] = previousValue as OpsInputRow[typeof prop]
+                    hot.setDataAtRowProp(rowIndex, prop, previousValue, 'derived-update')
+                    entry.values[overrideKey] = ''
+                  } else {
+                    entry.values[overrideKey] = perUnit
+                  }
+                } else {
+                  entry.values[overrideKey] = normalized
+                }
+              }
             } else if (prop in PERCENT_PRECISION) {
               const precision = PERCENT_PRECISION[prop as keyof typeof PERCENT_PRECISION]
               const normalized = normalizePercent(newValue, precision)
-              entry.values[prop] = normalized
               record[prop] = normalized as OpsInputRow[typeof prop]
+              const overrideKey = FIELD_TO_OVERRIDE_KEY[prop]
+              if (overrideKey) {
+                entry.values[overrideKey] = normalized
+              }
             }
           }
 

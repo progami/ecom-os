@@ -41,6 +41,7 @@ const deleteSchema = z.object({
 type NumericField = (typeof numericFields)[number]
 
 type TransactionClient = Prisma.TransactionClient
+type TemplateWeek = { weekNumber: number; weekDate: Date }
 
 function parseNumeric(value: string | null | undefined) {
   if (value === null || value === undefined) return null
@@ -59,12 +60,12 @@ async function seedSalesWeeksForProduct(productId: string, client: TransactionCl
     select: { id: true },
   })
 
-  let templateWeeks = templateProduct
-    ? await client.salesWeek.findMany({
+  let templateWeeks: TemplateWeek[] = templateProduct
+    ? ((await client.salesWeek.findMany({
         where: { productId: templateProduct.id },
         select: { weekNumber: true, weekDate: true },
         orderBy: { weekNumber: 'asc' },
-      })
+      })) as TemplateWeek[])
     : []
 
   if (templateWeeks.length === 0) {

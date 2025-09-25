@@ -52,7 +52,7 @@ export interface PurchaseOrderPaymentInput {
   paymentIndex: number
   percentage?: number | null
   amount?: number | null
-  dueDate?: Date | null
+  paymentDate?: Date | null
   status?: string | null
 }
 

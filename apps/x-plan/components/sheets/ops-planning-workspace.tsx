@@ -67,7 +67,7 @@ export type PurchaseOrderSerialized = {
     paymentIndex: number
     percentage?: number | null
     amount?: number | null
-    dueDate?: string | null
+    paymentDate?: string | null
     status?: string | null
   }>
   overrideSellingPrice?: number | null
@@ -120,6 +120,21 @@ function formatDisplayDate(value?: string | Date | null) {
   return dateFormatter.format(date).replace(',', '')
 }
 
+function formatNumericValue(value: number | null | undefined, fractionDigits = 2) {
+  if (value == null || Number.isNaN(value)) return ''
+  return Number(value).toFixed(fractionDigits)
+}
+
+function formatPercentDecimalValue(value: number | null | undefined, fractionDigits = 4) {
+  if (value == null || Number.isNaN(value)) return ''
+  return Number(value).toFixed(fractionDigits)
+}
+
+function formatIntegerValue(value: number | null | undefined) {
+  if (value == null || Number.isNaN(value)) return ''
+  return Math.round(Number(value)).toString()
+}
+
 function normalizePercent(value: string | undefined) {
   if (!value) return ''
   const numeric = Number(value)
@@ -131,7 +146,7 @@ function normalizePercent(value: string | undefined) {
 function normalizePaymentRows(rows: PurchasePaymentRow[]): PurchasePaymentRow[] {
   return rows.map((payment) => ({
     ...payment,
-    dueDate: formatDisplayDate(payment.dueDate),
+    paymentDate: formatDisplayDate(payment.paymentDate),
     percentage: normalizePercent(payment.percentage),
   }))
 }
@@ -142,21 +157,63 @@ function parseDateValue(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-function parseNumber(value: string | null | undefined): number | null {
-  if (value == null || value.trim() === '') return null
-  const numeric = Number(value)
+type NumericInput = string | number | Number | null | undefined
+
+function parseNumber(value: NumericInput): number | null {
+  if (value == null) return null
+  if (typeof value === 'number') {
+    return Number.isNaN(value) ? null : value
+  }
+  if (value instanceof Number) {
+    const numericObject = Number(value.valueOf())
+    return Number.isNaN(numericObject) ? null : numericObject
+  }
+  const stringValue = typeof value === 'string' ? value : String(value)
+  const trimmed = stringValue.trim()
+  if (trimmed === '') return null
+  const numeric = Number(trimmed)
   return Number.isNaN(numeric) ? null : numeric
 }
 
-function parseInteger(value: string | null | undefined, fallback: number): number {
-  if (value == null || value.trim() === '') return fallback
-  const numeric = Number(value)
+function parseTotalOverride(value: NumericInput, quantity: number): number | null {
+  const numeric = parseNumber(value)
+  if (numeric == null) return null
+  if (!Number.isFinite(quantity) || quantity <= 0) return null
+  const perUnit = numeric / quantity
+  return Number.isFinite(perUnit) ? perUnit : null
+}
+
+function parseInteger(value: NumericInput, fallback: number): number {
+  if (value == null) return fallback
+  if (typeof value === 'number') {
+    return Number.isNaN(value) ? fallback : Math.round(value)
+  }
+  if (value instanceof Number) {
+    const numericObject = Number(value.valueOf())
+    return Number.isNaN(numericObject) ? fallback : Math.round(numericObject)
+  }
+  const stringValue = typeof value === 'string' ? value : String(value)
+  const trimmed = stringValue.trim()
+  if (trimmed === '') return fallback
+  const numeric = Number(trimmed)
   return Number.isNaN(numeric) ? fallback : Math.round(numeric)
 }
 
-function parsePercent(value: string | null | undefined): number | null {
-  if (value == null || value.trim() === '') return null
-  const numeric = Number(value)
+function parsePercent(value: NumericInput): number | null {
+  if (value == null) return null
+  if (typeof value === 'number') {
+    if (Number.isNaN(value)) return null
+    return value > 1 ? value / 100 : value
+  }
+  if (value instanceof Number) {
+    const numericObject = Number(value.valueOf())
+    if (Number.isNaN(numericObject)) return null
+    return numericObject > 1 ? numericObject / 100 : numericObject
+  }
+  const stringValue = typeof value === 'string' ? value : String(value)
+  const trimmed = stringValue.trim()
+  if (trimmed === '') return null
+  const numeric = Number(trimmed)
   if (Number.isNaN(numeric)) return null
   return numeric > 1 ? numeric / 100 : numeric
 }
@@ -195,17 +252,12 @@ function deserializeOrders(purchaseOrders: PurchaseOrderSerialized[]): PurchaseO
         paymentIndex: payment.paymentIndex,
         percentage: payment.percentage ?? null,
         amount: payment.amount ?? null,
-        dueDate: parseDateValue(payment.dueDate ?? null),
+        paymentDate: parseDateValue(payment.paymentDate ?? null),
         status: payment.status ?? null,
       })) ?? [],
-    overrideSellingPrice: order.overrideSellingPrice ?? null,
     overrideManufacturingCost: order.overrideManufacturingCost ?? null,
     overrideFreightCost: order.overrideFreightCost ?? null,
     overrideTariffRate: order.overrideTariffRate ?? null,
-    overrideTacosPercent: order.overrideTacosPercent ?? null,
-    overrideFbaFee: order.overrideFbaFee ?? null,
-    overrideReferralRate: order.overrideReferralRate ?? null,
-    overrideStoragePerMonth: order.overrideStoragePerMonth ?? null,
   }))
 }
 
@@ -218,6 +270,15 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       orderCode: row.orderCode,
       productId: row.productId,
       quantity: parseInteger(row.quantity, 0),
+      ...(() => {
+        const quantity = parseInteger(row.quantity, 0)
+        const quantityForCosts = quantity > 0 ? quantity : 0
+        return {
+          overrideManufacturingCost: parseTotalOverride(row.manufacturingCost, quantityForCosts),
+          overrideFreightCost: parseTotalOverride(row.freightCost, quantityForCosts),
+          overrideTariffRate: parsePercent(row.tariffRate),
+        }
+      })(),
       productionWeeks: parseNumber(row.productionWeeks),
       sourcePrepWeeks: parseNumber(row.sourcePrepWeeks),
       oceanWeeks: parseNumber(row.oceanWeeks),
@@ -234,7 +295,7 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       productionStart: null,
       productionComplete: null,
       sourceDeparture: null,
-      transportReference: null,
+      transportReference: row.transportReference ? row.transportReference : null,
       portEta: null,
       inboundEta: null,
       availableDate: null,
@@ -242,18 +303,11 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       status: (row.status as PurchaseOrderStatus) ?? 'PLANNED',
       notes: row.notes ? row.notes : null,
       payments: [],
-      overrideSellingPrice: parseNumber(row.sellingPrice),
-      overrideManufacturingCost: parseNumber(row.manufacturingCost),
-      overrideFreightCost: parseNumber(row.freightCost),
-      overrideTariffRate: parsePercent(row.tariffRate),
-      overrideTacosPercent: parsePercent(row.tacosPercent),
-      overrideFbaFee: parseNumber(row.fbaFee),
-      overrideReferralRate: parsePercent(row.referralRate),
-      overrideStoragePerMonth: parseNumber(row.storagePerMonth),
     }
 
     return {
       ...base,
+      productId: row.productId || base.productId,
       orderCode: row.orderCode,
       quantity: parseInteger(row.quantity, base.quantity ?? 0),
       pay1Date: parseDateValue(row.pay1Date),
@@ -261,16 +315,18 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       sourcePrepWeeks: parseNumber(row.sourcePrepWeeks),
       oceanWeeks: parseNumber(row.oceanWeeks),
       finalMileWeeks: parseNumber(row.finalMileWeeks),
+      transportReference: row.transportReference ? row.transportReference : null,
       status: (row.status as PurchaseOrderStatus) ?? base.status,
       notes: row.notes ? row.notes : null,
-      overrideSellingPrice: parseNumber(row.sellingPrice),
-      overrideManufacturingCost: parseNumber(row.manufacturingCost),
-      overrideFreightCost: parseNumber(row.freightCost),
-      overrideTariffRate: parsePercent(row.tariffRate),
-      overrideTacosPercent: parsePercent(row.tacosPercent),
-      overrideFbaFee: parseNumber(row.fbaFee),
-      overrideReferralRate: parsePercent(row.referralRate),
-      overrideStoragePerMonth: parseNumber(row.storagePerMonth),
+      ...(() => {
+        const quantity = parseInteger(row.quantity, base.quantity ?? 0)
+        const quantityForCosts = quantity > 0 ? quantity : base.quantity ?? 0
+        return {
+          overrideManufacturingCost: parseTotalOverride(row.manufacturingCost, quantityForCosts),
+          overrideFreightCost: parseTotalOverride(row.freightCost, quantityForCosts),
+          overrideTariffRate: parsePercent(row.tariffRate),
+        }
+      })(),
     }
   })
 }
@@ -285,7 +341,7 @@ function buildPaymentsByOrder(paymentRows: PurchasePaymentRow[]): Map<string, Pu
       paymentIndex: payment.paymentIndex,
       percentage,
       amount,
-      dueDate: parseDateValue(payment.dueDate),
+      paymentDate: parseDateValue(payment.paymentDate),
       status: payment.status ?? null,
     })
     map.set(payment.purchaseOrderId, list)
@@ -388,7 +444,8 @@ function buildTimelineRowsFromData(params: {
 
 function summaryLineFor(summary: PaymentSummary): string {
   const parts: string[] = []
-  parts.push(`Plan ${currencyFormatter.format(summary.plannedAmount)}`)
+  parts.push(`Manufacturing invoice ${currencyFormatter.format(summary.manufacturingInvoice)}`)
+  parts.push(`Freight invoice ${currencyFormatter.format(summary.freightInvoice)}`)
   if (summary.plannedAmount > 0) {
     const paidPercent = Math.max(summary.actualPercent * 100, 0).toFixed(1)
     parts.push(`Paid ${currencyFormatter.format(summary.actualAmount)} (${paidPercent}%)`)
@@ -407,6 +464,17 @@ function summaryLineFor(summary: PaymentSummary): string {
 
 export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }: OpsPlanningWorkspaceProps) {
   const productIndex = useMemo(() => buildProductCostIndex(calculator.products), [calculator.products])
+  const productMetadata = useMemo(() => {
+    const map = new Map<string, { name: string; sku: string }>()
+    for (const product of calculator.products) {
+      map.set(product.id, { name: product.name, sku: product.sku ?? '' })
+    }
+    return map
+  }, [calculator.products])
+  const productOptionsForGrid = useMemo(
+    () => calculator.products.map((product) => ({ id: product.id, sku: product.sku ?? '', name: product.name })),
+    [calculator.products]
+  )
   const leadProfileMap = useMemo(() => {
     const map = new Map<string, LeadTimeProfile>()
     for (const profile of calculator.leadProfiles) {
@@ -442,6 +510,7 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
   const [orders, setOrders] = useState<PurchaseOrderInput[]>(initialOrders)
   const [paymentRows, setPaymentRows] = useState<PurchasePaymentRow[]>(initialPayments)
   const [activeOrderId, setActiveOrderId] = useState<string | null>(inputs[0]?.id ?? null)
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const inputRowsRef = useRef(inputRows)
@@ -518,6 +587,81 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
     [applyTimelineUpdate]
   )
 
+  const handleAddOrder = useCallback(() => {
+    if (!productOptionsForGrid.length) {
+      toast.error('Add a product in Product setup before creating a PO')
+      return
+    }
+    const orderCode = window.prompt('Enter PO code')
+    const trimmedCode = orderCode?.trim()
+    if (!trimmedCode) {
+      toast.error('Enter a PO code to continue')
+      return
+    }
+
+    const defaultProduct = productOptionsForGrid[0]
+    setIsCreatingOrder(true)
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/v1/x-plan/purchase-orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderCode: trimmedCode, productId: defaultProduct.id }),
+        })
+        if (!response.ok) throw new Error('Failed to create purchase order')
+        const json = (await response.json()) as { order?: PurchaseOrderInput }
+        const createdOrder = json.order
+        if (!createdOrder) throw new Error('Missing order payload')
+
+        const productInfo = productMetadata.get(createdOrder.productId) ?? { name: '', sku: '' }
+        const quantity = Number(createdOrder.quantity ?? 0)
+        const manufacturingTotal =
+          createdOrder.overrideManufacturingCost != null && Number.isFinite(createdOrder.overrideManufacturingCost)
+            ? Number(createdOrder.overrideManufacturingCost) * quantity
+            : null
+        const freightTotal =
+          createdOrder.overrideFreightCost != null && Number.isFinite(createdOrder.overrideFreightCost)
+            ? Number(createdOrder.overrideFreightCost) * quantity
+            : null
+        const nextRow: OpsInputRow = {
+          id: createdOrder.id,
+          productId: createdOrder.productId,
+          productSku: productInfo.sku,
+          orderCode: createdOrder.orderCode,
+          transportReference: createdOrder.transportReference ?? '',
+          productName: productInfo.name,
+          quantity: formatIntegerValue(createdOrder.quantity ?? 0),
+          pay1Date: formatDisplayDate(createdOrder.pay1Date),
+          productionWeeks: formatNumericValue(createdOrder.productionWeeks),
+          sourcePrepWeeks: formatNumericValue(createdOrder.sourcePrepWeeks),
+          oceanWeeks: formatNumericValue(createdOrder.oceanWeeks),
+          finalMileWeeks: formatNumericValue(createdOrder.finalMileWeeks),
+          manufacturingCost: formatNumericValue(manufacturingTotal),
+          freightCost: formatNumericValue(freightTotal),
+          tariffRate: formatPercentDecimalValue(createdOrder.overrideTariffRate),
+          status: createdOrder.status,
+          notes: createdOrder.notes ?? '',
+        }
+
+        const nextOrders = [...ordersRef.current, createdOrder]
+        const nextRows = [...inputRowsRef.current, nextRow]
+        ordersRef.current = nextOrders
+        inputRowsRef.current = nextRows
+        setOrders(nextOrders)
+        setInputRows(nextRows)
+        applyTimelineUpdate(nextOrders, nextRows, paymentRowsRef.current)
+        setActiveOrderId(createdOrder.id)
+        toast.success('Purchase order created')
+      } catch (error) {
+        console.error(error)
+        toast.error('Unable to create purchase order')
+      } finally {
+        setIsCreatingOrder(false)
+      }
+    })()
+  }, [productOptionsForGrid, productMetadata, applyTimelineUpdate])
+
   const handleAddPayment = () => {
     const orderId = activeOrderId
     if (!orderId) {
@@ -543,7 +687,7 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
         const created = (await response.json()) as PurchasePaymentRow
         const normalizedCreated: PurchasePaymentRow = {
           ...created,
-          dueDate: formatDisplayDate(created.dueDate),
+          paymentDate: formatDisplayDate(created.paymentDate),
           percentage: normalizePercent(created.percentage),
         }
         setPaymentRows((previous) => {
@@ -575,7 +719,9 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
 
     for (const row of timelineRows) {
       const derived = derivedMapRef.current.get(row.id)
-      const plannedAmount = derived?.plannedPoValue ?? 0
+      const manufacturingInvoice = derived?.manufacturingInvoice ?? 0
+      const freightInvoice = derived?.freightInvoice ?? 0
+      const plannedAmount = manufacturingInvoice + freightInvoice
       const plannedPercent = plannedAmount > 0 ? 1 : 0
       summaries.set(row.id, {
         plannedAmount,
@@ -584,27 +730,43 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
         actualPercent: 0,
         remainingAmount: plannedAmount,
         remainingPercent: plannedPercent,
+        manufacturingInvoice,
+        freightInvoice,
       })
     }
 
     for (const payment of paymentRows) {
       const summary = summaries.get(payment.purchaseOrderId)
       if (!summary) continue
-      const amount = Number(payment.amount ?? 0)
+      const amountValue = payment.amount
+      const amount = amountValue === '' || amountValue == null ? Number.NaN : Number(amountValue)
+      const percentValue = payment.percentage
+      const percentFromPayment = percentValue === '' || percentValue == null ? Number.NaN : Number(percentValue)
+
+      if (Number.isFinite(percentFromPayment) && percentFromPayment > 0 && !Number.isFinite(amount)) {
+        if (summary.plannedAmount > 0) {
+          summary.actualAmount += percentFromPayment * summary.plannedAmount
+        }
+        continue
+      }
+
       if (Number.isFinite(amount)) {
         summary.actualAmount += amount
-      }
-      const percentFromPayment = Number(payment.percentage ?? 0)
-      if (Number.isFinite(percentFromPayment) && percentFromPayment > 0) {
-        summary.actualPercent += percentFromPayment
-      } else if (summary.plannedAmount > 0 && Number.isFinite(amount)) {
-        summary.actualPercent += amount / summary.plannedAmount
       }
     }
 
     for (const summary of summaries.values()) {
-      summary.remainingAmount = Math.max(summary.plannedAmount - summary.actualAmount, 0)
-      summary.remainingPercent = Math.max(summary.plannedPercent - summary.actualPercent, 0)
+      if (summary.plannedAmount > 0) {
+        const impliedPercent = summary.actualAmount / summary.plannedAmount
+        summary.actualPercent = Number.isFinite(impliedPercent) ? impliedPercent : 0
+        summary.remainingAmount = summary.plannedAmount - summary.actualAmount
+        summary.remainingPercent = summary.plannedPercent - summary.actualPercent
+      } else {
+        summary.actualAmount = 0
+        summary.actualPercent = 0
+        summary.remainingAmount = 0
+        summary.remainingPercent = 0
+      }
     }
 
     return summaries
@@ -619,8 +781,8 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
     if (!summary) return false
     const amountTolerance = Math.max(summary.plannedAmount * 0.001, 0.01)
     const percentTolerance = Math.max(summary.plannedPercent * 0.001, 0.001)
-    const amountCleared = summary.plannedAmount > 0 && summary.remainingAmount <= amountTolerance
-    const percentCleared = summary.plannedPercent > 0 && summary.remainingPercent <= percentTolerance
+    const amountCleared = summary.plannedAmount > 0 && Math.abs(summary.remainingAmount) <= amountTolerance
+    const percentCleared = summary.plannedPercent > 0 && Math.abs(summary.remainingPercent) <= percentTolerance
     return amountCleared || percentCleared
   }
 
@@ -638,9 +800,12 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
         activeOrderId={activeOrderId}
         onSelectOrder={(orderId) => setActiveOrderId(orderId)}
         onRowsChange={handleInputRowsChange}
+        onAddOrder={handleAddOrder}
+        isAddingOrder={isCreatingOrder}
       />
       <OpsPlanningCostGrid
         rows={inputRows}
+        products={productOptionsForGrid}
         activeOrderId={activeOrderId}
         onSelectOrder={(orderId) => setActiveOrderId(orderId)}
         onRowsChange={handleInputRowsChange}

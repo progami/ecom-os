@@ -17,7 +17,7 @@ type SalesRow = {
 }
 
 type ColumnMeta = Record<string, { productId: string; field: string }>
-type NestedHeaderCell = string | { label: string; colspan?: number; rowspan?: number }
+type NestedHeaderCell = string | { label: string; colspan: number; rowspan?: number }
 const editableMetrics = new Set(['actualSales', 'forecastSales'])
 
 type SalesUpdate = {

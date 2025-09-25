@@ -17,7 +17,7 @@ const LEAD_STAGE_LABELS = ['Production Time', 'Source Prep', 'Ocean Transit', 'F
 
 async function main() {
   const labels = new Set(PARAMETER_LABELS.concat(LEAD_STAGE_LABELS).map((label) => label.toLowerCase()))
-  const removableProducts = await prisma.product.findMany({
+  const removableProducts = (await prisma.product.findMany({
     where: {
       OR: [
         { name: { in: Array.from(labels.values()) } },
@@ -25,7 +25,8 @@ async function main() {
         { name: { in: LEAD_STAGE_LABELS } },
       ],
     },
-  })
+    select: { id: true },
+  })) as Array<{ id: string }>
 
   if (removableProducts.length === 0) {
     console.log('No parameter rows found in Product table.')
