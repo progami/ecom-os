@@ -106,13 +106,18 @@ export function computeSalesPlan(
     // Compute weeks of coverage
     const productRows = results.filter((row) => row.productId === productId).sort((a, b) => a.weekNumber - b.weekNumber)
     for (let i = 0; i < productRows.length; i += 1) {
-      let lastPositiveIndex = i
+      let depletionIndex: number | null = null
       for (let j = i; j < productRows.length; j += 1) {
-        if (productRows[j].stockEnd > 0) {
-          lastPositiveIndex = j
+        if (productRows[j].stockEnd <= 0) {
+          depletionIndex = j
+          break
         }
       }
-      productRows[i].stockWeeks = lastPositiveIndex >= i ? lastPositiveIndex - i + 1 : 0
+      if (depletionIndex == null) {
+        productRows[i].stockWeeks = Number.POSITIVE_INFINITY
+      } else {
+        productRows[i].stockWeeks = depletionIndex - i + 1
+      }
     }
   }
 

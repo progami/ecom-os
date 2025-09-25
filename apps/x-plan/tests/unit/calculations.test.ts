@@ -168,6 +168,48 @@ describe('computeSalesPlan', () => {
     expect(week3?.finalSales).toBe(70)
     expect(week3?.stockEnd).toBe(420)
   })
+
+  it('counts future weeks until depletion using projected sales', () => {
+    const coverageInput: SalesWeekInput[] = [
+      { id: 'c1', productId: product.id, weekNumber: 10, stockStart: 100, forecastSales: 20 },
+      { id: 'c2', productId: product.id, weekNumber: 11, forecastSales: 20 },
+      { id: 'c3', productId: product.id, weekNumber: 12, forecastSales: 20 },
+      { id: 'c4', productId: product.id, weekNumber: 13, forecastSales: 20 },
+      { id: 'c5', productId: product.id, weekNumber: 14, forecastSales: 20 },
+    ]
+
+    const coveragePlan = computeSalesPlan(coverageInput, [])
+    const week10 = coveragePlan.find((row) => row.weekNumber === 10)
+    const week12 = coveragePlan.find((row) => row.weekNumber === 12)
+
+    expect(week10?.stockWeeks).toBe(5)
+    expect(week12?.stockWeeks).toBe(3)
+
+    const plateauInput: SalesWeekInput[] = [
+      { id: 'p1', productId: product.id, weekNumber: 20, stockStart: 80, forecastSales: 0 },
+      { id: 'p2', productId: product.id, weekNumber: 21, forecastSales: 0 },
+      { id: 'p3', productId: product.id, weekNumber: 22, forecastSales: 0 },
+    ]
+
+    const plateauPlan = computeSalesPlan(plateauInput, [])
+    const plateauWeek = plateauPlan.find((row) => row.weekNumber === 20)
+    expect(plateauWeek?.stockWeeks).toBe(Number.POSITIVE_INFINITY)
+  })
+
+  it('carries ending inventory into the next planning year', () => {
+    const multiYearInput: SalesWeekInput[] = [
+      { id: 'y52', productId: product.id, weekNumber: 52, stockStart: 40, forecastSales: 10 },
+      { id: 'y53', productId: product.id, weekNumber: 53, forecastSales: 10 },
+      { id: 'y54', productId: product.id, weekNumber: 54, forecastSales: 10 },
+    ]
+
+    const multiYearPlan = computeSalesPlan(multiYearInput, [])
+    const week52 = multiYearPlan.find((row) => row.weekNumber === 52)
+    const week53 = multiYearPlan.find((row) => row.weekNumber === 53)
+
+    expect(week52?.stockEnd).toBe(30)
+    expect(week53?.stockStart).toBe(30)
+  })
 })
 
 const profitResult = computeProfitAndLoss(
@@ -222,6 +264,8 @@ describe('computeCashFlow', () => {
     expect(payoutWeek).toBeDefined()
     expect(payoutWeek?.amazonPayout).toBeCloseTo(500)
     expect(payoutWeek?.cashBalance).toBeGreaterThan(0)
+    expect(payoutWeek?.weekDate).toBeInstanceOf(Date)
+    expect(payoutWeek?.weekDate?.getFullYear()).toBeGreaterThanOrEqual(2024)
   })
 })
 

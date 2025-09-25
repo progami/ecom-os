@@ -178,7 +178,9 @@ type BusinessParameterView = {
   type: 'numeric' | 'text'
 }
 
-type NestedHeaderCell = string | { label: string; colspan?: number; rowspan?: number }
+type NestedHeaderCell =
+  | string
+  | { label: string; colspan?: number; rowspan?: number; title?: string }
 
 type ProfitAndLossAggregates = ReturnType<typeof computeProfitAndLoss>
 type CashFlowAggregates = ReturnType<typeof computeCashFlow>
@@ -233,7 +235,7 @@ function columnKey(productIndex: number, metric: SalesMetric) {
   return `p${productIndex}_${metric}`
 }
 
-function metricLabel(metric: SalesMetric) {
+function metricHeader(metric: SalesMetric): NestedHeaderCell {
   switch (metric) {
     case 'stockStart':
       return 'Stock Start'
@@ -244,7 +246,11 @@ function metricLabel(metric: SalesMetric) {
     case 'finalSales':
       return 'Final Sales'
     case 'stockWeeks':
-      return 'Stock (Weeks)'
+      return {
+        label: 'Stock (Weeks)',
+        title:
+          'Weeks of stock = number of future weeks until projected inventory reaches zero using Final Sales (Actuals when present, otherwise Forecast) and scheduled arrivals.',
+      }
     case 'stockEnd':
       return 'Stock End'
     default:
@@ -516,18 +522,15 @@ function getSalesPlanningView(
   const hasProducts = productList.length > 0
   const nestedHeaders: NestedHeaderCell[][] = hasProducts
     ? [
-        [
-          { label: 'Week', rowspan: 2 },
-          { label: 'Date', rowspan: 2 },
-        ],
         ['', ''],
+        ['Week', 'Date'],
       ]
     : [['Week', 'Date']]
 
   productList.forEach((product, productIdx) => {
     nestedHeaders[0].push({ label: product.name, colspan: SALES_METRICS.length })
     if (hasProducts) {
-      nestedHeaders[1]?.push(...SALES_METRICS.map((metric) => metricLabel(metric)))
+      nestedHeaders[1]?.push(...SALES_METRICS.map((metric) => metricHeader(metric)))
     }
     SALES_METRICS.forEach((metric) => {
       const key = columnKey(productIdx, metric)
@@ -573,7 +576,13 @@ function getSalesPlanningView(
             row[key] = formatNumeric(derived?.finalSales ?? null, 0)
             break
           case 'stockWeeks':
-            row[key] = derived?.stockWeeks != null ? String(derived.stockWeeks) : ''
+            if (derived?.stockWeeks == null) {
+              row[key] = ''
+            } else if (!Number.isFinite(derived.stockWeeks)) {
+              row[key] = '∞'
+            } else {
+              row[key] = String(derived.stockWeeks)
+            }
             break
           case 'stockEnd':
             row[key] = formatNumeric(derived?.stockEnd ?? null, 0)

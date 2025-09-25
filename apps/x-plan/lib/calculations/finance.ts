@@ -3,7 +3,7 @@ import type { BusinessParameterMap, CashFlowWeekInput, ProfitAndLossWeekInput } 
 import type { PurchaseOrderDerived } from './ops'
 import type { SalesWeekDerived } from './sales'
 import { ProductCostSummary } from './product'
-import { buildWeekCalendar, weekNumberForDate } from './calendar'
+import { buildWeekCalendar, getCalendarDateForWeek, weekNumberForDate } from './calendar'
 
 export interface ProfitAndLossWeekDerived {
   weekNumber: number
@@ -273,6 +273,8 @@ export function computeCashFlow(
   for (const weekNumber of weekNumbers) {
     const override = overridesByWeek.get(weekNumber)
     const baseWeekDate = weeklyPnl.find((row) => row.weekNumber === weekNumber)?.weekDate ?? null
+    const calendarWeekDate = getCalendarDateForWeek(weekNumber, calendar)
+    const resolvedWeekDate = baseWeekDate ?? calendarWeekDate
 
     const amazonPayout = override?.amazonPayout != null
       ? toNumber(override.amazonPayout)
@@ -296,7 +298,7 @@ export function computeCashFlow(
 
     weekly.push({
       weekNumber,
-      weekDate: baseWeekDate,
+      weekDate: resolvedWeekDate,
       amazonPayout,
       inventorySpend,
       fixedCosts,
