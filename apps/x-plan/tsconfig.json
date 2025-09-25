@@ -34,7 +34,8 @@
     "types": [
       "vitest/config",
       "vitest/globals",
-      "@testing-library/jest-dom"
+      "@testing-library/jest-dom",
+      "./types/prisma"
     ]
   },
   "include": [

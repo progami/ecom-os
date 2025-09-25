@@ -10,6 +10,7 @@ import type {
   CashFlowWeek,
   MonthlySummary,
   QuarterlySummary,
+  PurchaseOrderStatus,
 } from '@prisma/client'
 import {
   BusinessParameterInput,
@@ -43,7 +44,7 @@ export function mapProducts(products: Product[]): ProductInput[] {
   return products.map((product) => ({
     id: product.id,
     name: product.name,
-    sku: product.sku,
+    sku: product.sku ?? '',
     sellingPrice: toNumber(product.sellingPrice),
     manufacturingCost: toNumber(product.manufacturingCost),
     freightCost: toNumber(product.freightCost),
@@ -97,20 +98,23 @@ export function mapPurchaseOrders(orders: Array<PurchaseOrder & { payments: Purc
     pay1Amount: order.pay1Amount != null ? toNumber(order.pay1Amount) : null,
     pay2Amount: order.pay2Amount != null ? toNumber(order.pay2Amount) : null,
     pay3Amount: order.pay3Amount != null ? toNumber(order.pay3Amount) : null,
-    pay1Date: order.pay1Date,
-    pay2Date: order.pay2Date,
-    pay3Date: order.pay3Date,
-    productionStart: order.productionStart,
-    productionComplete: order.productionComplete,
-    sourceDeparture: order.sourceDeparture,
-    transportReference: order.transportReference ?? null,
-    portEta: order.portEta,
-    inboundEta: order.inboundEta,
-    availableDate: order.availableDate,
+    pay1Date: order.pay1Date ?? null,
+    pay2Date: order.pay2Date ?? null,
+    pay3Date: order.pay3Date ?? null,
+    productionStart: order.productionStart ?? null,
+    productionComplete: order.productionComplete ?? null,
+    sourceDeparture: order.sourceDeparture ?? null,
+    transportReference:
+      typeof order.transportReference === 'string' ? order.transportReference : order.transportReference != null
+        ? String(order.transportReference)
+        : null,
+    portEta: order.portEta ?? null,
+    inboundEta: order.inboundEta ?? null,
+    availableDate: order.availableDate ?? null,
     totalLeadDays: order.totalLeadDays ?? null,
-    status: order.status,
-    statusIcon: order.statusIcon ?? null,
-    notes: order.notes ?? null,
+    status: (typeof order.status === 'string' ? order.status : 'PLANNED') as PurchaseOrderStatus,
+    statusIcon: typeof order.statusIcon === 'string' ? order.statusIcon : null,
+    notes: typeof order.notes === 'string' ? order.notes : order.notes != null ? String(order.notes) : null,
     overrideSellingPrice: order.overrideSellingPrice != null ? toNumber(order.overrideSellingPrice) : null,
     overrideManufacturingCost: order.overrideManufacturingCost != null ? toNumber(order.overrideManufacturingCost) : null,
     overrideFreightCost: order.overrideFreightCost != null ? toNumber(order.overrideFreightCost) : null,
@@ -119,14 +123,16 @@ export function mapPurchaseOrders(orders: Array<PurchaseOrder & { payments: Purc
     overrideFbaFee: order.overrideFbaFee != null ? toNumber(order.overrideFbaFee) : null,
     overrideReferralRate: order.overrideReferralRate != null ? toNumber(order.overrideReferralRate) : null,
     overrideStoragePerMonth: order.overrideStoragePerMonth != null ? toNumber(order.overrideStoragePerMonth) : null,
-    payments: order.payments.map<PurchaseOrderPaymentInput>((payment) => ({
-      paymentIndex: payment.paymentIndex,
-      percentage: payment.percentage != null ? toNumber(payment.percentage) : null,
-      amount: payment.amount != null ? toNumber(payment.amount) : null,
-      dueDate: payment.dueDate,
-      status: payment.status,
-    })),
-  }))
+    payments: Array.isArray(order.payments)
+      ? (order.payments as PurchaseOrderPayment[]).map((payment): PurchaseOrderPaymentInput => ({
+          paymentIndex: payment.paymentIndex,
+          percentage: payment.percentage != null ? toNumber(payment.percentage) : null,
+          amount: payment.amount != null ? toNumber(payment.amount) : null,
+          dueDate: payment.dueDate ?? null,
+          status: payment.status ?? 'pending',
+        }))
+      : [],
+  })) as PurchaseOrderInput[]
 }
 
 export function mapSalesWeeks(rows: SalesWeek[]): SalesWeekInput[] {

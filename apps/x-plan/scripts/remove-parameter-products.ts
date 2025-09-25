@@ -33,7 +33,7 @@ async function main() {
   }
 
   await prisma.product.deleteMany({
-    where: { id: { in: removableProducts.map((product) => product.id) } },
+    where: { id: { in: removableProducts.map((product: { id: string }) => product.id) } },
   })
 
   console.log(`Removed ${removableProducts.length} parameter rows from Product table.`)

@@ -40,7 +40,7 @@ const deleteSchema = z.object({
 
 type NumericField = (typeof numericFields)[number]
 
-type TransactionClient = Prisma.TransactionClient
+type TransactionClient = { [key: string]: any }
 
 function parseNumeric(value: string | null | undefined) {
   if (value === null || value === undefined) return null
@@ -59,7 +59,9 @@ async function seedSalesWeeksForProduct(productId: string, client: TransactionCl
     select: { id: true },
   })
 
-  let templateWeeks = templateProduct
+  type TemplateWeek = { weekNumber: number; weekDate: Date }
+
+  let templateWeeks: TemplateWeek[] = templateProduct
     ? await client.salesWeek.findMany({
         where: { productId: templateProduct.id },
         select: { weekNumber: true, weekDate: true },
@@ -74,7 +76,7 @@ async function seedSalesWeeksForProduct(productId: string, client: TransactionCl
     while (firstMonday.getDay() !== 1) {
       firstMonday.setDate(firstMonday.getDate() + 1)
     }
-    templateWeeks = Array.from({ length: 52 }, (_, index) => {
+    templateWeeks = Array.from({ length: 52 }, (_, index): TemplateWeek => {
       const timestamp = firstMonday.getTime() + index * 7 * 24 * 60 * 60 * 1000
       return {
         weekNumber: index + 1,
@@ -108,7 +110,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: TransactionClient) => {
     const product = await tx.product.create({
       data: {
         name: parsed.data.name.trim(),
@@ -198,7 +200,7 @@ export async function DELETE(request: Request) {
 
   const ids = parsed.data.ids
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: TransactionClient) => {
     await tx.purchaseOrder.deleteMany({ where: { productId: { in: ids } } })
     await tx.leadTimeOverride.deleteMany({ where: { productId: { in: ids } } })
     await tx.product.deleteMany({ where: { id: { in: ids } } })

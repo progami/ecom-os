@@ -11,6 +11,17 @@ import type { OpsTimelineRow } from '@/components/sheets/ops-planning-timeline'
 import type { PurchasePaymentRow } from '@/components/sheets/purchase-payments-grid'
 import type { OpsPlanningCalculatorPayload, PurchaseOrderSerialized } from '@/components/sheets/ops-planning-workspace'
 import prisma from '@/lib/prisma'
+import type {
+  BusinessParameter,
+  CashFlowWeek,
+  LeadStageTemplate,
+  LeadTimeOverride,
+  Product,
+  ProfitAndLossWeek,
+  PurchaseOrder,
+  PurchaseOrderPayment,
+  SalesWeek,
+} from '@prisma/client'
 import { getSheetConfig } from '@/lib/sheets'
 import { getWorkbookStatus } from '@/lib/workbook'
 import { WorkbookLayout } from '@/components/workbook-layout'
@@ -226,8 +237,8 @@ function metricLabel(metric: SalesMetric) {
 
 async function getProductSetupView() {
   const [products, businessParameters] = await Promise.all([
-    prisma.product.findMany({ orderBy: { name: 'asc' } }),
-    prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }),
+    prisma.product.findMany({ orderBy: { name: 'asc' } }) as Promise<Product[]>,
+    prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }) as Promise<BusinessParameter[]>,
   ])
 
   const activeProducts = products.filter((product) => {
@@ -298,14 +309,14 @@ async function getProductSetupView() {
 
 async function loadOperationsContext() {
   const [products, leadStages, overrides, businessParameters, purchaseOrders] = await Promise.all([
-    prisma.product.findMany({ orderBy: { name: 'asc' } }),
-    prisma.leadStageTemplate.findMany({ orderBy: { sequence: 'asc' } }),
-    prisma.leadTimeOverride.findMany(),
-    prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }),
+    prisma.product.findMany({ orderBy: { name: 'asc' } }) as Promise<Product[]>,
+    prisma.leadStageTemplate.findMany({ orderBy: { sequence: 'asc' } }) as Promise<LeadStageTemplate[]>,
+    prisma.leadTimeOverride.findMany() as Promise<LeadTimeOverride[]>,
+    prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }) as Promise<BusinessParameter[]>,
     prisma.purchaseOrder.findMany({
       orderBy: { orderCode: 'asc' },
       include: { product: true, payments: { orderBy: { paymentIndex: 'asc' } } },
-    }),
+    }) as Promise<Array<PurchaseOrder & { payments: PurchaseOrderPayment[] }>>,
   ])
 
   const productInputs = mapProducts(products)
@@ -405,7 +416,7 @@ async function getOpsPlanningView(): Promise<{
     const derived = derivedByOrderId.get(order.id)
     const poValue = derived?.plannedPoValue ?? 0
 
-    return order.payments.map((payment) => {
+    return order.payments.map((payment: any) => {
       const amountNumeric = payment.amount != null ? Number(payment.amount) : null
       const percentNumeric = payment.percentage != null
         ? Number(payment.percentage)
@@ -421,7 +432,7 @@ async function getOpsPlanningView(): Promise<{
         dueDate: formatDate(payment.dueDate ?? null),
         percentage: formatPercentDecimal(percentNumeric),
         amount: formatNumeric(amountNumeric),
-        status: payment.status,
+        status: payment.status ?? 'pending',
       }
     })
   })
@@ -452,7 +463,7 @@ async function getOpsPlanningView(): Promise<{
 async function getSalesPlanningView() {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context).map((item) => item.derived)
-  const salesWeekInputs = mapSalesWeeks(await prisma.salesWeek.findMany())
+  const salesWeekInputs = mapSalesWeeks((await prisma.salesWeek.findMany()) as SalesWeek[])
   const salesPlan = computeSalesPlan(salesWeekInputs, derivedOrders)
 
   const productList = [...context.productInputs].sort((a, b) => a.name.localeCompare(b.name))
@@ -542,11 +553,11 @@ async function getProfitAndLossView() {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context)
   const salesPlan = computeSalesPlan(
-    mapSalesWeeks(await prisma.salesWeek.findMany()),
+    mapSalesWeeks((await prisma.salesWeek.findMany()) as SalesWeek[]),
     derivedOrders.map((item) => item.derived)
   )
   const overrides = mapProfitAndLossWeeks(
-    await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+    (await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })) as ProfitAndLossWeek[]
   )
 
   const { weekly, monthly, quarterly } = computeProfitAndLoss(
@@ -600,11 +611,11 @@ async function getCashFlowView() {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context)
   const salesPlan = computeSalesPlan(
-    mapSalesWeeks(await prisma.salesWeek.findMany()),
+    mapSalesWeeks((await prisma.salesWeek.findMany()) as SalesWeek[]),
     derivedOrders.map((item) => item.derived)
   )
   const pnlOverrides = mapProfitAndLossWeeks(
-    await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+    (await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })) as ProfitAndLossWeek[]
   )
   const {
     weekly: pnlWeekly,
@@ -618,7 +629,7 @@ async function getCashFlowView() {
   )
 
   const cashOverrides = mapCashFlowWeeks(
-    await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+    (await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })) as CashFlowWeek[]
   )
 
   const { weekly, monthly, quarterly } = computeCashFlow(
@@ -661,11 +672,11 @@ async function getDashboardView(): Promise<DashboardView> {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context)
   const salesPlan = computeSalesPlan(
-    mapSalesWeeks(await prisma.salesWeek.findMany()),
+    mapSalesWeeks((await prisma.salesWeek.findMany()) as SalesWeek[]),
     derivedOrders.map((item) => item.derived)
   )
   const pnlOverrides = mapProfitAndLossWeeks(
-    await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+    (await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })) as ProfitAndLossWeek[]
   )
   const { weekly: pnlWeekly, monthly: pnlMonthly, quarterly: pnlQuarterly } = computeProfitAndLoss(
     salesPlan,
@@ -675,7 +686,7 @@ async function getDashboardView(): Promise<DashboardView> {
   )
 
   const cashOverrides = mapCashFlowWeeks(
-    await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+    (await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })) as CashFlowWeek[]
   )
   const {
     weekly: cashWeekly,

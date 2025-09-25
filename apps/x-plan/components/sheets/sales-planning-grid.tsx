@@ -50,6 +50,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
   const warningThreshold = Number.isFinite(stockWarningWeeks) ? stockWarningWeeks : Number.POSITIVE_INFINITY
 
   const data = useMemo(() => rows, [rows])
+  const headerConfig = nestedHeaders as Handsontable.GridSettings['nestedHeaders']
 
   useEffect(() => {
     if (hotRef.current) {
@@ -149,7 +150,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         licenseKey="non-commercial-and-evaluation"
         colHeaders={false}
         columns={columns}
-        nestedHeaders={nestedHeaders}
+        nestedHeaders={headerConfig}
         stretchH="all"
         className="x-plan-hot"
         height="auto"

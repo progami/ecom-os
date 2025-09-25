@@ -1,4 +1,16 @@
-import { PrismaClient, PurchaseOrderStatus } from '@prisma/client'
+import {
+  PrismaClient,
+  PurchaseOrderStatus,
+  type Product,
+  type LeadStageTemplate,
+  type BusinessParameter,
+  type PurchaseOrder,
+  type SalesWeek,
+  type ProfitAndLossWeek,
+  type CashFlowWeek,
+  type MonthlySummary,
+  type QuarterlySummary,
+} from '@prisma/client'
 import * as XLSX from 'xlsx'
 
 function statusLabel(status: PurchaseOrderStatus) {
@@ -32,9 +44,9 @@ export async function exportWorkbook(prisma: PrismaClient) {
 }
 
 async function addProductSetupSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
-  const products = await prisma.product.findMany({ orderBy: { name: 'asc' } })
-  const leadStages = await prisma.leadStageTemplate.findMany({ orderBy: { sequence: 'asc' } })
-  const params = await prisma.businessParameter.findMany({ orderBy: { label: 'asc' } })
+  const products = (await prisma.product.findMany({ orderBy: { name: 'asc' } })) as Product[]
+  const leadStages = (await prisma.leadStageTemplate.findMany({ orderBy: { sequence: 'asc' } })) as LeadStageTemplate[]
+  const params = (await prisma.businessParameter.findMany({ orderBy: { label: 'asc' } })) as BusinessParameter[]
 
   const data: any[][] = [
     [],
@@ -67,7 +79,10 @@ async function addProductSetupSheet(workbook: XLSX.WorkBook, prisma: PrismaClien
 }
 
 async function addOpsPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
-  const orders = await prisma.purchaseOrder.findMany({ include: { product: true }, orderBy: { orderCode: 'asc' } })
+  const orders = (await prisma.purchaseOrder.findMany({
+    include: { product: true },
+    orderBy: { orderCode: 'asc' },
+  })) as Array<PurchaseOrder & { product: Product }>
 
   const headers = [
     'Shipping Mark',
@@ -135,8 +150,8 @@ async function addOpsPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaClient
 }
 
 async function addSalesPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
-  const products = await prisma.product.findMany({ orderBy: { name: 'asc' } })
-  const salesWeeks = await prisma.salesWeek.findMany()
+  const products = (await prisma.product.findMany({ orderBy: { name: 'asc' } })) as Product[]
+  const salesWeeks = (await prisma.salesWeek.findMany()) as SalesWeek[]
 
   const metrics = ['Stock Start', 'Actual Sales', 'Fcst Sales', 'Final Sales', 'Stock (Weeks)', 'Stock End']
 
@@ -178,9 +193,15 @@ async function addSalesPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaClie
 }
 
 async function addProfitPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
-  const weeks = await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
-  const monthly = await prisma.monthlySummary.findMany({ where: { revenue: { not: null } }, orderBy: [{ year: 'asc' }, { month: 'asc' }] })
-  const quarterly = await prisma.quarterlySummary.findMany({ where: { revenue: { not: null } }, orderBy: [{ year: 'asc' }, { quarter: 'asc' }] })
+  const weeks = (await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })) as ProfitAndLossWeek[]
+  const monthly = (await prisma.monthlySummary.findMany({
+    where: { revenue: { not: null } },
+    orderBy: [{ year: 'asc' }, { month: 'asc' }],
+  })) as MonthlySummary[]
+  const quarterly = (await prisma.quarterlySummary.findMany({
+    where: { revenue: { not: null } },
+    orderBy: [{ year: 'asc' }, { quarter: 'asc' }],
+  })) as QuarterlySummary[]
 
   const header = ['Week', 'Date', 'Units', 'Revenue', 'COGS', 'Gross Profit', 'GP%', 'Amazon Fees', 'PPC', 'Fixed Costs', 'Total OpEx', 'Net Profit']
   const rows = [header, ...weeks.map((week) => [
@@ -255,9 +276,15 @@ async function addProfitPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaCli
 }
 
 async function addCashFlowSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
-  const weeks = await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })
-  const monthly = await prisma.monthlySummary.findMany({ where: { amazonPayout: { not: null } }, orderBy: [{ year: 'asc' }, { month: 'asc' }] })
-  const quarterly = await prisma.quarterlySummary.findMany({ where: { amazonPayout: { not: null } }, orderBy: [{ year: 'asc' }, { quarter: 'asc' }] })
+  const weeks = (await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })) as CashFlowWeek[]
+  const monthly = (await prisma.monthlySummary.findMany({
+    where: { amazonPayout: { not: null } },
+    orderBy: [{ year: 'asc' }, { month: 'asc' }],
+  })) as MonthlySummary[]
+  const quarterly = (await prisma.quarterlySummary.findMany({
+    where: { amazonPayout: { not: null } },
+    orderBy: [{ year: 'asc' }, { quarter: 'asc' }],
+  })) as QuarterlySummary[]
 
   const header = ['Week', 'Date', 'Amazon Payout', 'Inventory Purchase', 'Fixed Costs', 'Net Cash', 'Cash Balance']
   const rows = [header, ...weeks.map((week) => [
@@ -314,9 +341,9 @@ async function addCashFlowSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
 
 async function addDashboardSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
   const [profitWeeks, cashWeeks, purchaseOrders] = await Promise.all([
-    prisma.profitAndLossWeek.findMany(),
-    prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } }),
-    prisma.purchaseOrder.findMany({ orderBy: { orderCode: 'asc' } }),
+    prisma.profitAndLossWeek.findMany() as Promise<ProfitAndLossWeek[]>,
+    prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } }) as Promise<CashFlowWeek[]>,
+    prisma.purchaseOrder.findMany({ orderBy: { orderCode: 'asc' } }) as Promise<PurchaseOrder[]>,
   ])
 
   const revenueYTD = profitWeeks.reduce((acc, item) => acc + Number(item.revenue ?? 0), 0)
