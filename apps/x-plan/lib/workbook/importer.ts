@@ -137,7 +137,10 @@ async function importOpsPlanning(workbook: XLSX.WorkBook, prisma: PrismaClient) 
   const sheet = workbook.Sheets['2. Ops Planning']
   if (!sheet) throw new Error('Sheet "2. Ops Planning" not found')
   const matrix = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, range: 'A4:AA300', blankrows: false })
-  const productNames = new Map((await prisma.product.findMany()).map((p) => [p.name, p.id]))
+  const productRows = (await prisma.product.findMany({
+    select: { id: true, name: true },
+  })) as Array<{ id: string; name: string }>
+  const productNames = new Map(productRows.map((product) => [product.name, product.id] as const))
 
   for (const row of matrix) {
     const [orderCode, productName] = row

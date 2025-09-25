@@ -23,6 +23,17 @@ import {
   mapSalesWeeks,
   mapProfitAndLossWeeks,
   mapCashFlowWeeks,
+  type ProductRow,
+  type LeadStageTemplateRow,
+  type LeadTimeOverrideRow,
+  type BusinessParameterRow,
+  type PurchaseOrderRow,
+  type PurchaseOrderPaymentRow,
+  type SalesWeekRow,
+  type ProfitAndLossWeekRow,
+  type CashFlowWeekRow,
+  type MonthlySummaryRow,
+  type QuarterlySummaryRow,
 } from '@/lib/calculations/adapters'
 import {
   buildProductCostIndex,
@@ -47,6 +58,12 @@ type SalesRow = {
   weekNumber: string
   weekDate: string
   [key: string]: string
+}
+
+type ProductSummaryRow = Pick<ProductRow, 'id' | 'name' | 'sku' | 'isActive'>
+type PurchaseOrderWithRelations = PurchaseOrderRow & {
+  payments: PurchaseOrderPaymentRow[]
+  product: Pick<ProductRow, 'id' | 'sku' | 'name'>
 }
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -226,8 +243,19 @@ function metricLabel(metric: SalesMetric) {
 
 async function getProductSetupView() {
   const [products, businessParameters] = await Promise.all([
-    prisma.product.findMany({ orderBy: { name: 'asc' } }),
-    prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }),
+    prisma.product.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        isActive: true,
+      },
+    }) as Promise<ProductSummaryRow[]>,
+    prisma.businessParameter.findMany({
+      orderBy: { label: 'asc' },
+      select: { id: true, label: true, valueNumeric: true, valueText: true },
+    }) as Promise<BusinessParameterRow[]>,
   ])
 
   const activeProducts = products.filter((product) => {
@@ -298,14 +326,87 @@ async function getProductSetupView() {
 
 async function loadOperationsContext() {
   const [products, leadStages, overrides, businessParameters, purchaseOrders] = await Promise.all([
-    prisma.product.findMany({ orderBy: { name: 'asc' } }),
-    prisma.leadStageTemplate.findMany({ orderBy: { sequence: 'asc' } }),
-    prisma.leadTimeOverride.findMany(),
-    prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }),
+    prisma.product.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        sku: true,
+        isActive: true,
+        sellingPrice: true,
+        manufacturingCost: true,
+        freightCost: true,
+        tariffRate: true,
+        tacosPercent: true,
+        fbaFee: true,
+        amazonReferralRate: true,
+        storagePerMonth: true,
+      },
+    }) as Promise<ProductRow[]>,
+    prisma.leadStageTemplate.findMany({
+      orderBy: { sequence: 'asc' },
+      select: { id: true, label: true, defaultWeeks: true, sequence: true },
+    }) as Promise<LeadStageTemplateRow[]>,
+    prisma.leadTimeOverride.findMany({
+      select: { productId: true, stageTemplateId: true, durationWeeks: true },
+    }) as Promise<LeadTimeOverrideRow[]>,
+    prisma.businessParameter.findMany({
+      orderBy: { label: 'asc' },
+      select: { id: true, label: true, valueNumeric: true, valueText: true },
+    }) as Promise<BusinessParameterRow[]>,
     prisma.purchaseOrder.findMany({
       orderBy: { orderCode: 'asc' },
-      include: { product: true, payments: { orderBy: { paymentIndex: 'asc' } } },
-    }),
+      select: {
+        id: true,
+        orderCode: true,
+        productId: true,
+        quantity: true,
+        productionWeeks: true,
+        sourcePrepWeeks: true,
+        oceanWeeks: true,
+        finalMileWeeks: true,
+        pay1Percent: true,
+        pay2Percent: true,
+        pay3Percent: true,
+        pay1Amount: true,
+        pay2Amount: true,
+        pay3Amount: true,
+        pay1Date: true,
+        pay2Date: true,
+        pay3Date: true,
+        productionStart: true,
+        productionComplete: true,
+        sourceDeparture: true,
+        transportReference: true,
+        portEta: true,
+        inboundEta: true,
+        availableDate: true,
+        totalLeadDays: true,
+        status: true,
+        statusIcon: true,
+        notes: true,
+        overrideSellingPrice: true,
+        overrideManufacturingCost: true,
+        overrideFreightCost: true,
+        overrideTariffRate: true,
+        overrideTacosPercent: true,
+        overrideFbaFee: true,
+        overrideReferralRate: true,
+        overrideStoragePerMonth: true,
+        payments: {
+          orderBy: { paymentIndex: 'asc' },
+          select: {
+            id: true,
+            paymentIndex: true,
+            percentage: true,
+            amount: true,
+            dueDate: true,
+            status: true,
+          },
+        },
+        product: { select: { id: true, sku: true, name: true } },
+      },
+    }) as Promise<PurchaseOrderWithRelations[]>,
   ])
 
   const productInputs = mapProducts(products)
@@ -450,7 +551,7 @@ async function getOpsPlanningView(): Promise<{
         paymentDate: formatDate(payment.dueDate ?? null),
         percentage: formatPercentDecimal(percentNumeric),
         amount: formatNumeric(amountNumeric),
-        status: payment.status,
+        status: payment.status ?? '',
       }
     })
   })
@@ -481,7 +582,22 @@ async function getOpsPlanningView(): Promise<{
 async function getSalesPlanningView() {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context).map((item) => item.derived)
-  const salesWeekInputs = mapSalesWeeks(await prisma.salesWeek.findMany())
+  const salesWeekInputs = mapSalesWeeks(
+    (await prisma.salesWeek.findMany({
+      select: {
+        id: true,
+        productId: true,
+        weekNumber: true,
+        weekDate: true,
+        stockStart: true,
+        actualSales: true,
+        forecastSales: true,
+        finalSales: true,
+        stockWeeks: true,
+        stockEnd: true,
+      },
+    })) as SalesWeekRow[]
+  )
   const salesPlan = computeSalesPlan(salesWeekInputs, derivedOrders)
 
   const productList = [...context.productInputs].sort((a, b) => a.name.localeCompare(b.name))
@@ -576,11 +692,43 @@ async function getProfitAndLossView() {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context)
   const salesPlan = computeSalesPlan(
-    mapSalesWeeks(await prisma.salesWeek.findMany()),
+    mapSalesWeeks(
+      (await prisma.salesWeek.findMany({
+        select: {
+          id: true,
+          productId: true,
+          weekNumber: true,
+          weekDate: true,
+          stockStart: true,
+          actualSales: true,
+          forecastSales: true,
+          finalSales: true,
+          stockWeeks: true,
+          stockEnd: true,
+        },
+      })) as SalesWeekRow[]
+    ),
     derivedOrders.map((item) => item.derived)
   )
   const overrides = mapProfitAndLossWeeks(
-    await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+    (await prisma.profitAndLossWeek.findMany({
+      orderBy: { weekNumber: 'asc' },
+      select: {
+        id: true,
+        weekNumber: true,
+        weekDate: true,
+        units: true,
+        revenue: true,
+        cogs: true,
+        grossProfit: true,
+        grossMargin: true,
+        amazonFees: true,
+        ppcSpend: true,
+        fixedCosts: true,
+        totalOpex: true,
+        netProfit: true,
+      },
+    })) as ProfitAndLossWeekRow[]
   )
 
   const { weekly, monthly, quarterly } = computeProfitAndLoss(
@@ -634,11 +782,43 @@ async function getCashFlowView() {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context)
   const salesPlan = computeSalesPlan(
-    mapSalesWeeks(await prisma.salesWeek.findMany()),
+    mapSalesWeeks(
+      (await prisma.salesWeek.findMany({
+        select: {
+          id: true,
+          productId: true,
+          weekNumber: true,
+          weekDate: true,
+          stockStart: true,
+          actualSales: true,
+          forecastSales: true,
+          finalSales: true,
+          stockWeeks: true,
+          stockEnd: true,
+        },
+      })) as SalesWeekRow[]
+    ),
     derivedOrders.map((item) => item.derived)
   )
   const pnlOverrides = mapProfitAndLossWeeks(
-    await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+    (await prisma.profitAndLossWeek.findMany({
+      orderBy: { weekNumber: 'asc' },
+      select: {
+        id: true,
+        weekNumber: true,
+        weekDate: true,
+        units: true,
+        revenue: true,
+        cogs: true,
+        grossProfit: true,
+        grossMargin: true,
+        amazonFees: true,
+        ppcSpend: true,
+        fixedCosts: true,
+        totalOpex: true,
+        netProfit: true,
+      },
+    })) as ProfitAndLossWeekRow[]
   )
   const {
     weekly: pnlWeekly,
@@ -652,7 +832,19 @@ async function getCashFlowView() {
   )
 
   const cashOverrides = mapCashFlowWeeks(
-    await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+    (await prisma.cashFlowWeek.findMany({
+      orderBy: { weekNumber: 'asc' },
+      select: {
+        id: true,
+        weekNumber: true,
+        weekDate: true,
+        amazonPayout: true,
+        inventorySpend: true,
+        fixedCosts: true,
+        netCash: true,
+        cashBalance: true,
+      },
+    })) as CashFlowWeekRow[]
   )
 
   const { weekly, monthly, quarterly } = computeCashFlow(
@@ -695,11 +887,43 @@ async function getDashboardView(): Promise<DashboardView> {
   const context = await loadOperationsContext()
   const derivedOrders = deriveOrders(context)
   const salesPlan = computeSalesPlan(
-    mapSalesWeeks(await prisma.salesWeek.findMany()),
+    mapSalesWeeks(
+      (await prisma.salesWeek.findMany({
+        select: {
+          id: true,
+          productId: true,
+          weekNumber: true,
+          weekDate: true,
+          stockStart: true,
+          actualSales: true,
+          forecastSales: true,
+          finalSales: true,
+          stockWeeks: true,
+          stockEnd: true,
+        },
+      })) as SalesWeekRow[]
+    ),
     derivedOrders.map((item) => item.derived)
   )
   const pnlOverrides = mapProfitAndLossWeeks(
-    await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+    (await prisma.profitAndLossWeek.findMany({
+      orderBy: { weekNumber: 'asc' },
+      select: {
+        id: true,
+        weekNumber: true,
+        weekDate: true,
+        units: true,
+        revenue: true,
+        cogs: true,
+        grossProfit: true,
+        grossMargin: true,
+        amazonFees: true,
+        ppcSpend: true,
+        fixedCosts: true,
+        totalOpex: true,
+        netProfit: true,
+      },
+    })) as ProfitAndLossWeekRow[]
   )
   const { weekly: pnlWeekly, monthly: pnlMonthly, quarterly: pnlQuarterly } = computeProfitAndLoss(
     salesPlan,
@@ -709,7 +933,19 @@ async function getDashboardView(): Promise<DashboardView> {
   )
 
   const cashOverrides = mapCashFlowWeeks(
-    await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+    (await prisma.cashFlowWeek.findMany({
+      orderBy: { weekNumber: 'asc' },
+      select: {
+        id: true,
+        weekNumber: true,
+        weekDate: true,
+        amazonPayout: true,
+        inventorySpend: true,
+        fixedCosts: true,
+        netCash: true,
+        cashBalance: true,
+      },
+    })) as CashFlowWeekRow[]
   )
   const {
     weekly: cashWeekly,

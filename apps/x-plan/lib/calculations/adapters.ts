@@ -1,16 +1,3 @@
-import type {
-  Product,
-  LeadStageTemplate,
-  LeadTimeOverride,
-  BusinessParameter,
-  PurchaseOrder,
-  PurchaseOrderPayment,
-  SalesWeek,
-  ProfitAndLossWeek,
-  CashFlowWeek,
-  MonthlySummary,
-  QuarterlySummary,
-} from '@prisma/client'
 import {
   BusinessParameterInput,
   CashFlowWeekInput,
@@ -23,9 +10,174 @@ import {
   PurchaseOrderPaymentInput,
   SalesWeekInput,
   QuarterlySummaryInput,
+  type PurchaseOrderStatus,
 } from './types'
 
-function toNumber(value: any): number {
+export type NumericLike = number | string | { toNumber(): number } | null | undefined
+
+export interface ProductRow {
+  id: string
+  name: string
+  sku: string | null
+  isActive: boolean
+  sellingPrice: NumericLike
+  manufacturingCost: NumericLike
+  freightCost: NumericLike
+  tariffRate: NumericLike
+  tacosPercent: NumericLike
+  fbaFee: NumericLike
+  amazonReferralRate: NumericLike
+  storagePerMonth: NumericLike
+}
+
+export interface LeadStageTemplateRow {
+  id: string
+  label: string
+  defaultWeeks: NumericLike
+  sequence: number
+}
+
+export interface LeadTimeOverrideRow {
+  productId: string
+  stageTemplateId: string
+  durationWeeks: NumericLike
+}
+
+export interface BusinessParameterRow {
+  id: string
+  label: string
+  valueNumeric: NumericLike
+  valueText: string | null
+}
+
+export interface PurchaseOrderRow {
+  id: string
+  orderCode: string
+  productId: string
+  quantity: NumericLike
+  productionWeeks: NumericLike
+  sourcePrepWeeks: NumericLike
+  oceanWeeks: NumericLike
+  finalMileWeeks: NumericLike
+  pay1Percent: NumericLike
+  pay2Percent: NumericLike
+  pay3Percent: NumericLike
+  pay1Amount: NumericLike
+  pay2Amount: NumericLike
+  pay3Amount: NumericLike
+  pay1Date: Date | null
+  pay2Date: Date | null
+  pay3Date: Date | null
+  productionStart: Date | null
+  productionComplete: Date | null
+  sourceDeparture: Date | null
+  transportReference: string | null
+  portEta: Date | null
+  inboundEta: Date | null
+  availableDate: Date | null
+  totalLeadDays: number | null
+  status: PurchaseOrderStatus
+  statusIcon: string | null
+  notes: string | null
+  overrideSellingPrice: NumericLike
+  overrideManufacturingCost: NumericLike
+  overrideFreightCost: NumericLike
+  overrideTariffRate: NumericLike
+  overrideTacosPercent: NumericLike
+  overrideFbaFee: NumericLike
+  overrideReferralRate: NumericLike
+  overrideStoragePerMonth: NumericLike
+  weeksUntilArrival?: number | null
+}
+
+export interface PurchaseOrderPaymentRow {
+  id: string
+  paymentIndex: number
+  percentage: NumericLike
+  amount: NumericLike
+  dueDate: Date | null
+  status: string | null
+}
+
+export interface SalesWeekRow {
+  id: string
+  productId: string
+  weekNumber: number
+  weekDate: Date | null
+  stockStart: number | null
+  actualSales: number | null
+  forecastSales: number | null
+  finalSales: number | null
+  stockWeeks: NumericLike
+  stockEnd: number | null
+}
+
+export interface ProfitAndLossWeekRow {
+  id: string
+  weekNumber: number
+  weekDate: Date | null
+  units: number | null
+  revenue: NumericLike
+  cogs: NumericLike
+  grossProfit: NumericLike
+  grossMargin: NumericLike
+  amazonFees: NumericLike
+  ppcSpend: NumericLike
+  fixedCosts: NumericLike
+  totalOpex: NumericLike
+  netProfit: NumericLike
+}
+
+export interface CashFlowWeekRow {
+  id: string
+  weekNumber: number
+  weekDate: Date | null
+  amazonPayout: NumericLike
+  inventorySpend: NumericLike
+  fixedCosts: NumericLike
+  netCash: NumericLike
+  cashBalance: NumericLike
+}
+
+export interface MonthlySummaryRow {
+  id: string
+  periodLabel: string
+  year: number
+  month: number
+  revenue: NumericLike
+  cogs: NumericLike
+  grossProfit: NumericLike
+  amazonFees: NumericLike
+  ppcSpend: NumericLike
+  fixedCosts: NumericLike
+  totalOpex: NumericLike
+  netProfit: NumericLike
+  amazonPayout: NumericLike
+  inventorySpend: NumericLike
+  netCash: NumericLike
+  closingCash: NumericLike
+}
+
+export interface QuarterlySummaryRow {
+  id: string
+  periodLabel: string
+  year: number
+  quarter: number
+  revenue: NumericLike
+  cogs: NumericLike
+  grossProfit: NumericLike
+  amazonFees: NumericLike
+  ppcSpend: NumericLike
+  fixedCosts: NumericLike
+  totalOpex: NumericLike
+  netProfit: NumericLike
+  amazonPayout: NumericLike
+  inventorySpend: NumericLike
+  netCash: NumericLike
+  closingCash: NumericLike
+}
+
+function toNumber(value: NumericLike): number {
   if (value == null) return 0
   if (typeof value === 'number') return value
   if (typeof value === 'string') {
@@ -39,11 +191,11 @@ function toNumber(value: any): number {
   return Number.isNaN(numeric) ? 0 : numeric
 }
 
-export function mapProducts(products: Product[]): ProductInput[] {
+export function mapProducts(products: ProductRow[]): ProductInput[] {
   return products.map((product) => ({
     id: product.id,
     name: product.name,
-    sku: product.sku,
+    sku: product.sku ?? '',
     sellingPrice: toNumber(product.sellingPrice),
     manufacturingCost: toNumber(product.manufacturingCost),
     freightCost: toNumber(product.freightCost),
@@ -55,7 +207,7 @@ export function mapProducts(products: Product[]): ProductInput[] {
   }))
 }
 
-export function mapLeadStageTemplates(stages: LeadStageTemplate[]): LeadStageTemplateInput[] {
+export function mapLeadStageTemplates(stages: LeadStageTemplateRow[]): LeadStageTemplateInput[] {
   return stages.map((stage) => ({
     id: stage.id,
     label: stage.label,
@@ -64,7 +216,7 @@ export function mapLeadStageTemplates(stages: LeadStageTemplate[]): LeadStageTem
   }))
 }
 
-export function mapLeadOverrides(overrides: LeadTimeOverride[]): LeadStageOverrideInput[] {
+export function mapLeadOverrides(overrides: LeadTimeOverrideRow[]): LeadStageOverrideInput[] {
   return overrides.map((override) => ({
     productId: override.productId,
     stageTemplateId: override.stageTemplateId,
@@ -72,7 +224,7 @@ export function mapLeadOverrides(overrides: LeadTimeOverride[]): LeadStageOverri
   }))
 }
 
-export function mapBusinessParameters(parameters: BusinessParameter[]): BusinessParameterInput[] {
+export function mapBusinessParameters(parameters: BusinessParameterRow[]): BusinessParameterInput[] {
   return parameters.map((parameter) => ({
     id: parameter.id,
     label: parameter.label,
@@ -81,7 +233,9 @@ export function mapBusinessParameters(parameters: BusinessParameter[]): Business
   }))
 }
 
-export function mapPurchaseOrders(orders: Array<PurchaseOrder & { payments: PurchaseOrderPayment[] }>): PurchaseOrderInput[] {
+export function mapPurchaseOrders(
+  orders: Array<PurchaseOrderRow & { payments: PurchaseOrderPaymentRow[] }>
+): PurchaseOrderInput[] {
   return orders.map((order) => ({
     id: order.id,
     orderCode: order.orderCode,
@@ -129,7 +283,7 @@ export function mapPurchaseOrders(orders: Array<PurchaseOrder & { payments: Purc
   }))
 }
 
-export function mapSalesWeeks(rows: SalesWeek[]): SalesWeekInput[] {
+export function mapSalesWeeks(rows: SalesWeekRow[]): SalesWeekInput[] {
   return rows.map((row) => ({
     id: row.id,
     productId: row.productId,
@@ -144,7 +298,7 @@ export function mapSalesWeeks(rows: SalesWeek[]): SalesWeekInput[] {
   }))
 }
 
-export function mapProfitAndLossWeeks(rows: ProfitAndLossWeek[]): ProfitAndLossWeekInput[] {
+export function mapProfitAndLossWeeks(rows: ProfitAndLossWeekRow[]): ProfitAndLossWeekInput[] {
   return rows.map((row) => ({
     id: row.id,
     weekNumber: row.weekNumber,
@@ -162,7 +316,7 @@ export function mapProfitAndLossWeeks(rows: ProfitAndLossWeek[]): ProfitAndLossW
   }))
 }
 
-export function mapCashFlowWeeks(rows: CashFlowWeek[]): CashFlowWeekInput[] {
+export function mapCashFlowWeeks(rows: CashFlowWeekRow[]): CashFlowWeekInput[] {
   return rows.map((row) => ({
     id: row.id,
     weekNumber: row.weekNumber,
@@ -175,7 +329,7 @@ export function mapCashFlowWeeks(rows: CashFlowWeek[]): CashFlowWeekInput[] {
   }))
 }
 
-export function mapMonthlySummaries(rows: MonthlySummary[]): MonthlySummaryInput[] {
+export function mapMonthlySummaries(rows: MonthlySummaryRow[]): MonthlySummaryInput[] {
   return rows.map((row) => ({
     id: row.id,
     periodLabel: row.periodLabel,
@@ -196,7 +350,7 @@ export function mapMonthlySummaries(rows: MonthlySummary[]): MonthlySummaryInput
   }))
 }
 
-export function mapQuarterlySummaries(rows: QuarterlySummary[]): QuarterlySummaryInput[] {
+export function mapQuarterlySummaries(rows: QuarterlySummaryRow[]): QuarterlySummaryInput[] {
   return rows.map((row) => ({
     id: row.id,
     periodLabel: row.periodLabel,

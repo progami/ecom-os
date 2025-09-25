@@ -157,7 +157,9 @@ function parseDateValue(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-function parseNumber(value: string | number | null | undefined): number | null {
+type NumericInput = string | number | Number | null | undefined
+
+function parseNumber(value: NumericInput): number | null {
   if (value == null) return null
   if (typeof value === 'number') {
     return Number.isNaN(value) ? null : value
@@ -173,10 +175,7 @@ function parseNumber(value: string | number | null | undefined): number | null {
   return Number.isNaN(numeric) ? null : numeric
 }
 
-function parseTotalOverride(
-  value: string | number | null | undefined,
-  quantity: number
-): number | null {
+function parseTotalOverride(value: NumericInput, quantity: number): number | null {
   const numeric = parseNumber(value)
   if (numeric == null) return null
   if (!Number.isFinite(quantity) || quantity <= 0) return null
@@ -184,7 +183,7 @@ function parseTotalOverride(
   return Number.isFinite(perUnit) ? perUnit : null
 }
 
-function parseInteger(value: string | number | null | undefined, fallback: number): number {
+function parseInteger(value: NumericInput, fallback: number): number {
   if (value == null) return fallback
   if (typeof value === 'number') {
     return Number.isNaN(value) ? fallback : Math.round(value)
@@ -200,7 +199,7 @@ function parseInteger(value: string | number | null | undefined, fallback: numbe
   return Number.isNaN(numeric) ? fallback : Math.round(numeric)
 }
 
-function parsePercent(value: string | number | null | undefined): number | null {
+function parsePercent(value: NumericInput): number | null {
   if (value == null) return null
   if (typeof value === 'number') {
     if (Number.isNaN(value)) return null

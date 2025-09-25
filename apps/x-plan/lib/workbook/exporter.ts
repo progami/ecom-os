@@ -1,7 +1,99 @@
-import { PrismaClient, PurchaseOrderStatus } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
+import type {
+  ProductRow,
+  LeadStageTemplateRow,
+  BusinessParameterRow,
+  PurchaseOrderRow,
+  SalesWeekRow,
+  ProfitAndLossWeekRow,
+  MonthlySummaryRow,
+  QuarterlySummaryRow,
+  CashFlowWeekRow,
+} from '@/lib/calculations/adapters'
+
+type ProductCostRow = Pick<
+  ProductRow,
+  | 'name'
+  | 'sellingPrice'
+  | 'manufacturingCost'
+  | 'freightCost'
+  | 'tariffRate'
+  | 'tacosPercent'
+  | 'fbaFee'
+  | 'amazonReferralRate'
+  | 'storagePerMonth'
+>
+type LeadStageRow = Pick<LeadStageTemplateRow, 'label' | 'defaultWeeks'>
+type BusinessParameterExportRow = Pick<BusinessParameterRow, 'label' | 'valueNumeric' | 'valueText'>
+type ProductNameRow = Pick<ProductRow, 'id' | 'name'>
+type SalesWeekExportRow = Pick<
+  SalesWeekRow,
+  | 'productId'
+  | 'weekNumber'
+  | 'weekDate'
+  | 'stockStart'
+  | 'actualSales'
+  | 'forecastSales'
+  | 'finalSales'
+  | 'stockWeeks'
+  | 'stockEnd'
+>
+type ProfitWeekRow = Pick<
+  ProfitAndLossWeekRow,
+  | 'weekNumber'
+  | 'weekDate'
+  | 'units'
+  | 'revenue'
+  | 'cogs'
+  | 'grossProfit'
+  | 'grossMargin'
+  | 'amazonFees'
+  | 'ppcSpend'
+  | 'fixedCosts'
+  | 'totalOpex'
+  | 'netProfit'
+>
+type MonthlySummaryExportRow = Pick<
+  MonthlySummaryRow,
+  | 'periodLabel'
+  | 'revenue'
+  | 'cogs'
+  | 'grossProfit'
+  | 'amazonFees'
+  | 'ppcSpend'
+  | 'fixedCosts'
+  | 'totalOpex'
+  | 'netProfit'
+  | 'amazonPayout'
+  | 'inventorySpend'
+  | 'netCash'
+  | 'closingCash'
+>
+type QuarterlySummaryExportRow = Pick<
+  QuarterlySummaryRow,
+  | 'periodLabel'
+  | 'revenue'
+  | 'cogs'
+  | 'grossProfit'
+  | 'amazonFees'
+  | 'ppcSpend'
+  | 'fixedCosts'
+  | 'totalOpex'
+  | 'netProfit'
+  | 'amazonPayout'
+  | 'inventorySpend'
+  | 'netCash'
+  | 'closingCash'
+>
+type CashFlowWeekExportRow = Pick<
+  CashFlowWeekRow,
+  'weekNumber' | 'weekDate' | 'amazonPayout' | 'inventorySpend' | 'fixedCosts' | 'netCash' | 'cashBalance'
+>
+type PurchaseOrderWithProduct = PurchaseOrderRow & { product: Pick<ProductRow, 'name'> }
+type PurchaseOrderSummaryRow = Pick<PurchaseOrderRow, 'status' | 'quantity'>
 import * as XLSX from 'xlsx'
 
-function statusLabel(status: PurchaseOrderStatus) {
+function statusLabel(status: string) {
   switch (status) {
     case 'IN_TRANSIT':
       return 'In Transit'
@@ -32,9 +124,28 @@ export async function exportWorkbook(prisma: PrismaClient) {
 }
 
 async function addProductSetupSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
-  const products = await prisma.product.findMany({ orderBy: { name: 'asc' } })
-  const leadStages = await prisma.leadStageTemplate.findMany({ orderBy: { sequence: 'asc' } })
-  const params = await prisma.businessParameter.findMany({ orderBy: { label: 'asc' } })
+  const products = (await prisma.product.findMany({
+    orderBy: { name: 'asc' },
+    select: {
+      name: true,
+      sellingPrice: true,
+      manufacturingCost: true,
+      freightCost: true,
+      tariffRate: true,
+      tacosPercent: true,
+      fbaFee: true,
+      amazonReferralRate: true,
+      storagePerMonth: true,
+    },
+  })) as ProductCostRow[]
+  const leadStages = (await prisma.leadStageTemplate.findMany({
+    orderBy: { sequence: 'asc' },
+    select: { label: true, defaultWeeks: true },
+  })) as LeadStageRow[]
+  const params = (await prisma.businessParameter.findMany({
+    orderBy: { label: 'asc' },
+    select: { label: true, valueNumeric: true, valueText: true },
+  })) as BusinessParameterExportRow[]
 
   const data: any[][] = [
     [],
@@ -67,7 +178,39 @@ async function addProductSetupSheet(workbook: XLSX.WorkBook, prisma: PrismaClien
 }
 
 async function addOpsPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
-  const orders = await prisma.purchaseOrder.findMany({ include: { product: true }, orderBy: { orderCode: 'asc' } })
+  const orders = (await prisma.purchaseOrder.findMany({
+    orderBy: { orderCode: 'asc' },
+    select: {
+      orderCode: true,
+      productId: true,
+      quantity: true,
+      productionWeeks: true,
+      sourcePrepWeeks: true,
+      oceanWeeks: true,
+      finalMileWeeks: true,
+      pay1Date: true,
+      pay1Percent: true,
+      pay1Amount: true,
+      pay2Date: true,
+      pay2Percent: true,
+      pay2Amount: true,
+      pay3Date: true,
+      pay3Percent: true,
+      pay3Amount: true,
+      productionStart: true,
+      productionComplete: true,
+      sourceDeparture: true,
+      transportReference: true,
+      portEta: true,
+      inboundEta: true,
+      availableDate: true,
+      totalLeadDays: true,
+      status: true,
+      statusIcon: true,
+      weeksUntilArrival: true,
+      product: { select: { name: true } },
+    },
+  })) as PurchaseOrderWithProduct[]
 
   const headers = [
     'Shipping Mark',
@@ -135,8 +278,23 @@ async function addOpsPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaClient
 }
 
 async function addSalesPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
-  const products = await prisma.product.findMany({ orderBy: { name: 'asc' } })
-  const salesWeeks = await prisma.salesWeek.findMany()
+  const products = (await prisma.product.findMany({
+    orderBy: { name: 'asc' },
+    select: { id: true, name: true },
+  })) as ProductNameRow[]
+  const salesWeeks = (await prisma.salesWeek.findMany({
+    select: {
+      productId: true,
+      weekNumber: true,
+      weekDate: true,
+      stockStart: true,
+      actualSales: true,
+      forecastSales: true,
+      finalSales: true,
+      stockWeeks: true,
+      stockEnd: true,
+    },
+  })) as SalesWeekExportRow[]
 
   const metrics = ['Stock Start', 'Actual Sales', 'Fcst Sales', 'Final Sales', 'Stock (Weeks)', 'Stock End']
 
@@ -178,9 +336,53 @@ async function addSalesPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaClie
 }
 
 async function addProfitPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
-  const weeks = await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
-  const monthly = await prisma.monthlySummary.findMany({ where: { revenue: { not: null } }, orderBy: [{ year: 'asc' }, { month: 'asc' }] })
-  const quarterly = await prisma.quarterlySummary.findMany({ where: { revenue: { not: null } }, orderBy: [{ year: 'asc' }, { quarter: 'asc' }] })
+  const weeks = (await prisma.profitAndLossWeek.findMany({
+    orderBy: { weekNumber: 'asc' },
+    select: {
+      weekNumber: true,
+      weekDate: true,
+      units: true,
+      revenue: true,
+      cogs: true,
+      grossProfit: true,
+      grossMargin: true,
+      amazonFees: true,
+      ppcSpend: true,
+      fixedCosts: true,
+      totalOpex: true,
+      netProfit: true,
+    },
+  })) as ProfitWeekRow[]
+  const monthly = (await prisma.monthlySummary.findMany({
+    where: { revenue: { not: null } },
+    orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    select: {
+      periodLabel: true,
+      revenue: true,
+      cogs: true,
+      grossProfit: true,
+      amazonFees: true,
+      ppcSpend: true,
+      fixedCosts: true,
+      totalOpex: true,
+      netProfit: true,
+    },
+  })) as MonthlySummaryExportRow[]
+  const quarterly = (await prisma.quarterlySummary.findMany({
+    where: { revenue: { not: null } },
+    orderBy: [{ year: 'asc' }, { quarter: 'asc' }],
+    select: {
+      periodLabel: true,
+      revenue: true,
+      cogs: true,
+      grossProfit: true,
+      amazonFees: true,
+      ppcSpend: true,
+      fixedCosts: true,
+      totalOpex: true,
+      netProfit: true,
+    },
+  })) as QuarterlySummaryExportRow[]
 
   const header = ['Week', 'Date', 'Units', 'Revenue', 'COGS', 'Gross Profit', 'GP%', 'Amazon Fees', 'PPC', 'Fixed Costs', 'Total OpEx', 'Net Profit']
   const rows = [header, ...weeks.map((week) => [
@@ -255,9 +457,42 @@ async function addProfitPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaCli
 }
 
 async function addCashFlowSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
-  const weeks = await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })
-  const monthly = await prisma.monthlySummary.findMany({ where: { amazonPayout: { not: null } }, orderBy: [{ year: 'asc' }, { month: 'asc' }] })
-  const quarterly = await prisma.quarterlySummary.findMany({ where: { amazonPayout: { not: null } }, orderBy: [{ year: 'asc' }, { quarter: 'asc' }] })
+  const weeks = (await prisma.cashFlowWeek.findMany({
+    orderBy: { weekNumber: 'asc' },
+    select: {
+      weekNumber: true,
+      weekDate: true,
+      amazonPayout: true,
+      inventorySpend: true,
+      fixedCosts: true,
+      netCash: true,
+      cashBalance: true,
+    },
+  })) as CashFlowWeekExportRow[]
+  const monthly = (await prisma.monthlySummary.findMany({
+    where: { amazonPayout: { not: null } },
+    orderBy: [{ year: 'asc' }, { month: 'asc' }],
+    select: {
+      periodLabel: true,
+      amazonPayout: true,
+      inventorySpend: true,
+      fixedCosts: true,
+      netCash: true,
+      closingCash: true,
+    },
+  })) as MonthlySummaryExportRow[]
+  const quarterly = (await prisma.quarterlySummary.findMany({
+    where: { amazonPayout: { not: null } },
+    orderBy: [{ year: 'asc' }, { quarter: 'asc' }],
+    select: {
+      periodLabel: true,
+      amazonPayout: true,
+      inventorySpend: true,
+      fixedCosts: true,
+      netCash: true,
+      closingCash: true,
+    },
+  })) as QuarterlySummaryExportRow[]
 
   const header = ['Week', 'Date', 'Amazon Payout', 'Inventory Purchase', 'Fixed Costs', 'Net Cash', 'Cash Balance']
   const rows = [header, ...weeks.map((week) => [
@@ -314,9 +549,17 @@ async function addCashFlowSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
 
 async function addDashboardSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
   const [profitWeeks, cashWeeks, purchaseOrders] = await Promise.all([
-    prisma.profitAndLossWeek.findMany(),
-    prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } }),
-    prisma.purchaseOrder.findMany({ orderBy: { orderCode: 'asc' } }),
+    prisma.profitAndLossWeek.findMany({
+      select: { revenue: true, netProfit: true },
+    }) as Promise<Array<Pick<ProfitWeekRow, 'revenue' | 'netProfit'>>>,
+    prisma.cashFlowWeek.findMany({
+      orderBy: { weekNumber: 'asc' },
+      select: { cashBalance: true },
+    }) as Promise<Array<Pick<CashFlowWeekRow, 'cashBalance'>>>,
+    prisma.purchaseOrder.findMany({
+      orderBy: { orderCode: 'asc' },
+      select: { status: true, quantity: true },
+    }) as Promise<PurchaseOrderSummaryRow[]>,
   ])
 
   const revenueYTD = profitWeeks.reduce((acc, item) => acc + Number(item.revenue ?? 0), 0)
