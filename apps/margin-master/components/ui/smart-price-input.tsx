@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -37,24 +37,24 @@ export function SmartPriceInput({
   const [competitivePrice, setCompetitivePrice] = useState(29.99)
 
   // Calculate minimum price needed for target margin
-  const calculateMinPriceForMargin = (cost: number, marginPercent: number) => {
+  const calculateMinPriceForMargin = useCallback((cost: number, marginPercent: number) => {
     // Price = Cost / (1 - Margin%)
     // For 30% margin: Price = Cost / 0.7
     return cost / (1 - marginPercent / 100)
-  }
+  }, [])
 
   // Calculate price suggestions based on mode
   useEffect(() => {
     if (priceMode === 'margin' && estimatedCosts) {
       const { minCost = 10, avgCost = 15, maxCost = 20 } = estimatedCosts
-      
+
       // Calculate minimum prices for target margin
       const minPrice = calculateMinPriceForMargin(maxCost, targetMargin)
       const maxPrice = calculateMinPriceForMargin(minCost, targetMargin + 20) // Up to 50% margin
-      
+
       onMinChange(Math.ceil(minPrice))
       onMaxChange(Math.ceil(maxPrice))
-      
+
       // Set step based on price range
       const range = maxPrice - minPrice
       if (range <= 10) onStepChange(0.5)
@@ -68,7 +68,16 @@ export function SmartPriceInput({
       onMaxChange(competitivePrice + variance)
       onStepChange(competitivePrice >= 50 ? 5 : competitivePrice >= 20 ? 2 : 1)
     }
-  }, [priceMode, estimatedCosts, targetMargin, competitivePrice])
+  }, [
+    priceMode,
+    estimatedCosts,
+    targetMargin,
+    competitivePrice,
+    onMinChange,
+    onMaxChange,
+    onStepChange,
+    calculateMinPriceForMargin,
+  ])
 
   const getPricingInsights = () => {
     if (!estimatedCosts) return null
