@@ -111,6 +111,10 @@ describe('computePurchaseOrderDerived', () => {
     expect(derivedOrder.plannedPoValue).toBeCloseTo(700)
     expect(derivedOrder.plannedPayments[0].plannedAmount).toBeCloseTo(210)
     expect(derivedOrder.plannedPayments[0].plannedPercent).toBeCloseTo(0.3)
+    expect(derivedOrder.manufacturingUnitCost).toBeCloseTo(product.manufacturingCost)
+    expect(derivedOrder.freightUnitCost).toBeCloseTo(product.freightCost)
+    expect(derivedOrder.manufacturingInvoice).toBeCloseTo(product.manufacturingCost * purchaseOrderInput.quantity)
+    expect(derivedOrder.freightInvoice).toBeCloseTo(product.freightCost * purchaseOrderInput.quantity)
     expect(
       differenceInCalendarDays(
         derivedOrder.plannedPayments[0].plannedDate!,
@@ -145,6 +149,10 @@ describe('computePurchaseOrderDerived', () => {
 
     expect(overridden.landedUnitCost).toBeCloseTo(5 + 2 + (overrideOrder.overrideSellingPrice ?? product.sellingPrice) * 0.1 + 1 + 0.3)
     expect(overridden.plannedPoValue).toBeCloseTo(overridden.landedUnitCost * overrideOrder.quantity)
+    expect(overridden.manufacturingUnitCost).toBeCloseTo(overrideOrder.overrideManufacturingCost ?? 0)
+    expect(overridden.freightUnitCost).toBeCloseTo(overrideOrder.overrideFreightCost ?? 0)
+    expect(overridden.manufacturingInvoice).toBeCloseTo((overrideOrder.overrideManufacturingCost ?? 0) * overrideOrder.quantity)
+    expect(overridden.freightInvoice).toBeCloseTo((overrideOrder.overrideFreightCost ?? 0) * overrideOrder.quantity)
   })
 })
 

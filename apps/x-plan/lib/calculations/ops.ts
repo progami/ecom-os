@@ -38,6 +38,10 @@ export interface PurchaseOrderDerived {
   totalLeadDays: number | null
   weeksUntilArrival: number | null
   landedUnitCost: number
+  manufacturingUnitCost: number
+  freightUnitCost: number
+  manufacturingInvoice: number
+  freightInvoice: number
   plannedPoValue: number
   plannedPayments: PaymentPlanItem[]
   payments: PurchaseOrderPaymentInput[]
@@ -210,6 +214,8 @@ export function computePurchaseOrderDerived(
   const weeksUntilArrival = computeWeeksUntil(inboundEta)
 
   const poValue = landedUnitCost * quantity
+  const manufacturingInvoice = manufacturingCost * quantity
+  const freightInvoice = freightCost * quantity
 
   const paymentSplits = params.supplierPaymentSplit
   const payments: PaymentPlanItem[] = []
@@ -273,6 +279,10 @@ export function computePurchaseOrderDerived(
     totalLeadDays,
     weeksUntilArrival,
     landedUnitCost,
+    manufacturingUnitCost: manufacturingCost,
+    freightUnitCost: freightCost,
+    manufacturingInvoice,
+    freightInvoice,
     plannedPoValue: poValue,
     plannedPayments: payments,
     payments: order.payments ?? [],

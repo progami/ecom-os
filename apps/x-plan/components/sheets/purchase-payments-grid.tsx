@@ -33,6 +33,8 @@ export interface PaymentSummary {
   actualPercent: number
   remainingAmount: number
   remainingPercent: number
+  manufacturingInvoice: number
+  freightInvoice: number
 }
 
 interface PurchasePaymentsGridProps {
@@ -95,27 +97,28 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
     if (!summary) return false
     const amountTolerance = Math.max(summary.plannedAmount * 0.001, 0.01)
     const percentTolerance = Math.max(summary.plannedPercent * 0.001, 0.001)
-    const amountCleared = summary.plannedAmount > 0 && summary.remainingAmount <= amountTolerance
-    const percentCleared = summary.plannedPercent > 0 && summary.remainingPercent <= percentTolerance
+    const amountCleared = summary.plannedAmount > 0 && Math.abs(summary.remainingAmount) <= amountTolerance
+    const percentCleared = summary.plannedPercent > 0 && Math.abs(summary.remainingPercent) <= percentTolerance
     return amountCleared || percentCleared
   }, [summary])
 
   const computedSummaryLine = useMemo(() => {
     if (!summary) return null
     const parts: string[] = []
-    parts.push(`Plan ${summary.plannedAmount.toFixed(2)}`)
+    parts.push(`Manufacturing invoice $${summary.manufacturingInvoice.toFixed(2)}`)
+    parts.push(`Freight invoice $${summary.freightInvoice.toFixed(2)}`)
     if (summary.plannedAmount > 0) {
       const paidPercent = Math.max(summary.actualPercent * 100, 0).toFixed(1)
-      parts.push(`Paid ${summary.actualAmount.toFixed(2)} (${paidPercent}%)`)
+      parts.push(`Paid $${summary.actualAmount.toFixed(2)} (${paidPercent}%)`)
       if (summary.remainingAmount > 0.01) {
-        parts.push(`Remaining ${summary.remainingAmount.toFixed(2)}`)
+        parts.push(`Remaining $${summary.remainingAmount.toFixed(2)}`)
       } else if (summary.remainingAmount < -0.01) {
         parts.push(`Cleared (+$${Math.abs(summary.remainingAmount).toFixed(2)})`)
       } else {
         parts.push('Cleared')
       }
     } else {
-      parts.push(`Paid ${summary.actualAmount.toFixed(2)}`)
+      parts.push(`Paid $${summary.actualAmount.toFixed(2)}`)
     }
     return parts.join(' • ')
   }, [summary])

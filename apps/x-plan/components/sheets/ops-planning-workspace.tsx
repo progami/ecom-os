@@ -157,21 +157,37 @@ function parseDateValue(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-function parseNumber(value: string | null | undefined): number | null {
-  if (value == null || value.trim() === '') return null
-  const numeric = Number(value)
+function parseNumber(value: string | number | null | undefined): number | null {
+  if (value == null) return null
+  if (typeof value === 'number') {
+    return Number.isNaN(value) ? null : value
+  }
+  const trimmed = value.trim()
+  if (trimmed === '') return null
+  const numeric = Number(trimmed)
   return Number.isNaN(numeric) ? null : numeric
 }
 
-function parseInteger(value: string | null | undefined, fallback: number): number {
-  if (value == null || value.trim() === '') return fallback
-  const numeric = Number(value)
+function parseInteger(value: string | number | null | undefined, fallback: number): number {
+  if (value == null) return fallback
+  if (typeof value === 'number') {
+    return Number.isNaN(value) ? fallback : Math.round(value)
+  }
+  const trimmed = value.trim()
+  if (trimmed === '') return fallback
+  const numeric = Number(trimmed)
   return Number.isNaN(numeric) ? fallback : Math.round(numeric)
 }
 
-function parsePercent(value: string | null | undefined): number | null {
-  if (value == null || value.trim() === '') return null
-  const numeric = Number(value)
+function parsePercent(value: string | number | null | undefined): number | null {
+  if (value == null) return null
+  if (typeof value === 'number') {
+    if (Number.isNaN(value)) return null
+    return value > 1 ? value / 100 : value
+  }
+  const trimmed = value.trim()
+  if (trimmed === '') return null
+  const numeric = Number(trimmed)
   if (Number.isNaN(numeric)) return null
   return numeric > 1 ? numeric / 100 : numeric
 }
@@ -405,7 +421,8 @@ function buildTimelineRowsFromData(params: {
 
 function summaryLineFor(summary: PaymentSummary): string {
   const parts: string[] = []
-  parts.push(`Plan ${currencyFormatter.format(summary.plannedAmount)}`)
+  parts.push(`Manufacturing invoice ${currencyFormatter.format(summary.manufacturingInvoice)}`)
+  parts.push(`Freight invoice ${currencyFormatter.format(summary.freightInvoice)}`)
   if (summary.plannedAmount > 0) {
     const paidPercent = Math.max(summary.actualPercent * 100, 0).toFixed(1)
     parts.push(`Paid ${currencyFormatter.format(summary.actualAmount)} (${paidPercent}%)`)
@@ -675,7 +692,9 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
 
     for (const row of timelineRows) {
       const derived = derivedMapRef.current.get(row.id)
-      const plannedAmount = derived?.plannedPoValue ?? 0
+      const manufacturingInvoice = derived?.manufacturingInvoice ?? 0
+      const freightInvoice = derived?.freightInvoice ?? 0
+      const plannedAmount = manufacturingInvoice + freightInvoice
       const plannedPercent = plannedAmount > 0 ? 1 : 0
       summaries.set(row.id, {
         plannedAmount,
@@ -684,27 +703,43 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
         actualPercent: 0,
         remainingAmount: plannedAmount,
         remainingPercent: plannedPercent,
+        manufacturingInvoice,
+        freightInvoice,
       })
     }
 
     for (const payment of paymentRows) {
       const summary = summaries.get(payment.purchaseOrderId)
       if (!summary) continue
-      const amount = Number(payment.amount ?? 0)
+      const amountValue = payment.amount
+      const amount = amountValue === '' || amountValue == null ? Number.NaN : Number(amountValue)
+      const percentValue = payment.percentage
+      const percentFromPayment = percentValue === '' || percentValue == null ? Number.NaN : Number(percentValue)
+
+      if (Number.isFinite(percentFromPayment) && percentFromPayment > 0 && !Number.isFinite(amount)) {
+        if (summary.plannedAmount > 0) {
+          summary.actualAmount += percentFromPayment * summary.plannedAmount
+        }
+        continue
+      }
+
       if (Number.isFinite(amount)) {
         summary.actualAmount += amount
-      }
-      const percentFromPayment = Number(payment.percentage ?? 0)
-      if (Number.isFinite(percentFromPayment) && percentFromPayment > 0) {
-        summary.actualPercent += percentFromPayment
-      } else if (summary.plannedAmount > 0 && Number.isFinite(amount)) {
-        summary.actualPercent += amount / summary.plannedAmount
       }
     }
 
     for (const summary of summaries.values()) {
-      summary.remainingAmount = Math.max(summary.plannedAmount - summary.actualAmount, 0)
-      summary.remainingPercent = Math.max(summary.plannedPercent - summary.actualPercent, 0)
+      if (summary.plannedAmount > 0) {
+        const impliedPercent = summary.actualAmount / summary.plannedAmount
+        summary.actualPercent = Number.isFinite(impliedPercent) ? impliedPercent : 0
+        summary.remainingAmount = summary.plannedAmount - summary.actualAmount
+        summary.remainingPercent = summary.plannedPercent - summary.actualPercent
+      } else {
+        summary.actualAmount = 0
+        summary.actualPercent = 0
+        summary.remainingAmount = 0
+        summary.remainingPercent = 0
+      }
     }
 
     return summaries
@@ -719,8 +754,8 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
     if (!summary) return false
     const amountTolerance = Math.max(summary.plannedAmount * 0.001, 0.01)
     const percentTolerance = Math.max(summary.plannedPercent * 0.001, 0.001)
-    const amountCleared = summary.plannedAmount > 0 && summary.remainingAmount <= amountTolerance
-    const percentCleared = summary.plannedPercent > 0 && summary.remainingPercent <= percentTolerance
+    const amountCleared = summary.plannedAmount > 0 && Math.abs(summary.remainingAmount) <= amountTolerance
+    const percentCleared = summary.plannedPercent > 0 && Math.abs(summary.remainingPercent) <= percentTolerance
     return amountCleared || percentCleared
   }
 
