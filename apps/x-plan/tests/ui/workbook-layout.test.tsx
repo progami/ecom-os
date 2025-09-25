@@ -7,12 +7,13 @@ import type { WorkbookSheetStatus } from '@/lib/workbook'
 
 const pushMock = vi.fn()
 let searchParamsInstance: URLSearchParams
+let mockedPathname = '/sheet/1-product-setup'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
     push: pushMock,
   }),
-  usePathname: () => '/sheet/1-product-setup',
+  usePathname: () => mockedPathname,
   useSearchParams: () => searchParamsInstance,
 }))
 
@@ -30,14 +31,15 @@ const sheetStatus: WorkbookSheetStatus[] = SHEETS.map((sheet, index) => ({
   status: index === 0 ? 'complete' : 'todo',
 }))
 
-function renderLayout(activeYear: number | null) {
+function renderLayout(activeYear: number | null, activeSlug: WorkbookSheetStatus['slug'] = '3-sales-planning') {
   searchParamsInstance = activeYear != null ? new URLSearchParams({ year: String(activeYear) }) : new URLSearchParams()
   pushMock.mockReset()
+  mockedPathname = `/sheet/${activeSlug}`
 
   render(
     <WorkbookLayout
       sheets={sheetStatus}
-      activeSlug="1-product-setup"
+      activeSlug={activeSlug}
       planningYears={planningYears}
       activeYear={activeYear}
     >
@@ -56,7 +58,7 @@ describe('WorkbookLayout year navigation', () => {
     pushMock.mockReset()
   })
 
-  it('renders year controls and allows switching via buttons', () => {
+  it('renders year controls on year-aware sheets and allows switching via buttons', () => {
     renderLayout(2025)
 
     const previousButtons = screen.getAllByRole('button', { name: 'Previous year' })
@@ -64,24 +66,19 @@ describe('WorkbookLayout year navigation', () => {
 
     const yearButtons = screen.getAllByRole('button', { name: /2026/ })
     fireEvent.click(yearButtons[0]!)
-    expect(pushMock).toHaveBeenCalledWith('/sheet/1-product-setup?year=2026')
+    expect(pushMock).toHaveBeenCalledWith('/sheet/3-sales-planning?year=2026')
 
     pushMock.mockReset()
 
     const nextButtons = screen.getAllByRole('button', { name: 'Next year' })
     fireEvent.click(nextButtons[0]!)
-    expect(pushMock).toHaveBeenCalledWith('/sheet/1-product-setup?year=2026')
+    expect(pushMock).toHaveBeenCalledWith('/sheet/3-sales-planning?year=2026')
   })
 
-  it('supports Ctrl + arrow keyboard shortcuts', () => {
-    renderLayout(2026)
+  it('hides year controls on time-agnostic sheets', () => {
+    renderLayout(2026, '1-product-setup')
 
-    fireEvent.keyDown(window, { key: 'ArrowLeft', ctrlKey: true })
-    expect(pushMock).toHaveBeenCalledWith('/sheet/1-product-setup?year=2025')
-
-    pushMock.mockReset()
-
-    fireEvent.keyDown(window, { key: 'ArrowRight', ctrlKey: true })
-    expect(pushMock).toHaveBeenCalledWith('/sheet/1-product-setup?year=2027')
+    expect(screen.queryByRole('button', { name: 'Previous year' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Next year' })).not.toBeInTheDocument()
   })
 })

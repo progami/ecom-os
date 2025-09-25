@@ -6,6 +6,7 @@ import type { YearSegment } from '@/lib/calculations/calendar'
 import type { WorkbookSheetStatus } from '@/lib/workbook'
 import { clsx } from 'clsx'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 type SheetSlug = WorkbookSheetStatus['slug']
 
@@ -25,6 +26,11 @@ interface WorkbookLayoutProps {
 
 const MIN_CONTEXT_WIDTH = 320
 const MAX_CONTEXT_WIDTH = 560
+const YEAR_AWARE_SHEETS: ReadonlySet<SheetSlug> = new Set([
+  '3-sales-planning',
+  '4-fin-planning-pl',
+  '5-fin-planning-cash-flow',
+])
 
 export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, meta, ribbon, contextPane, children }: WorkbookLayoutProps) {
   const router = useRouter()
@@ -110,8 +116,10 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
     [activeYearIndex, handleYearSelect, resolvedYear, sortedYears],
   )
 
+  const isYearAwareSheet = YEAR_AWARE_SHEETS.has(activeSlug)
+
   const yearSwitcher = useMemo(() => {
-    if (!sortedYears.length) return null
+    if (!sortedYears.length || !isYearAwareSheet) return null
     const previous = activeYearIndex > 0 ? sortedYears[activeYearIndex - 1] : null
     const next = activeYearIndex >= 0 && activeYearIndex < sortedYears.length - 1 ? sortedYears[activeYearIndex + 1] : null
 
@@ -124,10 +132,9 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
             onClick={() => goToAdjacentYear(-1)}
             className="flex h-7 w-7 items-center justify-center rounded-full border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:bg-slate-800 dark:focus-visible:ring-slate-600"
             aria-label="Previous year"
-            title="Previous year (Ctrl + ←)"
             disabled={!previous || isPending}
           >
-            <span aria-hidden>‹</span>
+            <ChevronLeft aria-hidden className="h-4 w-4" />
           </button>
           <div className="flex flex-wrap gap-1">
             {sortedYears.map((segment) => {
@@ -157,15 +164,14 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
             onClick={() => goToAdjacentYear(1)}
             className="flex h-7 w-7 items-center justify-center rounded-full border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:bg-slate-800 dark:focus-visible:ring-slate-600"
             aria-label="Next year"
-            title="Next year (Ctrl + →)"
             disabled={!next || isPending}
           >
-            <span aria-hidden>›</span>
+            <ChevronRight aria-hidden className="h-4 w-4" />
           </button>
         </div>
       </div>
     )
-  }, [activeYearIndex, goToAdjacentYear, handleYearSelect, isPending, resolvedYear, sortedYears])
+  }, [activeYearIndex, goToAdjacentYear, handleYearSelect, isPending, isYearAwareSheet, resolvedYear, sortedYears])
 
   useEffect(() => {
     if (!isResizing) return
@@ -180,27 +186,16 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
       if (!event.ctrlKey || event.altKey || event.metaKey) return
-      if (event.key === 'PageUp' || event.key === 'PageDown') {
-        event.preventDefault()
-        const index = sheets.findIndex((sheet) => sheet.slug === activeSlug)
-        if (index === -1) return
-        const nextIndex = event.key === 'PageUp' ? (index - 1 + sheets.length) % sheets.length : (index + 1) % sheets.length
-        goToSheet(sheets[nextIndex].slug)
-        return
-      }
-      if (event.key === 'ArrowLeft') {
-        event.preventDefault()
-        goToAdjacentYear(-1)
-        return
-      }
-      if (event.key === 'ArrowRight') {
-        event.preventDefault()
-        goToAdjacentYear(1)
-      }
+      if (event.key !== 'PageUp' && event.key !== 'PageDown') return
+      event.preventDefault()
+      const index = sheets.findIndex((sheet) => sheet.slug === activeSlug)
+      if (index === -1) return
+      const nextIndex = event.key === 'PageUp' ? (index - 1 + sheets.length) % sheets.length : (index + 1) % sheets.length
+      goToSheet(sheets[nextIndex].slug)
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [activeSlug, goToAdjacentYear, goToSheet, sheets])
+  }, [activeSlug, goToSheet, sheets])
 
   const activeSheet = useMemo(() => sheets.find((sheet) => sheet.slug === activeSlug), [sheets, activeSlug])
 
