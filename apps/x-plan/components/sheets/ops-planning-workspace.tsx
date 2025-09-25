@@ -120,6 +120,21 @@ function formatDisplayDate(value?: string | Date | null) {
   return dateFormatter.format(date).replace(',', '')
 }
 
+function formatNumericValue(value: number | null | undefined, fractionDigits = 2) {
+  if (value == null || Number.isNaN(value)) return ''
+  return Number(value).toFixed(fractionDigits)
+}
+
+function formatPercentDecimalValue(value: number | null | undefined, fractionDigits = 4) {
+  if (value == null || Number.isNaN(value)) return ''
+  return Number(value).toFixed(fractionDigits)
+}
+
+function formatIntegerValue(value: number | null | undefined) {
+  if (value == null || Number.isNaN(value)) return ''
+  return Math.round(Number(value)).toString()
+}
+
 function normalizePercent(value: string | undefined) {
   if (!value) return ''
   const numeric = Number(value)
@@ -234,7 +249,7 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       productionStart: null,
       productionComplete: null,
       sourceDeparture: null,
-      transportReference: null,
+      transportReference: row.transportReference ? row.transportReference : null,
       portEta: null,
       inboundEta: null,
       availableDate: null,
@@ -254,6 +269,7 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
 
     return {
       ...base,
+      productId: row.productId || base.productId,
       orderCode: row.orderCode,
       quantity: parseInteger(row.quantity, base.quantity ?? 0),
       pay1Date: parseDateValue(row.pay1Date),
@@ -261,6 +277,7 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       sourcePrepWeeks: parseNumber(row.sourcePrepWeeks),
       oceanWeeks: parseNumber(row.oceanWeeks),
       finalMileWeeks: parseNumber(row.finalMileWeeks),
+      transportReference: row.transportReference ? row.transportReference : null,
       status: (row.status as PurchaseOrderStatus) ?? base.status,
       notes: row.notes ? row.notes : null,
       overrideSellingPrice: parseNumber(row.sellingPrice),
@@ -407,6 +424,17 @@ function summaryLineFor(summary: PaymentSummary): string {
 
 export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }: OpsPlanningWorkspaceProps) {
   const productIndex = useMemo(() => buildProductCostIndex(calculator.products), [calculator.products])
+  const productMetadata = useMemo(() => {
+    const map = new Map<string, { name: string; sku: string }>()
+    for (const product of calculator.products) {
+      map.set(product.id, { name: product.name, sku: product.sku ?? '' })
+    }
+    return map
+  }, [calculator.products])
+  const productOptionsForGrid = useMemo(
+    () => calculator.products.map((product) => ({ id: product.id, sku: product.sku ?? '', name: product.name })),
+    [calculator.products]
+  )
   const leadProfileMap = useMemo(() => {
     const map = new Map<string, LeadTimeProfile>()
     for (const profile of calculator.leadProfiles) {
@@ -442,6 +470,7 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
   const [orders, setOrders] = useState<PurchaseOrderInput[]>(initialOrders)
   const [paymentRows, setPaymentRows] = useState<PurchasePaymentRow[]>(initialPayments)
   const [activeOrderId, setActiveOrderId] = useState<string | null>(inputs[0]?.id ?? null)
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const inputRowsRef = useRef(inputRows)
@@ -517,6 +546,77 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
     },
     [applyTimelineUpdate]
   )
+
+  const handleAddOrder = useCallback(() => {
+    if (!productOptionsForGrid.length) {
+      toast.error('Add a product in Product setup before creating a PO')
+      return
+    }
+    const orderCode = window.prompt('Enter PO code')
+    const trimmedCode = orderCode?.trim()
+    if (!trimmedCode) {
+      toast.error('Enter a PO code to continue')
+      return
+    }
+
+    const defaultProduct = productOptionsForGrid[0]
+    setIsCreatingOrder(true)
+
+    void (async () => {
+      try {
+        const response = await fetch('/api/v1/x-plan/purchase-orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderCode: trimmedCode, productId: defaultProduct.id }),
+        })
+        if (!response.ok) throw new Error('Failed to create purchase order')
+        const json = (await response.json()) as { order?: PurchaseOrderInput }
+        const createdOrder = json.order
+        if (!createdOrder) throw new Error('Missing order payload')
+
+        const productInfo = productMetadata.get(createdOrder.productId) ?? { name: '', sku: '' }
+        const nextRow: OpsInputRow = {
+          id: createdOrder.id,
+          productId: createdOrder.productId,
+          productSku: productInfo.sku,
+          orderCode: createdOrder.orderCode,
+          transportReference: createdOrder.transportReference ?? '',
+          productName: productInfo.name,
+          quantity: formatIntegerValue(createdOrder.quantity ?? 0),
+          pay1Date: formatDisplayDate(createdOrder.pay1Date),
+          productionWeeks: formatNumericValue(createdOrder.productionWeeks),
+          sourcePrepWeeks: formatNumericValue(createdOrder.sourcePrepWeeks),
+          oceanWeeks: formatNumericValue(createdOrder.oceanWeeks),
+          finalMileWeeks: formatNumericValue(createdOrder.finalMileWeeks),
+          sellingPrice: formatNumericValue(createdOrder.overrideSellingPrice),
+          manufacturingCost: formatNumericValue(createdOrder.overrideManufacturingCost),
+          freightCost: formatNumericValue(createdOrder.overrideFreightCost),
+          tariffRate: formatPercentDecimalValue(createdOrder.overrideTariffRate),
+          tacosPercent: formatPercentDecimalValue(createdOrder.overrideTacosPercent),
+          fbaFee: formatNumericValue(createdOrder.overrideFbaFee),
+          referralRate: formatPercentDecimalValue(createdOrder.overrideReferralRate),
+          storagePerMonth: formatNumericValue(createdOrder.overrideStoragePerMonth),
+          status: createdOrder.status,
+          notes: createdOrder.notes ?? '',
+        }
+
+        const nextOrders = [...ordersRef.current, createdOrder]
+        const nextRows = [...inputRowsRef.current, nextRow]
+        ordersRef.current = nextOrders
+        inputRowsRef.current = nextRows
+        setOrders(nextOrders)
+        setInputRows(nextRows)
+        applyTimelineUpdate(nextOrders, nextRows, paymentRowsRef.current)
+        setActiveOrderId(createdOrder.id)
+        toast.success('Purchase order created')
+      } catch (error) {
+        console.error(error)
+        toast.error('Unable to create purchase order')
+      } finally {
+        setIsCreatingOrder(false)
+      }
+    })()
+  }, [productOptionsForGrid, productMetadata, applyTimelineUpdate])
 
   const handleAddPayment = () => {
     const orderId = activeOrderId
@@ -638,9 +738,12 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
         activeOrderId={activeOrderId}
         onSelectOrder={(orderId) => setActiveOrderId(orderId)}
         onRowsChange={handleInputRowsChange}
+        onAddOrder={handleAddOrder}
+        isAddingOrder={isCreatingOrder}
       />
       <OpsPlanningCostGrid
         rows={inputRows}
+        products={productOptionsForGrid}
         activeOrderId={activeOrderId}
         onSelectOrder={(orderId) => setActiveOrderId(orderId)}
         onRowsChange={handleInputRowsChange}

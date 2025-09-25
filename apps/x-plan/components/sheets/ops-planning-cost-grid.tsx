@@ -11,8 +11,11 @@ import type { OpsInputRow } from '@/components/sheets/ops-planning-grid'
 
 registerAllModules()
 
+type NormalizedProductOption = { id: string; sku: string; name: string }
+
 interface OpsPlanningCostGridProps {
   rows: OpsInputRow[]
+  products: Array<{ id: string; sku?: string | null; name: string }>
   activeOrderId?: string | null
   onSelectOrder?: (orderId: string) => void
   onRowsChange?: (rows: OpsInputRow[]) => void
@@ -20,6 +23,7 @@ interface OpsPlanningCostGridProps {
 
 const COST_HEADERS = [
   'PO Code',
+  'SKU',
   'Product',
   'Sell $',
   'Mfg $',
@@ -29,19 +33,6 @@ const COST_HEADERS = [
   'FBA $',
   'Referral %',
   'Storage $',
-]
-
-const COST_COLUMNS: Handsontable.ColumnSettings[] = [
-  { data: 'orderCode', readOnly: true, className: 'cell-readonly', width: 140 },
-  { data: 'productName', readOnly: true, className: 'cell-readonly', width: 180 },
-  { data: 'sellingPrice', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'manufacturingCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'freightCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'tariffRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'tacosPercent', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'fbaFee', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'referralRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'storagePerMonth', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
 ]
 
 const NUMERIC_PRECISION: Record<string, number> = {
@@ -73,12 +64,55 @@ function normalizePercent(value: unknown, fractionDigits = 4) {
   return base.toFixed(fractionDigits)
 }
 
-export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRowsChange }: OpsPlanningCostGridProps) {
+export function OpsPlanningCostGrid({ rows, products, activeOrderId, onSelectOrder, onRowsChange }: OpsPlanningCostGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<string, { id: string; values: Record<string, string> }>>(new Map())
   const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const data = useMemo(() => rows, [rows])
+  const productOptions = useMemo<NormalizedProductOption[]>(
+    () =>
+      products
+        .map((product) => ({
+          id: product.id,
+          sku: product.sku?.trim() ?? '',
+          name: product.name,
+        }))
+        .sort((a, b) => a.sku.localeCompare(b.sku)),
+    [products]
+  )
+  const skuChoices = useMemo(() => {
+    const choices = productOptions.map((option) => option.sku).filter((sku) => sku.length > 0)
+    if (rows.some((row) => !row.productSku)) {
+      choices.unshift('')
+    }
+    return choices
+  }, [productOptions, rows])
+  const productBySku = useMemo(() => new Map(productOptions.map((option) => [option.sku, option])), [productOptions])
+  const columns = useMemo<Handsontable.ColumnSettings[]>(
+    () => [
+      { data: 'orderCode', readOnly: true, className: 'cell-readonly', width: 140 },
+      {
+        data: 'productSku',
+        type: 'dropdown',
+        source: skuChoices,
+        allowInvalid: false,
+        strict: true,
+        className: 'cell-editable',
+        width: 140,
+      },
+      { data: 'productName', readOnly: true, className: 'cell-readonly', width: 200 },
+      { data: 'sellingPrice', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
+      { data: 'manufacturingCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
+      { data: 'freightCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
+      { data: 'tariffRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
+      { data: 'tacosPercent', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
+      { data: 'fbaFee', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 110 },
+      { data: 'referralRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
+      { data: 'storagePerMonth', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
+    ],
+    [skuChoices]
+  )
 
   useEffect(() => {
     if (hotRef.current) {
@@ -122,7 +156,7 @@ export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRows
         }}
         data={data}
         licenseKey="non-commercial-and-evaluation"
-        columns={COST_COLUMNS}
+        columns={columns}
         colHeaders={COST_HEADERS}
         stretchH="all"
         className="x-plan-hot"
@@ -149,7 +183,7 @@ export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRows
           if (!hot) return
 
           for (const change of changes) {
-            const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof OpsInputRow, any, any]
+            const [rowIndex, prop, oldValue, newValue] = change as [number, keyof OpsInputRow, any, any]
             const record = hot.getSourceDataAtRow(rowIndex) as OpsInputRow | null
             if (!record) continue
 
@@ -158,6 +192,25 @@ export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRows
             }
             const entry = pendingRef.current.get(record.id)
             if (!entry) continue
+
+            if (prop === 'productSku') {
+              const sku = typeof newValue === 'string' ? newValue.trim() : ''
+              if (!sku.length) {
+                record.productSku = typeof oldValue === 'string' ? oldValue : record.productSku
+                continue
+              }
+              const product = productBySku.get(sku)
+              if (!product) {
+                toast.error('Select a valid SKU')
+                record.productSku = typeof oldValue === 'string' ? oldValue : record.productSku
+                continue
+              }
+              entry.values.productId = product.id
+              record.productId = product.id
+              record.productSku = product.sku
+              record.productName = product.name
+              continue
+            }
 
             if (prop in NUMERIC_PRECISION) {
               const precision = NUMERIC_PRECISION[prop as keyof typeof NUMERIC_PRECISION]

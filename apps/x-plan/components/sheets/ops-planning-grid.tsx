@@ -13,7 +13,9 @@ registerAllModules()
 export type OpsInputRow = {
   id: string
   productId: string
+  productSku: string
   orderCode: string
+  transportReference: string
   productName: string
   quantity: string
   pay1Date: string
@@ -38,11 +40,13 @@ interface OpsPlanningGridProps {
   activeOrderId?: string | null
   onSelectOrder?: (orderId: string) => void
   onRowsChange?: (rows: OpsInputRow[]) => void
+  onAddOrder?: () => void
+  isAddingOrder?: boolean
 }
 
 const COLUMN_HEADERS = [
   'PO Code',
-  'Product',
+  'Vessel',
   'Units',
   'Req. Date',
   'Prod. (wk)',
@@ -55,7 +59,7 @@ const COLUMN_HEADERS = [
 
 const COLUMN_SETTINGS: Handsontable.ColumnSettings[] = [
   { data: 'orderCode', className: 'cell-editable', width: 150 },
-  { data: 'productName', readOnly: true, className: 'cell-readonly', width: 200 },
+  { data: 'transportReference', className: 'cell-editable', width: 200 },
   { data: 'quantity', type: 'numeric', numericFormat: { pattern: '0,0' }, className: 'cell-editable text-right', width: 110 },
   { data: 'pay1Date', type: 'date', dateFormat: 'MMM D YYYY', correctFormat: true, className: 'cell-editable', width: 150 },
   { data: 'productionWeeks', type: 'numeric', numericFormat: { pattern: '0.00' }, className: 'cell-editable text-right', width: 120 },
@@ -114,7 +118,14 @@ function normalizeNumeric(value: unknown, fractionDigits = 2) {
   return numeric.toFixed(fractionDigits)
 }
 
-export function OpsPlanningGrid({ rows, activeOrderId, onSelectOrder, onRowsChange }: OpsPlanningGridProps) {
+export function OpsPlanningGrid({
+  rows,
+  activeOrderId,
+  onSelectOrder,
+  onRowsChange,
+  onAddOrder,
+  isAddingOrder,
+}: OpsPlanningGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<string, { id: string; values: Record<string, string> }>>(new Map())
   const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -150,13 +161,25 @@ export function OpsPlanningGrid({ rows, activeOrderId, onSelectOrder, onRowsChan
 
   return (
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="space-y-1">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Lead &amp; schedule inputs
-        </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Update production timing and statuses — the highlighted row stays in sync with the detail view.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            Lead &amp; schedule inputs
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Update production timing and statuses — the highlighted row stays in sync with the detail view.
+          </p>
+        </div>
+        {onAddOrder ? (
+          <button
+            type="button"
+            onClick={onAddOrder}
+            disabled={isAddingOrder}
+            className="inline-flex items-center justify-center rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:enabled:hover:bg-slate-800"
+          >
+            {isAddingOrder ? 'Adding…' : '+ New PO'}
+          </button>
+        ) : null}
       </div>
       <HotTable
         ref={(instance) => {

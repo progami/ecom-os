@@ -311,6 +311,7 @@ async function loadOperationsContext() {
   const productInputs = mapProducts(products)
   const productIndex = buildProductCostIndex(productInputs)
   const productNameById = new Map(products.map((product) => [product.id, product.name]))
+  const productSkuById = new Map(products.map((product) => [product.id, product.sku ?? '']))
   const leadProfiles = buildLeadTimeProfiles(
     mapLeadStageTemplates(leadStages),
     mapLeadOverrides(overrides),
@@ -323,6 +324,7 @@ async function loadOperationsContext() {
     productInputs,
     productIndex,
     productNameById,
+    productSkuById,
     leadProfiles,
     parameters,
     purchaseOrderInputs,
@@ -361,7 +363,9 @@ async function getOpsPlanningView(): Promise<{
   const inputRows: OpsInputRow[] = derivedOrders.map(({ input, productName }) => ({
     id: input.id,
     productId: input.productId,
+    productSku: context.productSkuById.get(input.productId) ?? '',
     orderCode: input.orderCode,
+    transportReference: input.transportReference ?? '',
     productName,
     quantity: formatNumeric(input.quantity ?? null, 0),
     pay1Date: formatDate(input.pay1Date ?? null),
