@@ -88,7 +88,37 @@ type CashFlowWeekExportRow = Pick<
   CashFlowWeekRow,
   'weekNumber' | 'weekDate' | 'amazonPayout' | 'inventorySpend' | 'fixedCosts' | 'netCash' | 'cashBalance'
 >
-type PurchaseOrderWithProduct = PurchaseOrderRow & { product: Pick<ProductRow, 'name'> }
+type PurchaseOrderWithProduct = Pick<
+  PurchaseOrderRow,
+  |
+    'orderCode'
+    | 'productId'
+    | 'quantity'
+    | 'productionWeeks'
+    | 'sourcePrepWeeks'
+    | 'oceanWeeks'
+    | 'finalMileWeeks'
+    | 'pay1Date'
+    | 'pay1Percent'
+    | 'pay1Amount'
+    | 'pay2Date'
+    | 'pay2Percent'
+    | 'pay2Amount'
+    | 'pay3Date'
+    | 'pay3Percent'
+    | 'pay3Amount'
+    | 'productionStart'
+    | 'productionComplete'
+    | 'sourceDeparture'
+    | 'transportReference'
+    | 'portEta'
+    | 'inboundEta'
+    | 'availableDate'
+    | 'totalLeadDays'
+    | 'status'
+    | 'statusIcon'
+    | 'weeksUntilArrival'
+> & { product: Pick<ProductRow, 'name'> }
 type PurchaseOrderSummaryRow = Pick<PurchaseOrderRow, 'status' | 'quantity'>
 import * as XLSX from 'xlsx'
 

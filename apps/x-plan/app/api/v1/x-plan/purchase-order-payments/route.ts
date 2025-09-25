@@ -43,7 +43,7 @@ export async function PUT(request: Request) {
         const incoming = values[field]
         if (incoming === null || incoming === undefined || incoming === '') {
           if (field === 'paymentDate') {
-            data.dueDate = null
+            data.paymentDate = null
           } else {
             data[field] = null
           }
@@ -51,7 +51,7 @@ export async function PUT(request: Request) {
         }
 
         if (field === 'paymentDate') {
-          data.dueDate = parseDate(incoming)
+          data.paymentDate = parseDate(incoming)
         } else if (field === 'percentage') {
           const parsed = parseNumber(incoming)
           data[field] = parsed == null ? null : parsed > 1 ? parsed / 100 : parsed
@@ -66,7 +66,7 @@ export async function PUT(request: Request) {
         return prisma.purchaseOrderPayment.findUnique({ where: { id } })
       }
 
-      return prisma.purchaseOrderPayment.update({ where: { id }, data })
+        return prisma.purchaseOrderPayment.update({ where: { id }, data })
     })
   )
 
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
         paymentIndex: nextIndex,
         percentage: percentage != null ? new Prisma.Decimal(percentage.toFixed(4)) : null,
         amount: amount != null ? new Prisma.Decimal(amount.toFixed(2)) : null,
-        dueDate: paymentDate,
+        paymentDate,
       },
       include: { purchaseOrder: true },
     })
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
       purchaseOrderId: created.purchaseOrderId,
       orderCode: created.purchaseOrder.orderCode,
       paymentIndex: created.paymentIndex,
-      paymentDate: created.dueDate?.toISOString() ?? '',
+      paymentDate: created.paymentDate?.toISOString() ?? '',
       percentage: created.percentage ? Number(created.percentage).toFixed(2) : '',
       amount: created.amount ? Number(created.amount).toFixed(2) : '',
       status: created.status,

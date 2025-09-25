@@ -95,7 +95,7 @@ export interface PurchaseOrderPaymentRow {
   paymentIndex: number
   percentage: NumericLike
   amount: NumericLike
-  dueDate: Date | null
+  paymentDate: Date | null
   status: string | null
 }
 
@@ -277,7 +277,7 @@ export function mapPurchaseOrders(
       paymentIndex: payment.paymentIndex,
       percentage: payment.percentage != null ? toNumber(payment.percentage) : null,
       amount: payment.amount != null ? toNumber(payment.amount) : null,
-      paymentDate: payment.dueDate,
+      paymentDate: payment.paymentDate,
       status: payment.status,
     })),
   }))

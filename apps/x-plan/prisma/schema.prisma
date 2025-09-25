@@ -145,7 +145,7 @@ model PurchaseOrderPayment {
   id              String    @id @default(cuid())
   purchaseOrderId String
   paymentIndex    Int
-  dueDate         DateTime?
+  paymentDate     DateTime?
   percentage      Decimal?  @db.Decimal(6, 4)
   amount          Decimal?  @db.Decimal(12, 2)
   status          String    @default("pending")

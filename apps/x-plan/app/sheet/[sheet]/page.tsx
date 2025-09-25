@@ -66,18 +66,6 @@ type PurchaseOrderWithRelations = PurchaseOrderRow & {
   payments: PurchaseOrderPaymentRow[]
   product: Pick<ProductRow, 'id' | 'sku' | 'name'>
 }
-type ProductSalesTermRow = {
-  id: string
-  productId: string
-  startDate: Date
-  endDate: Date | null
-  sellingPrice: number
-  tacosPercent: number
-  fbaFee: number
-  referralRate: number
-  storagePerMonth: number
-  product: { id: string; sku: string | null; name: string }
-}
 type ProductCostTerm = {
   startDate: Date
   endDate: Date | null
@@ -337,7 +325,7 @@ async function getProductSetupView() {
         storagePerMonth: true,
         product: { select: { id: true, sku: true, name: true } },
       },
-    }) as Promise<ProductSalesTermRow[]>,
+    }),
   ])
 
   const activeProducts = products.filter((product) => {
@@ -524,7 +512,7 @@ async function loadOperationsContext() {
             paymentIndex: true,
             percentage: true,
             amount: true,
-            dueDate: true,
+            paymentDate: true,
             status: true,
           },
         },
@@ -675,7 +663,7 @@ async function getOpsPlanningView(): Promise<{
         purchaseOrderId: order.id,
         orderCode: order.orderCode,
         paymentIndex: payment.paymentIndex,
-        paymentDate: formatDate(payment.dueDate ?? null),
+        paymentDate: formatDate(payment.paymentDate ?? null),
         percentage: formatPercentDecimal(percentNumeric),
         amount: formatNumeric(amountNumeric),
         status: payment.status ?? '',
