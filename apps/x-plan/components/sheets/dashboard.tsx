@@ -59,6 +59,18 @@ const preciseCurrencyFormatter = new Intl.NumberFormat('en-US', {
 const unitFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
 const weeksFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 })
 
+type TrendMetricKey = 'revenue' | 'netProfit' | 'cashBalance'
+
+type TrendMetricOption = {
+  key: TrendMetricKey
+  title: string
+  description: string
+  helper: string
+  series: TrendSeries
+  format: 'currency' | 'number' | 'percent'
+  accent: TrendCardProps['accent']
+}
+
 export function DashboardSheet({ data }: { data: DashboardData }) {
   const [granularity, setGranularity] = useState<TrendGranularity>('monthly')
   const metrics: MetricDefinition[] = [
@@ -150,6 +162,60 @@ export function DashboardSheet({ data }: { data: DashboardData }) {
     }
   }, [granularity, granularityAvailability])
 
+  const metricOptions = useMemo<TrendMetricOption[]>(
+    () => [
+      {
+        key: 'revenue',
+        title: 'Revenue',
+        description: 'Monthly booked revenue',
+        helper: 'Gross sales captured across all SKUs',
+        series: revenueTrend,
+        format: 'currency',
+        accent: 'sky',
+      },
+      {
+        key: 'netProfit',
+        title: 'Net Profit',
+        description: 'Profit after COGS and OpEx',
+        helper: 'Includes platform fees, ad spend, and fixed costs',
+        series: netProfitTrend,
+        format: 'currency',
+        accent: 'emerald',
+      },
+      {
+        key: 'cashBalance',
+        title: 'Cash Balance',
+        description: 'Ending cash from the cash flow model',
+        helper: 'Projected liquidity after inflows and outflows',
+        series: cashBalanceTrend,
+        format: 'currency',
+        accent: 'violet',
+      },
+    ],
+    [revenueTrend, netProfitTrend, cashBalanceTrend]
+  )
+
+  const availableMetricOptions = useMemo(() => {
+    const populated = metricOptions.filter((option) => {
+      const monthlyHasData = option.series.monthly.values.some((value) => Number.isFinite(value))
+      const quarterlyHasData = option.series.quarterly.values.some((value) => Number.isFinite(value))
+      return monthlyHasData || quarterlyHasData
+    })
+    return populated.length > 0 ? populated : metricOptions
+  }, [metricOptions])
+
+  const [activeMetric, setActiveMetric] = useState<TrendMetricKey>('revenue')
+
+  useEffect(() => {
+    if (!availableMetricOptions.some((option) => option.key === activeMetric)) {
+      setActiveMetric(availableMetricOptions[0]?.key ?? 'revenue')
+    }
+  }, [activeMetric, availableMetricOptions])
+
+  const selectedMetric = availableMetricOptions.find((option) => option.key === activeMetric) ??
+    availableMetricOptions[0] ??
+    metricOptions[0]
+
   return (
     <div className="space-y-10">
       <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
@@ -179,41 +245,32 @@ export function DashboardSheet({ data }: { data: DashboardData }) {
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Performance graphs</p>
             <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">Visualize headline trends</h2>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              Track revenue, profitability, and cash balance at a glance. These visuals update with the same data that powers the planning grids.
+              Explore revenue, profitability, and cash balance using the same data that powers the planning grids. Switch the metric or cadence to zero in on the signal you need.
             </p>
           </div>
-          <GranularityToggle
-            value={granularity}
-            onChange={setGranularity}
-            availability={granularityAvailability}
-          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
+            <MetricSelect
+              options={availableMetricOptions}
+              value={selectedMetric?.key ?? activeMetric}
+              onChange={setActiveMetric}
+            />
+            <GranularityToggle
+              value={granularity}
+              onChange={setGranularity}
+              availability={granularityAvailability}
+            />
+          </div>
         </header>
-        <div className="space-y-6">
-          <TrendCard
-            title="Revenue"
-            description="Monthly booked revenue"
-            series={revenueTrend}
-            granularity={granularity}
-            format="currency"
-            accent="sky"
-          />
-          <TrendCard
-            title="Net Profit"
-            description="Profit after COGS and OpEx"
-            series={netProfitTrend}
-            granularity={granularity}
-            format="currency"
-            accent="emerald"
-          />
-          <TrendCard
-            title="Cash Balance"
-            description="Ending cash from the cash flow model"
-            series={cashBalanceTrend}
-            granularity={granularity}
-            format="currency"
-            accent="violet"
-          />
-        </div>
+        <TrendCard
+          key={selectedMetric?.key ?? 'metric'}
+          title={selectedMetric?.title ?? 'Revenue'}
+          description={selectedMetric?.description ?? 'Monthly booked revenue'}
+          helper={selectedMetric?.helper}
+          series={selectedMetric?.series ?? revenueTrend}
+          granularity={granularity}
+          format={selectedMetric?.format ?? 'currency'}
+          accent={selectedMetric?.accent ?? 'sky'}
+        />
       </section>
     </div>
   )
@@ -351,6 +408,7 @@ type TrendSeries = Record<TrendGranularity, { labels: string[]; values: number[]
 type TrendCardProps = {
   title: string
   description: string
+  helper?: string
   series: TrendSeries
   granularity: TrendGranularity
   format: 'currency' | 'number' | 'percent'
@@ -405,6 +463,37 @@ function GranularityToggle({
   )
 }
 
+function MetricSelect({
+  options,
+  value,
+  onChange,
+}: {
+  options: TrendMetricOption[]
+  value: TrendMetricKey
+  onChange: (value: TrendMetricKey) => void
+}) {
+  if (options.length === 0) {
+    return null
+  }
+
+  return (
+    <label className="flex flex-col text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+      Metric
+      <select
+        className="mt-1 w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+        value={value}
+        onChange={(event) => onChange(event.target.value as TrendMetricKey)}
+      >
+        {options.map((option) => (
+          <option key={option.key} value={option.key}>
+            {option.title}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 const accentPalette: Record<TrendCardProps['accent'], { hex: string; badge: string; badgeDark: string }> = {
   sky: {
     hex: '#0ea5e9',
@@ -425,7 +514,7 @@ const accentPalette: Record<TrendCardProps['accent'], { hex: string; badge: stri
 
 type TrendHover = { index: number; x: number; y: number } | null
 
-function TrendCard({ title, description, series, granularity, format, accent }: TrendCardProps) {
+function TrendCard({ title, description, helper, series, granularity, format, accent }: TrendCardProps) {
   const palette = accentPalette[accent]
   const [hover, setHover] = useState<TrendHover>(null)
   const { labels, values } = series[granularity]
@@ -469,6 +558,9 @@ function TrendCard({ title, description, series, granularity, format, accent }: 
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{title}</h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p>
+            {helper ? (
+              <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">{helper}</p>
+            ) : null}
           </div>
           <div className="text-right">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
@@ -477,7 +569,7 @@ function TrendCard({ title, description, series, granularity, format, accent }: 
             <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
               {activeLabel ?? latestLabel ?? '—'}
             </p>
-            <p className="mt-3 text-4xl font-semibold text-slate-900 dark:text-slate-50">
+            <p className="mt-3 text-5xl font-semibold text-slate-900 dark:text-slate-50 sm:text-6xl">
               {activeValue != null ? formatSimpleValue(activeValue, format) : '—'}
             </p>
           </div>
@@ -497,7 +589,7 @@ function TrendCard({ title, description, series, granularity, format, accent }: 
         )}
       </div>
 
-      <div className="relative mt-8 h-48">
+      <div className="relative mt-8 h-64 sm:h-72 lg:h-80">
         {values.length >= 2 ? (
           <>
             <Sparkline
@@ -635,7 +727,6 @@ function Sparkline({ values, labels, color, title, format, activeIndex, onHover,
       onPointerLeave={handlePointerLeave}
       onKeyDown={handleKeyDown}
     >
-      <title>{title} trend</title>
       <linearGradient id={gradientId} gradientTransform="rotate(90)">
         <stop offset="0%" stopColor={color} stopOpacity={0.18} />
         <stop offset="100%" stopColor={color} stopOpacity={0} />
