@@ -152,13 +152,10 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
   return (
     <div className="space-y-6 p-4">
       <div className="space-y-4">
-        <div className="mb-4 space-y-2">
+        <div className="mb-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            4. Fin Planning P&amp;L
+            Financial Planning · P&amp;L
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Only edit blue driver cells—grey results roll up automatically from calculations.
-          </p>
         </div>
         <HotTable
           ref={(instance) => {

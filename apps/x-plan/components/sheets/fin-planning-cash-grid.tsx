@@ -117,13 +117,10 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
   return (
     <div className="space-y-6 p-4">
       <div className="space-y-4">
-        <div className="mb-4 space-y-2">
+        <div className="mb-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            5. Fin Planning Cash Flow
+            Financial Planning · Cash Flow
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Update cash drivers; derived net cash and balance cells update automatically.
-          </p>
         </div>
         <HotTable
           ref={(instance) => {

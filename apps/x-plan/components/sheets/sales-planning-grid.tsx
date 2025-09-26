@@ -120,11 +120,8 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            3. Sales planning
+            Sales Planning
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Use the focus filter to isolate one SKU while keeping weekly totals intact.
-          </p>
         </div>
         <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
           <span>Focus SKU</span>
