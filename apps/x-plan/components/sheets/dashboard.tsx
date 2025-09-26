@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useMemo, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 
 import type {
   CashFlowSummaryRow,
@@ -524,10 +524,40 @@ function TrendCard({ title, description, helper, series, granularity, format, ac
   const [hover, setHover] = useState<TrendHover>(null)
   const { labels, values } = series[granularity]
   const snappedValues = useMemo(() => values.map(snapNearZero), [values])
+  const chartRef = useRef<HTMLDivElement>(null)
+  const [chartSize, setChartSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 })
 
   useEffect(() => {
     setHover(null)
   }, [granularity, series])
+
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return
+
+    const element = chartRef.current
+    if (!element) return
+
+    const applySize = (width: number, height: number) => {
+      setChartSize((prev) => {
+        if (Math.abs(prev.width - width) < 0.5 && Math.abs(prev.height - height) < 0.5) {
+          return prev
+        }
+        return { width, height }
+      })
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) return
+      const { width, height } = entry.contentRect
+      applySize(width, height)
+    })
+
+    observer.observe(element)
+    const initialRect = element.getBoundingClientRect()
+    applySize(initialRect.width, initialRect.height)
+    return () => observer.disconnect()
+  }, [])
 
   const { activeIndex, change, changePercent } = useMemo(() => {
     if (!snappedValues.length) return { activeIndex: null, change: null, changePercent: null }
@@ -596,7 +626,7 @@ function TrendCard({ title, description, helper, series, granularity, format, ac
         )}
       </div>
 
-      <div className="relative mt-8 h-64 sm:h-72 lg:h-80">
+      <div ref={chartRef} className="relative mt-8 h-64 sm:h-72 lg:h-80">
         {snappedValues.length >= 2 ? (
           <>
             <Sparkline
@@ -608,6 +638,8 @@ function TrendCard({ title, description, helper, series, granularity, format, ac
               activeIndex={activeIndex}
               onHover={setHover}
               onLeave={() => setHover(null)}
+              frameWidth={chartSize.width}
+              frameHeight={chartSize.height}
             />
             {zeroSeries ? (
               <div
@@ -662,14 +694,18 @@ type SparklineProps = {
   activeIndex: number | null
   onHover: (hover: TrendHover) => void
   onLeave: () => void
+  frameWidth: number
+  frameHeight: number
 }
 
-function Sparkline({ values, labels, color, title, format, activeIndex, onHover, onLeave }: SparklineProps) {
+function Sparkline({ values, labels, color, title, format, activeIndex, onHover, onLeave, frameWidth, frameHeight }: SparklineProps) {
   const gradientId = useId()
-  const height = 240
-  const width = 420
-  const paddingX = 12
-  const paddingY = 16
+  const fallbackWidth = 420
+  const fallbackHeight = 240
+  const width = Math.max(frameWidth || fallbackWidth, 180)
+  const height = Math.max(frameHeight || fallbackHeight, 180)
+  const paddingX = Math.max(8, Math.min(24, width * 0.03))
+  const paddingY = Math.max(12, Math.min(28, height * 0.08))
   const innerHeight = height - paddingY * 2
   const innerWidth = width - paddingX * 2
   const { domainMin, domainMax, minValue, maxValue } = useMemo(() => {
