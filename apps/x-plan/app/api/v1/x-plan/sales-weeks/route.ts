@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import prisma from '@/lib/prisma'
+import { loadPlanningCalendar } from '@/lib/planning'
+import { getCalendarDateForWeek } from '@/lib/calculations/calendar'
 
 const allowedFields = ['actualSales', 'forecastSales', 'finalSales'] as const
 
@@ -29,6 +31,9 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
+  const planning = await loadPlanningCalendar()
+  const calendar = planning.calendar
+
   await prisma.$transaction(
     parsed.data.updates.map(({ productId, weekNumber, values }) => {
       const data: Record<string, number | null> = {}
@@ -41,9 +46,20 @@ export async function PUT(request: Request) {
         return prisma.salesWeek.findFirst({ where: { productId, weekNumber } })
       }
 
-      return prisma.salesWeek.update({
+      const weekDate = getCalendarDateForWeek(weekNumber, calendar)
+      if (!weekDate) {
+        throw new Error(`Unknown planning week ${weekNumber}`)
+      }
+
+      return prisma.salesWeek.upsert({
         where: { productId_weekNumber: { productId, weekNumber } },
-        data,
+        update: data,
+        create: {
+          productId,
+          weekNumber,
+          weekDate,
+          ...data,
+        },
       })
     })
   )

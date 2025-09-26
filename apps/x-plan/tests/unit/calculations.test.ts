@@ -210,6 +210,25 @@ describe('computeSalesPlan', () => {
     expect(week52?.stockEnd).toBe(30)
     expect(week53?.stockStart).toBe(30)
   })
+
+  it('carries inventory forward when future weeks are only provided by the fallback calendar', () => {
+    const placeholder: SalesWeekInput[] = [
+      { id: 'p52', productId: '__planning__', weekNumber: 52, weekDate: new Date('2025-12-22T00:00:00Z') },
+      { id: 'p53', productId: '__planning__', weekNumber: 53, weekDate: new Date('2025-12-29T00:00:00Z') },
+    ]
+    const sparse: SalesWeekInput[] = [
+      { id: 's52', productId: product.id, weekNumber: 52, stockStart: 40, forecastSales: 10 },
+    ]
+
+    const plan = computeSalesPlan([...sparse, ...placeholder], [], { productIds: [product.id] })
+    const week52 = plan.find((row) => row.productId === product.id && row.weekNumber === 52)
+    const week53 = plan.find((row) => row.productId === product.id && row.weekNumber === 53)
+
+    expect(week52?.stockEnd).toBe(30)
+    expect(week53).toBeDefined()
+    expect(week53?.stockStart).toBe(30)
+    expect(week53?.finalSales).toBe(0)
+  })
 })
 
 const profitResult = computeProfitAndLoss(

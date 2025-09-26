@@ -384,7 +384,10 @@ function deriveOrders(context: Awaited<ReturnType<typeof loadOperationsContext>>
 async function loadFinancialData(planning: PlanningCalendar) {
   const operations = await loadOperationsContext()
   const derivedOrders = deriveOrders(operations)
-  const salesPlan = computeSalesPlan(planning.salesWeeks, derivedOrders.map((item) => item.derived))
+  const salesPlan = computeSalesPlan(planning.salesWeeks, derivedOrders.map((item) => item.derived), {
+    productIds: operations.productInputs.map((product) => product.id),
+    calendar: planning.calendar,
+  })
   const profitOverrides = mapProfitAndLossWeeks(
     await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
   )

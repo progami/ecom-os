@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 registerAllModules()
 
@@ -53,6 +54,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
   const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [focusProductId, setFocusProductId] = useState<string>('ALL')
   const warningThreshold = Number.isFinite(stockWarningWeeks) ? stockWarningWeeks : Number.POSITIVE_INFINITY
+  const router = useRouter()
 
   const data = useMemo(() => rows, [rows])
 
@@ -100,7 +102,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
     return hidden
   }, [columnKeys, columnMeta, focusProductId])
 
-  const flush = () => {
+  const flush = useCallback(() => {
     if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current)
     flushTimeoutRef.current = setTimeout(async () => {
       const payload = Array.from(pendingRef.current.values())
@@ -114,12 +116,13 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         })
         if (!response.ok) throw new Error('Failed to update sales planning')
         toast.success('Sales planning updated')
+        router.refresh()
       } catch (error) {
         console.error(error)
         toast.error('Unable to save sales planning changes')
       }
     }, 600)
-  }
+  }, [router])
 
   return (
     <div className="space-y-3 p-4">
