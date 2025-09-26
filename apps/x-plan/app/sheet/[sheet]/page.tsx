@@ -165,16 +165,74 @@ type NestedHeaderCell = string | { label: string; colspan?: number; rowspan?: nu
 
 type ProfitAndLossAggregates = ReturnType<typeof computeProfitAndLoss>
 type CashFlowAggregates = ReturnType<typeof computeCashFlow>
-type DashboardSummaryPayload = ReturnType<typeof computeDashboardSummary>
+type DashboardTimelineSegmentView = {
+  key: 'production' | 'sourcePrep' | 'oceanTransit' | 'finalMile'
+  label: string
+  start: string | null
+  end: string | null
+}
+
+type DashboardTimelineOrderView = {
+  id: string
+  orderCode: string
+  productName: string
+  quantity: number
+  status: string
+  availableDate: string | null
+  segments: DashboardTimelineSegmentView[]
+}
+
+function buildTimelineSegments(order: PurchaseOrderDerived): DashboardTimelineSegmentView[] {
+  const segments: DashboardTimelineSegmentView[] = []
+
+  const pushSegment = (
+    key: DashboardTimelineSegmentView['key'],
+    label: string,
+    start: Date | null,
+    end: Date | null
+  ) => {
+    if (!start || !end) return
+    const startTime = start.getTime()
+    const endTime = end.getTime()
+    if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || startTime > endTime) return
+    segments.push({
+      key,
+      label,
+      start: serializeDate(start),
+      end: serializeDate(end),
+    })
+  }
+
+  const productionEnd = order.productionComplete ?? order.sourceDeparture ?? order.inboundEta ?? order.availableDate
+  const sourceEnd = order.sourceDeparture ?? order.inboundEta ?? order.availableDate
+  const oceanEnd = order.portEta ?? order.inboundEta ?? order.availableDate
+  const finalEnd = order.availableDate ?? order.inboundEta ?? order.portEta
+
+  pushSegment('production', 'Production', order.productionStart, productionEnd)
+  pushSegment(
+    'sourcePrep',
+    'Source Prep',
+    order.productionComplete ?? order.productionStart ?? productionEnd,
+    sourceEnd
+  )
+  pushSegment(
+    'oceanTransit',
+    'Ocean Transit',
+    order.sourceDeparture ?? sourceEnd,
+    oceanEnd
+  )
+  pushSegment(
+    'finalMile',
+    'Final Mile',
+    order.inboundEta ?? order.portEta ?? oceanEnd,
+    finalEnd
+  )
+
+  return segments
+}
 
 type DashboardView = {
-  overview: {
-    revenueYTD: number
-    netProfitYTD: number
-    cashBalance: number
-    netMargin: number
-  }
-  pipeline: DashboardSummaryPayload['pipeline']
+  orders: DashboardTimelineOrderView[]
   inventory: Array<{
     productName: string
     stockEnd: number
@@ -707,14 +765,18 @@ async function getDashboardView(): Promise<DashboardView> {
     context.productIndex
   )
 
+  const timelineOrders: DashboardTimelineOrderView[] = derivedOrders.map(({ derived, productName }) => ({
+    id: derived.id,
+    orderCode: derived.orderCode,
+    productName,
+    quantity: derived.quantity,
+    status: derived.status,
+    availableDate: serializeDate(derived.availableDate),
+    segments: buildTimelineSegments(derived),
+  }))
+
   return {
-    overview: {
-      revenueYTD: dashboard.revenueYtd,
-      netProfitYTD: dashboard.netProfitYtd,
-      cashBalance: dashboard.cashBalance,
-      netMargin: dashboard.netMarginPercent,
-    },
-    pipeline: dashboard.pipeline,
+    orders: timelineOrders,
     inventory: dashboard.inventory.map((item) => ({
       productName: item.productName,
       stockEnd: item.stockEnd,
