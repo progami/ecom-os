@@ -7,6 +7,7 @@ import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
+import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
 
 registerAllModules()
 
@@ -43,10 +44,7 @@ interface CashFlowGridProps {
 const editableFields: (keyof WeeklyRow)[] = ['amazonPayout', 'inventorySpend', 'fixedCosts']
 
 function normalizeEditable(value: unknown) {
-  if (value === '' || value === null || value === undefined) return ''
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return String(value ?? '')
-  return numeric.toFixed(2)
+  return formatNumericInput(value, 2)
 }
 
 export function CashFlowGrid({ weekly }: CashFlowGridProps) {
@@ -72,6 +70,8 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
         numericFormat: { pattern: '$0,0.00' },
         readOnly: !editableFields.includes('amazonPayout'),
         className: editableFields.includes('amazonPayout') ? 'cell-editable' : 'cell-readonly',
+        validator: editableFields.includes('amazonPayout') ? numericValidator : undefined,
+        allowInvalid: false,
       },
       {
         data: 'inventorySpend',
@@ -79,6 +79,8 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
         numericFormat: { pattern: '$0,0.00' },
         readOnly: !editableFields.includes('inventorySpend'),
         className: editableFields.includes('inventorySpend') ? 'cell-editable' : 'cell-readonly',
+        validator: editableFields.includes('inventorySpend') ? numericValidator : undefined,
+        allowInvalid: false,
       },
       {
         data: 'fixedCosts',
@@ -86,6 +88,8 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
         numericFormat: { pattern: '$0,0.00' },
         readOnly: !editableFields.includes('fixedCosts'),
         className: editableFields.includes('fixedCosts') ? 'cell-editable' : 'cell-readonly',
+        validator: editableFields.includes('fixedCosts') ? numericValidator : undefined,
+        allowInvalid: false,
       },
       { data: 'netCash', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly' },
       { data: 'cashBalance', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly' },
@@ -154,7 +158,9 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
               }
             const entry = pendingRef.current.get(weekNumber)
             if (!entry) continue
-            entry.values[prop] = normalizeEditable(newValue)
+            const formatted = normalizeEditable(newValue)
+            entry.values[prop] = formatted
+            record[prop] = formatted
           }
           flush()
         }}

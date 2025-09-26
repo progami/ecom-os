@@ -7,6 +7,7 @@ import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
+import { dateValidator, formatNumericInput, numericValidator } from '@/components/sheets/validators'
 
 registerAllModules()
 
@@ -56,12 +57,61 @@ const COLUMN_HEADERS = [
 const COLUMN_SETTINGS: Handsontable.ColumnSettings[] = [
   { data: 'orderCode', className: 'cell-editable', width: 150 },
   { data: 'productName', readOnly: true, className: 'cell-readonly', width: 200 },
-  { data: 'quantity', type: 'numeric', numericFormat: { pattern: '0,0' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'pay1Date', type: 'date', dateFormat: 'MMM D YYYY', correctFormat: true, className: 'cell-editable', width: 150 },
-  { data: 'productionWeeks', type: 'numeric', numericFormat: { pattern: '0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'sourcePrepWeeks', type: 'numeric', numericFormat: { pattern: '0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'oceanWeeks', type: 'numeric', numericFormat: { pattern: '0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'finalMileWeeks', type: 'numeric', numericFormat: { pattern: '0.00' }, className: 'cell-editable text-right', width: 120 },
+  {
+    data: 'quantity',
+    type: 'numeric',
+    numericFormat: { pattern: '0,0' },
+    className: 'cell-editable text-right',
+    width: 110,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
+  {
+    data: 'pay1Date',
+    type: 'date',
+    dateFormat: 'MMM D YYYY',
+    correctFormat: true,
+    className: 'cell-editable',
+    width: 150,
+    validator: dateValidator,
+    allowInvalid: false,
+  },
+  {
+    data: 'productionWeeks',
+    type: 'numeric',
+    numericFormat: { pattern: '0.00' },
+    className: 'cell-editable text-right',
+    width: 120,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
+  {
+    data: 'sourcePrepWeeks',
+    type: 'numeric',
+    numericFormat: { pattern: '0.00' },
+    className: 'cell-editable text-right',
+    width: 120,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
+  {
+    data: 'oceanWeeks',
+    type: 'numeric',
+    numericFormat: { pattern: '0.00' },
+    className: 'cell-editable text-right',
+    width: 120,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
+  {
+    data: 'finalMileWeeks',
+    type: 'numeric',
+    numericFormat: { pattern: '0.00' },
+    className: 'cell-editable text-right',
+    width: 120,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
   {
     data: 'status',
     type: 'dropdown',
@@ -108,10 +158,7 @@ const NUMERIC_FIELDS = new Set<keyof OpsInputRow>([
 const DATE_FIELDS = new Set<keyof OpsInputRow>(['pay1Date'])
 
 function normalizeNumeric(value: unknown, fractionDigits = 2) {
-  if (value === '' || value === null || value === undefined) return ''
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return String(value ?? '')
-  return numeric.toFixed(fractionDigits)
+  return formatNumericInput(value, fractionDigits)
 }
 
 export function OpsPlanningGrid({ rows, activeOrderId, onSelectOrder, onRowsChange }: OpsPlanningGridProps) {

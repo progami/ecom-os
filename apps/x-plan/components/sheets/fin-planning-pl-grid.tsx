@@ -7,6 +7,7 @@ import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
+import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
 
 registerAllModules()
 
@@ -55,10 +56,7 @@ interface ProfitAndLossGridProps {
 const editableFields: (keyof WeeklyRow)[] = ['units', 'revenue', 'cogs', 'amazonFees', 'ppcSpend', 'fixedCosts']
 
 function normalizeEditable(value: unknown) {
-  if (value === '' || value === null || value === undefined) return ''
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return String(value ?? '')
-  return numeric.toFixed(2)
+  return formatNumericInput(value, 2)
 }
 
 export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: ProfitAndLossGridProps) {
@@ -84,6 +82,8 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         numericFormat: { pattern: '0,0.00' },
         readOnly: !editableFields.includes('units'),
         className: editableFields.includes('units') ? 'cell-editable' : 'cell-readonly',
+        validator: editableFields.includes('units') ? numericValidator : undefined,
+        allowInvalid: false,
       },
       {
         data: 'revenue',
@@ -91,6 +91,8 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         numericFormat: { pattern: '$0,0.00' },
         readOnly: !editableFields.includes('revenue'),
         className: editableFields.includes('revenue') ? 'cell-editable' : 'cell-readonly',
+        validator: editableFields.includes('revenue') ? numericValidator : undefined,
+        allowInvalid: false,
       },
       {
         data: 'cogs',
@@ -98,6 +100,8 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         numericFormat: { pattern: '$0,0.00' },
         readOnly: !editableFields.includes('cogs'),
         className: editableFields.includes('cogs') ? 'cell-editable' : 'cell-readonly',
+        validator: editableFields.includes('cogs') ? numericValidator : undefined,
+        allowInvalid: false,
       },
       { data: 'grossProfit', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly' },
       { data: 'grossMargin', type: 'numeric', numericFormat: { pattern: '0.00%' }, readOnly: true, className: 'cell-readonly' },
@@ -107,6 +111,8 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         numericFormat: { pattern: '$0,0.00' },
         readOnly: !editableFields.includes('amazonFees'),
         className: editableFields.includes('amazonFees') ? 'cell-editable' : 'cell-readonly',
+        validator: editableFields.includes('amazonFees') ? numericValidator : undefined,
+        allowInvalid: false,
       },
       {
         data: 'ppcSpend',
@@ -114,6 +120,8 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         numericFormat: { pattern: '$0,0.00' },
         readOnly: !editableFields.includes('ppcSpend'),
         className: editableFields.includes('ppcSpend') ? 'cell-editable' : 'cell-readonly',
+        validator: editableFields.includes('ppcSpend') ? numericValidator : undefined,
+        allowInvalid: false,
       },
       {
         data: 'fixedCosts',
@@ -121,6 +129,8 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         numericFormat: { pattern: '$0,0.00' },
         readOnly: !editableFields.includes('fixedCosts'),
         className: editableFields.includes('fixedCosts') ? 'cell-editable' : 'cell-readonly',
+        validator: editableFields.includes('fixedCosts') ? numericValidator : undefined,
+        allowInvalid: false,
       },
       { data: 'totalOpex', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly' },
       { data: 'netProfit', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly' },
@@ -189,7 +199,9 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
               }
             const entry = pendingRef.current.get(weekNumber)
             if (!entry) continue
-            entry.values[prop] = normalizeEditable(newValue)
+            const formatted = normalizeEditable(newValue)
+            entry.values[prop] = formatted
+            record[prop] = formatted
           }
           flush()
         }}

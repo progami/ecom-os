@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import prisma from '@/lib/prisma'
+import { loadPlanningCalendar } from '@/lib/planning'
 
 const editableFields = ['units', 'revenue', 'cogs', 'amazonFees', 'ppcSpend', 'fixedCosts'] as const
 
 const updateSchema = z.object({
   updates: z.array(
     z.object({
-      weekNumber: z.number().int().min(1).max(52),
+      weekNumber: z.number().int().min(1),
       values: z.record(z.string(), z.string().nullable().optional()),
     })
   ),
@@ -27,6 +28,21 @@ export async function PUT(request: Request) {
 
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+  }
+
+  const planning = await loadPlanningCalendar()
+  const minWeek = planning.calendar.minWeekNumber ?? 1
+  const maxWeek = planning.calendar.maxWeekNumber ?? minWeek
+
+  const outOfRange = parsed.data.updates.find(
+    ({ weekNumber }) => weekNumber < minWeek || weekNumber > maxWeek,
+  )
+
+  if (outOfRange) {
+    return NextResponse.json(
+      { error: `Week ${outOfRange.weekNumber} is outside the planning calendar` },
+      { status: 400 },
+    )
   }
 
   await prisma.$transaction(

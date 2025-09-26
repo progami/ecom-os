@@ -250,6 +250,15 @@ describe('computeProfitAndLoss', () => {
     expect(week1.fixedCosts).toBe(parameters.weeklyFixedCosts)
     expect(week1.netProfit).toBeCloseTo(-275)
   })
+
+  it('derives non-editable columns from driver cells', () => {
+    const week1 = profitResult.weekly[0]
+    expect(week1.grossProfit).toBeCloseTo(week1.revenue - week1.cogs)
+    expect(week1.totalOpex).toBeCloseTo(week1.amazonFees + week1.ppcSpend + week1.fixedCosts)
+    expect(week1.netProfit).toBeCloseTo(week1.grossProfit - week1.totalOpex)
+    const expectedMargin = week1.revenue === 0 ? 0 : week1.grossProfit / week1.revenue
+    expect(week1.grossMargin).toBeCloseTo(expectedMargin)
+  })
 })
 
 const cashResult = computeCashFlow(
@@ -269,6 +278,20 @@ describe('computeCashFlow', () => {
     expect(week2?.inventorySpend).toBeCloseTo(0)
     expect(week3?.amazonPayout).toBeCloseTo(500)
     expect(week3?.cashBalance).toBeCloseTo(900)
+  })
+
+  it('keeps derived cash metrics in sync with editable inputs', () => {
+    const rows = cashResult.weekly
+    for (const row of rows) {
+      expect(row.netCash).toBeCloseTo(row.amazonPayout - row.inventorySpend - row.fixedCosts)
+    }
+
+    for (let index = 1; index < rows.length; index += 1) {
+      const previous = rows[index - 1]
+      const current = rows[index]
+      const expectedBalance = previous.cashBalance + current.netCash
+      expect(current.cashBalance).toBeCloseTo(expectedBalance)
+    }
   })
 
   it('carries delayed payouts into future planning years', () => {

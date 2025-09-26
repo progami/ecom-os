@@ -8,6 +8,7 @@ import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
 
 registerAllModules()
 
@@ -39,13 +40,6 @@ interface SalesPlanningGridProps {
   columnKeys: string[]
   productOptions: Array<{ id: string; name: string }>
   stockWarningWeeks: number
-}
-
-function normalizeEditableValue(value: unknown) {
-  if (value === '' || value === null || value === undefined) return ''
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return String(value ?? '')
-  return numeric.toFixed(2)
 }
 
 export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys, productOptions, stockWarningWeeks }: SalesPlanningGridProps) {
@@ -83,6 +77,8 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         readOnly: !editable,
         editor: editable ? Handsontable.editors.NumericEditor : false,
         className: editable ? 'cell-editable' : 'cell-readonly',
+        validator: editable ? numericValidator : undefined,
+        allowInvalid: false,
       })
     }
     return base
@@ -209,7 +205,9 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
             }
             const entry = pendingRef.current.get(key)
             if (!entry) continue
-            entry.values[meta.field] = normalizeEditableValue(newValue)
+            const formatted = formatNumericInput(newValue)
+            entry.values[meta.field] = formatted
+            record[prop] = formatted
           }
           flush()
         }}

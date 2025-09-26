@@ -8,6 +8,7 @@ import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import type { OpsInputRow } from '@/components/sheets/ops-planning-grid'
+import { formatNumericInput, formatPercentInput, numericValidator } from '@/components/sheets/validators'
 
 registerAllModules()
 
@@ -34,14 +35,78 @@ const COST_HEADERS = [
 const COST_COLUMNS: Handsontable.ColumnSettings[] = [
   { data: 'orderCode', readOnly: true, className: 'cell-readonly', width: 140 },
   { data: 'productName', readOnly: true, className: 'cell-readonly', width: 180 },
-  { data: 'sellingPrice', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'manufacturingCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'freightCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'tariffRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'tacosPercent', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'fbaFee', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'referralRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'storagePerMonth', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
+  {
+    data: 'sellingPrice',
+    type: 'numeric',
+    numericFormat: { pattern: '$0,0.00' },
+    className: 'cell-editable text-right',
+    width: 120,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
+  {
+    data: 'manufacturingCost',
+    type: 'numeric',
+    numericFormat: { pattern: '$0,0.00' },
+    className: 'cell-editable text-right',
+    width: 120,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
+  {
+    data: 'freightCost',
+    type: 'numeric',
+    numericFormat: { pattern: '$0,0.00' },
+    className: 'cell-editable text-right',
+    width: 120,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
+  {
+    data: 'tariffRate',
+    type: 'numeric',
+    numericFormat: { pattern: '0.00%' },
+    className: 'cell-editable text-right',
+    width: 110,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
+  {
+    data: 'tacosPercent',
+    type: 'numeric',
+    numericFormat: { pattern: '0.00%' },
+    className: 'cell-editable text-right',
+    width: 110,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
+  {
+    data: 'fbaFee',
+    type: 'numeric',
+    numericFormat: { pattern: '$0,0.00' },
+    className: 'cell-editable text-right',
+    width: 110,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
+  {
+    data: 'referralRate',
+    type: 'numeric',
+    numericFormat: { pattern: '0.00%' },
+    className: 'cell-editable text-right',
+    width: 110,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
+  {
+    data: 'storagePerMonth',
+    type: 'numeric',
+    numericFormat: { pattern: '$0,0.00' },
+    className: 'cell-editable text-right',
+    width: 120,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
 ]
 
 const NUMERIC_PRECISION: Record<string, number> = {
@@ -59,18 +124,11 @@ const PERCENT_PRECISION: Record<string, number> = {
 }
 
 function normalizeCurrency(value: unknown, fractionDigits = 2) {
-  if (value === '' || value === null || value === undefined) return ''
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return String(value ?? '')
-  return numeric.toFixed(fractionDigits)
+  return formatNumericInput(value, fractionDigits)
 }
 
 function normalizePercent(value: unknown, fractionDigits = 4) {
-  if (value === '' || value === null || value === undefined) return ''
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return String(value ?? '')
-  const base = numeric > 1 ? numeric / 100 : numeric
-  return base.toFixed(fractionDigits)
+  return formatPercentInput(value, fractionDigits)
 }
 
 export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRowsChange }: OpsPlanningCostGridProps) {

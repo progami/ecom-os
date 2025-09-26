@@ -34,6 +34,7 @@ import {
   type PurchaseOrderStatus,
   type LeadTimeProfile,
 } from '@/lib/calculations'
+import { formatPercentInput, parseNumericInput } from '@/components/sheets/validators'
 
 export type PurchaseOrderSerialized = {
   id: string
@@ -121,11 +122,7 @@ function formatDisplayDate(value?: string | Date | null) {
 }
 
 function normalizePercent(value: string | undefined) {
-  if (!value) return ''
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return value
-  const base = numeric > 1 ? numeric / 100 : numeric
-  return base.toFixed(4)
+  return formatPercentInput(value, 4)
 }
 
 function normalizePaymentRows(rows: PurchasePaymentRow[]): PurchasePaymentRow[] {
@@ -142,16 +139,14 @@ function parseDateValue(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-function isBlankInput(value: unknown): boolean {
-  if (value === null || value === undefined) return true
-  if (typeof value === 'string') return value.trim() === ''
-  return false
-}
-
 function toNumber(value: string | number | null | undefined): number | null {
-  if (isBlankInput(value)) return null
-  const numeric = typeof value === 'number' ? value : Number(value)
-  return Number.isNaN(numeric) ? null : numeric
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value === 'string') {
+    if (value.trim() === '') return null
+    return parseNumericInput(value)
+  }
+  return parseNumericInput(value)
 }
 
 function parseNumber(value: string | number | null | undefined): number | null {
