@@ -51,11 +51,11 @@ export type BusinessParameterMap = {
 export interface PurchaseOrderPaymentInput {
   paymentIndex: number
   percentage?: number | null
-  amount?: number | null
+  amountExpected?: number | null
+  amountPaid?: number | null
   category?: string | null
   label?: string | null
   dueDate?: Date | null
-  status?: string | null
 }
 
 export type PurchaseOrderStatus =

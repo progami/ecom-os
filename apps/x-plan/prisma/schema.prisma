@@ -149,10 +149,10 @@ model PurchaseOrderPayment {
   paymentIndex    Int
   dueDate         DateTime?
   percentage      Decimal?      @db.Decimal(6, 4)
-  amount          Decimal?      @db.Decimal(12, 2)
+  amountExpected  Decimal?      @db.Decimal(12, 2)
+  amountPaid      Decimal?      @db.Decimal(12, 2)
   category        String?       @db.VarChar(32)
   label           String?       @db.VarChar(64)
-  status          String        @default("pending")
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)

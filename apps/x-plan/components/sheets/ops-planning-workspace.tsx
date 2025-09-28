@@ -193,6 +193,8 @@ function normalizePaymentRows(rows: PurchasePaymentRow[]): PurchasePaymentRow[] 
     label: resolvePaymentLabel(payment.category, payment.label, payment.paymentIndex),
     dueDate: formatDisplayDate(payment.dueDate),
     percentage: normalizePercent(payment.percentage),
+    amountExpected: formatNumericInput(payment.amountExpected, 2),
+    amountPaid: formatNumericInput(payment.amountPaid, 2),
   }))
 }
 
@@ -271,9 +273,9 @@ function deserializeOrders(purchaseOrders: PurchaseOrderSerialized[]): PurchaseO
       order.payments?.map((payment): PurchaseOrderPaymentInput => ({
         paymentIndex: payment.paymentIndex,
         percentage: payment.percentage ?? null,
-        amount: payment.amount ?? null,
+        amountExpected: payment.amountExpected ?? null,
+        amountPaid: payment.amountPaid ?? null,
         dueDate: parseDateValue(payment.dueDate ?? null),
-        status: payment.status ?? null,
       })) ?? [],
     overrideSellingPrice: order.overrideSellingPrice ?? null,
     overrideManufacturingCost: order.overrideManufacturingCost ?? null,
@@ -385,14 +387,17 @@ function buildPaymentsByOrder(paymentRows: PurchasePaymentRow[]): Map<string, Pu
   const map = new Map<string, PurchaseOrderPaymentInput[]>()
   for (const payment of paymentRows) {
     const list = map.get(payment.purchaseOrderId) ?? []
-    const percentage = payment.percentage != null && payment.percentage !== '' ? Number(payment.percentage) : null
-    const amount = payment.amount != null && payment.amount !== '' ? Number(payment.amount) : null
+    const percentage = parseNumericInput(payment.percentage) ?? null
+    const amountExpected = parseNumericInput(payment.amountExpected) ?? null
+    const amountPaid = parseNumericInput(payment.amountPaid) ?? null
     list.push({
       paymentIndex: payment.paymentIndex,
       percentage,
-      amount,
+      amountExpected,
+      amountPaid,
+      category: payment.category ?? null,
+      label: payment.label ?? null,
       dueDate: parseDateValue(payment.dueDate),
-      status: payment.status ?? null,
     })
     map.set(payment.purchaseOrderId, list)
   }
@@ -950,15 +955,15 @@ useEffect(() => {
     for (const payment of paymentRows) {
       const summary = summaries.get(payment.purchaseOrderId)
       if (!summary) continue
-      const amount = Number(payment.amount ?? 0)
-      if (Number.isFinite(amount)) {
-        summary.actualAmount += amount
-      }
+      const amountPaid = parseNumericInput(payment.amountPaid) ?? 0
       const percentFromPayment = Number(payment.percentage ?? 0)
+      if (Number.isFinite(amountPaid)) {
+        summary.actualAmount += amountPaid
+      }
       if (Number.isFinite(percentFromPayment) && percentFromPayment > 0) {
         summary.actualPercent += percentFromPayment
-      } else if (summary.plannedAmount > 0 && Number.isFinite(amount)) {
-        summary.actualPercent += amount / summary.plannedAmount
+      } else if (summary.plannedAmount > 0 && Number.isFinite(amountPaid)) {
+        summary.actualPercent += amountPaid / summary.plannedAmount
       }
     }
 
@@ -1004,11 +1009,7 @@ useEffect(() => {
       }
 
       const created = (await response.json()) as PurchasePaymentRow
-      const normalizedCreated: PurchasePaymentRow = {
-        ...created,
-        dueDate: formatDisplayDate(created.dueDate),
-        percentage: normalizePercent(created.percentage),
-      }
+      const [normalizedCreated] = normalizePaymentRows([created])
 
       setPaymentRows((previous) => {
         const next = [...previous, normalizedCreated]

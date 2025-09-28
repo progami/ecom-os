@@ -161,11 +161,11 @@ export function mapPurchaseOrders(
         ? (order.payments as PurchaseOrderPayment[]).map((payment): PurchaseOrderPaymentInput => ({
             paymentIndex: payment.paymentIndex,
             percentage: payment.percentage != null ? toNumber(payment.percentage) : null,
-            amount: payment.amount != null ? toNumber(payment.amount) : null,
+            amountExpected: payment.amountExpected != null ? toNumber(payment.amountExpected) : null,
+            amountPaid: payment.amountPaid != null ? toNumber(payment.amountPaid) : null,
             category: payment.category ?? null,
             label: payment.label ?? null,
             dueDate: payment.dueDate ?? null,
-            status: payment.status ?? 'pending',
           }))
         : [],
       batchTableRows: batches,

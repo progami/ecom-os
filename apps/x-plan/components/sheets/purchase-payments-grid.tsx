@@ -26,8 +26,8 @@ export type PurchasePaymentRow = {
   paymentIndex: number
   dueDate: string
   percentage: string
-  amount: string
-  status: string
+  amountExpected: string
+  amountPaid: string
 }
 
 type PaymentUpdate = {
@@ -55,7 +55,7 @@ interface PurchasePaymentsGridProps {
   summaryLine?: string | null
 }
 
-const HEADERS = ['PO', 'Invoice', '#', 'Due Date', 'Percent', 'Amount', 'Status']
+const HEADERS = ['PO', 'Invoice', '#', 'Due Date', 'Percent', 'Expected $', 'Paid $']
 
 const COLUMNS: Handsontable.ColumnSettings[] = [
   { data: 'orderCode', readOnly: true, className: 'cell-readonly' },
@@ -72,22 +72,23 @@ const COLUMNS: Handsontable.ColumnSettings[] = [
   },
   { data: 'percentage', type: 'numeric', numericFormat: { pattern: '0.00%' }, readOnly: true, className: 'cell-readonly' },
   {
-    data: 'amount',
+    data: 'amountExpected',
+    type: 'numeric',
+    numericFormat: { pattern: '$0,0.00' },
+    readOnly: true,
+    className: 'cell-readonly text-right',
+  },
+  {
+    data: 'amountPaid',
     type: 'numeric',
     numericFormat: { pattern: '$0,0.00' },
     className: 'cell-editable',
     validator: numericValidator,
     allowInvalid: false,
   },
-  {
-    data: 'status',
-    type: 'dropdown',
-    source: ['pending', 'scheduled', 'paid', 'cancelled'],
-    className: 'cell-editable',
-  },
 ]
 
-const NUMERIC_FIELDS: Array<keyof PurchasePaymentRow> = ['amount']
+const NUMERIC_FIELDS: Array<keyof PurchasePaymentRow> = ['amountPaid']
 
 function normalizeNumeric(value: unknown) {
   return formatNumericInput(value, 2)
@@ -249,24 +250,26 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
             } else if (NUMERIC_FIELDS.includes(prop)) {
               const normalizedAmount = normalizeNumeric(newValue)
               entry.values[prop] = normalizedAmount
+              record[prop] = normalizedAmount
               const plannedAmount = orderSummaries?.get(record.purchaseOrderId)?.plannedAmount ?? 0
               const numericAmount = parseNumericInput(normalizedAmount) ?? 0
               if (plannedAmount > 0 && Number.isFinite(numericAmount)) {
                 const amountTolerance = Math.max(plannedAmount * 0.001, 0.01)
                 const totalAmount = (hot.getSourceData() as PurchasePaymentRow[])
                   .filter((row) => row.purchaseOrderId === record.purchaseOrderId)
-                  .reduce((sum, row) => sum + Number(row.amount ?? 0), 0)
+                  .reduce((sum, row) => sum + (parseNumericInput(row.amountPaid) ?? 0), 0)
 
                 if (totalAmount > plannedAmount + amountTolerance) {
-                  const previousAmountString = _oldValue == null || _oldValue === '' ? '0.00' : normalizeNumeric(_oldValue)
-                  entry.values.amount = previousAmountString
+                  const previousAmountString =
+                    _oldValue == null || _oldValue === '' ? record.amountPaid : normalizeNumeric(_oldValue)
+                  entry.values.amountPaid = previousAmountString
                   const previousPercent = normalizePercent(
-                    plannedAmount > 0 ? Number(previousAmountString ?? 0) / plannedAmount : 0
+                    plannedAmount > 0 ? (parseNumericInput(previousAmountString) ?? 0) / plannedAmount : 0
                   )
                   entry.values.percentage = previousPercent
-                  hot.setDataAtRowProp(rowIndex, 'amount', previousAmountString, 'derived-update')
+                  hot.setDataAtRowProp(rowIndex, 'amountPaid', previousAmountString, 'derived-update')
                   hot.setDataAtRowProp(rowIndex, 'percentage', previousPercent, 'derived-update')
-                  toast.error('Payments exceed the PO total. Adjust amounts before adding more.')
+                  toast.error('Amount paid exceeds the expected total. Adjust the values before continuing.')
                   continue
                 }
 

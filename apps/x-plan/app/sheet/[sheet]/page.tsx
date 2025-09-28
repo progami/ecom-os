@@ -174,11 +174,11 @@ function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSeriali
       order.payments?.map((payment) => ({
         paymentIndex: payment.paymentIndex,
         percentage: payment.percentage ?? null,
-        amount: payment.amount ?? null,
+        amountExpected: payment.amountExpected ?? null,
+        amountPaid: payment.amountPaid ?? null,
         category: payment.category ?? null,
         label: payment.label ?? null,
         dueDate: serializeDate(payment.dueDate),
-        status: payment.status ?? null,
       })) ?? [],
     overrideSellingPrice: order.overrideSellingPrice ?? null,
     overrideManufacturingCost: order.overrideManufacturingCost ?? null,
@@ -505,9 +505,13 @@ async function ensureDefaultSupplierInvoices({
       const dueDate = planned.plannedDate ?? input.poDate ?? record.poDate ?? record.createdAt ?? new Date()
 
       const percentageDecimal = percentValue != null ? new Prisma.Decimal(percentValue.toFixed(4)) : null
-      const amountDecimal = new Prisma.Decimal(amountValue.toFixed(2))
+      const amountExpectedDecimal = new Prisma.Decimal(amountValue.toFixed(2))
 
       const existing = existingByIndex.get(planned.paymentIndex)
+
+      if (existing?.amountPaid != null) {
+        continue
+      }
 
       if (existing) {
         updates.push(
@@ -515,10 +519,9 @@ async function ensureDefaultSupplierInvoices({
             paymentIndex: planned.paymentIndex,
             dueDate,
             percentage: percentageDecimal,
-            amount: amountDecimal,
+            amountExpected: amountExpectedDecimal,
             category: planned.category,
             label: planned.label,
-            status: existing.status,
           })
         )
       } else {
@@ -528,10 +531,9 @@ async function ensureDefaultSupplierInvoices({
             paymentIndex: planned.paymentIndex,
             dueDate,
             percentage: percentageDecimal,
-            amount: amountDecimal,
+            amountExpected: amountExpectedDecimal,
             category: planned.category,
             label: planned.label,
-            status: 'pending',
           })
         )
       }
@@ -558,37 +560,47 @@ type SeedPaymentInput = {
   paymentIndex: number
   dueDate: Date
   percentage: Prisma.Decimal | null
-  amount: Prisma.Decimal
+  amountExpected: Prisma.Decimal
+  amountPaid?: Prisma.Decimal | null
   category?: string
   label?: string
-  status?: string
 }
 
 type UpdatePaymentInput = {
-  paymentIndex: number
-  dueDate: Date
-  percentage: Prisma.Decimal | null
-  amount: Prisma.Decimal
+  paymentIndex?: number
+  dueDate?: Date
+  percentage?: Prisma.Decimal | null
+  amountExpected?: Prisma.Decimal | null
+  amountPaid?: Prisma.Decimal | null
   category?: string
   label?: string
-  status?: string
 }
 
 async function createPurchaseOrderPayment(data: SeedPaymentInput): Promise<PurchaseOrderPayment | null> {
   try {
     return await prisma.purchaseOrderPayment.create({ data })
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientValidationError && /Unknown argument `(?:category|label)`/.test(error.message)) {
-      const { category, label, ...fallback } = data
-      console.warn(
-        '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @ecom-os/x-plan prisma:migrate:deploy` to add category/label columns'
-      )
-      return prisma.purchaseOrderPayment
-        .create({ data: fallback })
-        .catch((fallbackError) => {
-          console.error('Failed to seed supplier payment (fallback)', fallbackError)
-          return null
-        })
+    if (error instanceof Prisma.PrismaClientValidationError) {
+      const message = error.message
+      if (/Unknown argument `(?:category|label|amountExpected|amountPaid)`/.test(message)) {
+        const { category, label, amountExpected, amountPaid, ...fallback } = data
+        console.warn(
+          '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @ecom-os/x-plan prisma:migrate:deploy` to add amountExpected/amountPaid metadata columns'
+        )
+        const legacyData: Record<string, unknown> = {
+          ...fallback,
+          amount: amountExpected,
+          status: amountPaid != null ? 'paid' : 'pending',
+        }
+        if (category) legacyData.category = category
+        if (label) legacyData.label = label
+        return prisma.purchaseOrderPayment
+          .create({ data: legacyData })
+          .catch((fallbackError) => {
+            console.error('Failed to seed supplier payment (fallback)', fallbackError)
+            return null
+          })
+      }
     }
 
     console.error('Failed to seed supplier payment', error)
@@ -606,17 +618,26 @@ async function updatePurchaseOrderPayment(
       data,
     })
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientValidationError && /Unknown argument `(?:category|label)`/.test(error.message)) {
-      const { category, label, ...fallback } = data
-      console.warn(
-        '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @ecom-os/x-plan prisma:migrate:deploy` to add category/label columns'
-      )
-      return prisma.purchaseOrderPayment
-        .update({ where: { id }, data: fallback })
-        .catch((fallbackError) => {
-          console.error('Failed to update supplier payment (fallback)', fallbackError)
-          return null
-        })
+    if (error instanceof Prisma.PrismaClientValidationError) {
+      const message = error.message
+      if (/Unknown argument `(?:category|label|amountExpected|amountPaid)`/.test(message)) {
+        const { category, label, amountExpected, amountPaid, ...fallback } = data
+        console.warn(
+          '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @ecom-os/x-plan prisma:migrate:deploy` to add amountExpected/amountPaid metadata columns'
+        )
+        const legacyData: Record<string, unknown> = {
+          ...fallback,
+        }
+        if (amountExpected != null) legacyData.amount = amountExpected
+        if (category) legacyData.category = category
+        if (label) legacyData.label = label
+        return prisma.purchaseOrderPayment
+          .update({ where: { id }, data: legacyData })
+          .catch((fallbackError) => {
+            console.error('Failed to update supplier payment (fallback)', fallbackError)
+            return null
+          })
+      }
     }
 
     console.error('Failed to update supplier payment', error)
@@ -782,11 +803,12 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
     const denominator = derived?.supplierCostTotal ?? derived?.plannedPoValue ?? 0
 
     return order.payments.map((payment) => {
-      const amountNumeric = payment.amount != null ? Number(payment.amount) : null
+      const amountExpectedNumeric = payment.amountExpected != null ? Number(payment.amountExpected) : null
+      const amountPaidNumeric = payment.amountPaid != null ? Number(payment.amountPaid) : null
       const percentNumeric = payment.percentage != null
         ? Number(payment.percentage)
-        : denominator > 0 && amountNumeric != null
-        ? amountNumeric / denominator
+        : denominator > 0 && amountPaidNumeric != null
+        ? amountPaidNumeric / denominator
         : null
 
       return {
@@ -798,8 +820,8 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
         paymentIndex: payment.paymentIndex,
         dueDate: formatDate(payment.dueDate ?? null),
         percentage: formatPercentDecimal(percentNumeric),
-        amount: formatNumeric(amountNumeric),
-        status: payment.status ?? '',
+        amountExpected: formatNumeric(amountExpectedNumeric),
+        amountPaid: formatNumeric(amountPaidNumeric),
       }
     })
   })

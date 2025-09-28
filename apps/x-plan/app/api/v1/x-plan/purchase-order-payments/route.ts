@@ -7,7 +7,7 @@ type UpdatePayload = {
   values: Record<string, string | null | undefined>
 }
 
-const allowedFields = ['dueDate', 'percentage', 'amount', 'status'] as const
+const allowedFields = ['dueDate', 'percentage', 'amountExpected', 'amountPaid'] as const
 
 function parseNumber(value: string | null | undefined) {
   if (!value) return null
@@ -50,11 +50,11 @@ export async function PUT(request: Request) {
           data[field] = parseDate(incoming)
         } else if (field === 'percentage') {
           const parsed = parseNumber(incoming)
-          data[field] = parsed == null ? null : parsed > 1 ? parsed / 100 : parsed
-        } else if (field === 'amount') {
-          data[field] = parseNumber(incoming)
-        } else if (field === 'status') {
-          data[field] = incoming
+          const decimal = parsed == null ? null : parsed > 1 ? parsed / 100 : parsed
+          data[field] = decimal == null ? null : new Prisma.Decimal(decimal.toFixed(4))
+        } else if (field === 'amountExpected' || field === 'amountPaid') {
+          const parsed = parseNumber(incoming)
+          data[field] = parsed == null ? null : new Prisma.Decimal(parsed.toFixed(2))
         }
       }
 
@@ -78,7 +78,8 @@ export async function POST(request: Request) {
   const purchaseOrderId: string = body.purchaseOrderId
   const paymentIndex: number = Number(body.paymentIndex ?? 1)
   const percentage = parseNumber(body.percentage ?? null)
-  const amount = parseNumber(body.amount ?? null)
+  const amountExpected = parseNumber(body.amountExpected ?? null)
+  const amountPaid = parseNumber(body.amountPaid ?? null)
   const dueDate = parseDate(body.dueDate ?? null)
 
   try {
@@ -88,7 +89,8 @@ export async function POST(request: Request) {
         purchaseOrderId,
         paymentIndex: nextIndex,
         percentage: percentage != null ? new Prisma.Decimal(percentage.toFixed(4)) : null,
-        amount: amount != null ? new Prisma.Decimal(amount.toFixed(2)) : null,
+        amountExpected: amountExpected != null ? new Prisma.Decimal(amountExpected.toFixed(2)) : null,
+        amountPaid: amountPaid != null ? new Prisma.Decimal(amountPaid.toFixed(2)) : null,
         dueDate,
       },
       include: { purchaseOrder: true },
@@ -103,8 +105,8 @@ export async function POST(request: Request) {
       label: created.label ?? '',
       dueDate: created.dueDate?.toISOString() ?? '',
       percentage: created.percentage ? Number(created.percentage).toFixed(2) : '',
-      amount: created.amount ? Number(created.amount).toFixed(2) : '',
-      status: created.status,
+      amountExpected: created.amountExpected ? Number(created.amountExpected).toFixed(2) : '',
+      amountPaid: created.amountPaid ? Number(created.amountPaid).toFixed(2) : '',
     })
   } catch (error) {
     console.error('[purchase-order-payments][POST]', error)
