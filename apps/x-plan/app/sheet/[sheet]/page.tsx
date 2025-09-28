@@ -504,29 +504,33 @@ async function ensureDefaultSupplierInvoices({
           : null
       const dueDate = planned.plannedDate ?? input.poDate ?? record.poDate ?? record.createdAt ?? new Date()
 
-      const baseData = {
-        purchaseOrderId: record.id,
-        paymentIndex: planned.paymentIndex,
-        dueDate,
-        percentage: percentValue != null ? new Prisma.Decimal(percentValue.toFixed(4)) : null,
-        amount: new Prisma.Decimal(amountValue.toFixed(2)),
-        category: planned.category,
-        label: planned.label,
-      }
+      const percentageDecimal = percentValue != null ? new Prisma.Decimal(percentValue.toFixed(4)) : null
+      const amountDecimal = new Prisma.Decimal(amountValue.toFixed(2))
 
       const existing = existingByIndex.get(planned.paymentIndex)
 
       if (existing) {
         updates.push(
           updatePurchaseOrderPayment(existing.id, {
-            ...baseData,
+            paymentIndex: planned.paymentIndex,
+            dueDate,
+            percentage: percentageDecimal,
+            amount: amountDecimal,
+            category: planned.category,
+            label: planned.label,
             status: existing.status,
           })
         )
       } else {
         updates.push(
           createPurchaseOrderPayment({
-            ...baseData,
+            purchaseOrderId: record.id,
+            paymentIndex: planned.paymentIndex,
+            dueDate,
+            percentage: percentageDecimal,
+            amount: amountDecimal,
+            category: planned.category,
+            label: planned.label,
             status: 'pending',
           })
         )
@@ -560,6 +564,16 @@ type SeedPaymentInput = {
   status?: string
 }
 
+type UpdatePaymentInput = {
+  paymentIndex: number
+  dueDate: Date
+  percentage: Prisma.Decimal | null
+  amount: Prisma.Decimal
+  category?: string
+  label?: string
+  status?: string
+}
+
 async function createPurchaseOrderPayment(data: SeedPaymentInput): Promise<PurchaseOrderPayment | null> {
   try {
     return await prisma.purchaseOrderPayment.create({ data })
@@ -584,7 +598,7 @@ async function createPurchaseOrderPayment(data: SeedPaymentInput): Promise<Purch
 
 async function updatePurchaseOrderPayment(
   id: string,
-  data: SeedPaymentInput
+  data: UpdatePaymentInput
 ): Promise<PurchaseOrderPayment | null> {
   try {
     return await prisma.purchaseOrderPayment.update({
