@@ -108,6 +108,18 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
 
   useEffect(() => {
     setIsClient(true)
+    const handlePointerDown = (event: PointerEvent) => {
+      const hot = hotRef.current
+      if (!hot) return
+      const root = hot.rootElement
+      if (root && !root.contains(event.target as Node)) {
+        hot.finishEditing(false)
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown, true)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true)
+    }
   }, [])
 
   const data = useMemo(() => {

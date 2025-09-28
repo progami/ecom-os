@@ -1067,6 +1067,12 @@ useEffect(() => {
     return summaryLineFor(summary)
   }, [orderSummaries, activeOrderId])
 
+  const handleCostSync = useCallback(() => {
+    startTransition(() => {
+      router.refresh()
+    })
+  }, [router])
+
   const handleDeleteOrder = useCallback(
     (orderId: string) => {
       if (!orderId) return
@@ -1235,6 +1241,7 @@ useEffect(() => {
         disableAdd={isPending || !activeOrderId}
         disableDelete={isPending}
         products={productOptions}
+        onSync={handleCostSync}
       />
       <PurchasePaymentsGrid
         payments={visiblePayments}

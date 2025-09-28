@@ -41,6 +41,7 @@ interface OpsPlanningCostGridProps {
   disableAdd?: boolean
   disableDelete?: boolean
   products: Array<{ id: string; name: string }>
+  onSync?: () => void
 }
 
 const COST_HEADERS = [
@@ -119,6 +120,7 @@ export function OpsPlanningCostGrid({
   disableAdd,
   disableDelete,
   products,
+  onSync,
 }: OpsPlanningCostGridProps) {
   const [isClient, setIsClient] = useState(false)
   const hotRef = useRef<Handsontable | null>(null)
@@ -244,6 +246,9 @@ export function OpsPlanningCostGrid({
           })
           if (!response.ok) throw new Error('Failed to update batch cost overrides')
           toast.success('Batch cost saved')
+          if (onSync) {
+            onSync()
+          }
         } catch (error) {
           console.error(error)
           toast.error('Unable to save batch costs')
@@ -262,7 +267,7 @@ export function OpsPlanningCostGrid({
 
       flushTimeoutRef.current = setTimeout(run, 500)
     },
-    []
+    [onSync]
   )
 
   useEffect(() => {
@@ -273,6 +278,18 @@ export function OpsPlanningCostGrid({
 
   useEffect(() => {
     setIsClient(true)
+    const handlePointerDown = (event: PointerEvent) => {
+      const hot = hotRef.current
+      if (!hot) return
+      const root = hot.rootElement
+      if (root && !root.contains(event.target as Node)) {
+        hot.finishEditing(false)
+      }
+    }
+    document.addEventListener('pointerdown', handlePointerDown, true)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown, true)
+    }
   }, [])
 
   if (!isClient) {
