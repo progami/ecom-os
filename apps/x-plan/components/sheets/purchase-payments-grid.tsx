@@ -188,7 +188,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
     <div className="space-y-3 p-4">
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Supplier payments
+          Payments
         </h2>
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
           {summaryText && <span>{summaryText}</span>}
