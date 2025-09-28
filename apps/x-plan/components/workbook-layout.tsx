@@ -178,8 +178,8 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
     if (!yearSwitcher && !headerControls) return undefined
     return (
       <div className="flex flex-wrap items-center gap-3">
-        {yearSwitcher}
         {headerControls}
+        {yearSwitcher}
       </div>
     )
   }, [headerControls, yearSwitcher])

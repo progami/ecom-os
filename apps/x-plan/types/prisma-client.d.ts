@@ -61,12 +61,14 @@ declare module '@prisma/client' {
     paymentIndex: number;
     percentage?: number | null;
     amount?: number | null;
+    category?: string | null;
+    label?: string | null;
     dueDate?: Date | null;
     status?: string | null;
     purchaseOrder: PurchaseOrder;
   }
 
-  export interface PurchaseOrderBatch {
+  export interface BatchTableRow {
     id: string;
     purchaseOrderId: string;
     productId: string;
@@ -129,7 +131,7 @@ declare module '@prisma/client' {
     overrideStoragePerMonth?: number | null;
     product: Product;
     payments: PurchaseOrderPayment[];
-    batches: PurchaseOrderBatch[];
+    batchTableRows: BatchTableRow[];
   }
 
   export interface SalesWeek {
@@ -266,7 +268,7 @@ declare module '@prisma/client' {
     leadStageTemplate: ModelDelegate<LeadStageTemplate>;
     leadTimeOverride: ModelDelegate<LeadTimeOverride>;
     purchaseOrder: ModelDelegate<PurchaseOrder>;
-    purchaseOrderBatch: ModelDelegate<PurchaseOrderBatch>;
+    batchTableRow: ModelDelegate<BatchTableRow>;
     purchaseOrderPayment: ModelDelegate<PurchaseOrderPayment>;
     salesWeek: ModelDelegate<SalesWeek>;
     profitAndLossWeek: ModelDelegate<ProfitAndLossWeek>;

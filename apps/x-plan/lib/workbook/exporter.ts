@@ -157,15 +157,17 @@ async function addSalesPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaClie
   const products = (await prisma.product.findMany({ orderBy: { name: 'asc' } })) as Product[]
   const salesWeeks = (await prisma.salesWeek.findMany()) as SalesWeek[]
 
-  const metrics = ['Stock Start', 'Actual Sales', 'Fcst Sales', 'Final Sales', 'Stock (Weeks)', 'Stock End']
+  const metrics = ['Stock Start', 'Inbound PO', 'Actual Sales', 'Fcst Sales', 'Final Sales', 'Stock (Weeks)', 'Stock End']
 
-  const headerRow = ['Week', 'Date']
+  const headerRow = ['Week', 'Date', 'Inbound PO']
   products.forEach((product) => {
     headerRow.push(product.name)
-    headerRow.push('', '', '', '', '')
+    for (let i = 1; i < metrics.length; i += 1) {
+      headerRow.push('')
+    }
   })
 
-  const secondRow = ['', '']
+  const secondRow = ['', '', 'Inbound PO']
   products.forEach(() => {
     secondRow.push(...metrics)
   })
@@ -173,11 +175,12 @@ async function addSalesPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaClie
   const rows: any[][] = [headerRow, secondRow]
 
   for (let week = 1; week <= 52; week += 1) {
-    const row: any[] = [week, '']
+    const row: any[] = [week, '', '']
     products.forEach((product) => {
       const record = salesWeeks.find((item) => item.productId === product.id && item.weekNumber === week)
       row.push(
         record?.stockStart ?? '',
+        '',
         record?.actualSales ?? '',
         record?.forecastSales ?? '',
         record?.finalSales ?? '',

@@ -3,14 +3,14 @@ import { z } from 'zod'
 import prisma from '@/lib/prisma'
 
 const prismaAny = prisma as unknown as {
-  purchaseOrderBatch?: typeof prisma.purchaseOrderBatch
+  batchTableRow?: typeof prisma.batchTableRow
 }
 
 function ensureBatchDelegate() {
-  if (!prismaAny.purchaseOrderBatch) {
+  if (!prismaAny.batchTableRow) {
     return null
   }
-  return prismaAny.purchaseOrderBatch
+  return prismaAny.batchTableRow
 }
 
 const allowedFields = [
@@ -45,7 +45,7 @@ function parseNumber(value: string | null | undefined) {
   if (!value) return null
   const trimmed = value.trim()
   if (!trimmed) return null
-  const cleaned = trimmed.replace(/[$,%]/g, '')
+  const cleaned = trimmed.replace(/[$,%\s]/g, '').replace(/,/g, '')
   const parsed = Number(cleaned)
   return Number.isNaN(parsed) ? null : parsed
 }
@@ -83,7 +83,7 @@ async function recalcOrderQuantity(purchaseOrderId: string) {
     await prisma.purchaseOrder.update({ where: { id: purchaseOrderId }, data: { quantity } })
   } catch (error: any) {
     if (error?.code === 'P2021') {
-      console.warn('PurchaseOrderBatch table missing; skip quantity recalculation')
+      console.warn('BatchTableRow table missing; skip quantity recalculation')
       return
     }
     throw error

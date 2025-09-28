@@ -52,6 +52,8 @@ export interface PurchaseOrderPaymentInput {
   paymentIndex: number
   percentage?: number | null
   amount?: number | null
+  category?: string | null
+  label?: string | null
   dueDate?: Date | null
   status?: string | null
 }
@@ -106,10 +108,10 @@ export interface PurchaseOrderInput {
   overrideFbaFee?: number | null
   overrideReferralRate?: number | null
   overrideStoragePerMonth?: number | null
-  batches?: PurchaseOrderBatchInput[]
+  batchTableRows?: BatchTableRowInput[]
 }
 
-export interface PurchaseOrderBatchInput {
+export interface BatchTableRowInput {
   id: string
   purchaseOrderId: string
   batchCode?: string | null

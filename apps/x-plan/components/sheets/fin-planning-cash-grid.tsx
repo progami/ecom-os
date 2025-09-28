@@ -54,6 +54,18 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
 
   const data = useMemo(() => weekly, [weekly])
 
+  const inboundSpendWeeks = useMemo(() => {
+    const flags = new Set<number>()
+    weekly.forEach((row) => {
+      const spend = Number(row.inventorySpend?.replace(/[^0-9.-]/g, ''))
+      if (Number.isFinite(spend) && Math.abs(spend) > 0) {
+        const week = Number(row.weekNumber)
+        if (Number.isFinite(week)) flags.add(week)
+      }
+    })
+    return flags
+  }, [weekly])
+
   useEffect(() => {
     if (hotRef.current) {
       hotRef.current.loadData(data)
@@ -155,6 +167,14 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
               record[prop] = formatted
             }
             flush()
+          }}
+          cells={(row, col) => {
+            const cell: Handsontable.CellMeta = {}
+            const week = Number(data[row]?.weekNumber)
+            if (Number.isFinite(week) && inboundSpendWeeks.has(week)) {
+              cell.className = `${cell.className ?? ''} row-inbound-cash`.trim()
+            }
+            return cell
           }}
         />
       </div>

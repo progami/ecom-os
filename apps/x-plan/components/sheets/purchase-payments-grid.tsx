@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
@@ -21,6 +21,8 @@ export type PurchasePaymentRow = {
   id: string
   purchaseOrderId: string
   orderCode: string
+  category: string
+  label: string
   paymentIndex: number
   dueDate: string
   percentage: string
@@ -53,10 +55,11 @@ interface PurchasePaymentsGridProps {
   summaryLine?: string | null
 }
 
-const HEADERS = ['PO', '#', 'Due Date', 'Percent', 'Amount', 'Status']
+const HEADERS = ['PO', 'Invoice', '#', 'Due Date', 'Percent', 'Amount', 'Status']
 
 const COLUMNS: Handsontable.ColumnSettings[] = [
   { data: 'orderCode', readOnly: true, className: 'cell-readonly' },
+  { data: 'label', readOnly: true, className: 'cell-readonly' },
   { data: 'paymentIndex', readOnly: true, className: 'cell-readonly' },
   {
     data: 'dueDate',
@@ -95,9 +98,14 @@ function normalizePercent(value: unknown) {
 }
 
 export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, onAddPayment, onRowsChange, isLoading, orderSummaries, summaryLine }: PurchasePaymentsGridProps) {
+  const [isClient, setIsClient] = useState(false)
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<string, PaymentUpdate>>(new Map())
   const flushTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   const data = useMemo(() => {
     const scoped = activeOrderId ? payments.filter((payment) => payment.purchaseOrderId === activeOrderId) : payments
@@ -166,6 +174,14 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
         toast.error('Unable to update payment schedule')
       }
     }, 400)
+  }
+
+  if (!isClient) {
+    return (
+      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="h-40 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
+      </div>
+    )
   }
 
   return (

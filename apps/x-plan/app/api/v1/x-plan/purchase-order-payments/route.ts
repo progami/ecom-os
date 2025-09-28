@@ -99,6 +99,8 @@ export async function POST(request: Request) {
       purchaseOrderId: created.purchaseOrderId,
       orderCode: created.purchaseOrder.orderCode,
       paymentIndex: created.paymentIndex,
+      category: created.category ?? '',
+      label: created.label ?? '',
       dueDate: created.dueDate?.toISOString() ?? '',
       percentage: created.percentage ? Number(created.percentage).toFixed(2) : '',
       amount: created.amount ? Number(created.amount).toFixed(2) : '',

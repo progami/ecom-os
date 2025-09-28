@@ -5,7 +5,7 @@ import type {
   BusinessParameter,
   PurchaseOrder,
   PurchaseOrderPayment,
-  PurchaseOrderBatch,
+  BatchTableRow,
   SalesWeek,
   ProfitAndLossWeek,
   CashFlowWeek,
@@ -23,7 +23,7 @@ import {
   ProfitAndLossWeekInput,
   PurchaseOrderInput,
   PurchaseOrderPaymentInput,
-  PurchaseOrderBatchInput,
+  BatchTableRowInput,
   SalesWeekInput,
   QuarterlySummaryInput,
 } from './types'
@@ -85,26 +85,26 @@ export function mapBusinessParameters(parameters: BusinessParameter[]): Business
 }
 
 export function mapPurchaseOrders(
-  orders: Array<PurchaseOrder & { payments: PurchaseOrderPayment[]; batches: PurchaseOrderBatch[] }>
+  orders: Array<PurchaseOrder & { payments: PurchaseOrderPayment[]; batchTableRows: BatchTableRow[] }>
 ): PurchaseOrderInput[] {
   return orders.map((order) => {
-    const batches = Array.isArray(order.batches)
-      ? (order.batches as PurchaseOrderBatch[]).map((batch): PurchaseOrderBatchInput => ({
+    const batches = Array.isArray(order.batchTableRows)
+      ? (order.batchTableRows as BatchTableRow[]).map((batch): BatchTableRowInput => ({
           id: batch.id,
           purchaseOrderId: batch.purchaseOrderId,
           batchCode: batch.batchCode ?? undefined,
           productId: batch.productId,
-          quantity: toNumber(batch.quantity),
-          overrideSellingPrice: batch.overrideSellingPrice != null ? toNumber(batch.overrideSellingPrice) : null,
+          quantity: batch.quantity != null ? Number(batch.quantity) : null,
+          overrideSellingPrice: batch.overrideSellingPrice != null ? Number(batch.overrideSellingPrice) : null,
           overrideManufacturingCost:
-            batch.overrideManufacturingCost != null ? toNumber(batch.overrideManufacturingCost) : null,
-          overrideFreightCost: batch.overrideFreightCost != null ? toNumber(batch.overrideFreightCost) : null,
-          overrideTariffRate: batch.overrideTariffRate != null ? toNumber(batch.overrideTariffRate) : null,
-          overrideTacosPercent: batch.overrideTacosPercent != null ? toNumber(batch.overrideTacosPercent) : null,
-          overrideFbaFee: batch.overrideFbaFee != null ? toNumber(batch.overrideFbaFee) : null,
-          overrideReferralRate: batch.overrideReferralRate != null ? toNumber(batch.overrideReferralRate) : null,
+            batch.overrideManufacturingCost != null ? Number(batch.overrideManufacturingCost) : null,
+          overrideFreightCost: batch.overrideFreightCost != null ? Number(batch.overrideFreightCost) : null,
+          overrideTariffRate: batch.overrideTariffRate != null ? Number(batch.overrideTariffRate) : null,
+          overrideTacosPercent: batch.overrideTacosPercent != null ? Number(batch.overrideTacosPercent) : null,
+          overrideFbaFee: batch.overrideFbaFee != null ? Number(batch.overrideFbaFee) : null,
+          overrideReferralRate: batch.overrideReferralRate != null ? Number(batch.overrideReferralRate) : null,
           overrideStoragePerMonth:
-            batch.overrideStoragePerMonth != null ? toNumber(batch.overrideStoragePerMonth) : null,
+            batch.overrideStoragePerMonth != null ? Number(batch.overrideStoragePerMonth) : null,
         }))
       : []
 
@@ -162,11 +162,13 @@ export function mapPurchaseOrders(
             paymentIndex: payment.paymentIndex,
             percentage: payment.percentage != null ? toNumber(payment.percentage) : null,
             amount: payment.amount != null ? toNumber(payment.amount) : null,
+            category: payment.category ?? null,
+            label: payment.label ?? null,
             dueDate: payment.dueDate ?? null,
             status: payment.status ?? 'pending',
           }))
         : [],
-      batches,
+      batchTableRows: batches,
     } as PurchaseOrderInput
   })
 }

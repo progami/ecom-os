@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
@@ -170,11 +170,16 @@ export function OpsPlanningGrid({
   disableCreate,
   disableDelete,
 }: OpsPlanningGridProps) {
+  const [isClient, setIsClient] = useState(false)
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<string, { id: string; values: Record<string, string> }>>(new Map())
   const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const data = useMemo(() => rows, [rows])
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
 
   useEffect(() => {
     if (hotRef.current) {
@@ -208,15 +213,23 @@ export function OpsPlanningGrid({
     onDeleteOrder(activeOrderId)
   }
 
+  if (!isClient) {
+    return (
+      <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="h-64 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
+      </section>
+    )
+  }
+
   return (
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Lead &amp; schedule inputs
+            PO table
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            Update production timing and statuses — the highlighted row stays in sync with the detail view.
+            Manage purchase order timing and status; the highlighted row stays in sync with the detail view.
           </p>
         </div>
         {(onCreateOrder || onDeleteOrder) && (

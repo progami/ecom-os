@@ -30,12 +30,27 @@ import {
   type ProductCostSummary,
   type ProductInput,
   type PurchaseOrderInput,
-  type PurchaseOrderBatchInput,
+  type BatchTableRowInput,
   type PurchaseOrderPaymentInput,
   type PurchaseOrderStatus,
   type LeadTimeProfile,
 } from '@/lib/calculations'
 import { formatNumericInput, formatPercentInput, parseNumericInput } from '@/components/sheets/validators'
+
+const BATCH_NUMERIC_PRECISION = {
+  quantity: 0,
+  sellingPrice: 2,
+  manufacturingCost: 2,
+  freightCost: 2,
+  fbaFee: 2,
+  storagePerMonth: 2,
+} as const
+
+const BATCH_PERCENT_PRECISION = {
+  tariffRate: 4,
+  tacosPercent: 4,
+  referralRate: 4,
+} as const
 
 export type PurchaseOrderSerialized = {
   id: string
@@ -74,6 +89,8 @@ export type PurchaseOrderSerialized = {
     percentage?: number | null
     amount?: number | null
     dueDate?: string | null
+    category?: string | null
+    label?: string | null
     status?: string | null
   }>
   overrideSellingPrice?: number | null
@@ -84,7 +101,7 @@ export type PurchaseOrderSerialized = {
   overrideFbaFee?: number | null
   overrideReferralRate?: number | null
   overrideStoragePerMonth?: number | null
-  batches?: Array<{
+  batchTableRows?: Array<{
     id: string
     batchCode?: string | null
     productId: string
@@ -108,8 +125,8 @@ export type OpsPlanningCalculatorPayload = {
 }
 
 interface OpsPlanningWorkspaceProps {
-  inputs: OpsInputRow[]
-  batches: OpsBatchRow[]
+  poTableRows: OpsInputRow[]
+  batchTableRows: OpsBatchRow[]
   timeline: OpsTimelineRow[]
   timelineOrders: PurchaseTimelineOrder[]
   payments: PurchasePaymentRow[]
@@ -147,9 +164,24 @@ function normalizePercent(value: string | undefined) {
   return formatPercentInput(value, 4)
 }
 
+function resolvePaymentLabel(category: string | undefined, label: string | undefined, paymentIndex: number): string {
+  const trimmedLabel = label?.trim()
+  if (trimmedLabel) return trimmedLabel
+  const trimmedCategory = category?.trim()
+  if (trimmedCategory) {
+    const friendly = trimmedCategory.toLowerCase()
+    if (friendly === 'manufacturing') return 'Manufacturing'
+    if (friendly === 'freight') return 'Freight'
+    if (friendly === 'tariff') return 'Tariff'
+    return trimmedCategory
+  }
+  return `Payment ${paymentIndex}`
+}
+
 function normalizePaymentRows(rows: PurchasePaymentRow[]): PurchasePaymentRow[] {
   return rows.map((payment) => ({
     ...payment,
+    label: resolvePaymentLabel(payment.category, payment.label, payment.paymentIndex),
     dueDate: formatDisplayDate(payment.dueDate),
     percentage: normalizePercent(payment.percentage),
   }))
@@ -242,8 +274,8 @@ function deserializeOrders(purchaseOrders: PurchaseOrderSerialized[]): PurchaseO
     overrideFbaFee: order.overrideFbaFee ?? null,
     overrideReferralRate: order.overrideReferralRate ?? null,
     overrideStoragePerMonth: order.overrideStoragePerMonth ?? null,
-    batches:
-      order.batches?.map((batch) => ({
+    batchTableRows:
+      order.batchTableRows?.map((batch) => ({
         id: batch.id,
         purchaseOrderId: order.id,
         batchCode: batch.batchCode ?? undefined,
@@ -306,7 +338,7 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       overrideFbaFee: parseNumber(row.fbaFee),
       overrideReferralRate: parsePercent(row.referralRate),
       overrideStoragePerMonth: parseNumber(row.storagePerMonth),
-      batches: [],
+      batchTableRows: [],
     }
 
     return {
@@ -486,7 +518,15 @@ function summaryLineFor(summary: PaymentSummary): string {
   return parts.join(' • ')
 }
 
-export function OpsPlanningWorkspace({ inputs, batches, timeline, timelineOrders, payments, calculator, timelineMonths }: OpsPlanningWorkspaceProps) {
+export function OpsPlanningWorkspace({
+  poTableRows,
+  batchTableRows,
+  timeline,
+  timelineOrders,
+  payments,
+  calculator,
+  timelineMonths,
+}: OpsPlanningWorkspaceProps) {
   const router = useRouter()
   const productIndex = useMemo(() => buildProductCostIndex(calculator.products), [calculator.products])
   const productNameIndex = useMemo(() => new Map(calculator.products.map((product) => [product.id, product.name])), [calculator.products])
@@ -505,21 +545,63 @@ export function OpsPlanningWorkspace({ inputs, batches, timeline, timelineOrders
   }, [calculator.leadProfiles])
 
   const initialOrders = useMemo(() => deserializeOrders(calculator.purchaseOrders), [calculator.purchaseOrders])
+
+  const buildBatchRow = useCallback(
+    (order: PurchaseOrderInput, batch: BatchTableRowInput): OpsBatchRow => ({
+      id: batch.id,
+      purchaseOrderId: order.id,
+      orderCode: order.orderCode,
+      batchCode: batch.batchCode ?? undefined,
+      productId: batch.productId,
+      productName: productNameIndex.get(batch.productId) ?? '',
+      quantity:
+        batch.quantity == null
+          ? ''
+          : formatNumericInput(batch.quantity, BATCH_NUMERIC_PRECISION.quantity),
+      sellingPrice: formatNumericInput(batch.overrideSellingPrice, BATCH_NUMERIC_PRECISION.sellingPrice),
+      manufacturingCost: formatNumericInput(
+        batch.overrideManufacturingCost,
+        BATCH_NUMERIC_PRECISION.manufacturingCost
+      ),
+      freightCost: formatNumericInput(batch.overrideFreightCost, BATCH_NUMERIC_PRECISION.freightCost),
+      tariffRate: formatPercentInput(batch.overrideTariffRate, BATCH_PERCENT_PRECISION.tariffRate),
+      tacosPercent: formatPercentInput(batch.overrideTacosPercent, BATCH_PERCENT_PRECISION.tacosPercent),
+      fbaFee: formatNumericInput(batch.overrideFbaFee, BATCH_NUMERIC_PRECISION.fbaFee),
+      referralRate: formatPercentInput(batch.overrideReferralRate, BATCH_PERCENT_PRECISION.referralRate),
+      storagePerMonth: formatNumericInput(
+        batch.overrideStoragePerMonth,
+        BATCH_NUMERIC_PRECISION.storagePerMonth
+      ),
+    }),
+    [productNameIndex]
+  )
+
+  const initialBatchRows = useMemo(() => {
+    if (batchTableRows.length > 0) return batchTableRows
+    const rows: OpsBatchRow[] = []
+    for (const order of initialOrders) {
+      for (const batch of order.batchTableRows ?? []) {
+        rows.push(buildBatchRow(order, batch))
+      }
+    }
+    return rows
+  }, [batchTableRows, initialOrders, buildBatchRow])
+
   const initialPayments = useMemo(() => normalizePaymentRows(payments), [payments])
   const initialTimelineResult = useMemo(
     () =>
       buildTimelineRowsFromData({
         orders: initialOrders,
-        rows: inputs,
+        rows: poTableRows,
         payments: initialPayments,
         productIndex,
         leadProfiles: leadProfileMap,
         parameters: calculator.parameters,
       }),
-    [initialOrders, inputs, initialPayments, productIndex, leadProfileMap, calculator.parameters]
+    [initialOrders, poTableRows, initialPayments, productIndex, leadProfileMap, calculator.parameters]
   )
 
-  const [inputRows, setInputRows] = useState<OpsInputRow[]>(inputs)
+  const [inputRows, setInputRows] = useState<OpsInputRow[]>(poTableRows)
   const [timelineRows, setTimelineRows] = useState<OpsTimelineRow[]>(
     initialTimelineResult.timelineRows.length ? initialTimelineResult.timelineRows : timeline
   )
@@ -528,8 +610,8 @@ export function OpsPlanningWorkspace({ inputs, batches, timeline, timelineOrders
   )
   const [orders, setOrders] = useState<PurchaseOrderInput[]>(initialOrders)
   const [paymentRows, setPaymentRows] = useState<PurchasePaymentRow[]>(initialPayments)
-  const [batchRows, setBatchRows] = useState<OpsBatchRow[]>(batches)
-  const [activeOrderId, setActiveOrderId] = useState<string | null>(inputs[0]?.id ?? null)
+  const [batchRows, setBatchRows] = useState<OpsBatchRow[]>(initialBatchRows)
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(poTableRows[0]?.id ?? null)
   const [activeBatchId, setActiveBatchId] = useState<string | null>(null)
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false)
   const [newOrderCode, setNewOrderCode] = useState('')
@@ -563,9 +645,9 @@ useEffect(() => {
 }, [batchRows])
 
 useEffect(() => {
-  setBatchRows(batches)
-  batchRowsRef.current = batches
-}, [batches])
+  setBatchRows(initialBatchRows)
+  batchRowsRef.current = initialBatchRows
+}, [initialBatchRows])
 
   const applyTimelineUpdate = useCallback(
     (nextOrders: PurchaseOrderInput[], nextInputRows: OpsInputRow[], nextPayments: PurchasePaymentRow[]) => {
@@ -585,9 +667,9 @@ useEffect(() => {
   )
 
   useEffect(() => {
-    setInputRows(inputs)
-    applyTimelineUpdate(ordersRef.current, inputs, paymentRowsRef.current)
-  }, [inputs, applyTimelineUpdate])
+    setInputRows(poTableRows)
+    applyTimelineUpdate(ordersRef.current, poTableRows, paymentRowsRef.current)
+  }, [poTableRows, applyTimelineUpdate])
 
   useEffect(() => {
     const ordersFromServer = deserializeOrders(calculator.purchaseOrders)
@@ -670,7 +752,7 @@ useEffect(() => {
       const next = previous.map((order) => {
         const updates = rowsByOrder.get(order.id)
         if (!updates || updates.length === 0) return order
-        const batches = [...(order.batches ?? [])]
+    const batches = [...(order.batchTableRows ?? [])]
         for (const update of updates) {
           const batchIndex = batches.findIndex((batch) => batch.id === update.id)
           if (batchIndex === -1) continue
@@ -686,10 +768,10 @@ useEffect(() => {
             overrideFbaFee: parseNumber(update.fbaFee),
             overrideReferralRate: parsePercent(update.referralRate),
             overrideStoragePerMonth: parseNumber(update.storagePerMonth),
-          } as PurchaseOrderBatchInput
+          } as BatchTableRowInput
         }
         const totalQuantity = batches.reduce((sum, batch) => sum + (batch.quantity ?? 0), 0)
-        return { ...order, batches, quantity: totalQuantity }
+        return { ...order, batchTableRows: batches, quantity: totalQuantity }
       })
       ordersRef.current = next
       return next
@@ -760,7 +842,7 @@ useEffect(() => {
         setOrders((previous) => {
           const next = previous.map((order) => {
             if (order.id !== created.purchaseOrderId) return order
-            const batches = [...(order.batches ?? []), {
+            const batches = [...(order.batchTableRows ?? []), {
               id: created.id,
               purchaseOrderId: created.purchaseOrderId,
               batchCode: created.batchCode ?? undefined,
@@ -774,10 +856,10 @@ useEffect(() => {
               overrideFbaFee: null,
               overrideReferralRate: null,
               overrideStoragePerMonth: null,
-            } satisfies PurchaseOrderBatchInput]
+            } satisfies BatchTableRowInput]
             return {
               ...order,
-              batches,
+              batchTableRows: batches,
               quantity: batches.reduce((sum, batch) => sum + (batch.quantity ?? 0), 0),
             }
           })
@@ -817,15 +899,15 @@ useEffect(() => {
           return next
         })
         setOrders((previous) => {
-          const next = previous.map((order) => {
-            if (order.id !== batch.purchaseOrderId) return order
-            const batches = (order.batches ?? []).filter((item) => item.id !== batchId)
-            return {
-              ...order,
-              batches,
-              quantity: batches.reduce((sum, item) => sum + (item.quantity ?? 0), 0),
-            }
-          })
+        const next = previous.map((order) => {
+          if (order.id !== batch.purchaseOrderId) return order
+          const batches = (order.batchTableRows ?? []).filter((item) => item.id !== batchId)
+          return {
+            ...order,
+            batchTableRows: batches,
+            quantity: batches.reduce((sum, item) => sum + (item.quantity ?? 0), 0),
+          }
+        })
           ordersRef.current = next
           return next
         })
@@ -942,8 +1024,13 @@ useEffect(() => {
 
   const visibleBatches = useMemo(() => {
     if (!activeOrderId) return [] as OpsBatchRow[]
-    return batchRows.filter((batch) => batch.purchaseOrderId === activeOrderId)
-  }, [activeOrderId, batchRows])
+    const matchingRows = batchRows.filter((batch) => batch.purchaseOrderId === activeOrderId)
+    if (matchingRows.length > 0) return matchingRows
+
+    const order = ordersRef.current.find((item) => item.id === activeOrderId)
+    if (!order || !Array.isArray(order.batchTableRows) || order.batchTableRows.length === 0) return []
+    return order.batchTableRows.map((batch) => buildBatchRow(order, batch))
+  }, [activeOrderId, batchRows, buildBatchRow])
 
   const isFullyAllocated = (summary: PaymentSummary | undefined) => {
     if (!summary) return false
@@ -1007,17 +1094,27 @@ useEffect(() => {
 
     startTransition(async () => {
       try {
-        const payload: Record<string, unknown> = {
-          productId: defaultProductId,
+        const basePayload: Record<string, unknown> = { productId: defaultProductId }
+        const requestPayload = trimmedCode.length
+          ? { ...basePayload, orderCode: trimmedCode }
+          : basePayload
+
+        const createRequest = (body: Record<string, unknown>) =>
+          fetch('/api/v1/x-plan/purchase-orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          })
+
+        let response = await createRequest(requestPayload)
+        let autoGenerated = false
+
+        if (!response.ok && response.status === 409 && trimmedCode.length) {
+          // Duplicate code – fall back to letting the server generate a unique one.
+          response = await createRequest(basePayload)
+          autoGenerated = response.ok
         }
-        if (trimmedCode.length) {
-          payload.orderCode = trimmedCode
-        }
-        const response = await fetch('/api/v1/x-plan/purchase-orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
+
         if (!response.ok) {
           let message = 'Failed to create purchase order'
           try {
@@ -1030,6 +1127,7 @@ useEffect(() => {
           }
           throw new Error(message)
         }
+
         const result = await response.json().catch(() => null)
         const createdId = result?.order?.id as string | undefined
         if (createdId) {
@@ -1037,7 +1135,7 @@ useEffect(() => {
         }
         setIsCreateOrderOpen(false)
         setNewOrderCode('')
-        toast.success('Purchase order created')
+        toast.success(autoGenerated ? 'Purchase order created with a new generated code' : 'Purchase order created')
         router.refresh()
       } catch (error) {
         console.error(error)

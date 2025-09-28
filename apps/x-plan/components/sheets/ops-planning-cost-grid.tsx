@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
@@ -79,6 +79,18 @@ const PERCENT_PRECISION: Record<PercentField, number> = {
 const NUMERIC_FIELD_SET = new Set<string>(NUMERIC_FIELDS)
 const PERCENT_FIELD_SET = new Set<string>(PERCENT_FIELDS)
 
+const SERVER_FIELD_MAP: Partial<Record<keyof OpsBatchRow, string>> = {
+  quantity: 'quantity',
+  sellingPrice: 'overrideSellingPrice',
+  manufacturingCost: 'overrideManufacturingCost',
+  freightCost: 'overrideFreightCost',
+  tariffRate: 'overrideTariffRate',
+  tacosPercent: 'overrideTacosPercent',
+  fbaFee: 'overrideFbaFee',
+  referralRate: 'overrideReferralRate',
+  storagePerMonth: 'overrideStoragePerMonth',
+}
+
 function isNumericField(field: keyof OpsBatchRow): field is NumericField {
   return NUMERIC_FIELD_SET.has(field as string)
 }
@@ -108,8 +120,9 @@ export function OpsPlanningCostGrid({
   disableDelete,
   products,
 }: OpsPlanningCostGridProps) {
+  const [isClient, setIsClient] = useState(false)
   const hotRef = useRef<Handsontable | null>(null)
-  const pendingRef = useRef<Map<string, { id: string; values: Record<string, string> }>>(new Map())
+  const pendingRef = useRef<Map<string, { id: string; values: Record<string, string | null> }>>(new Map())
   const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const data = useMemo(() => rows, [rows])
@@ -217,32 +230,64 @@ export function OpsPlanningCostGrid({
     }
   }, [data])
 
-  const flush = () => {
-    if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current)
-    flushTimeoutRef.current = setTimeout(async () => {
-      const payload = Array.from(pendingRef.current.values())
-      if (payload.length === 0) return
-      pendingRef.current.clear()
-      try {
-        const response = await fetch('/api/v1/x-plan/purchase-orders/batches', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ updates: payload }),
-        })
-        if (!response.ok) throw new Error('Failed to update batch cost overrides')
-        toast.success('Batch cost saved')
-      } catch (error) {
-        console.error(error)
-        toast.error('Unable to save batch costs')
+  const flush = useCallback(
+    (immediate = false) => {
+      const run = async () => {
+        const payload = Array.from(pendingRef.current.values())
+        if (payload.length === 0) return
+        pendingRef.current.clear()
+        try {
+          const response = await fetch('/api/v1/x-plan/purchase-orders/batches', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ updates: payload }),
+          })
+          if (!response.ok) throw new Error('Failed to update batch cost overrides')
+          toast.success('Batch cost saved')
+        } catch (error) {
+          console.error(error)
+          toast.error('Unable to save batch costs')
+        }
       }
-    }, 500)
+
+      if (flushTimeoutRef.current) {
+        clearTimeout(flushTimeoutRef.current)
+        flushTimeoutRef.current = null
+      }
+
+      if (immediate) {
+        void run()
+        return
+      }
+
+      flushTimeoutRef.current = setTimeout(run, 500)
+    },
+    []
+  )
+
+  useEffect(() => {
+    return () => {
+      flush(true)
+    }
+  }, [flush])
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  if (!isClient) {
+    return (
+      <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+        <div className="h-64 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
+      </section>
+    )
   }
 
   return (
     <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Batch Cost
+          Batch Table
         </h2>
         <div className="flex flex-wrap gap-2">
           {onAddBatch ? (
@@ -325,17 +370,26 @@ export function OpsPlanningCostGrid({
               record.productName = selected.name
             } else if (prop === 'quantity') {
               const normalized = normalizeCurrency(newValue, NUMERIC_PRECISION.quantity)
-              entry.values.quantity = normalized
+              const serverKey = SERVER_FIELD_MAP[prop]
+              if (serverKey) {
+                entry.values[serverKey] = normalized === '' ? null : normalized
+              }
               record.quantity = normalized
             } else if (isNumericField(prop)) {
               const precision = NUMERIC_PRECISION[prop]
               const normalized = normalizeCurrency(newValue, precision)
-              entry.values[prop] = normalized
+              const serverKey = SERVER_FIELD_MAP[prop]
+              if (serverKey) {
+                entry.values[serverKey] = normalized === '' ? null : normalized
+              }
               record[prop] = normalized
             } else if (isPercentField(prop)) {
               const precision = PERCENT_PRECISION[prop]
               const normalized = normalizePercent(newValue, precision)
-              entry.values[prop] = normalized
+              const serverKey = SERVER_FIELD_MAP[prop]
+              if (serverKey) {
+                entry.values[serverKey] = normalized === '' ? null : normalized
+              }
               record[prop] = normalized
             }
           }

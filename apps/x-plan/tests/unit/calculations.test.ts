@@ -115,14 +115,29 @@ const salesPlan = computeSalesPlan(salesWeeks, [derivedOrder])
 describe('computePurchaseOrderDerived', () => {
   it('calculates landed cost and payment schedule', () => {
     expect(derivedOrder.plannedPoValue).toBeCloseTo(700)
-    expect(derivedOrder.plannedPayments[0].plannedAmount).toBeCloseTo(210)
-    expect(derivedOrder.plannedPayments[0].plannedPercent).toBeCloseTo(0.3)
-    expect(
-      differenceInCalendarDays(
-        derivedOrder.plannedPayments[0].plannedDate!,
-        productionStart
-      )
-    ).toBe(7)
+    expect(derivedOrder.supplierCostTotal).toBeCloseTo(450)
+    expect(derivedOrder.plannedPayments).toHaveLength(5)
+
+    const [mfgDeposit, mfgProduction, freight, mfgFinal, tariff] = derivedOrder.plannedPayments
+
+    expect(mfgDeposit.category).toBe('MANUFACTURING')
+    expect(mfgDeposit.plannedAmount).toBeCloseTo(75)
+    expect(mfgDeposit.plannedPercent).toBeCloseTo(75 / 450)
+    expect(differenceInCalendarDays(mfgDeposit.plannedDate!, productionStart)).toBe(0)
+
+    expect(mfgProduction.category).toBe('MANUFACTURING')
+    expect(mfgProduction.plannedAmount).toBeCloseTo(75)
+    expect(differenceInCalendarDays(mfgProduction.plannedDate!, productionStart)).toBe(7)
+
+    expect(freight.category).toBe('FREIGHT')
+    expect(freight.plannedAmount).toBeCloseTo(100)
+
+    expect(mfgFinal.category).toBe('MANUFACTURING')
+    expect(mfgFinal.plannedAmount).toBeCloseTo(150)
+
+    expect(tariff.category).toBe('TARIFF')
+    expect(tariff.plannedAmount).toBeCloseTo(50)
+
     expect(
       differenceInCalendarDays(
         derivedOrder.productionComplete!,
@@ -140,7 +155,7 @@ describe('computePurchaseOrderDerived', () => {
       overrideTacosPercent: 0.2,
       overrideFbaFee: 1,
       overrideStoragePerMonth: 0.3,
-      batches: purchaseOrderInput.batches,
+      batchTableRows: purchaseOrderInput.batchTableRows,
     }
 
     const overridden = computePurchaseOrderDerived(
@@ -168,6 +183,9 @@ describe('computeSalesPlan', () => {
     expect(week3?.stockStart).toBe(490)
     expect(week3?.finalSales).toBe(70)
     expect(week3?.stockEnd).toBe(420)
+
+    const arrivalRow = salesPlan.find((row) => row.arrivalOrders.length > 0)
+    expect(arrivalRow?.arrivalOrders[0]?.orderCode).toBe(purchaseOrderInput.orderCode)
   })
 
   it('counts future weeks until depletion using projected sales', () => {
@@ -282,10 +300,10 @@ describe('computeCashFlow', () => {
     const week2 = cashResult.weekly.find((row) => row.weekNumber === 2)
     const week3 = cashResult.weekly.find((row) => row.weekNumber === 3)
 
-    expect(week1?.cashBalance).toBeCloseTo(800)
-    expect(week2?.inventorySpend).toBeCloseTo(0)
+    expect(week1?.cashBalance).toBeCloseTo(725)
+    expect(week2?.inventorySpend).toBeCloseTo(375)
     expect(week3?.amazonPayout).toBeCloseTo(500)
-    expect(week3?.cashBalance).toBeCloseTo(900)
+    expect(week3?.cashBalance).toBeCloseTo(450)
   })
 
   it('keeps derived cash metrics in sync with editable inputs', () => {
@@ -313,7 +331,7 @@ describe('computeCashFlow', () => {
     const payoutWeek = delayed.weekly.find((row) => row.weekNumber === 61)
     expect(payoutWeek).toBeDefined()
     expect(payoutWeek?.amazonPayout).toBeCloseTo(500)
-    expect(payoutWeek?.cashBalance).toBeGreaterThan(0)
+    expect(payoutWeek?.cashBalance).toBeCloseTo(250)
     expect(payoutWeek?.weekDate).toBeInstanceOf(Date)
     expect(payoutWeek?.weekDate?.getFullYear()).toBeGreaterThanOrEqual(2024)
   })
@@ -329,7 +347,7 @@ describe('computeDashboardSummary', () => {
       productIndex
     )
     expect(dashboard.revenueYtd).toBeCloseTo(1800)
-    expect(dashboard.cashBalance).toBeCloseTo(1800)
+    expect(dashboard.cashBalance).toBeCloseTo(1350)
     expect(dashboard.pipeline).toEqual([{ status: 'PLANNED', quantity: 100 }])
     expect(dashboard.inventory[0]?.stockEnd).toBe(420)
   })

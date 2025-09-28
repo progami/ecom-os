@@ -25,7 +25,7 @@ model Product {
   updatedAt            DateTime             @updatedAt
   leadTimeOverrides    LeadTimeOverride[]
   purchaseOrders       PurchaseOrder[]
-  purchaseOrderBatches PurchaseOrderBatch[]
+  batchTableRows       BatchTableRow[]
   salesWeeks           SalesWeek[]
 
   @@index([name])
@@ -113,14 +113,14 @@ model PurchaseOrder {
   overrideStoragePerMonth   Decimal?               @db.Decimal(10, 2)
   logisticsEvents           LogisticsEvent[]
   product                   Product                @relation(fields: [productId], references: [id])
-  batches                   PurchaseOrderBatch[]
+  batchTableRows            BatchTableRow[]
   payments                  PurchaseOrderPayment[]
 
   @@index([orderCode])
   @@index([status])
 }
 
-model PurchaseOrderBatch {
+model BatchTableRow {
   id                        String        @id @default(cuid())
   purchaseOrderId           String
   batchCode                 String?
@@ -150,6 +150,8 @@ model PurchaseOrderPayment {
   dueDate         DateTime?
   percentage      Decimal?      @db.Decimal(6, 4)
   amount          Decimal?      @db.Decimal(12, 2)
+  category        String?       @db.VarChar(32)
+  label           String?       @db.VarChar(64)
   status          String        @default("pending")
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt

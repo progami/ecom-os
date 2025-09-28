@@ -22,6 +22,12 @@ type ColumnMeta = Record<string, { productId: string; field: string }>
 type NestedHeaderCell = string | { label: string; colspan?: number; rowspan?: number }
 type HandsontableNestedHeaders = NonNullable<Handsontable.GridSettings['nestedHeaders']>
 const editableMetrics = new Set(['actualSales', 'forecastSales'])
+const BASE_SALES_METRICS = ['stockStart', 'actualSales', 'forecastSales', 'finalSales', 'finalSalesError'] as const
+const STOCK_METRIC_OPTIONS = [
+  { id: 'stockWeeks', label: 'Stock (Weeks)' },
+  { id: 'stockEnd', label: 'Stock End' },
+] as const
+type StockMetricId = (typeof STOCK_METRIC_OPTIONS)[number]['id']
 
 function isEditableMetric(field: string | undefined) {
   return Boolean(field && editableMetrics.has(field))
@@ -85,11 +91,31 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
   const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const focusContext = useContext(SalesPlanningFocusContext)
   const [fallbackFocusProductId] = useState<string>('ALL')
+  const [activeStockMetric, setActiveStockMetric] = useState<StockMetricId>('stockWeeks')
+  const [showFinalError, setShowFinalError] = useState(false)
   const focusProductId = focusContext?.focusProductId ?? fallbackFocusProductId
   const warningThreshold = Number.isFinite(stockWarningWeeks) ? stockWarningWeeks : Number.POSITIVE_INFINITY
   const router = useRouter()
 
   const data = useMemo(() => rows, [rows])
+  const hasInboundByWeek = useMemo(() => {
+    const set = new Set<number>()
+    rows.forEach((row) => {
+      const week = Number(row.weekNumber)
+      if (!Number.isFinite(week)) return
+      if ((row.arrivalDetail ?? '').trim()) {
+        set.add(week)
+      }
+    })
+    return set
+  }, [rows])
+
+  const visibleMetrics = useMemo(() => {
+    const metrics = new Set<string>(['stockStart', 'actualSales', 'forecastSales'])
+    metrics.add(showFinalError ? 'finalSalesError' : 'finalSales')
+    metrics.add(activeStockMetric)
+    return metrics
+  }, [activeStockMetric, showFinalError])
 
   useEffect(() => {
     if (!focusContext) return
@@ -104,45 +130,153 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
     }
   }, [data])
 
+  useEffect(() => {
+    hotRef.current?.render()
+  }, [activeStockMetric, showFinalError])
+
+  const widthByColumn = useMemo(() => {
+    const measure = (values: string[], { min = 80, max = 200, padding = 18 } = {}) => {
+      const normalized = values.map((value) => (value ?? '').toString().replace(/\s+/g, ' ').trim())
+      const longest = normalized.reduce((maxLen, value) => Math.max(maxLen, value.length), 0)
+      return Math.max(min, Math.min(max, padding + longest * 8))
+    }
+
+    const map: Record<string, number> = {}
+    map.weekNumber = measure(rows.map((row) => row.weekNumber), { min: 85, max: 150, padding: 24 })
+    map.weekDate = measure(rows.map((row) => row.weekDate), { min: 130, max: 200, padding: 20 })
+    map.arrivalDetail = measure(rows.map((row) => row.arrivalDetail ?? ''), { min: 110, max: 220, padding: 14 })
+
+      columnKeys.forEach((key) => {
+        const values = rows.map((row) => row[key] ?? '')
+        const meta = columnMeta[key]
+        let bounds: { min: number; max: number; padding: number }
+        switch (meta?.field) {
+          case 'actualSales':
+          case 'forecastSales':
+            bounds = { min: 150, max: 260, padding: 32 }
+            break
+          case 'finalSalesError':
+            bounds = { min: 120, max: 200, padding: 26 }
+            break
+          default:
+            bounds = { min: 130, max: 220, padding: 24 }
+            break
+        }
+        map[key] = measure(values, bounds)
+      })
+
+    return map
+  }, [columnKeys, columnMeta, rows])
+
   const columns: Handsontable.ColumnSettings[] = useMemo(() => {
     const base: Handsontable.ColumnSettings[] = [
-      { data: 'weekNumber', readOnly: true, className: 'cell-readonly' },
-      { data: 'weekDate', readOnly: true, className: 'cell-readonly' },
+      {
+        data: 'weekNumber',
+        readOnly: true,
+        className: 'cell-readonly cell-common',
+        width: widthByColumn.weekNumber,
+      },
+      {
+        data: 'weekDate',
+        readOnly: true,
+        className: 'cell-readonly cell-common',
+        width: widthByColumn.weekDate,
+      },
+      {
+        data: 'arrivalDetail',
+        readOnly: true,
+        className: 'cell-readonly cell-note cell-common',
+        editor: false,
+        width: widthByColumn.arrivalDetail,
+        wordWrap: true,
+      },
     ]
     for (const key of columnKeys) {
       const meta = columnMeta[key]
       if (!meta) {
-        base.push({ data: key, readOnly: true, className: 'cell-readonly', editor: false })
+        base.push({ data: key, readOnly: true, className: 'cell-readonly', editor: false, width: widthByColumn[key] ?? 100 })
         continue
       }
       const editable = isEditableMetric(meta.field)
+      const isFinalError = meta.field === 'finalSalesError'
+      const columnWidth = widthByColumn[key] ?? (isFinalError ? 96 : editable ? 88 : 86)
       base.push({
         data: key,
-        type: 'numeric',
-        numericFormat: editable ? { pattern: '0,0.00' } : { pattern: '0.00' },
+        type: isFinalError ? 'text' : 'numeric',
+        numericFormat: !isFinalError ? (editable ? { pattern: '0,0.00' } : { pattern: '0.00' }) : undefined,
         readOnly: !editable,
         editor: editable ? Handsontable.editors.NumericEditor : false,
-        className: editable ? 'cell-editable' : 'cell-readonly',
+        className:
+          isFinalError
+            ? 'cell-readonly cell-note'
+            : editable
+              ? 'cell-editable'
+              : 'cell-readonly',
         validator: editable ? numericValidator : undefined,
         allowInvalid: false,
+        width: columnWidth,
+        wordWrap: isFinalError,
       })
     }
     return base
-  }, [columnMeta, columnKeys])
+  }, [columnMeta, columnKeys, widthByColumn])
 
   const hiddenColumns = useMemo(() => {
-    if (focusProductId === 'ALL') return []
     const hidden: number[] = []
-    const offset = 2
+    const offset = 3
     columnKeys.forEach((key, index) => {
       const meta = columnMeta[key]
       if (!meta) return
-      if (meta.productId !== focusProductId) {
-        hidden.push(index + offset)
+      const columnIndex = index + offset
+      if (focusProductId !== 'ALL' && meta.productId !== focusProductId) {
+        hidden.push(columnIndex)
+        return
+      }
+      if (!visibleMetrics.has(meta.field)) {
+        hidden.push(columnIndex)
       }
     })
     return hidden
-  }, [columnKeys, columnMeta, focusProductId])
+  }, [columnKeys, columnMeta, focusProductId, visibleMetrics])
+
+  const handleColHeader = useCallback(
+    (col: number, TH: HTMLTableCellElement, headerLevel: number) => {
+      const offset = 3
+      if (headerLevel !== 1 || col < offset) return
+      const key = columnKeys[col - offset]
+      const meta = columnMeta[key]
+      if (!meta) return
+
+      const renderToggle = (label: string, handler: () => void) => {
+        Handsontable.dom.empty(TH)
+        const button = document.createElement('button')
+        button.type = 'button'
+        button.className = 'x-plan-header-toggle'
+        button.textContent = label
+        button.addEventListener('click', (event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          handler()
+        })
+        TH.appendChild(button)
+      }
+
+      if (meta.field === activeStockMetric) {
+        renderToggle(activeStockMetric === 'stockWeeks' ? 'Stock (Weeks)' : 'Stock End', () => {
+          setActiveStockMetric((prev) => (prev === 'stockWeeks' ? 'stockEnd' : 'stockWeeks'))
+        })
+        return
+      }
+
+      const activeFinalField = showFinalError ? 'finalSalesError' : 'finalSales'
+      if (meta.field === activeFinalField) {
+        renderToggle(showFinalError ? '% Error' : 'Final Sales', () => {
+          setShowFinalError((prev) => !prev)
+        })
+      }
+    },
+    [activeStockMetric, columnKeys, columnMeta, showFinalError]
+  )
 
   const flush = useCallback(() => {
     if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current)
@@ -167,12 +301,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
   }, [router])
 
   return (
-    <div className="space-y-3 p-4">
-      <div className="space-y-1">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          3. Sales planning
-        </h2>
-      </div>
+    <div className="space-y-1 p-2">
       <HotTable
         ref={(instance) => {
           hotRef.current = instance?.hotInstance ?? null
@@ -182,16 +311,25 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         colHeaders={false}
         columns={columns}
         nestedHeaders={nestedHeaders as unknown as HandsontableNestedHeaders}
-        stretchH="all"
+        afterGetColHeader={handleColHeader}
+        stretchH="none"
         className="x-plan-hot"
         height="auto"
+        autoWrapRow
+        autoRowSize
+        autoColumnSize={false}
         rowHeaders={false}
-        dropdownMenu
-        filters
+        dropdownMenu={{ items: ['filter_by_value'] }}
+        filters={false}
         hiddenColumns={{ columns: hiddenColumns, indicators: true }}
         cells={(row, col) => {
           const cell: Handsontable.CellMeta = {}
-          const offset = 2
+          const offset = 3
+          const weekNumber = Number(data[row]?.weekNumber)
+          const hasInbound = Number.isFinite(weekNumber) && hasInboundByWeek.has(weekNumber)
+          if (hasInbound) {
+            cell.className = cell.className ? `${cell.className} row-inbound-sales` : 'row-inbound-sales'
+          }
           if (col < offset) {
             return cell
           }
@@ -199,9 +337,10 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
           const meta = columnMeta[key]
           const editable = isEditableMetric(meta?.field)
           cell.readOnly = !editable
-          cell.className = editable ? 'cell-editable' : 'cell-readonly'
+          const baseClass = editable ? 'cell-editable' : 'cell-readonly'
+          cell.className = hasInbound ? `${baseClass} row-inbound-sales` : baseClass
 
-          if (meta?.field === 'stockWeeks') {
+          if (meta?.field === 'stockWeeks' && activeStockMetric === 'stockWeeks') {
             const record = data[row]
             const rawValue = record?.[key]
             const numeric = rawValue ? Number(rawValue) : Number.NaN

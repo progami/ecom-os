@@ -16,9 +16,11 @@ export interface SalesWeekDerived {
   weekDate: Date | null
   stockStart: number
   arrivals: number
+  arrivalOrders: Array<{ orderCode: string; shipName?: string | null; productId: string; quantity: number }>
   actualSales: number | null
   forecastSales: number | null
   finalSales: number
+  finalPercentError: number | null
   stockEnd: number
   stockWeeks: number
 }
@@ -28,11 +30,16 @@ function toNumber(value: number | null | undefined): number {
   return Number(value)
 }
 
+type ArrivalScheduleEntry = {
+  quantity: number
+  orders: Array<{ orderCode: string; shipName?: string | null; productId: string; quantity: number }>
+}
+
 function buildArrivalSchedule(
   purchaseOrders: PurchaseOrderDerived[],
   calendar: ReturnType<typeof buildWeekCalendar>
-): Map<string, number> {
-  const schedule = new Map<string, number>()
+): Map<string, ArrivalScheduleEntry> {
+  const schedule = new Map<string, ArrivalScheduleEntry>()
 
   for (const order of purchaseOrders) {
     const arrivalDate = order.availableDate ?? order.inboundEta
@@ -40,8 +47,15 @@ function buildArrivalSchedule(
     const weekNumber = weekNumberForDate(arrivalDate, calendar)
     if (weekNumber == null) continue
     const key = `${order.productId}:${weekNumber}`
-    const current = schedule.get(key) ?? 0
-    schedule.set(key, current + order.quantity)
+    const entry = schedule.get(key) ?? { quantity: 0, orders: [] }
+    entry.quantity += order.quantity
+    entry.orders.push({
+      orderCode: order.orderCode,
+      shipName: order.shipName ?? null,
+      productId: order.productId,
+      quantity: order.quantity,
+    })
+    schedule.set(key, entry)
   }
 
   return schedule
@@ -94,7 +108,8 @@ export function computeSalesPlan(
         const tentative = week.weekDate instanceof Date ? week.weekDate : new Date(week.weekDate)
         weekDate = isValid(tentative) ? tentative : null
       }
-      const arrivals = arrivalSchedule.get(`${productId}:${weekNumber}`) ?? 0
+      const arrivalEntry = arrivalSchedule.get(`${productId}:${weekNumber}`)
+      const arrivals = arrivalEntry?.quantity ?? 0
       const previousEnd = index > 0 ? stockEndSeries[index - 1] : toNumber(week?.stockStart)
       const manualStart = week?.stockStart
       const baseStart = manualStart != null ? toNumber(manualStart) : previousEnd
@@ -112,6 +127,10 @@ export function computeSalesPlan(
       }
 
       const stockEnd = clampNonNegative(stockStart - computedFinalSales)
+      let percentError: number | null = null
+      if (actualSales != null && forecastSales != null && forecastSales !== 0) {
+        percentError = (actualSales - forecastSales) / Math.abs(forecastSales)
+      }
       stockEndSeries.push(stockEnd)
 
       results.push({
@@ -120,9 +139,11 @@ export function computeSalesPlan(
         weekDate,
         stockStart,
         arrivals,
+        arrivalOrders: arrivalEntry?.orders ?? [],
         actualSales,
         forecastSales,
         finalSales: computedFinalSales,
+        finalPercentError: percentError,
         stockEnd,
         stockWeeks: 0, // updated after loop
       })

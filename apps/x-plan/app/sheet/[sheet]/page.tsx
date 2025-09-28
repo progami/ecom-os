@@ -12,7 +12,7 @@ import type { OpsTimelineRow } from '@/components/sheets/ops-planning-timeline'
 import type { PurchasePaymentRow } from '@/components/sheets/purchase-payments-grid'
 import type { OpsPlanningCalculatorPayload, PurchaseOrderSerialized } from '@/components/sheets/ops-planning-workspace'
 import prisma from '@/lib/prisma'
-import type { PurchaseOrderBatch, PurchaseOrderPayment } from '@prisma/client'
+import { Prisma, type BatchTableRow, type PurchaseOrder, type PurchaseOrderPayment } from '@prisma/client'
 import { getSheetConfig } from '@/lib/sheets'
 import { getWorkbookStatus } from '@/lib/workbook'
 import { WorkbookLayout } from '@/components/workbook-layout'
@@ -40,13 +40,14 @@ import {
   type PurchaseOrderInput,
   type LeadTimeProfile,
 } from '@/lib/calculations'
+import type { ProductCostSummary } from '@/lib/calculations/product'
 import { createTimelineOrderFromDerived, type PurchaseTimelineOrder } from '@/lib/planning/timeline'
 import { addMonths, endOfMonth, format, startOfMonth, startOfWeek } from 'date-fns'
 import { getCalendarDateForWeek, type YearSegment } from '@/lib/calculations/calendar'
 import { findYearSegment, loadPlanningCalendar, resolveActiveYear } from '@/lib/planning'
 import type { PlanningCalendar } from '@/lib/planning'
 
-const SALES_METRICS = ['stockStart', 'actualSales', 'forecastSales', 'finalSales', 'stockWeeks', 'stockEnd'] as const
+const SALES_METRICS = ['stockStart', 'actualSales', 'forecastSales', 'finalSales', 'finalSalesError', 'stockWeeks', 'stockEnd'] as const
 type SalesMetric = (typeof SALES_METRICS)[number]
 
 type SalesRow = {
@@ -101,6 +102,23 @@ function formatPercent(value: number | null | undefined, fractionDigits = 1): st
   return `${(Number(value) * 100).toFixed(fractionDigits)}%`
 }
 
+function buildPaymentLabel(category?: string | null, index?: number): string {
+  if (category) {
+    const normalized = category.trim()
+    if (normalized.length > 0) {
+      const friendly = normalized.toLowerCase()
+      if (friendly === 'manufacturing') return 'Manufacturing'
+      if (friendly === 'freight') return 'Freight'
+      if (friendly === 'tariff') return 'Tariff'
+      return normalized
+    }
+  }
+  if (index != null && Number.isFinite(index)) {
+    return `Payment ${index}`
+  }
+  return 'Payment'
+}
+
 function serializeDate(value: Date | null | undefined) {
   return value ? value.toISOString() : null
 }
@@ -143,6 +161,8 @@ function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSeriali
         paymentIndex: payment.paymentIndex,
         percentage: payment.percentage ?? null,
         amount: payment.amount ?? null,
+        category: payment.category ?? null,
+        label: payment.label ?? null,
         dueDate: serializeDate(payment.dueDate),
         status: payment.status ?? null,
       })) ?? [],
@@ -154,11 +174,11 @@ function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSeriali
     overrideFbaFee: order.overrideFbaFee ?? null,
     overrideReferralRate: order.overrideReferralRate ?? null,
     overrideStoragePerMonth: order.overrideStoragePerMonth ?? null,
-    batches: order.batches?.map((batch) => ({
+    batchTableRows: order.batchTableRows?.map((batch) => ({
       id: batch.id,
       batchCode: batch.batchCode ?? null,
       productId: batch.productId,
-      quantity: Number(batch.quantity ?? 0),
+      quantity: batch.quantity != null ? Number(batch.quantity) : null,
       overrideSellingPrice: batch.overrideSellingPrice ?? null,
       overrideManufacturingCost: batch.overrideManufacturingCost ?? null,
       overrideFreightCost: batch.overrideFreightCost ?? null,
@@ -260,12 +280,22 @@ function metricHeader(metric: SalesMetric): NestedHeaderCell {
   switch (metric) {
     case 'stockStart':
       return 'Stock Start'
+    case 'arrivalDetail':
+      return {
+        label: 'Inbound PO',
+        title: 'Purchase orders arriving this week with ship names for quick reference.',
+      }
     case 'actualSales':
       return 'Actual Sales'
     case 'forecastSales':
       return 'Fcst Sales'
     case 'finalSales':
       return 'Final Sales'
+    case 'finalSalesError':
+      return {
+        label: '% Error',
+        title: 'Percent error between actual and forecast sales when both values are present.',
+      }
     case 'stockWeeks':
       return {
         label: 'Stock (Weeks)',
@@ -353,9 +383,9 @@ async function getProductSetupView() {
 
 async function loadOperationsContext() {
   const prismaAny = prisma as any
-  const purchaseOrderBatchDelegate: typeof prisma.purchaseOrderBatch | undefined = prismaAny.purchaseOrderBatch
+  const batchTableRowDelegate: typeof prisma.batchTableRow | undefined = prismaAny.batchTableRow
 
-  const [products, leadStages, overrides, businessParameters, purchaseOrders, purchaseOrderBatches] = await Promise.all([
+  const [products, leadStages, overrides, businessParameters, purchaseOrders, batchTableRows] = await Promise.all([
     prisma.product.findMany({ orderBy: { name: 'asc' } }),
     prisma.leadStageTemplate.findMany({ orderBy: { sequence: 'asc' } }),
     prisma.leadTimeOverride.findMany(),
@@ -366,11 +396,11 @@ async function loadOperationsContext() {
         payments: { orderBy: { paymentIndex: 'asc' } },
       },
     }),
-    purchaseOrderBatchDelegate
-      ? purchaseOrderBatchDelegate
+    batchTableRowDelegate
+      ? batchTableRowDelegate
           .findMany({ orderBy: [{ purchaseOrderId: 'asc' }, { createdAt: 'asc' }] })
-          .catch(() => [] as PurchaseOrderBatch[])
-      : Promise.resolve([] as PurchaseOrderBatch[]),
+          .catch(() => [] as BatchTableRow[])
+      : Promise.resolve([] as BatchTableRow[]),
   ])
 
   const productInputs = mapProducts(products)
@@ -382,8 +412,8 @@ async function loadOperationsContext() {
     productInputs.map((product) => product.id)
   )
   const parameters = normalizeBusinessParameters(mapBusinessParameters(businessParameters))
-  const batchesByOrder = new Map<string, typeof purchaseOrderBatches>()
-  for (const batch of purchaseOrderBatches) {
+  const batchesByOrder = new Map<string, typeof batchTableRows>()
+  for (const batch of batchTableRows) {
     const list = batchesByOrder.get(batch.purchaseOrderId) ?? []
     list.push(batch)
     batchesByOrder.set(batch.purchaseOrderId, list)
@@ -391,13 +421,33 @@ async function loadOperationsContext() {
 
   const purchaseOrdersWithBatches = purchaseOrders.map((order) => ({
     ...order,
-    batches: (batchesByOrder.get(order.id) ?? []) as PurchaseOrderBatch[],
+    batchTableRows: (batchesByOrder.get(order.id) ?? []) as BatchTableRow[],
   })) as Array<
     (typeof purchaseOrders)[number] & {
       payments: PurchaseOrderPayment[]
-      batches: PurchaseOrderBatch[]
+      batchTableRows: BatchTableRow[]
     }
   >
+
+  const purchaseOrderInputsInitial = mapPurchaseOrders(purchaseOrdersWithBatches)
+
+  await ensureDefaultSupplierInvoices({
+    purchaseOrders: purchaseOrdersWithBatches,
+    purchaseOrderInputs: purchaseOrderInputsInitial,
+    productIndex,
+    leadProfiles,
+    parameters,
+  })
+
+  const purchaseOrderInputsInitial = mapPurchaseOrders(purchaseOrdersWithBatches)
+
+  await ensureDefaultSupplierInvoices({
+    purchaseOrders: purchaseOrdersWithBatches,
+    purchaseOrderInputs: purchaseOrderInputsInitial,
+    productIndex,
+    leadProfiles,
+    parameters,
+  })
 
   const purchaseOrderInputs = mapPurchaseOrders(purchaseOrdersWithBatches)
 
@@ -408,7 +458,81 @@ async function loadOperationsContext() {
     leadProfiles,
     parameters,
     purchaseOrderInputs,
-    rawPurchaseOrders: purchaseOrders,
+    rawPurchaseOrders: purchaseOrdersWithBatches,
+  }
+}
+
+async function ensureDefaultSupplierInvoices({
+  purchaseOrders,
+  purchaseOrderInputs,
+  productIndex,
+  leadProfiles,
+  parameters,
+}: {
+  purchaseOrders: Array<PurchaseOrder & { payments: PurchaseOrderPayment[]; batchTableRows: BatchTableRow[] }>
+  purchaseOrderInputs: PurchaseOrderInput[]
+  productIndex: Map<string, ProductCostSummary>
+  leadProfiles: Map<string, LeadTimeProfile>
+  parameters: BusinessParameterMap
+}) {
+  const creations: Promise<void>[] = []
+
+  for (let index = 0; index < purchaseOrders.length; index += 1) {
+    const record = purchaseOrders[index]
+    if (record.payments.length > 0) continue
+    const input = purchaseOrderInputs[index]
+    if (!input) continue
+    const profile = getLeadTimeProfile(input.productId, leadProfiles)
+    if (!profile) continue
+    const derived = computePurchaseOrderDerived(input, productIndex, profile, parameters)
+    if (!derived.plannedPayments.length) continue
+
+    const orderCreations: Promise<PurchaseOrderPayment | null>[] = []
+
+    for (const planned of derived.plannedPayments) {
+      const amountValue = Number.isFinite(planned.plannedAmount) ? Number(planned.plannedAmount) : 0
+      if (amountValue <= 0) continue
+      const percentValue =
+        planned.plannedPercent != null && Number.isFinite(planned.plannedPercent)
+          ? Number(planned.plannedPercent)
+          : null
+      const dueDate = planned.plannedDate ?? input.poDate ?? record.poDate ?? record.createdAt ?? new Date()
+
+      orderCreations.push(
+        prisma.purchaseOrderPayment
+          .create({
+            data: {
+              purchaseOrderId: record.id,
+              paymentIndex: planned.paymentIndex,
+              dueDate,
+              percentage: percentValue != null ? new Prisma.Decimal(percentValue.toFixed(4)) : null,
+              amount: new Prisma.Decimal(amountValue.toFixed(2)),
+              category: planned.category,
+              label: planned.label,
+              status: 'pending',
+            },
+          })
+          .catch((error) => {
+            console.error('Failed to seed supplier payment', error)
+            return null
+          })
+      )
+    }
+
+    if (orderCreations.length > 0) {
+      creations.push(
+        Promise.all(orderCreations).then((created) => {
+          const records = created.filter((item): item is PurchaseOrderPayment => item != null)
+          if (records.length === 0) return
+          records.sort((a, b) => a.paymentIndex - b.paymentIndex)
+          record.payments.push(...records)
+        })
+      )
+    }
+  }
+
+  if (creations.length > 0) {
+    await Promise.all(creations)
   }
 }
 
@@ -417,12 +541,12 @@ function deriveOrders(context: Awaited<ReturnType<typeof loadOperationsContext>>
     .map((order) => {
       if (!context.productIndex.has(order.productId)) return null
       const profile = getLeadTimeProfile(order.productId, context.leadProfiles)
-      const productNames = Array.isArray(order.batches) && order.batches.length > 1
-        ? order.batches
+      const productNames = Array.isArray(order.batchTableRows) && order.batchTableRows.length > 1
+        ? order.batchTableRows
             .map((batch) => context.productNameById.get(batch.productId) ?? '')
             .filter(Boolean)
             .slice(0, 3)
-            .join(', ') + (order.batches.length > 3 ? '…' : '')
+            .join(', ') + (order.batchTableRows.length > 3 ? '…' : '')
         : context.productNameById.get(order.productId) ?? ''
       return {
         derived: computePurchaseOrderDerived(order, context.productIndex, profile, context.parameters),
@@ -461,8 +585,8 @@ async function loadFinancialData(planning: PlanningCalendar) {
 type FinancialData = Awaited<ReturnType<typeof loadFinancialData>>
 
 async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: YearSegment | null): Promise<{
-  inputRows: OpsInputRow[]
-  batchRows: Array<{
+  poTableRows: OpsInputRow[]
+  batchTableRows: Array<{
     id: string
     purchaseOrderId: string
     orderCode: string
@@ -567,20 +691,22 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
 
   const payments = rawPurchaseOrders.flatMap((order) => {
     const derived = derivedByOrderId.get(order.id)
-    const poValue = derived?.plannedPoValue ?? 0
+    const denominator = derived?.supplierCostTotal ?? derived?.plannedPoValue ?? 0
 
     return order.payments.map((payment) => {
       const amountNumeric = payment.amount != null ? Number(payment.amount) : null
       const percentNumeric = payment.percentage != null
         ? Number(payment.percentage)
-        : poValue > 0 && amountNumeric != null
-        ? amountNumeric / poValue
+        : denominator > 0 && amountNumeric != null
+        ? amountNumeric / denominator
         : null
 
       return {
         id: payment.id,
         purchaseOrderId: order.id,
         orderCode: order.orderCode,
+        category: payment.category ?? '',
+        label: payment.label ?? buildPaymentLabel(payment.category, payment.paymentIndex),
         paymentIndex: payment.paymentIndex,
         dueDate: formatDate(payment.dueDate ?? null),
         percentage: formatPercentDecimal(percentNumeric),
@@ -599,8 +725,8 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
   }))
 
   const batchRows = rawPurchaseOrders.flatMap((order) => {
-    if (!Array.isArray(order.batches) || order.batches.length === 0) return []
-    return order.batches.map((batch) => ({
+    if (!Array.isArray(order.batchTableRows) || order.batchTableRows.length === 0) return []
+    return order.batchTableRows.map((batch) => ({
       id: batch.id,
       purchaseOrderId: order.id,
       orderCode: order.orderCode,
@@ -627,8 +753,8 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
   }
 
   return {
-    inputRows,
-    batchRows,
+    poTableRows: inputRows,
+    batchTableRows: batchRows,
     timelineRows,
     timelineOrders,
     payments,
@@ -654,10 +780,10 @@ function getSalesPlanningView(
   const hasProducts = productList.length > 0
   const nestedHeaders: NestedHeaderCell[][] = hasProducts
     ? [
-        ['', ''],
-        ['Week', 'Date'],
+        ['', '', ''],
+        ['Week', 'Date', 'Inbound PO'],
       ]
-    : [['Week', 'Date']]
+    : [['Week', 'Date', 'Inbound PO']]
 
   productList.forEach((product, productIdx) => {
     nestedHeaders[0].push({ label: product.name, colspan: SALES_METRICS.length })
@@ -685,6 +811,15 @@ function getSalesPlanningView(
       weekDate: calendarDate ? formatDate(calendarDate) : '',
     }
 
+    const inboundSummary: InboundSummary = new Map()
+    for (const product of productList) {
+      const derived = salesLookup.get(`${product.id}-${weekNumber}`)
+      for (const order of derived?.arrivalOrders ?? []) {
+        addToInboundSummary(inboundSummary, order.shipName, product.name, order.quantity)
+      }
+    }
+    row.arrivalDetail = formatInboundSummary(inboundSummary)
+
     productList.forEach((product, productIdx) => {
       const keyRoot = `${product.id}-${weekNumber}`
       const derived = salesLookup.get(keyRoot)
@@ -698,6 +833,14 @@ function getSalesPlanningView(
           case 'stockStart':
             row[key] = formatNumeric(derived?.stockStart ?? null, 0)
             break
+          case 'arrivalDetail': {
+            const productSummary: InboundSummary = new Map()
+            for (const order of derived?.arrivalOrders ?? []) {
+              addToInboundSummary(productSummary, order.shipName, product.name, order.quantity)
+            }
+            row[key] = formatInboundSummary(productSummary)
+            break
+          }
           case 'actualSales':
             row[key] = formatNumeric(derived?.actualSales ?? null, 0)
             break
@@ -706,6 +849,9 @@ function getSalesPlanningView(
             break
           case 'finalSales':
             row[key] = formatNumeric(derived?.finalSales ?? null, 0)
+            break
+          case 'finalSalesError':
+            row[key] = formatPercent(derived?.finalPercentError ?? null, 1)
             break
           case 'stockWeeks':
             if (derived?.stockWeeks == null) {
@@ -736,6 +882,34 @@ function getSalesPlanningView(
     productOptions: productList.map((product) => ({ id: product.id, name: product.name })),
     stockWarningWeeks: context.parameters.stockWarningWeeks,
   }
+}
+
+type InboundSummary = Map<string, { shipName: string | null; items: Map<string, number> }>
+
+function addToInboundSummary(
+  summary: InboundSummary,
+  shipName: string | null | undefined,
+  productName: string,
+  quantity: number
+) {
+  const key = shipName ?? '—'
+  const entry = summary.get(key) ?? { shipName: shipName ?? null, items: new Map() }
+  const current = entry.items.get(productName) ?? 0
+  entry.items.set(productName, current + quantity)
+  summary.set(key, entry)
+}
+
+function formatInboundSummary(summary: InboundSummary): string {
+  if (!summary.size) return ''
+  const lines: string[] = []
+  summary.forEach((entry) => {
+    const ship = entry.shipName && entry.shipName.trim().length ? entry.shipName : '—'
+    const skuParts = Array.from(entry.items.entries())
+      .filter(([, qty]) => Number.isFinite(qty) && qty > 0)
+      .map(([name, qty]) => `(${name}, ${formatNumeric(qty, 0)})`)
+    lines.push(skuParts.length ? `${ship} - ${skuParts.join(', ')}` : ship)
+  })
+  return lines.join('\n')
 }
 
 function getProfitAndLossView(
@@ -941,8 +1115,8 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       const view = await getOpsPlanningView(planningCalendar, activeSegment)
       content = (
         <OpsPlanningWorkspace
-          inputs={view.inputRows}
-          batches={view.batchRows}
+          poTableRows={view.poTableRows}
+          batchTableRows={view.batchTableRows}
           timeline={view.timelineRows}
           timelineOrders={view.timelineOrders}
           payments={view.payments}

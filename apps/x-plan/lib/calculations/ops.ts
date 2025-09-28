@@ -8,8 +8,12 @@ import {
 } from './types'
 import { ProductCostSummary } from './product'
 
+export type PaymentCategory = 'MANUFACTURING' | 'FREIGHT' | 'TARIFF' | 'OTHER'
+
 export interface PaymentPlanItem {
-  paymentIndex: 1 | 2 | 3
+  paymentIndex: number
+  category: PaymentCategory
+  label: string
   plannedPercent: number
   plannedAmount: number
   plannedDate: Date | null
@@ -41,6 +45,10 @@ export interface PurchaseOrderDerived {
   totalLeadDays: number | null
   weeksUntilArrival: number | null
   landedUnitCost: number
+  manufacturingCostTotal: number
+  freightCostTotal: number
+  tariffCostTotal: number
+  supplierCostTotal: number
   plannedPoValue: number
   plannedPayments: PaymentPlanItem[]
   payments: PurchaseOrderPaymentInput[]
@@ -80,21 +88,23 @@ function normalizePercentValue(value: number | null | undefined): number | null 
   return numeric > 1 ? numeric / 100 : numeric
 }
 
-function percentOrSplit(value: number | null | undefined, fallback: number): number {
-  const normalized = normalizePercentValue(value)
-  if (normalized == null) return fallback
-  return normalized
-}
-
 function resolveStageWeeks(stageValue: number | null | undefined, fallback: number): number {
   const numeric = toNumber(stageValue)
   return numeric > 0 ? numeric : fallback
 }
 
-function normalizePaymentIndex(index: number | null | undefined): 1 | 2 | 3 {
-  if (index === 2) return 2
-  if (index === 3) return 3
-  return 1
+function normalizePaymentIndex(index: number | null | undefined): number {
+  if (index == null) return 1
+  const numeric = Number(index)
+  if (!Number.isFinite(numeric)) return 1
+  return Math.max(1, Math.round(numeric))
+}
+
+function optionalNumber(value: number | null | undefined): number | null {
+  if (value == null) return null
+  if (Number.isNaN(value)) return null
+  const numeric = Number(value)
+  return Number.isNaN(numeric) ? null : numeric
 }
 
 function findPayment(
@@ -183,8 +193,8 @@ export function computePurchaseOrderDerived(
   stageProfile: LeadTimeProfile,
   params: BusinessParameterMap
 ): PurchaseOrderDerived {
-  const batches = Array.isArray(order.batches) && order.batches.length > 0
-    ? order.batches
+  const batches = Array.isArray(order.batchTableRows) && order.batchTableRows.length > 0
+    ? order.batchTableRows
     : [
         {
           id: order.id,
@@ -299,39 +309,127 @@ export function computePurchaseOrderDerived(
 
   const poValue = landedUnitCost * quantity
 
-  const paymentSplits = params.supplierPaymentSplit
   const payments: PaymentPlanItem[] = []
 
-  const baseDates = { productionStart, productionComplete, inboundEta }
+  const manufacturingTotal = totalManufacturingCost > 0 ? totalManufacturingCost : manufacturingCost * quantity
+  const freightTotal = totalFreightCost > 0 ? totalFreightCost : freightCost * quantity
+  const tariffTotal = totalTariffCost > 0 ? totalTariffCost : tariffCost * quantity
+  const supplierCostTotal = manufacturingTotal + freightTotal + tariffTotal
+  const supplierDenominator = supplierCostTotal > 0 ? supplierCostTotal : Math.max(poValue, 0)
 
-  for (let index = 1 as 1 | 2 | 3; index <= 3; index = (index + 1) as 1 | 2 | 3) {
-    const percentField = PAY_PERCENT_FIELDS[index - 1]
-    const amountField = PAY_AMOUNT_FIELDS[index - 1]
-    const dateField = PAY_DATE_FIELDS[index - 1]
+  const depositDate = order.poDate ?? productionStart ?? createdAt
+  const productionDate = productionComplete ?? (depositDate ? addStageDuration(depositDate, schedule.productionWeeks) : depositDate)
+  const freightDate = sourceDeparture ?? (productionDate ? addStageDuration(productionDate, schedule.sourceWeeks) : productionDate)
+  const portDate = portEta ?? (freightDate ? addStageDuration(freightDate, schedule.oceanWeeks) : freightDate)
 
-    const percentOverride = normalizePercentValue(order[percentField])
-    const amountOverride = order[amountField]
-    const dateOverride = order[dateField]
+  const manufacturingFractions: [number, number, number] = [0.25, 0.25, 0.5]
+  const manufacturingAmounts = manufacturingFractions.map((fraction) => manufacturingTotal * fraction)
 
-    const plannedPercent = percentOrSplit(percentOverride ?? null, paymentSplits[index - 1] ?? 0)
-    const plannedAmount = poValue * plannedPercent
-    const plannedDate = plannedPaymentDate(index, baseDates, resolvedProfile, params)
+  const paymentDefinitions: Array<{
+    index: number
+    category: PaymentCategory
+    label: string
+    baseAmount: number
+    defaultPercent: number
+    defaultDate: Date | null
+    percentField?: (typeof PAY_PERCENT_FIELDS)[number]
+    amountField?: (typeof PAY_AMOUNT_FIELDS)[number]
+    dateField?: (typeof PAY_DATE_FIELDS)[number]
+  }> = [
+    {
+      index: 1,
+      category: 'MANUFACTURING',
+      label: 'MFG Deposit (25%)',
+      baseAmount: manufacturingAmounts[0] ?? 0,
+      defaultPercent: supplierDenominator > 0 ? (manufacturingAmounts[0] ?? 0) / supplierDenominator : 0,
+      defaultDate: depositDate ?? createdAt,
+      percentField: PAY_PERCENT_FIELDS[0],
+      amountField: PAY_AMOUNT_FIELDS[0],
+      dateField: PAY_DATE_FIELDS[0],
+    },
+    {
+      index: 2,
+      category: 'MANUFACTURING',
+      label: 'MFG Production (25%)',
+      baseAmount: manufacturingAmounts[1] ?? 0,
+      defaultPercent: supplierDenominator > 0 ? (manufacturingAmounts[1] ?? 0) / supplierDenominator : 0,
+      defaultDate: productionDate ?? depositDate ?? createdAt,
+      percentField: PAY_PERCENT_FIELDS[1],
+      amountField: PAY_AMOUNT_FIELDS[1],
+      dateField: PAY_DATE_FIELDS[1],
+    },
+    {
+      index: 3,
+      category: 'FREIGHT',
+      label: 'Freight (100%)',
+      baseAmount: freightTotal,
+      defaultPercent: supplierDenominator > 0 ? freightTotal / supplierDenominator : 0,
+      defaultDate: freightDate ?? productionDate ?? depositDate ?? createdAt,
+    },
+    {
+      index: 4,
+      category: 'MANUFACTURING',
+      label: 'MFG Final (50%)',
+      baseAmount: manufacturingAmounts[2] ?? 0,
+      defaultPercent: supplierDenominator > 0 ? (manufacturingAmounts[2] ?? 0) / supplierDenominator : 0,
+      defaultDate: portDate ?? inboundEta ?? availableDate ?? freightDate ?? productionDate ?? depositDate ?? createdAt,
+      percentField: PAY_PERCENT_FIELDS[2],
+      amountField: PAY_AMOUNT_FIELDS[2],
+      dateField: PAY_DATE_FIELDS[2],
+    },
+    {
+      index: 5,
+      category: 'TARIFF',
+      label: 'Tariff (100%)',
+      baseAmount: tariffTotal,
+      defaultPercent: supplierDenominator > 0 ? tariffTotal / supplierDenominator : 0,
+      defaultDate: portDate ?? inboundEta ?? availableDate ?? freightDate ?? productionDate ?? depositDate ?? createdAt,
+    },
+  ]
+
+  for (const definition of paymentDefinitions) {
+    const { index, category, label, baseAmount, defaultPercent, defaultDate, percentField, amountField, dateField } = definition
+
+    const percentOverride = percentField ? normalizePercentValue(order[percentField]) : null
+    const amountOverride = amountField ? optionalNumber(order[amountField]) : null
+    const dateOverride = dateField ? order[dateField] ?? null : null
 
     const actualPayment = findPayment(order.payments, index)
-    const recordedAmount = actualPayment?.amount ?? amountOverride
-    const actualAmount = recordedAmount != null ? toNumber(recordedAmount) : 0
-    const recordedPercent = actualPayment?.percentage ?? percentOverride
-    const actualPercent = normalizePercentValue(recordedPercent) ?? (poValue > 0 ? actualAmount / poValue : 0)
-    const actualDate = actualPayment?.dueDate ?? dateOverride ?? plannedDate
+    const actualAmount = optionalNumber(actualPayment?.amount)
+    const actualPercent =
+      normalizePercentValue(actualPayment?.percentage) ??
+      (actualAmount != null && supplierDenominator > 0 ? actualAmount / supplierDenominator : null)
+    const actualDate = actualPayment?.dueDate ?? null
+
+    let plannedAmount = baseAmount
+    if (amountOverride != null) {
+      plannedAmount = amountOverride
+    } else if (percentOverride != null && supplierDenominator > 0) {
+      plannedAmount = percentOverride * supplierDenominator
+    }
+
+    const plannedPercent = (() => {
+      if (percentOverride != null) return percentOverride
+      if (supplierDenominator > 0 && plannedAmount > 0) return plannedAmount / supplierDenominator
+      return defaultPercent
+    })()
+
+    const plannedDate = dateOverride ?? defaultDate ?? createdAt
+
+    if (plannedAmount <= 0 && actualAmount == null) {
+      continue
+    }
 
     payments.push({
       paymentIndex: index,
+      category,
+      label,
       plannedPercent,
       plannedAmount,
       plannedDate,
       actualAmount,
       actualPercent,
-      actualDate,
+      actualDate: actualDate ?? plannedDate,
       status: actualPayment?.status ?? null,
     })
   }
@@ -340,7 +438,8 @@ export function computePurchaseOrderDerived(
     const amount = toNumber(payment.actualAmount)
     return sum + amount
   }, 0)
-  const totalPaidPercent = poValue > 0 ? totalPaidAmount / poValue : 0
+  const percentDenominator = supplierDenominator > 0 ? supplierDenominator : poValue > 0 ? poValue : 1
+  const totalPaidPercent = percentDenominator > 0 ? totalPaidAmount / percentDenominator : 0
 
   return {
     id: order.id,
@@ -364,12 +463,16 @@ export function computePurchaseOrderDerived(
     totalLeadDays,
     weeksUntilArrival,
     landedUnitCost,
+    manufacturingCostTotal: manufacturingTotal,
+    freightCostTotal: freightTotal,
+    tariffCostTotal: tariffTotal,
+    supplierCostTotal,
     plannedPoValue: poValue,
     plannedPayments: payments,
     payments: order.payments ?? [],
     paidAmount: totalPaidAmount,
     paidPercent: totalPaidPercent,
-    remainingAmount: Math.max(poValue - totalPaidAmount, 0),
+    remainingAmount: Math.max(percentDenominator - totalPaidAmount, 0),
     remainingPercent: Math.max(1 - totalPaidPercent, 0),
   }
 }
