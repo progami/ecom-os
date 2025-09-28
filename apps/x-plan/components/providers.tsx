@@ -5,16 +5,16 @@ import { ThemeProvider as NextThemeProvider } from 'next-themes'
 import { useState, type ComponentProps, type ReactNode } from 'react'
 
 type ProvidersProps = {
-  children: ReactNode
+  // Accept any React tree so we can bridge the React 18/19 type mismatch in this workspace
+  children?: ComponentProps<typeof QueryClientProvider>['children'] | ReactNode | null | undefined | any
 }
 
 export function Providers({ children }: ProvidersProps) {
   const [queryClient] = useState(() => new QueryClient())
-  const providerChildren = children as ComponentProps<typeof QueryClientProvider>['children']
 
   return (
     <NextThemeProvider attribute="class" defaultTheme="light" enableSystem>
-      <QueryClientProvider client={queryClient}>{providerChildren}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </NextThemeProvider>
   )
 }

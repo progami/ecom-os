@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { differenceInCalendarDays } from 'date-fns'
 import {
+  buildWeekCalendar,
+  buildYearSegments,
+  getCalendarDateForWeek,
+  weekNumberForDate,
+} from '@/lib/calculations/calendar'
+import {
   buildProductCostIndex,
   computeCashFlow,
   computeDashboardSummary,
@@ -37,9 +43,9 @@ const productIndex = buildProductCostIndex([product])
 
 const leadProfile: LeadTimeProfile = {
   productionWeeks: 1,
-  sourcePrepWeeks: 0,
+  sourceWeeks: 0,
   oceanWeeks: 0,
-  finalMileWeeks: 0,
+  finalWeeks: 0,
 }
 
 const parameters: BusinessParameterMap = {
@@ -60,9 +66,9 @@ const purchaseOrderInput: PurchaseOrderInput = {
   productId: product.id,
   quantity: 100,
   productionWeeks: leadProfile.productionWeeks,
-  sourcePrepWeeks: leadProfile.sourcePrepWeeks,
+  sourceWeeks: leadProfile.sourceWeeks,
   oceanWeeks: leadProfile.oceanWeeks,
-  finalMileWeeks: leadProfile.finalMileWeeks,
+  finalWeeks: leadProfile.finalWeeks,
   productionStart,
   availableDate: arrivalDate,
   inboundEta: arrivalDate,
@@ -72,7 +78,7 @@ const purchaseOrderInput: PurchaseOrderInput = {
 
 const derivedOrder = computePurchaseOrderDerived(
   purchaseOrderInput,
-  productSummary,
+  productIndex,
   leadProfile,
   parameters
 )
@@ -134,11 +140,12 @@ describe('computePurchaseOrderDerived', () => {
       overrideTacosPercent: 0.2,
       overrideFbaFee: 1,
       overrideStoragePerMonth: 0.3,
+      batches: purchaseOrderInput.batches,
     }
 
     const overridden = computePurchaseOrderDerived(
       overrideOrder,
-      productSummary,
+      productIndex,
       leadProfile,
       parameters
     )
@@ -162,6 +169,74 @@ describe('computeSalesPlan', () => {
     expect(week3?.finalSales).toBe(70)
     expect(week3?.stockEnd).toBe(420)
   })
+
+  it('counts future weeks until depletion using projected sales', () => {
+    const coverageInput: SalesWeekInput[] = [
+      { id: 'c1', productId: product.id, weekNumber: 10, stockStart: 100, forecastSales: 20 },
+      { id: 'c2', productId: product.id, weekNumber: 11, forecastSales: 20 },
+      { id: 'c3', productId: product.id, weekNumber: 12, forecastSales: 20 },
+      { id: 'c4', productId: product.id, weekNumber: 13, forecastSales: 20 },
+      { id: 'c5', productId: product.id, weekNumber: 14, forecastSales: 20 },
+    ]
+
+    const coveragePlan = computeSalesPlan(coverageInput, [])
+    const week10 = coveragePlan.find((row) => row.weekNumber === 10)
+    const week12 = coveragePlan.find((row) => row.weekNumber === 12)
+
+    expect(week10?.stockWeeks).toBe(5)
+    expect(week12?.stockWeeks).toBe(3)
+
+    const plateauInput: SalesWeekInput[] = [
+      { id: 'p1', productId: product.id, weekNumber: 20, stockStart: 80, forecastSales: 0 },
+      { id: 'p2', productId: product.id, weekNumber: 21, forecastSales: 0 },
+      { id: 'p3', productId: product.id, weekNumber: 22, forecastSales: 0 },
+    ]
+
+    const plateauPlan = computeSalesPlan(plateauInput, [])
+    const plateauWeek = plateauPlan.find((row) => row.weekNumber === 20)
+    expect(plateauWeek?.stockWeeks).toBe(Number.POSITIVE_INFINITY)
+
+    const zeroInventoryInput: SalesWeekInput[] = [
+      { id: 'z1', productId: product.id, weekNumber: 30, stockStart: 0, actualSales: 0, forecastSales: 0 },
+    ]
+    const zeroPlan = computeSalesPlan(zeroInventoryInput, [])
+    const zeroWeek = zeroPlan.find((row) => row.weekNumber === 30)
+    expect(zeroWeek?.stockWeeks).toBe(0)
+  })
+
+  it('carries ending inventory into the next planning year', () => {
+    const multiYearInput: SalesWeekInput[] = [
+      { id: 'y52', productId: product.id, weekNumber: 52, stockStart: 40, forecastSales: 10 },
+      { id: 'y53', productId: product.id, weekNumber: 53, forecastSales: 10 },
+      { id: 'y54', productId: product.id, weekNumber: 54, forecastSales: 10 },
+    ]
+
+    const multiYearPlan = computeSalesPlan(multiYearInput, [])
+    const week52 = multiYearPlan.find((row) => row.weekNumber === 52)
+    const week53 = multiYearPlan.find((row) => row.weekNumber === 53)
+
+    expect(week52?.stockEnd).toBe(30)
+    expect(week53?.stockStart).toBe(30)
+  })
+
+  it('carries inventory forward when future weeks are only provided by the fallback calendar', () => {
+    const placeholder: SalesWeekInput[] = [
+      { id: 'p52', productId: '__planning__', weekNumber: 52, weekDate: new Date('2025-12-22T00:00:00Z') },
+      { id: 'p53', productId: '__planning__', weekNumber: 53, weekDate: new Date('2025-12-29T00:00:00Z') },
+    ]
+    const sparse: SalesWeekInput[] = [
+      { id: 's52', productId: product.id, weekNumber: 52, stockStart: 40, forecastSales: 10 },
+    ]
+
+    const plan = computeSalesPlan([...sparse, ...placeholder], [], { productIds: [product.id] })
+    const week52 = plan.find((row) => row.productId === product.id && row.weekNumber === 52)
+    const week53 = plan.find((row) => row.productId === product.id && row.weekNumber === 53)
+
+    expect(week52?.stockEnd).toBe(30)
+    expect(week53).toBeDefined()
+    expect(week53?.stockStart).toBe(30)
+    expect(week53?.finalSales).toBe(0)
+  })
 })
 
 const profitResult = computeProfitAndLoss(
@@ -183,6 +258,15 @@ describe('computeProfitAndLoss', () => {
     expect(week1.fixedCosts).toBe(parameters.weeklyFixedCosts)
     expect(week1.netProfit).toBeCloseTo(-275)
   })
+
+  it('derives non-editable columns from driver cells', () => {
+    const week1 = profitResult.weekly[0]
+    expect(week1.grossProfit).toBeCloseTo(week1.revenue - week1.cogs)
+    expect(week1.totalOpex).toBeCloseTo(week1.amazonFees + week1.ppcSpend + week1.fixedCosts)
+    expect(week1.netProfit).toBeCloseTo(week1.grossProfit - week1.totalOpex)
+    const expectedMargin = week1.revenue === 0 ? 0 : week1.grossProfit / week1.revenue
+    expect(week1.grossMargin).toBeCloseTo(expectedMargin)
+  })
 })
 
 const cashResult = computeCashFlow(
@@ -203,6 +287,36 @@ describe('computeCashFlow', () => {
     expect(week3?.amazonPayout).toBeCloseTo(500)
     expect(week3?.cashBalance).toBeCloseTo(900)
   })
+
+  it('keeps derived cash metrics in sync with editable inputs', () => {
+    const rows = cashResult.weekly
+    for (const row of rows) {
+      expect(row.netCash).toBeCloseTo(row.amazonPayout - row.inventorySpend - row.fixedCosts)
+    }
+
+    for (let index = 1; index < rows.length; index += 1) {
+      const previous = rows[index - 1]
+      const current = rows[index]
+      const expectedBalance = previous.cashBalance + current.netCash
+      expect(current.cashBalance).toBeCloseTo(expectedBalance)
+    }
+  })
+
+  it('carries delayed payouts into future planning years', () => {
+    const delayed = computeCashFlow(
+      profitResult.weekly,
+      [derivedOrder],
+      { ...parameters, amazonPayoutDelayWeeks: 60 },
+      []
+    )
+
+    const payoutWeek = delayed.weekly.find((row) => row.weekNumber === 61)
+    expect(payoutWeek).toBeDefined()
+    expect(payoutWeek?.amazonPayout).toBeCloseTo(500)
+    expect(payoutWeek?.cashBalance).toBeGreaterThan(0)
+    expect(payoutWeek?.weekDate).toBeInstanceOf(Date)
+    expect(payoutWeek?.weekDate?.getFullYear()).toBeGreaterThanOrEqual(2024)
+  })
 })
 
 describe('computeDashboardSummary', () => {
@@ -218,5 +332,105 @@ describe('computeDashboardSummary', () => {
     expect(dashboard.cashBalance).toBeCloseTo(1800)
     expect(dashboard.pipeline).toEqual([{ status: 'PLANNED', quantity: 100 }])
     expect(dashboard.inventory[0]?.stockEnd).toBe(420)
+  })
+})
+
+describe('calendar continuity', () => {
+  it('fills missing weeks and derives year segments through 2027', () => {
+    const multiYearWeeks: SalesWeekInput[] = [
+      {
+        id: 'w1',
+        productId: product.id,
+        weekNumber: 1,
+        weekDate: new Date('2025-01-06T00:00:00.000Z'),
+        stockStart: 500,
+      },
+      {
+        id: 'w60',
+        productId: product.id,
+        weekNumber: 60,
+        actualSales: 40,
+      },
+      {
+        id: 'w120',
+        productId: product.id,
+        weekNumber: 120,
+        forecastSales: 50,
+      },
+      {
+        id: 'w156',
+        productId: product.id,
+        weekNumber: 156,
+      },
+    ]
+
+    const calendar = buildWeekCalendar(multiYearWeeks)
+    expect(calendar.calendarStart).toBeInstanceOf(Date)
+    expect(calendar.weekDates.has(2)).toBe(true)
+
+    const weekTwoDate = getCalendarDateForWeek(2, calendar)
+    expect(weekTwoDate).toBeInstanceOf(Date)
+    expect(weekTwoDate?.getFullYear()).toBe(2025)
+
+    const segments = buildYearSegments(calendar)
+    const years = segments.map((segment) => segment.year)
+    expect(years).toEqual([2025, 2026, 2027])
+
+    const segment2025 = segments.find((segment) => segment.year === 2025)
+    const segment2026 = segments.find((segment) => segment.year === 2026)
+    const segment2027 = segments.find((segment) => segment.year === 2027)
+
+    expect(segment2025?.startWeekNumber).toBe(1)
+    expect(segment2026?.startWeekNumber).toBe((segment2025?.endWeekNumber ?? 0) + 1)
+    expect(segment2027?.endWeekNumber).toBe(156)
+
+    const first2027Date = segment2027
+      ? getCalendarDateForWeek(segment2027.startWeekNumber, calendar)
+      : null
+    expect(first2027Date?.getFullYear()).toBe(2027)
+  })
+
+  it('anchors relative weeks when the first dated row is not week 1', () => {
+    const anchoredWeeks: SalesWeekInput[] = [
+      {
+        id: 'w40',
+        productId: product.id,
+        weekNumber: 40,
+      },
+      {
+        id: 'w41',
+        productId: product.id,
+        weekNumber: 41,
+      },
+      {
+        id: 'w42',
+        productId: product.id,
+        weekNumber: 42,
+        weekDate: new Date('2025-10-20T00:00:00.000Z'),
+      },
+      {
+        id: 'w60',
+        productId: product.id,
+        weekNumber: 60,
+      },
+    ]
+
+    const calendar = buildWeekCalendar(anchoredWeeks)
+    expect(calendar.calendarStart?.toISOString()).toBe('2025-10-20T00:00:00.000Z')
+    expect(calendar.anchorWeekNumber).toBe(42)
+
+    const filledWeek40 = getCalendarDateForWeek(40, calendar)
+    expect(filledWeek40?.toISOString().slice(0, 10)).toBe('2025-10-05')
+
+    const filledWeek60 = getCalendarDateForWeek(60, calendar)
+    expect(filledWeek60?.toISOString().slice(0, 10)).toBe('2026-02-22')
+
+    const derivedWeek42 = weekNumberForDate(new Date('2025-10-20T12:00:00.000Z'), calendar)
+    const derivedWeek40 = weekNumberForDate(new Date('2025-10-06T00:00:00.000Z'), calendar)
+    const derivedWeekBefore = weekNumberForDate(new Date('2025-09-29T00:00:00.000Z'), calendar)
+
+    expect(derivedWeek42).toBe(42)
+    expect(derivedWeek40).toBe(40)
+    expect(derivedWeekBefore).toBeNull()
   })
 })

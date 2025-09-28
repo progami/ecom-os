@@ -5,6 +5,7 @@ import type {
   BusinessParameter,
   PurchaseOrder,
   PurchaseOrderPayment,
+  PurchaseOrderBatch,
   SalesWeek,
   ProfitAndLossWeek,
   CashFlowWeek,
@@ -22,6 +23,7 @@ import {
   ProfitAndLossWeekInput,
   PurchaseOrderInput,
   PurchaseOrderPaymentInput,
+  PurchaseOrderBatchInput,
   SalesWeekInput,
   QuarterlySummaryInput,
 } from './types'
@@ -82,57 +84,91 @@ export function mapBusinessParameters(parameters: BusinessParameter[]): Business
   }))
 }
 
-export function mapPurchaseOrders(orders: Array<PurchaseOrder & { payments: PurchaseOrderPayment[] }>): PurchaseOrderInput[] {
-  return orders.map((order) => ({
-    id: order.id,
-    orderCode: order.orderCode,
-    productId: order.productId,
-    quantity: toNumber(order.quantity),
-    productionWeeks: order.productionWeeks != null ? toNumber(order.productionWeeks) : null,
-    sourcePrepWeeks: order.sourcePrepWeeks != null ? toNumber(order.sourcePrepWeeks) : null,
-    oceanWeeks: order.oceanWeeks != null ? toNumber(order.oceanWeeks) : null,
-    finalMileWeeks: order.finalMileWeeks != null ? toNumber(order.finalMileWeeks) : null,
-    pay1Percent: order.pay1Percent != null ? toNumber(order.pay1Percent) : null,
-    pay2Percent: order.pay2Percent != null ? toNumber(order.pay2Percent) : null,
-    pay3Percent: order.pay3Percent != null ? toNumber(order.pay3Percent) : null,
-    pay1Amount: order.pay1Amount != null ? toNumber(order.pay1Amount) : null,
-    pay2Amount: order.pay2Amount != null ? toNumber(order.pay2Amount) : null,
-    pay3Amount: order.pay3Amount != null ? toNumber(order.pay3Amount) : null,
-    pay1Date: order.pay1Date ?? null,
-    pay2Date: order.pay2Date ?? null,
-    pay3Date: order.pay3Date ?? null,
-    productionStart: order.productionStart ?? null,
-    productionComplete: order.productionComplete ?? null,
-    sourceDeparture: order.sourceDeparture ?? null,
-    transportReference:
-      typeof order.transportReference === 'string' ? order.transportReference : order.transportReference != null
-        ? String(order.transportReference)
-        : null,
-    portEta: order.portEta ?? null,
-    inboundEta: order.inboundEta ?? null,
-    availableDate: order.availableDate ?? null,
-    totalLeadDays: order.totalLeadDays ?? null,
-    status: (typeof order.status === 'string' ? order.status : 'PLANNED') as PurchaseOrderStatus,
-    statusIcon: typeof order.statusIcon === 'string' ? order.statusIcon : null,
-    notes: typeof order.notes === 'string' ? order.notes : order.notes != null ? String(order.notes) : null,
-    overrideSellingPrice: order.overrideSellingPrice != null ? toNumber(order.overrideSellingPrice) : null,
-    overrideManufacturingCost: order.overrideManufacturingCost != null ? toNumber(order.overrideManufacturingCost) : null,
-    overrideFreightCost: order.overrideFreightCost != null ? toNumber(order.overrideFreightCost) : null,
-    overrideTariffRate: order.overrideTariffRate != null ? toNumber(order.overrideTariffRate) : null,
-    overrideTacosPercent: order.overrideTacosPercent != null ? toNumber(order.overrideTacosPercent) : null,
-    overrideFbaFee: order.overrideFbaFee != null ? toNumber(order.overrideFbaFee) : null,
-    overrideReferralRate: order.overrideReferralRate != null ? toNumber(order.overrideReferralRate) : null,
-    overrideStoragePerMonth: order.overrideStoragePerMonth != null ? toNumber(order.overrideStoragePerMonth) : null,
-    payments: Array.isArray(order.payments)
-      ? (order.payments as PurchaseOrderPayment[]).map((payment): PurchaseOrderPaymentInput => ({
-          paymentIndex: payment.paymentIndex,
-          percentage: payment.percentage != null ? toNumber(payment.percentage) : null,
-          amount: payment.amount != null ? toNumber(payment.amount) : null,
-          dueDate: payment.dueDate ?? null,
-          status: payment.status ?? 'pending',
+export function mapPurchaseOrders(
+  orders: Array<PurchaseOrder & { payments: PurchaseOrderPayment[]; batches: PurchaseOrderBatch[] }>
+): PurchaseOrderInput[] {
+  return orders.map((order) => {
+    const batches = Array.isArray(order.batches)
+      ? (order.batches as PurchaseOrderBatch[]).map((batch): PurchaseOrderBatchInput => ({
+          id: batch.id,
+          purchaseOrderId: batch.purchaseOrderId,
+          batchCode: batch.batchCode ?? undefined,
+          productId: batch.productId,
+          quantity: toNumber(batch.quantity),
+          overrideSellingPrice: batch.overrideSellingPrice != null ? toNumber(batch.overrideSellingPrice) : null,
+          overrideManufacturingCost:
+            batch.overrideManufacturingCost != null ? toNumber(batch.overrideManufacturingCost) : null,
+          overrideFreightCost: batch.overrideFreightCost != null ? toNumber(batch.overrideFreightCost) : null,
+          overrideTariffRate: batch.overrideTariffRate != null ? toNumber(batch.overrideTariffRate) : null,
+          overrideTacosPercent: batch.overrideTacosPercent != null ? toNumber(batch.overrideTacosPercent) : null,
+          overrideFbaFee: batch.overrideFbaFee != null ? toNumber(batch.overrideFbaFee) : null,
+          overrideReferralRate: batch.overrideReferralRate != null ? toNumber(batch.overrideReferralRate) : null,
+          overrideStoragePerMonth:
+            batch.overrideStoragePerMonth != null ? toNumber(batch.overrideStoragePerMonth) : null,
         }))
-      : [],
-  })) as PurchaseOrderInput[]
+      : []
+
+    const primaryBatch = batches[0]
+    const totalBatchQuantity = batches.reduce((sum, batch) => sum + (batch.quantity ?? 0), 0)
+
+    return {
+      id: order.id,
+      orderCode: order.orderCode,
+      productId: primaryBatch?.productId ?? order.productId,
+      quantity: batches.length > 0 ? totalBatchQuantity : toNumber(order.quantity),
+      poDate: order.poDate ?? null,
+      productionWeeks: order.productionWeeks != null ? toNumber(order.productionWeeks) : null,
+      sourceWeeks: order.sourceWeeks != null ? toNumber(order.sourceWeeks) : null,
+      oceanWeeks: order.oceanWeeks != null ? toNumber(order.oceanWeeks) : null,
+      finalWeeks: order.finalWeeks != null ? toNumber(order.finalWeeks) : null,
+      pay1Percent: order.pay1Percent != null ? toNumber(order.pay1Percent) : null,
+      pay2Percent: order.pay2Percent != null ? toNumber(order.pay2Percent) : null,
+      pay3Percent: order.pay3Percent != null ? toNumber(order.pay3Percent) : null,
+      pay1Amount: order.pay1Amount != null ? toNumber(order.pay1Amount) : null,
+      pay2Amount: order.pay2Amount != null ? toNumber(order.pay2Amount) : null,
+      pay3Amount: order.pay3Amount != null ? toNumber(order.pay3Amount) : null,
+      pay1Date: order.pay1Date ?? null,
+      pay2Date: order.pay2Date ?? null,
+      pay3Date: order.pay3Date ?? null,
+      productionStart: order.productionStart ?? null,
+      productionComplete: order.productionComplete ?? null,
+      sourceDeparture: order.sourceDeparture ?? null,
+      transportReference:
+        typeof order.transportReference === 'string'
+          ? order.transportReference
+          : order.transportReference != null
+            ? String(order.transportReference)
+            : null,
+      createdAt: order.createdAt ?? null,
+      shipName: order.shipName ?? null,
+      containerNumber: order.containerNumber ?? null,
+      portEta: order.portEta ?? null,
+      inboundEta: order.inboundEta ?? null,
+      availableDate: order.availableDate ?? null,
+      totalLeadDays: order.totalLeadDays ?? null,
+      status: (typeof order.status === 'string' ? order.status : 'PLANNED') as PurchaseOrderStatus,
+      statusIcon: typeof order.statusIcon === 'string' ? order.statusIcon : null,
+      notes: typeof order.notes === 'string' ? order.notes : order.notes != null ? String(order.notes) : null,
+      overrideSellingPrice: order.overrideSellingPrice != null ? toNumber(order.overrideSellingPrice) : null,
+      overrideManufacturingCost: order.overrideManufacturingCost != null ? toNumber(order.overrideManufacturingCost) : null,
+      overrideFreightCost: order.overrideFreightCost != null ? toNumber(order.overrideFreightCost) : null,
+      overrideTariffRate: order.overrideTariffRate != null ? toNumber(order.overrideTariffRate) : null,
+      overrideTacosPercent: order.overrideTacosPercent != null ? toNumber(order.overrideTacosPercent) : null,
+      overrideFbaFee: order.overrideFbaFee != null ? toNumber(order.overrideFbaFee) : null,
+      overrideReferralRate: order.overrideReferralRate != null ? toNumber(order.overrideReferralRate) : null,
+      overrideStoragePerMonth: order.overrideStoragePerMonth != null ? toNumber(order.overrideStoragePerMonth) : null,
+      payments: Array.isArray(order.payments)
+        ? (order.payments as PurchaseOrderPayment[]).map((payment): PurchaseOrderPaymentInput => ({
+            paymentIndex: payment.paymentIndex,
+            percentage: payment.percentage != null ? toNumber(payment.percentage) : null,
+            amount: payment.amount != null ? toNumber(payment.amount) : null,
+            dueDate: payment.dueDate ?? null,
+            status: payment.status ?? 'pending',
+          }))
+        : [],
+      batches,
+    } as PurchaseOrderInput
+  })
 }
 
 export function mapSalesWeeks(rows: SalesWeek[]): SalesWeekInput[] {

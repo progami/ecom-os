@@ -7,6 +7,13 @@ import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
+import {
+  dateValidator,
+  formatNumericInput,
+  formatPercentInput,
+  numericValidator,
+  parseNumericInput,
+} from '@/components/sheets/validators'
 
 registerAllModules()
 
@@ -51,9 +58,24 @@ const HEADERS = ['PO', '#', 'Due Date', 'Percent', 'Amount', 'Status']
 const COLUMNS: Handsontable.ColumnSettings[] = [
   { data: 'orderCode', readOnly: true, className: 'cell-readonly' },
   { data: 'paymentIndex', readOnly: true, className: 'cell-readonly' },
-  { data: 'dueDate', type: 'date', dateFormat: 'MMM D YYYY', correctFormat: true, className: 'cell-editable' },
+  {
+    data: 'dueDate',
+    type: 'date',
+    dateFormat: 'MMM D YYYY',
+    correctFormat: true,
+    className: 'cell-editable',
+    validator: dateValidator,
+    allowInvalid: false,
+  },
   { data: 'percentage', type: 'numeric', numericFormat: { pattern: '0.00%' }, readOnly: true, className: 'cell-readonly' },
-  { data: 'amount', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable' },
+  {
+    data: 'amount',
+    type: 'numeric',
+    numericFormat: { pattern: '$0,0.00' },
+    className: 'cell-editable',
+    validator: numericValidator,
+    allowInvalid: false,
+  },
   {
     data: 'status',
     type: 'dropdown',
@@ -65,18 +87,11 @@ const COLUMNS: Handsontable.ColumnSettings[] = [
 const NUMERIC_FIELDS: Array<keyof PurchasePaymentRow> = ['amount']
 
 function normalizeNumeric(value: unknown) {
-  if (value === '' || value === null || value === undefined) return ''
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return String(value ?? '')
-  return numeric.toFixed(2)
+  return formatNumericInput(value, 2)
 }
 
 function normalizePercent(value: unknown) {
-  if (value === '' || value === null || value === undefined) return ''
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return String(value ?? '')
-  const base = numeric > 1 ? numeric / 100 : numeric
-  return base.toFixed(4)
+  return formatPercentInput(value, 4)
 }
 
 export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, onAddPayment, onRowsChange, isLoading, orderSummaries, summaryLine }: PurchasePaymentsGridProps) {
@@ -162,7 +177,9 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
           {summaryText && <span>{summaryText}</span>}
           <button
-            onClick={onAddPayment}
+            onClick={() => {
+              if (onAddPayment) void onAddPayment()
+            }}
             disabled={!activeOrderId || isLoading || isFullyAllocated}
             className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 transition enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:enabled:hover:bg-slate-800"
           >
@@ -217,7 +234,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
               const normalizedAmount = normalizeNumeric(newValue)
               entry.values[prop] = normalizedAmount
               const plannedAmount = orderSummaries?.get(record.purchaseOrderId)?.plannedAmount ?? 0
-              const numericAmount = Number(normalizedAmount ?? 0)
+              const numericAmount = parseNumericInput(normalizedAmount) ?? 0
               if (plannedAmount > 0 && Number.isFinite(numericAmount)) {
                 const amountTolerance = Math.max(plannedAmount * 0.001, 0.01)
                 const totalAmount = (hot.getSourceData() as PurchasePaymentRow[])

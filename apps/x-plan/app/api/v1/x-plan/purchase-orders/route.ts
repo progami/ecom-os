@@ -1,14 +1,17 @@
 import { NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import prisma from '@/lib/prisma'
 
 const allowedFields = [
+  'productId',
   'orderCode',
+  'poDate',
   'quantity',
   'productionWeeks',
-  'sourcePrepWeeks',
+  'sourceWeeks',
   'oceanWeeks',
-  'finalMileWeeks',
+  'finalWeeks',
   'pay1Date',
   'pay1Percent',
   'pay1Amount',
@@ -22,6 +25,8 @@ const allowedFields = [
   'productionComplete',
   'sourceDeparture',
   'transportReference',
+  'shipName',
+  'containerNumber',
   'portEta',
   'inboundEta',
   'availableDate',
@@ -48,9 +53,9 @@ const percentFields: Record<string, true> = {
 
 const decimalFields: Record<string, true> = {
   productionWeeks: true,
-  sourcePrepWeeks: true,
+  sourceWeeks: true,
   oceanWeeks: true,
-  finalMileWeeks: true,
+  finalWeeks: true,
   pay1Amount: true,
   pay2Amount: true,
   pay3Amount: true,
@@ -62,6 +67,7 @@ const decimalFields: Record<string, true> = {
 }
 
 const dateFields: Record<string, true> = {
+  poDate: true,
   pay1Date: true,
   pay2Date: true,
   pay3Date: true,
@@ -80,6 +86,17 @@ const updateSchema = z.object({
       values: z.record(z.string(), z.string().nullable().optional()),
     })
   ),
+})
+
+const createSchema = z.object({
+  productId: z.string().min(1),
+  orderCode: z.string().trim().min(1).optional(),
+  poDate: z.string().trim().optional(),
+  quantity: z.coerce.number().int().min(0).optional(),
+})
+
+const deleteSchema = z.object({
+  id: z.string().min(1),
 })
 
 function parseNumber(value: string | null | undefined) {
@@ -133,7 +150,9 @@ export async function PUT(request: Request) {
           data[field] = parseDate(incoming)
         } else if (field === 'status') {
           data[field] = incoming as string
-        } else if (field === 'orderCode' || field === 'transportReference') {
+        } else if (field === 'productId') {
+          data[field] = incoming
+        } else if (field === 'orderCode' || field === 'transportReference' || field === 'shipName' || field === 'containerNumber') {
           data[field] = incoming
         } else if (field === 'notes') {
           data[field] = incoming
@@ -143,6 +162,102 @@ export async function PUT(request: Request) {
       return prisma.purchaseOrder.update({ where: { id }, data })
     })
   )
+
+  return NextResponse.json({ ok: true })
+}
+
+function generateOrderCode() {
+  const random = Math.random().toString(36).slice(-5).toUpperCase()
+  return `PO-${random}`
+}
+
+async function resolveOrderCode(requested?: string) {
+  if (requested) {
+    const existing = await prisma.purchaseOrder.findUnique({ where: { orderCode: requested } })
+    if (existing) {
+      return { error: 'A purchase order with this code already exists.', status: 409 as const }
+    }
+    return { orderCode: requested }
+  }
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const candidate = generateOrderCode()
+    const conflict = await prisma.purchaseOrder.findUnique({ where: { orderCode: candidate } })
+    if (!conflict) {
+      return { orderCode: candidate }
+    }
+  }
+
+  return { error: 'Unable to generate a unique purchase order code. Try again.', status: 503 as const }
+}
+
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => null)
+  const parsed = createSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+  }
+
+  const { productId, orderCode, quantity, poDate } = parsed.data
+
+  const productExists = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } })
+  if (!productExists) {
+    return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+  }
+
+  const orderCodeResult = await resolveOrderCode(orderCode)
+  if ('error' in orderCodeResult) {
+    return NextResponse.json({ error: orderCodeResult.error }, { status: orderCodeResult.status })
+  }
+
+  const safeQuantity = quantity ?? 0
+  const data = {
+    productId,
+    orderCode: orderCodeResult.orderCode,
+    quantity: safeQuantity,
+    poDate: poDate ? parseDate(poDate) : null,
+    productionWeeks: new Prisma.Decimal(0),
+    sourceWeeks: new Prisma.Decimal(0),
+    oceanWeeks: new Prisma.Decimal(0),
+    finalWeeks: new Prisma.Decimal(0),
+    status: 'PLANNED' as const,
+  }
+
+  try {
+    const created = await prisma.purchaseOrder.create({ data })
+
+    return NextResponse.json({
+      order: {
+        id: created.id,
+        orderCode: created.orderCode,
+        productId: created.productId,
+        quantity: created.quantity,
+      },
+    })
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json({ error: 'A purchase order with this code already exists.' }, { status: 409 })
+    }
+    throw error
+  }
+}
+
+export async function DELETE(request: Request) {
+  const body = await request.json().catch(() => null)
+  const parsed = deleteSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+  }
+
+  const { id } = parsed.data
+
+  try {
+    await prisma.purchaseOrder.delete({ where: { id } })
+  } catch (error) {
+    return NextResponse.json({ error: 'Unable to delete purchase order' }, { status: 400 })
+  }
 
   return NextResponse.json({ ok: true })
 }

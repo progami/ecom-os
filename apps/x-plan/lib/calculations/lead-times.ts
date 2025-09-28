@@ -9,17 +9,17 @@ export type LeadStageKey = keyof LeadTimeProfile
 const STAGE_LABELS: Record<string, LeadStageKey> = {
   'production time': 'productionWeeks',
   production: 'productionWeeks',
-  'source prep': 'sourcePrepWeeks',
+  'source prep': 'sourceWeeks',
   'ocean transit': 'oceanWeeks',
   ocean: 'oceanWeeks',
-  'final mile': 'finalMileWeeks',
+  'final mile': 'finalWeeks',
 }
 
 const DEFAULT_LEAD_TIME: LeadTimeProfile = {
   productionWeeks: 0,
-  sourcePrepWeeks: 0,
+  sourceWeeks: 0,
   oceanWeeks: 0,
-  finalMileWeeks: 0,
+  finalWeeks: 0,
 }
 
 function identifyStage(label: string | null | undefined): LeadStageKey | null {

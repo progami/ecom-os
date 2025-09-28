@@ -42,7 +42,7 @@ pnpm --filter @ecom-os/x-plan type-check  # tsc in noEmit mode
 
 - Handsontable-based grids for each workbook sheet with keyboard navigation, copy/paste, and inline editing.
 - Sheet-specific APIs (`/api/v1/x-plan/*`) that persist changes to PostgreSQL and keep derived totals in sync.
-- Excel import/export pipeline (via SheetJS) to bootstrap data from `excel_template.xlsx` and round-trip updates.
+- Excel import/export pipeline (via SheetJS) to bootstrap data from `scripts/excel_template.xlsx` and round-trip updates.
 - Prisma schema scoped to the `x_plan` schema inside the central database so the platform can grow without siloed databases.
 
 ## Environment Variables

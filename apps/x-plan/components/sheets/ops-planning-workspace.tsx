@@ -8,21 +8,21 @@ import {
   useState,
   useTransition,
 } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
   OpsPlanningGrid,
   type OpsInputRow,
 } from '@/components/sheets/ops-planning-grid'
-import {
-  OpsPlanningTimelineTable,
-  type OpsTimelineRow,
-} from '@/components/sheets/ops-planning-timeline'
-import { OpsPlanningCostGrid } from '@/components/sheets/ops-planning-cost-grid'
+import { PurchaseTimeline } from '@/components/sheets/purchase-timeline'
+import type { OpsTimelineRow } from '@/components/sheets/ops-planning-timeline'
+import { OpsPlanningCostGrid, type OpsBatchRow } from '@/components/sheets/ops-planning-cost-grid'
 import {
   PurchasePaymentsGrid,
   type PurchasePaymentRow,
   type PaymentSummary,
 } from '@/components/sheets/purchase-payments-grid'
+import { createTimelineOrderFromDerived, type PurchaseTimelineOrder } from '@/lib/planning/timeline'
 import {
   buildProductCostIndex,
   computePurchaseOrderDerived,
@@ -30,20 +30,23 @@ import {
   type ProductCostSummary,
   type ProductInput,
   type PurchaseOrderInput,
+  type PurchaseOrderBatchInput,
   type PurchaseOrderPaymentInput,
   type PurchaseOrderStatus,
   type LeadTimeProfile,
 } from '@/lib/calculations'
+import { formatNumericInput, formatPercentInput, parseNumericInput } from '@/components/sheets/validators'
 
 export type PurchaseOrderSerialized = {
   id: string
   orderCode: string
   productId: string
   quantity: number
+  poDate?: string | null
   productionWeeks?: number | null
-  sourcePrepWeeks?: number | null
+  sourceWeeks?: number | null
   oceanWeeks?: number | null
-  finalMileWeeks?: number | null
+  finalWeeks?: number | null
   pay1Percent?: number | null
   pay2Percent?: number | null
   pay3Percent?: number | null
@@ -56,13 +59,16 @@ export type PurchaseOrderSerialized = {
   productionStart?: string | null
   productionComplete?: string | null
   sourceDeparture?: string | null
+  transportReference?: string | null
+  shipName?: string | null
+  containerNumber?: string | null
   portEta?: string | null
   inboundEta?: string | null
   availableDate?: string | null
   totalLeadDays?: number | null
   status: PurchaseOrderStatus
-  transportReference?: string | null
   notes?: string | null
+  createdAt?: string | null
   payments?: Array<{
     paymentIndex: number
     percentage?: number | null
@@ -78,6 +84,20 @@ export type PurchaseOrderSerialized = {
   overrideFbaFee?: number | null
   overrideReferralRate?: number | null
   overrideStoragePerMonth?: number | null
+  batches?: Array<{
+    id: string
+    batchCode?: string | null
+    productId: string
+    quantity: number
+    overrideSellingPrice?: number | null
+    overrideManufacturingCost?: number | null
+    overrideFreightCost?: number | null
+    overrideTariffRate?: number | null
+    overrideTacosPercent?: number | null
+    overrideFbaFee?: number | null
+    overrideReferralRate?: number | null
+    overrideStoragePerMonth?: number | null
+  }>
 }
 
 export type OpsPlanningCalculatorPayload = {
@@ -89,9 +109,12 @@ export type OpsPlanningCalculatorPayload = {
 
 interface OpsPlanningWorkspaceProps {
   inputs: OpsInputRow[]
+  batches: OpsBatchRow[]
   timeline: OpsTimelineRow[]
+  timelineOrders: PurchaseTimelineOrder[]
   payments: PurchasePaymentRow[]
   calculator: OpsPlanningCalculatorPayload
+  timelineMonths: { start: string; end: string; label: string }[]
 }
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -108,9 +131,9 @@ const currencyFormatter = new Intl.NumberFormat('en-US', {
 
 const DEFAULT_PROFILE: LeadTimeProfile = {
   productionWeeks: 0,
-  sourcePrepWeeks: 0,
+  sourceWeeks: 0,
   oceanWeeks: 0,
-  finalMileWeeks: 0,
+  finalWeeks: 0,
 }
 
 function formatDisplayDate(value?: string | Date | null) {
@@ -121,11 +144,7 @@ function formatDisplayDate(value?: string | Date | null) {
 }
 
 function normalizePercent(value: string | undefined) {
-  if (!value) return ''
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return value
-  const base = numeric > 1 ? numeric / 100 : numeric
-  return base.toFixed(4)
+  return formatPercentInput(value, 4)
 }
 
 function normalizePaymentRows(rows: PurchasePaymentRow[]): PurchasePaymentRow[] {
@@ -142,23 +161,36 @@ function parseDateValue(value: string | null | undefined): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-function parseNumber(value: string | null | undefined): number | null {
-  if (value == null || value.trim() === '') return null
-  const numeric = Number(value)
-  return Number.isNaN(numeric) ? null : numeric
+function toNumber(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value === 'string') {
+    if (value.trim() === '') return null
+    return parseNumericInput(value)
+  }
+  return parseNumericInput(value)
 }
 
-function parseInteger(value: string | null | undefined, fallback: number): number {
-  if (value == null || value.trim() === '') return fallback
-  const numeric = Number(value)
-  return Number.isNaN(numeric) ? fallback : Math.round(numeric)
+function parseNumber(value: string | number | null | undefined): number | null {
+  return toNumber(value)
 }
 
-function parsePercent(value: string | null | undefined): number | null {
-  if (value == null || value.trim() === '') return null
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return null
+function parseInteger(value: string | number | null | undefined, fallback: number): number {
+  const numeric = toNumber(value)
+  return numeric == null ? fallback : Math.round(numeric)
+}
+
+function parsePercent(value: string | number | null | undefined): number | null {
+  const numeric = toNumber(value)
+  if (numeric == null) return null
   return numeric > 1 ? numeric / 100 : numeric
+}
+
+function normalizeStageWeeks(value: number | null | undefined): number {
+  if (value == null) return 1
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return 1
+  return numeric
 }
 
 function deserializeOrders(purchaseOrders: PurchaseOrderSerialized[]): PurchaseOrderInput[] {
@@ -167,10 +199,11 @@ function deserializeOrders(purchaseOrders: PurchaseOrderSerialized[]): PurchaseO
     orderCode: order.orderCode,
     productId: order.productId,
     quantity: order.quantity,
-    productionWeeks: order.productionWeeks ?? null,
-    sourcePrepWeeks: order.sourcePrepWeeks ?? null,
-    oceanWeeks: order.oceanWeeks ?? null,
-    finalMileWeeks: order.finalMileWeeks ?? null,
+    poDate: parseDateValue(order.poDate),
+    productionWeeks: normalizeStageWeeks(order.productionWeeks ?? null),
+    sourceWeeks: normalizeStageWeeks(order.sourceWeeks ?? null),
+    oceanWeeks: normalizeStageWeeks(order.oceanWeeks ?? null),
+    finalWeeks: normalizeStageWeeks(order.finalWeeks ?? null),
     pay1Percent: order.pay1Percent ?? null,
     pay2Percent: order.pay2Percent ?? null,
     pay3Percent: order.pay3Percent ?? null,
@@ -184,6 +217,9 @@ function deserializeOrders(purchaseOrders: PurchaseOrderSerialized[]): PurchaseO
     productionComplete: parseDateValue(order.productionComplete),
     sourceDeparture: parseDateValue(order.sourceDeparture),
     transportReference: order.transportReference ?? null,
+    shipName: order.shipName ?? null,
+    containerNumber: order.containerNumber ?? order.transportReference ?? null,
+    createdAt: parseDateValue(order.createdAt),
     portEta: parseDateValue(order.portEta),
     inboundEta: parseDateValue(order.inboundEta),
     availableDate: parseDateValue(order.availableDate),
@@ -206,6 +242,22 @@ function deserializeOrders(purchaseOrders: PurchaseOrderSerialized[]): PurchaseO
     overrideFbaFee: order.overrideFbaFee ?? null,
     overrideReferralRate: order.overrideReferralRate ?? null,
     overrideStoragePerMonth: order.overrideStoragePerMonth ?? null,
+    batches:
+      order.batches?.map((batch) => ({
+        id: batch.id,
+        purchaseOrderId: order.id,
+        batchCode: batch.batchCode ?? undefined,
+        productId: batch.productId,
+        quantity: batch.quantity,
+        overrideSellingPrice: batch.overrideSellingPrice ?? null,
+        overrideManufacturingCost: batch.overrideManufacturingCost ?? null,
+        overrideFreightCost: batch.overrideFreightCost ?? null,
+        overrideTariffRate: batch.overrideTariffRate ?? null,
+        overrideTacosPercent: batch.overrideTacosPercent ?? null,
+        overrideFbaFee: batch.overrideFbaFee ?? null,
+        overrideReferralRate: batch.overrideReferralRate ?? null,
+        overrideStoragePerMonth: batch.overrideStoragePerMonth ?? null,
+      })) ?? [],
   }))
 }
 
@@ -218,10 +270,11 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       orderCode: row.orderCode,
       productId: row.productId,
       quantity: parseInteger(row.quantity, 0),
-      productionWeeks: parseNumber(row.productionWeeks),
-      sourcePrepWeeks: parseNumber(row.sourcePrepWeeks),
-      oceanWeeks: parseNumber(row.oceanWeeks),
-      finalMileWeeks: parseNumber(row.finalMileWeeks),
+      poDate: parseDateValue(row.poDate),
+      productionWeeks: normalizeStageWeeks(parseNumber(row.productionWeeks)),
+      sourceWeeks: normalizeStageWeeks(parseNumber(row.sourceWeeks)),
+      oceanWeeks: normalizeStageWeeks(parseNumber(row.oceanWeeks)),
+      finalWeeks: normalizeStageWeeks(parseNumber(row.finalWeeks)),
       pay1Percent: null,
       pay2Percent: null,
       pay3Percent: null,
@@ -234,7 +287,10 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       productionStart: null,
       productionComplete: null,
       sourceDeparture: null,
-      transportReference: null,
+      transportReference: row.containerNumber ? row.containerNumber : null,
+      shipName: row.shipName ? row.shipName : null,
+      containerNumber: row.containerNumber ? row.containerNumber : null,
+      createdAt: new Date(),
       portEta: null,
       inboundEta: null,
       availableDate: null,
@@ -250,17 +306,26 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       overrideFbaFee: parseNumber(row.fbaFee),
       overrideReferralRate: parsePercent(row.referralRate),
       overrideStoragePerMonth: parseNumber(row.storagePerMonth),
+      batches: [],
     }
 
     return {
       ...base,
       orderCode: row.orderCode,
+      productId: row.productId,
       quantity: parseInteger(row.quantity, base.quantity ?? 0),
       pay1Date: parseDateValue(row.pay1Date),
-      productionWeeks: parseNumber(row.productionWeeks),
-      sourcePrepWeeks: parseNumber(row.sourcePrepWeeks),
-      oceanWeeks: parseNumber(row.oceanWeeks),
-      finalMileWeeks: parseNumber(row.finalMileWeeks),
+      productionWeeks: normalizeStageWeeks(parseNumber(row.productionWeeks)),
+      sourceWeeks: normalizeStageWeeks(parseNumber(row.sourceWeeks)),
+      oceanWeeks: normalizeStageWeeks(parseNumber(row.oceanWeeks)),
+      finalWeeks: normalizeStageWeeks(parseNumber(row.finalWeeks)),
+      poDate: parseDateValue(row.poDate),
+      transportReference: row.containerNumber
+        ? row.containerNumber
+        : base.containerNumber ?? base.transportReference ?? null,
+      shipName: row.shipName ? row.shipName : base.shipName ?? null,
+      containerNumber: row.containerNumber ? row.containerNumber : base.containerNumber ?? base.transportReference ?? null,
+      createdAt: base.createdAt ?? new Date(),
       status: (row.status as PurchaseOrderStatus) ?? base.status,
       notes: row.notes ? row.notes : null,
       overrideSellingPrice: parseNumber(row.sellingPrice),
@@ -310,7 +375,11 @@ function buildTimelineRowsFromData(params: {
   productIndex: Map<string, ProductCostSummary>
   leadProfiles: Map<string, LeadTimeProfile>
   parameters: BusinessParameterMap
-}): { timelineRows: OpsTimelineRow[]; derivedMap: Map<string, ReturnType<typeof computePurchaseOrderDerived>> } {
+}): {
+  timelineRows: OpsTimelineRow[]
+  timelineOrders: PurchaseTimelineOrder[]
+  derivedMap: Map<string, ReturnType<typeof computePurchaseOrderDerived>>
+} {
   const { orders, rows, payments, productIndex, leadProfiles, parameters } = params
   const ordersById = new Map(orders.map((order) => [order.id, order]))
   const paymentsByOrder = buildPaymentsByOrder(payments)
@@ -338,8 +407,7 @@ function buildTimelineRowsFromData(params: {
       }
     }
 
-    const product = productIndex.get(order.productId)
-    if (!product) {
+    if (!productIndex.has(order.productId)) {
       return {
         id: order.id,
         orderCode: order.orderCode,
@@ -361,7 +429,12 @@ function buildTimelineRowsFromData(params: {
 
     const profile = leadProfiles.get(order.productId) ?? DEFAULT_PROFILE
     const paymentsOverride = paymentsByOrder.get(order.id) ?? order.payments ?? []
-    const derived = computePurchaseOrderDerived({ ...order, payments: paymentsOverride }, product, profile, parameters)
+    const derived = computePurchaseOrderDerived(
+      { ...order, payments: paymentsOverride },
+      productIndex,
+      profile,
+      parameters
+    )
     derivedMap.set(order.id, derived)
 
     return {
@@ -383,7 +456,15 @@ function buildTimelineRowsFromData(params: {
     }
   })
 
-  return { timelineRows, derivedMap }
+  const timelineOrders = rows
+    .map((row) => {
+      const derived = derivedMap.get(row.id)
+      if (!derived) return null
+      return createTimelineOrderFromDerived({ derived, productName: row.productName })
+    })
+    .filter((order): order is PurchaseTimelineOrder => Boolean(order))
+
+  return { timelineRows, timelineOrders, derivedMap }
 }
 
 function summaryLineFor(summary: PaymentSummary): string {
@@ -405,16 +486,19 @@ function summaryLineFor(summary: PaymentSummary): string {
   return parts.join(' • ')
 }
 
-export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }: OpsPlanningWorkspaceProps) {
+export function OpsPlanningWorkspace({ inputs, batches, timeline, timelineOrders, payments, calculator, timelineMonths }: OpsPlanningWorkspaceProps) {
+  const router = useRouter()
   const productIndex = useMemo(() => buildProductCostIndex(calculator.products), [calculator.products])
+  const productNameIndex = useMemo(() => new Map(calculator.products.map((product) => [product.id, product.name])), [calculator.products])
+  const productOptions = useMemo(() => calculator.products.map((product) => ({ id: product.id, name: product.name })), [calculator.products])
   const leadProfileMap = useMemo(() => {
     const map = new Map<string, LeadTimeProfile>()
     for (const profile of calculator.leadProfiles) {
       map.set(profile.productId, {
         productionWeeks: Number(profile.productionWeeks ?? 0),
-        sourcePrepWeeks: Number(profile.sourcePrepWeeks ?? 0),
+        sourceWeeks: Number(profile.sourceWeeks ?? 0),
         oceanWeeks: Number(profile.oceanWeeks ?? 0),
-        finalMileWeeks: Number(profile.finalMileWeeks ?? 0),
+        finalWeeks: Number(profile.finalWeeks ?? 0),
       })
     }
     return map
@@ -439,31 +523,53 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
   const [timelineRows, setTimelineRows] = useState<OpsTimelineRow[]>(
     initialTimelineResult.timelineRows.length ? initialTimelineResult.timelineRows : timeline
   )
+  const [timelineOrdersState, setTimelineOrdersState] = useState<PurchaseTimelineOrder[]>(
+    initialTimelineResult.timelineOrders.length ? initialTimelineResult.timelineOrders : timelineOrders
+  )
   const [orders, setOrders] = useState<PurchaseOrderInput[]>(initialOrders)
   const [paymentRows, setPaymentRows] = useState<PurchasePaymentRow[]>(initialPayments)
+  const [batchRows, setBatchRows] = useState<OpsBatchRow[]>(batches)
   const [activeOrderId, setActiveOrderId] = useState<string | null>(inputs[0]?.id ?? null)
+  const [activeBatchId, setActiveBatchId] = useState<string | null>(null)
+  const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false)
+  const [newOrderCode, setNewOrderCode] = useState('')
+  const [isAddingPayment, setIsAddingPayment] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const inputRowsRef = useRef(inputRows)
   const ordersRef = useRef(orders)
   const paymentRowsRef = useRef(paymentRows)
+  const batchRowsRef = useRef(batchRows)
   const derivedMapRef = useRef(initialTimelineResult.derivedMap)
-
+  const timelineOrdersRef = useRef(timelineOrdersState)
   useEffect(() => {
     inputRowsRef.current = inputRows
   }, [inputRows])
 
-  useEffect(() => {
-    ordersRef.current = orders
-  }, [orders])
+useEffect(() => {
+  ordersRef.current = orders
+}, [orders])
 
-  useEffect(() => {
-    paymentRowsRef.current = paymentRows
-  }, [paymentRows])
+useEffect(() => {
+  paymentRowsRef.current = paymentRows
+}, [paymentRows])
+
+useEffect(() => {
+  timelineOrdersRef.current = timelineOrdersState
+}, [timelineOrdersState])
+
+useEffect(() => {
+  batchRowsRef.current = batchRows
+}, [batchRows])
+
+useEffect(() => {
+  setBatchRows(batches)
+  batchRowsRef.current = batches
+}, [batches])
 
   const applyTimelineUpdate = useCallback(
     (nextOrders: PurchaseOrderInput[], nextInputRows: OpsInputRow[], nextPayments: PurchasePaymentRow[]) => {
-      const { timelineRows: newTimelineRows, derivedMap } = buildTimelineRowsFromData({
+      const { timelineRows: newTimelineRows, timelineOrders: newTimelineOrders, derivedMap } = buildTimelineRowsFromData({
         orders: nextOrders,
         rows: nextInputRows,
         payments: nextPayments,
@@ -473,6 +579,7 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
       })
       derivedMapRef.current = derivedMap
       setTimelineRows(newTimelineRows)
+      setTimelineOrdersState(newTimelineOrders)
     },
     [productIndex, leadProfileMap, calculator.parameters]
   )
@@ -501,10 +608,19 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
       setActiveOrderId(null)
       return
     }
-    if (!activeOrderId || !inputRows.some((row) => row.id === activeOrderId)) {
-      setActiveOrderId(inputRows[0].id)
-    }
-  }, [inputRows, activeOrderId])
+  if (!activeOrderId || !inputRows.some((row) => row.id === activeOrderId)) {
+    setActiveOrderId(inputRows[0].id)
+  }
+}, [inputRows, activeOrderId])
+
+useEffect(() => {
+  if (!activeOrderId) {
+    setActiveBatchId(null)
+    return
+  }
+  const firstBatch = batchRows.find((row) => row.purchaseOrderId === activeOrderId)
+  setActiveBatchId(firstBatch?.id ?? null)
+}, [activeOrderId, batchRows])
 
   const handleInputRowsChange = useCallback(
     (updatedRows: OpsInputRow[]) => {
@@ -518,57 +634,210 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
     [applyTimelineUpdate]
   )
 
-  const handleAddPayment = () => {
+  const handlePaymentRowsChange = useCallback(
+    (rows: PurchasePaymentRow[]) => {
+      if (!activeOrderId) return
+      const normalized = normalizePaymentRows(rows)
+      const existing = paymentRowsRef.current.filter((row) => row.purchaseOrderId !== activeOrderId)
+      const next = [...existing, ...normalized]
+      paymentRowsRef.current = next
+      setPaymentRows(next)
+      applyTimelineUpdate(ordersRef.current, inputRowsRef.current, next)
+    },
+    [activeOrderId, applyTimelineUpdate]
+  )
+
+  const handleBatchRowsChange = useCallback((updatedRows: OpsBatchRow[]) => {
+    setBatchRows((previous) => {
+      const map = new Map(previous.map((row) => [row.id, row]))
+      for (const updated of updatedRows) {
+        const existing = map.get(updated.id) ?? updated
+        map.set(updated.id, { ...existing, ...updated })
+      }
+      const next = Array.from(map.values())
+      batchRowsRef.current = next
+      return next
+    })
+
+    const rowsByOrder = new Map<string, OpsBatchRow[]>()
+    for (const row of updatedRows) {
+      const list = rowsByOrder.get(row.purchaseOrderId) ?? []
+      list.push(row)
+      rowsByOrder.set(row.purchaseOrderId, list)
+    }
+
+    setOrders((previous) => {
+      const next = previous.map((order) => {
+        const updates = rowsByOrder.get(order.id)
+        if (!updates || updates.length === 0) return order
+        const batches = [...(order.batches ?? [])]
+        for (const update of updates) {
+          const batchIndex = batches.findIndex((batch) => batch.id === update.id)
+          if (batchIndex === -1) continue
+          batches[batchIndex] = {
+            ...batches[batchIndex],
+            productId: update.productId,
+            quantity: parseInteger(update.quantity, batches[batchIndex].quantity ?? 0),
+            overrideSellingPrice: parseNumber(update.sellingPrice),
+            overrideManufacturingCost: parseNumber(update.manufacturingCost),
+            overrideFreightCost: parseNumber(update.freightCost),
+            overrideTariffRate: parsePercent(update.tariffRate),
+            overrideTacosPercent: parsePercent(update.tacosPercent),
+            overrideFbaFee: parseNumber(update.fbaFee),
+            overrideReferralRate: parsePercent(update.referralRate),
+            overrideStoragePerMonth: parseNumber(update.storagePerMonth),
+          } as PurchaseOrderBatchInput
+        }
+        const totalQuantity = batches.reduce((sum, batch) => sum + (batch.quantity ?? 0), 0)
+        return { ...order, batches, quantity: totalQuantity }
+      })
+      ordersRef.current = next
+      return next
+    })
+
+    applyTimelineUpdate(ordersRef.current, inputRowsRef.current, paymentRowsRef.current)
+  }, [applyTimelineUpdate])
+
+  const handleSelectBatch = useCallback((batchId: string) => {
+    setActiveBatchId(batchId)
+  }, [])
+
+  const handleAddBatch = useCallback(() => {
     const orderId = activeOrderId
     if (!orderId) {
       toast.error('Select a purchase order first')
       return
     }
-    const summary = orderSummaries.get(orderId)
-    if (isFullyAllocated(summary)) {
-      toast.error('This PO is already fully cleared')
+    const order = ordersRef.current.find((item) => item.id === orderId)
+    const defaultProductId = order?.productId ?? productOptions[0]?.id
+    if (!defaultProductId) {
+      toast.error('Add a product before creating batches')
       return
     }
-    const matchingPayments = paymentRows.filter((row) => row.purchaseOrderId === orderId)
-    const nextIndex = matchingPayments.length ? Math.max(...matchingPayments.map((row) => row.paymentIndex)) + 1 : 1
 
     startTransition(async () => {
       try {
-        const response = await fetch('/api/v1/x-plan/purchase-order-payments', {
+        const response = await fetch('/api/v1/x-plan/purchase-orders/batches', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ purchaseOrderId: orderId, paymentIndex: nextIndex }),
+          body: JSON.stringify({ purchaseOrderId: orderId, productId: defaultProductId, quantity: 0 }),
         })
-        if (!response.ok) throw new Error('Failed to add payment')
-        const created = (await response.json()) as PurchasePaymentRow
-        const normalizedCreated: PurchasePaymentRow = {
-          ...created,
-          dueDate: formatDisplayDate(created.dueDate),
-          percentage: normalizePercent(created.percentage),
+        if (!response.ok) {
+          let message = 'Failed to add batch'
+          try {
+            const errorPayload = await response.json()
+            if (typeof errorPayload?.error === 'string') message = errorPayload.error
+          } catch (error) {
+            // ignore
+          }
+          throw new Error(message)
         }
-        setPaymentRows((previous) => {
-          const next = [...previous, normalizedCreated]
-          paymentRowsRef.current = next
-          applyTimelineUpdate(ordersRef.current, inputRowsRef.current, next)
+        const payload = (await response.json()) as { batch?: { id: string; purchaseOrderId: string; productId: string; quantity: number; batchCode?: string | null } }
+        const created = payload.batch
+        if (!created) throw new Error('Missing batch payload')
+        const nextRow: OpsBatchRow = {
+          id: created.id,
+          purchaseOrderId: created.purchaseOrderId,
+          orderCode: order?.orderCode ?? '',
+          batchCode: created.batchCode ?? undefined,
+          productId: created.productId,
+          productName: productNameIndex.get(created.productId) ?? '',
+          quantity: formatNumericInput(created.quantity ?? 0, 0),
+          sellingPrice: '',
+          manufacturingCost: '',
+          freightCost: '',
+          tariffRate: '',
+          tacosPercent: '',
+          fbaFee: '',
+          referralRate: '',
+          storagePerMonth: '',
+        }
+        setBatchRows((previous) => {
+          const next = [...previous, nextRow]
+          batchRowsRef.current = next
           return next
         })
-        toast.success('Payment added')
+        setOrders((previous) => {
+          const next = previous.map((order) => {
+            if (order.id !== created.purchaseOrderId) return order
+            const batches = [...(order.batches ?? []), {
+              id: created.id,
+              purchaseOrderId: created.purchaseOrderId,
+              batchCode: created.batchCode ?? undefined,
+              productId: created.productId,
+              quantity: created.quantity,
+              overrideSellingPrice: null,
+              overrideManufacturingCost: null,
+              overrideFreightCost: null,
+              overrideTariffRate: null,
+              overrideTacosPercent: null,
+              overrideFbaFee: null,
+              overrideReferralRate: null,
+              overrideStoragePerMonth: null,
+            } satisfies PurchaseOrderBatchInput]
+            return {
+              ...order,
+              batches,
+              quantity: batches.reduce((sum, batch) => sum + (batch.quantity ?? 0), 0),
+            }
+          })
+          ordersRef.current = next
+          return next
+        })
+        applyTimelineUpdate(ordersRef.current, inputRowsRef.current, paymentRowsRef.current)
+        setActiveBatchId(created.id)
+      toast.success('Batch added')
+    } catch (error) {
+      console.error(error)
+      toast.error(error instanceof Error ? error.message : 'Unable to add batch')
+    }
+  })
+}, [activeOrderId, applyTimelineUpdate, productNameIndex, productOptions, startTransition])
+
+  const handleDeleteBatch = useCallback(() => {
+    const batchId = activeBatchId
+    if (!batchId) return
+    const batch = batchRowsRef.current.find((row) => row.id === batchId)
+    if (!batch) return
+
+    const confirmRemoval = window.confirm('Remove this batch from the purchase order?')
+    if (!confirmRemoval) return
+
+    startTransition(async () => {
+      try {
+        const response = await fetch('/api/v1/x-plan/purchase-orders/batches', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: batchId }),
+        })
+        if (!response.ok) throw new Error('Failed to delete batch')
+        setBatchRows((previous) => {
+          const next = previous.filter((row) => row.id !== batchId)
+          batchRowsRef.current = next
+          return next
+        })
+        setOrders((previous) => {
+          const next = previous.map((order) => {
+            if (order.id !== batch.purchaseOrderId) return order
+            const batches = (order.batches ?? []).filter((item) => item.id !== batchId)
+            return {
+              ...order,
+              batches,
+              quantity: batches.reduce((sum, item) => sum + (item.quantity ?? 0), 0),
+            }
+          })
+          ordersRef.current = next
+          return next
+        })
+        applyTimelineUpdate(ordersRef.current, inputRowsRef.current, paymentRowsRef.current)
+        toast.success('Batch removed')
+        router.refresh()
       } catch (error) {
         console.error(error)
-        toast.error('Unable to add payment')
+        toast.error('Unable to delete batch')
       }
     })
-  }
-
-  const handlePaymentRowsChange = useCallback(
-    (rows: PurchasePaymentRow[]) => {
-      const normalized = normalizePaymentRows(rows)
-      paymentRowsRef.current = normalized
-      setPaymentRows(normalized)
-      applyTimelineUpdate(ordersRef.current, inputRowsRef.current, normalized)
-    },
-    [applyTimelineUpdate]
-  )
+  }, [activeBatchId, applyTimelineUpdate, router, startTransition])
 
   const orderSummaries = useMemo(() => {
     const summaries = new Map<string, PaymentSummary>()
@@ -610,10 +879,71 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
     return summaries
   }, [timelineRows, paymentRows])
 
+  const handleAddPayment = useCallback(async () => {
+    const orderId = activeOrderId
+    if (!orderId) {
+      toast.error('Select a purchase order first')
+      return
+    }
+    const summary = orderSummaries.get(orderId)
+    if (isFullyAllocated(summary)) {
+      toast.error('This PO is already fully cleared')
+      return
+    }
+    const matchingPayments = paymentRowsRef.current.filter((row) => row.purchaseOrderId === orderId)
+    const nextIndex = matchingPayments.length ? Math.max(...matchingPayments.map((row) => row.paymentIndex)) + 1 : 1
+
+    setIsAddingPayment(true)
+    try {
+      const response = await fetch('/api/v1/x-plan/purchase-order-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ purchaseOrderId: orderId, paymentIndex: nextIndex }),
+      })
+
+      if (!response.ok) {
+        let message = 'Failed to add payment'
+        try {
+          const errorPayload = await response.json()
+          if (typeof errorPayload?.error === 'string') message = errorPayload.error
+        } catch (error) {
+          // ignore JSON parse issues
+        }
+        throw new Error(message)
+      }
+
+      const created = (await response.json()) as PurchasePaymentRow
+      const normalizedCreated: PurchasePaymentRow = {
+        ...created,
+        dueDate: formatDisplayDate(created.dueDate),
+        percentage: normalizePercent(created.percentage),
+      }
+
+      setPaymentRows((previous) => {
+        const next = [...previous, normalizedCreated]
+        paymentRowsRef.current = next
+        applyTimelineUpdate(ordersRef.current, inputRowsRef.current, next)
+        return next
+      })
+
+      toast.success('Payment added')
+    } catch (error) {
+      console.error(error)
+      toast.error(error instanceof Error ? error.message : 'Unable to add payment')
+    } finally {
+      setIsAddingPayment(false)
+    }
+  }, [activeOrderId, applyTimelineUpdate, orderSummaries])
+
   const visiblePayments = useMemo(() => {
-    if (!activeOrderId) return paymentRows
+    if (!activeOrderId) return [] as PurchasePaymentRow[]
     return paymentRows.filter((payment) => payment.purchaseOrderId === activeOrderId)
   }, [activeOrderId, paymentRows])
+
+  const visibleBatches = useMemo(() => {
+    if (!activeOrderId) return [] as OpsBatchRow[]
+    return batchRows.filter((batch) => batch.purchaseOrderId === activeOrderId)
+  }, [activeOrderId, batchRows])
 
   const isFullyAllocated = (summary: PaymentSummary | undefined) => {
     if (!summary) return false
@@ -631,6 +961,91 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
     return summaryLineFor(summary)
   }, [orderSummaries, activeOrderId])
 
+  const handleDeleteOrder = useCallback(
+    (orderId: string) => {
+      if (!orderId) return
+      const confirmRemoval = window.confirm(
+        'Remove this purchase order? Associated payments and timeline stages will also be deleted.'
+      )
+      if (!confirmRemoval) return
+
+      startTransition(async () => {
+        try {
+          const response = await fetch('/api/v1/x-plan/purchase-orders', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: orderId }),
+          })
+          if (!response.ok) throw new Error('Failed to delete purchase order')
+          if (activeOrderId === orderId) {
+            setActiveOrderId(null)
+          }
+          setBatchRows((previous) => {
+            const next = previous.filter((row) => row.purchaseOrderId !== orderId)
+            batchRowsRef.current = next
+            return next
+          })
+          toast.success('Purchase order removed')
+          router.refresh()
+        } catch (error) {
+          console.error(error)
+          toast.error('Unable to delete purchase order')
+        }
+      })
+    },
+    [activeOrderId, router, startTransition]
+  )
+
+  const handleCreateOrder = useCallback(() => {
+    const trimmedCode = newOrderCode.trim()
+
+    const defaultProductId = productOptions[0]?.id
+    if (!defaultProductId) {
+      toast.error('Create a product before adding purchase orders')
+      return
+    }
+
+    startTransition(async () => {
+      try {
+        const payload: Record<string, unknown> = {
+          productId: defaultProductId,
+        }
+        if (trimmedCode.length) {
+          payload.orderCode = trimmedCode
+        }
+        const response = await fetch('/api/v1/x-plan/purchase-orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        if (!response.ok) {
+          let message = 'Failed to create purchase order'
+          try {
+            const errorPayload = await response.json()
+            if (typeof errorPayload?.error === 'string') {
+              message = errorPayload.error
+            }
+          } catch (error) {
+            // ignore JSON parse errors
+          }
+          throw new Error(message)
+        }
+        const result = await response.json().catch(() => null)
+        const createdId = result?.order?.id as string | undefined
+        if (createdId) {
+          setActiveOrderId(createdId)
+        }
+        setIsCreateOrderOpen(false)
+        setNewOrderCode('')
+        toast.success('Purchase order created')
+        router.refresh()
+      } catch (error) {
+        console.error(error)
+        toast.error('Unable to create purchase order')
+      }
+    })
+  }, [newOrderCode, productOptions, router, startTransition])
+
   return (
     <div className="space-y-6">
       <OpsPlanningGrid
@@ -638,12 +1053,71 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
         activeOrderId={activeOrderId}
         onSelectOrder={(orderId) => setActiveOrderId(orderId)}
         onRowsChange={handleInputRowsChange}
+        onCreateOrder={() => setIsCreateOrderOpen(true)}
+        onDeleteOrder={handleDeleteOrder}
+        disableCreate={isPending || productOptions.length === 0}
+        disableDelete={isPending}
       />
+
+      {isCreateOrderOpen ? (
+        <section className="space-y-4 rounded-xl border border-dashed border-slate-300 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
+          <header className="space-y-1">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              New purchase order
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Set the PO identifier now — assign cost details and the target product in the batch cost table below.
+            </p>
+          </header>
+          <form
+            className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1.5fr)_auto]"
+            onSubmit={(event) => {
+              event.preventDefault()
+              handleCreateOrder()
+            }}
+          >
+            <label className="flex flex-col gap-1 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              Order code
+              <input
+                type="text"
+                value={newOrderCode}
+                onChange={(event) => setNewOrderCode(event.target.value)}
+                placeholder="Auto-generate if blank"
+                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:focus:ring-slate-600"
+              />
+            </label>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsCreateOrderOpen(false)}
+                className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isPending}
+                className="rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white transition enabled:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:enabled:hover:bg-slate-200"
+              >
+                Create
+              </button>
+            </div>
+          </form>
+        </section>
+      ) : null}
+
       <OpsPlanningCostGrid
-        rows={inputRows}
+        rows={visibleBatches}
         activeOrderId={activeOrderId}
+        activeBatchId={activeBatchId}
         onSelectOrder={(orderId) => setActiveOrderId(orderId)}
-        onRowsChange={handleInputRowsChange}
+        onSelectBatch={handleSelectBatch}
+        onRowsChange={handleBatchRowsChange}
+        onAddBatch={handleAddBatch}
+        onDeleteBatch={handleDeleteBatch}
+        disableAdd={isPending || !activeOrderId}
+        disableDelete={isPending}
+        products={productOptions}
       />
       <PurchasePaymentsGrid
         payments={visiblePayments}
@@ -651,14 +1125,15 @@ export function OpsPlanningWorkspace({ inputs, timeline, payments, calculator }:
         onSelectOrder={(orderId) => setActiveOrderId(orderId)}
         onAddPayment={handleAddPayment}
         onRowsChange={handlePaymentRowsChange}
-        isLoading={isPending}
+        isLoading={isPending || isAddingPayment}
         orderSummaries={orderSummaries}
         summaryLine={summaryLine ?? undefined}
       />
-      <OpsPlanningTimelineTable
-        rows={timelineRows}
+      <PurchaseTimeline
+        orders={timelineOrdersState}
         activeOrderId={activeOrderId}
         onSelectOrder={(orderId) => setActiveOrderId(orderId)}
+        months={timelineMonths}
       />
     </div>
   )

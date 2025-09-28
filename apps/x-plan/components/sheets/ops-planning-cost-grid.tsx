@@ -7,20 +7,46 @@ import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
-import type { OpsInputRow } from '@/components/sheets/ops-planning-grid'
+import { formatNumericInput, formatPercentInput, numericValidator } from '@/components/sheets/validators'
 
 registerAllModules()
 
+export type OpsBatchRow = {
+  id: string
+  purchaseOrderId: string
+  orderCode: string
+  batchCode?: string
+  productId: string
+  productName: string
+  quantity: string
+  sellingPrice: string
+  manufacturingCost: string
+  freightCost: string
+  tariffRate: string
+  tacosPercent: string
+  fbaFee: string
+  referralRate: string
+  storagePerMonth: string
+}
+
 interface OpsPlanningCostGridProps {
-  rows: OpsInputRow[]
+  rows: OpsBatchRow[]
   activeOrderId?: string | null
+  activeBatchId?: string | null
   onSelectOrder?: (orderId: string) => void
-  onRowsChange?: (rows: OpsInputRow[]) => void
+  onSelectBatch?: (batchId: string) => void
+  onRowsChange?: (rows: OpsBatchRow[]) => void
+  onAddBatch?: () => void
+  onDeleteBatch?: () => void
+  disableAdd?: boolean
+  disableDelete?: boolean
+  products: Array<{ id: string; name: string }>
 }
 
 const COST_HEADERS = [
   'PO Code',
   'Product',
+  'Qty',
   'Sell $',
   'Mfg $',
   'Freight $',
@@ -31,20 +57,10 @@ const COST_HEADERS = [
   'Storage $',
 ]
 
-const COST_COLUMNS: Handsontable.ColumnSettings[] = [
-  { data: 'orderCode', readOnly: true, className: 'cell-readonly', width: 140 },
-  { data: 'productName', readOnly: true, className: 'cell-readonly', width: 180 },
-  { data: 'sellingPrice', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'manufacturingCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'freightCost', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'tariffRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'tacosPercent', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'fbaFee', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'referralRate', type: 'numeric', numericFormat: { pattern: '0.00%' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'storagePerMonth', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, className: 'cell-editable text-right', width: 120 },
-]
-
-const NUMERIC_PRECISION: Record<string, number> = {
+const NUMERIC_FIELDS = ['quantity', 'sellingPrice', 'manufacturingCost', 'freightCost', 'fbaFee', 'storagePerMonth'] as const
+type NumericField = (typeof NUMERIC_FIELDS)[number]
+const NUMERIC_PRECISION: Record<NumericField, number> = {
+  quantity: 0,
   sellingPrice: 2,
   manufacturingCost: 2,
   freightCost: 2,
@@ -52,33 +68,148 @@ const NUMERIC_PRECISION: Record<string, number> = {
   storagePerMonth: 2,
 }
 
-const PERCENT_PRECISION: Record<string, number> = {
+const PERCENT_FIELDS = ['tariffRate', 'tacosPercent', 'referralRate'] as const
+type PercentField = (typeof PERCENT_FIELDS)[number]
+const PERCENT_PRECISION: Record<PercentField, number> = {
   tariffRate: 4,
   tacosPercent: 4,
   referralRate: 4,
 }
 
+const NUMERIC_FIELD_SET = new Set<string>(NUMERIC_FIELDS)
+const PERCENT_FIELD_SET = new Set<string>(PERCENT_FIELDS)
+
+function isNumericField(field: keyof OpsBatchRow): field is NumericField {
+  return NUMERIC_FIELD_SET.has(field as string)
+}
+
+function isPercentField(field: keyof OpsBatchRow): field is PercentField {
+  return PERCENT_FIELD_SET.has(field as string)
+}
+
 function normalizeCurrency(value: unknown, fractionDigits = 2) {
-  if (value === '' || value === null || value === undefined) return ''
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return String(value ?? '')
-  return numeric.toFixed(fractionDigits)
+  return formatNumericInput(value, fractionDigits)
 }
 
 function normalizePercent(value: unknown, fractionDigits = 4) {
-  if (value === '' || value === null || value === undefined) return ''
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return String(value ?? '')
-  const base = numeric > 1 ? numeric / 100 : numeric
-  return base.toFixed(fractionDigits)
+  return formatPercentInput(value, fractionDigits)
 }
 
-export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRowsChange }: OpsPlanningCostGridProps) {
+export function OpsPlanningCostGrid({
+  rows,
+  activeOrderId,
+  activeBatchId,
+  onSelectOrder,
+  onSelectBatch,
+  onRowsChange,
+  onAddBatch,
+  onDeleteBatch,
+  disableAdd,
+  disableDelete,
+  products,
+}: OpsPlanningCostGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<string, { id: string; values: Record<string, string> }>>(new Map())
   const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const data = useMemo(() => rows, [rows])
+  const productOptions = useMemo(() => products.map((product) => ({ id: product.id, name: product.name })), [products])
+
+  const columns = useMemo<Handsontable.ColumnSettings[]>(
+    () => [
+      { data: 'orderCode', readOnly: true, className: 'cell-readonly', width: 140 },
+      {
+        data: 'productName',
+        type: 'dropdown',
+        source: productOptions.map((option) => option.name),
+        allowInvalid: productOptions.length === 0,
+        className: 'cell-editable',
+        width: 200,
+      },
+      {
+        data: 'quantity',
+        type: 'numeric',
+        numericFormat: { pattern: '0,0' },
+        className: 'cell-editable text-right',
+        width: 110,
+        validator: numericValidator,
+        allowInvalid: false,
+      },
+      {
+        data: 'sellingPrice',
+        type: 'numeric',
+        numericFormat: { pattern: '$0,0.00' },
+        className: 'cell-editable text-right',
+        width: 120,
+        validator: numericValidator,
+        allowInvalid: false,
+      },
+      {
+        data: 'manufacturingCost',
+        type: 'numeric',
+        numericFormat: { pattern: '$0,0.00' },
+        className: 'cell-editable text-right',
+        width: 120,
+        validator: numericValidator,
+        allowInvalid: false,
+      },
+      {
+        data: 'freightCost',
+        type: 'numeric',
+        numericFormat: { pattern: '$0,0.00' },
+        className: 'cell-editable text-right',
+        width: 120,
+        validator: numericValidator,
+        allowInvalid: false,
+      },
+      {
+        data: 'tariffRate',
+        type: 'numeric',
+        numericFormat: { pattern: '0.00%' },
+        className: 'cell-editable text-right',
+        width: 110,
+        validator: numericValidator,
+        allowInvalid: false,
+      },
+      {
+        data: 'tacosPercent',
+        type: 'numeric',
+        numericFormat: { pattern: '0.00%' },
+        className: 'cell-editable text-right',
+        width: 110,
+        validator: numericValidator,
+        allowInvalid: false,
+      },
+      {
+        data: 'fbaFee',
+        type: 'numeric',
+        numericFormat: { pattern: '$0,0.00' },
+        className: 'cell-editable text-right',
+        width: 110,
+        validator: numericValidator,
+        allowInvalid: false,
+      },
+      {
+        data: 'referralRate',
+        type: 'numeric',
+        numericFormat: { pattern: '0.00%' },
+        className: 'cell-editable text-right',
+        width: 110,
+        validator: numericValidator,
+        allowInvalid: false,
+      },
+      {
+        data: 'storagePerMonth',
+        type: 'numeric',
+        numericFormat: { pattern: '$0,0.00' },
+        className: 'cell-editable text-right',
+        width: 120,
+        validator: numericValidator,
+        allowInvalid: false,
+      },
+    ],
+    [productOptions]
+  )
 
   useEffect(() => {
     if (hotRef.current) {
@@ -93,27 +224,47 @@ export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRows
       if (payload.length === 0) return
       pendingRef.current.clear()
       try {
-        const response = await fetch('/api/v1/x-plan/purchase-orders', {
+        const response = await fetch('/api/v1/x-plan/purchase-orders/batches', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ updates: payload }),
         })
-        if (!response.ok) throw new Error('Failed to update purchase orders')
-        toast.success('Cost overrides saved')
+        if (!response.ok) throw new Error('Failed to update batch cost overrides')
+        toast.success('Batch cost saved')
       } catch (error) {
         console.error(error)
-        toast.error('Unable to save cost overrides')
+        toast.error('Unable to save batch costs')
       }
     }, 500)
   }
 
   return (
     <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <header className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Batch Cost Overrides
-          </h2>
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          Batch Cost
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          {onAddBatch ? (
+            <button
+              type="button"
+              onClick={onAddBatch}
+              disabled={Boolean(disableAdd)}
+              className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600 transition enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:enabled:hover:bg-slate-800"
+            >
+              Add batch
+            </button>
+          ) : null}
+          {onDeleteBatch ? (
+            <button
+              type="button"
+              onClick={onDeleteBatch}
+              disabled={Boolean(disableDelete) || !activeBatchId}
+              className="rounded-md border border-rose-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-600 transition enabled:hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/60 dark:text-rose-300 dark:enabled:hover:bg-rose-500/10"
+            >
+              Remove batch
+            </button>
+          ) : null}
         </div>
       </header>
       <HotTable
@@ -122,7 +273,7 @@ export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRows
         }}
         data={data}
         licenseKey="non-commercial-and-evaluation"
-        columns={COST_COLUMNS}
+        columns={columns}
         colHeaders={COST_HEADERS}
         stretchH="all"
         className="x-plan-hot"
@@ -133,15 +284,19 @@ export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRows
         cells={(row) => {
           const meta = {} as Handsontable.CellMeta
           const record = data[row]
-          if (record && activeOrderId && record.id === activeOrderId) {
+          if (record && activeOrderId && record.purchaseOrderId === activeOrderId) {
+            meta.className = meta.className ? `${meta.className} row-active` : 'row-active'
+          }
+          if (record && activeBatchId && record.id === activeBatchId) {
             meta.className = meta.className ? `${meta.className} row-active` : 'row-active'
           }
           return meta
         }}
         afterSelectionEnd={(row) => {
-          if (!onSelectOrder) return
           const record = data[row]
-          if (record) onSelectOrder(record.id)
+          if (!record) return
+          onSelectOrder?.(record.purchaseOrderId)
+          onSelectBatch?.(record.id)
         }}
         afterChange={(changes, rawSource) => {
           if (!changes || rawSource === 'loadData') return
@@ -149,8 +304,8 @@ export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRows
           if (!hot) return
 
           for (const change of changes) {
-            const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof OpsInputRow, any, any]
-            const record = hot.getSourceDataAtRow(rowIndex) as OpsInputRow | null
+            const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof OpsBatchRow, any, any]
+            const record = hot.getSourceDataAtRow(rowIndex) as OpsBatchRow | null
             if (!record) continue
 
             if (!pendingRef.current.has(record.id)) {
@@ -159,21 +314,34 @@ export function OpsPlanningCostGrid({ rows, activeOrderId, onSelectOrder, onRows
             const entry = pendingRef.current.get(record.id)
             if (!entry) continue
 
-            if (prop in NUMERIC_PRECISION) {
-              const precision = NUMERIC_PRECISION[prop as keyof typeof NUMERIC_PRECISION]
+            if (prop === 'productName') {
+              const selected = productOptions.find((option) => option.name === newValue)
+              if (!selected) {
+                toast.error('Select a valid product')
+                continue
+              }
+              entry.values.productId = selected.id
+              record.productId = selected.id
+              record.productName = selected.name
+            } else if (prop === 'quantity') {
+              const normalized = normalizeCurrency(newValue, NUMERIC_PRECISION.quantity)
+              entry.values.quantity = normalized
+              record.quantity = normalized
+            } else if (isNumericField(prop)) {
+              const precision = NUMERIC_PRECISION[prop]
               const normalized = normalizeCurrency(newValue, precision)
               entry.values[prop] = normalized
-              record[prop] = normalized as OpsInputRow[typeof prop]
-            } else if (prop in PERCENT_PRECISION) {
-              const precision = PERCENT_PRECISION[prop as keyof typeof PERCENT_PRECISION]
+              record[prop] = normalized
+            } else if (isPercentField(prop)) {
+              const precision = PERCENT_PRECISION[prop]
               const normalized = normalizePercent(newValue, precision)
               entry.values[prop] = normalized
-              record[prop] = normalized as OpsInputRow[typeof prop]
+              record[prop] = normalized
             }
           }
 
           if (onRowsChange && hotRef.current) {
-            const updated = (hotRef.current.getSourceData() as OpsInputRow[]).map((row) => ({ ...row }))
+            const updated = (hotRef.current.getSourceData() as OpsBatchRow[]).map((row) => ({ ...row }))
             onRowsChange(updated)
           }
 

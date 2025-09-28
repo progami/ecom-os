@@ -7,6 +7,7 @@ import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
+import { dateValidator, formatNumericInput, numericValidator } from '@/components/sheets/validators'
 
 registerAllModules()
 
@@ -14,13 +15,16 @@ export type OpsInputRow = {
   id: string
   productId: string
   orderCode: string
+  poDate: string
+  shipName: string
+  containerNumber: string
   productName: string
   quantity: string
   pay1Date: string
   productionWeeks: string
-  sourcePrepWeeks: string
+  sourceWeeks: string
   oceanWeeks: string
-  finalMileWeeks: string
+  finalWeeks: string
   sellingPrice: string
   manufacturingCost: string
   freightCost: string
@@ -38,38 +42,83 @@ interface OpsPlanningGridProps {
   activeOrderId?: string | null
   onSelectOrder?: (orderId: string) => void
   onRowsChange?: (rows: OpsInputRow[]) => void
+  onCreateOrder?: () => void
+  onDeleteOrder?: (orderId: string) => void
+  disableCreate?: boolean
+  disableDelete?: boolean
 }
 
 const COLUMN_HEADERS = [
   'PO Code',
-  'Product',
-  'Units',
-  'Req. Date',
+  'PO Date',
+  'Ship',
+  'Container #',
   'Prod. (wk)',
   'Source (wk)',
   'Ocean (wk)',
   'Final (wk)',
-  'Status',
   'Notes',
 ]
 
 const COLUMN_SETTINGS: Handsontable.ColumnSettings[] = [
   { data: 'orderCode', className: 'cell-editable', width: 150 },
-  { data: 'productName', readOnly: true, className: 'cell-readonly', width: 200 },
-  { data: 'quantity', type: 'numeric', numericFormat: { pattern: '0,0' }, className: 'cell-editable text-right', width: 110 },
-  { data: 'pay1Date', type: 'date', dateFormat: 'MMM D YYYY', correctFormat: true, className: 'cell-editable', width: 150 },
-  { data: 'productionWeeks', type: 'numeric', numericFormat: { pattern: '0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'sourcePrepWeeks', type: 'numeric', numericFormat: { pattern: '0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'oceanWeeks', type: 'numeric', numericFormat: { pattern: '0.00' }, className: 'cell-editable text-right', width: 120 },
-  { data: 'finalMileWeeks', type: 'numeric', numericFormat: { pattern: '0.00' }, className: 'cell-editable text-right', width: 120 },
   {
-    data: 'status',
-    type: 'dropdown',
-    source: ['PLANNED', 'PRODUCTION', 'IN_TRANSIT', 'ARRIVED', 'CLOSED', 'CANCELLED'],
-    strict: true,
+    data: 'poDate',
+    type: 'date',
+    dateFormat: 'MMM D YYYY',
+    correctFormat: true,
+    className: 'cell-editable',
+    width: 150,
+    validator: dateValidator,
     allowInvalid: false,
-    className: 'cell-editable uppercase',
-    width: 130,
+  },
+  {
+    data: 'shipName',
+    type: 'text',
+    className: 'cell-editable',
+    width: 160,
+  },
+  {
+    data: 'containerNumber',
+    type: 'text',
+    className: 'cell-editable',
+    width: 160,
+  },
+  {
+    data: 'productionWeeks',
+    type: 'numeric',
+    numericFormat: { pattern: '0.00' },
+    className: 'cell-editable text-right',
+    width: 120,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
+  {
+    data: 'sourceWeeks',
+    type: 'numeric',
+    numericFormat: { pattern: '0.00' },
+    className: 'cell-editable text-right',
+    width: 120,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
+  {
+    data: 'oceanWeeks',
+    type: 'numeric',
+    numericFormat: { pattern: '0.00' },
+    className: 'cell-editable text-right',
+    width: 120,
+    validator: numericValidator,
+    allowInvalid: false,
+  },
+  {
+    data: 'finalWeeks',
+    type: 'numeric',
+    numericFormat: { pattern: '0.00' },
+    className: 'cell-editable text-right',
+    width: 120,
+    validator: numericValidator,
+    allowInvalid: false,
   },
   { data: 'notes', className: 'cell-editable', width: 200 },
 ]
@@ -77,9 +126,9 @@ const COLUMN_SETTINGS: Handsontable.ColumnSettings[] = [
 const NUMERIC_PRECISION: Partial<Record<keyof OpsInputRow, number>> = {
   quantity: 0,
   productionWeeks: 2,
-  sourcePrepWeeks: 2,
+  sourceWeeks: 2,
   oceanWeeks: 2,
-  finalMileWeeks: 2,
+  finalWeeks: 2,
   sellingPrice: 2,
   manufacturingCost: 2,
   freightCost: 2,
@@ -93,9 +142,9 @@ const NUMERIC_PRECISION: Partial<Record<keyof OpsInputRow, number>> = {
 const NUMERIC_FIELDS = new Set<keyof OpsInputRow>([
   'quantity',
   'productionWeeks',
-  'sourcePrepWeeks',
+  'sourceWeeks',
   'oceanWeeks',
-  'finalMileWeeks',
+  'finalWeeks',
   'sellingPrice',
   'manufacturingCost',
   'freightCost',
@@ -105,16 +154,22 @@ const NUMERIC_FIELDS = new Set<keyof OpsInputRow>([
   'referralRate',
   'storagePerMonth',
 ])
-const DATE_FIELDS = new Set<keyof OpsInputRow>(['pay1Date'])
+const DATE_FIELDS = new Set<keyof OpsInputRow>(['poDate', 'pay1Date'])
 
 function normalizeNumeric(value: unknown, fractionDigits = 2) {
-  if (value === '' || value === null || value === undefined) return ''
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return String(value ?? '')
-  return numeric.toFixed(fractionDigits)
+  return formatNumericInput(value, fractionDigits)
 }
 
-export function OpsPlanningGrid({ rows, activeOrderId, onSelectOrder, onRowsChange }: OpsPlanningGridProps) {
+export function OpsPlanningGrid({
+  rows,
+  activeOrderId,
+  onSelectOrder,
+  onRowsChange,
+  onCreateOrder,
+  onDeleteOrder,
+  disableCreate,
+  disableDelete,
+}: OpsPlanningGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<string, { id: string; values: Record<string, string> }>>(new Map())
   const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -148,15 +203,46 @@ export function OpsPlanningGrid({ rows, activeOrderId, onSelectOrder, onRowsChan
     }, 500)
   }
 
+  const handleDeleteClick = () => {
+    if (!onDeleteOrder || !activeOrderId || disableDelete) return
+    onDeleteOrder(activeOrderId)
+  }
+
   return (
     <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="space-y-1">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Lead &amp; schedule inputs
-        </h2>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Update production timing and statuses — the highlighted row stays in sync with the detail view.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            Lead &amp; schedule inputs
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Update production timing and statuses — the highlighted row stays in sync with the detail view.
+          </p>
+        </div>
+        {(onCreateOrder || onDeleteOrder) && (
+          <div className="flex flex-wrap gap-2">
+            {onCreateOrder ? (
+              <button
+                type="button"
+                onClick={onCreateOrder}
+                disabled={Boolean(disableCreate)}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600 transition enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:enabled:hover:bg-slate-800"
+              >
+                Add purchase order
+              </button>
+            ) : null}
+            {onDeleteOrder ? (
+              <button
+                type="button"
+                onClick={handleDeleteClick}
+                disabled={Boolean(disableDelete) || !activeOrderId}
+                className="rounded-md border border-rose-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-600 transition enabled:hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/60 dark:text-rose-300 dark:enabled:hover:bg-rose-500/10"
+              >
+                Remove selected
+              </button>
+            ) : null}
+          </div>
+        )}
       </div>
       <HotTable
         ref={(instance) => {

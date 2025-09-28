@@ -5,8 +5,10 @@ import { usePathname } from 'next/navigation'
 import { clsx } from 'clsx'
 import type { SheetConfig, SheetSlug } from '@/lib/sheets'
 
+type SheetTab = SheetConfig & { href?: string }
+
 interface SheetTabsProps {
-  sheets: SheetConfig[]
+  sheets: SheetTab[]
   activeSlug: SheetSlug
   suffix?: React.ReactNode
   variant?: 'scroll' | 'stack'
@@ -30,10 +32,10 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
   }
 
   return (
-    <div className={clsx('flex w-full', isStack ? 'flex-col gap-3' : 'items-center justify-between gap-3 py-2')}> 
+    <div className={clsx('flex w-full', isStack ? 'flex-col gap-3' : 'items-center justify-between gap-3 py-2')}>
       <nav className={navClassName}>
         {sheets.map((sheet) => {
-          const href = `/sheet/${sheet.slug}`
+          const href = sheet.href ?? `/sheet/${sheet.slug}`
           const isActive = activeSlug === sheet.slug || pathname === href
           return (
             <Link

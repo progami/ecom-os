@@ -1,8 +1,6 @@
 'use client'
 
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
-import { differenceInCalendarDays, format } from 'date-fns'
-import { clsx } from 'clsx'
 
 import type { CashFlowSummaryRow, FinancialSummaryRow } from '@/lib/calculations'
 
@@ -12,27 +10,15 @@ interface DashboardInventoryRow {
   stockWeeks: number
 }
 
-type TimelineStageKey = 'production' | 'sourcePrep' | 'oceanTransit' | 'finalMile'
-
-interface DashboardTimelineSegment {
-  key: TimelineStageKey
-  label: string
-  start: string | null
-  end: string | null
-}
-
-interface DashboardTimelineOrder {
-  id: string
-  orderCode: string
-  productName: string
-  quantity: number
-  status: string
-  availableDate: string | null
-  segments: DashboardTimelineSegment[]
+type StockSummary = {
+  totalUnits: number
+  skuCount: number
+  lowStock: number
+  outOfStock: number
+  averageWeeks: number
 }
 
 interface DashboardData {
-  orders: DashboardTimelineOrder[]
   inventory: DashboardInventoryRow[]
   rollups: {
     profitAndLoss: {
@@ -44,29 +30,6 @@ interface DashboardData {
       quarterly: CashFlowSummaryRow[]
     }
   }
-}
-
-const stagePalette: Record<TimelineStageKey, { label: string; barClass: string; dotClass: string }> = {
-  production: {
-    label: 'Production',
-    barClass: 'bg-sky-500 hover:bg-sky-400 focus-visible:outline-sky-500',
-    dotClass: 'bg-sky-500',
-  },
-  sourcePrep: {
-    label: 'Source Prep',
-    barClass: 'bg-amber-500 hover:bg-amber-400 focus-visible:outline-amber-500',
-    dotClass: 'bg-amber-500',
-  },
-  oceanTransit: {
-    label: 'Ocean Transit',
-    barClass: 'bg-indigo-500 hover:bg-indigo-400 focus-visible:outline-indigo-500',
-    dotClass: 'bg-indigo-500',
-  },
-  finalMile: {
-    label: 'Final Mile',
-    barClass: 'bg-emerald-500 hover:bg-emerald-400 focus-visible:outline-emerald-500',
-    dotClass: 'bg-emerald-500',
-  },
 }
 
 type TrendGranularity = 'monthly' | 'quarterly'
@@ -108,6 +71,37 @@ export function DashboardSheet({ data }: { data: DashboardData }) {
   const inventoryRows = [...data.inventory]
     .sort((a, b) => b.stockEnd - a.stockEnd)
     .slice(0, 6)
+
+  const stockSummary = useMemo<StockSummary>(() => {
+    if (data.inventory.length === 0) {
+      return { totalUnits: 0, skuCount: 0, lowStock: 0, outOfStock: 0, averageWeeks: 0 }
+    }
+
+    let totalUnits = 0
+    let lowStock = 0
+    let outOfStock = 0
+    let weeksSum = 0
+    let weeksCount = 0
+
+    for (const row of data.inventory) {
+      totalUnits += row.stockEnd
+      if (row.stockEnd <= 0) outOfStock += 1
+      if (row.stockWeeks > 0 && row.stockWeeks <= 4) lowStock += 1
+      if (Number.isFinite(row.stockWeeks) && row.stockWeeks >= 0 && row.stockWeeks !== Number.POSITIVE_INFINITY) {
+        weeksSum += row.stockWeeks
+        weeksCount += 1
+      }
+    }
+
+    const averageWeeks = weeksCount > 0 ? weeksSum / weeksCount : 0
+    return {
+      totalUnits,
+      skuCount: data.inventory.length,
+      lowStock,
+      outOfStock,
+      averageWeeks,
+    }
+  }, [data.inventory])
 
   const pnlMonthly = limitRows(data.rollups.profitAndLoss.monthly, 12)
   const pnlQuarterly = limitRows(data.rollups.profitAndLoss.quarterly, 8)
@@ -218,18 +212,7 @@ export function DashboardSheet({ data }: { data: DashboardData }) {
 
   return (
     <div className="space-y-10">
-      <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-        <header className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Dashboard</p>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-50">Workbook overview</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Monitor operations and keep planning tabs focused on data entry. Use the purchase order timeline to understand where
-            work is concentrated, then review inventory health and headline trends below.
-          </p>
-        </header>
-      </section>
-
-      <PurchaseTimeline orders={data.orders} />
+      <StockSummaryCard summary={stockSummary} />
 
       <InventoryCard rows={inventoryRows} />
 
@@ -270,262 +253,34 @@ export function DashboardSheet({ data }: { data: DashboardData }) {
   )
 }
 
-function PurchaseTimeline({ orders }: { orders: DashboardTimelineOrder[] }) {
-  type ActiveSegmentState = {
-    orderId: string
-    orderCode: string
-    productName: string
-    segmentKey: TimelineStageKey
-    segmentLabel: string
-    start: Date
-    end: Date
-    durationDays: number
-  }
-
-  type TimelineComputedSegment = DashboardTimelineSegment & { startDate: Date; endDate: Date }
-  type TimelineComputedOrder = {
-    id: string
-    orderCode: string
-    productName: string
-    quantity: number
-    status: string
-    availableDate: Date | null
-    segments: TimelineComputedSegment[]
-    orderStart: Date | null
-    orderEnd: Date | null
-  }
-
-  const timelineOrders = useMemo<TimelineComputedOrder[]>(() => {
-    return orders
-      .map((order) => {
-        const segments = order.segments
-          .map((segment) => {
-            if (!segment.start || !segment.end) return null
-            const startDate = new Date(segment.start)
-            const endDate = new Date(segment.end)
-            if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()) || startDate.getTime() > endDate.getTime()) {
-              return null
-            }
-            return { ...segment, startDate, endDate }
-          })
-          .filter((segment): segment is TimelineComputedSegment => Boolean(segment))
-          .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
-
-        const orderStart = segments[0]?.startDate ?? null
-        const orderEnd = segments[segments.length - 1]?.endDate ?? null
-        const availableDate = order.availableDate ? new Date(order.availableDate) : null
-
-        return {
-          id: order.id,
-          orderCode: order.orderCode,
-          productName: order.productName,
-          quantity: order.quantity,
-          status: order.status,
-          availableDate: availableDate && !Number.isNaN(availableDate.getTime()) ? availableDate : null,
-          segments,
-          orderStart,
-          orderEnd,
-        }
-      })
-      .sort((a, b) => {
-        const aTime = a.orderStart?.getTime() ?? Number.POSITIVE_INFINITY
-        const bTime = b.orderStart?.getTime() ?? Number.POSITIVE_INFINITY
-        if (aTime === bTime) return a.orderCode.localeCompare(b.orderCode)
-        return aTime - bTime
-      })
-  }, [orders])
-
-  const timelineBounds = useMemo(() => {
-    const starts = timelineOrders.map((order) => order.orderStart?.getTime()).filter((value): value is number => typeof value === 'number')
-    const ends = timelineOrders.map((order) => order.orderEnd?.getTime()).filter((value): value is number => typeof value === 'number')
-    if (starts.length === 0 || ends.length === 0) return null
-    return {
-      start: new Date(Math.min(...starts)),
-      end: new Date(Math.max(...ends)),
-    }
-  }, [timelineOrders])
-
-  const rangeMs = timelineBounds ? Math.max(1, timelineBounds.end.getTime() - timelineBounds.start.getTime()) : 1
-  const [activeSegment, setActiveSegment] = useState<ActiveSegmentState | null>(null)
-
-  const showSegmentDetails = (order: TimelineComputedOrder, segment: TimelineComputedSegment) => {
-    const durationDays = Math.max(1, differenceInCalendarDays(segment.endDate, segment.startDate) + 1)
-    setActiveSegment({
-      orderId: order.id,
-      orderCode: order.orderCode,
-      productName: order.productName,
-      segmentKey: segment.key,
-      segmentLabel: segment.label,
-      start: segment.startDate,
-      end: segment.endDate,
-      durationDays,
-    })
-  }
-
-  const clearSegmentDetails = () => {
-    setActiveSegment(null)
-  }
-
-  const computePosition = (start: Date, end: Date) => {
-    if (!timelineBounds) {
-      return { left: 0, width: 100 }
-    }
-    const clampedStart = Math.max(start.getTime(), timelineBounds.start.getTime())
-    const clampedEnd = Math.max(clampedStart, Math.min(end.getTime(), timelineBounds.end.getTime()))
-    const left = ((clampedStart - timelineBounds.start.getTime()) / rangeMs) * 100
-    let width = ((clampedEnd - clampedStart) / rangeMs) * 100
-    const minWidth = 3
-    if (width < minWidth) {
-      width = minWidth
-    }
-    const adjustedLeft = Math.min(left, 100 - width)
-    return { left: adjustedLeft, width }
-  }
-
-  const renderFallback = () => (
-    <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Purchase orders</p>
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">Timeline</h2>
-        <p>
-          No purchase order stage dates are available yet. Once production or transit milestones are entered, the timeline will
-          visualize each order’s progress.
-        </p>
-      </header>
-      {orders.length > 0 ? (
-        <ul className="space-y-3">
-          {orders.map((order) => (
-            <li
-              key={order.id}
-              className="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-xs font-medium text-slate-600 dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300"
-            >
-              <span>{order.productName} · {order.orderCode}</span>
-              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] uppercase tracking-wide text-slate-600 dark:bg-slate-800/60 dark:text-slate-400">
-                {formatStatus(order.status)}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-    </section>
-  )
-
-  if (!timelineBounds || timelineOrders.length === 0) {
-    return renderFallback()
-  }
-
+function StockSummaryCard({ summary }: { summary: StockSummary }) {
   return (
-    <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
       <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Purchase orders</p>
-        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">Production & logistics timeline</h2>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Hover or focus a stage to see precise dates. The legend shows the colour assigned to each milestone across production,
-          prep, ocean transit, and final-mile delivery.
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Inventory overview</p>
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">Stock position</h2>
+        <p className="text-sm text-slate-500 dark:text-slate-400">Assess units on hand and coverage before diving into SKU-level detail.</p>
       </header>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-        <div className="flex flex-wrap gap-3">
-          {Object.entries(stagePalette).map(([key, palette]) => (
-            <span key={key} className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 font-medium dark:bg-slate-800/60">
-              <span className={clsx('h-2.5 w-2.5 rounded-full', palette.dotClass)} />
-              {palette.label}
-            </span>
-          ))}
+      <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Units on hand</dt>
+          <dd className="mt-2 text-2xl font-semibold">{unitFormatter.format(summary.totalUnits)}</dd>
         </div>
-        <div className="flex items-center gap-2">
-          <span>{format(timelineBounds.start, 'MMM d, yyyy')}</span>
-          <span aria-hidden="true">→</span>
-          <span>{format(timelineBounds.end, 'MMM d, yyyy')}</span>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Active SKUs</dt>
+          <dd className="mt-2 text-2xl font-semibold">{summary.skuCount}</dd>
         </div>
-      </div>
-
-      <ul className="space-y-4">
-        {timelineOrders.map((order) => (
-          <li
-            key={order.id}
-            className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/40"
-          >
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
-              <div className="lg:min-w-[14rem] lg:max-w-[16rem]">
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{order.productName}</p>
-                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-                  {order.orderCode} · {order.quantity.toLocaleString('en-US')} units
-                </p>
-                <span className="mt-3 inline-flex items-center rounded-full bg-slate-200 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
-                  {formatStatus(order.status)}
-                </span>
-              </div>
-              <div className="flex-1">
-                <div className="relative h-12">
-                  <div className="absolute left-0 right-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-slate-200 dark:bg-slate-800" />
-                  {order.segments.map((segment) => {
-                    const palette = stagePalette[segment.key] ?? stagePalette.production
-                    const { left, width } = computePosition(segment.startDate, segment.endDate)
-                    const ariaLabel = `${segment.label} for ${order.orderCode} from ${format(segment.startDate, 'MMM d, yyyy')} to ${format(segment.endDate, 'MMM d, yyyy')}`
-                    return (
-                      <button
-                        key={`${order.id}-${segment.key}-${segment.start}`}
-                        type="button"
-                        className={clsx(
-                          'absolute top-1/2 flex h-7 -translate-y-1/2 items-center justify-center overflow-hidden rounded-full px-3 text-[11px] font-semibold uppercase tracking-wide text-white shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
-                          palette.barClass
-                        )}
-                        style={{ left: `${left}%`, width: `${width}%` }}
-                        aria-label={ariaLabel}
-                        title={ariaLabel}
-                        onMouseEnter={() => showSegmentDetails(order, segment)}
-                        onFocus={() => showSegmentDetails(order, segment)}
-                        onMouseLeave={clearSegmentDetails}
-                        onBlur={clearSegmentDetails}
-                      >
-                        <span className="pointer-events-none truncate">{segment.label}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-                <div className="mt-2 flex items-center justify-between text-[11px] uppercase tracking-wide text-slate-400 dark:text-slate-500">
-                  <span>{order.orderStart ? format(order.orderStart, 'MMM d, yyyy') : '—'}</span>
-                  <span>{order.orderEnd ? format(order.orderEnd, 'MMM d, yyyy') : '—'}</span>
-                </div>
-              </div>
-              <div className="text-right text-xs text-slate-500 dark:text-slate-400 lg:w-36">
-                {order.availableDate ? (
-                  <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
-                    ETA {format(order.availableDate, 'MMM d')}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center rounded-full bg-slate-200 px-3 py-1 font-semibold text-slate-600 dark:bg-slate-800/60 dark:text-slate-300">
-                    ETA pending
-                  </span>
-                )}
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
-
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600 shadow-inner dark:border-slate-800 dark:bg-slate-900/40 dark:text-slate-300">
-        {activeSegment ? (
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{activeSegment.segmentLabel}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {activeSegment.orderCode} · {activeSegment.productName}
-              </p>
-            </div>
-            <div className="text-sm font-medium text-slate-900 dark:text-slate-100">
-              {format(activeSegment.start, 'MMM d, yyyy')} – {format(activeSegment.end, 'MMM d, yyyy')}
-              <span className="ml-2 text-xs text-slate-500 dark:text-slate-400">
-                {activeSegment.durationDays} day{activeSegment.durationDays === 1 ? '' : 's'}
-              </span>
-            </div>
-          </div>
-        ) : (
-          <span>Hover or focus a stage to see exact dates and duration.</span>
-        )}
-      </div>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Low stock (&le;4w)</dt>
+          <dd className="mt-2 text-2xl font-semibold">{summary.lowStock}</dd>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-slate-700 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+          <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Avg. cover (wks)</dt>
+          <dd className="mt-2 text-2xl font-semibold">{formatWeeks(summary.averageWeeks)}</dd>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{summary.outOfStock} SKU{summary.outOfStock === 1 ? '' : 's'} out of stock</p>
+        </div>
+      </dl>
     </section>
   )
 }
@@ -593,9 +348,7 @@ function formatWeeks(value: number) {
   return weeksFormatter.format(value)
 }
 
-function formatStatus(status: string) {
-  return status.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
-}
+
 
 function limitRows<T>(rows: T[], limit: number) {
   if (rows.length <= limit) return rows

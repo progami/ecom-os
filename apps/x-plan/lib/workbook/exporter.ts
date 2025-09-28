@@ -85,13 +85,15 @@ async function addOpsPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaClient
   })) as Array<PurchaseOrder & { product: Product }>
 
   const headers = [
-    'Shipping Mark',
+    'PO Code',
+    'Ship',
+    'Container #',
     'Product',
     'Quantity',
     'Production',
-    'Source Prep',
+    'Source',
     'Ocean',
-    'Final Mile',
+    'Final',
     'Pay 1 Date',
     'Pay 1 %',
     'Pay 1 Amount',
@@ -116,12 +118,14 @@ async function addOpsPlanningSheet(workbook: XLSX.WorkBook, prisma: PrismaClient
 
   const data = [headers, ...orders.map((order) => [
     order.orderCode,
+    order.shipName ?? '',
+    order.containerNumber ?? '',
     order.product.name,
     order.quantity,
     Number(order.productionWeeks ?? 0),
-    Number(order.sourcePrepWeeks ?? 0),
+    Number(order.sourceWeeks ?? 0),
     Number(order.oceanWeeks ?? 0),
-    Number(order.finalMileWeeks ?? 0),
+    Number(order.finalWeeks ?? 0),
     toExcelDate(order.pay1Date),
     Number(order.pay1Percent ?? 0),
     Number(order.pay1Amount ?? 0),

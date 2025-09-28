@@ -27,9 +27,9 @@ export interface LeadStageOverrideInput {
 
 export interface LeadTimeProfile {
   productionWeeks: number
-  sourcePrepWeeks: number
+  sourceWeeks: number
   oceanWeeks: number
-  finalMileWeeks: number
+  finalWeeks: number
 }
 
 export interface BusinessParameterInput {
@@ -68,11 +68,12 @@ export interface PurchaseOrderInput {
   id: string
   orderCode: string
   productId: string
+  poDate?: Date | null
   quantity: number
   productionWeeks?: number | null
-  sourcePrepWeeks?: number | null
+  sourceWeeks?: number | null
   oceanWeeks?: number | null
-  finalMileWeeks?: number | null
+  finalWeeks?: number | null
   pay1Percent?: number | null
   pay2Percent?: number | null
   pay3Percent?: number | null
@@ -86,6 +87,9 @@ export interface PurchaseOrderInput {
   productionComplete?: Date | null
   sourceDeparture?: Date | null
   transportReference?: string | null
+  createdAt?: Date | null
+  shipName?: string | null
+  containerNumber?: string | null
   portEta?: Date | null
   inboundEta?: Date | null
   availableDate?: Date | null
@@ -94,6 +98,23 @@ export interface PurchaseOrderInput {
   statusIcon?: string | null
   notes?: string | null
   payments?: PurchaseOrderPaymentInput[]
+  overrideSellingPrice?: number | null
+  overrideManufacturingCost?: number | null
+  overrideFreightCost?: number | null
+  overrideTariffRate?: number | null
+  overrideTacosPercent?: number | null
+  overrideFbaFee?: number | null
+  overrideReferralRate?: number | null
+  overrideStoragePerMonth?: number | null
+  batches?: PurchaseOrderBatchInput[]
+}
+
+export interface PurchaseOrderBatchInput {
+  id: string
+  purchaseOrderId: string
+  batchCode?: string | null
+  productId: string
+  quantity: number
   overrideSellingPrice?: number | null
   overrideManufacturingCost?: number | null
   overrideFreightCost?: number | null

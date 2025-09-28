@@ -8,7 +8,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 describe('SheetTabs', () => {
-  it('marks the active sheet and renders correct hrefs', () => {
+  it('marks the active sheet and renders default hrefs', () => {
     render(<SheetTabs sheets={SHEETS} activeSlug="1-product-setup" />)
     const active = screen.getByRole('link', { name: '1. Product Setup' })
     expect(active).toHaveAttribute('href', '/sheet/1-product-setup')
@@ -17,4 +17,12 @@ describe('SheetTabs', () => {
     const inactive = screen.getByRole('link', { name: '2. Ops Planning' })
     expect(inactive).toHaveAttribute('href', '/sheet/2-ops-planning')
   })
+
+  it('respects precomputed href overrides', () => {
+    const customSheets = SHEETS.map((sheet) => ({ ...sheet, href: `/custom/${sheet.slug}` }))
+    render(<SheetTabs sheets={customSheets} activeSlug="1-product-setup" />)
+    const inactive = screen.getByRole('link', { name: '2. Ops Planning' })
+    expect(inactive).toHaveAttribute('href', '/custom/2-ops-planning')
+  })
+
 })

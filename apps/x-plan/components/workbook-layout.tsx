@@ -2,41 +2,81 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import { SheetTabs } from '@/components/sheet-tabs'
+import type { YearSegment } from '@/lib/calculations/calendar'
 import type { WorkbookSheetStatus } from '@/lib/workbook'
-import { useRouter } from 'next/navigation'
+import { clsx } from 'clsx'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 type SheetSlug = WorkbookSheetStatus['slug']
 
 interface WorkbookLayoutProps {
   sheets: WorkbookSheetStatus[]
   activeSlug: SheetSlug
+  planningYears?: YearSegment[]
+  activeYear?: number | null
   meta?: {
     rows?: number
     updated?: string
   }
   ribbon?: React.ReactNode
   contextPane?: React.ReactNode
+  headerControls?: React.ReactNode
   children: React.ReactNode
 }
 
 const MIN_CONTEXT_WIDTH = 320
 const MAX_CONTEXT_WIDTH = 560
+const YEAR_AWARE_SHEETS: ReadonlySet<SheetSlug> = new Set([
+  '3-sales-planning',
+  '4-fin-planning-pl',
+  '5-fin-planning-cash-flow',
+])
 
-export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, children }: WorkbookLayoutProps) {
+export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, meta, ribbon, contextPane, headerControls, children }: WorkbookLayoutProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [contextWidth, setContextWidth] = useState(360)
   const [isResizing, setIsResizing] = useState(false)
   const hasContextPane = Boolean(contextPane)
   const [isPending, startTransition] = useTransition()
 
+  const sortedYears = useMemo(() => {
+    if (!planningYears) return [] as YearSegment[]
+    return [...planningYears].sort((a, b) => a.year - b.year)
+  }, [planningYears])
+
+  const resolvedYear = useMemo(() => {
+    if (!sortedYears.length) return null
+    if (activeYear != null && sortedYears.some((segment) => segment.year === activeYear)) {
+      return activeYear
+    }
+    return sortedYears[0]?.year ?? null
+  }, [activeYear, sortedYears])
+
+  const buildSheetHref = useCallback(
+    (slug: SheetSlug) => {
+      const base = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams()
+      if (resolvedYear != null) {
+        base.set('year', String(resolvedYear))
+      } else {
+        base.delete('year')
+      }
+      const query = base.toString()
+      return `/sheet/${slug}${query ? `?${query}` : ''}`
+    },
+    [resolvedYear, searchParams]
+  )
+
   const goToSheet = useCallback(
     (slug: SheetSlug) => {
       if (!slug || slug === activeSlug) return
       startTransition(() => {
-        router.push(`/sheet/${slug}`)
+        router.push(buildSheetHref(slug))
       })
     },
-    [activeSlug, router]
+    [activeSlug, buildSheetHref, router]
   )
 
   const handleMouseMove = useCallback((event: MouseEvent) => {
@@ -46,6 +86,103 @@ export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, 
   }, [isResizing])
 
   const stopResizing = useCallback(() => setIsResizing(false), [])
+
+  const handleYearSelect = useCallback(
+    (year: number) => {
+      if (resolvedYear === year) return
+      startTransition(() => {
+        const params = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams()
+        params.set('year', String(year))
+        const query = params.toString()
+        router.push(`${pathname}${query ? `?${query}` : ''}`)
+      })
+    },
+    [pathname, resolvedYear, router, searchParams, startTransition],
+  )
+
+  const activeYearIndex = useMemo(() => {
+    if (resolvedYear == null) return -1
+    return sortedYears.findIndex((segment) => segment.year === resolvedYear)
+  }, [resolvedYear, sortedYears])
+
+  const goToAdjacentYear = useCallback(
+    (offset: -1 | 1) => {
+      if (!sortedYears.length) return
+      const fallbackIndex = resolvedYear == null ? 0 : activeYearIndex
+      const currentIndex = fallbackIndex >= 0 ? fallbackIndex : 0
+      const target = sortedYears[currentIndex + offset]
+      if (!target) return
+      handleYearSelect(target.year)
+    },
+    [activeYearIndex, handleYearSelect, resolvedYear, sortedYears],
+  )
+
+  const isYearAwareSheet = YEAR_AWARE_SHEETS.has(activeSlug)
+
+  const yearSwitcher = useMemo(() => {
+    if (!sortedYears.length || !isYearAwareSheet) return null
+    const previous = activeYearIndex > 0 ? sortedYears[activeYearIndex - 1] : null
+    const next = activeYearIndex >= 0 && activeYearIndex < sortedYears.length - 1 ? sortedYears[activeYearIndex + 1] : null
+
+    return (
+      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+        <span className="text-[10px] uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">Year</span>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => goToAdjacentYear(-1)}
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:bg-slate-800 dark:focus-visible:ring-slate-600"
+            aria-label="Previous year"
+            disabled={!previous || isPending}
+          >
+            <ChevronLeft aria-hidden className="h-4 w-4" />
+          </button>
+          <div className="flex flex-wrap gap-1">
+            {sortedYears.map((segment) => {
+              const isActiveYear = resolvedYear === segment.year
+              return (
+                <button
+                  key={segment.year}
+                  type="button"
+                  onClick={() => handleYearSelect(segment.year)}
+                  className={clsx(
+                    'rounded-md px-2.5 py-1 font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 dark:focus-visible:ring-slate-600',
+                    isActiveYear
+                      ? 'bg-slate-900 text-white shadow-sm dark:bg-slate-50 dark:text-slate-900'
+                      : 'bg-slate-100 text-slate-600 hover:bg-white dark:bg-slate-800 dark:text-slate-300 dark:hover(bg-slate-700)'
+                  )}
+                  aria-pressed={isActiveYear}
+                  disabled={isActiveYear && isPending}
+                >
+                  <span>{segment.year}</span>
+                  <span className="ml-1 text-[10px] font-normal text-slate-400 dark:text-slate-500">{segment.weekCount}w</span>
+                </button>
+              )
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => goToAdjacentYear(1)}
+            className="flex h-7 w-7 items-center justify-center rounded-full border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:bg-slate-800 dark:focus-visible:ring-slate-600"
+            aria-label="Next year"
+            disabled={!next || isPending}
+          >
+            <ChevronRight aria-hidden className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    )
+  }, [activeYearIndex, goToAdjacentYear, handleYearSelect, isPending, isYearAwareSheet, resolvedYear, sortedYears])
+
+  const headerSuffix = useMemo(() => {
+    if (!yearSwitcher && !headerControls) return undefined
+    return (
+      <div className="flex flex-wrap items-center gap-3">
+        {yearSwitcher}
+        {headerControls}
+      </div>
+    )
+  }, [headerControls, yearSwitcher])
 
   useEffect(() => {
     if (!isResizing) return
@@ -59,20 +196,24 @@ export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, 
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
-      if (!event.ctrlKey) return
-      if (event.key === 'PageUp' || event.key === 'PageDown') {
-        event.preventDefault()
-        const index = sheets.findIndex((sheet) => sheet.slug === activeSlug)
-        if (index === -1) return
-        const nextIndex = event.key === 'PageUp' ? (index - 1 + sheets.length) % sheets.length : (index + 1) % sheets.length
-        goToSheet(sheets[nextIndex].slug)
-      }
+      if (!event.ctrlKey || event.altKey || event.metaKey) return
+      if (event.key !== 'PageUp' && event.key !== 'PageDown') return
+      event.preventDefault()
+      const index = sheets.findIndex((sheet) => sheet.slug === activeSlug)
+      if (index === -1) return
+      const nextIndex = event.key === 'PageUp' ? (index - 1 + sheets.length) % sheets.length : (index + 1) % sheets.length
+      goToSheet(sheets[nextIndex].slug)
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [activeSlug, goToSheet, sheets])
 
   const activeSheet = useMemo(() => sheets.find((sheet) => sheet.slug === activeSlug), [sheets, activeSlug])
+
+  const sheetTabs = useMemo(
+    () => sheets.map((sheet) => ({ ...sheet, href: buildSheetHref(sheet.slug) })),
+    [buildSheetHref, sheets]
+  )
 
   const metaSummary = useMemo(() => {
     if (!meta) return undefined
@@ -109,6 +250,7 @@ export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, 
     return { display, tooltip }
   }, [meta])
 
+
   return (
     <div className="flex min-h-screen flex-col bg-slate-100/60">
       <main className="flex flex-1 overflow-hidden">
@@ -137,7 +279,13 @@ export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, 
                 </div>
               </div>
               <div className="mt-3 hidden items-center gap-2 text-xs text-slate-500 dark:text-slate-400 lg:flex">
-                <SheetTabs sheets={sheets} activeSlug={activeSlug} variant="scroll" onSheetSelect={goToSheet} />
+                <SheetTabs
+                  sheets={sheetTabs}
+                  activeSlug={activeSlug}
+                  variant="scroll"
+                  onSheetSelect={goToSheet}
+                  suffix={headerSuffix}
+                />
               </div>
             </header>
             <div className="px-4 py-4 sm:px-6 lg:px-8">
@@ -164,7 +312,13 @@ export function WorkbookLayout({ sheets, activeSlug, meta, ribbon, contextPane, 
       </main>
 
       <footer className="border-t border-slate-200 bg-white/90 px-2 py-2 shadow-inner backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 lg:hidden">
-        <SheetTabs sheets={sheets} activeSlug={activeSlug} variant="scroll" onSheetSelect={goToSheet} />
+        <SheetTabs
+          sheets={sheetTabs}
+          activeSlug={activeSlug}
+          variant="scroll"
+          onSheetSelect={goToSheet}
+          suffix={headerSuffix}
+        />
       </footer>
     </div>
   )

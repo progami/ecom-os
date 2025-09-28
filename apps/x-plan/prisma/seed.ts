@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename)
 async function main() {
   await prisma.$executeRawUnsafe('CREATE SCHEMA IF NOT EXISTS x_plan;')
   await prisma.$executeRawUnsafe('SET search_path TO x_plan;')
-  const workbookPath = path.resolve(__dirname, '../excel_template.xlsx')
+  const workbookPath = path.resolve(__dirname, '../../scripts/excel_template.xlsx')
   const workbook = XLSX.readFile(workbookPath, { cellDates: false })
   await importWorkbookFromXLSX(workbook, prisma)
   console.log('Cross Plan seed complete')

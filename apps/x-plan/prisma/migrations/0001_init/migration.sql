@@ -1,19 +1,19 @@
 -- Create dedicated schema for Cross Plan
-CREATE SCHEMA IF NOT EXISTS "x_plan";
+CREATE SCHEMA IF NOT EXISTS "cross_plan";
 
 -- Enum definitions
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'PurchaseOrderStatus') THEN
-    CREATE TYPE "x_plan"."PurchaseOrderStatus" AS ENUM ('PLANNED', 'PRODUCTION', 'IN_TRANSIT', 'ARRIVED', 'CLOSED', 'CANCELLED');
+    CREATE TYPE "cross_plan"."PurchaseOrderStatus" AS ENUM ('PLANNED', 'PRODUCTION', 'IN_TRANSIT', 'ARRIVED', 'CLOSED', 'CANCELLED');
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'LogisticsEventType') THEN
-    CREATE TYPE "x_plan"."LogisticsEventType" AS ENUM ('PRODUCTION_START', 'PRODUCTION_COMPLETE', 'INBOUND_DEPARTURE', 'PORT_ARRIVAL', 'WAREHOUSE_ARRIVAL', 'CUSTOM');
+    CREATE TYPE "cross_plan"."LogisticsEventType" AS ENUM ('PRODUCTION_START', 'PRODUCTION_COMPLETE', 'INBOUND_DEPARTURE', 'PORT_ARRIVAL', 'WAREHOUSE_ARRIVAL', 'CUSTOM');
   END IF;
 END$$;
 
 -- Product catalog
-CREATE TABLE IF NOT EXISTS "x_plan"."Product" (
+CREATE TABLE IF NOT EXISTS "cross_plan"."Product" (
   "id" TEXT PRIMARY KEY,
   "name" TEXT NOT NULL,
   "sku" TEXT NOT NULL,
@@ -30,11 +30,11 @@ CREATE TABLE IF NOT EXISTS "x_plan"."Product" (
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "Product_sku_key" ON "x_plan"."Product" ("sku");
-CREATE INDEX IF NOT EXISTS "Product_name_idx" ON "x_plan"."Product" ("name");
+CREATE UNIQUE INDEX IF NOT EXISTS "Product_sku_key" ON "cross_plan"."Product" ("sku");
+CREATE INDEX IF NOT EXISTS "Product_name_idx" ON "cross_plan"."Product" ("name");
 
 -- Lead stages
-CREATE TABLE IF NOT EXISTS "x_plan"."LeadStageTemplate" (
+CREATE TABLE IF NOT EXISTS "cross_plan"."LeadStageTemplate" (
   "id" TEXT PRIMARY KEY,
   "label" TEXT NOT NULL,
   "defaultWeeks" DECIMAL(5,2) NOT NULL,
@@ -43,23 +43,23 @@ CREATE TABLE IF NOT EXISTS "x_plan"."LeadStageTemplate" (
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "LeadStageTemplate_sequence_key" ON "x_plan"."LeadStageTemplate" ("sequence");
+CREATE UNIQUE INDEX IF NOT EXISTS "LeadStageTemplate_sequence_key" ON "cross_plan"."LeadStageTemplate" ("sequence");
 
-CREATE TABLE IF NOT EXISTS "x_plan"."LeadTimeOverride" (
+CREATE TABLE IF NOT EXISTS "cross_plan"."LeadTimeOverride" (
   "id" TEXT PRIMARY KEY,
   "productId" TEXT NOT NULL,
   "stageTemplateId" TEXT NOT NULL,
   "durationWeeks" DECIMAL(5,2) NOT NULL,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT "LeadTimeOverride_productId_fkey" FOREIGN KEY ("productId") REFERENCES "x_plan"."Product" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-  CONSTRAINT "LeadTimeOverride_stageTemplateId_fkey" FOREIGN KEY ("stageTemplateId") REFERENCES "x_plan"."LeadStageTemplate" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT "LeadTimeOverride_productId_fkey" FOREIGN KEY ("productId") REFERENCES "cross_plan"."Product" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+  CONSTRAINT "LeadTimeOverride_stageTemplateId_fkey" FOREIGN KEY ("stageTemplateId") REFERENCES "cross_plan"."LeadStageTemplate" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "LeadTimeOverride_product_stage_key" ON "x_plan"."LeadTimeOverride" ("productId", "stageTemplateId");
+CREATE UNIQUE INDEX IF NOT EXISTS "LeadTimeOverride_product_stage_key" ON "cross_plan"."LeadTimeOverride" ("productId", "stageTemplateId");
 
 -- Business parameters
-CREATE TABLE IF NOT EXISTS "x_plan"."BusinessParameter" (
+CREATE TABLE IF NOT EXISTS "cross_plan"."BusinessParameter" (
   "id" TEXT PRIMARY KEY,
   "label" TEXT NOT NULL,
   "valueNumeric" DECIMAL(14,2),
@@ -69,18 +69,19 @@ CREATE TABLE IF NOT EXISTS "x_plan"."BusinessParameter" (
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "BusinessParameter_label_key" ON "x_plan"."BusinessParameter" ("label");
+CREATE UNIQUE INDEX IF NOT EXISTS "BusinessParameter_label_key" ON "cross_plan"."BusinessParameter" ("label");
 
 -- Purchase orders
-CREATE TABLE IF NOT EXISTS "x_plan"."PurchaseOrder" (
+CREATE TABLE IF NOT EXISTS "cross_plan"."PurchaseOrder" (
   "id" TEXT PRIMARY KEY,
   "orderCode" TEXT NOT NULL,
+  "poDate" TIMESTAMP(3),
   "productId" TEXT NOT NULL,
   "quantity" INTEGER NOT NULL DEFAULT 0,
-  "productionWeeks" DECIMAL(5,2) NOT NULL DEFAULT 0,
-  "sourcePrepWeeks" DECIMAL(5,2) NOT NULL DEFAULT 0,
-  "oceanWeeks" DECIMAL(5,2) NOT NULL DEFAULT 0,
-  "finalMileWeeks" DECIMAL(5,2) NOT NULL DEFAULT 0,
+    "productionWeeks" DECIMAL(5,2) NOT NULL DEFAULT 0,
+    "sourceWeeks" DECIMAL(5,2) NOT NULL DEFAULT 0,
+    "oceanWeeks" DECIMAL(5,2) NOT NULL DEFAULT 0,
+    "finalWeeks" DECIMAL(5,2) NOT NULL DEFAULT 0,
   "pay1Date" TIMESTAMP(3),
   "pay1Percent" DECIMAL(6,4),
   "pay1Amount" DECIMAL(12,2),
@@ -98,19 +99,20 @@ CREATE TABLE IF NOT EXISTS "x_plan"."PurchaseOrder" (
   "inboundEta" TIMESTAMP(3),
   "availableDate" TIMESTAMP(3),
   "totalLeadDays" INTEGER,
-  "status" "x_plan"."PurchaseOrderStatus" NOT NULL DEFAULT 'PLANNED',
+  "status" "cross_plan"."PurchaseOrderStatus" NOT NULL DEFAULT 'PLANNED',
   "statusIcon" TEXT,
   "weeksUntilArrival" INTEGER,
   "notes" TEXT,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT "PurchaseOrder_productId_fkey" FOREIGN KEY ("productId") REFERENCES "x_plan"."Product" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
+  CONSTRAINT "PurchaseOrder_productId_fkey" FOREIGN KEY ("productId") REFERENCES "cross_plan"."Product" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS "PurchaseOrder_orderCode_idx" ON "x_plan"."PurchaseOrder" ("orderCode");
-CREATE INDEX IF NOT EXISTS "PurchaseOrder_status_idx" ON "x_plan"."PurchaseOrder" ("status");
+CREATE UNIQUE INDEX IF NOT EXISTS "PurchaseOrder_orderCode_key" ON "cross_plan"."PurchaseOrder" ("orderCode");
+CREATE INDEX IF NOT EXISTS "PurchaseOrder_orderCode_idx" ON "cross_plan"."PurchaseOrder" ("orderCode");
+CREATE INDEX IF NOT EXISTS "PurchaseOrder_status_idx" ON "cross_plan"."PurchaseOrder" ("status");
 
-CREATE TABLE IF NOT EXISTS "x_plan"."PurchaseOrderPayment" (
+CREATE TABLE IF NOT EXISTS "cross_plan"."PurchaseOrderPayment" (
   "id" TEXT PRIMARY KEY,
   "purchaseOrderId" TEXT NOT NULL,
   "paymentIndex" INTEGER NOT NULL,
@@ -120,27 +122,27 @@ CREATE TABLE IF NOT EXISTS "x_plan"."PurchaseOrderPayment" (
   "status" TEXT DEFAULT 'pending',
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT "PurchaseOrderPayment_purchaseOrder_fkey" FOREIGN KEY ("purchaseOrderId") REFERENCES "x_plan"."PurchaseOrder" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT "PurchaseOrderPayment_purchaseOrder_fkey" FOREIGN KEY ("purchaseOrderId") REFERENCES "cross_plan"."PurchaseOrder" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "PurchaseOrderPayment_unique_payment" ON "x_plan"."PurchaseOrderPayment" ("purchaseOrderId", "paymentIndex");
+CREATE UNIQUE INDEX IF NOT EXISTS "PurchaseOrderPayment_unique_payment" ON "cross_plan"."PurchaseOrderPayment" ("purchaseOrderId", "paymentIndex");
 
-CREATE TABLE IF NOT EXISTS "x_plan"."LogisticsEvent" (
+CREATE TABLE IF NOT EXISTS "cross_plan"."LogisticsEvent" (
   "id" TEXT PRIMARY KEY,
   "purchaseOrderId" TEXT NOT NULL,
-  "type" "x_plan"."LogisticsEventType" NOT NULL,
+  "type" "cross_plan"."LogisticsEventType" NOT NULL,
   "eventDate" TIMESTAMP(3),
   "reference" TEXT,
   "notes" TEXT,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT "LogisticsEvent_po_fkey" FOREIGN KEY ("purchaseOrderId") REFERENCES "x_plan"."PurchaseOrder" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT "LogisticsEvent_po_fkey" FOREIGN KEY ("purchaseOrderId") REFERENCES "cross_plan"."PurchaseOrder" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS "LogisticsEvent_type_idx" ON "x_plan"."LogisticsEvent" ("type");
+CREATE INDEX IF NOT EXISTS "LogisticsEvent_type_idx" ON "cross_plan"."LogisticsEvent" ("type");
 
 -- Sales weeks
-CREATE TABLE IF NOT EXISTS "x_plan"."SalesWeek" (
+CREATE TABLE IF NOT EXISTS "cross_plan"."SalesWeek" (
   "id" TEXT PRIMARY KEY,
   "productId" TEXT NOT NULL,
   "weekNumber" INTEGER NOT NULL,
@@ -153,14 +155,14 @@ CREATE TABLE IF NOT EXISTS "x_plan"."SalesWeek" (
   "stockEnd" INTEGER,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT "SalesWeek_product_fkey" FOREIGN KEY ("productId") REFERENCES "x_plan"."Product" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+  CONSTRAINT "SalesWeek_product_fkey" FOREIGN KEY ("productId") REFERENCES "cross_plan"."Product" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "SalesWeek_product_week_key" ON "x_plan"."SalesWeek" ("productId", "weekNumber");
-CREATE INDEX IF NOT EXISTS "SalesWeek_weekDate_idx" ON "x_plan"."SalesWeek" ("weekDate");
+CREATE UNIQUE INDEX IF NOT EXISTS "SalesWeek_product_week_key" ON "cross_plan"."SalesWeek" ("productId", "weekNumber");
+CREATE INDEX IF NOT EXISTS "SalesWeek_weekDate_idx" ON "cross_plan"."SalesWeek" ("weekDate");
 
 -- Profit & Loss weeks
-CREATE TABLE IF NOT EXISTS "x_plan"."ProfitAndLossWeek" (
+CREATE TABLE IF NOT EXISTS "cross_plan"."ProfitAndLossWeek" (
   "id" TEXT PRIMARY KEY,
   "weekNumber" INTEGER NOT NULL,
   "weekDate" TIMESTAMP(3) NOT NULL,
@@ -179,10 +181,10 @@ CREATE TABLE IF NOT EXISTS "x_plan"."ProfitAndLossWeek" (
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "ProfitAndLossWeek_weekNumber_key" ON "x_plan"."ProfitAndLossWeek" ("weekNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "ProfitAndLossWeek_weekNumber_key" ON "cross_plan"."ProfitAndLossWeek" ("weekNumber");
 
 -- Cash flow weeks
-CREATE TABLE IF NOT EXISTS "x_plan"."CashFlowWeek" (
+CREATE TABLE IF NOT EXISTS "cross_plan"."CashFlowWeek" (
   "id" TEXT PRIMARY KEY,
   "weekNumber" INTEGER NOT NULL,
   "weekDate" TIMESTAMP(3) NOT NULL,
@@ -196,10 +198,10 @@ CREATE TABLE IF NOT EXISTS "x_plan"."CashFlowWeek" (
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "CashFlowWeek_weekNumber_key" ON "x_plan"."CashFlowWeek" ("weekNumber");
+CREATE UNIQUE INDEX IF NOT EXISTS "CashFlowWeek_weekNumber_key" ON "cross_plan"."CashFlowWeek" ("weekNumber");
 
 -- Monthly summary
-CREATE TABLE IF NOT EXISTS "x_plan"."MonthlySummary" (
+CREATE TABLE IF NOT EXISTS "cross_plan"."MonthlySummary" (
   "id" TEXT PRIMARY KEY,
   "periodLabel" TEXT NOT NULL,
   "year" INTEGER NOT NULL,
@@ -220,10 +222,10 @@ CREATE TABLE IF NOT EXISTS "x_plan"."MonthlySummary" (
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "MonthlySummary_year_month_period_key" ON "x_plan"."MonthlySummary" ("year", "month", "periodLabel");
+CREATE UNIQUE INDEX IF NOT EXISTS "MonthlySummary_year_month_period_key" ON "cross_plan"."MonthlySummary" ("year", "month", "periodLabel");
 
 -- Quarterly summary
-CREATE TABLE IF NOT EXISTS "x_plan"."QuarterlySummary" (
+CREATE TABLE IF NOT EXISTS "cross_plan"."QuarterlySummary" (
   "id" TEXT PRIMARY KEY,
   "periodLabel" TEXT NOT NULL,
   "year" INTEGER NOT NULL,
@@ -244,10 +246,10 @@ CREATE TABLE IF NOT EXISTS "x_plan"."QuarterlySummary" (
   "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS "QuarterlySummary_year_quarter_period_key" ON "x_plan"."QuarterlySummary" ("year", "quarter", "periodLabel");
+CREATE UNIQUE INDEX IF NOT EXISTS "QuarterlySummary_year_quarter_period_key" ON "cross_plan"."QuarterlySummary" ("year", "quarter", "periodLabel");
 
 -- Scenario snapshots
-CREATE TABLE IF NOT EXISTS "x_plan"."ScenarioSnapshot" (
+CREATE TABLE IF NOT EXISTS "cross_plan"."ScenarioSnapshot" (
   "id" TEXT PRIMARY KEY,
   "name" TEXT NOT NULL,
   "description" TEXT,
@@ -255,4 +257,3 @@ CREATE TABLE IF NOT EXISTS "x_plan"."ScenarioSnapshot" (
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   "workbook" JSONB NOT NULL
 );
-

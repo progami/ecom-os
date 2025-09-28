@@ -1,8 +1,9 @@
 import { notFound } from 'next/navigation'
+import type { ReactNode } from 'react'
 import { OpsPlanningWorkspace } from '@/components/sheets/ops-planning-workspace'
 import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
 import { ProductSetupParametersPanel } from '@/components/sheets/product-setup-panels'
-import { SalesPlanningGrid } from '@/components/sheets/sales-planning-grid'
+import { SalesPlanningGrid, SalesPlanningFocusControl, SalesPlanningFocusProvider } from '@/components/sheets/sales-planning-grid'
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
 import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid'
 import { DashboardSheet } from '@/components/sheets/dashboard'
@@ -11,17 +12,7 @@ import type { OpsTimelineRow } from '@/components/sheets/ops-planning-timeline'
 import type { PurchasePaymentRow } from '@/components/sheets/purchase-payments-grid'
 import type { OpsPlanningCalculatorPayload, PurchaseOrderSerialized } from '@/components/sheets/ops-planning-workspace'
 import prisma from '@/lib/prisma'
-import type {
-  BusinessParameter,
-  CashFlowWeek,
-  LeadStageTemplate,
-  LeadTimeOverride,
-  Product,
-  ProfitAndLossWeek,
-  PurchaseOrder,
-  PurchaseOrderPayment,
-  SalesWeek,
-} from '@prisma/client'
+import type { PurchaseOrderBatch, PurchaseOrderPayment } from '@prisma/client'
 import { getSheetConfig } from '@/lib/sheets'
 import { getWorkbookStatus } from '@/lib/workbook'
 import { WorkbookLayout } from '@/components/workbook-layout'
@@ -31,7 +22,6 @@ import {
   mapLeadOverrides,
   mapBusinessParameters,
   mapPurchaseOrders,
-  mapSalesWeeks,
   mapProfitAndLossWeeks,
   mapCashFlowWeeks,
 } from '@/lib/calculations/adapters'
@@ -50,6 +40,11 @@ import {
   type PurchaseOrderInput,
   type LeadTimeProfile,
 } from '@/lib/calculations'
+import { createTimelineOrderFromDerived, type PurchaseTimelineOrder } from '@/lib/planning/timeline'
+import { addMonths, endOfMonth, format, startOfMonth, startOfWeek } from 'date-fns'
+import { getCalendarDateForWeek, type YearSegment } from '@/lib/calculations/calendar'
+import { findYearSegment, loadPlanningCalendar, resolveActiveYear } from '@/lib/planning'
+import type { PlanningCalendar } from '@/lib/planning'
 
 const SALES_METRICS = ['stockStart', 'actualSales', 'forecastSales', 'finalSales', 'stockWeeks', 'stockEnd'] as const
 type SalesMetric = (typeof SALES_METRICS)[number]
@@ -76,6 +71,14 @@ function formatDisplayDate(value: Date | number | string | null | undefined): st
 function formatDate(value: Date | null | undefined): string {
   if (!value) return ''
   return formatDisplayDate(value)
+}
+
+function toNumberSafe(value: number | bigint | null | undefined): number {
+  if (value == null) return 0
+  if (typeof value === 'number') return value
+  if (typeof value === 'bigint') return Number(value)
+  const numeric = Number(value)
+  return Number.isNaN(numeric) ? 0 : numeric
 }
 
 function formatNumeric(value: number | null | undefined, fractionDigits = 2): string {
@@ -108,10 +111,11 @@ function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSeriali
     orderCode: order.orderCode,
     productId: order.productId,
     quantity: Number(order.quantity ?? 0),
+    poDate: serializeDate(order.poDate),
     productionWeeks: order.productionWeeks ?? null,
-    sourcePrepWeeks: order.sourcePrepWeeks ?? null,
+    sourceWeeks: order.sourceWeeks ?? null,
     oceanWeeks: order.oceanWeeks ?? null,
-    finalMileWeeks: order.finalMileWeeks ?? null,
+    finalWeeks: order.finalWeeks ?? null,
     pay1Percent: order.pay1Percent ?? null,
     pay2Percent: order.pay2Percent ?? null,
     pay3Percent: order.pay3Percent ?? null,
@@ -125,6 +129,9 @@ function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSeriali
     productionComplete: serializeDate(order.productionComplete),
     sourceDeparture: serializeDate(order.sourceDeparture),
     transportReference: order.transportReference ?? null,
+    createdAt: serializeDate(order.createdAt),
+    shipName: order.shipName ?? null,
+    containerNumber: order.containerNumber ?? null,
     portEta: serializeDate(order.portEta),
     inboundEta: serializeDate(order.inboundEta),
     availableDate: serializeDate(order.availableDate),
@@ -147,11 +154,51 @@ function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSeriali
     overrideFbaFee: order.overrideFbaFee ?? null,
     overrideReferralRate: order.overrideReferralRate ?? null,
     overrideStoragePerMonth: order.overrideStoragePerMonth ?? null,
+    batches: order.batches?.map((batch) => ({
+      id: batch.id,
+      batchCode: batch.batchCode ?? null,
+      productId: batch.productId,
+      quantity: Number(batch.quantity ?? 0),
+      overrideSellingPrice: batch.overrideSellingPrice ?? null,
+      overrideManufacturingCost: batch.overrideManufacturingCost ?? null,
+      overrideFreightCost: batch.overrideFreightCost ?? null,
+      overrideTariffRate: batch.overrideTariffRate ?? null,
+      overrideTacosPercent: batch.overrideTacosPercent ?? null,
+      overrideFbaFee: batch.overrideFbaFee ?? null,
+      overrideReferralRate: batch.overrideReferralRate ?? null,
+      overrideStoragePerMonth: batch.overrideStoragePerMonth ?? null,
+    })) ?? [],
   }
+}
+
+function buildWeekRange(segment: YearSegment | null, calendar: PlanningCalendar['calendar']): number[] {
+  if (segment) {
+    return Array.from({ length: segment.weekCount }, (_, index) => segment.startWeekNumber + index)
+  }
+  const min = calendar.minWeekNumber
+  const max = calendar.maxWeekNumber
+  if (min == null || max == null) return []
+  const weeks: number[] = []
+  for (let week = min; week <= max; week += 1) {
+    weeks.push(week)
+  }
+  return weeks
+}
+
+function isWeekInSegment(weekNumber: number, segment: YearSegment | null): boolean {
+  if (!segment) return true
+  return weekNumber >= segment.startWeekNumber && weekNumber <= segment.endWeekNumber
+}
+
+function filterSummaryByYear<T extends { periodLabel: string }>(rows: T[], year: number | null): T[] {
+  if (year == null) return rows
+  const suffix = String(year)
+  return rows.filter((row) => row.periodLabel.trim().endsWith(suffix))
 }
 
 type SheetPageProps = {
   params: Promise<{ sheet: string }>
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
 }
 
 type BusinessParameterView = {
@@ -161,78 +208,13 @@ type BusinessParameterView = {
   type: 'numeric' | 'text'
 }
 
-type NestedHeaderCell = string | { label: string; colspan?: number; rowspan?: number }
+type NestedHeaderCell =
+  | string
+  | { label: string; colspan?: number; rowspan?: number; title?: string }
 
 type ProfitAndLossAggregates = ReturnType<typeof computeProfitAndLoss>
 type CashFlowAggregates = ReturnType<typeof computeCashFlow>
-type DashboardTimelineSegmentView = {
-  key: 'production' | 'sourcePrep' | 'oceanTransit' | 'finalMile'
-  label: string
-  start: string | null
-  end: string | null
-}
-
-type DashboardTimelineOrderView = {
-  id: string
-  orderCode: string
-  productName: string
-  quantity: number
-  status: string
-  availableDate: string | null
-  segments: DashboardTimelineSegmentView[]
-}
-
-function buildTimelineSegments(order: PurchaseOrderDerived): DashboardTimelineSegmentView[] {
-  const segments: DashboardTimelineSegmentView[] = []
-
-  const pushSegment = (
-    key: DashboardTimelineSegmentView['key'],
-    label: string,
-    start: Date | null,
-    end: Date | null
-  ) => {
-    if (!start || !end) return
-    const startTime = start.getTime()
-    const endTime = end.getTime()
-    if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || startTime > endTime) return
-    segments.push({
-      key,
-      label,
-      start: serializeDate(start),
-      end: serializeDate(end),
-    })
-  }
-
-  const productionEnd = order.productionComplete ?? order.sourceDeparture ?? order.inboundEta ?? order.availableDate
-  const sourceEnd = order.sourceDeparture ?? order.inboundEta ?? order.availableDate
-  const oceanEnd = order.portEta ?? order.inboundEta ?? order.availableDate
-  const finalEnd = order.availableDate ?? order.inboundEta ?? order.portEta
-
-  pushSegment('production', 'Production', order.productionStart, productionEnd)
-  pushSegment(
-    'sourcePrep',
-    'Source Prep',
-    order.productionComplete ?? order.productionStart ?? productionEnd,
-    sourceEnd
-  )
-  pushSegment(
-    'oceanTransit',
-    'Ocean Transit',
-    order.sourceDeparture ?? sourceEnd,
-    oceanEnd
-  )
-  pushSegment(
-    'finalMile',
-    'Final Mile',
-    order.inboundEta ?? order.portEta ?? oceanEnd,
-    finalEnd
-  )
-
-  return segments
-}
-
 type DashboardView = {
-  orders: DashboardTimelineOrderView[]
   inventory: Array<{
     productName: string
     stockEnd: number
@@ -274,7 +256,7 @@ function columnKey(productIndex: number, metric: SalesMetric) {
   return `p${productIndex}_${metric}`
 }
 
-function metricLabel(metric: SalesMetric) {
+function metricHeader(metric: SalesMetric): NestedHeaderCell {
   switch (metric) {
     case 'stockStart':
       return 'Stock Start'
@@ -285,7 +267,11 @@ function metricLabel(metric: SalesMetric) {
     case 'finalSales':
       return 'Final Sales'
     case 'stockWeeks':
-      return 'Stock (Weeks)'
+      return {
+        label: 'Stock (Weeks)',
+        title:
+          'Weeks of stock = number of future weeks until projected inventory reaches zero using Final Sales (Actuals when present, otherwise Forecast) and scheduled arrivals.',
+      }
     case 'stockEnd':
       return 'Stock End'
     default:
@@ -295,8 +281,8 @@ function metricLabel(metric: SalesMetric) {
 
 async function getProductSetupView() {
   const [products, businessParameters] = await Promise.all([
-    prisma.product.findMany({ orderBy: { name: 'asc' } }) as Promise<Product[]>,
-    prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }) as Promise<BusinessParameter[]>,
+    prisma.product.findMany({ orderBy: { name: 'asc' } }),
+    prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }),
   ])
 
   const activeProducts = products.filter((product) => {
@@ -366,15 +352,25 @@ async function getProductSetupView() {
 }
 
 async function loadOperationsContext() {
-  const [products, leadStages, overrides, businessParameters, purchaseOrders] = await Promise.all([
-    prisma.product.findMany({ orderBy: { name: 'asc' } }) as Promise<Product[]>,
-    prisma.leadStageTemplate.findMany({ orderBy: { sequence: 'asc' } }) as Promise<LeadStageTemplate[]>,
-    prisma.leadTimeOverride.findMany() as Promise<LeadTimeOverride[]>,
-    prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }) as Promise<BusinessParameter[]>,
+  const prismaAny = prisma as any
+  const purchaseOrderBatchDelegate: typeof prisma.purchaseOrderBatch | undefined = prismaAny.purchaseOrderBatch
+
+  const [products, leadStages, overrides, businessParameters, purchaseOrders, purchaseOrderBatches] = await Promise.all([
+    prisma.product.findMany({ orderBy: { name: 'asc' } }),
+    prisma.leadStageTemplate.findMany({ orderBy: { sequence: 'asc' } }),
+    prisma.leadTimeOverride.findMany(),
+    prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }),
     prisma.purchaseOrder.findMany({
       orderBy: { orderCode: 'asc' },
-      include: { product: true, payments: { orderBy: { paymentIndex: 'asc' } } },
-    }) as Promise<Array<PurchaseOrder & { payments: PurchaseOrderPayment[] }>>,
+      include: {
+        payments: { orderBy: { paymentIndex: 'asc' } },
+      },
+    }),
+    purchaseOrderBatchDelegate
+      ? purchaseOrderBatchDelegate
+          .findMany({ orderBy: [{ purchaseOrderId: 'asc' }, { createdAt: 'asc' }] })
+          .catch(() => [] as PurchaseOrderBatch[])
+      : Promise.resolve([] as PurchaseOrderBatch[]),
   ])
 
   const productInputs = mapProducts(products)
@@ -386,7 +382,24 @@ async function loadOperationsContext() {
     productInputs.map((product) => product.id)
   )
   const parameters = normalizeBusinessParameters(mapBusinessParameters(businessParameters))
-  const purchaseOrderInputs = mapPurchaseOrders(purchaseOrders)
+  const batchesByOrder = new Map<string, typeof purchaseOrderBatches>()
+  for (const batch of purchaseOrderBatches) {
+    const list = batchesByOrder.get(batch.purchaseOrderId) ?? []
+    list.push(batch)
+    batchesByOrder.set(batch.purchaseOrderId, list)
+  }
+
+  const purchaseOrdersWithBatches = purchaseOrders.map((order) => ({
+    ...order,
+    batches: (batchesByOrder.get(order.id) ?? []) as PurchaseOrderBatch[],
+  })) as Array<
+    (typeof purchaseOrders)[number] & {
+      payments: PurchaseOrderPayment[]
+      batches: PurchaseOrderBatch[]
+    }
+  >
+
+  const purchaseOrderInputs = mapPurchaseOrders(purchaseOrdersWithBatches)
 
   return {
     productInputs,
@@ -402,13 +415,19 @@ async function loadOperationsContext() {
 function deriveOrders(context: Awaited<ReturnType<typeof loadOperationsContext>>) {
   return context.purchaseOrderInputs
     .map((order) => {
-      const product = context.productIndex.get(order.productId)
-      if (!product) return null
+      if (!context.productIndex.has(order.productId)) return null
       const profile = getLeadTimeProfile(order.productId, context.leadProfiles)
+      const productNames = Array.isArray(order.batches) && order.batches.length > 1
+        ? order.batches
+            .map((batch) => context.productNameById.get(batch.productId) ?? '')
+            .filter(Boolean)
+            .slice(0, 3)
+            .join(', ') + (order.batches.length > 3 ? '…' : '')
+        : context.productNameById.get(order.productId) ?? ''
       return {
-        derived: computePurchaseOrderDerived(order, product, profile, context.parameters),
+        derived: computePurchaseOrderDerived(order, context.productIndex, profile, context.parameters),
         input: order,
-        productName: context.productNameById.get(order.productId) ?? '',
+        productName: productNames,
       }
     })
     .filter((item): item is { derived: PurchaseOrderDerived; input: typeof context.purchaseOrderInputs[number]; productName: string } =>
@@ -416,11 +435,55 @@ function deriveOrders(context: Awaited<ReturnType<typeof loadOperationsContext>>
     )
 }
 
-async function getOpsPlanningView(): Promise<{
+async function loadFinancialData(planning: PlanningCalendar) {
+  const operations = await loadOperationsContext()
+  const derivedOrders = deriveOrders(operations)
+  const salesPlan = computeSalesPlan(planning.salesWeeks, derivedOrders.map((item) => item.derived), {
+    productIds: operations.productInputs.map((product) => product.id),
+    calendar: planning.calendar,
+  })
+  const profitOverrides = mapProfitAndLossWeeks(
+    await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+  )
+  const cashOverrides = mapCashFlowWeeks(
+    await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+  )
+  const profit = computeProfitAndLoss(salesPlan, operations.productIndex, operations.parameters, profitOverrides)
+  const cash = computeCashFlow(
+    profit.weekly,
+    derivedOrders.map((item) => item.derived),
+    operations.parameters,
+    cashOverrides
+  )
+  return { operations, derivedOrders, salesPlan, profit, cash }
+}
+
+type FinancialData = Awaited<ReturnType<typeof loadFinancialData>>
+
+async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: YearSegment | null): Promise<{
   inputRows: OpsInputRow[]
+  batchRows: Array<{
+    id: string
+    purchaseOrderId: string
+    orderCode: string
+    batchCode?: string
+    productId: string
+    productName: string
+    quantity: string
+    sellingPrice: string
+    manufacturingCost: string
+    freightCost: string
+    tariffRate: string
+    tacosPercent: string
+    fbaFee: string
+    referralRate: string
+    storagePerMonth: string
+  }>
   timelineRows: OpsTimelineRow[]
+  timelineOrders: PurchaseTimelineOrder[]
   payments: PurchasePaymentRow[]
   calculator: OpsPlanningCalculatorPayload
+  timelineMonths: { start: string; end: string; label: string }[]
 }> {
   const context = await loadOperationsContext()
   const { rawPurchaseOrders } = context
@@ -431,13 +494,16 @@ async function getOpsPlanningView(): Promise<{
     id: input.id,
     productId: input.productId,
     orderCode: input.orderCode,
+    poDate: formatDate(input.poDate ?? null),
     productName,
+    shipName: input.shipName ?? '',
+    containerNumber: input.containerNumber ?? input.transportReference ?? '',
     quantity: formatNumeric(input.quantity ?? null, 0),
     pay1Date: formatDate(input.pay1Date ?? null),
     productionWeeks: formatNumeric(input.productionWeeks ?? null),
-    sourcePrepWeeks: formatNumeric(input.sourcePrepWeeks ?? null),
+    sourceWeeks: formatNumeric(input.sourceWeeks ?? null),
     oceanWeeks: formatNumeric(input.oceanWeeks ?? null),
-    finalMileWeeks: formatNumeric(input.finalMileWeeks ?? null),
+    finalWeeks: formatNumeric(input.finalWeeks ?? null),
     sellingPrice: formatNumeric(input.overrideSellingPrice ?? null),
     manufacturingCost: formatNumeric(input.overrideManufacturingCost ?? null),
     freightCost: formatNumeric(input.overrideFreightCost ?? null),
@@ -468,13 +534,42 @@ async function getOpsPlanningView(): Promise<{
     weeksUntilArrival: derived.weeksUntilArrival != null ? String(derived.weeksUntilArrival) : '',
   }))
 
+  const timelineOrders: PurchaseTimelineOrder[] = derivedOrders.map(({ derived, productName }) =>
+    createTimelineOrderFromDerived({ derived, productName })
+  )
+
+  let timelineMonths: { start: string; end: string; label: string }[] = []
+  if (planning) {
+    const segment = activeSegment ?? planning.yearSegments[0] ?? null
+    if (segment) {
+      const segmentStartDate = getCalendarDateForWeek(segment.startWeekNumber, planning.calendar)
+      const segmentEndDate = getCalendarDateForWeek(segment.endWeekNumber, planning.calendar)
+      if (segmentStartDate && segmentEndDate) {
+        let cursor = startOfMonth(segmentStartDate)
+        const finalDate = endOfMonth(segmentEndDate)
+        const buckets: { start: string; end: string; label: string }[] = []
+        while (cursor.getTime() <= finalDate.getTime()) {
+          const bucketStart = cursor
+          const bucketEnd = endOfMonth(cursor)
+          buckets.push({
+            start: bucketStart.toISOString(),
+            end: bucketEnd.toISOString(),
+            label: format(bucketStart, 'MMM'),
+          })
+          cursor = addMonths(cursor, 1)
+        }
+        timelineMonths = buckets
+      }
+    }
+  }
+
   const derivedByOrderId = new Map(derivedOrders.map((item) => [item.derived.id, item.derived]))
 
   const payments = rawPurchaseOrders.flatMap((order) => {
     const derived = derivedByOrderId.get(order.id)
     const poValue = derived?.plannedPoValue ?? 0
 
-    return order.payments.map((payment: any) => {
+    return order.payments.map((payment) => {
       const amountNumeric = payment.amount != null ? Number(payment.amount) : null
       const percentNumeric = payment.percentage != null
         ? Number(payment.percentage)
@@ -490,7 +585,7 @@ async function getOpsPlanningView(): Promise<{
         dueDate: formatDate(payment.dueDate ?? null),
         percentage: formatPercentDecimal(percentNumeric),
         amount: formatNumeric(amountNumeric),
-        status: payment.status ?? 'pending',
+        status: payment.status ?? '',
       }
     })
   })
@@ -498,10 +593,31 @@ async function getOpsPlanningView(): Promise<{
   const leadProfilesPayload = Array.from(context.leadProfiles.entries()).map(([productId, profile]) => ({
     productId,
     productionWeeks: Number(profile.productionWeeks ?? 0),
-    sourcePrepWeeks: Number(profile.sourcePrepWeeks ?? 0),
+    sourceWeeks: Number(profile.sourceWeeks ?? 0),
     oceanWeeks: Number(profile.oceanWeeks ?? 0),
-    finalMileWeeks: Number(profile.finalMileWeeks ?? 0),
+    finalWeeks: Number(profile.finalWeeks ?? 0),
   }))
+
+  const batchRows = rawPurchaseOrders.flatMap((order) => {
+    if (!Array.isArray(order.batches) || order.batches.length === 0) return []
+    return order.batches.map((batch) => ({
+      id: batch.id,
+      purchaseOrderId: order.id,
+      orderCode: order.orderCode,
+      batchCode: batch.batchCode ?? undefined,
+      productId: batch.productId,
+      productName: context.productNameById.get(batch.productId) ?? '',
+      quantity: formatNumeric(toNumberSafe(batch.quantity), 0),
+      sellingPrice: formatNumeric(batch.overrideSellingPrice ?? order.overrideSellingPrice ?? null),
+      manufacturingCost: formatNumeric(batch.overrideManufacturingCost ?? order.overrideManufacturingCost ?? null),
+      freightCost: formatNumeric(batch.overrideFreightCost ?? order.overrideFreightCost ?? null),
+      tariffRate: formatPercentDecimal(batch.overrideTariffRate ?? order.overrideTariffRate ?? null),
+      tacosPercent: formatPercentDecimal(batch.overrideTacosPercent ?? order.overrideTacosPercent ?? null),
+      fbaFee: formatNumeric(batch.overrideFbaFee ?? order.overrideFbaFee ?? null),
+      referralRate: formatPercentDecimal(batch.overrideReferralRate ?? order.overrideReferralRate ?? null),
+      storagePerMonth: formatNumeric(batch.overrideStoragePerMonth ?? order.overrideStoragePerMonth ?? null),
+    }))
+  })
 
   const calculator: OpsPlanningCalculatorPayload = {
     parameters: context.parameters,
@@ -512,37 +628,41 @@ async function getOpsPlanningView(): Promise<{
 
   return {
     inputRows,
+    batchRows,
     timelineRows,
+    timelineOrders,
     payments,
     calculator,
+    timelineMonths,
   }
 }
 
-async function getSalesPlanningView() {
-  const context = await loadOperationsContext()
-  const derivedOrders = deriveOrders(context).map((item) => item.derived)
-  const salesWeekInputs = mapSalesWeeks((await prisma.salesWeek.findMany()) as SalesWeek[])
-  const salesPlan = computeSalesPlan(salesWeekInputs, derivedOrders)
-
+function getSalesPlanningView(
+  financialData: FinancialData,
+  planning: PlanningCalendar,
+  activeSegment: YearSegment | null
+) {
+  const context = financialData.operations
   const productList = [...context.productInputs].sort((a, b) => a.name.localeCompare(b.name))
-  const weeks = Array.from({ length: 52 }, (_, index) => index + 1)
+  const weeks = buildWeekRange(activeSegment, planning.calendar)
+  const weekNumbers = weeks.length
+    ? weeks
+    : Array.from(new Set(financialData.salesPlan.map((row) => row.weekNumber))).sort((a, b) => a - b)
+  const weekSet = new Set(weekNumbers)
   const columnMeta: Record<string, { productId: string; field: string }> = {}
   const columnKeys: string[] = []
   const hasProducts = productList.length > 0
   const nestedHeaders: NestedHeaderCell[][] = hasProducts
     ? [
-        [
-          { label: 'Week', rowspan: 2 },
-          { label: 'Date', rowspan: 2 },
-        ],
-        [],
+        ['', ''],
+        ['Week', 'Date'],
       ]
     : [['Week', 'Date']]
 
   productList.forEach((product, productIdx) => {
     nestedHeaders[0].push({ label: product.name, colspan: SALES_METRICS.length })
     if (hasProducts) {
-      nestedHeaders[1]?.push(...SALES_METRICS.map((metric) => metricLabel(metric)))
+      nestedHeaders[1]?.push(...SALES_METRICS.map((metric) => metricHeader(metric)))
     }
     SALES_METRICS.forEach((metric) => {
       const key = columnKey(productIdx, metric)
@@ -552,20 +672,23 @@ async function getSalesPlanningView() {
   })
 
   const salesLookup = new Map<string, SalesWeekDerived>()
-  salesPlan.forEach((row) => {
-    salesLookup.set(`${row.productId}-${row.weekNumber}`, row)
+  financialData.salesPlan.forEach((row) => {
+    if (!weekSet.size || weekSet.has(row.weekNumber)) {
+      salesLookup.set(`${row.productId}-${row.weekNumber}`, row)
+    }
   })
 
-  const rows = weeks.map((weekNumber) => {
+  const rows = weekNumbers.map((weekNumber) => {
+    const calendarDate = getCalendarDateForWeek(weekNumber, planning.calendar)
     const row: SalesRow = {
       weekNumber: String(weekNumber),
-      weekDate: '',
+      weekDate: calendarDate ? formatDate(calendarDate) : '',
     }
 
     productList.forEach((product, productIdx) => {
       const keyRoot = `${product.id}-${weekNumber}`
       const derived = salesLookup.get(keyRoot)
-      if (derived && !row.weekDate && derived.weekDate) {
+      if (!row.weekDate && derived?.weekDate) {
         row.weekDate = formatDate(derived.weekDate)
       }
 
@@ -585,10 +708,18 @@ async function getSalesPlanningView() {
             row[key] = formatNumeric(derived?.finalSales ?? null, 0)
             break
           case 'stockWeeks':
-            row[key] = derived?.stockWeeks != null ? String(derived.stockWeeks) : ''
+            if (derived?.stockWeeks == null) {
+              row[key] = ''
+            } else if (!Number.isFinite(derived.stockWeeks)) {
+              row[key] = '∞'
+            } else {
+              row[key] = String(derived.stockWeeks)
+            }
             break
           case 'stockEnd':
             row[key] = formatNumeric(derived?.stockEnd ?? null, 0)
+            break
+          default:
             break
         }
       })
@@ -607,26 +738,18 @@ async function getSalesPlanningView() {
   }
 }
 
-async function getProfitAndLossView() {
-  const context = await loadOperationsContext()
-  const derivedOrders = deriveOrders(context)
-  const salesPlan = computeSalesPlan(
-    mapSalesWeeks((await prisma.salesWeek.findMany()) as SalesWeek[]),
-    derivedOrders.map((item) => item.derived)
-  )
-  const overrides = mapProfitAndLossWeeks(
-    (await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })) as ProfitAndLossWeek[]
-  )
-
-  const { weekly, monthly, quarterly } = computeProfitAndLoss(
-    salesPlan,
-    context.productIndex,
-    context.parameters,
-    overrides
-  )
+function getProfitAndLossView(
+  financialData: FinancialData,
+  activeSegment: YearSegment | null,
+  activeYear: number | null
+) {
+  const { weekly, monthly, quarterly } = financialData.profit
+  const filteredWeekly = weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+  const monthlySummary = filterSummaryByYear(monthly, activeYear)
+  const quarterlySummary = filterSummaryByYear(quarterly, activeYear)
 
   return {
-    weekly: weekly.map((entry) => ({
+    weekly: filteredWeekly.map((entry) => ({
       weekNumber: String(entry.weekNumber),
       weekDate: entry.weekDate ? formatDate(entry.weekDate) : '',
       units: formatNumeric(entry.units, 0),
@@ -640,7 +763,7 @@ async function getProfitAndLossView() {
       totalOpex: formatNumeric(entry.totalOpex),
       netProfit: formatNumeric(entry.netProfit),
     })),
-    monthlySummary: monthly.map((entry) => ({
+    monthlySummary: monthlySummary.map((entry) => ({
       periodLabel: entry.periodLabel,
       revenue: formatNumeric(entry.revenue),
       cogs: formatNumeric(entry.cogs),
@@ -651,7 +774,7 @@ async function getProfitAndLossView() {
       totalOpex: formatNumeric(entry.totalOpex),
       netProfit: formatNumeric(entry.netProfit),
     })),
-    quarterlySummary: quarterly.map((entry) => ({
+    quarterlySummary: quarterlySummary.map((entry) => ({
       periodLabel: entry.periodLabel,
       revenue: formatNumeric(entry.revenue),
       cogs: formatNumeric(entry.cogs),
@@ -665,40 +788,18 @@ async function getProfitAndLossView() {
   }
 }
 
-async function getCashFlowView() {
-  const context = await loadOperationsContext()
-  const derivedOrders = deriveOrders(context)
-  const salesPlan = computeSalesPlan(
-    mapSalesWeeks((await prisma.salesWeek.findMany()) as SalesWeek[]),
-    derivedOrders.map((item) => item.derived)
-  )
-  const pnlOverrides = mapProfitAndLossWeeks(
-    (await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })) as ProfitAndLossWeek[]
-  )
-  const {
-    weekly: pnlWeekly,
-    monthly: pnlMonthly,
-    quarterly: pnlQuarterly,
-  } = computeProfitAndLoss(
-    salesPlan,
-    context.productIndex,
-    context.parameters,
-    pnlOverrides
-  )
-
-  const cashOverrides = mapCashFlowWeeks(
-    (await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })) as CashFlowWeek[]
-  )
-
-  const { weekly, monthly, quarterly } = computeCashFlow(
-    pnlWeekly,
-    derivedOrders.map((item) => item.derived),
-    context.parameters,
-    cashOverrides
-  )
+function getCashFlowView(
+  financialData: FinancialData,
+  activeSegment: YearSegment | null,
+  activeYear: number | null
+) {
+  const { weekly, monthly, quarterly } = financialData.cash
+  const filteredWeekly = weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+  const monthlySummary = filterSummaryByYear(monthly, activeYear)
+  const quarterlySummary = filterSummaryByYear(quarterly, activeYear)
 
   return {
-    weekly: weekly.map((entry) => ({
+    weekly: filteredWeekly.map((entry) => ({
       weekNumber: String(entry.weekNumber),
       weekDate: entry.weekDate ? formatDate(entry.weekDate) : '',
       amazonPayout: formatNumeric(entry.amazonPayout),
@@ -707,7 +808,7 @@ async function getCashFlowView() {
       netCash: formatNumeric(entry.netCash),
       cashBalance: formatNumeric(entry.cashBalance),
     })),
-    monthlySummary: monthly.map((entry) => ({
+    monthlySummary: monthlySummary.map((entry) => ({
       periodLabel: entry.periodLabel,
       amazonPayout: formatNumeric(entry.amazonPayout),
       inventorySpend: formatNumeric(entry.inventorySpend),
@@ -715,7 +816,7 @@ async function getCashFlowView() {
       netCash: formatNumeric(entry.netCash),
       closingCash: formatNumeric(entry.closingCash),
     })),
-    quarterlySummary: quarterly.map((entry) => ({
+    quarterlySummary: quarterlySummary.map((entry) => ({
       periodLabel: entry.periodLabel,
       amazonPayout: formatNumeric(entry.amazonPayout),
       inventorySpend: formatNumeric(entry.inventorySpend),
@@ -726,58 +827,29 @@ async function getCashFlowView() {
   }
 }
 
-async function getDashboardView(): Promise<DashboardView> {
-  const context = await loadOperationsContext()
-  const derivedOrders = deriveOrders(context)
-  const salesPlan = computeSalesPlan(
-    mapSalesWeeks((await prisma.salesWeek.findMany()) as SalesWeek[]),
-    derivedOrders.map((item) => item.derived)
-  )
-  const pnlOverrides = mapProfitAndLossWeeks(
-    (await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })) as ProfitAndLossWeek[]
-  )
-  const { weekly: pnlWeekly, monthly: pnlMonthly, quarterly: pnlQuarterly } = computeProfitAndLoss(
-    salesPlan,
-    context.productIndex,
-    context.parameters,
-    pnlOverrides
-  )
+function getDashboardView(
+  financialData: FinancialData,
+  activeSegment: YearSegment | null,
+  activeYear: number | null
+): DashboardView {
+  const filteredSales = financialData.salesPlan.filter((row) => isWeekInSegment(row.weekNumber, activeSegment))
+  const filteredPnlWeekly = financialData.profit.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+  const filteredCashWeekly = financialData.cash.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+  const pnlMonthly = filterSummaryByYear(financialData.profit.monthly, activeYear)
+  const pnlQuarterly = filterSummaryByYear(financialData.profit.quarterly, activeYear)
+  const cashMonthly = filterSummaryByYear(financialData.cash.monthly, activeYear)
+  const cashQuarterly = filterSummaryByYear(financialData.cash.quarterly, activeYear)
 
-  const cashOverrides = mapCashFlowWeeks(
-    (await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })) as CashFlowWeek[]
+  const summary = computeDashboardSummary(
+    filteredPnlWeekly,
+    filteredCashWeekly,
+    financialData.derivedOrders.map((item) => item.derived),
+    filteredSales,
+    financialData.operations.productIndex
   )
-  const {
-    weekly: cashWeekly,
-    monthly: cashMonthly,
-    quarterly: cashQuarterly,
-  } = computeCashFlow(
-    pnlWeekly,
-    derivedOrders.map((item) => item.derived),
-    context.parameters,
-    cashOverrides
-  )
-
-  const dashboard = computeDashboardSummary(
-    pnlWeekly,
-    cashWeekly,
-    derivedOrders.map((item) => item.derived),
-    salesPlan,
-    context.productIndex
-  )
-
-  const timelineOrders: DashboardTimelineOrderView[] = derivedOrders.map(({ derived, productName }) => ({
-    id: derived.id,
-    orderCode: derived.orderCode,
-    productName,
-    quantity: derived.quantity,
-    status: derived.status,
-    availableDate: serializeDate(derived.availableDate),
-    segments: buildTimelineSegments(derived),
-  }))
 
   return {
-    orders: timelineOrders,
-    inventory: dashboard.inventory.map((item) => ({
+    inventory: summary.inventory.map((item) => ({
       productName: item.productName,
       stockEnd: item.stockEnd,
       stockWeeks: item.stockWeeks,
@@ -795,16 +867,35 @@ async function getDashboardView(): Promise<DashboardView> {
   }
 }
 
-export default async function SheetPage({ params }: SheetPageProps) {
-  const { sheet } = await params
-  const config = getSheetConfig(sheet)
+export default async function SheetPage({ params, searchParams }: SheetPageProps) {
+  const [routeParams, rawSearchParams] = await Promise.all([
+    params,
+    searchParams ?? Promise.resolve({}),
+  ])
+  const config = getSheetConfig(routeParams.sheet)
   if (!config) notFound()
 
-  const workbookStatus = await getWorkbookStatus()
+  const [workbookStatus, planningCalendar] = await Promise.all([
+    getWorkbookStatus(),
+    loadPlanningCalendar(),
+  ])
   const sheetStatus = workbookStatus.sheets.find((item) => item.slug === config.slug)
+  const parsedSearch = rawSearchParams as Record<string, string | string[] | undefined>
+  const activeYear = resolveActiveYear(parsedSearch.year, planningCalendar.yearSegments)
+  const activeSegment = findYearSegment(activeYear, planningCalendar.yearSegments)
 
   let content: React.ReactNode = null
   let contextPane: React.ReactNode = null
+  let financialData: FinancialData | null = null
+  let headerControls: ReactNode | undefined
+  let wrapLayout: (node: ReactNode) => ReactNode = (node) => node
+
+  const ensureFinancialData = async () => {
+    if (!financialData) {
+      financialData = await loadFinancialData(planningCalendar)
+    }
+    return financialData
+  }
 
   switch (config.slug) {
     case '1-product-setup': {
@@ -847,19 +938,25 @@ export default async function SheetPage({ params }: SheetPageProps) {
       break
     }
     case '2-ops-planning': {
-      const view = await getOpsPlanningView()
+      const view = await getOpsPlanningView(planningCalendar, activeSegment)
       content = (
         <OpsPlanningWorkspace
           inputs={view.inputRows}
+          batches={view.batchRows}
           timeline={view.timelineRows}
+          timelineOrders={view.timelineOrders}
           payments={view.payments}
           calculator={view.calculator}
+          timelineMonths={view.timelineMonths}
         />
       )
       break
     }
     case '3-sales-planning': {
-      const view = await getSalesPlanningView()
+      const data = await ensureFinancialData()
+      const view = getSalesPlanningView(data, planningCalendar, activeSegment)
+      headerControls = <SalesPlanningFocusControl productOptions={view.productOptions} />
+      wrapLayout = (node) => <SalesPlanningFocusProvider>{node}</SalesPlanningFocusProvider>
       content = (
         <SalesPlanningGrid
           rows={view.rows}
@@ -873,7 +970,8 @@ export default async function SheetPage({ params }: SheetPageProps) {
       break
     }
     case '4-fin-planning-pl': {
-      const view = await getProfitAndLossView()
+      const data = await ensureFinancialData()
+      const view = getProfitAndLossView(data, activeSegment, activeYear)
       content = (
         <ProfitAndLossGrid
           weekly={view.weekly}
@@ -884,7 +982,8 @@ export default async function SheetPage({ params }: SheetPageProps) {
       break
     }
     case '5-fin-planning-cash-flow': {
-      const view = await getCashFlowView()
+      const data = await ensureFinancialData()
+      const view = getCashFlowView(data, activeSegment, activeYear)
       content = (
         <CashFlowGrid
           weekly={view.weekly}
@@ -895,7 +994,8 @@ export default async function SheetPage({ params }: SheetPageProps) {
       break
     }
     case '6-dashboard': {
-      const view = await getDashboardView()
+      const data = await ensureFinancialData()
+      const view = getDashboardView(data, activeSegment, activeYear)
       content = <DashboardSheet data={view} />
       break
     }
@@ -912,10 +1012,12 @@ export default async function SheetPage({ params }: SheetPageProps) {
     updated: sheetStatus?.lastUpdated,
   }
 
-  return (
+  const layout = (
     <WorkbookLayout
       sheets={workbookStatus.sheets}
       activeSlug={config.slug}
+      planningYears={planningCalendar.yearSegments}
+      activeYear={activeYear}
       meta={meta}
       ribbon={
         <a
@@ -926,8 +1028,11 @@ export default async function SheetPage({ params }: SheetPageProps) {
         </a>
       }
       contextPane={contextPane}
+      headerControls={headerControls}
     >
       {content}
     </WorkbookLayout>
   )
+
+  return wrapLayout(layout)
 }
