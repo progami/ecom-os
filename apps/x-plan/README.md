@@ -59,12 +59,6 @@ pnpm --filter @ecom-os/x-plan prisma:generate
 pnpm --filter @ecom-os/x-plan prisma:migrate:deploy
 ```
 
-For fresh databases seed the canonical workbook to mirror production data:
-
-```bash
-pnpm --filter @ecom-os/x-plan prisma:seed
-```
-
 ### 6. Run the dev server
 
 ```bash
@@ -86,7 +80,6 @@ pnpm --filter @ecom-os/x-plan type-check  # tsc in noEmit mode
 - Handsontable-based grids for each workbook sheet with keyboard navigation, copy/paste, and inline editing.
 - Sheet-specific APIs (`/api/v1/x-plan/*`) that persist changes to PostgreSQL and keep derived totals in sync.
 - Automatic supplier invoice generation (manufacturing deposit/production/final, freight, tariff) so new purchase orders surface immediately in planning and cash views.
-- Excel import/export pipeline (via SheetJS) to bootstrap data from `scripts/excel_template.xlsx` and round-trip updates.
 - Prisma schema scoped to the `x_plan` schema inside the central database so the platform can grow without siloed databases.
 
 ## Environment Variables

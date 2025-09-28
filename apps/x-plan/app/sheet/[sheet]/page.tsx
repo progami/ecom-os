@@ -439,16 +439,6 @@ async function loadOperationsContext() {
     parameters,
   })
 
-  const purchaseOrderInputsInitial = mapPurchaseOrders(purchaseOrdersWithBatches)
-
-  await ensureDefaultSupplierInvoices({
-    purchaseOrders: purchaseOrdersWithBatches,
-    purchaseOrderInputs: purchaseOrderInputsInitial,
-    productIndex,
-    leadProfiles,
-    parameters,
-  })
-
   const purchaseOrderInputs = mapPurchaseOrders(purchaseOrdersWithBatches)
 
   return {
