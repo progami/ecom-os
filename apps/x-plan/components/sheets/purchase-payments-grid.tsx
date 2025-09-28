@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { getISOWeek } from 'date-fns'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
@@ -23,6 +24,7 @@ export type PurchasePaymentRow = {
   orderCode: string
   category: string
   label: string
+  weekNumber: string
   paymentIndex: number
   dueDate: string
   percentage: string
@@ -55,12 +57,12 @@ interface PurchasePaymentsGridProps {
   summaryLine?: string | null
 }
 
-const HEADERS = ['PO', 'Invoice', '#', 'Due Date', 'Percent', 'Expected $', 'Paid $']
+const HEADERS = ['PO', 'Invoice', 'Week', 'Due Date', 'Percent', 'Expected $', 'Paid $']
 
 const COLUMNS: Handsontable.ColumnSettings[] = [
   { data: 'orderCode', readOnly: true, className: 'cell-readonly' },
   { data: 'label', readOnly: true, className: 'cell-readonly' },
-  { data: 'paymentIndex', readOnly: true, className: 'cell-readonly' },
+  { data: 'weekNumber', readOnly: true, className: 'cell-readonly text-center', width: 70 },
   {
     data: 'dueDate',
     type: 'date',
@@ -197,7 +199,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
             onClick={() => {
               if (onAddPayment) void onAddPayment()
             }}
-            disabled={!activeOrderId || isLoading || isFullyAllocated}
+            disabled={!activeOrderId || isLoading}
             className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 transition enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-200 dark:enabled:hover:bg-slate-800"
           >
             Add payment
@@ -247,6 +249,15 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
             if (!entry) continue
             if (prop === 'dueDate') {
               entry.values[prop] = newValue ?? ''
+              if (newValue) {
+                const parsed = new Date(newValue)
+                if (!Number.isNaN(parsed.getTime())) {
+                  const week = getISOWeek(parsed)
+                  entry.values.weekNumber = String(week)
+                  record.weekNumber = String(week)
+                  hot.setDataAtRowProp(rowIndex, 'weekNumber', String(week), 'derived-update')
+                }
+              }
             } else if (NUMERIC_FIELDS.includes(prop)) {
               const normalizedAmount = normalizeNumeric(newValue)
               entry.values[prop] = normalizedAmount

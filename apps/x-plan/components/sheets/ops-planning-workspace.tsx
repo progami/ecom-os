@@ -23,6 +23,7 @@ import {
   type PaymentSummary,
 } from '@/components/sheets/purchase-payments-grid'
 import { createTimelineOrderFromDerived, type PurchaseTimelineOrder } from '@/lib/planning/timeline'
+import { getISOWeek } from 'date-fns'
 import {
   buildProductCostIndex,
   computePurchaseOrderDerived,
@@ -188,14 +189,19 @@ function resolvePaymentLabel(category: string | undefined, label: string | undef
 }
 
 function normalizePaymentRows(rows: PurchasePaymentRow[]): PurchasePaymentRow[] {
-  return rows.map((payment) => ({
-    ...payment,
-    label: resolvePaymentLabel(payment.category, payment.label, payment.paymentIndex),
-    dueDate: formatDisplayDate(payment.dueDate),
-    percentage: normalizePercent(payment.percentage),
-    amountExpected: formatNumericInput(payment.amountExpected, 2),
-    amountPaid: formatNumericInput(payment.amountPaid, 2),
-  }))
+  return rows.map((payment) => {
+    const dueDateValue = payment.dueDate ? new Date(payment.dueDate) : null
+    const week = dueDateValue && !Number.isNaN(dueDateValue.getTime()) ? String(getISOWeek(dueDateValue)) : payment.weekNumber ?? ''
+    return {
+      ...payment,
+      label: resolvePaymentLabel(payment.category, payment.label, payment.paymentIndex),
+      dueDate: formatDisplayDate(payment.dueDate),
+      percentage: normalizePercent(payment.percentage),
+      weekNumber: week,
+      amountExpected: formatNumericInput(payment.amountExpected, 2),
+      amountPaid: formatNumericInput(payment.amountPaid, 2),
+    }
+  })
 }
 
 function parseDateValue(value: string | null | undefined): Date | null {

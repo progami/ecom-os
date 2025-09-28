@@ -47,7 +47,7 @@ import {
 } from '@/lib/calculations'
 import type { ProductCostSummary } from '@/lib/calculations/product'
 import { createTimelineOrderFromDerived, type PurchaseTimelineOrder } from '@/lib/planning/timeline'
-import { addMonths, endOfMonth, format, startOfMonth, startOfWeek } from 'date-fns'
+import { addMonths, endOfMonth, format, getISOWeek, startOfMonth, startOfWeek } from 'date-fns'
 import { getCalendarDateForWeek, type YearSegment } from '@/lib/calculations/calendar'
 import { findYearSegment, loadPlanningCalendar, resolveActiveYear } from '@/lib/planning'
 import type { PlanningCalendar } from '@/lib/planning'
@@ -589,11 +589,8 @@ async function createPurchaseOrderPayment(data: SeedPaymentInput): Promise<Purch
         )
         const legacyData: Record<string, unknown> = {
           ...fallback,
-          amount: amountExpected,
-          status: amountPaid != null ? 'paid' : 'pending',
         }
-        if (category) legacyData.category = category
-        if (label) legacyData.label = label
+        legacyData.amount = amountExpected
         return prisma.purchaseOrderPayment
           .create({ data: legacyData })
           .catch((fallbackError) => {
@@ -629,8 +626,6 @@ async function updatePurchaseOrderPayment(
           ...fallback,
         }
         if (amountExpected != null) legacyData.amount = amountExpected
-        if (category) legacyData.category = category
-        if (label) legacyData.label = label
         return prisma.purchaseOrderPayment
           .update({ where: { id }, data: legacyData })
           .catch((fallbackError) => {
@@ -810,6 +805,8 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
         : denominator > 0 && amountPaidNumeric != null
         ? amountPaidNumeric / denominator
         : null
+      const dueDateObj = payment.dueDate ?? null
+      const weekNumber = dueDateObj ? String(getISOWeek(dueDateObj)) : ''
 
       return {
         id: payment.id,
@@ -817,8 +814,9 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
         orderCode: order.orderCode,
         category: payment.category ?? '',
         label: payment.label ?? buildPaymentLabel(payment.category, payment.paymentIndex),
+        weekNumber,
         paymentIndex: payment.paymentIndex,
-        dueDate: formatDate(payment.dueDate ?? null),
+        dueDate: formatDate(dueDateObj),
         percentage: formatPercentDecimal(percentNumeric),
         amountExpected: formatNumeric(amountExpectedNumeric),
         amountPaid: formatNumeric(amountPaidNumeric),
