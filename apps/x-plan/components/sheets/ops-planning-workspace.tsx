@@ -772,7 +772,7 @@ useEffect(() => {
       const next = previous.map((order) => {
         const updates = rowsByOrder.get(order.id)
         if (!updates || updates.length === 0) return order
-    const batches = [...(order.batchTableRows ?? [])]
+        const batches = [...(order.batchTableRows ?? [])]
         for (const update of updates) {
           const batchIndex = batches.findIndex((batch) => batch.id === update.id)
           if (batchIndex === -1) continue
@@ -798,7 +798,10 @@ useEffect(() => {
     })
 
     applyTimelineUpdate(ordersRef.current, inputRowsRef.current, paymentRowsRef.current)
-  }, [applyTimelineUpdate])
+    startTransition(() => {
+      router.refresh()
+    })
+  }, [applyTimelineUpdate, router])
 
   const handleSelectBatch = useCallback((batchId: string) => {
     setActiveBatchId(batchId)
