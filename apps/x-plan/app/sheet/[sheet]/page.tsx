@@ -12,7 +12,12 @@ import type { OpsTimelineRow } from '@/components/sheets/ops-planning-timeline'
 import type { PurchasePaymentRow } from '@/components/sheets/purchase-payments-grid'
 import type { OpsPlanningCalculatorPayload, PurchaseOrderSerialized } from '@/components/sheets/ops-planning-workspace'
 import prisma from '@/lib/prisma'
-import { Prisma, type BatchTableRow, type PurchaseOrder, type PurchaseOrderPayment } from '@prisma/client'
+import {
+  Prisma,
+  type BatchTableRow,
+  type PurchaseOrder,
+  type PurchaseOrderPayment,
+} from '@prisma/client'
 import { getSheetConfig } from '@/lib/sheets'
 import { getWorkbookStatus } from '@/lib/workbook'
 import { WorkbookLayout } from '@/components/workbook-layout'
@@ -489,23 +494,16 @@ async function ensureDefaultSupplierInvoices({
       const dueDate = planned.plannedDate ?? input.poDate ?? record.poDate ?? record.createdAt ?? new Date()
 
       orderCreations.push(
-        prisma.purchaseOrderPayment
-          .create({
-            data: {
-              purchaseOrderId: record.id,
-              paymentIndex: planned.paymentIndex,
-              dueDate,
-              percentage: percentValue != null ? new Prisma.Decimal(percentValue.toFixed(4)) : null,
-              amount: new Prisma.Decimal(amountValue.toFixed(2)),
-              category: planned.category,
-              label: planned.label,
-              status: 'pending',
-            },
-          })
-          .catch((error) => {
-            console.error('Failed to seed supplier payment', error)
-            return null
-          })
+        createPurchaseOrderPayment({
+          purchaseOrderId: record.id,
+          paymentIndex: planned.paymentIndex,
+          dueDate,
+          percentage: percentValue != null ? new Prisma.Decimal(percentValue.toFixed(4)) : null,
+          amount: new Prisma.Decimal(amountValue.toFixed(2)),
+          category: planned.category,
+          label: planned.label,
+          status: 'pending',
+        })
       )
     }
 
@@ -523,6 +521,39 @@ async function ensureDefaultSupplierInvoices({
 
   if (creations.length > 0) {
     await Promise.all(creations)
+  }
+}
+
+type SeedPaymentInput = {
+  purchaseOrderId: string
+  paymentIndex: number
+  dueDate: Date
+  percentage: Prisma.Decimal | null
+  amount: Prisma.Decimal
+  category?: string
+  label?: string
+  status?: string
+}
+
+async function createPurchaseOrderPayment(data: SeedPaymentInput): Promise<PurchaseOrderPayment | null> {
+  try {
+    return await prisma.purchaseOrderPayment.create({ data })
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientValidationError && /Unknown argument `(?:category|label)`/.test(error.message)) {
+      const { category, label, ...fallback } = data
+      console.warn(
+        '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @ecom-os/x-plan prisma:migrate:deploy` to add category/label columns'
+      )
+      return prisma.purchaseOrderPayment
+        .create({ data: fallback })
+        .catch((fallbackError) => {
+          console.error('Failed to seed supplier payment (fallback)', fallbackError)
+          return null
+        })
+    }
+
+    console.error('Failed to seed supplier payment', error)
+    return null
   }
 }
 
