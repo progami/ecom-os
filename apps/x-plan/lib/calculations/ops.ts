@@ -250,7 +250,7 @@ export function computePurchaseOrderDerived(
       batch.overrideStoragePerMonth ?? order.overrideStoragePerMonth
     )
 
-    const tariffCost = sellingPrice * tariffRate
+    const tariffCost = manufacturingCost * tariffRate
     const advertisingCost = sellingPrice * tacosPercent
     const landedUnitCost = manufacturingCost + freightCost + tariffCost + fbaFee + storagePerMonth
 

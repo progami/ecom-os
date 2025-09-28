@@ -114,15 +114,15 @@ const salesPlan = computeSalesPlan(salesWeeks, [derivedOrder])
 
 describe('computePurchaseOrderDerived', () => {
   it('calculates landed cost and payment schedule', () => {
-    expect(derivedOrder.plannedPoValue).toBeCloseTo(700)
-    expect(derivedOrder.supplierCostTotal).toBeCloseTo(450)
+    expect(derivedOrder.plannedPoValue).toBeCloseTo(665)
+    expect(derivedOrder.supplierCostTotal).toBeCloseTo(415)
     expect(derivedOrder.plannedPayments).toHaveLength(5)
 
     const [mfgDeposit, mfgProduction, freight, mfgFinal, tariff] = derivedOrder.plannedPayments
 
     expect(mfgDeposit.category).toBe('MANUFACTURING')
     expect(mfgDeposit.plannedAmount).toBeCloseTo(75)
-    expect(mfgDeposit.plannedPercent).toBeCloseTo(75 / 450)
+    expect(mfgDeposit.plannedPercent).toBeCloseTo(75 / 415)
     expect(differenceInCalendarDays(mfgDeposit.plannedDate!, productionStart)).toBe(0)
 
     expect(mfgProduction.category).toBe('MANUFACTURING')
@@ -136,7 +136,7 @@ describe('computePurchaseOrderDerived', () => {
     expect(mfgFinal.plannedAmount).toBeCloseTo(150)
 
     expect(tariff.category).toBe('TARIFF')
-    expect(tariff.plannedAmount).toBeCloseTo(50)
+    expect(tariff.plannedAmount).toBeCloseTo(15)
 
     expect(
       differenceInCalendarDays(
@@ -165,7 +165,8 @@ describe('computePurchaseOrderDerived', () => {
       parameters
     )
 
-    expect(overridden.landedUnitCost).toBeCloseTo(5 + 2 + (overrideOrder.overrideSellingPrice ?? product.sellingPrice) * 0.1 + 1 + 0.3)
+    const expectedTariff = (overrideOrder.overrideManufacturingCost ?? product.manufacturingCost) * 0.1
+    expect(overridden.landedUnitCost).toBeCloseTo(5 + 2 + expectedTariff + 1 + 0.3)
     expect(overridden.plannedPoValue).toBeCloseTo(overridden.landedUnitCost * overrideOrder.quantity)
   })
 })
@@ -301,9 +302,9 @@ describe('computeCashFlow', () => {
     const week3 = cashResult.weekly.find((row) => row.weekNumber === 3)
 
     expect(week1?.cashBalance).toBeCloseTo(725)
-    expect(week2?.inventorySpend).toBeCloseTo(375)
+    expect(week2?.inventorySpend).toBeCloseTo(340)
     expect(week3?.amazonPayout).toBeCloseTo(500)
-    expect(week3?.cashBalance).toBeCloseTo(450)
+    expect(week3?.cashBalance).toBeCloseTo(485)
   })
 
   it('keeps derived cash metrics in sync with editable inputs', () => {
@@ -331,7 +332,7 @@ describe('computeCashFlow', () => {
     const payoutWeek = delayed.weekly.find((row) => row.weekNumber === 61)
     expect(payoutWeek).toBeDefined()
     expect(payoutWeek?.amazonPayout).toBeCloseTo(500)
-    expect(payoutWeek?.cashBalance).toBeCloseTo(250)
+    expect(payoutWeek?.cashBalance).toBeCloseTo(285)
     expect(payoutWeek?.weekDate).toBeInstanceOf(Date)
     expect(payoutWeek?.weekDate?.getFullYear()).toBeGreaterThanOrEqual(2024)
   })
@@ -347,7 +348,7 @@ describe('computeDashboardSummary', () => {
       productIndex
     )
     expect(dashboard.revenueYtd).toBeCloseTo(1800)
-    expect(dashboard.cashBalance).toBeCloseTo(1350)
+    expect(dashboard.cashBalance).toBeCloseTo(1385)
     expect(dashboard.pipeline).toEqual([{ status: 'PLANNED', quantity: 100 }])
     expect(dashboard.inventory[0]?.stockEnd).toBe(420)
   })
