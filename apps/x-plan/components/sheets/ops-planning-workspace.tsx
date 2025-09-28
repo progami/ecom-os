@@ -164,18 +164,27 @@ function normalizePercent(value: string | undefined) {
   return formatPercentInput(value, 4)
 }
 
+const DEFAULT_PAYMENT_LABELS: Record<number, string> = {
+  1: 'Manufacturing Deposit (25%)',
+  2: 'Manufacturing Production (25%)',
+  3: 'Freight (100%)',
+  4: 'Manufacturing Final (50%)',
+  5: 'Tariff (100%)',
+}
+
 function resolvePaymentLabel(category: string | undefined, label: string | undefined, paymentIndex: number): string {
   const trimmedLabel = label?.trim()
   if (trimmedLabel) return trimmedLabel
-  const trimmedCategory = category?.trim()
-  if (trimmedCategory) {
-    const friendly = trimmedCategory.toLowerCase()
-    if (friendly === 'manufacturing') return 'Manufacturing'
-    if (friendly === 'freight') return 'Freight'
-    if (friendly === 'tariff') return 'Tariff'
-    return trimmedCategory
+
+  const normalizedCategory = category?.trim().toLowerCase()
+  if (normalizedCategory === 'manufacturing') {
+    return DEFAULT_PAYMENT_LABELS[paymentIndex] ?? 'Manufacturing'
   }
-  return `Payment ${paymentIndex}`
+  if (normalizedCategory === 'freight') return DEFAULT_PAYMENT_LABELS[3]
+  if (normalizedCategory === 'tariff') return DEFAULT_PAYMENT_LABELS[5]
+  if (normalizedCategory) return category!.trim()
+
+  return DEFAULT_PAYMENT_LABELS[paymentIndex] ?? `Payment ${paymentIndex}`
 }
 
 function normalizePaymentRows(rows: PurchasePaymentRow[]): PurchasePaymentRow[] {
