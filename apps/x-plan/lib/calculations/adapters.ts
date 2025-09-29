@@ -166,6 +166,8 @@ export function mapPurchaseOrders(
             category: payment.category ?? null,
             label: payment.label ?? null,
             dueDate: payment.dueDate ?? null,
+            dueDateDefault: payment.dueDateDefault ?? null,
+            dueDateSource: payment.dueDateSource ?? 'SYSTEM',
           }))
         : [],
       batchTableRows: batches,

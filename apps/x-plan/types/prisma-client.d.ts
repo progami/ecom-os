@@ -65,6 +65,10 @@ declare module '@prisma/client' {
     category?: string | null;
     label?: string | null;
     dueDate?: Date | null;
+    dueDateDefault?: Date | null;
+    dueDateSource?: 'SYSTEM' | 'USER';
+    createdAt?: Date;
+    updatedAt?: Date;
     purchaseOrder: PurchaseOrder;
   }
 
@@ -72,7 +76,7 @@ declare module '@prisma/client' {
     id: string;
     purchaseOrderId: string;
     productId: string;
-    quantity: number;
+    quantity?: number | null;
     batchCode?: string | null;
     overrideSellingPrice?: number | null;
     overrideManufacturingCost?: number | null;
@@ -132,6 +136,8 @@ declare module '@prisma/client' {
     product: Product;
     payments: PurchaseOrderPayment[];
     batchTableRows: BatchTableRow[];
+    createdAt?: Date | null;
+    updatedAt?: Date | null;
   }
 
   export interface SalesWeek {
@@ -161,6 +167,8 @@ declare module '@prisma/client' {
     fixedCosts?: number | null;
     totalOpex?: number | null;
     netProfit?: number | null;
+    createdAt?: Date | null;
+    updatedAt?: Date | null;
   }
 
   export interface CashFlowWeek {
@@ -172,6 +180,8 @@ declare module '@prisma/client' {
     fixedCosts?: number | null;
     netCash?: number | null;
     cashBalance?: number | null;
+    createdAt?: Date | null;
+    updatedAt?: Date | null;
   }
 
   export interface MonthlySummary {

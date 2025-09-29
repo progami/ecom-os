@@ -2,7 +2,7 @@
   border-radius: 0.75rem;
   border: 1px solid rgba(15, 23, 42, 0.08);
   overflow: hidden;
-  background-color: #ffffff;
+  background-color: #faf9f7;
 }
 
 .dark .x-plan-hot {
@@ -198,6 +198,14 @@
   font-size: 13px !important;
   color: #0f172a !important;
 }
+
+/* Inline calendar overlay for date picking */
+.xplan-date-overlay .flatpickr-input {
+  display: none !important;
+}
+
+.xplan-date-overlay { background-color: #faf9f7; }
+.xplan-date-overlay .flatpickr-calendar { box-shadow: none; }
 
 .dark .handsontableInput {
   background-color: rgba(15, 23, 42, 0.92) !important;

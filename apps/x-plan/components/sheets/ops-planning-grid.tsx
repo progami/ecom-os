@@ -48,24 +48,45 @@ interface OpsPlanningGridProps {
   disableDelete?: boolean
 }
 
-const COLUMN_HEADERS = [
+const BASE_HEADERS = [
   'PO Code',
   'PO Date',
   'Ship',
   'Container #',
-  'Prod. (wk)',
-  'Source (wk)',
-  'Ocean (wk)',
-  'Final (wk)',
+  'Prod.',
+  'Source',
+  'Ocean',
+  'Final',
   'Notes',
 ]
 
-const COLUMN_SETTINGS: Handsontable.ColumnSettings[] = [
+function toIsoDateString(value: unknown): string | null {
+  if (!value) return null
+  const date = value instanceof Date ? value : new Date(String(value))
+  if (Number.isNaN(date.getTime())) return null
+  const y = date.getUTCFullYear()
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(date.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function addWeeks(base: Date, weeks: number): Date {
+  const ms = base.getTime() + weeks * 7 * 24 * 60 * 60 * 1000
+  return new Date(ms)
+}
+
+function parseWeeks(value: string | undefined): number | null {
+  if (!value) return null
+  const n = Number(value)
+  return Number.isFinite(n) ? n : null
+}
+
+const COLUMN_SETTINGS_BASE: Handsontable.ColumnSettings[] = [
   { data: 'orderCode', className: 'cell-editable', width: 150 },
   {
     data: 'poDate',
     type: 'date',
-    dateFormat: 'MMM D YYYY',
+    dateFormat: 'YYYY-MM-DD',
     correctFormat: true,
     className: 'cell-editable',
     width: 150,
@@ -171,6 +192,7 @@ export function OpsPlanningGrid({
   disableDelete,
 }: OpsPlanningGridProps) {
   const [isClient, setIsClient] = useState(false)
+  const [stageMode, setStageMode] = useState<'weeks' | 'dates'>('weeks')
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<string, { id: string; values: Record<string, string> }>>(new Map())
   const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -211,6 +233,72 @@ export function OpsPlanningGrid({
   const handleDeleteClick = () => {
     if (!onDeleteOrder || !activeOrderId || disableDelete) return
     onDeleteOrder(activeOrderId)
+  }
+
+  const columns = useMemo<Handsontable.ColumnSettings[]>(() => {
+    if (stageMode === 'weeks') return COLUMN_SETTINGS_BASE
+    const cols = COLUMN_SETTINGS_BASE.map((column) => ({ ...column }))
+    const makeStageAccessor = (field: keyof OpsInputRow): Handsontable.ColumnSettings => ({
+      data: (row: OpsInputRow, value?: any) => {
+        if (value === undefined) {
+          const po = row.poDate ? new Date(String(row.poDate)) : null
+          const weeks = parseWeeks(row[field] as string | undefined)
+          if (!po || weeks == null) return ''
+          const date = addWeeks(po, weeks)
+          return toIsoDateString(date) ?? ''
+        }
+
+        const po = row.poDate ? new Date(String(row.poDate)) : null
+        if (!po) return ''
+        const iso = toIsoDateString(value)
+        if (!iso) return ''
+        const picked = new Date(`${iso}T00:00:00Z`)
+        const diffDays = (picked.getTime() - po.getTime()) / (24 * 60 * 60 * 1000)
+        const weeks = diffDays / 7
+        const normalized = formatNumericInput(weeks, 2)
+        row[field] = normalized as any
+
+        const entry = pendingRef.current.get(row.id) ?? { id: row.id, values: {} }
+        entry.values[field as string] = normalized
+        pendingRef.current.set(row.id, entry)
+        flush()
+
+        return iso
+      },
+      type: 'date',
+      dateFormat: 'YYYY-MM-DD',
+      correctFormat: true,
+      className: 'cell-editable',
+      width: 150,
+      validator: dateValidator,
+      allowInvalid: false,
+    })
+
+    cols[4] = makeStageAccessor('productionWeeks')
+    cols[5] = makeStageAccessor('sourceWeeks')
+    cols[6] = makeStageAccessor('oceanWeeks')
+    cols[7] = makeStageAccessor('finalWeeks')
+    return cols
+  }, [stageMode])
+
+  const headers = useMemo(() => {
+    if (stageMode === 'weeks') return ['PO Code','PO Date','Ship','Container #','Prod. (wk)','Source (wk)','Ocean (wk)','Final (wk)','Notes']
+    return ['PO Code','PO Date','Ship','Container #','Prod. (date)','Source (date)','Ocean (date)','Final (date)','Notes']
+  }, [stageMode])
+
+  const handleColHeader = (col: number, TH: HTMLTableCellElement) => {
+    if (col < 4 || col > 7) return
+    Handsontable.dom.empty(TH)
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'x-plan-header-toggle'
+    btn.textContent = stageMode === 'weeks' ? `${BASE_HEADERS[col]} (wk)` : `${BASE_HEADERS[col]} (date)`
+    btn.addEventListener('click', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setStageMode((prev) => (prev === 'weeks' ? 'dates' : 'weeks'))
+    })
+    TH.appendChild(btn)
   }
 
   if (!isClient) {
@@ -263,8 +351,9 @@ export function OpsPlanningGrid({
         }}
         data={data}
         licenseKey="non-commercial-and-evaluation"
-        columns={COLUMN_SETTINGS}
-        colHeaders={COLUMN_HEADERS}
+        columns={columns}
+        colHeaders={headers}
+        afterGetColHeader={(col, TH) => handleColHeader(col as number, TH as HTMLTableCellElement)}
         stretchH="all"
         className="x-plan-hot"
         rowHeaders={false}
@@ -290,7 +379,7 @@ export function OpsPlanningGrid({
           if (!hot) return
 
           for (const change of changes) {
-            const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof OpsInputRow, any, any]
+            const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof OpsInputRow | ((row: OpsInputRow, value?: any) => any), any, any]
             const record = hot.getSourceDataAtRow(rowIndex) as OpsInputRow | null
             if (!record) continue
 
@@ -299,6 +388,11 @@ export function OpsPlanningGrid({
             }
             const entry = pendingRef.current.get(record.id)
             if (!entry) continue
+
+            if (typeof prop === 'function') {
+              // handled inside accessor
+              continue
+            }
 
             if (NUMERIC_FIELDS.has(prop)) {
               const precision = NUMERIC_PRECISION[prop] ?? 2

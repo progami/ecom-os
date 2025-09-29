@@ -17,6 +17,7 @@ export interface PaymentPlanItem {
   plannedPercent: number
   plannedAmount: number
   plannedDate: Date | null
+  plannedDefaultDate: Date | null
   actualPercent?: number | null
   actualAmount?: number | null
   actualDate?: Date | null
@@ -399,7 +400,9 @@ export function computePurchaseOrderDerived(
     const actualPercent =
       normalizePercentValue(actualPayment?.percentage) ??
       (paidAmount != null && supplierDenominator > 0 ? paidAmount / supplierDenominator : null)
-    const actualDate = actualPayment?.dueDate ?? null
+    const dueDateSource = actualPayment?.dueDateSource ?? 'SYSTEM'
+    const overrideDate =
+      dueDateSource === 'USER' && actualPayment?.dueDate ? actualPayment.dueDate : null
 
     let plannedAmount = baseAmount
     if (amountOverride != null) {
@@ -416,7 +419,9 @@ export function computePurchaseOrderDerived(
       return defaultPercent
     })()
 
-    const plannedDate = dateOverride ?? defaultDate ?? createdAt
+    const plannedDefaultDate = dateOverride ?? defaultDate ?? createdAt
+    const plannedDate = overrideDate ?? plannedDefaultDate
+    const actualDate = overrideDate
 
     if (plannedAmount <= 0 && paidAmount == null) {
       continue
@@ -429,6 +434,7 @@ export function computePurchaseOrderDerived(
       plannedPercent,
       plannedAmount,
       plannedDate,
+      plannedDefaultDate,
       actualAmount: paidAmount,
       actualPercent,
       actualDate: actualDate ?? plannedDate,

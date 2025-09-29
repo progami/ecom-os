@@ -47,7 +47,7 @@ import {
 } from '@/lib/calculations'
 import type { ProductCostSummary } from '@/lib/calculations/product'
 import { createTimelineOrderFromDerived, type PurchaseTimelineOrder } from '@/lib/planning/timeline'
-import { addMonths, endOfMonth, format, getISOWeek, startOfMonth, startOfWeek } from 'date-fns'
+import { addMonths, endOfMonth, format, startOfMonth, startOfWeek } from 'date-fns'
 import { getCalendarDateForWeek, type YearSegment } from '@/lib/calculations/calendar'
 import { findYearSegment, loadPlanningCalendar, resolveActiveYear } from '@/lib/planning'
 import type { PlanningCalendar } from '@/lib/planning'
@@ -61,22 +61,44 @@ type SalesRow = {
   [key: string]: string
 }
 
-const dateFormatter = new Intl.DateTimeFormat('en-US', {
-  month: 'short',
-  day: 'numeric',
-  year: 'numeric',
-})
+function toIsoDate(value: Date | null | undefined): string | null {
+  if (!value) return null
+  return value.toISOString().slice(0, 10)
+}
 
 function formatDisplayDate(value: Date | number | string | null | undefined): string {
   if (value == null) return ''
-  const date = typeof value === 'string' || typeof value === 'number' ? new Date(value) : value
-  if (!date || Number.isNaN(date.getTime())) return ''
-  return dateFormatter.format(date).replace(',', '')
+  if (typeof value === 'string') {
+    const t = value.trim()
+    if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t
+    const d = new Date(t)
+    return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10)
+  }
+  if (typeof value === 'number') {
+    const d = new Date(value)
+    return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10)
+  }
+  return value.toISOString().slice(0, 10)
 }
 
-function formatDate(value: Date | null | undefined): string {
+function formatDate(value: Date | string | null | undefined): string {
   if (!value) return ''
   return formatDisplayDate(value)
+}
+
+function deriveIsoWeek(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (!match) return ''
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const date = new Date(Date.UTC(year, month - 1, day))
+  const dayNumber = date.getUTCDay() || 7
+  date.setUTCDate(date.getUTCDate() + 4 - dayNumber)
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+  return String(week)
 }
 
 function toNumberSafe(value: number | bigint | null | undefined): number {
@@ -179,6 +201,8 @@ function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSeriali
         category: payment.category ?? null,
         label: payment.label ?? null,
         dueDate: serializeDate(payment.dueDate),
+        dueDateDefault: serializeDate(payment.dueDateDefault ?? null),
+        dueDateSource: payment.dueDateSource,
       })) ?? [],
     overrideSellingPrice: order.overrideSellingPrice ?? null,
     overrideManufacturingCost: order.overrideManufacturingCost ?? null,
@@ -502,34 +526,60 @@ async function ensureDefaultSupplierInvoices({
         planned.plannedPercent != null && Number.isFinite(planned.plannedPercent)
           ? Number(planned.plannedPercent)
           : null
-      const dueDate = planned.plannedDate ?? input.poDate ?? record.poDate ?? record.createdAt ?? new Date()
+      const dueDateDefault =
+        planned.plannedDefaultDate ?? planned.plannedDate ?? input.poDate ?? record.poDate ?? record.createdAt ?? new Date()
+      const dueDate = dueDateDefault
 
       const percentageDecimal = percentValue != null ? new Prisma.Decimal(percentValue.toFixed(4)) : null
       const amountExpectedDecimal = new Prisma.Decimal(amountValue.toFixed(2))
 
       const existing = existingByIndex.get(planned.paymentIndex)
 
+      const existingAmountExpected = existing?.amountExpected != null ? Number(existing.amountExpected) : null
+      const existingPercent = existing?.percentage != null ? Number(existing.percentage) : null
+      const amountTolerance = Math.max(Math.abs(amountValue) * 0.001, 0.01)
+      const percentTolerance = 0.0001
+      const hasManualAmount =
+        existingAmountExpected != null && Math.abs(existingAmountExpected - amountValue) > amountTolerance
+      const hasManualPercent =
+        existingPercent != null && percentValue != null && Math.abs(existingPercent - percentValue) > percentTolerance
+      const existingDueDateSource = existing?.dueDateSource ?? 'SYSTEM'
+
       if (existing?.amountPaid != null) {
         continue
       }
 
       if (existing) {
-        updates.push(
-          updatePurchaseOrderPayment(existing.id, {
-            paymentIndex: planned.paymentIndex,
-            dueDate,
-            percentage: percentageDecimal,
-            amountExpected: amountExpectedDecimal,
-            category: planned.category,
-            label: planned.label,
-          })
-        )
+        const updatePayload: UpdatePaymentInput = {
+          paymentIndex: planned.paymentIndex,
+          category: planned.category,
+          label: planned.label,
+          dueDateDefault,
+        }
+
+        if (existingDueDateSource === 'SYSTEM') {
+          updatePayload.dueDate = dueDate
+          updatePayload.dueDateSource = 'SYSTEM'
+        }
+
+        if (!hasManualAmount) {
+          updatePayload.amountExpected = amountExpectedDecimal
+          updatePayload.percentage = percentageDecimal
+        } else if (!hasManualPercent && percentageDecimal != null) {
+          updatePayload.percentage = percentageDecimal
+        }
+
+        if (Object.keys(updatePayload).length > 0) {
+          updates.push(updatePurchaseOrderPayment(existing.id, updatePayload))
+        }
       } else {
         updates.push(
           createPurchaseOrderPayment({
             purchaseOrderId: record.id,
             paymentIndex: planned.paymentIndex,
             dueDate,
+            dueDateDefault,
+            dueDateSource: 'SYSTEM',
             percentage: percentageDecimal,
             amountExpected: amountExpectedDecimal,
             category: planned.category,
@@ -555,10 +605,14 @@ async function ensureDefaultSupplierInvoices({
   }
 }
 
+type PaymentDueDateSource = 'SYSTEM' | 'USER'
+
 type SeedPaymentInput = {
   purchaseOrderId: string
   paymentIndex: number
   dueDate: Date
+  dueDateDefault: Date
+  dueDateSource: PaymentDueDateSource
   percentage: Prisma.Decimal | null
   amountExpected: Prisma.Decimal
   amountPaid?: Prisma.Decimal | null
@@ -569,6 +623,8 @@ type SeedPaymentInput = {
 type UpdatePaymentInput = {
   paymentIndex?: number
   dueDate?: Date
+  dueDateDefault?: Date
+  dueDateSource?: PaymentDueDateSource
   percentage?: Prisma.Decimal | null
   amountExpected?: Prisma.Decimal | null
   amountPaid?: Prisma.Decimal | null
@@ -583,12 +639,15 @@ async function createPurchaseOrderPayment(data: SeedPaymentInput): Promise<Purch
     if (error instanceof Prisma.PrismaClientValidationError) {
       const message = error.message
       if (/Unknown argument `(?:category|label|amountExpected|amountPaid)`/.test(message)) {
-        const { category, label, amountExpected, amountPaid, ...fallback } = data
+        const { category, label, amountExpected, amountPaid, dueDateDefault, dueDateSource, ...fallback } = data
         console.warn(
           '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @ecom-os/x-plan prisma:migrate:deploy` to add amountExpected/amountPaid metadata columns'
         )
         const legacyData: Record<string, unknown> = {
           ...fallback,
+        }
+        if (dueDateDefault != null) {
+          legacyData.dueDate = dueDateDefault
         }
         legacyData.amount = amountExpected
         return prisma.purchaseOrderPayment
@@ -618,7 +677,7 @@ async function updatePurchaseOrderPayment(
     if (error instanceof Prisma.PrismaClientValidationError) {
       const message = error.message
       if (/Unknown argument `(?:category|label|amountExpected|amountPaid)`/.test(message)) {
-        const { category, label, amountExpected, amountPaid, ...fallback } = data
+        const { category, label, amountExpected, amountPaid, dueDateDefault, dueDateSource, ...fallback } = data
         console.warn(
           '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @ecom-os/x-plan prisma:migrate:deploy` to add amountExpected/amountPaid metadata columns'
         )
@@ -626,6 +685,7 @@ async function updatePurchaseOrderPayment(
           ...fallback,
         }
         if (amountExpected != null) legacyData.amount = amountExpected
+        if (dueDateDefault != null) legacyData.dueDate = dueDateDefault
         return prisma.purchaseOrderPayment
           .update({ where: { id }, data: legacyData })
           .catch((fallbackError) => {
@@ -670,11 +730,14 @@ async function loadFinancialData(planning: PlanningCalendar) {
     productIds: operations.productInputs.map((product) => product.id),
     calendar: planning.calendar,
   })
+  const profitOverrideRows = await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+  const cashOverrideRows = await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+
   const profitOverrides = mapProfitAndLossWeeks(
-    await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+    profitOverrideRows.filter((row) => row.updatedAt.getTime() > row.createdAt.getTime())
   )
   const cashOverrides = mapCashFlowWeeks(
-    await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+    cashOverrideRows.filter((row) => row.updatedAt.getTime() > row.createdAt.getTime())
   )
   const profit = computeProfitAndLoss(salesPlan, operations.productIndex, operations.parameters, profitOverrides)
   const cash = computeCashFlow(
@@ -800,13 +863,15 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
     return order.payments.map((payment) => {
       const amountExpectedNumeric = payment.amountExpected != null ? Number(payment.amountExpected) : null
       const amountPaidNumeric = payment.amountPaid != null ? Number(payment.amountPaid) : null
-      const percentNumeric = payment.percentage != null
-        ? Number(payment.percentage)
-        : denominator > 0 && amountPaidNumeric != null
-        ? amountPaidNumeric / denominator
-        : null
-      const dueDateObj = payment.dueDate ?? null
-      const weekNumber = dueDateObj ? String(getISOWeek(dueDateObj)) : ''
+      const percentNumeric =
+        payment.percentage != null
+          ? Number(payment.percentage)
+          : denominator > 0 && amountPaidNumeric != null
+            ? amountPaidNumeric / denominator
+            : null
+      const dueDateIso = toIsoDate(payment.dueDate ?? null)
+      const dueDateDefaultIso = toIsoDate(payment.dueDateDefault ?? payment.dueDate ?? null)
+      const weekNumber = deriveIsoWeek(dueDateIso)
 
       return {
         id: payment.id,
@@ -816,7 +881,11 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
         label: payment.label ?? buildPaymentLabel(payment.category, payment.paymentIndex),
         weekNumber,
         paymentIndex: payment.paymentIndex,
-        dueDate: formatDate(dueDateObj),
+        dueDate: formatDate(dueDateIso),
+        dueDateIso,
+        dueDateDefault: formatDate(dueDateDefaultIso),
+        dueDateDefaultIso,
+        dueDateSource: payment.dueDateSource ?? 'SYSTEM',
         percentage: formatPercentDecimal(percentNumeric),
         amountExpected: formatNumeric(amountExpectedNumeric),
         amountPaid: formatNumeric(amountPaidNumeric),
@@ -1168,16 +1237,10 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
 
   let content: React.ReactNode = null
   let contextPane: React.ReactNode = null
-  let financialData: FinancialData | null = null
   let headerControls: ReactNode | undefined
   let wrapLayout: (node: ReactNode) => ReactNode = (node) => node
 
-  const ensureFinancialData = async () => {
-    if (!financialData) {
-      financialData = await loadFinancialData(planningCalendar)
-    }
-    return financialData
-  }
+  const getFinancialData = () => loadFinancialData(planningCalendar)
 
   switch (config.slug) {
     case '1-product-setup': {
@@ -1235,7 +1298,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       break
     }
     case '3-sales-planning': {
-      const data = await ensureFinancialData()
+      const data = await getFinancialData()
       const view = getSalesPlanningView(data, planningCalendar, activeSegment)
       headerControls = <SalesPlanningFocusControl productOptions={view.productOptions} />
       wrapLayout = (node) => <SalesPlanningFocusProvider>{node}</SalesPlanningFocusProvider>
@@ -1252,7 +1315,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       break
     }
     case '4-fin-planning-pl': {
-      const data = await ensureFinancialData()
+      const data = await getFinancialData()
       const view = getProfitAndLossView(data, activeSegment, activeYear)
       content = (
         <ProfitAndLossGrid
@@ -1264,7 +1327,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       break
     }
     case '5-fin-planning-cash-flow': {
-      const data = await ensureFinancialData()
+      const data = await getFinancialData()
       const view = getCashFlowView(data, activeSegment, activeYear)
       content = (
         <CashFlowGrid
@@ -1276,7 +1339,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       break
     }
     case '6-dashboard': {
-      const data = await ensureFinancialData()
+      const data = await getFinancialData()
       const view = getDashboardView(data, activeSegment, activeYear)
       content = <DashboardSheet data={view} />
       break

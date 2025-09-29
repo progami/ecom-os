@@ -108,6 +108,51 @@ function normalizePercent(value: unknown, fractionDigits = 4) {
   return formatPercentInput(value, fractionDigits)
 }
 
+function finishEditingSafely(hot: Handsontable) {
+  const core = hot as unknown as {
+    finishEditing?: (restoreOriginalValue?: boolean) => void
+    getPlugin?: (key: string) => unknown
+    getActiveEditor?: () => { close?: () => void; finishEditing?: (restore?: boolean) => void } | undefined
+  }
+
+  if (typeof core.finishEditing === 'function') {
+    try {
+      core.finishEditing(false)
+      return
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error
+    }
+  }
+
+  const editorManager = core.getPlugin?.('editorManager') as
+    | {
+        finishEditing?: (restoreOriginalValue?: boolean) => void
+        closeAll?: () => void
+        getActiveEditor?: () => { close?: () => void; finishEditing?: (restore?: boolean) => void } | undefined
+      }
+    | undefined
+
+  if (editorManager) {
+    if (typeof editorManager.finishEditing === 'function') {
+      editorManager.finishEditing(false)
+      return
+    }
+    if (typeof editorManager.closeAll === 'function') {
+      editorManager.closeAll()
+      return
+    }
+  }
+
+  const activeEditor = editorManager?.getActiveEditor?.() ?? core.getActiveEditor?.()
+  if (activeEditor) {
+    if (typeof activeEditor.finishEditing === 'function') {
+      activeEditor.finishEditing(false)
+      return
+    }
+    activeEditor.close?.()
+  }
+}
+
 export function OpsPlanningCostGrid({
   rows,
   activeOrderId,
@@ -283,7 +328,7 @@ export function OpsPlanningCostGrid({
       if (!hot) return
       const root = hot.rootElement
       if (root && !root.contains(event.target as Node)) {
-        hot.finishEditing(false)
+        finishEditingSafely(hot)
       }
     }
     document.addEventListener('pointerdown', handlePointerDown, true)

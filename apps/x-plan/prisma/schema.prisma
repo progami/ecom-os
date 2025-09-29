@@ -148,6 +148,8 @@ model PurchaseOrderPayment {
   purchaseOrderId String
   paymentIndex    Int
   dueDate         DateTime?
+  dueDateDefault  DateTime?
+  dueDateSource   PaymentDueDateSource @default(SYSTEM)
   percentage      Decimal?      @db.Decimal(6, 4)
   amountExpected  Decimal?      @db.Decimal(12, 2)
   amountPaid      Decimal?      @db.Decimal(12, 2)
@@ -158,6 +160,11 @@ model PurchaseOrderPayment {
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
 
   @@unique([purchaseOrderId, paymentIndex])
+}
+
+enum PaymentDueDateSource {
+  SYSTEM
+  USER
 }
 
 model LogisticsEvent {

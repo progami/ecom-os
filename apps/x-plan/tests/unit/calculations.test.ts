@@ -169,6 +169,35 @@ describe('computePurchaseOrderDerived', () => {
     expect(overridden.landedUnitCost).toBeCloseTo(5 + 2 + expectedTariff + 1 + 0.3)
     expect(overridden.plannedPoValue).toBeCloseTo(overridden.landedUnitCost * overrideOrder.quantity)
   })
+
+  it('preserves manual payment due dates', () => {
+    const manualFreightDate = new Date('2024-02-05T00:00:00.000Z')
+    const manualOrder: PurchaseOrderInput = {
+      ...purchaseOrderInput,
+      payments: [
+        {
+          paymentIndex: 3,
+          dueDate: manualFreightDate,
+          dueDateSource: 'USER',
+          amountExpected: 100,
+          percentage: null,
+          amountPaid: null,
+          category: 'FREIGHT',
+          label: 'Freight (manual)',
+        },
+      ],
+    }
+
+    const derivedManual = computePurchaseOrderDerived(
+      manualOrder,
+      productIndex,
+      leadProfile,
+      parameters
+    )
+
+    const freightPayment = derivedManual.plannedPayments.find((payment) => payment.paymentIndex === 3)
+    expect(freightPayment?.plannedDate?.toISOString()).toBe(manualFreightDate.toISOString())
+  })
 })
 
 describe('computeSalesPlan', () => {

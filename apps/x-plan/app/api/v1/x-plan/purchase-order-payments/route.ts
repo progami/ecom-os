@@ -7,7 +7,7 @@ type UpdatePayload = {
   values: Record<string, string | null | undefined>
 }
 
-const allowedFields = ['dueDate', 'percentage', 'amountExpected', 'amountPaid'] as const
+const allowedFields = ['dueDate', 'dueDateDefault', 'dueDateSource', 'percentage', 'amountExpected', 'amountPaid'] as const
 
 function parseNumber(value: string | null | undefined) {
   if (!value) return null
@@ -22,8 +22,13 @@ function parseDate(value: string | null | undefined) {
   if (!value) return null
   const trimmed = value.trim()
   if (!trimmed) return null
-  const date = new Date(trimmed)
-  return Number.isNaN(date.getTime()) ? null : date
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const parsed = new Date(`${trimmed}T00:00:00.000Z`)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }
+  const parsed = new Date(trimmed)
+  if (Number.isNaN(parsed.getTime())) return null
+  return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()))
 }
 
 export async function PUT(request: Request) {
@@ -41,12 +46,24 @@ export async function PUT(request: Request) {
       for (const field of allowedFields) {
         if (!(field in values)) continue
         const incoming = values[field]
-        if (incoming === null || incoming === undefined || incoming === '') {
+        if (incoming === undefined) {
+          continue
+        }
+
+        if (field === 'dueDateSource') {
+          const normalized = String(incoming).trim().toUpperCase()
+          if (normalized === 'USER' || normalized === 'SYSTEM') {
+            data[field] = normalized
+          }
+          continue
+        }
+
+        if (incoming === null || incoming === '') {
           data[field] = null
           continue
         }
 
-        if (field === 'dueDate') {
+        if (field === 'dueDate' || field === 'dueDateDefault') {
           data[field] = parseDate(incoming)
         } else if (field === 'percentage') {
           const parsed = parseNumber(incoming)
@@ -81,6 +98,8 @@ export async function POST(request: Request) {
   const amountExpected = parseNumber(body.amountExpected ?? null)
   const amountPaid = parseNumber(body.amountPaid ?? null)
   const dueDate = parseDate(body.dueDate ?? null)
+  const dueDateSource = String(body.dueDateSource ?? 'SYSTEM').trim().toUpperCase()
+  const normalizedSource = dueDateSource === 'USER' ? 'USER' : 'SYSTEM'
 
   try {
     const nextIndex = Number.isNaN(paymentIndex) ? 1 : paymentIndex
@@ -92,9 +111,15 @@ export async function POST(request: Request) {
         amountExpected: amountExpected != null ? new Prisma.Decimal(amountExpected.toFixed(2)) : null,
         amountPaid: amountPaid != null ? new Prisma.Decimal(amountPaid.toFixed(2)) : null,
         dueDate,
+        dueDateDefault: dueDate,
+        dueDateSource: normalizedSource,
       },
       include: { purchaseOrder: true },
     })
+
+    const toIsoDate = (date: Date | null | undefined) => (date ? date.toISOString().slice(0, 10) : null)
+    const dueDateIso = toIsoDate(created.dueDate)
+    const dueDateDefaultIso = toIsoDate(created.dueDateDefault ?? created.dueDate)
 
     return NextResponse.json({
       id: created.id,
@@ -103,7 +128,12 @@ export async function POST(request: Request) {
       paymentIndex: created.paymentIndex,
       category: created.category ?? '',
       label: created.label ?? '',
-      dueDate: created.dueDate?.toISOString() ?? '',
+      weekNumber: '',
+      dueDate: dueDateIso ?? '',
+      dueDateIso,
+      dueDateDefault: dueDateDefaultIso ?? '',
+      dueDateDefaultIso,
+      dueDateSource: created.dueDateSource,
       percentage: created.percentage ? Number(created.percentage).toFixed(2) : '',
       amountExpected: created.amountExpected ? Number(created.amountExpected).toFixed(2) : '',
       amountPaid: created.amountPaid ? Number(created.amountPaid).toFixed(2) : '',

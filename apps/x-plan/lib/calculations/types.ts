@@ -56,6 +56,8 @@ export interface PurchaseOrderPaymentInput {
   category?: string | null
   label?: string | null
   dueDate?: Date | null
+  dueDateDefault?: Date | null
+  dueDateSource?: 'SYSTEM' | 'USER'
 }
 
 export type PurchaseOrderStatus =

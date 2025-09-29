@@ -90,6 +90,8 @@ export type PurchaseOrderSerialized = {
     percentage?: number | null
     amount?: number | null
     dueDate?: string | null
+    dueDateDefault?: string | null
+    dueDateSource?: 'SYSTEM' | 'USER'
     category?: string | null
     label?: string | null
     status?: string | null
@@ -139,6 +141,7 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
   year: 'numeric',
+  timeZone: 'UTC',
 })
 
 const currencyFormatter = new Intl.NumberFormat('en-US', {
@@ -154,10 +157,52 @@ const DEFAULT_PROFILE: LeadTimeProfile = {
   finalWeeks: 0,
 }
 
-function formatDisplayDate(value?: string | Date | null) {
-  if (!value) return ''
-  const date = value instanceof Date ? value : new Date(value)
+function coerceToLocalDate(value: string | Date | null | undefined): Date | null {
+  if (!value) return null
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const parsed = new Date(`${value}T00:00:00.000Z`)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }
+  const date = value instanceof Date ? value : new Date(String(value))
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function toIsoDateString(value: string | Date | null | undefined): string | null {
+  if (!value) return null
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+  const date = value instanceof Date ? value : new Date(String(value))
+  if (Number.isNaN(date.getTime())) return null
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function formatIsoDate(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const date = new Date(`${iso}T00:00:00.000Z`)
   if (Number.isNaN(date.getTime())) return ''
+  return dateFormatter.format(date).replace(',', '')
+}
+
+function deriveIsoWeek(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const [yearStr, monthStr, dayStr] = iso.split('-')
+  const year = Number(yearStr)
+  const month = Number(monthStr)
+  const day = Number(dayStr)
+  if (!year || !month || !day) return ''
+  const date = new Date(Date.UTC(year, month - 1, day))
+  const dayNumber = date.getUTCDay() || 7
+  date.setUTCDate(date.getUTCDate() + 4 - dayNumber)
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+  return String(week)
+}
+
+function formatDisplayDate(value?: string | Date | null) {
+  const date = coerceToLocalDate(value)
+  if (!date) return ''
   return dateFormatter.format(date).replace(',', '')
 }
 
@@ -190,12 +235,17 @@ function resolvePaymentLabel(category: string | undefined, label: string | undef
 
 function normalizePaymentRows(rows: PurchasePaymentRow[]): PurchasePaymentRow[] {
   return rows.map((payment) => {
-    const dueDateValue = payment.dueDate ? new Date(payment.dueDate) : null
-    const week = dueDateValue && !Number.isNaN(dueDateValue.getTime()) ? String(getISOWeek(dueDateValue)) : payment.weekNumber ?? ''
+    const dueDateIso = toIsoDateString(payment.dueDateIso ?? payment.dueDate)
+    const dueDateDefaultIso = toIsoDateString(payment.dueDateDefaultIso ?? payment.dueDateDefault)
+    const week = deriveIsoWeek(dueDateIso) ?? payment.weekNumber ?? ''
     return {
       ...payment,
       label: resolvePaymentLabel(payment.category, payment.label, payment.paymentIndex),
-      dueDate: formatDisplayDate(payment.dueDate),
+      dueDate: formatIsoDate(dueDateIso),
+      dueDateIso,
+      dueDateDefault: formatIsoDate(dueDateDefaultIso),
+      dueDateDefaultIso,
+      dueDateSource: payment.dueDateSource ?? 'SYSTEM',
       percentage: normalizePercent(payment.percentage),
       weekNumber: week,
       amountExpected: formatNumericInput(payment.amountExpected, 2),
@@ -206,6 +256,10 @@ function normalizePaymentRows(rows: PurchasePaymentRow[]): PurchasePaymentRow[] 
 
 function parseDateValue(value: string | null | undefined): Date | null {
   if (!value) return null
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const parsed = new Date(`${value}T00:00:00.000Z`)
+    return Number.isNaN(parsed.getTime()) ? null : parsed
+  }
   const date = new Date(value)
   return Number.isNaN(date.getTime()) ? null : date
 }
@@ -282,6 +336,8 @@ function deserializeOrders(purchaseOrders: PurchaseOrderSerialized[]): PurchaseO
         amountExpected: payment.amountExpected ?? null,
         amountPaid: payment.amountPaid ?? null,
         dueDate: parseDateValue(payment.dueDate ?? null),
+        dueDateDefault: parseDateValue(payment.dueDateDefault ?? null),
+        dueDateSource: payment.dueDateSource ?? 'SYSTEM',
       })) ?? [],
     overrideSellingPrice: order.overrideSellingPrice ?? null,
     overrideManufacturingCost: order.overrideManufacturingCost ?? null,
@@ -393,9 +449,11 @@ function buildPaymentsByOrder(paymentRows: PurchasePaymentRow[]): Map<string, Pu
   const map = new Map<string, PurchaseOrderPaymentInput[]>()
   for (const payment of paymentRows) {
     const list = map.get(payment.purchaseOrderId) ?? []
-    const percentage = parseNumericInput(payment.percentage) ?? null
-    const amountExpected = parseNumericInput(payment.amountExpected) ?? null
+    const percentage = null
+    const amountExpected = null
     const amountPaid = parseNumericInput(payment.amountPaid) ?? null
+    const dueDate = parseDateValue(payment.dueDateIso ?? payment.dueDate)
+    const dueDateDefault = parseDateValue(payment.dueDateDefaultIso ?? payment.dueDateDefault)
     list.push({
       paymentIndex: payment.paymentIndex,
       percentage,
@@ -403,7 +461,9 @@ function buildPaymentsByOrder(paymentRows: PurchasePaymentRow[]): Map<string, Pu
       amountPaid,
       category: payment.category ?? null,
       label: payment.label ?? null,
-      dueDate: parseDateValue(payment.dueDate),
+      dueDate,
+      dueDateDefault,
+      dueDateSource: payment.dueDateSource ?? 'SYSTEM',
     })
     map.set(payment.purchaseOrderId, list)
   }
@@ -538,6 +598,18 @@ function summaryLineFor(summary: PaymentSummary): string {
   return parts.join(' • ')
 }
 
+function formatPaymentWeekNumber(date: Date | null | undefined): string {
+  if (!date) return ''
+  const normalized = coerceToLocalDate(date)
+  if (!normalized) return ''
+  return String(getISOWeek(normalized))
+}
+
+type PaymentUpdatePayload = {
+  id: string
+  values: Record<string, string | null | undefined>
+}
+
 export function OpsPlanningWorkspace({
   poTableRows,
   batchTableRows,
@@ -669,6 +741,106 @@ useEffect(() => {
   batchRowsRef.current = initialBatchRows
 }, [initialBatchRows])
 
+  const syncPaymentExpectations = useCallback(
+    (ordersToSync: string[]) => {
+      if (!ordersToSync.length) return
+      const targetIds = new Set(ordersToSync)
+      const updates: PaymentUpdatePayload[] = []
+
+      setPaymentRows((previous) => {
+        const next = previous.map((row) => {
+          if (!targetIds.has(row.purchaseOrderId)) return row
+          const derived = derivedMapRef.current.get(row.purchaseOrderId)
+          if (!derived) return row
+          const planned = derived.plannedPayments.find((item) => item.paymentIndex === row.paymentIndex)
+          if (!planned) return row
+
+          const expectedValue = formatNumericInput(planned.plannedAmount, 2)
+          const percentValue = normalizePercent(planned.plannedPercent)
+          const paidNumeric = parseNumericInput(row.amountPaid)
+          const plannedDefaultIso = toIsoDateString(planned.plannedDefaultDate ?? planned.plannedDate)
+          const plannedDefaultDisplay = formatIsoDate(plannedDefaultIso)
+          const plannedWeek = deriveIsoWeek(plannedDefaultIso)
+
+          const rowDueDateSource = row.dueDateSource ?? 'SYSTEM'
+          const rowDueDateIso = row.dueDateIso ?? toIsoDateString(row.dueDate)
+          const rowValues: Record<string, string | null | undefined> = {}
+          let mutated = false
+          let nextRow = row
+
+          const ensureClone = () => {
+            if (!mutated) {
+              nextRow = { ...row }
+              mutated = true
+            }
+          }
+
+          if (plannedDefaultIso !== row.dueDateDefaultIso) {
+            ensureClone()
+            nextRow.dueDateDefaultIso = plannedDefaultIso
+            nextRow.dueDateDefault = plannedDefaultDisplay
+            rowValues.dueDateDefault = plannedDefaultIso ?? ''
+          }
+
+          if (rowDueDateSource !== 'USER') {
+            if (plannedDefaultIso !== rowDueDateIso) {
+              ensureClone()
+              nextRow.dueDateIso = plannedDefaultIso
+              nextRow.dueDate = plannedDefaultDisplay
+              nextRow.dueDateSource = 'SYSTEM'
+              nextRow.weekNumber = plannedWeek
+              rowValues.dueDate = plannedDefaultIso ?? ''
+              rowValues.dueDateSource = 'SYSTEM'
+            } else if (nextRow.weekNumber !== plannedWeek) {
+              ensureClone()
+              nextRow.weekNumber = plannedWeek
+            }
+          } else if (rowDueDateIso) {
+            const manualWeek = deriveIsoWeek(rowDueDateIso)
+            if (manualWeek !== row.weekNumber) {
+              ensureClone()
+              nextRow.weekNumber = manualWeek
+            }
+          }
+
+          if (paidNumeric == null || paidNumeric === 0) {
+            rowValues.amountExpected = expectedValue
+            rowValues.percentage = percentValue
+            ensureClone()
+            nextRow.amountExpected = expectedValue
+            nextRow.percentage = percentValue
+          } else if (row.amountExpected !== expectedValue) {
+            rowValues.amountExpected = expectedValue
+            ensureClone()
+            nextRow.amountExpected = expectedValue
+          }
+
+          if (Object.keys(rowValues).length > 0) {
+            updates.push({
+              id: row.id,
+              values: rowValues,
+            })
+          }
+
+          return nextRow
+        })
+        paymentRowsRef.current = next
+        return next
+      })
+
+      if (updates.length > 0) {
+        void fetch('/api/v1/x-plan/purchase-order-payments', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updates }),
+        }).catch((error) => {
+          console.error('Failed to sync payment expectations', error)
+        })
+      }
+    },
+    []
+  )
+
   const applyTimelineUpdate = useCallback(
     (nextOrders: PurchaseOrderInput[], nextInputRows: OpsInputRow[], nextPayments: PurchasePaymentRow[]) => {
       const { timelineRows: newTimelineRows, timelineOrders: newTimelineOrders, derivedMap } = buildTimelineRowsFromData({
@@ -682,8 +854,9 @@ useEffect(() => {
       derivedMapRef.current = derivedMap
       setTimelineRows(newTimelineRows)
       setTimelineOrdersState(newTimelineOrders)
+      syncPaymentExpectations(Array.from(derivedMap.keys()))
     },
-    [productIndex, leadProfileMap, calculator.parameters]
+    [productIndex, leadProfileMap, calculator.parameters, syncPaymentExpectations]
   )
 
   useEffect(() => {
@@ -710,19 +883,19 @@ useEffect(() => {
       setActiveOrderId(null)
       return
     }
-  if (!activeOrderId || !inputRows.some((row) => row.id === activeOrderId)) {
-    setActiveOrderId(inputRows[0].id)
-  }
-}, [inputRows, activeOrderId])
+    if (!activeOrderId || !inputRows.some((row) => row.id === activeOrderId)) {
+      setActiveOrderId(inputRows[0].id)
+    }
+  }, [inputRows, activeOrderId])
 
-useEffect(() => {
-  if (!activeOrderId) {
-    setActiveBatchId(null)
-    return
-  }
-  const firstBatch = batchRows.find((row) => row.purchaseOrderId === activeOrderId)
-  setActiveBatchId(firstBatch?.id ?? null)
-}, [activeOrderId, batchRows])
+  useEffect(() => {
+    if (!activeOrderId) {
+      setActiveBatchId(null)
+      return
+    }
+    const firstBatch = batchRows.find((row) => row.purchaseOrderId === activeOrderId)
+    setActiveBatchId(firstBatch?.id ?? null)
+  }, [activeOrderId, batchRows])
 
   const handleInputRowsChange = useCallback(
     (updatedRows: OpsInputRow[]) => {
@@ -798,10 +971,7 @@ useEffect(() => {
     })
 
     applyTimelineUpdate(ordersRef.current, inputRowsRef.current, paymentRowsRef.current)
-    startTransition(() => {
-      router.refresh()
-    })
-  }, [applyTimelineUpdate, router])
+  }, [applyTimelineUpdate])
 
   const handleSelectBatch = useCallback((batchId: string) => {
     setActiveBatchId(batchId)
@@ -891,13 +1061,13 @@ useEffect(() => {
         })
         applyTimelineUpdate(ordersRef.current, inputRowsRef.current, paymentRowsRef.current)
         setActiveBatchId(created.id)
-      toast.success('Batch added')
-    } catch (error) {
-      console.error(error)
-      toast.error(error instanceof Error ? error.message : 'Unable to add batch')
-    }
-  })
-}, [activeOrderId, applyTimelineUpdate, productNameIndex, productOptions, startTransition])
+        toast.success('Batch added')
+      } catch (error) {
+        console.error(error)
+        toast.error(error instanceof Error ? error.message : 'Unable to add batch')
+      }
+    })
+  }, [activeOrderId, applyTimelineUpdate, productNameIndex, productOptions, startTransition])
 
   const handleDeleteBatch = useCallback(() => {
     const batchId = activeBatchId
@@ -936,20 +1106,19 @@ useEffect(() => {
         })
         applyTimelineUpdate(ordersRef.current, inputRowsRef.current, paymentRowsRef.current)
         toast.success('Batch removed')
-        router.refresh()
       } catch (error) {
         console.error(error)
         toast.error('Unable to delete batch')
       }
     })
-  }, [activeBatchId, applyTimelineUpdate, router, startTransition])
+  }, [activeBatchId, applyTimelineUpdate, startTransition])
 
   const orderSummaries = useMemo(() => {
     const summaries = new Map<string, PaymentSummary>()
 
     for (const row of timelineRows) {
       const derived = derivedMapRef.current.get(row.id)
-      const plannedAmount = derived?.plannedPoValue ?? 0
+      const plannedAmount = derived?.supplierCostTotal ?? derived?.plannedPoValue ?? 0
       const plannedPercent = plannedAmount > 0 ? 1 : 0
       summaries.set(row.id, {
         plannedAmount,
@@ -964,14 +1133,16 @@ useEffect(() => {
     for (const payment of paymentRows) {
       const summary = summaries.get(payment.purchaseOrderId)
       if (!summary) continue
-      const amountPaid = parseNumericInput(payment.amountPaid) ?? 0
-      const percentFromPayment = Number(payment.percentage ?? 0)
-      if (Number.isFinite(amountPaid)) {
-        summary.actualAmount += amountPaid
+      const amountPaid = parseNumericInput(payment.amountPaid)
+      if (!Number.isFinite(amountPaid) || amountPaid == null || amountPaid <= 0) {
+        continue
       }
+      summary.actualAmount += amountPaid
+
+      const percentFromPayment = Number(payment.percentage ?? 0)
       if (Number.isFinite(percentFromPayment) && percentFromPayment > 0) {
         summary.actualPercent += percentFromPayment
-      } else if (summary.plannedAmount > 0 && Number.isFinite(amountPaid)) {
+      } else if (summary.plannedAmount > 0) {
         summary.actualPercent += amountPaid / summary.plannedAmount
       }
     }
@@ -1036,10 +1207,34 @@ useEffect(() => {
     }
   }, [activeOrderId, applyTimelineUpdate, orderSummaries])
 
-  const visiblePayments = useMemo(() => {
-    if (!activeOrderId) return [] as PurchasePaymentRow[]
-    return paymentRows.filter((payment) => payment.purchaseOrderId === activeOrderId)
-  }, [activeOrderId, paymentRows])
+  const visiblePayments = !activeOrderId
+    ? ([] as PurchasePaymentRow[])
+    : paymentRows
+        .filter((payment) => payment.purchaseOrderId === activeOrderId)
+        .map((payment) => {
+          const derived = derivedMapRef.current.get(payment.purchaseOrderId)
+          if (!derived || !derived.plannedPayments.length) return payment
+
+          const planned = derived.plannedPayments.find((item) => item.paymentIndex === payment.paymentIndex)
+          if (!planned) return payment
+
+          const expectedValue = formatNumericInput(planned.plannedAmount, 2)
+          const paidNumeric = parseNumericInput(payment.amountPaid)
+          const shouldUpdatePercent = paidNumeric == null || paidNumeric === 0
+          const percentValue = shouldUpdatePercent
+            ? formatPercentInput(planned.plannedPercent ?? 0, 4)
+            : payment.percentage
+
+          if (payment.amountExpected === expectedValue && payment.percentage === percentValue) {
+            return payment
+          }
+
+          return {
+            ...payment,
+            amountExpected: expectedValue,
+            percentage: percentValue,
+          }
+        })
 
   const visibleBatches = useMemo(() => {
     if (!activeOrderId) return [] as OpsBatchRow[]

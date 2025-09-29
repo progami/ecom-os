@@ -47,7 +47,7 @@ function normalizeEditable(value: unknown) {
   return formatNumericInput(value, 2)
 }
 
-export function CashFlowGrid({ weekly }: CashFlowGridProps) {
+export function CashFlowGrid({ weekly, monthlySummary, quarterlySummary }: CashFlowGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<number, UpdatePayload>>(new Map())
   const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -177,6 +177,46 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
             return cell
           }}
         />
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <SummaryTable title="Monthly Summary" rows={monthlySummary} />
+        <SummaryTable title="Quarterly Summary" rows={quarterlySummary} />
+      </div>
+    </div>
+  )
+}
+
+function SummaryTable({ title, rows }: { title: string; rows: SummaryRow[] }) {
+  return (
+    <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <header>
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{title}</h3>
+      </header>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+          <thead className="bg-slate-50 text-xs uppercase dark:bg-slate-900/60">
+            <tr>
+              <th className="px-3 py-2 text-left font-semibold tracking-wide text-slate-500 dark:text-slate-400">Period</th>
+              <th className="px-3 py-2 text-right font-semibold tracking-wide text-slate-500 dark:text-slate-400">Amazon Payout</th>
+              <th className="px-3 py-2 text-right font-semibold tracking-wide text-slate-500 dark:text-slate-400">Inventory Purchase</th>
+              <th className="px-3 py-2 text-right font-semibold tracking-wide text-slate-500 dark:text-slate-400">Fixed Costs</th>
+              <th className="px-3 py-2 text-right font-semibold tracking-wide text-slate-500 dark:text-slate-400">Net Cash</th>
+              <th className="px-3 py-2 text-right font-semibold tracking-wide text-slate-500 dark:text-slate-400">Cash Balance</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+            {rows.map((row) => (
+              <tr key={row.periodLabel}>
+                <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{row.periodLabel}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">{row.amazonPayout ?? ''}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">{row.inventorySpend ?? ''}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">{row.fixedCosts ?? ''}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">{row.netCash ?? ''}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">{row.closingCash ?? ''}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )

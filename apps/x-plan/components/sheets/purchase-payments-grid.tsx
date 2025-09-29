@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { getISOWeek } from 'date-fns'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
+import Flatpickr from 'react-flatpickr'
+import 'flatpickr/dist/themes/light.css'
 import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
@@ -18,6 +19,42 @@ import {
 
 registerAllModules()
 
+const dateFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+  timeZone: 'UTC',
+})
+
+function toIsoDateString(value: unknown): string | null {
+  if (!value) return null
+  const date = value instanceof Date ? value : new Date(String(value))
+  if (Number.isNaN(date.getTime())) return null
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function formatDisplayDateFromIso(iso: string | null | undefined): string {
+  return iso ?? ''
+}
+
+function deriveIsoWeek(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const [yearStr, monthStr, dayStr] = iso.split('-')
+  const year = Number(yearStr)
+  const month = Number(monthStr)
+  const day = Number(dayStr)
+  if (!year || !month || !day) return ''
+  const date = new Date(Date.UTC(year, month - 1, day))
+  const dayNumber = date.getUTCDay() || 7
+  date.setUTCDate(date.getUTCDate() + 4 - dayNumber)
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+  return String(week)
+}
+
 export type PurchasePaymentRow = {
   id: string
   purchaseOrderId: string
@@ -27,6 +64,11 @@ export type PurchasePaymentRow = {
   weekNumber: string
   paymentIndex: number
   dueDate: string
+  dueDateValue?: Date | null
+  dueDateIso: string | null
+  dueDateDefault: string
+  dueDateDefaultIso: string | null
+  dueDateSource: 'SYSTEM' | 'USER'
   percentage: string
   amountExpected: string
   amountPaid: string
@@ -52,6 +94,7 @@ interface PurchasePaymentsGridProps {
   onSelectOrder?: (orderId: string) => void
   onAddPayment?: () => void
   onRowsChange?: (rows: PurchasePaymentRow[]) => void
+  onSynced?: () => void
   isLoading?: boolean
   orderSummaries?: Map<string, PaymentSummary>
   summaryLine?: string | null
@@ -64,13 +107,14 @@ const COLUMNS: Handsontable.ColumnSettings[] = [
   { data: 'label', readOnly: true, className: 'cell-readonly' },
   { data: 'weekNumber', readOnly: true, className: 'cell-readonly text-center', width: 70 },
   {
-    data: 'dueDate',
-    type: 'date',
-    dateFormat: 'MMM D YYYY',
-    correctFormat: true,
+    data: 'dueDateIso',
+    editor: false,
     className: 'cell-editable',
-    validator: dateValidator,
-    allowInvalid: false,
+    renderer: (instance, td, row, col, prop, value) => {
+      const display = formatDisplayDateFromIso(typeof value === 'string' ? value : null)
+      td.textContent = display
+      return td
+    },
   },
   { data: 'percentage', type: 'numeric', numericFormat: { pattern: '0.00%' }, readOnly: true, className: 'cell-readonly' },
   {
@@ -92,6 +136,55 @@ const COLUMNS: Handsontable.ColumnSettings[] = [
 
 const NUMERIC_FIELDS: Array<keyof PurchasePaymentRow> = ['amountPaid']
 
+function finishEditingSafely(hot: Handsontable) {
+  const core = hot as unknown as {
+    finishEditing?: (restoreOriginalValue?: boolean) => void
+    getPlugin?: (key: string) => unknown
+    getActiveEditor?: () => { close?: () => void; finishEditing?: (restore?: boolean) => void } | undefined
+  }
+
+  if (typeof core.finishEditing === 'function') {
+    try {
+      core.finishEditing(false)
+      return
+    } catch (error) {
+      if (error instanceof TypeError) {
+        // fall through to alternate strategies
+      } else {
+        throw error
+      }
+    }
+  }
+
+  const editorManager = core.getPlugin?.('editorManager') as
+    | {
+        finishEditing?: (restoreOriginalValue?: boolean) => void
+        closeAll?: () => void
+        getActiveEditor?: () => { close?: () => void; finishEditing?: (restore?: boolean) => void } | undefined
+      }
+    | undefined
+
+  if (editorManager) {
+    if (typeof editorManager.finishEditing === 'function') {
+      editorManager.finishEditing(false)
+      return
+    }
+    if (typeof editorManager.closeAll === 'function') {
+      editorManager.closeAll()
+      return
+    }
+  }
+
+  const activeEditor = editorManager?.getActiveEditor?.() ?? core.getActiveEditor?.()
+  if (activeEditor) {
+    if (typeof activeEditor.finishEditing === 'function') {
+      activeEditor.finishEditing(false)
+      return
+    }
+    activeEditor.close?.()
+  }
+}
+
 function normalizeNumeric(value: unknown) {
   return formatNumericInput(value, 2)
 }
@@ -100,11 +193,41 @@ function normalizePercent(value: unknown) {
   return formatPercentInput(value, 4)
 }
 
-export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, onAddPayment, onRowsChange, isLoading, orderSummaries, summaryLine }: PurchasePaymentsGridProps) {
+export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, onAddPayment, onRowsChange, onSynced, isLoading, orderSummaries, summaryLine }: PurchasePaymentsGridProps) {
   const [isClient, setIsClient] = useState(false)
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<string, PaymentUpdate>>(new Map())
   const flushTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [picker, setPicker] = useState<{ row: number; left: number; top: number; value: string } | null>(null)
+  const pickerRef = useRef<HTMLDivElement | null>(null)
+  const [keyEditor, setKeyEditor] = useState<{ row: number; left: number; top: number; value: string } | null>(null)
+  const keyEditorRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    if (!picker) return
+    const handleOutside = (ev: MouseEvent) => {
+      const target = ev.target as Node
+      if (pickerRef.current && !pickerRef.current.contains(target)) {
+        setPicker(null)
+      }
+    }
+    const handleEscape = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape') setPicker(null)
+    }
+    document.addEventListener('mousedown', handleOutside, true)
+    document.addEventListener('keydown', handleEscape, true)
+    return () => {
+      document.removeEventListener('mousedown', handleOutside, true)
+      document.removeEventListener('keydown', handleEscape, true)
+    }
+  }, [picker])
+
+  useEffect(() => {
+    if (keyEditor && keyEditorRef.current) {
+      keyEditorRef.current.focus()
+      keyEditorRef.current.select()
+    }
+  }, [keyEditor])
 
   useEffect(() => {
     setIsClient(true)
@@ -113,7 +236,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
       if (!hot) return
       const root = hot.rootElement
       if (root && !root.contains(event.target as Node)) {
-        hot.finishEditing(false)
+        finishEditingSafely(hot)
       }
     }
     document.addEventListener('pointerdown', handlePointerDown, true)
@@ -124,7 +247,11 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
 
   const data = useMemo(() => {
     const scoped = activeOrderId ? payments.filter((payment) => payment.purchaseOrderId === activeOrderId) : payments
-    return scoped.map((payment) => ({ ...payment }))
+    return scoped.map((payment) => {
+      const iso = payment.dueDateIso
+      const value = iso ? new Date(`${iso}T00:00:00.000Z`) : null
+      return { ...payment, dueDateValue: value }
+    })
   }, [activeOrderId, payments])
 
   const summary = activeOrderId ? orderSummaries?.get(activeOrderId) : undefined
@@ -160,11 +287,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
 
   const summaryText = summaryLine ?? computedSummaryLine
 
-  useEffect(() => {
-    if (hotRef.current) {
-      hotRef.current.loadData(data)
-    }
-  }, [data])
+  // Rely on React data prop updates; avoid forcing loadData which can clobber in-flight edits
 
   const flush = () => {
     if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current)
@@ -184,6 +307,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
           onRowsChange(updated)
         }
         toast.success('Payment schedule updated')
+        if (onSynced) onSynced()
       } catch (error) {
         console.error(error)
         toast.error('Unable to update payment schedule')
@@ -245,32 +369,128 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
           const record = data[row]
           if (record) onSelectOrder(record.purchaseOrderId)
         }}
+        afterOnCellMouseDown={(_, coords) => {
+          const hot = hotRef.current
+          if (!hot) return
+          const prop = hot.colToProp(coords.col)
+          if (prop !== 'dueDateIso') return
+          const td = hot.getCell(coords.row, coords.col)
+          if (!td) return
+          const rect = td.getBoundingClientRect()
+          const iso = (hot.getSourceDataAtRow(coords.row) as PurchasePaymentRow)?.dueDateIso ?? ''
+          setPicker({ row: coords.row, left: rect.left, top: rect.bottom + 4, value: iso })
+        }}
+        beforeKeyDown={(event) => {
+          const hot = hotRef.current
+          if (!hot) return
+          const sel: any = hot.getSelectedLast()
+          if (!sel) return
+          let row = -1
+          let col = -1
+          if (Array.isArray(sel)) {
+            if (sel.length >= 2 && typeof sel[0] === 'number') {
+              row = sel[0]
+              col = sel[1]
+            } else if (Array.isArray(sel[0])) {
+              const last = sel[sel.length - 1]
+              row = last[0]
+              col = last[1]
+            }
+          } else if (typeof sel === 'object' && sel !== null) {
+            if (typeof sel.row === 'number' && typeof sel.col === 'number') {
+              row = sel.row
+              col = sel.col
+            } else if (typeof sel.startRow === 'number' && typeof sel.startCol === 'number') {
+              row = sel.startRow
+              col = sel.startCol
+            }
+          }
+          if (row < 0 || col < 0) return
+          const prop = hot.colToProp(col)
+          if (prop !== 'dueDateIso') return
+
+          const td = hot.getCell(row, col)
+          if (!td) return
+          const rect = td.getBoundingClientRect()
+          const record = hot.getSourceDataAtRow(row) as PurchasePaymentRow | null
+          const iso = record?.dueDateIso ?? ''
+          const key = (event as KeyboardEvent).key
+
+          if (key === 'Enter' || key === ' ' || key === 'F2') {
+            setPicker({ row, left: rect.left, top: rect.bottom + 4, value: iso })
+            event.preventDefault()
+            return
+          }
+          if (/^[0-9]$/.test(key) || key === '-' || key === 'Backspace' || key === 'Delete') {
+            setKeyEditor({ row, left: rect.left, top: rect.bottom + 4, value: iso })
+            event.preventDefault()
+            return
+          }
+        }}
+        // No pre-normalization; the column accessor handles mapping.
         afterChange={(changes, rawSource) => {
           const source = String(rawSource)
           if (!changes || source === 'loadData' || source === 'derived-update') return
           const hot = hotRef.current
           if (!hot) return
           for (const change of changes) {
-            const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof PurchasePaymentRow, any, any]
+            const [rowIndex, prop, _oldValue, newValue] = change as [number, any, any, any]
             const record = hot.getSourceDataAtRow(rowIndex) as PurchasePaymentRow | null
             if (!record) continue
-            if (!pendingRef.current.has(record.id)) {
-              pendingRef.current.set(record.id, { id: record.id, values: {} })
-            }
-            const entry = pendingRef.current.get(record.id)
-            if (!entry) continue
-            if (prop === 'dueDate') {
-              entry.values[prop] = newValue ?? ''
-              if (newValue) {
-                const parsed = new Date(newValue)
-                if (!Number.isNaN(parsed.getTime())) {
-                  const week = getISOWeek(parsed)
-                  entry.values.weekNumber = String(week)
-                  record.weekNumber = String(week)
-                  hot.setDataAtRowProp(rowIndex, 'weekNumber', String(week), 'derived-update')
-                }
+          if (!pendingRef.current.has(record.id)) {
+            pendingRef.current.set(record.id, { id: record.id, values: {} })
+          }
+          const entry = pendingRef.current.get(record.id)
+          if (!entry) continue
+          // Column accessor already updated the row; just persist the iso
+          if (typeof prop === 'function') {
+            const iso = record.dueDateIso ?? toIsoDateString(newValue)
+            if (iso) {
+              const formatted = formatDisplayDateFromIso(iso)
+              const week = deriveIsoWeek(iso)
+              entry.values.dueDate = iso
+              entry.values.dueDateSource = 'USER'
+              record.dueDate = formatted
+              record.dueDateIso = iso
+              record.dueDateSource = 'USER'
+              entry.values.weekNumber = week
+              record.weekNumber = week
+              hot.setDataAtRowProp(rowIndex, 'dueDateSource', 'USER', 'derived-update')
+              hot.setDataAtRowProp(rowIndex, 'dueDateIso', iso, 'derived-update')
+              hot.setDataAtRowProp(rowIndex, 'dueDate', formatted, 'derived-update')
+              hot.setDataAtRowProp(rowIndex, 'weekNumber', week, 'derived-update')
+              if (onRowsChange && hotRef.current) {
+                const snapshot = (hot.getSourceData() as PurchasePaymentRow[]).map((row) => ({ ...row }))
+                onRowsChange(snapshot)
               }
-            } else if (NUMERIC_FIELDS.includes(prop)) {
+            } else if (newValue == null || String(newValue).trim() === '') {
+              const nextIso = record.dueDateDefaultIso
+              const formatted = formatDisplayDateFromIso(nextIso)
+              const week = deriveIsoWeek(nextIso)
+              entry.values.dueDate = nextIso ?? ''
+              entry.values.dueDateDefault = nextIso ?? ''
+              entry.values.dueDateSource = 'SYSTEM'
+              record.dueDate = formatted
+              record.dueDateIso = nextIso ?? null
+              record.dueDateSource = 'SYSTEM'
+              record.dueDateDefault = formatted
+              record.dueDateDefaultIso = nextIso ?? null
+              record.weekNumber = week
+              hot.setDataAtRowProp(rowIndex, 'dueDateSource', 'SYSTEM', 'derived-update')
+              hot.setDataAtRowProp(rowIndex, 'dueDateIso', nextIso ?? null, 'derived-update')
+              hot.setDataAtRowProp(rowIndex, 'dueDateDefaultIso', nextIso ?? null, 'derived-update')
+              hot.setDataAtRowProp(rowIndex, 'dueDateDefault', formatted, 'derived-update')
+              hot.setDataAtRowProp(rowIndex, 'weekNumber', week, 'derived-update')
+              if (onRowsChange && hotRef.current) {
+                const snapshot = (hot.getSourceData() as PurchasePaymentRow[]).map((row) => ({ ...row }))
+                onRowsChange(snapshot)
+              }
+            } else {
+              // Unknown format from editor—ignore rather than reverting
+              continue
+            }
+            continue
+          } else if (NUMERIC_FIELDS.includes(prop)) {
               const normalizedAmount = normalizeNumeric(newValue)
               entry.values[prop] = normalizedAmount
               record[prop] = normalizedAmount
@@ -306,8 +526,102 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
             }
           }
           flush()
+          if (onRowsChange && hotRef.current) {
+            const snapshot = (hot.getSourceData() as PurchasePaymentRow[]).map((row) => ({ ...row }))
+            onRowsChange(snapshot)
+          }
         }}
       />
+      {picker ? (
+        <div
+          ref={pickerRef}
+          style={{ position: 'fixed', left: picker.left, top: picker.top, zIndex: 9999 }}
+          className="xplan-date-overlay rounded-md border border-slate-300 bg-white p-2 shadow-md dark:border-slate-700 dark:bg-slate-900"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <Flatpickr
+            options={{ dateFormat: 'Y-m-d', defaultDate: picker.value || undefined, inline: true, clickOpens: false }}
+            onChange={(dates) => {
+              const date = dates && dates[0]
+              const iso = date ? toIsoDateString(date) : ''
+              const hot = hotRef.current
+              if (!hot) return
+              const row = hot.getSourceDataAtRow(picker.row) as PurchasePaymentRow | null
+              if (row) {
+                const week = deriveIsoWeek(iso)
+                // Update grid immediately
+                hot.setDataAtRowProp(picker.row, 'dueDateIso', iso ?? '', 'user')
+                hot.setDataAtRowProp(picker.row, 'dueDateSource', iso ? 'USER' : 'SYSTEM', 'derived-update')
+                hot.setDataAtRowProp(picker.row, 'dueDate', formatDisplayDateFromIso(iso), 'derived-update')
+                hot.setDataAtRowProp(picker.row, 'weekNumber', week, 'derived-update')
+                // Persist immediately (no debounce)
+                const payload = [{ id: row.id, values: { dueDate: iso ?? '', dueDateSource: iso ? 'USER' : 'SYSTEM', weekNumber: week } }]
+                fetch('/api/v1/x-plan/purchase-order-payments', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ updates: payload }),
+                }).then(() => {
+                  if (onRowsChange && hotRef.current) {
+                    const snapshot = (hotRef.current.getSourceData() as PurchasePaymentRow[]).map((r) => ({ ...r }))
+                    onRowsChange(snapshot)
+                  }
+                }).catch(() => {})
+              }
+              setPicker(null)
+            }}
+          />
+        </div>
+      ) : null}
+
+      {keyEditor ? (
+        <div
+          style={{ position: 'fixed', left: keyEditor.left, top: keyEditor.top, zIndex: 9999 }}
+          className="xplan-date-overlay rounded-md border border-slate-300 bg-white p-2 shadow-md dark:border-slate-700 dark:bg-slate-900"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <input
+            ref={keyEditorRef}
+            type="text"
+            placeholder="YYYY-MM-DD"
+            defaultValue={keyEditor.value}
+            className="rounded border border-slate-300 px-2 py-1 text-sm dark:border-slate-700"
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                setKeyEditor(null)
+                return
+              }
+              if (e.key === 'Enter') {
+                const target = e.target as HTMLInputElement
+                const iso = toIsoDateString(target.value)
+                const hot = hotRef.current
+                if (!hot) return
+                const rowIdx = keyEditor.row
+                const row = hot.getSourceDataAtRow(rowIdx) as PurchasePaymentRow | null
+                const week = deriveIsoWeek(iso)
+                hot.setDataAtRowProp(rowIdx, 'dueDateIso', iso ?? '', 'user')
+                hot.setDataAtRowProp(rowIdx, 'dueDateSource', iso ? 'USER' : 'SYSTEM', 'derived-update')
+                hot.setDataAtRowProp(rowIdx, 'dueDate', formatDisplayDateFromIso(iso), 'derived-update')
+                hot.setDataAtRowProp(rowIdx, 'weekNumber', week, 'derived-update')
+                if (row) {
+                  const payload = [{ id: row.id, values: { dueDate: iso ?? '', dueDateSource: iso ? 'USER' : 'SYSTEM', weekNumber: week } }]
+                  fetch('/api/v1/x-plan/purchase-order-payments', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ updates: payload }),
+                  }).then(() => {
+                    if (onRowsChange && hotRef.current) {
+                      const snapshot = (hotRef.current.getSourceData() as PurchasePaymentRow[]).map((r) => ({ ...r }))
+                      onRowsChange(snapshot)
+                    }
+                  }).catch(() => {})
+                }
+                setKeyEditor(null)
+              }
+            }}
+            onBlur={() => setKeyEditor(null)}
+          />
+        </div>
+      ) : null}
     </div>
   )
 }
