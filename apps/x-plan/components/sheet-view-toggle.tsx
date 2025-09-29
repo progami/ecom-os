@@ -3,6 +3,12 @@
 import { useTransition } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { clsx } from 'clsx'
+import {
+  SHEET_TOOLBAR_BUTTON,
+  SHEET_TOOLBAR_GROUP,
+  SHEET_TOOLBAR_LABEL,
+  SHEET_TOOLBAR_SEGMENTED,
+} from '@/components/sheet-toolbar'
 
 type SheetViewMode = 'tabular' | 'visual'
 
@@ -36,13 +42,9 @@ export function SheetViewToggle({ value }: SheetViewToggleProps) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-2 text-xs text-slate-500 dark:text-slate-400">
-      <span className="font-medium uppercase tracking-wide">View</span>
-      <div
-        role="group"
-        aria-label="Select sheet view"
-        className="inline-flex rounded-full border border-slate-200 bg-slate-100 p-1 text-sm font-medium dark:border-slate-700 dark:bg-slate-800/60"
-      >
+    <div className={SHEET_TOOLBAR_GROUP}>
+      <span className={SHEET_TOOLBAR_LABEL}>View</span>
+      <div role="group" aria-label="Select sheet view" className={SHEET_TOOLBAR_SEGMENTED}>
         {options.map((option) => {
           const isActive = value === option.value
           return (
@@ -50,10 +52,11 @@ export function SheetViewToggle({ value }: SheetViewToggleProps) {
               key={option.value}
               type="button"
               className={clsx(
-                'relative rounded-full px-4 py-1 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:focus-visible:outline-slate-600',
+                SHEET_TOOLBAR_BUTTON,
+                'rounded-none first:rounded-l-full last:rounded-r-full',
                 isActive
-                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100'
-                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                  ? 'bg-slate-900 text-white shadow-sm dark:bg-slate-50 dark:text-slate-900'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-100'
               )}
               onClick={() => handleSelect(option.value)}
               aria-pressed={isActive}

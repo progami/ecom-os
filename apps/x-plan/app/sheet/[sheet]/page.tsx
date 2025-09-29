@@ -1426,9 +1426,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   }
 
   controls.push(<SheetViewToggle key="sheet-view-toggle" value={viewMode} />)
-  const headerControls = (
-    <div className="flex flex-wrap items-center gap-3">{controls}</div>
-  )
+  const headerControls = controls.length ? controls : undefined
 
   if (!tabularContent) {
     const fallback = (

@@ -9,6 +9,13 @@ import {
   type KeyboardEvent,
   type PointerEvent,
 } from 'react'
+import {
+  SHEET_TOOLBAR_BUTTON,
+  SHEET_TOOLBAR_GROUP,
+  SHEET_TOOLBAR_LABEL,
+  SHEET_TOOLBAR_SEGMENTED,
+  SHEET_TOOLBAR_SELECT,
+} from '@/components/sheet-toolbar'
 
 export type TrendGranularity = 'monthly' | 'quarterly'
 export type TrendSeries = Record<TrendGranularity, { labels: string[]; values: number[] }>
@@ -98,7 +105,7 @@ export function FinancialTrendsSection({ title, description, metrics, defaultMet
             <p className="text-sm text-slate-500 dark:text-slate-400">{resolvedMetric.helper}</p>
           ) : null}
         </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
           <MetricSelect options={metrics} value={resolvedMetric.key} onChange={setActiveMetric} />
           <GranularityToggle value={granularity} onChange={setGranularity} availability={granularityAvailability} />
         </div>
@@ -132,12 +139,12 @@ function GranularityToggle({
   availability: Record<TrendGranularity, boolean>
 }) {
   return (
-    <div className="flex flex-col items-end gap-2 text-xs text-slate-500 dark:text-slate-400">
-      <span className="font-medium uppercase tracking-wide">Rollup cadence</span>
+    <div className={SHEET_TOOLBAR_GROUP}>
+      <span className={SHEET_TOOLBAR_LABEL}>Rollup cadence</span>
       <div
         role="group"
         aria-label="Select performance granularity"
-        className="inline-flex rounded-full border border-slate-200 bg-slate-100 p-1 text-sm font-medium dark:border-slate-700 dark:bg-slate-800/60"
+        className={SHEET_TOOLBAR_SEGMENTED}
       >
         {granularityOptions.map((option) => {
           const isActive = option.value === value
@@ -146,10 +153,10 @@ function GranularityToggle({
             <button
               key={option.value}
               type="button"
-              className={`relative rounded-full px-4 py-1 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 ${
+              className={`${SHEET_TOOLBAR_BUTTON} rounded-none first:rounded-l-full last:rounded-r-full ${
                 isActive
-                  ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100'
-                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                  ? 'bg-slate-900 text-white shadow-sm dark:bg-slate-50 dark:text-slate-900'
+                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-100'
               } ${!isAvailable ? 'cursor-not-allowed opacity-50 hover:text-slate-500 dark:hover:text-slate-400' : ''}`}
               onClick={() => isAvailable && onChange(option.value)}
               aria-pressed={isActive}
@@ -179,10 +186,10 @@ function MetricSelect({
   }
 
   return (
-    <label className="flex flex-col text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-      Metric
+    <label className={`${SHEET_TOOLBAR_GROUP} cursor-pointer`}>
+      <span className={SHEET_TOOLBAR_LABEL}>Metric</span>
       <select
-        className="mt-1 w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+        className={`${SHEET_TOOLBAR_SELECT} min-w-[9rem]`}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       >
