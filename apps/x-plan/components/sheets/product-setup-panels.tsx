@@ -210,13 +210,12 @@ export function ProductSetupParametersPanel({ title, description, parameters }: 
         const isDirty = item.status === 'dirty'
         const statusLabel = isSaving ? 'Saving…' : isError ? 'Save failed' : isDirty ? 'Pending save' : 'Saved'
         const statusTone = isSaving
-          ? 'bg-amber-100 text-amber-800 dark:bg-amber-500/10 dark:text-amber-200'
+          ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200'
           : isError
-          ? 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-200'
+          ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-200'
           : isDirty
-          ? 'bg-slate-100 text-slate-600 dark:bg-slate-500/10 dark:text-slate-200'
-          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-200'
-        const helperId = `${item.id}-helper`
+          ? 'bg-slate-200 text-slate-700 ring-1 ring-slate-300 dark:bg-slate-500/20 dark:text-slate-200'
+          : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200'
 
         return (
           <div
@@ -225,15 +224,10 @@ export function ProductSetupParametersPanel({ title, description, parameters }: 
           >
             <div className="flex flex-col gap-3 px-4 py-3 md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)] md:items-center md:gap-6">
               <div className="flex flex-col gap-1">
-                <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{item.label}</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{item.label}</p>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  <span className="rounded-full border border-slate-200 px-2 py-0.5 font-medium uppercase tracking-wide dark:border-slate-700">
+                  <span className="rounded-full bg-slate-200 px-2 py-0.5 font-semibold uppercase tracking-wide text-slate-700 dark:bg-slate-700 dark:text-slate-200">
                     {item.type === 'numeric' ? 'Numeric' : 'Text'}
-                  </span>
-                  <span id={helperId} className="hidden md:inline">
-                    {item.type === 'numeric'
-                      ? 'Auto-formats to two decimal places after saving.'
-                      : 'Saved exactly as typed.'}
                   </span>
                 </div>
               </div>
@@ -243,13 +237,12 @@ export function ProductSetupParametersPanel({ title, description, parameters }: 
                   onChange={(event) => handleValueChange(item.id, event.target.value)}
                   onBlur={handleBlur}
                   inputMode={item.type === 'numeric' ? 'decimal' : 'text'}
-                  aria-describedby={helperId}
                   aria-invalid={isError}
                   disabled={isSaving}
                   className={`w-full rounded-lg border px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70 ${
                     isError
-                      ? 'border-rose-300 text-rose-900 focus:ring-rose-500 dark:border-rose-500 dark:bg-rose-500/10 dark:text-rose-100 dark:focus:ring-rose-400'
-                      : 'border-slate-200 focus:ring-teal-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-teal-400'
+                      ? 'border-rose-400 text-rose-900 focus:ring-rose-500 dark:border-rose-500 dark:bg-rose-500/10 dark:text-rose-100 dark:focus:ring-rose-400'
+                      : 'border-slate-300 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-400'
                   }`}
                 />
                 {isError ? (
@@ -293,13 +286,13 @@ export function ProductSetupParametersPanel({ title, description, parameters }: 
   )
 
   return (
-    <section className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/60">
+    <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-md dark:border-slate-800 dark:bg-slate-900">
       <header className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-wide text-teal-600 dark:text-teal-300">{title}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">{title}</p>
         <p className="text-sm text-slate-600 dark:text-slate-400">{description}</p>
       </header>
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <div className="hidden border-b border-slate-200 bg-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-300 md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)]">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
+        <div className="hidden border-b border-slate-200 bg-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300 md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)]">
           <span>Parameter</span>
           <span>Value</span>
           <span>Status</span>
