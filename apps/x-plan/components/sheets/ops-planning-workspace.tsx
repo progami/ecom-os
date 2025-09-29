@@ -135,6 +135,7 @@ interface OpsPlanningWorkspaceProps {
   payments: PurchasePaymentRow[]
   calculator: OpsPlanningCalculatorPayload
   timelineMonths: { start: string; end: string; label: string }[]
+  mode?: 'tabular' | 'visual'
 }
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
@@ -618,7 +619,9 @@ export function OpsPlanningWorkspace({
   payments,
   calculator,
   timelineMonths,
+  mode = 'tabular',
 }: OpsPlanningWorkspaceProps) {
+  const isVisualMode = mode === 'visual'
   const router = useRouter()
   const productIndex = useMemo(() => buildProductCostIndex(calculator.products), [calculator.products])
   const productNameIndex = useMemo(() => new Map(calculator.products.map((product) => [product.id, product.name])), [calculator.products])
@@ -1366,94 +1369,101 @@ useEffect(() => {
 
   return (
     <div className="space-y-6">
-      <OpsPlanningGrid
-        rows={inputRows}
-        activeOrderId={activeOrderId}
-        onSelectOrder={(orderId) => setActiveOrderId(orderId)}
-        onRowsChange={handleInputRowsChange}
-        onCreateOrder={() => setIsCreateOrderOpen(true)}
-        onDeleteOrder={handleDeleteOrder}
-        disableCreate={isPending || productOptions.length === 0}
-        disableDelete={isPending}
-      />
+      {!isVisualMode && (
+        <>
+          <OpsPlanningGrid
+            rows={inputRows}
+            activeOrderId={activeOrderId}
+            onSelectOrder={(orderId) => setActiveOrderId(orderId)}
+            onRowsChange={handleInputRowsChange}
+            onCreateOrder={() => setIsCreateOrderOpen(true)}
+            onDeleteOrder={handleDeleteOrder}
+            disableCreate={isPending || productOptions.length === 0}
+            disableDelete={isPending}
+          />
 
-      {isCreateOrderOpen ? (
-        <section className="space-y-4 rounded-xl border border-dashed border-slate-300 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
-          <header className="space-y-1">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              New purchase order
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Set the PO identifier now — assign cost details and the target product in the batch cost table below.
-            </p>
-          </header>
-          <form
-            className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1.5fr)_auto]"
-            onSubmit={(event) => {
-              event.preventDefault()
-              handleCreateOrder()
-            }}
-          >
-            <label className="flex flex-col gap-1 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-              Order code
-              <input
-                type="text"
-                value={newOrderCode}
-                onChange={(event) => setNewOrderCode(event.target.value)}
-                placeholder="Auto-generate if blank"
-                className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:focus:ring-slate-600"
-              />
-            </label>
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setIsCreateOrderOpen(false)}
-                className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+          {isCreateOrderOpen ? (
+            <section className="space-y-4 rounded-xl border border-dashed border-slate-300 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/60">
+              <header className="space-y-1">
+                <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  New purchase order
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Set the PO identifier now — assign cost details and the target product in the batch cost table below.
+                </p>
+              </header>
+              <form
+                className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1.5fr)_auto]"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  handleCreateOrder()
+                }}
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isPending}
-                className="rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white transition enabled:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:enabled:hover:bg-slate-200"
-              >
-                Create
-              </button>
-            </div>
-          </form>
-        </section>
-      ) : null}
+                <label className="flex flex-col gap-1 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  Order code
+                  <input
+                    type="text"
+                    value={newOrderCode}
+                    onChange={(event) => setNewOrderCode(event.target.value)}
+                    placeholder="Auto-generate if blank"
+                    className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:focus:ring-slate-600"
+                  />
+                </label>
+                <div className="flex items-center justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateOrderOpen(false)}
+                    className="rounded-md border border-slate-300 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isPending}
+                    className="rounded-md bg-slate-900 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-white transition enabled:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:enabled:hover:bg-slate-200"
+                  >
+                    Create
+                  </button>
+                </div>
+              </form>
+            </section>
+          ) : null}
 
-      <OpsPlanningCostGrid
-        rows={visibleBatches}
-        activeOrderId={activeOrderId}
-        activeBatchId={activeBatchId}
-        onSelectOrder={(orderId) => setActiveOrderId(orderId)}
-        onSelectBatch={handleSelectBatch}
-        onRowsChange={handleBatchRowsChange}
-        onAddBatch={handleAddBatch}
-        onDeleteBatch={handleDeleteBatch}
-        disableAdd={isPending || !activeOrderId}
-        disableDelete={isPending}
-        products={productOptions}
-        onSync={handleCostSync}
-      />
-      <PurchasePaymentsGrid
-        payments={visiblePayments}
-        activeOrderId={activeOrderId}
-        onSelectOrder={(orderId) => setActiveOrderId(orderId)}
-        onAddPayment={handleAddPayment}
-        onRowsChange={handlePaymentRowsChange}
-        isLoading={isPending || isAddingPayment}
-        orderSummaries={orderSummaries}
-        summaryLine={summaryLine ?? undefined}
-      />
-      <PurchaseTimeline
-        orders={timelineOrdersState}
-        activeOrderId={activeOrderId}
-        onSelectOrder={(orderId) => setActiveOrderId(orderId)}
-        months={timelineMonths}
-      />
+          <OpsPlanningCostGrid
+            rows={visibleBatches}
+            activeOrderId={activeOrderId}
+            activeBatchId={activeBatchId}
+            onSelectOrder={(orderId) => setActiveOrderId(orderId)}
+            onSelectBatch={handleSelectBatch}
+            onRowsChange={handleBatchRowsChange}
+            onAddBatch={handleAddBatch}
+            onDeleteBatch={handleDeleteBatch}
+            disableAdd={isPending || !activeOrderId}
+            disableDelete={isPending}
+            products={productOptions}
+            onSync={handleCostSync}
+          />
+          <PurchasePaymentsGrid
+            payments={visiblePayments}
+            activeOrderId={activeOrderId}
+            onSelectOrder={(orderId) => setActiveOrderId(orderId)}
+            onAddPayment={handleAddPayment}
+            onRowsChange={handlePaymentRowsChange}
+            isLoading={isPending || isAddingPayment}
+            orderSummaries={orderSummaries}
+            summaryLine={summaryLine ?? undefined}
+          />
+        </>
+      )}
+
+      {isVisualMode && (
+        <PurchaseTimeline
+          orders={timelineOrdersState}
+          activeOrderId={activeOrderId}
+          onSelectOrder={(orderId) => setActiveOrderId(orderId)}
+          months={timelineMonths}
+        />
+      )}
     </div>
   )
 }

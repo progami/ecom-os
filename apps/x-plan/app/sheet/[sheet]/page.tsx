@@ -6,7 +6,8 @@ import { ProductSetupParametersPanel } from '@/components/sheets/product-setup-p
 import { SalesPlanningGrid, SalesPlanningFocusControl, SalesPlanningFocusProvider } from '@/components/sheets/sales-planning-grid'
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
 import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid'
-import { DashboardSheet } from '@/components/sheets/dashboard'
+import { SheetViewToggle, type SheetViewMode } from '@/components/sheet-view-toggle'
+import { FinancialTrendsSection, type FinancialMetricDefinition } from '@/components/sheets/financial-trends-section'
 import type { OpsInputRow } from '@/components/sheets/ops-planning-grid'
 import type { OpsTimelineRow } from '@/components/sheets/ops-planning-timeline'
 import type { PurchasePaymentRow } from '@/components/sheets/purchase-payments-grid'
@@ -39,7 +40,6 @@ import {
   computeSalesPlan,
   computeProfitAndLoss,
   computeCashFlow,
-  computeDashboardSummary,
   type SalesWeekDerived,
   type PurchaseOrderDerived,
   type PurchaseOrderInput,
@@ -254,6 +254,41 @@ function filterSummaryByYear<T extends { periodLabel: string }>(rows: T[], year:
   return rows.filter((row) => row.periodLabel.trim().endsWith(suffix))
 }
 
+function resolveViewMode(value: string | string[] | undefined): SheetViewMode {
+  const candidate = Array.isArray(value) ? value[0] : value
+  return candidate === 'visual' ? 'visual' : 'tabular'
+}
+
+function VisualPlaceholder({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
+      <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200">{title}</h3>
+      <p className="mt-2 text-sm">{description}</p>
+    </div>
+  )
+}
+
+function limitRows<T>(rows: T[], limit: number): T[] {
+  if (rows.length <= limit) return rows
+  return rows.slice(-limit)
+}
+
+function buildTrendSeries<T extends { periodLabel: string }>(rows: T[], key: Extract<keyof T, string>) {
+  const labels: string[] = []
+  const values: number[] = []
+
+  for (const row of rows) {
+    const raw = row[key] as unknown
+    const numeric = typeof raw === 'number' ? raw : Number(raw)
+    if (Number.isFinite(numeric)) {
+      labels.push(row.periodLabel)
+      values.push(numeric)
+    }
+  }
+
+  return { labels, values }
+}
+
 type SheetPageProps = {
   params: Promise<{ sheet: string }>
   searchParams?: Promise<Record<string, string | string[] | undefined>>
@@ -269,26 +304,6 @@ type BusinessParameterView = {
 type NestedHeaderCell =
   | string
   | { label: string; colspan?: number; rowspan?: number; title?: string }
-
-type ProfitAndLossAggregates = ReturnType<typeof computeProfitAndLoss>
-type CashFlowAggregates = ReturnType<typeof computeCashFlow>
-type DashboardView = {
-  inventory: Array<{
-    productName: string
-    stockEnd: number
-    stockWeeks: number
-  }>
-  rollups: {
-    profitAndLoss: {
-      monthly: ProfitAndLossAggregates['monthly']
-      quarterly: ProfitAndLossAggregates['quarterly']
-    }
-    cashFlow: {
-      monthly: CashFlowAggregates['monthly']
-      quarterly: CashFlowAggregates['quarterly']
-    }
-  }
-}
 
 const FINANCE_PARAMETER_LABELS = new Set(
   ['amazon payout delay (weeks)', 'starting cash', 'weekly fixed costs'].map((label) => label.toLowerCase())
@@ -1178,46 +1193,6 @@ function getCashFlowView(
   }
 }
 
-function getDashboardView(
-  financialData: FinancialData,
-  activeSegment: YearSegment | null,
-  activeYear: number | null
-): DashboardView {
-  const filteredSales = financialData.salesPlan.filter((row) => isWeekInSegment(row.weekNumber, activeSegment))
-  const filteredPnlWeekly = financialData.profit.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
-  const filteredCashWeekly = financialData.cash.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
-  const pnlMonthly = filterSummaryByYear(financialData.profit.monthly, activeYear)
-  const pnlQuarterly = filterSummaryByYear(financialData.profit.quarterly, activeYear)
-  const cashMonthly = filterSummaryByYear(financialData.cash.monthly, activeYear)
-  const cashQuarterly = filterSummaryByYear(financialData.cash.quarterly, activeYear)
-
-  const summary = computeDashboardSummary(
-    filteredPnlWeekly,
-    filteredCashWeekly,
-    financialData.derivedOrders.map((item) => item.derived),
-    filteredSales,
-    financialData.operations.productIndex
-  )
-
-  return {
-    inventory: summary.inventory.map((item) => ({
-      productName: item.productName,
-      stockEnd: item.stockEnd,
-      stockWeeks: item.stockWeeks,
-    })),
-    rollups: {
-      profitAndLoss: {
-        monthly: pnlMonthly,
-        quarterly: pnlQuarterly,
-      },
-      cashFlow: {
-        monthly: cashMonthly,
-        quarterly: cashQuarterly,
-      },
-    },
-  }
-}
-
 export default async function SheetPage({ params, searchParams }: SheetPageProps) {
   const [routeParams, rawSearchParams] = await Promise.all([
     params,
@@ -1234,11 +1209,13 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   const parsedSearch = rawSearchParams as Record<string, string | string[] | undefined>
   const activeYear = resolveActiveYear(parsedSearch.year, planningCalendar.yearSegments)
   const activeSegment = findYearSegment(activeYear, planningCalendar.yearSegments)
+  const viewMode = resolveViewMode(parsedSearch.view)
 
-  let content: React.ReactNode = null
+  const controls: ReactNode[] = []
   let contextPane: React.ReactNode = null
-  let headerControls: ReactNode | undefined
   let wrapLayout: (node: ReactNode) => ReactNode = (node) => node
+  let tabularContent: React.ReactNode = null
+  let visualContent: React.ReactNode = null
 
   const getFinancialData = () => loadFinancialData(planningCalendar)
 
@@ -1266,7 +1243,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         },
       ] as const
 
-      content = (
+      tabularContent = (
         <div className="space-y-6">
           <ProductSetupGrid products={view.products} />
           {parameterSections.map((section) => (
@@ -1279,12 +1256,17 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           ))}
         </div>
       )
-      contextPane = null
+      visualContent = (
+        <VisualPlaceholder
+          title="Product visuals coming soon"
+          description="We’re building assortment and lead-time insights to complement the setup grid."
+        />
+      )
       break
     }
     case '2-ops-planning': {
       const view = await getOpsPlanningView(planningCalendar, activeSegment)
-      content = (
+      tabularContent = (
         <OpsPlanningWorkspace
           poTableRows={view.poTableRows}
           batchTableRows={view.batchTableRows}
@@ -1293,6 +1275,19 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           payments={view.payments}
           calculator={view.calculator}
           timelineMonths={view.timelineMonths}
+          mode="tabular"
+        />
+      )
+      visualContent = (
+        <OpsPlanningWorkspace
+          poTableRows={view.poTableRows}
+          batchTableRows={view.batchTableRows}
+          timeline={view.timelineRows}
+          timelineOrders={view.timelineOrders}
+          payments={view.payments}
+          calculator={view.calculator}
+          timelineMonths={view.timelineMonths}
+          mode="visual"
         />
       )
       break
@@ -1300,9 +1295,9 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     case '3-sales-planning': {
       const data = await getFinancialData()
       const view = getSalesPlanningView(data, planningCalendar, activeSegment)
-      headerControls = <SalesPlanningFocusControl productOptions={view.productOptions} />
+      controls.push(<SalesPlanningFocusControl key="sales-focus" productOptions={view.productOptions} />)
       wrapLayout = (node) => <SalesPlanningFocusProvider>{node}</SalesPlanningFocusProvider>
-      content = (
+      tabularContent = (
         <SalesPlanningGrid
           rows={view.rows}
           columnMeta={view.columnMeta}
@@ -1312,16 +1307,59 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           stockWarningWeeks={view.stockWarningWeeks}
         />
       )
+      visualContent = (
+        <VisualPlaceholder
+          title="Sales visuals in progress"
+          description="Forecast accuracy, stock coverage, and buy box trend charts will live here."
+        />
+      )
       break
     }
     case '4-fin-planning-pl': {
       const data = await getFinancialData()
       const view = getProfitAndLossView(data, activeSegment, activeYear)
-      content = (
+      tabularContent = (
         <ProfitAndLossGrid
           weekly={view.weekly}
           monthlySummary={view.monthlySummary}
           quarterlySummary={view.quarterlySummary}
+        />
+      )
+
+      const pnlMonthly = limitRows(filterSummaryByYear(data.profit.monthly, activeYear), 12)
+      const pnlQuarterly = limitRows(filterSummaryByYear(data.profit.quarterly, activeYear), 8)
+      const metrics: FinancialMetricDefinition[] = [
+        {
+          key: 'revenue',
+          title: 'Revenue',
+          description: 'Booked revenue by period',
+          helper: 'Track topline momentum using the same data that powers the P&L grid.',
+          series: {
+            monthly: buildTrendSeries(pnlMonthly, 'revenue'),
+            quarterly: buildTrendSeries(pnlQuarterly, 'revenue'),
+          },
+          format: 'currency',
+          accent: 'sky',
+        },
+        {
+          key: 'netProfit',
+          title: 'Net profit',
+          description: 'Profit after COGS and OpEx',
+          helper: 'Compare profitability cadence across months and quarters.',
+          series: {
+            monthly: buildTrendSeries(pnlMonthly, 'netProfit'),
+            quarterly: buildTrendSeries(pnlQuarterly, 'netProfit'),
+          },
+          format: 'currency',
+          accent: 'emerald',
+        },
+      ]
+
+      visualContent = (
+        <FinancialTrendsSection
+          title="Performance graphs"
+          description="Visualize revenue and profitability using the grid’s underlying assumptions."
+          metrics={metrics}
         />
       )
       break
@@ -1329,28 +1367,88 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     case '5-fin-planning-cash-flow': {
       const data = await getFinancialData()
       const view = getCashFlowView(data, activeSegment, activeYear)
-      content = (
+      tabularContent = (
         <CashFlowGrid
           weekly={view.weekly}
           monthlySummary={view.monthlySummary}
           quarterlySummary={view.quarterlySummary}
         />
       )
+
+      const cashMonthly = limitRows(filterSummaryByYear(data.cash.monthly, activeYear), 12)
+      const cashQuarterly = limitRows(filterSummaryByYear(data.cash.quarterly, activeYear), 8)
+      const metrics: FinancialMetricDefinition[] = [
+        {
+          key: 'closingCash',
+          title: 'Ending cash',
+          description: 'Projected balance after inflows and outflows',
+          helper: 'Monitor liquidity runway alongside the detailed cash flow schedule.',
+          series: {
+            monthly: buildTrendSeries(cashMonthly, 'closingCash'),
+            quarterly: buildTrendSeries(cashQuarterly, 'closingCash'),
+          },
+          format: 'currency',
+          accent: 'violet',
+        },
+        {
+          key: 'netCash',
+          title: 'Net cash flow',
+          description: 'Net movement across the period',
+          helper: 'Understand how payouts, inventory, and fixed costs combine each period.',
+          series: {
+            monthly: buildTrendSeries(cashMonthly, 'netCash'),
+            quarterly: buildTrendSeries(cashQuarterly, 'netCash'),
+          },
+          format: 'currency',
+          accent: 'emerald',
+        },
+      ]
+
+      visualContent = (
+        <FinancialTrendsSection
+          title="Cash flow charts"
+          description="See how cash balances and net movement evolve over time."
+          metrics={metrics}
+        />
+      )
       break
     }
-    case '6-dashboard': {
-      const data = await getFinancialData()
-      const view = getDashboardView(data, activeSegment, activeYear)
-      content = <DashboardSheet data={view} />
-      break
-    }
-    default:
-      content = (
+    default: {
+      const placeholder = (
         <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
           <p>Implementation in progress for {config.label}. Check back soon.</p>
         </div>
       )
+      tabularContent = placeholder
+      visualContent = placeholder
+      break
+    }
   }
+
+  controls.push(<SheetViewToggle key="sheet-view-toggle" value={viewMode} />)
+  const headerControls = (
+    <div className="flex flex-wrap items-center gap-3">{controls}</div>
+  )
+
+  if (!tabularContent) {
+    const fallback = (
+      <VisualPlaceholder
+        title={`${config.label} coming soon`}
+        description={`Implementation in progress for ${config.label}. Check back soon.`}
+      />
+    )
+    tabularContent = fallback
+    visualContent = fallback
+  } else if (!visualContent) {
+    visualContent = (
+      <VisualPlaceholder
+        title="Visual view coming soon"
+        description="Visualizations for this sheet are still under construction."
+      />
+    )
+  }
+
+  const selectedContent = viewMode === 'visual' ? visualContent : tabularContent
 
   const meta = {
     rows: sheetStatus?.recordCount,
@@ -1375,7 +1473,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       contextPane={contextPane}
       headerControls={headerControls}
     >
-      {content}
+      {selectedContent}
     </WorkbookLayout>
   )
 

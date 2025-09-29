@@ -38,7 +38,6 @@ export async function exportWorkbook(prisma: PrismaClient) {
   await addSalesPlanningSheet(workbook, prisma)
   await addProfitPlanningSheet(workbook, prisma)
   await addCashFlowSheet(workbook, prisma)
-  await addDashboardSheet(workbook, prisma)
 
   return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) as Buffer
 }
@@ -344,35 +343,6 @@ async function addCashFlowSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
   })
 
   XLSX.utils.book_append_sheet(workbook, sheet, '5. Fin Planning Cash Flow')
-}
-
-async function addDashboardSheet(workbook: XLSX.WorkBook, prisma: PrismaClient) {
-  const [profitWeeks, cashWeeks, purchaseOrders] = await Promise.all([
-    prisma.profitAndLossWeek.findMany() as Promise<ProfitAndLossWeek[]>,
-    prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } }) as Promise<CashFlowWeek[]>,
-    prisma.purchaseOrder.findMany({ orderBy: { orderCode: 'asc' } }) as Promise<PurchaseOrder[]>,
-  ])
-
-  const revenueYTD = profitWeeks.reduce((acc, item) => acc + Number(item.revenue ?? 0), 0)
-  const netProfitYTD = profitWeeks.reduce((acc, item) => acc + Number(item.netProfit ?? 0), 0)
-  const cashBalance = cashWeeks.length ? Number(cashWeeks[cashWeeks.length - 1].cashBalance ?? 0) : 0
-
-  const data = [
-    ['Revenue YTD', revenueYTD],
-    ['Net Profit YTD', netProfitYTD],
-    ['Cash Balance', cashBalance],
-    [],
-    ['Pipeline'],
-    ['Status', 'Quantity'],
-    ...purchaseOrders.reduce((rows: any[][], order) => {
-      rows.push([statusLabel(order.status), order.quantity ?? 0])
-      return rows
-    }, []),
-  ]
-
-  const sheet = XLSX.utils.aoa_to_sheet([[]])
-  XLSX.utils.sheet_add_aoa(sheet, data, { origin: 'B2' })
-  XLSX.utils.book_append_sheet(workbook, sheet, '6. Dashboard')
 }
 
 function toExcelDate(date: Date | null | undefined) {
