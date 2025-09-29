@@ -15,7 +15,7 @@ import {
 
 export default function FinancePage() {
   // This would come from your database
-  const transactions = []
+  const transactions: Array<Record<string, unknown>> = []
 
   return (
     <div className="container mx-auto p-6">

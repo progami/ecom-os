@@ -15,7 +15,7 @@ import {
 
 export default function OrdersPage() {
   // This would come from your database
-  const orders = []
+  const orders: Array<Record<string, unknown>> = []
 
   return (
     <div className="container mx-auto p-6">

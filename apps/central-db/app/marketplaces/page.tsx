@@ -15,7 +15,7 @@ import {
 
 export default function MarketplacesPage() {
   // This would come from your database
-  const marketplaces = []
+  const marketplaces: Array<Record<string, unknown>> = []
 
   return (
     <div className="container mx-auto p-6">
