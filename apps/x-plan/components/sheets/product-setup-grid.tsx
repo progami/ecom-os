@@ -1,10 +1,12 @@
 'use client'
 
+import clsx from 'clsx'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 
 interface ProductSetupGridProps {
   products: Array<{ id: string; sku: string; name: string }>
+  className?: string
 }
 
 type ProductRow = {
@@ -28,7 +30,7 @@ function normalizeProducts(products: ProductSetupGridProps['products']): Product
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 
-export function ProductSetupGrid({ products }: ProductSetupGridProps) {
+export function ProductSetupGrid({ products, className }: ProductSetupGridProps) {
   const initialRows = useMemo(() => normalizeProducts(products), [products])
   const [rows, setRows] = useState<ProductRow[]>(initialRows)
   const [creatingSku, setCreatingSku] = useState('')
@@ -167,19 +169,26 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
   }
 
   return (
-    <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-md dark:border-slate-800 dark:bg-slate-900">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+    <section
+      className={clsx(
+        'relative space-y-6 rounded-3xl border border-[#0b3a52] bg-[#041324] p-6 text-slate-100 shadow-[0_26px_55px_rgba(1,12,24,0.55)] ring-1 ring-[#0f2e45]/60',
+        'before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_15%_20%,rgba(0,194,185,0.18),transparent_55%),radial-gradient(circle_at_85%_30%,rgba(0,194,185,0.08),transparent_60%)] before:opacity-90 before:mix-blend-screen before:content-[""]',
+        'backdrop-blur-xl',
+        className
+      )}
+    >
+      <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">Catalogue</p>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">Product roster</h2>
-          <p className="text-sm text-slate-600 dark:text-slate-400">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">Catalogue</p>
+          <h2 className="text-2xl font-semibold text-white">Product roster</h2>
+          <p className="max-w-xl text-sm leading-relaxed text-slate-200/80">
             Maintain the SKUs that fuel Ops, Sales, and Finance planning. Add products once and reuse the data everywhere—no year-specific copies required.
           </p>
         </div>
         <div className="flex flex-col items-start gap-3 lg:items-end">
           {isAdding ? (
             <form
-              className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800/60"
+              className="flex w-full min-w-[260px] flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-[0_14px_35px_rgba(1,18,32,0.45)] lg:w-auto"
               onSubmit={(event) => {
                 event.preventDefault()
                 handleCreateProduct()
@@ -187,21 +196,21 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
             >
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="flex flex-col gap-1 text-left">
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-300">SKU</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-cyan-200/80">SKU</span>
                   <input
                     value={creatingSku}
                     onChange={(event) => setCreatingSku(event.target.value)}
                     placeholder="e.g. CS-007"
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-400"
+                    className="w-full rounded-lg border border-white/15 bg-[#061d33]/90 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/70"
                   />
                 </label>
                 <label className="flex flex-col gap-1 text-left">
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-300">Product name</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.32em] text-cyan-200/80">Product name</span>
                   <input
                     value={creatingName}
                     onChange={(event) => setCreatingName(event.target.value)}
                     placeholder="Amazon Choice Sample"
-                    className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-400"
+                    className="w-full rounded-lg border border-white/15 bg-[#061d33]/90 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-400/70"
                   />
                 </label>
               </div>
@@ -210,14 +219,14 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
                   type="button"
                   onClick={handleCancelCreate}
                   disabled={isCreating}
-                  className="rounded-md border border-slate-300 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700/60"
+                  className="rounded-lg border border-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-200 transition hover:border-cyan-300/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isCreating}
-                  className="rounded-md bg-indigo-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white transition enabled:hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-indigo-500 dark:enabled:hover:bg-indigo-400"
+                  className="rounded-lg bg-[#00c2b9] px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#002430] transition hover:bg-[#00a39e] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isCreating ? 'Adding…' : 'Add product'}
                 </button>
@@ -227,27 +236,27 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
             <button
               type="button"
               onClick={() => setIsAdding(true)}
-              className="inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-sm transition hover:bg-indigo-500 dark:bg-indigo-500 dark:hover:bg-indigo-400"
+              className="inline-flex items-center rounded-lg bg-[#00c2b9] px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#002430] shadow-[0_12px_24px_rgba(0,194,185,0.25)] transition hover:bg-[#00a39e]"
             >
               New product
             </button>
           )}
         </div>
-      </header>
+      </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800">
-        <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-          <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900/60 dark:text-slate-400">
+      <div className="relative overflow-hidden rounded-2xl border border-white/12 bg-white/5">
+        <table className="min-w-full divide-y divide-white/10 text-sm text-slate-100">
+          <thead className="bg-white/5 text-[11px] uppercase tracking-[0.28em] text-cyan-100/80">
             <tr>
-              <th className="px-4 py-2 text-left">SKU</th>
-              <th className="px-4 py-2 text-left">Product</th>
-              <th className="px-4 py-2 text-right">Actions</th>
+              <th className="px-4 py-3 text-left font-semibold">SKU</th>
+              <th className="px-4 py-3 text-left font-semibold">Product</th>
+              <th className="px-4 py-3 text-right font-semibold">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          <tbody className="divide-y divide-white/8">
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+                <td colSpan={3} className="px-4 py-6 text-center text-sm text-slate-300/80">
                   No products yet. Use “New product” to add the first SKU to the planning catalogue.
                 </td>
               </tr>
@@ -257,16 +266,16 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
                 const isSaving = savingId === row.id
                 const isDeletingRow = deletingId === row.id
                 return (
-                  <tr key={row.id} className="bg-white transition hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800/50">
+                  <tr key={row.id} className="bg-white/5 transition hover:bg-white/10">
                     <td className="px-4 py-3 align-top">
                       {isEditing ? (
                         <input
                           value={editDraftSku}
                           onChange={(event) => setEditDraftSku(event.target.value)}
-                          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:focus:ring-slate-600"
+                          className="w-full rounded-lg border border-cyan-400/50 bg-[#061d33]/95 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/70"
                         />
                       ) : (
-                        <span className="font-medium text-slate-700 dark:text-slate-200">{row.sku || '—'}</span>
+                        <span className="font-semibold tracking-wide text-white/90">{row.sku || '—'}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 align-top">
@@ -274,10 +283,10 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
                         <input
                           value={editDraftName}
                           onChange={(event) => setEditDraftName(event.target.value)}
-                          className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:focus:ring-slate-600"
+                          className="w-full rounded-lg border border-cyan-400/50 bg-[#061d33]/95 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-cyan-300/70"
                         />
                       ) : (
-                        <span className="text-slate-700 dark:text-slate-200">{row.name || '—'}</span>
+                        <span className="text-slate-100/90">{row.name || '—'}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 align-top text-right">
@@ -288,14 +297,14 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
                               type="button"
                               onClick={() => handleSaveEdit(row)}
                               disabled={isSaving}
-                              className="rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white transition enabled:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900 dark:enabled:hover:bg-slate-200"
+                              className="rounded-lg bg-[#00c2b9] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-[#002430] transition enabled:hover:bg-[#00a39e] disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {isSaving ? 'Saving…' : 'Save'}
                             </button>
                             <button
                               type="button"
                               onClick={handleCancelEdit}
-                              className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                              className="rounded-lg border border-white/20 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
                             >
                               Cancel
                             </button>
@@ -305,7 +314,7 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
                             <button
                               type="button"
                               onClick={() => handleStartEdit(row)}
-                              className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                              className="rounded-lg border border-white/20 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-200 transition hover:border-cyan-300/60 hover:text-white"
                             >
                               Edit
                             </button>
@@ -313,7 +322,7 @@ export function ProductSetupGrid({ products }: ProductSetupGridProps) {
                               type="button"
                               onClick={() => handleDelete(row)}
                               disabled={isDeletingRow}
-                              className="rounded-md border border-rose-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-600 transition enabled:hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/60 dark:text-rose-300 dark:enabled:hover:bg-rose-500/10"
+                              className="rounded-lg border border-rose-400/50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] text-rose-200 transition enabled:hover:border-rose-300 enabled:hover:text-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {isDeletingRow ? 'Removing…' : 'Delete'}
                             </button>

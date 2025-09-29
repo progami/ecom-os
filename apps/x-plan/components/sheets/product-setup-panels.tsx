@@ -1,5 +1,6 @@
 'use client'
 
+import clsx from 'clsx'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
@@ -16,6 +17,7 @@ export interface ProductSetupParametersPanelProps {
   title: string
   description: string
   parameters: BusinessParameter[]
+  className?: string
 }
 
 type ParameterStatus = 'idle' | 'dirty' | 'saving' | 'error'
@@ -40,7 +42,12 @@ function formatNumericForDisplay(value: string): string {
   return normalized.toFixed(2)
 }
 
-export function ProductSetupParametersPanel({ title, description, parameters }: ProductSetupParametersPanelProps) {
+export function ProductSetupParametersPanel({
+  title,
+  description,
+  parameters,
+  className,
+}: ProductSetupParametersPanelProps) {
   const flushTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isFlushingRef = useRef(false)
   const pendingFlushRef = useRef(false)
@@ -202,103 +209,108 @@ export function ProductSetupParametersPanel({ title, description, parameters }: 
     void flushUpdates()
   }, [flushUpdates])
 
-  const sections = useMemo(
-    () =>
-      items.map((item) => {
-        const isError = item.status === 'error'
-        const isSaving = item.status === 'saving'
-        const isDirty = item.status === 'dirty'
-        const statusLabel = isSaving ? 'Saving…' : isError ? 'Save failed' : isDirty ? 'Pending save' : 'Saved'
-        const statusTone = isSaving
-          ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-200 dark:bg-amber-500/15 dark:text-amber-200'
-          : isError
-          ? 'bg-rose-50 text-rose-700 ring-1 ring-rose-200 dark:bg-rose-500/15 dark:text-rose-200'
-          : isDirty
-          ? 'bg-slate-200 text-slate-700 ring-1 ring-slate-300 dark:bg-slate-500/20 dark:text-slate-200'
-          : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200'
+  const parameterCards = useMemo(() => {
+    return items.map((item) => {
+      const isError = item.status === 'error'
+      const isSaving = item.status === 'saving'
+      const isDirty = item.status === 'dirty'
+      const statusLabel = isSaving ? 'Saving…' : isError ? 'Save failed' : isDirty ? 'Pending save' : 'Saved'
 
-        return (
-          <div
-            key={item.id}
-            className="border-t border-slate-200 first:border-t-0 dark:border-slate-800"
-          >
-            <div className="flex flex-col gap-3 px-4 py-3 md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)] md:items-center md:gap-6">
-              <div className="flex flex-col gap-1">
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{item.label}</p>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  <span className="rounded-full bg-slate-200 px-2 py-0.5 font-semibold uppercase tracking-wide text-slate-700 dark:bg-slate-700 dark:text-slate-200">
-                    {item.type === 'numeric' ? 'Numeric' : 'Text'}
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1">
-                <input
-                  value={item.value}
-                  onChange={(event) => handleValueChange(item.id, event.target.value)}
-                  onBlur={handleBlur}
-                  inputMode={item.type === 'numeric' ? 'decimal' : 'text'}
-                  aria-invalid={isError}
-                  disabled={isSaving}
-                  className={`w-full rounded-lg border px-3 py-2 text-sm shadow-sm transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70 ${
-                    isError
-                      ? 'border-rose-400 text-rose-900 focus:ring-rose-500 dark:border-rose-500 dark:bg-rose-500/10 dark:text-rose-100 dark:focus:ring-rose-400'
-                      : 'border-slate-300 focus:ring-indigo-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:focus:ring-indigo-400'
-                  }`}
-                />
-                {isError ? (
-                  <p className="text-xs font-medium text-rose-600 dark:text-rose-300">Check the value and try saving again.</p>
-                ) : null}
-              </div>
-              <div className="flex items-center justify-between gap-3 md:justify-end">
-                <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${statusTone}`}>
-                  {statusLabel}
-                </span>
-                {isSaving ? (
-                  <svg
-                    className="h-4 w-4 animate-spin text-amber-500"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      d="M4 12a8 8 0 018-8"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                ) : null}
-              </div>
+      const statusTone = clsx(
+        'inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em]',
+        isSaving
+          ? 'border-amber-400/40 bg-amber-300/20 text-amber-100'
+          : isError
+          ? 'border-rose-400/40 bg-rose-400/15 text-rose-100'
+          : isDirty
+          ? 'border-cyan-400/40 bg-cyan-400/15 text-cyan-100'
+          : 'border-emerald-400/40 bg-emerald-400/10 text-emerald-100'
+      )
+
+      return (
+        <div
+          key={item.id}
+          className={clsx(
+            'group relative flex flex-col gap-3 rounded-2xl border border-white/12 bg-[#06182b]/85 p-4 text-slate-100 shadow-[0_16px_40px_rgba(1,12,24,0.45)] transition',
+            'ring-1 ring-transparent hover:ring-cyan-400/40'
+          )}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <p className="text-sm font-semibold leading-snug text-white/90">{item.label}</p>
+              <span className="inline-flex rounded-full border border-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.34em] text-cyan-200/80">
+                {item.type === 'numeric' ? 'Numeric' : 'Text'}
+              </span>
             </div>
+            <span className={statusTone}>{statusLabel}</span>
           </div>
-        )
-      }),
-    [handleBlur, handleValueChange, items]
-  )
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <input
+                value={item.value}
+                onChange={(event) => handleValueChange(item.id, event.target.value)}
+                onBlur={handleBlur}
+                inputMode={item.type === 'numeric' ? 'decimal' : 'text'}
+                aria-invalid={isError}
+                aria-describedby={isError ? `${item.id}-error` : undefined}
+                disabled={isSaving}
+                className={clsx(
+                  'w-full rounded-xl border px-3 py-2 text-sm font-medium tracking-wide transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70',
+                  isError
+                    ? 'border-rose-400/60 bg-rose-500/10 text-rose-50 focus:border-rose-300 focus:ring-rose-300/60'
+                    : 'border-white/15 bg-[#031222]/80 text-slate-100 placeholder-slate-500 focus:border-cyan-300 focus:ring-cyan-300/60'
+                )}
+              />
+              {isError ? (
+                <p id={`${item.id}-error`} className="mt-1 text-[11px] font-medium text-rose-200">
+                  Check the value and try saving again.
+                </p>
+              ) : null}
+            </div>
+            {isSaving ? (
+              <svg
+                className="h-5 w-5 animate-spin text-cyan-200/80"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  d="M4 12a8 8 0 018-8"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                />
+              </svg>
+            ) : null}
+          </div>
+        </div>
+      )
+    })
+  }, [handleBlur, handleValueChange, items])
 
   return (
-    <section className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-md dark:border-slate-800 dark:bg-slate-900">
-      <header className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">{title}</p>
-        <p className="text-sm text-slate-600 dark:text-slate-400">{description}</p>
-      </header>
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-sm dark:border-slate-800 dark:bg-slate-900/40">
-        <div className="hidden border-b border-slate-200 bg-slate-100 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300 md:grid md:grid-cols-[minmax(0,2fr)_minmax(0,1.5fr)_minmax(0,1fr)]">
-          <span>Parameter</span>
-          <span>Value</span>
-          <span>Status</span>
-        </div>
-        <div>{sections}</div>
+    <section
+      className={clsx(
+        'relative space-y-4 rounded-3xl border border-[#0b3a52] bg-[#041324] p-6 text-slate-100 shadow-[0_26px_55px_rgba(1,12,24,0.55)] ring-1 ring-[#0f2e45]/60',
+        'before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_10%_18%,rgba(0,194,185,0.16),transparent_60%),radial-gradient(circle_at_90%_25%,rgba(0,194,185,0.1),transparent_65%)] before:opacity-90 before:mix-blend-screen before:content-[""]',
+        'backdrop-blur-xl',
+        className
+      )}
+    >
+      <div className="relative space-y-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">{title}</p>
+        <p className="max-w-xl text-sm leading-relaxed text-slate-200/80">{description}</p>
       </div>
+      <div className="relative grid gap-3 md:grid-cols-2 xl:grid-cols-3">{parameterCards}</div>
     </section>
   )
 }
