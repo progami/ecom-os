@@ -47,6 +47,14 @@ export const ALL_APPS: AppDef[] = [
     category: 'Product',
   },
   {
+    id: 'x-plan',
+    name: 'X-Plan',
+    description: 'Collaborative planning workspace for sales, operations, and finance.',
+    url: 'https://xplan.targonglobal.com',
+    category: 'Product',
+    devUrl: 'http://localhost:3008',
+  },
+  {
     id: 'margin-master',
     name: 'Margin Master',
     description: 'Profitability analytics and sales performance insights.',

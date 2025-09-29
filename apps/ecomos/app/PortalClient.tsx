@@ -15,6 +15,7 @@ type PortalRoleMap = Record<string, { role: string; depts?: string[] }>
 
 const CATEGORY_ORDER = [
   'Ops',
+  'Product',
   'Sales / Marketing',
   'Account / Listing',
   'HR / Admin',
@@ -115,6 +116,27 @@ const APP_ICONS: Record<string, ReactNode> = {
         strokeLinecap="round"
         opacity="0.7"
         fill="none"
+      />
+    </svg>
+  ),
+  'x-plan': (
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+      <rect
+        x="4"
+        y="4"
+        width="16"
+        height="16"
+        rx="4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        fill="rgba(0,194,185,0.18)"
+      />
+      <path
+        d="M9 9l6 6m0-6l-6 6"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
     </svg>
   ),
