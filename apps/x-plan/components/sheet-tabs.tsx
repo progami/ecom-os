@@ -23,7 +23,7 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
     isStack ? 'flex-col' : 'items-center overflow-x-auto'
   )
   const linkBase =
-    'min-w-[140px] rounded-md px-3 py-1.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300'
+    'relative min-w-[140px] overflow-hidden rounded-xl px-4 py-2.5 text-sm font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-xplan-400'
 
   const handleClick = (slug: SheetSlug, event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!onSheetSelect) return
@@ -45,11 +45,14 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
               className={clsx(
                 linkBase,
                 isActive
-                  ? 'bg-slate-900 text-slate-50 shadow-sm dark:bg-slate-50 dark:text-slate-900'
-                  : 'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100'
+                  ? 'bg-gradient-to-br from-xplan-500 to-xplan-700 text-white shadow-soft-lg ring-2 ring-xplan-300/50 dark:ring-xplan-600/50'
+                  : 'bg-white text-zinc-700 shadow-soft hover:bg-gradient-to-br hover:from-xplan-50 hover:to-xplan-100 hover:text-xplan-700 hover:shadow-soft-lg dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-gradient-to-br dark:hover:from-xplan-900/50 dark:hover:to-xplan-950/30 dark:hover:text-xplan-300'
               )}
             >
-              {sheet.label}
+              <span className="relative z-10">{sheet.label}</span>
+              {isActive && (
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse" />
+              )}
             </Link>
           )
         })}
