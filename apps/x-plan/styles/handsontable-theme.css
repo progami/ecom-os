@@ -26,60 +26,65 @@
 .x-plan-hot .htCore td {
   font-size: 12px;
   color: #e2e8f0;
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
   padding: 4px 8px;
   font-weight: 500;
   line-height: 1.4;
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-/* Default data cell background */
+/* Default data cell background - DARK background needs LIGHT text */
 .x-plan-hot .htCore tbody td {
-  background-color: rgba(6, 24, 43, 0.3) !important;
+  background-color: rgba(6, 24, 43, 0.5) !important;
+  color: #e2e8f0 !important;
 }
 
 /* Zebra striping */
 .x-plan-hot .htCore tbody tr:nth-child(even) td:not(.cell-editable):not(.row-active) {
-  background-color: rgba(6, 24, 43, 0.45) !important;
+  background-color: rgba(6, 24, 43, 0.7) !important;
 }
 
 /* Header styling - MUST come after default cell styling */
 .x-plan-hot .htCore thead th {
-  background-color: #1e3a52 !important;
+  background-color: #0f2942 !important;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #67e8f9;
+  letter-spacing: 0.08em;
+  color: #67e8f9 !important;
   font-size: 10px;
-  padding: 6px 8px;
-  border-bottom: 2px solid #0b3a52;
+  padding: 8px 8px;
+  border-bottom: 2px solid #00c2b9;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Row header / first column */
 .x-plan-hot .htCore tbody th {
-  background-color: #1e3a52 !important;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-  border-right: 1px solid #0b3a52;
+  background-color: #0f2942 !important;
+  font-weight: 700;
+  color: #67e8f9 !important;
+  border-right: 2px solid #0b3a52;
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.08em;
 }
 
-/* Editable cells */
+/* Editable cells - LIGHT background needs DARK text */
 .x-plan-hot .cell-editable {
-  background: rgba(0, 194, 185, 0.2) !important;
-  color: #ccfbf1;
+  background: #ccfbf1 !important;
+  color: #002430 !important;
   font-weight: 600;
-  border-color: rgba(0, 194, 185, 0.4);
+  border-color: rgba(0, 194, 185, 0.5);
 }
 
 .x-plan-hot .cell-editable:hover {
-  background: rgba(0, 194, 185, 0.28) !important;
-  border-color: rgba(0, 194, 185, 0.6);
+  background: #b3f5ec !important;
+  border-color: rgba(0, 194, 185, 0.7);
 }
 
-/* Readonly cells */
+/* Readonly cells - DARK background needs LIGHT text */
 .x-plan-hot .cell-readonly {
-  background-color: rgba(6, 24, 43, 0.2) !important;
-  color: rgba(226, 232, 240, 0.7);
+  background-color: rgba(6, 24, 43, 0.4) !important;
+  color: #e2e8f0 !important;
 }
 
 /* Note cells */
@@ -100,27 +105,30 @@
   border-right: 1px solid #0b3a52;
 }
 
-/* Row highlighting - inbound sales */
+/* Row highlighting - inbound sales - LIGHT green needs DARK text */
 .x-plan-hot .row-inbound-sales {
-  background: rgba(22, 163, 74, 0.15) !important;
-  border-left: 3px solid #4ade80 !important;
+  background: #d1fae5 !important;
+  color: #064e3b !important;
+  border-left: 3px solid #10b981 !important;
 }
 
-/* Row highlighting - inbound cash */
+/* Row highlighting - inbound cash - LIGHT red needs DARK text */
 .x-plan-hot .row-inbound-cash {
-  background-color: rgba(248, 113, 113, 0.15) !important;
+  background-color: #fee2e2 !important;
+  color: #7f1d1d !important;
 }
 
-/* Row highlighting - negative cash */
+/* Row highlighting - negative cash - LIGHT red needs DARK text */
 .x-plan-hot .row-negative-cash {
-  background-color: rgba(248, 113, 113, 0.15);
+  background-color: #fecaca !important;
+  color: #991b1b !important;
 }
 
-/* Warning cells */
+/* Warning cells - LIGHT amber needs DARK text */
 .x-plan-hot .cell-warning {
-  background: rgba(217, 119, 6, 0.2) !important;
-  color: #fde68a !important;
-  border-color: rgba(251, 191, 36, 0.4) !important;
+  background: #fef3c7 !important;
+  color: #78350f !important;
+  border-color: #fbbf24 !important;
   font-weight: 700 !important;
 }
 
@@ -129,11 +137,11 @@
   color: #94a3b8;
 }
 
-/* Active row */
+/* Active row - LIGHT background needs DARK text */
 .x-plan-hot .row-active {
-  background-color: rgba(0, 194, 185, 0.15) !important;
-  color: #ccfbf1 !important;
-  box-shadow: inset 3px 0 0 rgba(0, 194, 185, 0.6);
+  background-color: rgba(0, 194, 185, 0.25) !important;
+  color: #002430 !important;
+  box-shadow: inset 3px 0 0 rgba(0, 194, 185, 0.8);
 }
 
 /* Selection area */
