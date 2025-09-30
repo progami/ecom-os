@@ -134,11 +134,11 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
 
     return (
       <div className={`${SHEET_TOOLBAR_GROUP} gap-2`}>
-        <span className={SHEET_TOOLBAR_LABEL}>Year</span>
+        <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">Year</span>
         <button
           type="button"
           onClick={() => goToAdjacentYear(-1)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-brand-teal-200 bg-white text-brand-teal-700 shadow-soft transition-all hover:border-brand-teal-400 hover:bg-brand-teal-50 disabled:opacity-40 dark:border-brand-navy-800 dark:bg-brand-navy-950/50 dark:text-brand-teal-300 dark:hover:border-brand-navy-600 dark:hover:bg-brand-navy-900/50"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-slate-200 transition hover:border-cyan-300/50 hover:text-cyan-100 disabled:opacity-40"
           aria-label="Previous year"
           disabled={!previous || isPending}
         >
@@ -155,8 +155,8 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
                 className={clsx(
                   'rounded-lg px-3 py-1.5 text-xs font-bold transition-all',
                   isActiveYear
-                    ? 'bg-gradient-to-br from-brand-teal-500 to-brand-teal-700 text-white shadow-soft-lg ring-2 ring-brand-teal-300 dark:ring-brand-teal-600'
-                    : 'bg-white text-zinc-600 shadow-soft hover:bg-brand-teal-50 hover:text-brand-teal-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-brand-navy-900/50 dark:hover:text-brand-teal-300'
+                    ? 'border border-[#00c2b9] bg-[#00c2b9]/15 text-cyan-100 shadow-[0_18px_40px_rgba(0,194,185,0.2)]'
+                    : 'border border-white/12 bg-white/5 text-slate-200 hover:border-cyan-300/50 hover:text-cyan-100'
                 )}
                 aria-pressed={isActiveYear}
                 disabled={isPending && isActiveYear}
@@ -164,7 +164,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
                 <span>{segment.year}</span>
                 <span className={clsx(
                   "ml-1.5 text-[10px] font-semibold",
-                  isActiveYear ? "text-brand-teal-100" : "text-zinc-400 dark:text-zinc-500"
+                  isActiveYear ? "text-cyan-200/80" : "text-slate-400"
                 )}>{segment.weekCount}w</span>
               </button>
             )
@@ -173,7 +173,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
         <button
           type="button"
           onClick={() => goToAdjacentYear(1)}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-brand-teal-200 bg-white text-brand-teal-700 shadow-soft transition-all hover:border-brand-teal-400 hover:bg-brand-teal-50 disabled:opacity-40 dark:border-brand-navy-800 dark:bg-brand-navy-950/50 dark:text-brand-teal-300 dark:hover:border-brand-navy-600 dark:hover:bg-brand-navy-900/50"
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-slate-200 transition hover:border-cyan-300/50 hover:text-cyan-100 disabled:opacity-40"
           aria-label="Next year"
           disabled={!next || isPending}
         >
@@ -256,27 +256,27 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
 
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-white via-brand-teal-50 to-brand-navy-50/20">
+    <div className="flex min-h-screen flex-col bg-[#041324]">
       <main className="flex flex-1 overflow-hidden">
         <section className="flex flex-1 overflow-hidden">
-          <div className="flex-1 overflow-auto bg-gradient-to-b from-white/95 to-white/70 backdrop-blur-sm dark:from-zinc-900/95 dark:to-zinc-900/70">
-            <header className="sticky top-0 z-10 border-b-2 border-brand-teal-200/60 bg-gradient-to-r from-white/95 via-brand-teal-50/40 to-white/95 px-4 py-4 shadow-soft backdrop-blur-xl dark:border-brand-navy-800/40 dark:from-zinc-900/95 dark:via-brand-navy-950/40 dark:to-zinc-900/95 sm:px-6 lg:px-8">
+          <div className="flex-1 overflow-auto">
+            <header className="sticky top-0 z-10 border-b border-[#0b3a52] bg-[#041324]/95 px-4 py-4 shadow-[0_26px_55px_rgba(1,12,24,0.55)] backdrop-blur-xl sm:px-6 lg:px-8">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-brand-teal-500 to-brand-teal-700 shadow-soft-lg">
-                      <span className="text-lg font-bold text-white">X</span>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#00c2b9] shadow-[0_12px_24px_rgba(0,194,185,0.25)]">
+                      <span className="text-lg font-bold text-[#002430]">X</span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-2xs font-bold uppercase tracking-widest text-brand-teal-700 dark:text-brand-teal-400">X-Plan</span>
-                      <h1 className="text-xl font-bold text-zinc-900 dark:text-zinc-50">{activeSheet?.label ?? 'Workbook'}</h1>
+                      <span className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-300/80">X-Plan</span>
+                      <h1 className="text-xl font-semibold text-white">{activeSheet?.label ?? 'Workbook'}</h1>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <p className="max-w-3xl text-sm font-medium text-zinc-600 dark:text-zinc-400">{activeSheet?.description}</p>
+                    <p className="max-w-3xl text-sm leading-relaxed text-slate-200/80">{activeSheet?.description}</p>
                     {metaSummary && (
                       <span
-                        className="rounded-full bg-brand-teal-100 px-2.5 py-1 text-2xs font-semibold text-brand-teal-800 dark:bg-brand-teal-900/50 dark:text-brand-teal-300"
+                        className="rounded-full border border-white/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/80"
                         title={metaSummary.tooltip}
                       >
                         {metaSummary.display}
@@ -285,7 +285,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  {isPending && <span className="animate-pulse text-xs font-medium text-brand-teal-600 dark:text-brand-teal-400">Loading…</span>}
+                  {isPending && <span className="animate-pulse text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200/80">Loading…</span>}
                   {ribbon}
                 </div>
               </div>
@@ -305,13 +305,13 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
           </div>
           {hasContextPane && (
             <div
-              className="relative hidden h-full shrink-0 border-l-2 border-brand-teal-200/60 bg-gradient-to-b from-brand-teal-50/80 to-white/80 backdrop-blur-sm dark:border-brand-navy-800/40 dark:from-brand-navy-950/80 dark:to-zinc-900/80 lg:block"
+              className="relative hidden h-full shrink-0 border-l border-[#0b3a52] bg-[#06182b]/85 backdrop-blur-sm lg:block"
               style={{ width: contextWidth }}
             >
               <div
                 role="separator"
                 aria-orientation="vertical"
-                className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize bg-brand-teal-400/30 transition-colors hover:bg-brand-teal-500/50 dark:bg-brand-teal-600/30 dark:hover:bg-brand-teal-500/50"
+                className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize bg-[#00c2b9]/30 transition-colors hover:bg-[#00c2b9]/50"
                 onMouseDown={() => setIsResizing(true)}
               />
               <div className="h-full overflow-auto px-5 py-6">
@@ -322,7 +322,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
         </section>
       </main>
 
-      <footer className="border-t-2 border-brand-teal-200/60 bg-gradient-to-r from-white/95 via-brand-teal-50/40 to-white/95 px-2 py-3 shadow-soft-lg backdrop-blur-xl dark:border-brand-navy-800/40 dark:from-zinc-900/95 dark:via-brand-navy-950/40 dark:to-zinc-900/95 lg:hidden">
+      <footer className="border-t border-[#0b3a52] bg-[#041324]/95 px-2 py-3 shadow-[0_26px_55px_rgba(1,12,24,0.55)] backdrop-blur-xl lg:hidden">
         <SheetTabs
           sheets={sheetTabs}
           activeSlug={activeSlug}

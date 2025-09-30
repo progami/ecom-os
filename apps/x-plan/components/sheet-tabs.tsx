@@ -23,7 +23,7 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
     isStack ? 'flex-col' : 'items-center overflow-x-auto'
   )
   const linkBase =
-    'relative min-w-[140px] overflow-hidden rounded-xl px-4 py-2.5 text-sm font-bold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-teal-400'
+    'relative min-w-[160px] overflow-hidden rounded-2xl border px-4 py-3 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60'
 
   const handleClick = (slug: SheetSlug, event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!onSheetSelect) return
@@ -32,7 +32,7 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
   }
 
   return (
-    <div className={clsx('flex w-full', isStack ? 'flex-col gap-3' : 'items-center justify-between gap-3 py-2')}>
+    <div className={clsx('flex w-full', isStack ? 'flex-col gap-3' : 'items-center justify-between gap-2 py-2')}>
       <nav className={navClassName}>
         {sheets.map((sheet) => {
           const href = sheet.href ?? `/sheet/${sheet.slug}`
@@ -45,14 +45,11 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
               className={clsx(
                 linkBase,
                 isActive
-                  ? 'bg-gradient-to-br from-brand-teal-500 to-brand-teal-700 text-white shadow-soft-lg ring-2 ring-brand-teal-300/50 dark:ring-brand-teal-600/50'
-                  : 'bg-white text-zinc-700 shadow-soft hover:bg-gradient-to-br hover:from-brand-teal-50 hover:to-brand-teal-100 hover:text-brand-teal-700 hover:shadow-soft-lg dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-gradient-to-br dark:hover:from-brand-navy-900/50 dark:hover:to-brand-navy-950/30 dark:hover:text-brand-teal-300'
+                  ? 'border-[#00c2b9] bg-[#00c2b9]/15 text-cyan-100 shadow-[0_18px_40px_rgba(0,194,185,0.2)]'
+                  : 'border-white/12 bg-white/5 text-slate-200 hover:border-cyan-300/50 hover:text-cyan-100'
               )}
             >
               <span className="relative z-10">{sheet.label}</span>
-              {isActive && (
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-pulse" />
-              )}
             </Link>
           )
         })}
