@@ -317,7 +317,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
 
   if (!isClient) {
     return (
-      <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="space-y-3">
         <div className="h-40 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
       </div>
     )
@@ -536,7 +536,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
         <div
           ref={pickerRef}
           style={{ position: 'fixed', left: picker.left, top: picker.top, zIndex: 9999 }}
-          className="xplan-date-overlay rounded-md border border-slate-300 bg-white p-2 shadow-md dark:border-slate-700 dark:bg-slate-900"
+          className="xplan-date-overlay rounded-md border border-[#0b3a52] bg-[#0a1f35] p-2 shadow-md"
           onMouseDown={(e) => e.stopPropagation()}
         >
           <Flatpickr
@@ -576,7 +576,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
       {keyEditor ? (
         <div
           style={{ position: 'fixed', left: keyEditor.left, top: keyEditor.top, zIndex: 9999 }}
-          className="xplan-date-overlay rounded-md border border-slate-300 bg-white p-2 shadow-md dark:border-slate-700 dark:bg-slate-900"
+          className="xplan-date-overlay rounded-md border border-[#0b3a52] bg-[#0a1f35] p-2 shadow-md"
           onMouseDown={(e) => e.stopPropagation()}
         >
           <input
