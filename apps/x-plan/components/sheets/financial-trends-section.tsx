@@ -85,10 +85,10 @@ export function FinancialTrendsSection({ title, description, metrics, defaultMet
 
   if (!metrics.length || !resolvedMetric) {
     return (
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+      <section className="rounded-3xl border border-[#0b3a52] bg-[#041324] p-6 text-sm text-slate-400 shadow-[0_26px_55px_rgba(1,12,24,0.55)]">
         <header className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{title}</p>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">{description}</h2>
+          <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-300/80">{title}</p>
+          <h2 className="text-xl font-semibold text-white">{description}</h2>
         </header>
         <p className="mt-4">No data available yet.</p>
       </section>
@@ -96,13 +96,13 @@ export function FinancialTrendsSection({ title, description, metrics, defaultMet
   }
 
   return (
-    <section className="space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section className="space-y-6 rounded-3xl border border-[#0b3a52] bg-[#041324] p-6 shadow-[0_26px_55px_rgba(1,12,24,0.55)]">
       <header className="space-y-4 lg:flex lg:items-end lg:justify-between lg:space-y-0">
         <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{title}</p>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-50">{description}</h2>
+          <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-300/80">{title}</p>
+          <h2 className="text-xl font-semibold text-white">{description}</h2>
           {resolvedMetric.helper ? (
-            <p className="text-sm text-slate-500 dark:text-slate-400">{resolvedMetric.helper}</p>
+            <p className="text-sm text-slate-200/80">{resolvedMetric.helper}</p>
           ) : null}
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
@@ -155,9 +155,9 @@ function GranularityToggle({
               type="button"
               className={`${SHEET_TOOLBAR_BUTTON} rounded-none first:rounded-l-full last:rounded-r-full ${
                 isActive
-                  ? 'bg-slate-900 text-white shadow-sm dark:bg-slate-50 dark:text-slate-900'
-                  : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-100'
-              } ${!isAvailable ? 'cursor-not-allowed opacity-50 hover:text-slate-500 dark:hover:text-slate-400' : ''}`}
+                  ? 'border-[#00c2b9] bg-[#00c2b9]/15 text-cyan-100 shadow-[0_12px_24px_rgba(0,194,185,0.15)]'
+                  : 'text-slate-200 hover:text-cyan-100'
+              } ${!isAvailable ? 'cursor-not-allowed opacity-50 hover:text-slate-400' : ''}`}
               onClick={() => isAvailable && onChange(option.value)}
               aria-pressed={isActive}
               aria-disabled={!isAvailable}
@@ -417,10 +417,10 @@ function TrendChart({ title, description, helper, series, granularity, format, a
         >
           {title}
         </span>
-        <span className="text-sm text-slate-500 dark:text-slate-400">{description}</span>
+        <span className="text-sm text-slate-200/80">{description}</span>
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <div ref={chartRef} className="relative h-80 w-full overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-900/40">
+        <div ref={chartRef} className="relative h-80 w-full overflow-hidden rounded-3xl border border-[#0b3a52] bg-[#06182b]/85 backdrop-blur-sm">
           <TrendChartSvg
             width={width}
             height={height}
@@ -442,29 +442,29 @@ function TrendChart({ title, description, helper, series, granularity, format, a
             onKeyDown={handleKeyDown}
           />
         </div>
-        <aside className="space-y-4 rounded-3xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+        <aside className="space-y-4 rounded-3xl border border-[#0b3a52] bg-[#06182b]/85 p-4 text-sm text-slate-200/80 backdrop-blur-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Latest cadence</p>
-            <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-50">
+            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-300/80">Latest cadence</p>
+            <p className="mt-1 text-lg font-semibold text-white">
               {labels.at(-1) ?? '—'}
             </p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Current value</p>
-            <p className="text-2xl font-semibold text-slate-900 dark:text-slate-50">
+            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-300/80">Current value</p>
+            <p className="text-2xl font-semibold text-white">
               {formatSimpleValue(snappedValues.at(-1) ?? NaN, format)}
             </p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Change vs. prior</p>
-            <p className="text-lg font-medium text-slate-900 dark:text-slate-50">
+            <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-300/80">Change vs. prior</p>
+            <p className="text-lg font-medium text-white">
               {change == null ? '—' : formatChangeValue(change, format)}
             </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-slate-200/80">
               {changePercent == null ? '—' : formatPercentValue(changePercent)}
             </p>
           </div>
-          {helper ? <p className="text-xs text-slate-500 dark:text-slate-400">{helper}</p> : null}
+          {helper ? <p className="text-xs text-slate-200/80">{helper}</p> : null}
         </aside>
       </div>
     </article>
