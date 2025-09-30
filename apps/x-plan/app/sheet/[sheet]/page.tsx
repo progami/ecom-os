@@ -1,8 +1,7 @@
 import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { OpsPlanningWorkspace } from '@/components/sheets/ops-planning-workspace'
-import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
-import { ProductSetupParametersPanel } from '@/components/sheets/product-setup-panels'
+import { ProductSetupWorkspace } from '@/components/sheets/product-setup-workspace'
 import { SalesPlanningGrid, SalesPlanningFocusControl, SalesPlanningFocusProvider } from '@/components/sheets/sales-planning-grid'
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
 import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid'
@@ -1222,39 +1221,13 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   switch (config.slug) {
     case '1-product-setup': {
       const view = await getProductSetupView()
-      const parameterSections = [
-        {
-          key: 'operations',
-          title: 'Operations',
-          description: 'Tune supply chain defaults that feed ordering and lead time models.',
-          parameters: view.operationsParameters,
-        },
-        {
-          key: 'sales',
-          title: 'Sales',
-          description: 'Set demand-planning thresholds such as stock warnings and forecast assumptions.',
-          parameters: view.salesParameters,
-        },
-        {
-          key: 'finance',
-          title: 'Finance',
-          description: 'Set the cash assumptions that flow into every financial plan.',
-          parameters: view.financeParameters,
-        },
-      ] as const
-
       tabularContent = (
-        <div className="space-y-6">
-          <ProductSetupGrid products={view.products} />
-          {parameterSections.map((section) => (
-            <ProductSetupParametersPanel
-              key={section.key}
-              title={section.title}
-              description={section.description}
-              parameters={section.parameters}
-            />
-          ))}
-        </div>
+        <ProductSetupWorkspace
+          products={view.products}
+          operationsParameters={view.operationsParameters}
+          salesParameters={view.salesParameters}
+          financeParameters={view.financeParameters}
+        />
       )
       visualContent = (
         <VisualPlaceholder
