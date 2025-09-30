@@ -1436,7 +1436,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       ribbon={
         <a
           href="/import"
-          className="rounded-lg border-2 border-brand-200 bg-gradient-to-br from-white to-brand-50 px-4 py-2 text-sm font-bold text-brand-700 shadow-soft transition-all hover:border-brand-400 hover:from-brand-50 hover:to-brand-100 hover:shadow-soft-lg dark:border-brand-800 dark:from-brand-950/30 dark:to-brand-900/20 dark:text-brand-300 dark:hover:border-brand-600 dark:hover:from-brand-900/40 dark:hover:to-brand-800/30"
+          className="rounded-lg border-2 border-accent-200 bg-gradient-to-br from-white to-accent-50 px-4 py-2 text-sm font-bold text-accent-800 shadow-soft transition-all hover:border-accent-400 hover:from-accent-50 hover:to-accent-100 hover:shadow-soft-lg dark:border-accent-800 dark:from-accent-950/30 dark:to-accent-900/20 dark:text-accent-300 dark:hover:border-accent-600 dark:hover:from-accent-900/40 dark:hover:to-accent-800/30"
         >
           Import / Export
         </a>

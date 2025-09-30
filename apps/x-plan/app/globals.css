@@ -7,14 +7,14 @@
 }
 
 body {
-  @apply min-h-screen bg-gradient-to-br from-white via-xplan-50 to-xplan-100/40 text-zinc-900 antialiased;
+  @apply min-h-screen bg-gradient-to-br from-white via-brand-teal-50 to-brand-navy-50/30 text-zinc-900 antialiased;
   font-feature-settings: "cv11", "ss01";
   font-optical-sizing: auto;
 }
 
 @media (prefers-color-scheme: dark) {
   body {
-    @apply bg-gradient-to-br from-zinc-950 via-xplan-950 to-zinc-900 text-zinc-50;
+    @apply bg-gradient-to-br from-zinc-950 via-brand-navy-950 to-zinc-900 text-zinc-50;
   }
 }
 
@@ -25,35 +25,35 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-xplan-50/30;
+  @apply bg-brand-teal-50/30;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-xplan-300 rounded-full;
+  @apply bg-brand-teal-300 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-xplan-400;
+  @apply bg-brand-teal-400;
 }
 
 .dark ::-webkit-scrollbar-track {
-  @apply bg-xplan-950/30;
+  @apply bg-brand-navy-950/30;
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  @apply bg-xplan-700;
+  @apply bg-brand-navy-700;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  @apply bg-xplan-600;
+  @apply bg-brand-navy-600;
 }
 
 /* Selection */
 ::selection {
-  @apply bg-brand-200 text-brand-900;
+  @apply bg-brand-teal-200 text-brand-navy-900;
 }
 
 .dark ::selection {
-  @apply bg-brand-800 text-brand-100;
+  @apply bg-brand-teal-800 text-brand-teal-100;
 }
 

@@ -306,7 +306,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
   }, [router])
 
   return (
-    <div className="space-y-1 p-2">
+    <div className="w-full">
       <HotTable
         ref={(instance) => {
           hotRef.current = instance?.hotInstance ?? null
