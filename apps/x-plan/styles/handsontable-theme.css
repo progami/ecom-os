@@ -23,12 +23,12 @@
 /* Base cell styling */
 .x-plan-hot .htCore th,
 .x-plan-hot .htCore td {
-  font-size: 13px;
+  font-size: 12px;
   color: #e2e8f0;
   border-color: rgba(11, 58, 82, 0.4);
-  padding: 6px 10px;
+  padding: 5px 8px;
   font-weight: 500;
-  line-height: 1.5;
+  line-height: 1.4;
   transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
@@ -39,8 +39,8 @@
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: #5eead4 !important;
-  font-size: 11px;
-  padding: 10px 10px;
+  font-size: 10px;
+  padding: 8px 8px;
   border-bottom: 3px solid #00c2b9;
   border-right: 1px solid rgba(11, 58, 82, 0.6);
   vertical-align: middle;
@@ -78,8 +78,9 @@
 }
 
 .x-plan-hot .cell-editable:hover {
-  background: #a7f3d0 !important;
-  border-color: #00a39e !important;
+  background: #99f6e4 !important;
+  color: #0a1f35 !important;
+  border-color: #00c2b9 !important;
 }
 
 /* Readonly cells */
@@ -134,9 +135,9 @@
 
 /* Warning cells */
 .x-plan-hot .cell-warning {
-  background: #fef3c7 !important;
-  color: #78350f !important;
-  border: 1px solid #fbbf24 !important;
+  background: #fee2e2 !important;
+  color: #7f1d1d !important;
+  border: 1px solid #ef4444 !important;
   font-weight: 700 !important;
 }
 

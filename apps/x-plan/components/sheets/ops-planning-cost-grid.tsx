@@ -339,14 +339,14 @@ export function OpsPlanningCostGrid({
 
   if (!isClient) {
     return (
-      <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <section className="space-y-3">
         <div className="h-64 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
       </section>
     )
   }
 
   return (
-    <section className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <section className="space-y-3">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
           Batch Table
