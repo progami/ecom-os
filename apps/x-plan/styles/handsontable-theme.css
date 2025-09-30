@@ -30,13 +30,22 @@
   padding: 4px 8px;
   font-weight: 500;
   line-height: 1.4;
-  background-color: transparent;
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
-/* Header styling */
+/* Default data cell background */
+.x-plan-hot .htCore tbody td {
+  background-color: rgba(6, 24, 43, 0.3) !important;
+}
+
+/* Zebra striping */
+.x-plan-hot .htCore tbody tr:nth-child(even) td:not(.cell-editable):not(.row-active) {
+  background-color: rgba(6, 24, 43, 0.45) !important;
+}
+
+/* Header styling - MUST come after default cell styling */
 .x-plan-hot .htCore thead th {
-  background: #1e3a52 !important;
+  background-color: #1e3a52 !important;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -48,20 +57,10 @@
 
 /* Row header / first column */
 .x-plan-hot .htCore tbody th {
-  background: #1e3a52 !important;
+  background-color: #1e3a52 !important;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
   border-right: 1px solid #0b3a52;
-}
-
-/* Default data cell background */
-.x-plan-hot .htCore tbody td {
-  background-color: rgba(6, 24, 43, 0.3);
-}
-
-/* Zebra striping */
-.x-plan-hot .htCore tbody tr:nth-child(even) td:not(.cell-editable):not(.row-active) {
-  background-color: rgba(6, 24, 43, 0.45);
 }
 
 /* Editable cells */

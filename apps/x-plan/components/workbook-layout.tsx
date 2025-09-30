@@ -261,8 +261,8 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
         <section className="flex flex-1 overflow-hidden">
           <div className="flex-1 overflow-auto">
             <header className="sticky top-0 z-10 border-b border-[#0b3a52] bg-[#041324]/95 px-4 py-4 shadow-[0_26px_55px_rgba(1,12,24,0.55)] backdrop-blur-xl sm:px-6 lg:px-8">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#00c2b9] shadow-[0_12px_24px_rgba(0,194,185,0.25)]">
                       <span className="text-lg font-bold text-[#002430]">X</span>
@@ -272,8 +272,17 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
                       <h1 className="text-xl font-semibold text-white">{activeSheet?.label ?? 'Workbook'}</h1>
                     </div>
                   </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    {isPending && <span className="animate-pulse text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200/80">Loading…</span>}
+                    {ribbon}
+                  </div>
+                </div>
+
+                {(activeSheet?.description || metaSummary) && (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <p className="max-w-3xl text-sm leading-relaxed text-slate-200/80">{activeSheet?.description}</p>
+                    {activeSheet?.description && (
+                      <p className="text-sm leading-relaxed text-slate-200/80">{activeSheet.description}</p>
+                    )}
                     {metaSummary && (
                       <span
                         className="rounded-full border border-white/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/80"
@@ -283,20 +292,17 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
                       </span>
                     )}
                   </div>
+                )}
+
+                <div className="hidden lg:block">
+                  <SheetTabs
+                    sheets={sheetTabs}
+                    activeSlug={activeSlug}
+                    variant="scroll"
+                    onSheetSelect={goToSheet}
+                    suffix={headerSuffix}
+                  />
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  {isPending && <span className="animate-pulse text-xs font-semibold uppercase tracking-[0.24em] text-cyan-200/80">Loading…</span>}
-                  {ribbon}
-                </div>
-              </div>
-              <div className="mt-4 hidden items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 lg:flex">
-                <SheetTabs
-                  sheets={sheetTabs}
-                  activeSlug={activeSlug}
-                  variant="scroll"
-                  onSheetSelect={goToSheet}
-                  suffix={headerSuffix}
-                />
               </div>
             </header>
             <div className="px-4 py-6 sm:px-6 lg:px-8">

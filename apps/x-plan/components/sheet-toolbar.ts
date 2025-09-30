@@ -1,5 +1,5 @@
 export const SHEET_TOOLBAR_CONTAINER =
-  'flex flex-wrap items-center gap-2 text-xs text-slate-200/80'
+  'flex items-center gap-3 text-xs text-slate-200/80'
 
 export const SHEET_TOOLBAR_GROUP =
   'flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-2 py-1 backdrop-blur-sm'
