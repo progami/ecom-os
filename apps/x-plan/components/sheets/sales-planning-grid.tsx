@@ -9,6 +9,11 @@ import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
+import {
+  SHEET_TOOLBAR_GROUP,
+  SHEET_TOOLBAR_LABEL,
+  SHEET_TOOLBAR_SELECT,
+} from '@/components/sheet-toolbar'
 
 registerAllModules()
 
@@ -58,12 +63,12 @@ export function SalesPlanningFocusControl({ productOptions }: { productOptions: 
   const { focusProductId, setFocusProductId } = context
 
   return (
-    <label className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-      <span>Focus SKU</span>
+    <label className={`${SHEET_TOOLBAR_GROUP} cursor-pointer`}>
+      <span className={SHEET_TOOLBAR_LABEL}>Focus SKU</span>
       <select
         value={focusProductId}
         onChange={(event) => setFocusProductId(event.target.value)}
-        className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+        className={SHEET_TOOLBAR_SELECT}
       >
         <option value="ALL">Show all</option>
         {productOptions.map((option) => (

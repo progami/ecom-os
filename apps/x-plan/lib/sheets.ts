@@ -4,7 +4,6 @@ export type SheetSlug =
   | '3-sales-planning'
   | '4-fin-planning-pl'
   | '5-fin-planning-cash-flow'
-  | '6-dashboard'
 
 export interface SheetConfig {
   slug: SheetSlug
@@ -37,11 +36,6 @@ export const SHEETS: SheetConfig[] = [
     slug: '5-fin-planning-cash-flow',
     label: '5. Fin Planning Cash Flow',
     description: 'Cash movement, payouts, and runway visibility.',
-  },
-  {
-    slug: '6-dashboard',
-    label: '6. Dashboard',
-    description: 'KPI snapshots across demand, supply, and finance.',
   },
 ]
 

@@ -7,6 +7,13 @@ import type { WorkbookSheetStatus } from '@/lib/workbook'
 import { clsx } from 'clsx'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import {
+  SHEET_TOOLBAR_BUTTON,
+  SHEET_TOOLBAR_CONTAINER,
+  SHEET_TOOLBAR_GROUP,
+  SHEET_TOOLBAR_ICON_BUTTON,
+  SHEET_TOOLBAR_LABEL,
+} from '@/components/sheet-toolbar'
 
 type SheetSlug = WorkbookSheetStatus['slug']
 
@@ -122,66 +129,61 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
   const yearSwitcher = useMemo(() => {
     if (!sortedYears.length || !isYearAwareSheet) return null
     const previous = activeYearIndex > 0 ? sortedYears[activeYearIndex - 1] : null
-    const next = activeYearIndex >= 0 && activeYearIndex < sortedYears.length - 1 ? sortedYears[activeYearIndex + 1] : null
+    const next =
+      activeYearIndex >= 0 && activeYearIndex < sortedYears.length - 1 ? sortedYears[activeYearIndex + 1] : null
 
     return (
-      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-        <span className="text-[10px] uppercase tracking-[0.25em] text-slate-400 dark:text-slate-500">Year</span>
+      <div className={`${SHEET_TOOLBAR_GROUP} gap-1`}>
+        <span className={SHEET_TOOLBAR_LABEL}>Year</span>
+        <button
+          type="button"
+          onClick={() => goToAdjacentYear(-1)}
+          className={SHEET_TOOLBAR_ICON_BUTTON}
+          aria-label="Previous year"
+          disabled={!previous || isPending}
+        >
+          <ChevronLeft aria-hidden className="h-4 w-4" />
+        </button>
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => goToAdjacentYear(-1)}
-            className="flex h-7 w-7 items-center justify-center rounded-full border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:bg-slate-800 dark:focus-visible:ring-slate-600"
-            aria-label="Previous year"
-            disabled={!previous || isPending}
-          >
-            <ChevronLeft aria-hidden className="h-4 w-4" />
-          </button>
-          <div className="flex flex-wrap gap-1">
-            {sortedYears.map((segment) => {
-              const isActiveYear = resolvedYear === segment.year
-              return (
-                <button
-                  key={segment.year}
-                  type="button"
-                  onClick={() => handleYearSelect(segment.year)}
-                  className={clsx(
-                    'rounded-md px-2.5 py-1 font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 dark:focus-visible:ring-slate-600',
-                    isActiveYear
-                      ? 'bg-slate-900 text-white shadow-sm dark:bg-slate-50 dark:text-slate-900'
-                      : 'bg-slate-100 text-slate-600 hover:bg-white dark:bg-slate-800 dark:text-slate-300 dark:hover(bg-slate-700)'
-                  )}
-                  aria-pressed={isActiveYear}
-                  disabled={isActiveYear && isPending}
-                >
-                  <span>{segment.year}</span>
-                  <span className="ml-1 text-[10px] font-normal text-slate-400 dark:text-slate-500">{segment.weekCount}w</span>
-                </button>
-              )
-            })}
-          </div>
-          <button
-            type="button"
-            onClick={() => goToAdjacentYear(1)}
-            className="flex h-7 w-7 items-center justify-center rounded-full border border-transparent text-slate-500 transition hover:border-slate-300 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300 disabled:opacity-40 dark:text-slate-400 dark:hover:border-slate-700 dark:hover:bg-slate-800 dark:focus-visible:ring-slate-600"
-            aria-label="Next year"
-            disabled={!next || isPending}
-          >
-            <ChevronRight aria-hidden className="h-4 w-4" />
-          </button>
+          {sortedYears.map((segment) => {
+            const isActiveYear = resolvedYear === segment.year
+            return (
+              <button
+                key={segment.year}
+                type="button"
+                onClick={() => handleYearSelect(segment.year)}
+                className={clsx(
+                  SHEET_TOOLBAR_BUTTON,
+                  'rounded-full px-2.5 py-1',
+                  isActiveYear
+                    ? 'bg-slate-900 text-white shadow-sm dark:bg-slate-50 dark:text-slate-900'
+                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-100'
+                )}
+                aria-pressed={isActiveYear}
+                disabled={isPending && isActiveYear}
+              >
+                <span>{segment.year}</span>
+                <span className="ml-1 text-[10px] font-normal text-slate-400 dark:text-slate-500">{segment.weekCount}w</span>
+              </button>
+            )
+          })}
         </div>
+        <button
+          type="button"
+          onClick={() => goToAdjacentYear(1)}
+          className={SHEET_TOOLBAR_ICON_BUTTON}
+          aria-label="Next year"
+          disabled={!next || isPending}
+        >
+          <ChevronRight aria-hidden className="h-4 w-4" />
+        </button>
       </div>
     )
   }, [activeYearIndex, goToAdjacentYear, handleYearSelect, isPending, isYearAwareSheet, resolvedYear, sortedYears])
 
   const headerSuffix = useMemo(() => {
     if (!yearSwitcher && !headerControls) return undefined
-    return (
-      <div className="flex flex-wrap items-center gap-3">
-        {headerControls}
-        {yearSwitcher}
-      </div>
-    )
+    return <div className={SHEET_TOOLBAR_CONTAINER}>{headerControls}{yearSwitcher}</div>
   }, [headerControls, yearSwitcher])
 
   useEffect(() => {
