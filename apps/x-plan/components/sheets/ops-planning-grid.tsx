@@ -313,10 +313,10 @@ export function OpsPlanningGrid({
     <section className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-300/80">
             PO table
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
+          <p className="text-xs text-slate-200/80">
             Manage purchase order timing and status; the highlighted row stays in sync with the detail view.
           </p>
         </div>

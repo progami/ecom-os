@@ -348,7 +348,7 @@ export function OpsPlanningCostGrid({
   return (
     <section className="space-y-3">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+        <h2 className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-300/80">
           Batch Table
         </h2>
         <div className="flex flex-wrap gap-2">
