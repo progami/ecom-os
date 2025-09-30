@@ -183,10 +183,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
     )
   }, [activeYearIndex, goToAdjacentYear, handleYearSelect, isPending, isYearAwareSheet, resolvedYear, sortedYears])
 
-  const headerSuffix = useMemo(() => {
-    if (!yearSwitcher && !headerControls) return undefined
-    return <div className={SHEET_TOOLBAR_CONTAINER}>{headerControls}{yearSwitcher}</div>
-  }, [headerControls, yearSwitcher])
+  const hasControls = Boolean(yearSwitcher || headerControls)
 
   useEffect(() => {
     if (!isResizing) return
@@ -300,9 +297,15 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
                     activeSlug={activeSlug}
                     variant="scroll"
                     onSheetSelect={goToSheet}
-                    suffix={headerSuffix}
                   />
                 </div>
+
+                {hasControls && (
+                  <div className="hidden lg:flex items-center justify-end gap-4 border-t border-[#0b3a52] pt-3">
+                    {headerControls}
+                    {yearSwitcher}
+                  </div>
+                )}
               </div>
             </header>
             <div className="px-4 py-6 sm:px-6 lg:px-8">
@@ -328,14 +331,19 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
         </section>
       </main>
 
-      <footer className="border-t border-[#0b3a52] bg-[#041324]/95 px-2 py-3 shadow-[0_26px_55px_rgba(1,12,24,0.55)] backdrop-blur-xl lg:hidden">
+      <footer className="space-y-3 border-t border-[#0b3a52] bg-[#041324]/95 px-2 py-3 shadow-[0_26px_55px_rgba(1,12,24,0.55)] backdrop-blur-xl lg:hidden">
         <SheetTabs
           sheets={sheetTabs}
           activeSlug={activeSlug}
           variant="scroll"
           onSheetSelect={goToSheet}
-          suffix={headerSuffix}
         />
+        {hasControls && (
+          <div className="flex items-center justify-end gap-4 border-t border-[#0b3a52] pt-3">
+            {headerControls}
+            {yearSwitcher}
+          </div>
+        )}
       </footer>
     </div>
   )
