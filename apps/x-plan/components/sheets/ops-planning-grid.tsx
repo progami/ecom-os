@@ -239,7 +239,8 @@ export function OpsPlanningGrid({
     if (stageMode === 'weeks') return COLUMN_SETTINGS_BASE
     const cols = COLUMN_SETTINGS_BASE.map((column) => ({ ...column }))
     const makeStageAccessor = (field: keyof OpsInputRow): Handsontable.ColumnSettings => ({
-      data: (row: OpsInputRow, value?: any) => {
+      data: ((rawRow: Handsontable.RowObject, value?: any) => {
+        const row = rawRow as OpsInputRow
         if (value === undefined) {
           const po = row.poDate ? new Date(String(row.poDate)) : null
           const weeks = parseWeeks(row[field] as string | undefined)
@@ -264,7 +265,7 @@ export function OpsPlanningGrid({
         flush()
 
         return iso
-      },
+      }) as Handsontable.ColumnSettings['data'],
       type: 'date',
       dateFormat: 'YYYY-MM-DD',
       correctFormat: true,
@@ -304,7 +305,7 @@ export function OpsPlanningGrid({
   if (!isClient) {
     return (
       <section className="space-y-4">
-        <div className="h-64 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
+        <div className="h-64 animate-pulse rounded-xl bg-[#0c2537]" />
       </section>
     )
   }
@@ -327,7 +328,7 @@ export function OpsPlanningGrid({
                 type="button"
                 onClick={onCreateOrder}
                 disabled={Boolean(disableCreate)}
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600 transition enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:enabled:hover:bg-slate-800"
+                className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 transition enabled:hover:border-cyan-300/50 enabled:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Add purchase order
               </button>
@@ -337,7 +338,7 @@ export function OpsPlanningGrid({
                 type="button"
                 onClick={handleDeleteClick}
                 disabled={Boolean(disableDelete) || !activeOrderId}
-                className="rounded-md border border-rose-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-600 transition enabled:hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/60 dark:text-rose-300 dark:enabled:hover:bg-rose-500/10"
+                className="rounded-md border border-rose-500/60 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-300 transition enabled:hover:border-rose-500/80 enabled:hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Remove selected
               </button>

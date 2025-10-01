@@ -306,8 +306,9 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
   }, [router])
 
   return (
-    <div className="w-full">
-      <HotTable
+    <div className="space-y-6 p-4">
+      <div className="space-y-4">
+        <HotTable
         ref={(instance) => {
           hotRef.current = instance?.hotInstance ?? null
         }}
@@ -317,12 +318,9 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         columns={columns}
         nestedHeaders={nestedHeaders as unknown as HandsontableNestedHeaders}
         afterGetColHeader={handleColHeader}
-        stretchH="none"
+        stretchH="all"
         className="x-plan-hot"
         height="auto"
-        autoWrapRow
-        autoRowSize
-        autoColumnSize={false}
         rowHeaders={false}
         dropdownMenu={{ items: ['filter_by_value'] }}
         filters={false}
@@ -382,6 +380,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
           flush()
         }}
       />
+      </div>
     </div>
   )
 }

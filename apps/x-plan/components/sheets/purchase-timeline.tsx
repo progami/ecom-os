@@ -40,6 +40,8 @@ type TimelineComputedOrder = {
   quantity: number
   status: string
   availableDate: Date | null
+  shipName: string | null
+  containerNumber: string | null
   segments: TimelineComputedSegment[]
   orderStart: Date | null
   orderEnd: Date | null
@@ -80,6 +82,8 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
           quantity: order.quantity,
           status: order.status,
           availableDate: availableDate && !Number.isNaN(availableDate.getTime()) ? availableDate : null,
+          shipName: order.shipName ?? null,
+          containerNumber: order.containerNumber ?? null,
           segments,
           orderStart,
           orderEnd,
@@ -158,7 +162,7 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
     const palette = stagePalette[segment.key] ?? stagePalette.production
     const leftPercent = ((clampedStart - timelineStart.getTime()) / totalDurationMs) * 100
     const widthPercent = ((clampedEnd - clampedStart) / totalDurationMs) * 100
-    const rangeLabel = `${format(segment.startDate, 'MMM d, yyyy')} – ${format(segment.endDate, 'MMM d, yyyy')}`
+    const rangeLabel = `${format(segment.startDate, 'MMM d yyyy')} – ${format(segment.endDate, 'MMM d yyyy')}`
 
     return (
       <button

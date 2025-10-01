@@ -135,6 +135,7 @@ const COLUMNS: Handsontable.ColumnSettings[] = [
 ]
 
 const NUMERIC_FIELDS: Array<keyof PurchasePaymentRow> = ['amountPaid']
+type NumericField = (typeof NUMERIC_FIELDS)[number]
 
 function finishEditingSafely(hot: Handsontable) {
   const core = hot as unknown as {
@@ -434,7 +435,12 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
           const hot = hotRef.current
           if (!hot) return
           for (const change of changes) {
-            const [rowIndex, prop, _oldValue, newValue] = change as [number, any, any, any]
+            const [rowIndex, prop, _oldValue, newValue] = change as [
+              number,
+              keyof PurchasePaymentRow | ((row: PurchasePaymentRow, value?: any) => any),
+              any,
+              any
+            ]
             const record = hot.getSourceDataAtRow(rowIndex) as PurchasePaymentRow | null
             if (!record) continue
           if (!pendingRef.current.has(record.id)) {
@@ -490,10 +496,11 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
               continue
             }
             continue
-          } else if (NUMERIC_FIELDS.includes(prop)) {
+          } else if (typeof prop === 'string' && NUMERIC_FIELDS.includes(prop as NumericField)) {
+              const numericKey = prop as NumericField
               const normalizedAmount = normalizeNumeric(newValue)
-              entry.values[prop] = normalizedAmount
-              record[prop] = normalizedAmount
+              entry.values[numericKey] = normalizedAmount
+              ;((record as unknown) as Record<NumericField, string>)[numericKey] = normalizedAmount
               const plannedAmount = orderSummaries?.get(record.purchaseOrderId)?.plannedAmount ?? 0
               const numericAmount = parseNumericInput(normalizedAmount) ?? 0
               if (plannedAmount > 0 && Number.isFinite(numericAmount)) {
@@ -521,8 +528,10 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
                 entry.values.percentage = normalizedPercent
                 hot.setDataAtRowProp(rowIndex, 'percentage', normalizedPercent, 'derived-update')
               }
-            } else {
-              entry.values[prop] = String(newValue ?? '')
+            } else if (typeof prop === 'string') {
+              const stringValue = String(newValue ?? '')
+              entry.values[prop] = stringValue
+              ;(record as Record<string, unknown>)[prop] = stringValue
             }
           }
           flush()

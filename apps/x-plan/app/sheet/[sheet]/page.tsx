@@ -43,6 +43,7 @@ import {
   type PurchaseOrderDerived,
   type PurchaseOrderInput,
   type LeadTimeProfile,
+  type BusinessParameterMap,
 } from '@/lib/calculations'
 import type { ProductCostSummary } from '@/lib/calculations/product'
 import { createTimelineOrderFromDerived, type PurchaseTimelineOrder } from '@/lib/planning/timeline'
@@ -69,15 +70,18 @@ function formatDisplayDate(value: Date | number | string | null | undefined): st
   if (value == null) return ''
   if (typeof value === 'string') {
     const t = value.trim()
-    if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t
+    if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+      const d = new Date(`${t}T00:00:00Z`)
+      return Number.isNaN(d.getTime()) ? '' : format(d, 'MMM d yyyy')
+    }
     const d = new Date(t)
-    return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10)
+    return Number.isNaN(d.getTime()) ? '' : format(d, 'MMM d yyyy')
   }
   if (typeof value === 'number') {
     const d = new Date(value)
-    return Number.isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10)
+    return Number.isNaN(d.getTime()) ? '' : format(d, 'MMM d yyyy')
   }
-  return value.toISOString().slice(0, 10)
+  return format(value, 'MMM d yyyy')
 }
 
 function formatDate(value: Date | string | null | undefined): string {
@@ -215,7 +219,7 @@ function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSeriali
       id: batch.id,
       batchCode: batch.batchCode ?? null,
       productId: batch.productId,
-      quantity: batch.quantity != null ? Number(batch.quantity) : null,
+      quantity: toNumberSafe(batch.quantity),
       overrideSellingPrice: batch.overrideSellingPrice ?? null,
       overrideManufacturingCost: batch.overrideManufacturingCost ?? null,
       overrideFreightCost: batch.overrideFreightCost ?? null,
@@ -272,17 +276,39 @@ function limitRows<T>(rows: T[], limit: number): T[] {
   return rows.slice(-limit)
 }
 
-function buildTrendSeries<T extends { periodLabel: string }>(rows: T[], key: Extract<keyof T, string>) {
+function buildTrendSeries<T>(rows: T[], key: Extract<keyof T, string>) {
   const labels: string[] = []
   const values: number[] = []
 
   for (const row of rows) {
-    const raw = row[key] as unknown
+    if (typeof row !== 'object' || row === null) continue
+    const record = row as Record<string, unknown>
+    const raw = record[key]
     const numeric = typeof raw === 'number' ? raw : Number(raw)
-    if (Number.isFinite(numeric)) {
-      labels.push(row.periodLabel)
-      values.push(numeric)
+    if (!Number.isFinite(numeric)) continue
+
+    let label = ''
+    if ('periodLabel' in record && typeof record.periodLabel === 'string' && record.periodLabel.trim()) {
+      label = record.periodLabel
+    } else if ('weekDate' in record) {
+      const weekDate = record.weekDate as Date | string | number | null | undefined
+      if (weekDate != null) {
+        const formatted = formatDisplayDate(weekDate)
+        if (formatted) {
+          label = formatted
+        }
+      }
     }
+
+    if (!label && 'weekNumber' in record) {
+      const weekValue = record.weekNumber as string | number | null | undefined
+      if (weekValue != null && !(typeof weekValue === 'string' && weekValue.trim() === '')) {
+        label = `W${weekValue}`
+      }
+    }
+
+    labels.push(label)
+    values.push(Number(numeric))
   }
 
   return { labels, values }
@@ -332,11 +358,6 @@ function metricHeader(metric: SalesMetric): NestedHeaderCell {
   switch (metric) {
     case 'stockStart':
       return 'Stock Start'
-    case 'arrivalDetail':
-      return {
-        label: 'Inbound PO',
-        title: 'Purchase orders arriving this week with ship names for quick reference.',
-      }
     case 'actualSales':
       return 'Actual Sales'
     case 'forecastSales':
@@ -621,6 +642,14 @@ async function ensureDefaultSupplierInvoices({
 
 type PaymentDueDateSource = 'SYSTEM' | 'USER'
 
+const PAYMENT_METADATA_MISSING_REGEX = /Unknown argument `(?:category|label|amountExpected|amountPaid)`/
+
+function isMissingPaymentMetadataError(error: unknown): error is { message: string } {
+  if (typeof error !== 'object' || error === null) return false
+  const message = 'message' in error ? (error as { message?: unknown }).message : undefined
+  return typeof message === 'string' && PAYMENT_METADATA_MISSING_REGEX.test(message)
+}
+
 type SeedPaymentInput = {
   purchaseOrderId: string
   paymentIndex: number
@@ -650,27 +679,24 @@ async function createPurchaseOrderPayment(data: SeedPaymentInput): Promise<Purch
   try {
     return await prisma.purchaseOrderPayment.create({ data })
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientValidationError) {
-      const message = error.message
-      if (/Unknown argument `(?:category|label|amountExpected|amountPaid)`/.test(message)) {
-        const { category, label, amountExpected, amountPaid, dueDateDefault, dueDateSource, ...fallback } = data
-        console.warn(
-          '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @ecom-os/x-plan prisma:migrate:deploy` to add amountExpected/amountPaid metadata columns'
-        )
-        const legacyData: Record<string, unknown> = {
-          ...fallback,
-        }
-        if (dueDateDefault != null) {
-          legacyData.dueDate = dueDateDefault
-        }
-        legacyData.amount = amountExpected
-        return prisma.purchaseOrderPayment
-          .create({ data: legacyData })
-          .catch((fallbackError) => {
-            console.error('Failed to seed supplier payment (fallback)', fallbackError)
-            return null
-          })
+    if (isMissingPaymentMetadataError(error)) {
+      const { amountExpected, dueDateDefault, ...fallback } = data
+      console.warn(
+        '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @ecom-os/x-plan prisma:migrate:deploy` to add amountExpected/amountPaid metadata columns'
+      )
+      const legacyData: Record<string, unknown> = {
+        ...fallback,
       }
+      if (dueDateDefault != null) {
+        legacyData.dueDate = dueDateDefault
+      }
+      legacyData.amount = amountExpected
+      return prisma.purchaseOrderPayment
+        .create({ data: legacyData })
+        .catch((fallbackError) => {
+          console.error('Failed to seed supplier payment (fallback)', fallbackError)
+          return null
+        })
     }
 
     console.error('Failed to seed supplier payment', error)
@@ -688,25 +714,22 @@ async function updatePurchaseOrderPayment(
       data,
     })
   } catch (error) {
-    if (error instanceof Prisma.PrismaClientValidationError) {
-      const message = error.message
-      if (/Unknown argument `(?:category|label|amountExpected|amountPaid)`/.test(message)) {
-        const { category, label, amountExpected, amountPaid, dueDateDefault, dueDateSource, ...fallback } = data
-        console.warn(
-          '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @ecom-os/x-plan prisma:migrate:deploy` to add amountExpected/amountPaid metadata columns'
-        )
-        const legacyData: Record<string, unknown> = {
-          ...fallback,
-        }
-        if (amountExpected != null) legacyData.amount = amountExpected
-        if (dueDateDefault != null) legacyData.dueDate = dueDateDefault
-        return prisma.purchaseOrderPayment
-          .update({ where: { id }, data: legacyData })
-          .catch((fallbackError) => {
-            console.error('Failed to update supplier payment (fallback)', fallbackError)
-            return null
-          })
+    if (isMissingPaymentMetadataError(error)) {
+      const { amountExpected, dueDateDefault, ...fallback } = data
+      console.warn(
+        '[x-plan] purchase_order_payment.metadata-missing: run `pnpm --filter @ecom-os/x-plan prisma:migrate:deploy` to add amountExpected/amountPaid metadata columns'
+      )
+      const legacyData: Record<string, unknown> = {
+        ...fallback,
       }
+      if (amountExpected != null) legacyData.amount = amountExpected
+      if (dueDateDefault != null) legacyData.dueDate = dueDateDefault
+      return prisma.purchaseOrderPayment
+        .update({ where: { id }, data: legacyData })
+        .catch((fallbackError) => {
+          console.error('Failed to update supplier payment (fallback)', fallbackError)
+          return null
+        })
     }
 
     console.error('Failed to update supplier payment', error)
@@ -748,10 +771,14 @@ async function loadFinancialData(planning: PlanningCalendar) {
   const cashOverrideRows = await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })
 
   const profitOverrides = mapProfitAndLossWeeks(
-    profitOverrideRows.filter((row) => row.updatedAt.getTime() > row.createdAt.getTime())
+    profitOverrideRows.filter(
+      (row) => row.updatedAt != null && row.createdAt != null && row.updatedAt.getTime() > row.createdAt.getTime()
+    )
   )
   const cashOverrides = mapCashFlowWeeks(
-    cashOverrideRows.filter((row) => row.updatedAt.getTime() > row.createdAt.getTime())
+    cashOverrideRows.filter(
+      (row) => row.updatedAt != null && row.createdAt != null && row.updatedAt.getTime() > row.createdAt.getTime()
+    )
   )
   const profit = computeProfitAndLoss(salesPlan, operations.productIndex, operations.parameters, profitOverrides)
   const cash = computeCashFlow(
@@ -1024,14 +1051,6 @@ function getSalesPlanningView(
           case 'stockStart':
             row[key] = formatNumeric(derived?.stockStart ?? null, 0)
             break
-          case 'arrivalDetail': {
-            const productSummary: InboundSummary = new Map()
-            for (const order of derived?.arrivalOrders ?? []) {
-              addToInboundSummary(productSummary, order.shipName, product.name, order.quantity)
-            }
-            row[key] = formatInboundSummary(productSummary)
-            break
-          }
           case 'actualSales':
             row[key] = formatNumeric(derived?.actualSales ?? null, 0)
             break
@@ -1156,12 +1175,10 @@ function getProfitAndLossView(
 function getCashFlowView(
   financialData: FinancialData,
   activeSegment: YearSegment | null,
-  activeYear: number | null
+  _activeYear: number | null
 ) {
-  const { weekly, monthly, quarterly } = financialData.cash
+  const { weekly } = financialData.cash
   const filteredWeekly = weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
-  const monthlySummary = filterSummaryByYear(monthly, activeYear)
-  const quarterlySummary = filterSummaryByYear(quarterly, activeYear)
 
   return {
     weekly: filteredWeekly.map((entry) => ({
@@ -1172,22 +1189,6 @@ function getCashFlowView(
       fixedCosts: formatNumeric(entry.fixedCosts),
       netCash: formatNumeric(entry.netCash),
       cashBalance: formatNumeric(entry.cashBalance),
-    })),
-    monthlySummary: monthlySummary.map((entry) => ({
-      periodLabel: entry.periodLabel,
-      amazonPayout: formatNumeric(entry.amazonPayout),
-      inventorySpend: formatNumeric(entry.inventorySpend),
-      fixedCosts: formatNumeric(entry.fixedCosts),
-      netCash: formatNumeric(entry.netCash),
-      closingCash: formatNumeric(entry.closingCash),
-    })),
-    quarterlySummary: quarterlySummary.map((entry) => ({
-      periodLabel: entry.periodLabel,
-      amazonPayout: formatNumeric(entry.amazonPayout),
-      inventorySpend: formatNumeric(entry.inventorySpend),
-      fixedCosts: formatNumeric(entry.fixedCosts),
-      netCash: formatNumeric(entry.netCash),
-      closingCash: formatNumeric(entry.closingCash),
     })),
   }
 }
@@ -1299,6 +1300,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         />
       )
 
+      const pnlWeekly = limitRows(data.profit.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment)), 52)
       const pnlMonthly = limitRows(filterSummaryByYear(data.profit.monthly, activeYear), 12)
       const pnlQuarterly = limitRows(filterSummaryByYear(data.profit.quarterly, activeYear), 8)
       const metrics: FinancialMetricDefinition[] = [
@@ -1308,6 +1310,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           description: 'Booked revenue by period',
           helper: 'Track topline momentum using the same data that powers the P&L grid.',
           series: {
+            weekly: buildTrendSeries(pnlWeekly, 'revenue'),
             monthly: buildTrendSeries(pnlMonthly, 'revenue'),
             quarterly: buildTrendSeries(pnlQuarterly, 'revenue'),
           },
@@ -1318,8 +1321,9 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           key: 'netProfit',
           title: 'Net profit',
           description: 'Profit after COGS and OpEx',
-          helper: 'Compare profitability cadence across months and quarters.',
+          helper: 'Compare profitability cadence across weeks, months and quarters.',
           series: {
+            weekly: buildTrendSeries(pnlWeekly, 'netProfit'),
             monthly: buildTrendSeries(pnlMonthly, 'netProfit'),
             quarterly: buildTrendSeries(pnlQuarterly, 'netProfit'),
           },
@@ -1341,13 +1345,10 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       const data = await getFinancialData()
       const view = getCashFlowView(data, activeSegment, activeYear)
       tabularContent = (
-        <CashFlowGrid
-          weekly={view.weekly}
-          monthlySummary={view.monthlySummary}
-          quarterlySummary={view.quarterlySummary}
-        />
+        <CashFlowGrid weekly={view.weekly} />
       )
 
+      const cashWeekly = limitRows(data.cash.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment)), 52)
       const cashMonthly = limitRows(filterSummaryByYear(data.cash.monthly, activeYear), 12)
       const cashQuarterly = limitRows(filterSummaryByYear(data.cash.quarterly, activeYear), 8)
       const metrics: FinancialMetricDefinition[] = [
@@ -1357,6 +1358,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           description: 'Projected balance after inflows and outflows',
           helper: 'Monitor liquidity runway alongside the detailed cash flow schedule.',
           series: {
+            weekly: buildTrendSeries(cashWeekly, 'cashBalance'),
             monthly: buildTrendSeries(cashMonthly, 'closingCash'),
             quarterly: buildTrendSeries(cashQuarterly, 'closingCash'),
           },
@@ -1369,6 +1371,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           description: 'Net movement across the period',
           helper: 'Understand how payouts, inventory, and fixed costs combine each period.',
           series: {
+            weekly: buildTrendSeries(cashWeekly, 'netCash'),
             monthly: buildTrendSeries(cashMonthly, 'netCash'),
             quarterly: buildTrendSeries(cashQuarterly, 'netCash'),
           },
@@ -1433,14 +1436,6 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       planningYears={planningCalendar.yearSegments}
       activeYear={activeYear}
       meta={meta}
-      ribbon={
-        <a
-          href="/import"
-          className="inline-flex items-center rounded-lg bg-[#00c2b9] px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#002430] shadow-[0_12px_24px_rgba(0,194,185,0.25)] transition hover:bg-[#00a39e]"
-        >
-          Import / Export
-        </a>
-      }
       contextPane={contextPane}
       headerControls={headerControls}
     >

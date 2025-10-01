@@ -89,6 +89,8 @@ export type PurchaseOrderSerialized = {
     paymentIndex: number
     percentage?: number | null
     amount?: number | null
+    amountExpected?: number | null
+    amountPaid?: number | null
     dueDate?: string | null
     dueDateDefault?: string | null
     dueDateSource?: 'SYSTEM' | 'USER'
@@ -207,7 +209,7 @@ function formatDisplayDate(value?: string | Date | null) {
   return dateFormatter.format(date).replace(',', '')
 }
 
-function normalizePercent(value: string | undefined) {
+function normalizePercent(value: string | number | null | undefined) {
   return formatPercentInput(value, 4)
 }
 
@@ -334,7 +336,8 @@ function deserializeOrders(purchaseOrders: PurchaseOrderSerialized[]): PurchaseO
       order.payments?.map((payment): PurchaseOrderPaymentInput => ({
         paymentIndex: payment.paymentIndex,
         percentage: payment.percentage ?? null,
-        amountExpected: payment.amountExpected ?? null,
+        amountExpected:
+          payment.amountExpected ?? (payment.amount != null ? payment.amount : null),
         amountPaid: payment.amountPaid ?? null,
         dueDate: parseDateValue(payment.dueDate ?? null),
         dueDateDefault: parseDateValue(payment.dueDateDefault ?? null),

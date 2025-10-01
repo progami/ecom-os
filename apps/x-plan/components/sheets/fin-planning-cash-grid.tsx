@@ -21,15 +21,6 @@ type WeeklyRow = {
   cashBalance: string
 }
 
-type SummaryRow = {
-  periodLabel: string
-  amazonPayout?: string
-  inventorySpend?: string
-  fixedCosts?: string
-  netCash?: string
-  closingCash?: string
-}
-
 type UpdatePayload = {
   weekNumber: number
   values: Partial<Record<keyof WeeklyRow, string>>
@@ -37,8 +28,6 @@ type UpdatePayload = {
 
 interface CashFlowGridProps {
   weekly: WeeklyRow[]
-  monthlySummary: SummaryRow[]
-  quarterlySummary: SummaryRow[]
 }
 
 const editableFields: (keyof WeeklyRow)[] = ['amazonPayout', 'inventorySpend', 'fixedCosts']
@@ -47,7 +36,7 @@ function normalizeEditable(value: unknown) {
   return formatNumericInput(value, 2)
 }
 
-export function CashFlowGrid({ weekly, monthlySummary, quarterlySummary }: CashFlowGridProps) {
+export function CashFlowGrid({ weekly }: CashFlowGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const pendingRef = useRef<Map<number, UpdatePayload>>(new Map())
   const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -131,93 +120,51 @@ export function CashFlowGrid({ weekly, monthlySummary, quarterlySummary }: CashF
   }
 
   return (
-    <div className="space-y-6 p-4">
-      <div className="space-y-4">
-        <HotTable
-          ref={(instance) => {
-            hotRef.current = instance?.hotInstance ?? null
-          }}
-          data={data}
-          licenseKey="non-commercial-and-evaluation"
-          columns={columns}
-          colHeaders={['Week', 'Date', 'Amazon Payout', 'Inventory Purchase', 'Fixed Costs', 'Net Cash', 'Cash Balance']}
-          rowHeaders={false}
-          stretchH="all"
-          className="x-plan-hot"
-          height="auto"
-          dropdownMenu
-          filters
-          afterChange={(changes, source) => {
-            if (!changes || source === 'loadData') return
-            const hot = hotRef.current
-            if (!hot) return
-            for (const change of changes) {
-              const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof WeeklyRow, any, any]
-              if (!editableFields.includes(prop)) continue
-              const record = hot.getSourceDataAtRow(rowIndex) as WeeklyRow | null
-              if (!record) continue
-              const weekNumber = Number(record.weekNumber)
-              if (!pendingRef.current.has(weekNumber)) {
-                pendingRef.current.set(weekNumber, { weekNumber, values: {} })
-              }
-              const entry = pendingRef.current.get(weekNumber)
-              if (!entry) continue
-              const formatted = normalizeEditable(newValue)
-              entry.values[prop] = formatted
-              record[prop] = formatted
+    <div className="p-4">
+      <HotTable
+        ref={(instance) => {
+          hotRef.current = instance?.hotInstance ?? null
+        }}
+        data={data}
+        licenseKey="non-commercial-and-evaluation"
+        columns={columns}
+        colHeaders={['Week', 'Date', 'Amazon Payout', 'Inventory Purchase', 'Fixed Costs', 'Net Cash', 'Cash Balance']}
+        rowHeaders={false}
+        stretchH="all"
+        className="x-plan-hot"
+        height="auto"
+        dropdownMenu
+        filters
+        afterChange={(changes, source) => {
+          if (!changes || source === 'loadData') return
+          const hot = hotRef.current
+          if (!hot) return
+          for (const change of changes) {
+            const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof WeeklyRow, any, any]
+            if (!editableFields.includes(prop)) continue
+            const record = hot.getSourceDataAtRow(rowIndex) as WeeklyRow | null
+            if (!record) continue
+            const weekNumber = Number(record.weekNumber)
+            if (!pendingRef.current.has(weekNumber)) {
+              pendingRef.current.set(weekNumber, { weekNumber, values: {} })
             }
-            flush()
-          }}
-          cells={(row, col) => {
-            const cell: Handsontable.CellMeta = {}
-            const week = Number(data[row]?.weekNumber)
-            if (Number.isFinite(week) && inboundSpendWeeks.has(week)) {
-              cell.className = `${cell.className ?? ''} row-inbound-cash`.trim()
-            }
-            return cell
-          }}
-        />
-      </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        <SummaryTable title="Monthly Summary" rows={monthlySummary} />
-        <SummaryTable title="Quarterly Summary" rows={quarterlySummary} />
-      </div>
-    </div>
-  )
-}
-
-function SummaryTable({ title, rows }: { title: string; rows: SummaryRow[] }) {
-  return (
-    <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <header>
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{title}</h3>
-      </header>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
-          <thead className="bg-slate-50 text-xs uppercase dark:bg-slate-900/60">
-            <tr>
-              <th className="px-3 py-2 text-left font-semibold tracking-wide text-slate-500 dark:text-slate-400">Period</th>
-              <th className="px-3 py-2 text-right font-semibold tracking-wide text-slate-500 dark:text-slate-400">Amazon Payout</th>
-              <th className="px-3 py-2 text-right font-semibold tracking-wide text-slate-500 dark:text-slate-400">Inventory Purchase</th>
-              <th className="px-3 py-2 text-right font-semibold tracking-wide text-slate-500 dark:text-slate-400">Fixed Costs</th>
-              <th className="px-3 py-2 text-right font-semibold tracking-wide text-slate-500 dark:text-slate-400">Net Cash</th>
-              <th className="px-3 py-2 text-right font-semibold tracking-wide text-slate-500 dark:text-slate-400">Cash Balance</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-            {rows.map((row) => (
-              <tr key={row.periodLabel}>
-                <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{row.periodLabel}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">{row.amazonPayout ?? ''}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">{row.inventorySpend ?? ''}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">{row.fixedCosts ?? ''}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">{row.netCash ?? ''}</td>
-                <td className="px-3 py-2 text-right tabular-nums text-slate-600 dark:text-slate-300">{row.closingCash ?? ''}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            const entry = pendingRef.current.get(weekNumber)
+            if (!entry) continue
+            const formatted = normalizeEditable(newValue)
+            entry.values[prop] = formatted
+            record[prop] = formatted
+          }
+          flush()
+        }}
+        cells={(row, col) => {
+          const cell: Handsontable.CellMeta = {}
+          const week = Number(data[row]?.weekNumber)
+          if (Number.isFinite(week) && inboundSpendWeeks.has(week)) {
+            cell.className = `${cell.className ?? ''} row-inbound-cash`.trim()
+          }
+          return cell
+        }}
+      />
     </div>
   )
 }

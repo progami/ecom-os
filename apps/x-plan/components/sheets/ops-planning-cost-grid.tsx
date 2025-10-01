@@ -340,7 +340,7 @@ export function OpsPlanningCostGrid({
   if (!isClient) {
     return (
       <section className="space-y-3">
-        <div className="h-64 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
+        <div className="h-64 animate-pulse rounded-xl bg-[#0c2537]" />
       </section>
     )
   }
@@ -357,7 +357,7 @@ export function OpsPlanningCostGrid({
               type="button"
               onClick={onAddBatch}
               disabled={Boolean(disableAdd)}
-              className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-600 transition enabled:hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:enabled:hover:bg-slate-800"
+              className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 transition enabled:hover:border-cyan-300/50 enabled:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Add batch
             </button>
@@ -367,7 +367,7 @@ export function OpsPlanningCostGrid({
               type="button"
               onClick={onDeleteBatch}
               disabled={Boolean(disableDelete) || !activeBatchId}
-              className="rounded-md border border-rose-300 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-600 transition enabled:hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/60 dark:text-rose-300 dark:enabled:hover:bg-rose-500/10"
+              className="rounded-md border border-rose-500/60 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-300 transition enabled:hover:border-rose-500/80 enabled:hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Remove batch
             </button>

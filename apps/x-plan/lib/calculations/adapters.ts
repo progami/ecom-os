@@ -79,7 +79,8 @@ export function mapBusinessParameters(parameters: BusinessParameter[]): Business
   return parameters.map((parameter) => ({
     id: parameter.id,
     label: parameter.label,
-    valueNumeric: parameter.valueNumeric ? toNumber(parameter.valueNumeric) : undefined,
+    valueNumeric:
+      parameter.valueNumeric != null ? toNumber(parameter.valueNumeric) : undefined,
     valueText: parameter.valueText ?? undefined,
   }))
 }
@@ -94,7 +95,7 @@ export function mapPurchaseOrders(
           purchaseOrderId: batch.purchaseOrderId,
           batchCode: batch.batchCode ?? undefined,
           productId: batch.productId,
-          quantity: batch.quantity != null ? Number(batch.quantity) : null,
+          quantity: toNumber(batch.quantity),
           overrideSellingPrice: batch.overrideSellingPrice != null ? Number(batch.overrideSellingPrice) : null,
           overrideManufacturingCost:
             batch.overrideManufacturingCost != null ? Number(batch.overrideManufacturingCost) : null,

@@ -69,7 +69,10 @@ async function addProductSetupSheet(workbook: XLSX.WorkBook, prisma: PrismaClien
     ...leadStages.map((stage) => [stage.label, Number(stage.defaultWeeks ?? 0)]),
     [],
     ['BUSINESS PARAMETERS'],
-    ...params.map((param) => [param.label, param.valueNumeric ? Number(param.valueNumeric) : param.valueText ?? '']),
+    ...params.map((param) => [
+      param.label,
+      param.valueNumeric != null ? Number(param.valueNumeric) : param.valueText ?? '',
+    ]),
   ]
 
   const sheet = XLSX.utils.aoa_to_sheet([[]])

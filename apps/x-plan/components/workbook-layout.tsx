@@ -144,7 +144,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
         >
           <ChevronLeft aria-hidden className="h-4 w-4" />
         </button>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           {sortedYears.map((segment) => {
             const isActiveYear = resolvedYear === segment.year
             return (
@@ -163,7 +163,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
               >
                 <span>{segment.year}</span>
                 <span className={clsx(
-                  "ml-1.5 text-[10px] font-semibold",
+                  "ml-2 text-[10px] font-semibold",
                   isActiveYear ? "text-cyan-200/80" : "text-slate-400"
                 )}>{segment.weekCount}w</span>
               </button>
@@ -301,7 +301,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
                 </div>
 
                 {hasControls && (
-                  <div className="hidden lg:flex items-center justify-end gap-4 border-t border-[#0b3a52] pt-3">
+                  <div className="hidden lg:flex items-center justify-end gap-4 border-t border-[#0b3a52] pt-4">
                     {headerControls}
                     {yearSwitcher}
                   </div>

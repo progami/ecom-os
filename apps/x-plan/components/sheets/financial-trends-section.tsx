@@ -17,7 +17,7 @@ import {
   SHEET_TOOLBAR_SELECT,
 } from '@/components/sheet-toolbar'
 
-export type TrendGranularity = 'monthly' | 'quarterly'
+export type TrendGranularity = 'weekly' | 'monthly' | 'quarterly'
 export type TrendSeries = Record<TrendGranularity, { labels: string[]; values: number[] }>
 export type TrendFormat = 'currency' | 'number' | 'percent'
 export type TrendAccent = 'sky' | 'emerald' | 'violet'
@@ -46,6 +46,9 @@ export function FinancialTrendsSection({ title, description, metrics, defaultMet
   const granularityAvailability = useMemo(() => {
     return metrics.reduce(
       (availability, metric) => {
+        if (metric.series.weekly.values.some((value) => Number.isFinite(value))) {
+          availability.weekly = true
+        }
         if (metric.series.monthly.values.some((value) => Number.isFinite(value))) {
           availability.monthly = true
         }
@@ -54,17 +57,19 @@ export function FinancialTrendsSection({ title, description, metrics, defaultMet
         }
         return availability
       },
-      { monthly: false, quarterly: false }
+      { weekly: false, monthly: false, quarterly: false }
     )
   }, [metrics])
 
   useEffect(() => {
     if (!granularityAvailability[granularity]) {
-      const fallback: TrendGranularity | null = granularityAvailability.monthly
-        ? 'monthly'
-        : granularityAvailability.quarterly
-          ? 'quarterly'
-          : null
+      const fallback: TrendGranularity | null = granularityAvailability.weekly
+        ? 'weekly'
+        : granularityAvailability.monthly
+          ? 'monthly'
+          : granularityAvailability.quarterly
+            ? 'quarterly'
+            : null
       if (fallback && granularity !== fallback) {
         setGranularity(fallback)
       }
@@ -125,6 +130,7 @@ export function FinancialTrendsSection({ title, description, metrics, defaultMet
 }
 
 const granularityOptions: Array<{ value: TrendGranularity; label: string; helper: string }> = [
+  { value: 'weekly', label: 'Weekly', helper: 'View week-over-week results' },
   { value: 'monthly', label: 'Monthly', helper: 'View month-over-month results' },
   { value: 'quarterly', label: 'Quarterly', helper: 'Review quarter-close pacing' },
 ]
