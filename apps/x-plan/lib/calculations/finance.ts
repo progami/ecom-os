@@ -1,9 +1,10 @@
 import { format, getQuarter } from 'date-fns'
+import { coerceNumber } from '@/lib/utils/numbers'
 import type { BusinessParameterMap, CashFlowWeekInput, ProfitAndLossWeekInput } from './types'
 import type { PurchaseOrderDerived } from './ops'
 import type { SalesWeekDerived } from './sales'
 import { ProductCostSummary } from './product'
-import { buildWeekCalendar, weekNumberForDate } from './calendar'
+import { buildWeekCalendar, getCalendarDateForWeek, weekNumberForDate } from './calendar'
 
 export interface ProfitAndLossWeekDerived {
   weekNumber: number
@@ -49,11 +50,6 @@ export interface CashFlowSummaryRow {
   fixedCosts: number
   netCash: number
   closingCash: number
-}
-
-function toNumber(value: number | null | undefined): number {
-  if (value == null || Number.isNaN(value)) return 0
-  return Number(value)
 }
 
 function coerceDate(value: Date | string | number | null | undefined): Date | null {
@@ -128,15 +124,15 @@ export function computeProfitAndLoss(
       { units: 0, revenue: 0, cogs: 0, amazonFees: 0, ppcSpend: 0 }
     )
 
-    const units = override?.units != null ? toNumber(override.units) : derived.units
-    const revenue = override?.revenue != null ? toNumber(override.revenue) : derived.revenue
-    const cogs = override?.cogs != null ? toNumber(override.cogs) : derived.cogs
-    const grossProfit = override?.grossProfit != null ? toNumber(override.grossProfit) : revenue - cogs
-    const amazonFees = override?.amazonFees != null ? toNumber(override.amazonFees) : derived.amazonFees
-    const ppcSpend = override?.ppcSpend != null ? toNumber(override.ppcSpend) : derived.ppcSpend
-    const fixedCosts = override?.fixedCosts != null ? toNumber(override.fixedCosts) : businessParams.weeklyFixedCosts
-    const totalOpex = override?.totalOpex != null ? toNumber(override.totalOpex) : amazonFees + ppcSpend + fixedCosts
-    const netProfit = override?.netProfit != null ? toNumber(override.netProfit) : grossProfit - totalOpex
+    const units = override?.units != null ? coerceNumber(override.units) : derived.units
+    const revenue = override?.revenue != null ? coerceNumber(override.revenue) : derived.revenue
+    const cogs = override?.cogs != null ? coerceNumber(override.cogs) : derived.cogs
+    const grossProfit = override?.grossProfit != null ? coerceNumber(override.grossProfit) : revenue - cogs
+    const amazonFees = override?.amazonFees != null ? coerceNumber(override.amazonFees) : derived.amazonFees
+    const ppcSpend = override?.ppcSpend != null ? coerceNumber(override.ppcSpend) : derived.ppcSpend
+    const fixedCosts = override?.fixedCosts != null ? coerceNumber(override.fixedCosts) : businessParams.weeklyFixedCosts
+    const totalOpex = override?.totalOpex != null ? coerceNumber(override.totalOpex) : amazonFees + ppcSpend + fixedCosts
+    const netProfit = override?.netProfit != null ? coerceNumber(override.netProfit) : grossProfit - totalOpex
     const grossMargin = revenue === 0 ? 0 : grossProfit / revenue
 
     weekly.push({
@@ -255,7 +251,7 @@ export function computeCashFlow(
       const date = payment.actualDate ?? payment.plannedDate
       const weekNumber = weekNumberForDate(date ?? null, calendar)
       if (weekNumber == null) continue
-      const amount = toNumber(payment.actualAmount ?? payment.plannedAmount)
+      const amount = coerceNumber(payment.actualAmount ?? payment.plannedAmount)
       inventorySpendByWeek.set(weekNumber, (inventorySpendByWeek.get(weekNumber) ?? 0) + amount)
     }
   }
@@ -273,30 +269,32 @@ export function computeCashFlow(
   for (const weekNumber of weekNumbers) {
     const override = overridesByWeek.get(weekNumber)
     const baseWeekDate = weeklyPnl.find((row) => row.weekNumber === weekNumber)?.weekDate ?? null
+    const calendarWeekDate = getCalendarDateForWeek(weekNumber, calendar)
+    const resolvedWeekDate = baseWeekDate ?? calendarWeekDate
 
     const amazonPayout = override?.amazonPayout != null
-      ? toNumber(override.amazonPayout)
+      ? coerceNumber(override.amazonPayout)
       : amazonPayoutByWeek.get(weekNumber) ?? 0
     const inventorySpend = override?.inventorySpend != null
-      ? toNumber(override.inventorySpend)
+      ? coerceNumber(override.inventorySpend)
       : inventorySpendByWeek.get(weekNumber) ?? 0
     const fixedCosts = override?.fixedCosts != null
-      ? toNumber(override.fixedCosts)
+      ? coerceNumber(override.fixedCosts)
       : businessParams.weeklyFixedCosts
     const netCash = override?.netCash != null
-      ? toNumber(override.netCash)
+      ? coerceNumber(override.netCash)
       : amazonPayout - inventorySpend - fixedCosts
 
     const computedBalance = runningBalance + netCash
     const cashBalance = override?.cashBalance != null
-      ? toNumber(override.cashBalance)
+      ? coerceNumber(override.cashBalance)
       : computedBalance
 
     runningBalance = cashBalance
 
     weekly.push({
       weekNumber,
-      weekDate: baseWeekDate,
+      weekDate: resolvedWeekDate,
       amazonPayout,
       inventorySpend,
       fixedCosts,

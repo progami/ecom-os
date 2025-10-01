@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
+import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
+import { useMutationQueue } from '@/hooks/useMutationQueue'
 
 registerAllModules()
 
@@ -55,16 +57,11 @@ interface ProfitAndLossGridProps {
 const editableFields: (keyof WeeklyRow)[] = ['units', 'revenue', 'cogs', 'amazonFees', 'ppcSpend', 'fixedCosts']
 
 function normalizeEditable(value: unknown) {
-  if (value === '' || value === null || value === undefined) return ''
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return String(value ?? '')
-  return numeric.toFixed(2)
+  return formatNumericInput(value, 2)
 }
 
 export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: ProfitAndLossGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
-  const pendingRef = useRef<Map<number, UpdatePayload>>(new Map())
-  const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const data = useMemo(() => weekly, [weekly])
 
@@ -84,6 +81,8 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         numericFormat: { pattern: '0,0.00' },
         readOnly: !editableFields.includes('units'),
         className: editableFields.includes('units') ? 'cell-editable' : 'cell-readonly',
+        validator: editableFields.includes('units') ? numericValidator : undefined,
+        allowInvalid: false,
       },
       {
         data: 'revenue',
@@ -91,6 +90,8 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         numericFormat: { pattern: '$0,0.00' },
         readOnly: !editableFields.includes('revenue'),
         className: editableFields.includes('revenue') ? 'cell-editable' : 'cell-readonly',
+        validator: editableFields.includes('revenue') ? numericValidator : undefined,
+        allowInvalid: false,
       },
       {
         data: 'cogs',
@@ -98,22 +99,28 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         numericFormat: { pattern: '$0,0.00' },
         readOnly: !editableFields.includes('cogs'),
         className: editableFields.includes('cogs') ? 'cell-editable' : 'cell-readonly',
+        validator: editableFields.includes('cogs') ? numericValidator : undefined,
+        allowInvalid: false,
       },
-      { data: 'grossProfit', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly' },
-      { data: 'grossMargin', type: 'numeric', numericFormat: { pattern: '0.00%' }, readOnly: true, className: 'cell-readonly' },
       {
         data: 'amazonFees',
         type: 'numeric',
         numericFormat: { pattern: '$0,0.00' },
         readOnly: !editableFields.includes('amazonFees'),
         className: editableFields.includes('amazonFees') ? 'cell-editable' : 'cell-readonly',
+        validator: editableFields.includes('amazonFees') ? numericValidator : undefined,
+        allowInvalid: false,
       },
+      { data: 'grossProfit', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly' },
+      { data: 'grossMargin', type: 'numeric', numericFormat: { pattern: '0.00%' }, readOnly: true, className: 'cell-readonly' },
       {
         data: 'ppcSpend',
         type: 'numeric',
         numericFormat: { pattern: '$0,0.00' },
         readOnly: !editableFields.includes('ppcSpend'),
         className: editableFields.includes('ppcSpend') ? 'cell-editable' : 'cell-readonly',
+        validator: editableFields.includes('ppcSpend') ? numericValidator : undefined,
+        allowInvalid: false,
       },
       {
         data: 'fixedCosts',
@@ -121,6 +128,8 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         numericFormat: { pattern: '$0,0.00' },
         readOnly: !editableFields.includes('fixedCosts'),
         className: editableFields.includes('fixedCosts') ? 'cell-editable' : 'cell-readonly',
+        validator: editableFields.includes('fixedCosts') ? numericValidator : undefined,
+        allowInvalid: false,
       },
       { data: 'totalOpex', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly' },
       { data: 'netProfit', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly' },
@@ -128,38 +137,38 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
     []
   )
 
-  const flush = () => {
-    if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current)
-    flushTimeoutRef.current = setTimeout(async () => {
-      const payload = Array.from(pendingRef.current.values())
-      if (payload.length === 0) return
-      pendingRef.current.clear()
-      try {
-        const res = await fetch('/api/v1/x-plan/profit-and-loss', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ updates: payload }),
-        })
-        if (!res.ok) throw new Error('Failed to update P&L')
-        toast.success('P&L updated')
-      } catch (error) {
-        console.error(error)
-        toast.error('Unable to save P&L changes')
-      }
-    }, 600)
-  }
+  const handleFlush = useCallback(async (payload: UpdatePayload[]) => {
+    if (payload.length === 0) return
+    try {
+      const res = await fetch('/api/v1/x-plan/profit-and-loss', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: payload }),
+      })
+      if (!res.ok) throw new Error('Failed to update P&L')
+      toast.success('P&L updated')
+    } catch (error) {
+      console.error(error)
+      toast.error('Unable to save P&L changes')
+    }
+  }, [])
+
+  const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<number, UpdatePayload>({
+    debounceMs: 600,
+    onFlush: handleFlush,
+  })
+
+  useEffect(() => {
+    return () => {
+      flushNow().catch(() => {
+        // errors already surfaced in handleFlush
+      })
+    }
+  }, [flushNow])
 
   return (
     <div className="space-y-6 p-4">
       <div className="space-y-4">
-        <div className="mb-4 space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            4. Fin Planning P&amp;L
-          </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Only edit blue driver cells—grey results roll up automatically from calculations.
-          </p>
-        </div>
         <HotTable
           ref={(instance) => {
             hotRef.current = instance?.hotInstance ?? null
@@ -167,8 +176,9 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
           data={data}
           licenseKey="non-commercial-and-evaluation"
           columns={columns}
-          colHeaders={['Week', 'Date', 'Units', 'Revenue', 'COGS', 'Gross Profit', 'GP%', 'Amazon Fees', 'PPC', 'Fixed Costs', 'Total OpEx', 'Net Profit']}
+          colHeaders={['Week', 'Date', 'Units', 'Revenue', 'COGS', 'Amazon Fees', 'Gross Profit', 'GP%', 'PPC', 'Fixed Costs', 'Total OpEx', 'Net Profit']}
           rowHeaders={false}
+          undo
           stretchH="all"
           className="x-plan-hot"
           height="auto"
@@ -189,9 +199,11 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
               }
             const entry = pendingRef.current.get(weekNumber)
             if (!entry) continue
-            entry.values[prop] = normalizeEditable(newValue)
+            const formatted = normalizeEditable(newValue)
+            entry.values[prop] = formatted
+            record[prop] = formatted
           }
-          flush()
+          scheduleFlush()
         }}
       />
       </div>

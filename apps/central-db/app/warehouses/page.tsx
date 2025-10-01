@@ -13,9 +13,27 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
+type WarehouseRecord = {
+  id: string
+  code: string
+  name: string
+  type: string
+  address?: string | null
+  status: string
+  totalSKUs: number
+  totalUnits: number
+  createdAt: Date | string
+}
+
+function formatDate(value: Date | string | null | undefined) {
+  if (!value) return '-'
+  const date = typeof value === 'string' ? new Date(value) : value
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString()
+}
+
 export default function WarehousesPage() {
   // This would come from your database
-  const warehouses: Array<Record<string, unknown>> = []
+  const warehouses: WarehouseRecord[] = []
 
   return (
     <div className="container mx-auto p-6">
@@ -66,16 +84,16 @@ export default function WarehousesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                warehouses.map((warehouse: any) => (
+                warehouses.map((warehouse) => (
                   <TableRow key={warehouse.id}>
                     <TableCell className="font-medium">{warehouse.code}</TableCell>
                     <TableCell>{warehouse.name}</TableCell>
                     <TableCell>{warehouse.type}</TableCell>
-                    <TableCell>{warehouse.address}</TableCell>
+                    <TableCell>{warehouse.address ?? '-'}</TableCell>
                     <TableCell>{warehouse.status}</TableCell>
                     <TableCell>{warehouse.totalSKUs}</TableCell>
                     <TableCell>{warehouse.totalUnits}</TableCell>
-                    <TableCell>{new Date(warehouse.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>{formatDate(warehouse.createdAt)}</TableCell>
                   </TableRow>
                 ))
               )}

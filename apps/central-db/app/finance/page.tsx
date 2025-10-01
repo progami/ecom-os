@@ -13,9 +13,27 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
+type FinanceTransaction = {
+  id: string
+  type: string
+  orderNumber?: string | null
+  amount: number
+  currency: string
+  account: string
+  description?: string | null
+  transactionDate: Date | string
+  createdAt: Date | string
+}
+
+function formatDate(value: Date | string | null | undefined) {
+  if (!value) return '-'
+  const date = typeof value === 'string' ? new Date(value) : value
+  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleDateString()
+}
+
 export default function FinancePage() {
   // This would come from your database
-  const transactions: Array<Record<string, unknown>> = []
+  const transactions: FinanceTransaction[] = []
 
   return (
     <div className="container mx-auto p-6">
@@ -66,7 +84,7 @@ export default function FinancePage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                transactions.map((transaction: any) => (
+                transactions.map((transaction) => (
                   <TableRow key={transaction.id}>
                     <TableCell className="font-medium">{transaction.type}</TableCell>
                     <TableCell>{transaction.orderNumber || '-'}</TableCell>
@@ -74,8 +92,8 @@ export default function FinancePage() {
                     <TableCell>{transaction.currency}</TableCell>
                     <TableCell>{transaction.account}</TableCell>
                     <TableCell>{transaction.description}</TableCell>
-                    <TableCell>{new Date(transaction.transactionDate).toLocaleDateString()}</TableCell>
-                    <TableCell>{new Date(transaction.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>{formatDate(transaction.transactionDate)}</TableCell>
+                    <TableCell>{formatDate(transaction.createdAt)}</TableCell>
                   </TableRow>
                 ))
               )}

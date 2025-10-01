@@ -13,9 +13,27 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
+type MarketplaceRecord = {
+  id: string
+  name: string
+  status: string
+  commissionRate: number
+  totalOrders: number
+  totalRevenue: number
+  lastSync?: Date | string | null
+  createdAt: Date | string
+  updatedAt: Date | string
+}
+
+function formatDate(value: Date | string | null | undefined) {
+  if (!value) return 'Never'
+  const date = typeof value === 'string' ? new Date(value) : value
+  return Number.isNaN(date.getTime()) ? 'Never' : date.toLocaleDateString()
+}
+
 export default function MarketplacesPage() {
   // This would come from your database
-  const marketplaces: Array<Record<string, unknown>> = []
+  const marketplaces: MarketplaceRecord[] = []
 
   return (
     <div className="container mx-auto p-6">
@@ -66,20 +84,16 @@ export default function MarketplacesPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                marketplaces.map((marketplace: any) => (
+                marketplaces.map((marketplace) => (
                   <TableRow key={marketplace.id}>
                     <TableCell className="font-medium">{marketplace.name}</TableCell>
                     <TableCell>{marketplace.status}</TableCell>
                     <TableCell>{marketplace.commissionRate}%</TableCell>
                     <TableCell>{marketplace.totalOrders}</TableCell>
                     <TableCell>${marketplace.totalRevenue}</TableCell>
-                    <TableCell>
-                      {marketplace.lastSync
-                        ? new Date(marketplace.lastSync).toLocaleDateString()
-                        : 'Never'}
-                    </TableCell>
-                    <TableCell>{new Date(marketplace.createdAt).toLocaleDateString()}</TableCell>
-                    <TableCell>{new Date(marketplace.updatedAt).toLocaleDateString()}</TableCell>
+                    <TableCell>{formatDate(marketplace.lastSync)}</TableCell>
+                    <TableCell>{formatDate(marketplace.createdAt)}</TableCell>
+                    <TableCell>{formatDate(marketplace.updatedAt)}</TableCell>
                   </TableRow>
                 ))
               )}

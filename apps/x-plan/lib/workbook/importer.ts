@@ -137,15 +137,20 @@ async function importOpsPlanning(workbook: XLSX.WorkBook, prisma: PrismaClient) 
   const sheet = workbook.Sheets['2. Ops Planning']
   if (!sheet) throw new Error('Sheet "2. Ops Planning" not found')
   const matrix = XLSX.utils.sheet_to_json<any[]>(sheet, { header: 1, range: 'A4:AA300', blankrows: false })
-  const productNames = new Map((await prisma.product.findMany()).map((p) => [p.name, p.id]))
+  const productNames = new Map(
+    (await prisma.product.findMany()).map((product: { id: string; name: string | null }) => [
+      product.name ?? '',
+      product.id,
+    ]),
+  )
 
   for (const row of matrix) {
-    const [orderCode, productName] = row
+    const [orderCode, shipName, containerNumber, productName] = row
     if (!orderCode || orderCode === 'Shipping Mark') continue
     const productId = productNames.get(String(productName))
     if (!productId) continue
 
-    const statusValue = String(row[24] ?? '').toLowerCase()
+    const statusValue = String(row[26] ?? '').toLowerCase()
     const status: PurchaseOrderStatus =
       statusValue === 'arrived'
         ? 'ARRIVED'
@@ -165,29 +170,31 @@ async function importOpsPlanning(workbook: XLSX.WorkBook, prisma: PrismaClient) 
         productId,
         quantity: toInt(row[2]) ?? 0,
         productionWeeks: toDecimal(row[3]) ?? new Prisma.Decimal(0),
-        sourcePrepWeeks: toDecimal(row[4]) ?? new Prisma.Decimal(0),
+        sourceWeeks: toDecimal(row[4]) ?? new Prisma.Decimal(0),
         oceanWeeks: toDecimal(row[5]) ?? new Prisma.Decimal(0),
-        finalMileWeeks: toDecimal(row[6]) ?? new Prisma.Decimal(0),
-        pay1Date: toDate(row[7]),
-        pay1Percent: toDecimal(row[8]),
-        pay1Amount: toDecimal(row[9]),
-        pay2Date: toDate(row[10]),
-        pay2Percent: toDecimal(row[11]),
-        pay2Amount: toDecimal(row[12]),
-        pay3Date: toDate(row[13]),
-        pay3Percent: toDecimal(row[14]),
-        pay3Amount: toDecimal(row[15]),
-        productionStart: toDate(row[16]),
-        productionComplete: toDate(row[17]),
-        sourceDeparture: toDate(row[18]),
-        transportReference: row[19] ? String(row[19]) : null,
-        portEta: toDate(row[20]),
-        inboundEta: toDate(row[21]),
-        availableDate: toDate(row[22]),
-        totalLeadDays: toInt(row[23]),
+        finalWeeks: toDecimal(row[6]) ?? new Prisma.Decimal(0),
+        pay1Date: toDate(row[9]),
+        pay1Percent: toDecimal(row[10]),
+        pay1Amount: toDecimal(row[11]),
+        pay2Date: toDate(row[12]),
+        pay2Percent: toDecimal(row[13]),
+        pay2Amount: toDecimal(row[14]),
+        pay3Date: toDate(row[15]),
+        pay3Percent: toDecimal(row[16]),
+        pay3Amount: toDecimal(row[17]),
+        productionStart: toDate(row[18]),
+        productionComplete: toDate(row[19]),
+        sourceDeparture: toDate(row[20]),
+        transportReference: row[21] ? String(row[21]) : null,
+        portEta: toDate(row[22]),
+        inboundEta: toDate(row[23]),
+        availableDate: toDate(row[24]),
+        totalLeadDays: toInt(row[25]),
+        shipName: shipName ? String(shipName) : null,
+        containerNumber: containerNumber ? String(containerNumber) : null,
         status,
-        weeksUntilArrival: toInt(row[25]),
-        statusIcon: row[26] ? String(row[26]) : null,
+        weeksUntilArrival: toInt(row[27]),
+        statusIcon: row[28] ? String(row[28]) : null,
       },
     })
   }

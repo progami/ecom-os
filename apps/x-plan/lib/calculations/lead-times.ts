@@ -1,36 +1,28 @@
-import {
-  LeadStageOverrideInput,
-  LeadStageTemplateInput,
-  LeadTimeProfile,
-} from './types'
+import { coerceNumber } from '@/lib/utils/numbers'
+import { LeadStageOverrideInput, LeadStageTemplateInput, LeadTimeProfile } from './types'
 
 export type LeadStageKey = keyof LeadTimeProfile
 
 const STAGE_LABELS: Record<string, LeadStageKey> = {
   'production time': 'productionWeeks',
   production: 'productionWeeks',
-  'source prep': 'sourcePrepWeeks',
+  'source prep': 'sourceWeeks',
   'ocean transit': 'oceanWeeks',
   ocean: 'oceanWeeks',
-  'final mile': 'finalMileWeeks',
+  'final mile': 'finalWeeks',
 }
 
 const DEFAULT_LEAD_TIME: LeadTimeProfile = {
   productionWeeks: 0,
-  sourcePrepWeeks: 0,
+  sourceWeeks: 0,
   oceanWeeks: 0,
-  finalMileWeeks: 0,
+  finalWeeks: 0,
 }
 
 function identifyStage(label: string | null | undefined): LeadStageKey | null {
   if (!label) return null
   const key = STAGE_LABELS[label.trim().toLowerCase()]
   return key ?? null
-}
-
-function toNumber(value: number | null | undefined): number {
-  if (value == null || Number.isNaN(value)) return 0
-  return Number(value)
 }
 
 export function buildLeadTimeProfiles(
@@ -44,7 +36,7 @@ export function buildLeadTimeProfiles(
   for (const template of templates) {
     const stage = identifyStage(template.label)
     if (!stage) continue
-    templateDefaults[stage] = toNumber(template.defaultWeeks)
+    templateDefaults[stage] = coerceNumber(template.defaultWeeks)
     templateStageMap.set(template.id, stage)
   }
 
@@ -59,7 +51,7 @@ export function buildLeadTimeProfiles(
     if (!stage) continue
     const profile = profiles.get(override.productId)
     if (!profile) continue
-    profile[stage] = toNumber(override.durationWeeks)
+    profile[stage] = coerceNumber(override.durationWeeks)
   }
 
   return profiles

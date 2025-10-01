@@ -1,3 +1,4 @@
+import { coerceNumber } from '@/lib/utils/numbers'
 import { ProductInput } from './types'
 
 export interface ProductCostSummary {
@@ -19,20 +20,15 @@ export interface ProductCostSummary {
   grossMarginPercent: number
 }
 
-function toNumber(value: number | null | undefined): number {
-  if (value == null || Number.isNaN(value)) return 0
-  return Number(value)
-}
-
 export function computeProductCostSummary(product: ProductInput): ProductCostSummary {
-  const sellingPrice = toNumber(product.sellingPrice)
-  const manufacturingCost = toNumber(product.manufacturingCost)
-  const freightCost = toNumber(product.freightCost)
-  const tariffRate = toNumber(product.tariffRate)
-  const tacosPercent = toNumber(product.tacosPercent)
-  const fbaFee = toNumber(product.fbaFee)
-  const amazonReferralRate = toNumber(product.amazonReferralRate)
-  const storagePerMonth = toNumber(product.storagePerMonth)
+  const sellingPrice = coerceNumber(product.sellingPrice)
+  const manufacturingCost = coerceNumber(product.manufacturingCost)
+  const freightCost = coerceNumber(product.freightCost)
+  const tariffRate = coerceNumber(product.tariffRate)
+  const tacosPercent = coerceNumber(product.tacosPercent)
+  const fbaFee = coerceNumber(product.fbaFee)
+  const amazonReferralRate = coerceNumber(product.amazonReferralRate)
+  const storagePerMonth = coerceNumber(product.storagePerMonth)
 
   const tariffCost = sellingPrice * tariffRate
   const advertisingCost = sellingPrice * tacosPercent

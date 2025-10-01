@@ -5,8 +5,10 @@ import { usePathname } from 'next/navigation'
 import { clsx } from 'clsx'
 import type { SheetConfig, SheetSlug } from '@/lib/sheets'
 
+type SheetTab = SheetConfig & { href?: string }
+
 interface SheetTabsProps {
-  sheets: SheetConfig[]
+  sheets: SheetTab[]
   activeSlug: SheetSlug
   suffix?: React.ReactNode
   variant?: 'scroll' | 'stack'
@@ -21,7 +23,7 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
     isStack ? 'flex-col' : 'items-center overflow-x-auto'
   )
   const linkBase =
-    'min-w-[140px] rounded-md px-3 py-1.5 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-300'
+    'relative min-w-[160px] overflow-hidden rounded-2xl border px-4 py-3.5 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00C2B9] touch-manipulation'
 
   const handleClick = (slug: SheetSlug, event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!onSheetSelect) return
@@ -30,10 +32,11 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
   }
 
   return (
-    <div className={clsx('flex w-full', isStack ? 'flex-col gap-3' : 'items-center justify-between gap-3 py-2')}> 
+    <div className={clsx('flex w-full', isStack ? 'flex-col gap-3' : 'items-center justify-between gap-2 py-2')}>
       <nav className={navClassName}>
         {sheets.map((sheet) => {
-          const href = `/sheet/${sheet.slug}`
+          const Icon = sheet.icon
+          const href = sheet.href ?? `/sheet/${sheet.slug}`
           const isActive = activeSlug === sheet.slug || pathname === href
           return (
             <Link
@@ -43,11 +46,14 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
               className={clsx(
                 linkBase,
                 isActive
-                  ? 'bg-slate-900 text-slate-50 shadow-sm dark:bg-slate-50 dark:text-slate-900'
-                  : 'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100'
+                  ? 'border-cyan-600 bg-cyan-600/20 text-slate-900 shadow-md dark:border-[#00C2B9] dark:bg-[#00C2B9]/30 dark:text-white dark:shadow-[0_18px_40px_rgba(0,194,185,0.3)]'
+                  : 'border-slate-300 bg-white text-slate-700 hover:border-cyan-500 hover:bg-slate-50 hover:text-slate-900 dark:border-[#6F7B8B]/50 dark:bg-[#002C51]/70 dark:text-[#6F7B8B] dark:hover:border-[#00C2B9]/70 dark:hover:bg-[#002C51] dark:hover:text-white'
               )}
             >
-              {sheet.label}
+              <span className="relative z-10 flex items-center gap-2">
+                {Icon ? <Icon className="h-4 w-4" aria-hidden /> : null}
+                <span>{sheet.label}</span>
+              </span>
             </Link>
           )
         })}

@@ -1,3 +1,4 @@
+import { parseNumber, parsePercent } from '@/lib/utils/numbers'
 import { BusinessParameterInput, BusinessParameterMap } from './types'
 
 const DEFAULT_BUSINESS_PARAMETERS: BusinessParameterMap = {
@@ -13,18 +14,6 @@ type MutableBusinessParameters = {
   -readonly [K in keyof BusinessParameterMap]: BusinessParameterMap[K]
 }
 
-function toNumber(value: unknown): number | undefined {
-  if (value === null || value === undefined) return undefined
-  if (typeof value === 'number' && Number.isFinite(value)) return value
-  if (typeof value === 'string') {
-    const trimmed = value.trim()
-    if (!trimmed) return undefined
-    const numeric = Number(trimmed.replace(/[$,%]/g, ''))
-    return Number.isNaN(numeric) ? undefined : numeric
-  }
-  return undefined
-}
-
 export function normalizeBusinessParameters(
   rows: BusinessParameterInput[]
 ): BusinessParameterMap {
@@ -33,7 +22,7 @@ export function normalizeBusinessParameters(
 
   for (const row of rows) {
     const label = row.label.trim().toLowerCase()
-    const numeric = toNumber(row.valueNumeric ?? row.valueText)
+    const numeric = parseNumber(row.valueNumeric ?? row.valueText)
 
     switch (label) {
       case 'starting cash': {
@@ -53,15 +42,15 @@ export function normalizeBusinessParameters(
         break
       }
       case 'supplier payment split 1 (%)': {
-        if (numeric != null) splits[0] = numeric > 1 ? numeric / 100 : numeric
+        if (numeric != null) splits[0] = parsePercent(numeric) ?? splits[0]
         break
       }
       case 'supplier payment split 2 (%)': {
-        if (numeric != null) splits[1] = numeric > 1 ? numeric / 100 : numeric
+        if (numeric != null) splits[1] = parsePercent(numeric) ?? splits[1]
         break
       }
       case 'supplier payment split 3 (%)': {
-        if (numeric != null) splits[2] = numeric > 1 ? numeric / 100 : numeric
+        if (numeric != null) splits[2] = parsePercent(numeric) ?? splits[2]
         break
       }
       case 'weeks of stock warning threshold': {

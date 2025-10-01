@@ -13,7 +13,7 @@ const PARAMETER_LABELS = [
   'Weeks of Stock Warning Threshold',
 ]
 
-const LEAD_STAGE_LABELS = ['Production Time', 'Source Prep', 'Ocean Transit', 'Final Mile', 'Total Default Cycle']
+const LEAD_STAGE_LABELS = ['Production Time', 'Source', 'Ocean', 'Final', 'Total Default Cycle']
 
 async function main() {
   const labels = new Set(PARAMETER_LABELS.concat(LEAD_STAGE_LABELS).map((label) => label.toLowerCase()))
@@ -33,7 +33,7 @@ async function main() {
   }
 
   await prisma.product.deleteMany({
-    where: { id: { in: removableProducts.map((product) => product.id) } },
+    where: { id: { in: removableProducts.map((product: { id: string }) => product.id) } },
   })
 
   console.log(`Removed ${removableProducts.length} parameter rows from Product table.`)
