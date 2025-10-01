@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
 import Flatpickr from 'react-flatpickr'
@@ -9,6 +9,9 @@ import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
+import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { finishEditingSafely } from '@/lib/handsontable'
+import { deriveIsoWeek, formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
 import {
   dateValidator,
   formatNumericInput,
@@ -25,35 +28,6 @@ const dateFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
   timeZone: 'UTC',
 })
-
-function toIsoDateString(value: unknown): string | null {
-  if (!value) return null
-  const date = value instanceof Date ? value : new Date(String(value))
-  if (Number.isNaN(date.getTime())) return null
-  const year = date.getUTCFullYear()
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-  const day = String(date.getUTCDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
-function formatDisplayDateFromIso(iso: string | null | undefined): string {
-  return iso ?? ''
-}
-
-function deriveIsoWeek(iso: string | null | undefined): string {
-  if (!iso) return ''
-  const [yearStr, monthStr, dayStr] = iso.split('-')
-  const year = Number(yearStr)
-  const month = Number(monthStr)
-  const day = Number(dayStr)
-  if (!year || !month || !day) return ''
-  const date = new Date(Date.UTC(year, month - 1, day))
-  const dayNumber = date.getUTCDay() || 7
-  date.setUTCDate(date.getUTCDate() + 4 - dayNumber)
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
-  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
-  return String(week)
-}
 
 export type PurchasePaymentRow = {
   id: string
@@ -111,8 +85,8 @@ const COLUMNS: Handsontable.ColumnSettings[] = [
     editor: false,
     className: 'cell-editable',
     renderer: (instance, td, row, col, prop, value) => {
-      const display = formatDisplayDateFromIso(typeof value === 'string' ? value : null)
-      td.textContent = display
+      const iso = typeof value === 'string' ? value : null
+      td.textContent = iso ? formatDateDisplay(iso, dateFormatter) : ''
       return td
     },
   },
@@ -137,55 +111,6 @@ const COLUMNS: Handsontable.ColumnSettings[] = [
 const NUMERIC_FIELDS: Array<keyof PurchasePaymentRow> = ['amountPaid']
 type NumericField = (typeof NUMERIC_FIELDS)[number]
 
-function finishEditingSafely(hot: Handsontable) {
-  const core = hot as unknown as {
-    finishEditing?: (restoreOriginalValue?: boolean) => void
-    getPlugin?: (key: string) => unknown
-    getActiveEditor?: () => { close?: () => void; finishEditing?: (restore?: boolean) => void } | undefined
-  }
-
-  if (typeof core.finishEditing === 'function') {
-    try {
-      core.finishEditing(false)
-      return
-    } catch (error) {
-      if (error instanceof TypeError) {
-        // fall through to alternate strategies
-      } else {
-        throw error
-      }
-    }
-  }
-
-  const editorManager = core.getPlugin?.('editorManager') as
-    | {
-        finishEditing?: (restoreOriginalValue?: boolean) => void
-        closeAll?: () => void
-        getActiveEditor?: () => { close?: () => void; finishEditing?: (restore?: boolean) => void } | undefined
-      }
-    | undefined
-
-  if (editorManager) {
-    if (typeof editorManager.finishEditing === 'function') {
-      editorManager.finishEditing(false)
-      return
-    }
-    if (typeof editorManager.closeAll === 'function') {
-      editorManager.closeAll()
-      return
-    }
-  }
-
-  const activeEditor = editorManager?.getActiveEditor?.() ?? core.getActiveEditor?.()
-  if (activeEditor) {
-    if (typeof activeEditor.finishEditing === 'function') {
-      activeEditor.finishEditing(false)
-      return
-    }
-    activeEditor.close?.()
-  }
-}
-
 function normalizeNumeric(value: unknown) {
   return formatNumericInput(value, 2)
 }
@@ -197,8 +122,34 @@ function normalizePercent(value: unknown) {
 export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, onAddPayment, onRowsChange, onSynced, isLoading, orderSummaries, summaryLine }: PurchasePaymentsGridProps) {
   const [isClient, setIsClient] = useState(false)
   const hotRef = useRef<Handsontable | null>(null)
-  const pendingRef = useRef<Map<string, PaymentUpdate>>(new Map())
-  const flushTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const handleFlush = useCallback(
+    async (payload: PaymentUpdate[]) => {
+      if (payload.length === 0) return
+      try {
+        const res = await fetch('/api/v1/x-plan/purchase-order-payments', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updates: payload }),
+        })
+        if (!res.ok) throw new Error('Failed to update payments')
+        if (onRowsChange && hotRef.current) {
+          const updated = (hotRef.current.getSourceData() as PurchasePaymentRow[]).map((row) => ({ ...row }))
+          onRowsChange(updated)
+        }
+        toast.success('Payment schedule updated')
+        onSynced?.()
+      } catch (error) {
+        console.error(error)
+        toast.error('Unable to update payment schedule')
+      }
+    },
+    [onRowsChange, onSynced],
+  )
+
+  const { pendingRef, scheduleFlush } = useMutationQueue<string, PaymentUpdate>({
+    debounceMs: 400,
+    onFlush: handleFlush,
+  })
   const [picker, setPicker] = useState<{ row: number; left: number; top: number; value: string } | null>(null)
   const pickerRef = useRef<HTMLDivElement | null>(null)
   const [keyEditor, setKeyEditor] = useState<{ row: number; left: number; top: number; value: string } | null>(null)
@@ -288,34 +239,6 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
 
   const summaryText = summaryLine ?? computedSummaryLine
 
-  // Rely on React data prop updates; avoid forcing loadData which can clobber in-flight edits
-
-  const flush = () => {
-    if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current)
-    flushTimeoutRef.current = setTimeout(async () => {
-      const payload = Array.from(pendingRef.current.values())
-      if (payload.length === 0) return
-      pendingRef.current.clear()
-      try {
-        const res = await fetch('/api/v1/x-plan/purchase-order-payments', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ updates: payload }),
-        })
-        if (!res.ok) throw new Error('Failed to update payments')
-        if (onRowsChange && hotRef.current) {
-          const updated = (hotRef.current.getSourceData() as PurchasePaymentRow[]).map((row) => ({ ...row }))
-          onRowsChange(updated)
-        }
-        toast.success('Payment schedule updated')
-        if (onSynced) onSynced()
-      } catch (error) {
-        console.error(error)
-        toast.error('Unable to update payment schedule')
-      }
-    }, 400)
-  }
-
   if (!isClient) {
     return (
       <div className="space-y-3">
@@ -327,17 +250,17 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
   return (
     <div className="space-y-3">
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-        <h2 className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-300/80">
+        <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
           Payments
         </h2>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-200/80">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-700 dark:text-slate-200/80">
           {summaryText && <span>{summaryText}</span>}
           <button
             onClick={() => {
               if (onAddPayment) void onAddPayment()
             }}
             disabled={!activeOrderId || isLoading}
-            className="rounded-lg border border-white/15 bg-white/5 px-2 py-1 text-xs font-medium text-slate-200 transition enabled:hover:border-cyan-300/50 enabled:hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
           >
             Add payment
           </button>
@@ -451,9 +374,9 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
           if (!entry) continue
           // Column accessor already updated the row; just persist the iso
           if (typeof prop === 'function') {
-            const iso = record.dueDateIso ?? toIsoDateString(newValue)
+            const iso = record.dueDateIso ?? toIsoDate(newValue)
             if (iso) {
-              const formatted = formatDisplayDateFromIso(iso)
+              const formatted = iso ? formatDateDisplay(iso, dateFormatter) : ''
               const week = deriveIsoWeek(iso)
               entry.values.dueDate = iso
               entry.values.dueDateSource = 'USER'
@@ -472,7 +395,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
               }
             } else if (newValue == null || String(newValue).trim() === '') {
               const nextIso = record.dueDateDefaultIso
-              const formatted = formatDisplayDateFromIso(nextIso)
+              const formatted = nextIso ? formatDateDisplay(nextIso, dateFormatter) : ''
               const week = deriveIsoWeek(nextIso)
               entry.values.dueDate = nextIso ?? ''
               entry.values.dueDateDefault = nextIso ?? ''
@@ -535,7 +458,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
               ;(record as Record<string, unknown>)[prop] = stringValue
             }
           }
-          flush()
+          scheduleFlush()
           if (onRowsChange && hotRef.current) {
             const snapshot = (hot.getSourceData() as PurchasePaymentRow[]).map((row) => ({ ...row }))
             onRowsChange(snapshot)
@@ -546,14 +469,14 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
         <div
           ref={pickerRef}
           style={{ position: 'fixed', left: picker.left, top: picker.top, zIndex: 9999 }}
-          className="xplan-date-overlay rounded-md border border-[#0b3a52] bg-[#0a1f35] p-2 shadow-md"
+          className="xplan-date-overlay rounded-md border border-slate-200 bg-white p-2 shadow-md dark:border-[#0b3a52] dark:bg-[#0a1f35]"
           onMouseDown={(e) => e.stopPropagation()}
         >
           <Flatpickr
             options={{ dateFormat: 'Y-m-d', defaultDate: picker.value || undefined, inline: true, clickOpens: false }}
             onChange={(dates) => {
               const date = dates && dates[0]
-              const iso = date ? toIsoDateString(date) : ''
+              const iso = date ? toIsoDate(date) : ''
               const hot = hotRef.current
               if (!hot) return
               const row = hot.getSourceDataAtRow(picker.row) as PurchasePaymentRow | null
@@ -562,7 +485,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
                 // Update grid immediately
                 hot.setDataAtRowProp(picker.row, 'dueDateIso', iso ?? '', 'user')
                 hot.setDataAtRowProp(picker.row, 'dueDateSource', iso ? 'USER' : 'SYSTEM', 'derived-update')
-                hot.setDataAtRowProp(picker.row, 'dueDate', formatDisplayDateFromIso(iso), 'derived-update')
+                hot.setDataAtRowProp(picker.row, 'dueDate', iso ? formatDateDisplay(iso, dateFormatter) : '', 'derived-update')
                 hot.setDataAtRowProp(picker.row, 'weekNumber', week, 'derived-update')
                 // Persist immediately (no debounce)
                 const payload = [{ id: row.id, values: { dueDate: iso ?? '', dueDateSource: iso ? 'USER' : 'SYSTEM', weekNumber: week } }]
@@ -586,7 +509,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
       {keyEditor ? (
         <div
           style={{ position: 'fixed', left: keyEditor.left, top: keyEditor.top, zIndex: 9999 }}
-          className="xplan-date-overlay rounded-md border border-[#0b3a52] bg-[#0a1f35] p-2 shadow-md"
+          className="xplan-date-overlay rounded-md border border-slate-200 bg-white p-2 shadow-md dark:border-[#0b3a52] dark:bg-[#0a1f35]"
           onMouseDown={(e) => e.stopPropagation()}
         >
           <input
@@ -602,7 +525,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
               }
               if (e.key === 'Enter') {
                 const target = e.target as HTMLInputElement
-                const iso = toIsoDateString(target.value)
+                const iso = toIsoDate(target.value)
                 const hot = hotRef.current
                 if (!hot) return
                 const rowIdx = keyEditor.row
@@ -610,7 +533,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
                 const week = deriveIsoWeek(iso)
                 hot.setDataAtRowProp(rowIdx, 'dueDateIso', iso ?? '', 'user')
                 hot.setDataAtRowProp(rowIdx, 'dueDateSource', iso ? 'USER' : 'SYSTEM', 'derived-update')
-                hot.setDataAtRowProp(rowIdx, 'dueDate', formatDisplayDateFromIso(iso), 'derived-update')
+                hot.setDataAtRowProp(rowIdx, 'dueDate', iso ? formatDateDisplay(iso, dateFormatter) : '', 'derived-update')
                 hot.setDataAtRowProp(rowIdx, 'weekNumber', week, 'derived-update')
                 if (row) {
                   const payload = [{ id: row.id, values: { dueDate: iso ?? '', dueDateSource: iso ? 'USER' : 'SYSTEM', weekNumber: week } }]

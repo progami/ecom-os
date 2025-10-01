@@ -16,6 +16,12 @@ import prisma from '@/lib/prisma'
 import {
   Prisma,
   type BatchTableRow,
+  type BusinessParameter,
+  type CashFlowWeek,
+  type LeadStageTemplate,
+  type LeadTimeOverride,
+  type Product,
+  type ProfitAndLossWeek,
   type PurchaseOrder,
   type PurchaseOrderPayment,
 } from '@prisma/client'
@@ -52,6 +58,7 @@ import { addMonths, endOfMonth, format, startOfMonth, startOfWeek } from 'date-f
 import { getCalendarDateForWeek, type YearSegment } from '@/lib/calculations/calendar'
 import { findYearSegment, loadPlanningCalendar, resolveActiveYear } from '@/lib/planning'
 import type { PlanningCalendar } from '@/lib/planning'
+import { deriveIsoWeek, formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
 
 const SALES_METRICS = ['stockStart', 'actualSales', 'forecastSales', 'finalSales', 'finalSalesError', 'stockWeeks', 'stockEnd'] as const
 type SalesMetric = (typeof SALES_METRICS)[number]
@@ -62,47 +69,9 @@ type SalesRow = {
   [key: string]: string
 }
 
-function toIsoDate(value: Date | null | undefined): string | null {
-  if (!value) return null
-  return value.toISOString().slice(0, 10)
-}
-
-function formatDisplayDate(value: Date | number | string | null | undefined): string {
-  if (value == null) return ''
-  if (typeof value === 'string') {
-    const t = value.trim()
-    if (/^\d{4}-\d{2}-\d{2}$/.test(t)) {
-      const d = new Date(`${t}T00:00:00Z`)
-      return Number.isNaN(d.getTime()) ? '' : format(d, 'MMM d yyyy')
-    }
-    const d = new Date(t)
-    return Number.isNaN(d.getTime()) ? '' : format(d, 'MMM d yyyy')
-  }
-  if (typeof value === 'number') {
-    const d = new Date(value)
-    return Number.isNaN(d.getTime()) ? '' : format(d, 'MMM d yyyy')
-  }
-  return format(value, 'MMM d yyyy')
-}
-
 function formatDate(value: Date | string | null | undefined): string {
   if (!value) return ''
-  return formatDisplayDate(value)
-}
-
-function deriveIsoWeek(iso: string | null | undefined): string {
-  if (!iso) return ''
-  const match = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!match) return ''
-  const year = Number(match[1])
-  const month = Number(match[2])
-  const day = Number(match[3])
-  const date = new Date(Date.UTC(year, month - 1, day))
-  const dayNumber = date.getUTCDay() || 7
-  date.setUTCDate(date.getUTCDate() + 4 - dayNumber)
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
-  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
-  return String(week)
+  return formatDateDisplay(value)
 }
 
 function toNumberSafe(value: number | bigint | null | undefined): number {
@@ -294,7 +263,7 @@ function buildTrendSeries<T>(rows: T[], key: Extract<keyof T, string>) {
     } else if ('weekDate' in record) {
       const weekDate = record.weekDate as Date | string | number | null | undefined
       if (weekDate != null) {
-        const formatted = formatDisplayDate(weekDate)
+        const formatted = formatDateDisplay(weekDate)
         if (formatted) {
           label = formatted
         }
@@ -318,6 +287,24 @@ function buildTrendSeries<T>(rows: T[], key: Extract<keyof T, string>) {
 type SheetPageProps = {
   params: Promise<{ sheet: string }>
   searchParams?: Promise<Record<string, string | string[] | undefined>>
+}
+
+async function safeFindMany<T>(
+  delegate: { findMany: (args?: unknown) => Promise<T> } | undefined,
+  args: unknown,
+  fallback: T,
+  label: string,
+): Promise<T> {
+  if (!delegate) {
+    console.warn(`[x-plan] Prisma delegate for ${label} unavailable; using fallback`)
+    return fallback
+  }
+  try {
+    return await delegate.findMany(args)
+  } catch (error) {
+    console.warn(`[x-plan] Prisma query for ${label} failed; using fallback`, error)
+    return fallback
+  }
 }
 
 type BusinessParameterView = {
@@ -384,9 +371,20 @@ function metricHeader(metric: SalesMetric): NestedHeaderCell {
 }
 
 async function getProductSetupView() {
+  const prismaAny = prisma as unknown as Record<string, unknown>
+  const productDelegate = prismaAny.product as { findMany: (args?: unknown) => Promise<Product[]> } | undefined
+  const businessParameterDelegate = prismaAny.businessParameter as {
+    findMany: (args?: unknown) => Promise<BusinessParameter[]>
+  } | undefined
+
   const [products, businessParameters] = await Promise.all([
-    prisma.product.findMany({ orderBy: { name: 'asc' } }),
-    prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }),
+    safeFindMany<Product[]>(productDelegate, { orderBy: { name: 'asc' } }, [], 'product'),
+    safeFindMany<BusinessParameter[]>(
+      businessParameterDelegate,
+      { orderBy: { label: 'asc' } },
+      [],
+      'businessParameter',
+    ),
   ])
 
   const activeProducts = products.filter((product) => {
@@ -456,26 +454,75 @@ async function getProductSetupView() {
 }
 
 async function loadOperationsContext() {
-  const prismaAny = prisma as any
-  const batchTableRowDelegate: typeof prisma.batchTableRow | undefined = prismaAny.batchTableRow
+  const prismaAny = prisma as unknown as Record<string, unknown>
+  const productDelegate = prismaAny.product as { findMany: (args?: unknown) => Promise<Product[]> } | undefined
+  const leadStageDelegate = prismaAny.leadStageTemplate as {
+    findMany: (args?: unknown) => Promise<LeadStageTemplate[]>
+  } | undefined
+  const leadOverrideDelegate = prismaAny.leadTimeOverride as {
+    findMany: (args?: unknown) => Promise<LeadTimeOverride[]>
+  } | undefined
+  const businessParameterDelegate = prismaAny.businessParameter as {
+    findMany: (args?: unknown) => Promise<BusinessParameter[]>
+  } | undefined
+  const purchaseOrderDelegate = prismaAny.purchaseOrder as {
+    findMany: (args?: unknown) => Promise<
+      Array<PurchaseOrder & { payments: PurchaseOrderPayment[] }>
+    >
+  } | undefined
+  const batchTableRowDelegate = prismaAny.batchTableRow as
+    | { findMany: (args?: unknown) => Promise<BatchTableRow[]> }
+    | undefined
+  const paymentsDelegate = prismaAny.purchaseOrderPayment as typeof prisma.purchaseOrderPayment | undefined
 
-  const [products, leadStages, overrides, businessParameters, purchaseOrders, batchTableRows] = await Promise.all([
-    prisma.product.findMany({ orderBy: { name: 'asc' } }),
-    prisma.leadStageTemplate.findMany({ orderBy: { sequence: 'asc' } }),
-    prisma.leadTimeOverride.findMany(),
-    prisma.businessParameter.findMany({ orderBy: { label: 'asc' } }),
-    prisma.purchaseOrder.findMany({
+  const products = await safeFindMany<Product[]>(
+    productDelegate,
+    { orderBy: { name: 'asc' } },
+    [],
+    'product',
+  )
+
+  const leadStages = await safeFindMany<LeadStageTemplate[]>(
+    leadStageDelegate,
+    { orderBy: { sequence: 'asc' } },
+    [],
+    'leadStageTemplate',
+  )
+
+  const overrides = await safeFindMany<LeadTimeOverride[]>(
+    leadOverrideDelegate,
+    undefined,
+    [],
+    'leadTimeOverride',
+  )
+
+  const businessParameters = await safeFindMany<BusinessParameter[]>(
+    businessParameterDelegate,
+    { orderBy: { label: 'asc' } },
+    [],
+    'businessParameter',
+  )
+
+  const purchaseOrders = await safeFindMany<
+    Array<PurchaseOrder & { payments: PurchaseOrderPayment[] }>
+  >(
+    purchaseOrderDelegate,
+    {
       orderBy: { orderCode: 'asc' },
       include: {
         payments: { orderBy: { paymentIndex: 'asc' } },
       },
-    }),
-    batchTableRowDelegate
-      ? batchTableRowDelegate
-          .findMany({ orderBy: [{ purchaseOrderId: 'asc' }, { createdAt: 'asc' }] })
-          .catch(() => [] as BatchTableRow[])
-      : Promise.resolve([] as BatchTableRow[]),
-  ])
+    },
+    [],
+    'purchaseOrder',
+  )
+
+  const batchTableRows = await safeFindMany<BatchTableRow[]>(
+    batchTableRowDelegate,
+    { orderBy: [{ purchaseOrderId: 'asc' }, { createdAt: 'asc' }] },
+    [],
+    'batchTableRow',
+  )
 
   const productInputs = mapProducts(products)
   const productIndex = buildProductCostIndex(productInputs)
@@ -511,6 +558,7 @@ async function loadOperationsContext() {
     productIndex,
     leadProfiles,
     parameters,
+    paymentsDelegate,
   })
 
   const purchaseOrderInputs = mapPurchaseOrders(purchaseOrdersWithBatches)
@@ -532,13 +580,19 @@ async function ensureDefaultSupplierInvoices({
   productIndex,
   leadProfiles,
   parameters,
+  paymentsDelegate,
 }: {
   purchaseOrders: Array<PurchaseOrder & { payments: PurchaseOrderPayment[]; batchTableRows: BatchTableRow[] }>
   purchaseOrderInputs: PurchaseOrderInput[]
   productIndex: Map<string, ProductCostSummary>
   leadProfiles: Map<string, LeadTimeProfile>
   parameters: BusinessParameterMap
+  paymentsDelegate?: typeof prisma.purchaseOrderPayment
 }) {
+  if (!paymentsDelegate) {
+    console.warn('[x-plan] purchase order payments delegate unavailable; skipping invoice seeding')
+    return
+  }
   for (let index = 0; index < purchaseOrders.length; index += 1) {
     const record = purchaseOrders[index]
     const input = purchaseOrderInputs[index]
@@ -606,21 +660,24 @@ async function ensureDefaultSupplierInvoices({
         }
 
         if (Object.keys(updatePayload).length > 0) {
-          updates.push(updatePurchaseOrderPayment(existing.id, updatePayload))
+          updates.push(updatePurchaseOrderPayment(existing.id, updatePayload, paymentsDelegate))
         }
       } else {
         updates.push(
-          createPurchaseOrderPayment({
-            purchaseOrderId: record.id,
-            paymentIndex: planned.paymentIndex,
-            dueDate,
-            dueDateDefault,
-            dueDateSource: 'SYSTEM',
-            percentage: percentageDecimal,
-            amountExpected: amountExpectedDecimal,
-            category: planned.category,
-            label: planned.label,
-          })
+          createPurchaseOrderPayment(
+            {
+              purchaseOrderId: record.id,
+              paymentIndex: planned.paymentIndex,
+              dueDate,
+              dueDateDefault,
+              dueDateSource: 'SYSTEM',
+              percentage: percentageDecimal,
+              amountExpected: amountExpectedDecimal,
+              category: planned.category,
+              label: planned.label,
+            },
+            paymentsDelegate,
+          )
         )
       }
     }
@@ -676,9 +733,19 @@ type UpdatePaymentInput = {
   label?: string
 }
 
-async function createPurchaseOrderPayment(data: SeedPaymentInput): Promise<PurchaseOrderPayment | null> {
+async function createPurchaseOrderPayment(
+  data: SeedPaymentInput,
+  delegate?: typeof prisma.purchaseOrderPayment,
+): Promise<PurchaseOrderPayment | null> {
+  const paymentsDelegate = delegate ?? ((prisma as unknown as Record<string, unknown>).purchaseOrderPayment as
+    | typeof prisma.purchaseOrderPayment
+    | undefined)
+  if (!paymentsDelegate) {
+    console.warn('[x-plan] purchaseOrderPayment delegate unavailable; skipping create')
+    return null
+  }
   try {
-    return await prisma.purchaseOrderPayment.create({ data })
+    return await paymentsDelegate.create({ data })
   } catch (error) {
     if (isMissingPaymentMetadataError(error)) {
       const { amountExpected, dueDateDefault, ...fallback } = data
@@ -692,7 +759,7 @@ async function createPurchaseOrderPayment(data: SeedPaymentInput): Promise<Purch
         legacyData.dueDate = dueDateDefault
       }
       legacyData.amount = amountExpected
-      return prisma.purchaseOrderPayment
+      return paymentsDelegate
         .create({ data: legacyData })
         .catch((fallbackError) => {
           console.error('Failed to seed supplier payment (fallback)', fallbackError)
@@ -707,10 +774,18 @@ async function createPurchaseOrderPayment(data: SeedPaymentInput): Promise<Purch
 
 async function updatePurchaseOrderPayment(
   id: string,
-  data: UpdatePaymentInput
+  data: UpdatePaymentInput,
+  delegate?: typeof prisma.purchaseOrderPayment,
 ): Promise<PurchaseOrderPayment | null> {
+  const paymentsDelegate = delegate ?? ((prisma as unknown as Record<string, unknown>).purchaseOrderPayment as
+    | typeof prisma.purchaseOrderPayment
+    | undefined)
+  if (!paymentsDelegate) {
+    console.warn('[x-plan] purchaseOrderPayment delegate unavailable; skipping update')
+    return null
+  }
   try {
-    return await prisma.purchaseOrderPayment.update({
+    return await paymentsDelegate.update({
       where: { id },
       data,
     })
@@ -725,7 +800,7 @@ async function updatePurchaseOrderPayment(
       }
       if (amountExpected != null) legacyData.amount = amountExpected
       if (dueDateDefault != null) legacyData.dueDate = dueDateDefault
-      return prisma.purchaseOrderPayment
+      return paymentsDelegate
         .update({ where: { id }, data: legacyData })
         .catch((fallbackError) => {
           console.error('Failed to update supplier payment (fallback)', fallbackError)
@@ -768,8 +843,26 @@ async function loadFinancialData(planning: PlanningCalendar) {
     productIds: operations.productInputs.map((product) => product.id),
     calendar: planning.calendar,
   })
-  const profitOverrideRows = await prisma.profitAndLossWeek.findMany({ orderBy: { weekNumber: 'asc' } })
-  const cashOverrideRows = await prisma.cashFlowWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+  const prismaAny = prisma as unknown as Record<string, unknown>
+  const profitDelegate = prismaAny.profitAndLossWeek as {
+    findMany: (args?: unknown) => Promise<ProfitAndLossWeek[]>
+  } | undefined
+  const cashDelegate = prismaAny.cashFlowWeek as {
+    findMany: (args?: unknown) => Promise<CashFlowWeek[]>
+  } | undefined
+
+  const profitOverrideRows = await safeFindMany<ProfitAndLossWeek[]>(
+    profitDelegate,
+    { orderBy: { weekNumber: 'asc' } },
+    [],
+    'profitAndLossWeek',
+  )
+  const cashOverrideRows = await safeFindMany<CashFlowWeek[]>(
+    cashDelegate,
+    { orderBy: { weekNumber: 'asc' } },
+    [],
+    'cashFlowWeek',
+  )
 
   const profitOverrides = mapProfitAndLossWeeks(
     profitOverrideRows.filter(
@@ -1403,7 +1496,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   // Only show view toggle if both tabular and visual content exist
   const hasVisualMode = Boolean(visualContent)
   if (hasVisualMode) {
-    controls.push(<SheetViewToggle key="sheet-view-toggle" value={viewMode} />)
+    controls.push(<SheetViewToggle key="sheet-view-toggle" value={viewMode} slug={config.slug} />)
   }
   const headerControls = controls.length ? controls : undefined
 

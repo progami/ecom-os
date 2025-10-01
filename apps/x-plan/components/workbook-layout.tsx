@@ -5,6 +5,7 @@ import { SheetTabs } from '@/components/sheet-tabs'
 import { getSheetConfig } from '@/lib/sheets'
 import type { YearSegment } from '@/lib/calculations/calendar'
 import type { WorkbookSheetStatus } from '@/lib/workbook'
+import { usePersistentScroll } from '@/hooks/usePersistentScroll'
 import { clsx } from 'clsx'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight, FileText } from 'lucide-react'
@@ -15,6 +16,7 @@ import {
   SHEET_TOOLBAR_ICON_BUTTON,
   SHEET_TOOLBAR_LABEL,
 } from '@/components/sheet-toolbar'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 type SheetSlug = WorkbookSheetStatus['slug']
 
@@ -50,6 +52,8 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
   const hasContextPane = Boolean(contextPane)
   const [isPending, startTransition] = useTransition()
 
+  usePersistentScroll(`sheet:${activeSlug}`, true)
+
   const sortedYears = useMemo(() => {
     if (!planningYears) return [] as YearSegment[]
     return [...planningYears].sort((a, b) => a.year - b.year)
@@ -74,7 +78,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
       const query = base.toString()
       return `/sheet/${slug}${query ? `?${query}` : ''}`
     },
-    [resolvedYear, searchParams]
+    [resolvedYear, searchParams],
   )
 
   const goToSheet = useCallback(
@@ -135,11 +139,11 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
 
     return (
       <div className={`${SHEET_TOOLBAR_GROUP} gap-2`}>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-cyan-300/90">Year</span>
+        <span className="text-xs font-semibold uppercase tracking-[0.1em] text-cyan-700 dark:text-cyan-300/90">Year</span>
         <button
           type="button"
           onClick={() => goToAdjacentYear(-1)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-slate-200 transition hover:border-[#00C2B9]/50 hover:text-cyan-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00C2B9] disabled:opacity-40"
+          className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
           aria-label="Previous year"
           disabled={!previous || isPending}
         >
@@ -156,16 +160,16 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
                 className={clsx(
                   'rounded-lg px-3 py-1.5 text-xs font-bold transition-all',
                   isActiveYear
-                    ? 'border border-[#00C2B9] bg-[#00C2B9]/30 text-white shadow-[0_18px_40px_rgba(0,194,185,0.3)]'
-                    : 'border border-[#6F7B8B]/50 bg-[#002C51]/70 text-[#6F7B8B] hover:border-[#00C2B9]/70 hover:bg-[#002C51] hover:text-white'
+                    ? 'border border-cyan-600 bg-cyan-600/20 text-slate-900 shadow-md dark:border-[#00C2B9] dark:bg-[#00C2B9]/30 dark:text-white dark:shadow-[0_18px_40px_rgba(0,194,185,0.3)]'
+                    : 'border border-slate-300 bg-white text-slate-600 hover:border-cyan-500 hover:bg-slate-50 hover:text-slate-900 dark:border-[#6F7B8B]/50 dark:bg-[#002C51]/70 dark:text-[#6F7B8B] dark:hover:border-[#00C2B9]/70 dark:hover:bg-[#002C51] dark:hover:text-white'
                 )}
                 aria-pressed={isActiveYear}
                 disabled={isPending && isActiveYear}
               >
                 <span>{segment.year}</span>
                 <span className={clsx(
-                  "ml-2 text-[10px] font-semibold",
-                  isActiveYear ? "text-[#00C2B9]/90" : "text-[#6F7B8B]/70"
+                  "ml-2 text-xs font-semibold",
+                  isActiveYear ? "text-cyan-700 dark:text-[#00C2B9]/90" : "text-slate-500 dark:text-[#6F7B8B]/70"
                 )}>{segment.weekCount}w</span>
               </button>
             )
@@ -174,7 +178,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
         <button
           type="button"
           onClick={() => goToAdjacentYear(1)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-slate-200 transition hover:border-[#00C2B9]/50 hover:text-cyan-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00C2B9] disabled:opacity-40"
+          className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
           aria-label="Next year"
           disabled={!next || isPending}
         >
@@ -273,29 +277,30 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
 
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#041324]">
+    <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-[#041324]">
       <main className="flex flex-1 overflow-hidden" role="main" aria-label="Main content">
         <section className="flex flex-1 overflow-hidden">
           <div className="flex-1 overflow-auto">
-            <header className="sticky top-0 z-10 border-b border-[#0b3a52] bg-[#041324]/95 px-4 py-4 shadow-[0_26px_55px_rgba(1,12,24,0.55)] backdrop-blur-xl sm:px-6 lg:px-8" role="banner">
+            <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-4 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] sm:px-6 lg:px-8" role="banner">
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#00c2b9] shadow-[0_12px_24px_rgba(0,194,185,0.25)]">
-                      <span className="text-lg font-bold text-[#002430]">X</span>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-600 shadow-md dark:bg-[#00c2b9] dark:shadow-[0_12px_24px_rgba(0,194,185,0.25)]">
+                      <span className="text-lg font-bold text-white dark:text-[#002430]">X</span>
                     </div>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-cyan-300/60">X-Plan</span>
-                      <h1 className="text-2xl font-semibold text-white">{activeSheet?.label ?? 'Workbook'}</h1>
+                      <span className="text-xs font-bold uppercase tracking-[0.1em] text-cyan-700/70 dark:text-cyan-300/60">X-Plan</span>
+                      <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">{activeSheet?.label ?? 'Workbook'}</h1>
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     {isPending && (
                       <div className="flex items-center gap-2">
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#00C2B9] border-t-transparent" />
-                        <span className="text-xs font-semibold uppercase tracking-[0.1em] text-cyan-200/90">Loading…</span>
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
+                        <span className="text-xs font-semibold uppercase tracking-[0.1em] text-cyan-700 dark:text-cyan-200/90">Loading…</span>
                       </div>
                     )}
+                    <ThemeToggle />
                     {ribbon}
                   </div>
                 </div>
@@ -303,11 +308,11 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
                 {(activeSheet?.description || metaSummary) && (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                     {activeSheet?.description && (
-                      <p className="text-sm leading-relaxed text-slate-200/80">{activeSheet.description}</p>
+                      <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200/80">{activeSheet.description}</p>
                     )}
                     {metaSummary && (
                       <span
-                        className="rounded-full border border-white/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-200/80"
+                        className="rounded-full border border-slate-300 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-600 dark:border-white/20 dark:text-cyan-200/80"
                         title={metaSummary.tooltip}
                       >
                         {metaSummary.display}
@@ -326,7 +331,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
                 </div>
 
                 {hasControls && (
-                  <div className="hidden lg:flex items-center justify-end gap-4 border-t border-[#0b3a52] pt-4">
+                  <div className="hidden lg:flex items-center justify-end gap-4 border-t border-slate-200 pt-4 dark:border-[#0b3a52]">
                     {headerControls}
                     {yearSwitcher}
                   </div>
@@ -339,13 +344,13 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
           </div>
           {hasContextPane && (
             <div
-              className="relative hidden h-full shrink-0 border-l border-[#0b3a52] bg-[#06182b]/85 backdrop-blur-sm lg:block"
+              className="relative hidden h-full shrink-0 border-l border-slate-200 bg-white/90 backdrop-blur-sm dark:border-[#0b3a52] dark:bg-[#06182b]/85 lg:block"
               style={{ width: contextWidth }}
             >
               <div
                 role="separator"
                 aria-orientation="vertical"
-                className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize bg-[#00c2b9]/30 transition-colors hover:bg-[#00c2b9]/50"
+                className="absolute left-0 top-0 h-full w-1.5 cursor-ew-resize bg-cyan-600/30 transition-colors hover:bg-cyan-600/50 dark:bg-[#00c2b9]/30 dark:hover:bg-[#00c2b9]/50"
                 onMouseDown={() => setIsResizing(true)}
               />
               <div className="h-full overflow-auto px-5 py-6">
@@ -356,7 +361,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
         </section>
       </main>
 
-      <footer className="space-y-3 border-t border-[#0b3a52] bg-[#041324]/95 px-2 py-3 shadow-[0_26px_55px_rgba(1,12,24,0.55)] backdrop-blur-xl lg:hidden" role="navigation" aria-label="Sheet navigation">
+      <footer className="space-y-3 border-t border-slate-200 bg-white/95 px-2 py-3 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] lg:hidden" role="navigation" aria-label="Sheet navigation">
         <SheetTabs
           sheets={sheetTabs}
           activeSlug={activeSlug}
@@ -364,7 +369,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
           onSheetSelect={goToSheet}
         />
         {hasControls && (
-          <div className="flex items-center justify-end gap-4 border-t border-[#0b3a52] pt-3">
+          <div className="flex items-center justify-end gap-4 border-t border-slate-200 pt-3 dark:border-[#0b3a52]">
             {headerControls}
             {yearSwitcher}
           </div>

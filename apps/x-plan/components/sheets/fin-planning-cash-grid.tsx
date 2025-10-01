@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
@@ -8,6 +8,7 @@ import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
+import { useMutationQueue } from '@/hooks/useMutationQueue'
 
 registerAllModules()
 
@@ -38,8 +39,6 @@ function normalizeEditable(value: unknown) {
 
 export function CashFlowGrid({ weekly }: CashFlowGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
-  const pendingRef = useRef<Map<number, UpdatePayload>>(new Map())
-  const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const data = useMemo(() => weekly, [weekly])
 
@@ -98,26 +97,34 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
     []
   )
 
-  const flush = () => {
-    if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current)
-    flushTimeoutRef.current = setTimeout(async () => {
-      const payload = Array.from(pendingRef.current.values())
-      if (payload.length === 0) return
-      pendingRef.current.clear()
-      try {
-        const res = await fetch('/api/v1/x-plan/cash-flow', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ updates: payload }),
-        })
-        if (!res.ok) throw new Error('Failed to update cash flow')
-        toast.success('Cash flow updated')
-      } catch (error) {
-        console.error(error)
-        toast.error('Unable to save cash flow changes')
-      }
-    }, 600)
-  }
+  const handleFlush = useCallback(async (payload: UpdatePayload[]) => {
+    if (payload.length === 0) return
+    try {
+      const res = await fetch('/api/v1/x-plan/cash-flow', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: payload }),
+      })
+      if (!res.ok) throw new Error('Failed to update cash flow')
+      toast.success('Cash flow updated')
+    } catch (error) {
+      console.error(error)
+      toast.error('Unable to save cash flow changes')
+    }
+  }, [])
+
+  const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<number, UpdatePayload>({
+    debounceMs: 600,
+    onFlush: handleFlush,
+  })
+
+  useEffect(() => {
+    return () => {
+      flushNow().catch(() => {
+        // errors handled within handleFlush
+      })
+    }
+  }, [flushNow])
 
   return (
     <div className="p-4">
@@ -155,7 +162,7 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
             entry.values[prop] = formatted
             record[prop] = formatted
           }
-          flush()
+          scheduleFlush()
         }}
         cells={(row, col) => {
           const cell: Handsontable.CellMeta = {}

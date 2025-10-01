@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
+import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { toIsoDate } from '@/lib/utils/dates'
 import { dateValidator, formatNumericInput, numericValidator } from '@/components/sheets/validators'
 
 registerAllModules()
@@ -59,16 +61,6 @@ const BASE_HEADERS = [
   'Final',
   'Notes',
 ]
-
-function toIsoDateString(value: unknown): string | null {
-  if (!value) return null
-  const date = value instanceof Date ? value : new Date(String(value))
-  if (Number.isNaN(date.getTime())) return null
-  const y = date.getUTCFullYear()
-  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
-  const d = String(date.getUTCDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
-}
 
 function addWeeks(base: Date, weeks: number): Date {
   const ms = base.getTime() + weeks * 7 * 24 * 60 * 60 * 1000
@@ -194,27 +186,9 @@ export function OpsPlanningGrid({
   const [isClient, setIsClient] = useState(false)
   const [stageMode, setStageMode] = useState<'weeks' | 'dates'>('weeks')
   const hotRef = useRef<Handsontable | null>(null)
-  const pendingRef = useRef<Map<string, { id: string; values: Record<string, string> }>>(new Map())
-  const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const data = useMemo(() => rows, [rows])
-
-  useEffect(() => {
-    setIsClient(true)
-  }, [])
-
-  useEffect(() => {
-    if (hotRef.current) {
-      hotRef.current.loadData(data)
-    }
-  }, [data])
-
-  const flush = () => {
-    if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current)
-    flushTimeoutRef.current = setTimeout(async () => {
-      const payload = Array.from(pendingRef.current.values())
+  const handleFlush = useCallback(
+    async (payload: Array<{ id: string; values: Record<string, string> }>) => {
       if (payload.length === 0) return
-      pendingRef.current.clear()
       try {
         const response = await fetch('/api/v1/x-plan/purchase-orders', {
           method: 'PUT',
@@ -227,8 +201,29 @@ export function OpsPlanningGrid({
         console.error(error)
         toast.error('Unable to save purchase order inputs')
       }
-    }, 500)
-  }
+    },
+    [],
+  )
+
+  const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<
+    string,
+    { id: string; values: Record<string, string> }
+  >({
+    debounceMs: 500,
+    onFlush: handleFlush,
+  })
+
+  const data = useMemo(() => rows, [rows])
+
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  useEffect(() => {
+    if (hotRef.current) {
+      hotRef.current.loadData(data)
+    }
+  }, [data])
 
   const handleDeleteClick = () => {
     if (!onDeleteOrder || !activeOrderId || disableDelete) return
@@ -246,12 +241,12 @@ export function OpsPlanningGrid({
           const weeks = parseWeeks(row[field] as string | undefined)
           if (!po || weeks == null) return ''
           const date = addWeeks(po, weeks)
-          return toIsoDateString(date) ?? ''
+          return toIsoDate(date) ?? ''
         }
 
         const po = row.poDate ? new Date(String(row.poDate)) : null
         if (!po) return ''
-        const iso = toIsoDateString(value)
+        const iso = toIsoDate(value)
         if (!iso) return ''
         const picked = new Date(`${iso}T00:00:00Z`)
         const diffDays = (picked.getTime() - po.getTime()) / (24 * 60 * 60 * 1000)
@@ -262,7 +257,7 @@ export function OpsPlanningGrid({
         const entry = pendingRef.current.get(row.id) ?? { id: row.id, values: {} }
         entry.values[field as string] = normalized
         pendingRef.current.set(row.id, entry)
-        flush()
+        scheduleFlush()
 
         return iso
       }) as Handsontable.ColumnSettings['data'],
@@ -280,7 +275,7 @@ export function OpsPlanningGrid({
     cols[6] = makeStageAccessor('oceanWeeks')
     cols[7] = makeStageAccessor('finalWeeks')
     return cols
-  }, [stageMode])
+  }, [stageMode, pendingRef, scheduleFlush])
 
   const headers = useMemo(() => {
     if (stageMode === 'weeks') return ['PO Code','PO Date','Ship','Container #','Prod. (wk)','Source (wk)','Ocean (wk)','Final (wk)','Notes']
@@ -302,10 +297,18 @@ export function OpsPlanningGrid({
     TH.appendChild(btn)
   }
 
+  useEffect(() => {
+    return () => {
+      flushNow().catch(() => {
+        // errors logged in handleFlush
+      })
+    }
+  }, [flushNow])
+
   if (!isClient) {
     return (
       <section className="space-y-4">
-        <div className="h-64 animate-pulse rounded-xl bg-[#0c2537]" />
+        <div className="h-64 animate-pulse rounded-xl bg-slate-200 dark:bg-[#0c2537]" />
       </section>
     )
   }
@@ -314,10 +317,10 @@ export function OpsPlanningGrid({
     <section className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
-          <h2 className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-300/80">
+          <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
             PO table
           </h2>
-          <p className="text-xs text-slate-200/80">
+          <p className="text-xs text-slate-700 dark:text-slate-200/80">
             Manage purchase order timing and status; the highlighted row stays in sync with the detail view.
           </p>
         </div>
@@ -328,7 +331,7 @@ export function OpsPlanningGrid({
                 type="button"
                 onClick={onCreateOrder}
                 disabled={Boolean(disableCreate)}
-                className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 transition enabled:hover:border-cyan-300/50 enabled:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
               >
                 Add purchase order
               </button>
@@ -338,7 +341,7 @@ export function OpsPlanningGrid({
                 type="button"
                 onClick={handleDeleteClick}
                 disabled={Boolean(disableDelete) || !activeOrderId}
-                className="rounded-md border border-rose-500/60 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-300 transition enabled:hover:border-rose-500/80 enabled:hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-700 shadow-sm transition enabled:hover:border-rose-500 enabled:hover:bg-rose-100 enabled:hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/60 dark:bg-rose-500/10 dark:text-rose-300 dark:enabled:hover:border-rose-500/80 dark:enabled:hover:bg-rose-500/20"
               >
                 Remove selected
               </button>
@@ -417,7 +420,7 @@ export function OpsPlanningGrid({
             onRowsChange(updated)
           }
 
-          flush()
+          scheduleFlush()
         }}
       />
     </section>

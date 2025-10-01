@@ -1,4 +1,5 @@
 import { addDays, differenceInCalendarDays } from 'date-fns'
+import { coerceNumber, coercePercent, parseNumber, parsePercent, roundWeeks } from '@/lib/utils/numbers'
 import {
   BusinessParameterMap,
   LeadTimeProfile,
@@ -72,25 +73,16 @@ const PAY_AMOUNT_FIELDS = ['pay1Amount', 'pay2Amount', 'pay3Amount'] as const
 const PAY_DATE_FIELDS = ['pay1Date', 'pay2Date', 'pay3Date'] as const
 
 function resolveOverride(base: number, override?: number | null): number {
-  if (override == null || Number.isNaN(override)) return base
-  return Number(override)
-}
-
-function toNumber(value: number | null | undefined): number {
-  if (value == null || Number.isNaN(value)) return 0
-  return Number(value)
+  const numeric = parseNumber(override)
+  return numeric ?? base
 }
 
 function normalizePercentValue(value: number | null | undefined): number | null {
-  if (value == null || Number.isNaN(value)) return null
-  const numeric = Number(value)
-  if (Number.isNaN(numeric)) return null
-  return numeric > 1 ? numeric / 100 : numeric
+  return parsePercent(value)
 }
 
 function resolveStageWeeks(stageValue: number | null | undefined, fallback: number): number {
-  const numeric = toNumber(stageValue)
-  return numeric > 0 ? numeric : fallback
+  return roundWeeks(stageValue, fallback)
 }
 
 function normalizePaymentIndex(index: number | null | undefined): number {
@@ -101,10 +93,7 @@ function normalizePaymentIndex(index: number | null | undefined): number {
 }
 
 function optionalNumber(value: number | null | undefined): number | null {
-  if (value == null) return null
-  if (Number.isNaN(value)) return null
-  const numeric = Number(value)
-  return Number.isNaN(numeric) ? null : numeric
+  return parseNumber(value)
 }
 
 function findPayment(
@@ -201,7 +190,7 @@ export function computePurchaseOrderDerived(
           purchaseOrderId: order.id,
           batchCode: order.orderCode,
           productId: order.productId,
-          quantity: toNumber(order.quantity),
+          quantity: coerceNumber(order.quantity),
           overrideSellingPrice: order.overrideSellingPrice,
           overrideManufacturingCost: order.overrideManufacturingCost,
           overrideFreightCost: order.overrideFreightCost,
@@ -227,7 +216,7 @@ export function computePurchaseOrderDerived(
   let totalLandedCost = 0
 
   for (const batch of batches) {
-    const quantity = Math.max(0, toNumber(batch.quantity))
+    const quantity = Math.max(0, coerceNumber(batch.quantity))
     if (quantity === 0) continue
     const product = productIndex.get(batch.productId)
     if (!product) continue
@@ -268,7 +257,7 @@ export function computePurchaseOrderDerived(
     totalLandedCost += landedUnitCost * quantity
   }
 
-  const fallbackQuantity = Math.max(0, toNumber(order.quantity))
+  const fallbackQuantity = Math.max(0, coerceNumber(order.quantity))
   const quantity = totalQuantity > 0 ? totalQuantity : fallbackQuantity
   const divisor = totalQuantity > 0 ? totalQuantity : quantity || 1
 
@@ -442,7 +431,7 @@ export function computePurchaseOrderDerived(
   }
 
   const totalPaidAmount = payments.reduce((sum, payment) => {
-    const amount = toNumber(payment.actualAmount)
+    const amount = coerceNumber(payment.actualAmount)
     return sum + amount
   }, 0)
   const percentDenominator = supplierDenominator > 0 ? supplierDenominator : poValue > 0 ? poValue : 1

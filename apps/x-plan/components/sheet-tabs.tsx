@@ -46,12 +46,12 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
               className={clsx(
                 linkBase,
                 isActive
-                  ? 'border-[#00C2B9] bg-[#00C2B9]/30 text-white shadow-[0_18px_40px_rgba(0,194,185,0.3)]'
-                  : 'border-[#6F7B8B]/50 bg-[#002C51]/70 text-[#6F7B8B] hover:border-[#00C2B9]/70 hover:bg-[#002C51] hover:text-white'
+                  ? 'border-cyan-600 bg-cyan-600/20 text-slate-900 shadow-md dark:border-[#00C2B9] dark:bg-[#00C2B9]/30 dark:text-white dark:shadow-[0_18px_40px_rgba(0,194,185,0.3)]'
+                  : 'border-slate-300 bg-white text-slate-700 hover:border-cyan-500 hover:bg-slate-50 hover:text-slate-900 dark:border-[#6F7B8B]/50 dark:bg-[#002C51]/70 dark:text-[#6F7B8B] dark:hover:border-[#00C2B9]/70 dark:hover:bg-[#002C51] dark:hover:text-white'
               )}
             >
-              <span className="relative z-10 flex items-center gap-2 text-slate-200/95">
-                {Icon ? <Icon className="h-4 w-4 text-slate-200/80" aria-hidden /> : null}
+              <span className="relative z-10 flex items-center gap-2">
+                {Icon ? <Icon className="h-4 w-4" aria-hidden /> : null}
                 <span>{sheet.label}</span>
               </span>
             </Link>

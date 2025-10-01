@@ -60,7 +60,12 @@ export interface PlanningCalendar {
 }
 
 export async function loadPlanningCalendar(): Promise<PlanningCalendar> {
-  const salesWeekRecords = await prisma.salesWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+  let salesWeekRecords: Awaited<ReturnType<typeof prisma.salesWeek.findMany>> = []
+  try {
+    salesWeekRecords = await prisma.salesWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+  } catch (error) {
+    console.warn('[x-plan] using fallback planning calendar (salesWeek delegate unavailable)', error)
+  }
   const mappedWeeks = mapSalesWeeks(salesWeekRecords)
   const salesWeeks = ensurePlanningCalendarCoverage(mappedWeeks)
   const calendar = buildWeekCalendar(salesWeeks)

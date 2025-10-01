@@ -1,12 +1,14 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { clsx } from 'clsx'
+import { useTheme } from 'next-themes'
 import {
   SHEET_TOOLBAR_GROUP,
   SHEET_TOOLBAR_LABEL,
   SHEET_TOOLBAR_SELECT,
 } from '@/components/sheet-toolbar'
+import { usePersistentState } from '@/hooks/usePersistentState'
 
 type SalesRow = {
   weekNumber: string
@@ -31,11 +33,36 @@ type ShipmentMarker = {
 }
 
 export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptions }: SalesPlanningVisualProps) {
-  const [selectedProductId, setSelectedProductId] = useState<string>(productOptions[0]?.id ?? '')
+  const { theme } = useTheme()
+  const defaultProductId = productOptions[0]?.id ?? ''
+  const [selectedProductId, setSelectedProductId] = usePersistentState<string>(
+    'xplan:sales-visual:selected-product',
+    () => defaultProductId,
+  )
   const [hoveredShipment, setHoveredShipment] = useState<ShipmentMarker | null>(null)
   const [hoveredStock, setHoveredStock] = useState<{ weekNumber: number; weekDate: string; stockEnd: number } | null>(null)
-  const [showShipments, setShowShipments] = useState(true)
-  const [showStockLine, setShowStockLine] = useState(true)
+  const [showShipments, setShowShipments] = usePersistentState<boolean>('xplan:sales-visual:show-shipments', true)
+  const [showStockLine, setShowStockLine] = usePersistentState<boolean>('xplan:sales-visual:show-stock', true)
+
+  useEffect(() => {
+    if (!selectedProductId && defaultProductId) {
+      setSelectedProductId(defaultProductId)
+      return
+    }
+    const exists = productOptions.some((option) => option.id === selectedProductId)
+    if (!exists) {
+      setSelectedProductId(defaultProductId)
+    }
+  }, [defaultProductId, productOptions, selectedProductId, setSelectedProductId])
+
+  const isDark = theme === 'dark'
+  const colors = {
+    stroke: isDark ? '#041324' : '#ffffff',
+    stockLine: isDark ? '#00C2B9' : '#0891b2',
+    shipmentLine: isDark ? '#10b981' : '#059669',
+    axis: isDark ? '#6F7B8B' : '#64748b',
+    gridLine: isDark ? '#6F7B8B' : '#cbd5e1',
+  }
 
   const stockDataPoints = useMemo(() => {
     if (!selectedProductId) return []
@@ -76,14 +103,14 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
     const stockValues = stockDataPoints.map((p) => p.stockEnd)
     const weekNumbers = stockDataPoints.map((p) => p.weekNumber)
 
-    const minStock = Math.min(...stockValues)
     const maxStock = Math.max(...stockValues)
     const minWeek = Math.min(...weekNumbers)
     const maxWeek = Math.max(...weekNumbers)
 
-    const stockPadding = (maxStock - minStock) * 0.1
+    // Always anchor at 0 for stock levels, add 10% padding to max
+    const stockPadding = maxStock * 0.1
     return {
-      minStock: Math.max(0, minStock - stockPadding),
+      minStock: 0,
       maxStock: maxStock + stockPadding,
       minWeek,
       maxWeek,
@@ -141,7 +168,9 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
     const ticks: number[] = []
     const tickCount = 6
     for (let i = 0; i <= tickCount; i++) {
-      ticks.push(chartBounds.minStock + (i * (chartBounds.maxStock - chartBounds.minStock)) / tickCount)
+      const value = chartBounds.minStock + (i * (chartBounds.maxStock - chartBounds.minStock)) / tickCount
+      // Round to avoid duplicate keys from floating point precision
+      ticks.push(Math.round(value * 100) / 100)
     }
     return ticks
   }, [chartBounds])
@@ -163,16 +192,16 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
 
   if (productOptions.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-[#6F7B8B]/40 bg-[#002C51]/20 p-12 text-center">
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-100 p-12 text-center dark:border-[#6F7B8B]/40 dark:bg-[#002C51]/20">
         <div className="mx-auto max-w-md space-y-4">
           <div className="text-6xl">📦</div>
-          <h3 className="text-xl font-semibold text-white">No Products Available</h3>
-          <p className="text-sm text-[#6F7B8B]">
+          <h3 className="text-xl font-semibold text-slate-900 dark:text-white">No Products Available</h3>
+          <p className="text-sm text-slate-600 dark:text-[#6F7B8B]">
             Set up your first product in the Product Setup sheet to start tracking stock levels and sales planning.
           </p>
           <a
             href="/sheet/1-product-setup"
-            className="inline-flex items-center gap-2 rounded-lg border border-[#00C2B9] bg-[#00C2B9]/20 px-4 py-2 text-sm font-medium text-white transition hover:bg-[#00C2B9]/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00C2B9]"
+            className="inline-flex items-center gap-2 rounded-lg border border-cyan-600 bg-cyan-600/20 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-cyan-600/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 dark:border-[#00C2B9] dark:bg-[#00C2B9]/20 dark:text-white dark:hover:bg-[#00C2B9]/30 dark:focus-visible:outline-[#00C2B9]"
           >
             <span>→</span> Go to Product Setup
           </a>
@@ -204,14 +233,24 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
           <button
             type="button"
             onClick={() => setShowStockLine(!showStockLine)}
-            className={`px-2 py-1 text-xs font-medium transition ${showStockLine ? 'text-[#00C2B9]' : 'text-[#6F7B8B]'}`}
+            className={clsx(
+              'rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all',
+              showStockLine
+                ? 'bg-cyan-100 text-cyan-800 shadow-sm dark:bg-cyan-900/30 dark:text-cyan-200'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5'
+            )}
           >
             Stock
           </button>
           <button
             type="button"
             onClick={() => setShowShipments(!showShipments)}
-            className={`px-2 py-1 text-xs font-medium transition ${showShipments ? 'text-[#f97316]' : 'text-[#6F7B8B]'}`}
+            className={clsx(
+              'rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all',
+              showShipments
+                ? 'bg-emerald-100 text-emerald-800 shadow-sm dark:bg-emerald-900/30 dark:text-emerald-200'
+                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5'
+            )}
           >
             Shipments
           </button>
@@ -231,16 +270,16 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
             a.click()
             URL.revokeObjectURL(url)
           }}
-          className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-[#00C2B9]/50 hover:text-cyan-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#00C2B9]"
+          className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
         >
           <span>⬇</span> Export SVG
         </button>
       </div>
 
-      <div className="rounded-2xl border border-[#0b3a52] bg-[#06182b]/60 p-6 backdrop-blur-sm">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 backdrop-blur-sm dark:border-[#0b3a52] dark:bg-[#06182b]/60">
         <div className="mb-4">
-          <h3 className="text-lg font-semibold text-white">Stock Level Over Time</h3>
-          <p className="text-sm text-[#6F7B8B]">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Stock Level Over Time</h3>
+          <p className="text-sm text-slate-600 dark:text-[#6F7B8B]">
             Tracking inventory levels with shipment arrival markers
           </p>
         </div>
@@ -249,20 +288,20 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
           <svg
             width="100%"
             height={chartHeight}
-            className="sales-chart-svg text-white"
+            className="sales-chart-svg text-slate-900 dark:text-white"
             preserveAspectRatio="none"
             viewBox={`0 0 1400 ${chartHeight}`}
           >
             {/* Grid lines */}
             <g className="opacity-20">
-              {yAxisTicks.map((tick) => (
+              {yAxisTicks.map((tick, index) => (
                 <line
-                  key={`grid-y-${tick}`}
+                  key={`grid-y-${index}-${tick}`}
                   x1={padding.left}
                   y1={yScale(tick)}
                   x2={1400 - padding.right}
                   y2={yScale(tick)}
-                  stroke="#6F7B8B"
+                  stroke={colors.gridLine}
                   strokeWidth="1"
                   strokeDasharray="4 4"
                 />
@@ -283,7 +322,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
               <path
                 d={getPathData(1400)}
                 fill="none"
-                stroke="#00C2B9"
+                stroke={colors.stockLine}
                 strokeWidth="3"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -294,18 +333,28 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
             {showStockLine && stockDataPoints.map((point, index) => {
               const isHovered = hoveredStock?.weekNumber === point.weekNumber
               return (
-                <circle
-                  key={`point-${index}`}
-                  cx={xScale(point.weekNumber, 1400)}
-                  cy={yScale(point.stockEnd)}
-                  r={isHovered ? "6" : "4"}
-                  fill="#00C2B9"
-                  stroke="#041324"
-                  strokeWidth="2"
-                  className="cursor-pointer transition-all"
-                  onMouseEnter={() => setHoveredStock(point)}
-                  onMouseLeave={() => setHoveredStock(null)}
-                />
+                <g key={`point-${index}`}>
+                  {/* Large invisible hitbox for easy hovering */}
+                  <circle
+                    cx={xScale(point.weekNumber, 1400)}
+                    cy={yScale(point.stockEnd)}
+                    r="20"
+                    fill="transparent"
+                    className="cursor-pointer"
+                    onMouseEnter={() => setHoveredStock(point)}
+                    onMouseLeave={() => setHoveredStock(null)}
+                  />
+                  {/* Visible data point */}
+                  <circle
+                    cx={xScale(point.weekNumber, 1400)}
+                    cy={yScale(point.stockEnd)}
+                    r={isHovered ? "7" : "5"}
+                    fill={colors.stockLine}
+                    stroke={colors.stroke}
+                    strokeWidth="2"
+                    className="pointer-events-none transition-all duration-150"
+                  />
+                </g>
               )
             })}
 
@@ -316,28 +365,48 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
 
               return (
                 <g key={`shipment-${index}`}>
+                  {/* Invisible wider hitbox for better hover - much larger */}
                   <line
                     x1={x}
                     y1={padding.top}
                     x2={x}
                     y2={chartHeight - padding.bottom}
-                    stroke="#f97316"
-                    strokeWidth={isHovered ? "3" : "2"}
-                    strokeDasharray="6 4"
-                    className="cursor-pointer transition-all"
+                    stroke="transparent"
+                    strokeWidth="32"
+                    className="cursor-pointer"
                     onMouseEnter={() => setHoveredShipment(marker)}
                     onMouseLeave={() => setHoveredShipment(null)}
                   />
+                  {/* Visible line */}
+                  <line
+                    x1={x}
+                    y1={padding.top}
+                    x2={x}
+                    y2={chartHeight - padding.bottom}
+                    stroke={colors.shipmentLine}
+                    strokeWidth={isHovered ? "4" : "2"}
+                    strokeDasharray="6 4"
+                    className="pointer-events-none transition-all duration-150"
+                  />
+                  {/* Large invisible circle hitbox at top */}
                   <circle
                     cx={x}
                     cy={padding.top - 10}
-                    r={isHovered ? "8" : "6"}
-                    fill="#f97316"
-                    stroke="#041324"
-                    strokeWidth="2"
-                    className="cursor-pointer transition-all"
+                    r="20"
+                    fill="transparent"
+                    className="cursor-pointer"
                     onMouseEnter={() => setHoveredShipment(marker)}
                     onMouseLeave={() => setHoveredShipment(null)}
+                  />
+                  {/* Visible circle marker */}
+                  <circle
+                    cx={x}
+                    cy={padding.top - 10}
+                    r={isHovered ? "9" : "7"}
+                    fill={colors.shipmentLine}
+                    stroke={colors.stroke}
+                    strokeWidth="2"
+                    className="pointer-events-none transition-all duration-150"
                   />
                 </g>
               )
@@ -350,17 +419,17 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                 y1={padding.top}
                 x2={padding.left}
                 y2={chartHeight - padding.bottom}
-                stroke="#6F7B8B"
+                stroke={colors.axis}
                 strokeWidth="2"
               />
-              {yAxisTicks.map((tick) => (
-                <g key={`y-tick-${tick}`}>
+              {yAxisTicks.map((tick, index) => (
+                <g key={`y-tick-${index}-${tick}`}>
                   <line
                     x1={padding.left - 5}
                     y1={yScale(tick)}
                     x2={padding.left}
                     y2={yScale(tick)}
-                    stroke="#6F7B8B"
+                    stroke={colors.axis}
                     strokeWidth="2"
                   />
                   <text
@@ -368,7 +437,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                     y={yScale(tick)}
                     textAnchor="end"
                     alignmentBaseline="middle"
-                    className="fill-[#6F7B8B] text-xs font-mono"
+                    className="text-xs font-mono fill-slate-600 dark:fill-[#6F7B8B]"
                   >
                     {Math.round(tick)}
                   </text>
@@ -395,8 +464,8 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                 stroke="#6F7B8B"
                 strokeWidth="2"
               />
-              {xAxisTicks.map((tick) => (
-                <g key={`x-tick-${tick.weekNumber}`}>
+              {xAxisTicks.map((tick, index) => (
+                <g key={`x-tick-${index}-${tick.weekNumber}`}>
                   <line
                     x1={xScale(tick.weekNumber, 1400)}
                     y1={chartHeight - padding.bottom}
@@ -418,7 +487,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                       x={xScale(tick.weekNumber, 1400)}
                       y={chartHeight - padding.bottom + 35}
                       textAnchor="middle"
-                      className="fill-[#6F7B8B] text-[10px]"
+                      className="fill-[#6F7B8B] text-xs"
                     >
                       {tick.weekDate}
                     </text>
@@ -438,14 +507,14 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
         </div>
 
         {/* Legend */}
-        <div className="mt-6 flex items-center gap-6 border-t border-[#0b3a52] pt-4">
+        <div className="mt-6 flex items-center gap-6 border-t border-slate-200 pt-4 dark:border-[#0b3a52]">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-8 rounded-sm bg-[#00C2B9]" />
-            <span className="text-xs text-[#6F7B8B]">Stock Level</span>
+            <div className="h-3 w-8 rounded-sm bg-cyan-600 dark:bg-[#00C2B9]" />
+            <span className="text-xs text-slate-600 dark:text-[#6F7B8B]">Stock Level</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-3 w-8 border-2 border-dashed border-[#f97316] rounded-sm" />
-            <span className="text-xs text-[#6F7B8B]">Shipment Arrival</span>
+            <div className="h-3 w-8 border-2 border-dashed border-emerald-600 rounded-sm dark:border-emerald-500" />
+            <span className="text-xs text-slate-600 dark:text-[#6F7B8B]">Shipment Arrival</span>
           </div>
         </div>
       </div>
@@ -454,20 +523,20 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
       <div className="flex flex-wrap gap-4">
         {/* Stock hover tooltip */}
         {hoveredStock && (
-          <div className="rounded-xl border border-[#00C2B9] bg-[#002C51]/95 p-4 shadow-lg backdrop-blur-sm">
+          <div className="rounded-xl border border-cyan-600 bg-white/95 p-4 shadow-lg backdrop-blur-sm dark:border-[#00C2B9] dark:bg-[#002C51]/95">
             <div className="mb-2 flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-[#00C2B9]" />
-              <h4 className="font-semibold text-white">Stock Level</h4>
+              <div className="h-3 w-3 rounded-full bg-cyan-600 dark:bg-[#00C2B9]" />
+              <h4 className="font-semibold text-slate-900 dark:text-white">Stock Level</h4>
             </div>
             <div className="space-y-1 text-sm">
-              <p className="text-[#6F7B8B]">
-                <span className="font-medium text-white">Week:</span> {hoveredStock.weekNumber}
+              <p className="text-slate-700 dark:text-[#6F7B8B]">
+                <span className="font-medium text-slate-900 dark:text-white">Week:</span> {hoveredStock.weekNumber}
               </p>
-              <p className="text-[#6F7B8B]">
-                <span className="font-medium text-white">Date:</span> {hoveredStock.weekDate}
+              <p className="text-slate-700 dark:text-[#6F7B8B]">
+                <span className="font-medium text-slate-900 dark:text-white">Date:</span> {hoveredStock.weekDate}
               </p>
-              <p className="text-[#6F7B8B]">
-                <span className="font-medium text-white">Stock:</span> <span className="text-[#00C2B9] font-bold">{Math.round(hoveredStock.stockEnd)}</span> units
+              <p className="text-slate-700 dark:text-[#6F7B8B]">
+                <span className="font-medium text-slate-900 dark:text-white">Stock:</span> <span className="font-bold text-cyan-700 dark:text-[#00C2B9]">{Math.round(hoveredStock.stockEnd)}</span> units
               </p>
             </div>
           </div>
@@ -475,20 +544,20 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
 
         {/* Shipment hover tooltip */}
         {hoveredShipment && (
-          <div className="rounded-xl border border-[#f97316] bg-[#002C51]/95 p-4 shadow-lg backdrop-blur-sm">
+          <div className="rounded-xl border border-emerald-600 bg-white/95 p-4 shadow-lg backdrop-blur-sm dark:border-emerald-500 dark:bg-[#002C51]/95">
             <div className="mb-2 flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-[#f97316]" />
-              <h4 className="font-semibold text-white">Shipment Arrival</h4>
+              <div className="h-3 w-3 rounded-full bg-emerald-600 dark:bg-emerald-500" />
+              <h4 className="font-semibold text-slate-900 dark:text-white">Shipment Arrival</h4>
             </div>
             <div className="space-y-1 text-sm">
-              <p className="text-[#6F7B8B]">
-                <span className="font-medium text-white">Week:</span> {hoveredShipment.weekNumber}
+              <p className="text-slate-700 dark:text-[#6F7B8B]">
+                <span className="font-medium text-slate-900 dark:text-white">Week:</span> {hoveredShipment.weekNumber}
               </p>
-              <p className="text-[#6F7B8B]">
-                <span className="font-medium text-white">Date:</span> {hoveredShipment.weekDate}
+              <p className="text-slate-700 dark:text-[#6F7B8B]">
+                <span className="font-medium text-slate-900 dark:text-white">Date:</span> {hoveredShipment.weekDate}
               </p>
-              <div className="mt-2 rounded-lg bg-[#041324]/60 p-2">
-                <p className="whitespace-pre-line text-xs text-cyan-100">
+              <div className="mt-2 rounded-lg bg-slate-100 p-2 dark:bg-[#041324]/60">
+                <p className="whitespace-pre-line text-xs text-slate-700 dark:text-emerald-100">
                   {hoveredShipment.arrivalDetail}
                 </p>
               </div>

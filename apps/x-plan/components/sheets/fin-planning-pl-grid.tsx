@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
@@ -8,6 +8,7 @@ import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
+import { useMutationQueue } from '@/hooks/useMutationQueue'
 
 registerAllModules()
 
@@ -61,8 +62,6 @@ function normalizeEditable(value: unknown) {
 
 export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: ProfitAndLossGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
-  const pendingRef = useRef<Map<number, UpdatePayload>>(new Map())
-  const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const data = useMemo(() => weekly, [weekly])
 
@@ -138,26 +137,34 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
     []
   )
 
-  const flush = () => {
-    if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current)
-    flushTimeoutRef.current = setTimeout(async () => {
-      const payload = Array.from(pendingRef.current.values())
-      if (payload.length === 0) return
-      pendingRef.current.clear()
-      try {
-        const res = await fetch('/api/v1/x-plan/profit-and-loss', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ updates: payload }),
-        })
-        if (!res.ok) throw new Error('Failed to update P&L')
-        toast.success('P&L updated')
-      } catch (error) {
-        console.error(error)
-        toast.error('Unable to save P&L changes')
-      }
-    }, 600)
-  }
+  const handleFlush = useCallback(async (payload: UpdatePayload[]) => {
+    if (payload.length === 0) return
+    try {
+      const res = await fetch('/api/v1/x-plan/profit-and-loss', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: payload }),
+      })
+      if (!res.ok) throw new Error('Failed to update P&L')
+      toast.success('P&L updated')
+    } catch (error) {
+      console.error(error)
+      toast.error('Unable to save P&L changes')
+    }
+  }, [])
+
+  const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<number, UpdatePayload>({
+    debounceMs: 600,
+    onFlush: handleFlush,
+  })
+
+  useEffect(() => {
+    return () => {
+      flushNow().catch(() => {
+        // errors already surfaced in handleFlush
+      })
+    }
+  }, [flushNow])
 
   return (
     <div className="space-y-6 p-4">
@@ -196,7 +203,7 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
             entry.values[prop] = formatted
             record[prop] = formatted
           }
-          flush()
+          scheduleFlush()
         }}
       />
       </div>

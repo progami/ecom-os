@@ -12,7 +12,7 @@ describe('SheetTabs', () => {
     render(<SheetTabs sheets={SHEETS} activeSlug="1-product-setup" />)
     const active = screen.getByRole('link', { name: '1. Product Setup' })
     expect(active).toHaveAttribute('href', '/sheet/1-product-setup')
-    expect(active.className).toContain('shadow-sm')
+    expect(active.className).toContain('shadow-md')
 
     const inactive = screen.getByRole('link', { name: '2. Ops Planning' })
     expect(inactive).toHaveAttribute('href', '/sheet/2-ops-planning')

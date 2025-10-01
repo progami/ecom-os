@@ -1,4 +1,5 @@
 import { isValid } from 'date-fns'
+import { coerceNumber } from '@/lib/utils/numbers'
 import { buildWeekCalendar, weekNumberForDate } from './calendar'
 import type { PurchaseOrderDerived } from './ops'
 import type { SalesWeekInput } from './types'
@@ -23,11 +24,6 @@ export interface SalesWeekDerived {
   finalPercentError: number | null
   stockEnd: number
   stockWeeks: number
-}
-
-function toNumber(value: number | null | undefined): number {
-  if (value == null || Number.isNaN(value)) return 0
-  return Number(value)
 }
 
 type ArrivalScheduleEntry = {
@@ -110,17 +106,17 @@ export function computeSalesPlan(
       }
       const arrivalEntry = arrivalSchedule.get(`${productId}:${weekNumber}`)
       const arrivals = arrivalEntry?.quantity ?? 0
-      const previousEnd = index > 0 ? stockEndSeries[index - 1] : toNumber(week?.stockStart)
+      const previousEnd = index > 0 ? stockEndSeries[index - 1] : coerceNumber(week?.stockStart)
       const manualStart = week?.stockStart
-      const baseStart = manualStart != null ? toNumber(manualStart) : previousEnd
+      const baseStart = manualStart != null ? coerceNumber(manualStart) : previousEnd
       const stockStart = baseStart + arrivals
 
-      const actualSales = week?.actualSales != null ? toNumber(week.actualSales) : null
-      const forecastSales = week?.forecastSales != null ? toNumber(week.forecastSales) : null
+      const actualSales = week?.actualSales != null ? coerceNumber(week.actualSales) : null
+      const forecastSales = week?.forecastSales != null ? coerceNumber(week.forecastSales) : null
 
       let computedFinalSales: number
       if (week?.finalSales != null) {
-        computedFinalSales = clampNonNegative(Math.min(stockStart, toNumber(week.finalSales)))
+        computedFinalSales = clampNonNegative(Math.min(stockStart, coerceNumber(week.finalSales)))
       } else {
         const demand = actualSales != null ? actualSales : forecastSales ?? 0
         computedFinalSales = clampNonNegative(Math.min(stockStart, demand))

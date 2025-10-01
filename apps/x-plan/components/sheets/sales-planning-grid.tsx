@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { HotTable } from '@handsontable/react'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
@@ -9,11 +9,13 @@ import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
+import { useMutationQueue } from '@/hooks/useMutationQueue'
 import {
   SHEET_TOOLBAR_GROUP,
   SHEET_TOOLBAR_LABEL,
   SHEET_TOOLBAR_SELECT,
 } from '@/components/sheet-toolbar'
+import { usePersistentState } from '@/hooks/usePersistentState'
 
 registerAllModules()
 
@@ -52,8 +54,11 @@ type SalesPlanningFocusContextValue = {
 const SalesPlanningFocusContext = createContext<SalesPlanningFocusContextValue | null>(null)
 
 export function SalesPlanningFocusProvider({ children }: { children: ReactNode }) {
-  const [focusProductId, setFocusProductId] = useState<string>('ALL')
-  const value = useMemo(() => ({ focusProductId, setFocusProductId }), [focusProductId])
+  const [focusProductId, setFocusProductId] = usePersistentState<string>('xplan:sales-grid:focus-product', 'ALL')
+  const value = useMemo(
+    () => ({ focusProductId, setFocusProductId }),
+    [focusProductId, setFocusProductId],
+  )
   return <SalesPlanningFocusContext.Provider value={value}>{children}</SalesPlanningFocusContext.Provider>
 }
 
@@ -92,13 +97,10 @@ interface SalesPlanningGridProps {
 
 export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys, productOptions, stockWarningWeeks }: SalesPlanningGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
-  const pendingRef = useRef<Map<string, SalesUpdate>>(new Map())
-  const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const focusContext = useContext(SalesPlanningFocusContext)
-  const [fallbackFocusProductId] = useState<string>('ALL')
-  const [activeStockMetric, setActiveStockMetric] = useState<StockMetricId>('stockWeeks')
-  const [showFinalError, setShowFinalError] = useState(false)
-  const focusProductId = focusContext?.focusProductId ?? fallbackFocusProductId
+  const [activeStockMetric, setActiveStockMetric] = usePersistentState<StockMetricId>('xplan:sales-grid:metric', 'stockWeeks')
+  const [showFinalError, setShowFinalError] = usePersistentState<boolean>('xplan:sales-grid:show-final-error', false)
+  const focusProductId = focusContext?.focusProductId ?? 'ALL'
   const warningThreshold = Number.isFinite(stockWarningWeeks) ? stockWarningWeeks : Number.POSITIVE_INFINITY
   const router = useRouter()
 
@@ -283,12 +285,9 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
     [activeStockMetric, columnKeys, columnMeta, showFinalError]
   )
 
-  const flush = useCallback(() => {
-    if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current)
-    flushTimeoutRef.current = setTimeout(async () => {
-      const payload = Array.from(pendingRef.current.values())
+  const handleFlush = useCallback(
+    async (payload: SalesUpdate[]) => {
       if (payload.length === 0) return
-      pendingRef.current.clear()
       try {
         const response = await fetch('/api/v1/x-plan/sales-weeks', {
           method: 'PUT',
@@ -302,8 +301,22 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         console.error(error)
         toast.error('Unable to save sales planning changes')
       }
-    }, 600)
-  }, [router])
+    },
+    [router],
+  )
+
+  const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<string, SalesUpdate>({
+    debounceMs: 600,
+    onFlush: handleFlush,
+  })
+
+  useEffect(() => {
+    return () => {
+      flushNow().catch(() => {
+        // errors handled inside handleFlush
+      })
+    }
+  }, [flushNow])
 
   return (
     <div className="space-y-6 p-4">
@@ -378,7 +391,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
             entry.values[meta.field] = formatted
             record[prop] = formatted
           }
-          flush()
+          scheduleFlush()
         }}
       />
       </div>

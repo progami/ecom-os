@@ -7,6 +7,8 @@ import { registerAllModules } from 'handsontable/registry'
 import 'handsontable/dist/handsontable.full.min.css'
 import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
+import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { finishEditingSafely } from '@/lib/handsontable'
 import { formatNumericInput, formatPercentInput, numericValidator } from '@/components/sheets/validators'
 
 registerAllModules()
@@ -108,51 +110,6 @@ function normalizePercent(value: unknown, fractionDigits = 4) {
   return formatPercentInput(value, fractionDigits)
 }
 
-function finishEditingSafely(hot: Handsontable) {
-  const core = hot as unknown as {
-    finishEditing?: (restoreOriginalValue?: boolean) => void
-    getPlugin?: (key: string) => unknown
-    getActiveEditor?: () => { close?: () => void; finishEditing?: (restore?: boolean) => void } | undefined
-  }
-
-  if (typeof core.finishEditing === 'function') {
-    try {
-      core.finishEditing(false)
-      return
-    } catch (error) {
-      if (!(error instanceof TypeError)) throw error
-    }
-  }
-
-  const editorManager = core.getPlugin?.('editorManager') as
-    | {
-        finishEditing?: (restoreOriginalValue?: boolean) => void
-        closeAll?: () => void
-        getActiveEditor?: () => { close?: () => void; finishEditing?: (restore?: boolean) => void } | undefined
-      }
-    | undefined
-
-  if (editorManager) {
-    if (typeof editorManager.finishEditing === 'function') {
-      editorManager.finishEditing(false)
-      return
-    }
-    if (typeof editorManager.closeAll === 'function') {
-      editorManager.closeAll()
-      return
-    }
-  }
-
-  const activeEditor = editorManager?.getActiveEditor?.() ?? core.getActiveEditor?.()
-  if (activeEditor) {
-    if (typeof activeEditor.finishEditing === 'function') {
-      activeEditor.finishEditing(false)
-      return
-    }
-    activeEditor.close?.()
-  }
-}
-
 export function OpsPlanningCostGrid({
   rows,
   activeOrderId,
@@ -169,8 +126,33 @@ export function OpsPlanningCostGrid({
 }: OpsPlanningCostGridProps) {
   const [isClient, setIsClient] = useState(false)
   const hotRef = useRef<Handsontable | null>(null)
-  const pendingRef = useRef<Map<string, { id: string; values: Record<string, string | null> }>>(new Map())
-  const flushTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const handleFlush = useCallback(
+    async (payload: Array<{ id: string; values: Record<string, string | null> }>) => {
+      if (payload.length === 0) return
+      try {
+        const response = await fetch('/api/v1/x-plan/purchase-orders/batches', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updates: payload }),
+        })
+        if (!response.ok) throw new Error('Failed to update batch cost overrides')
+        toast.success('Batch cost saved')
+        onSync?.()
+      } catch (error) {
+        console.error(error)
+        toast.error('Unable to save batch costs')
+      }
+    },
+    [onSync],
+  )
+
+  const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<
+    string,
+    { id: string; values: Record<string, string | null> }
+  >({
+    debounceMs: 500,
+    onFlush: handleFlush,
+  })
 
   const data = useMemo(() => rows, [rows])
   const productOptions = useMemo(() => products.map((product) => ({ id: product.id, name: product.name })), [products])
@@ -277,49 +259,13 @@ export function OpsPlanningCostGrid({
     }
   }, [data])
 
-  const flush = useCallback(
-    (immediate = false) => {
-      const run = async () => {
-        const payload = Array.from(pendingRef.current.values())
-        if (payload.length === 0) return
-        pendingRef.current.clear()
-        try {
-          const response = await fetch('/api/v1/x-plan/purchase-orders/batches', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ updates: payload }),
-          })
-          if (!response.ok) throw new Error('Failed to update batch cost overrides')
-          toast.success('Batch cost saved')
-          if (onSync) {
-            onSync()
-          }
-        } catch (error) {
-          console.error(error)
-          toast.error('Unable to save batch costs')
-        }
-      }
-
-      if (flushTimeoutRef.current) {
-        clearTimeout(flushTimeoutRef.current)
-        flushTimeoutRef.current = null
-      }
-
-      if (immediate) {
-        void run()
-        return
-      }
-
-      flushTimeoutRef.current = setTimeout(run, 500)
-    },
-    [onSync]
-  )
-
   useEffect(() => {
     return () => {
-      flush(true)
+      flushNow().catch(() => {
+        // errors handled inside handleFlush
+      })
     }
-  }, [flush])
+  }, [flushNow])
 
   useEffect(() => {
     setIsClient(true)
@@ -340,7 +286,7 @@ export function OpsPlanningCostGrid({
   if (!isClient) {
     return (
       <section className="space-y-3">
-        <div className="h-64 animate-pulse rounded-xl bg-[#0c2537]" />
+        <div className="h-64 animate-pulse rounded-xl bg-slate-200 dark:bg-[#0c2537]" />
       </section>
     )
   }
@@ -348,7 +294,7 @@ export function OpsPlanningCostGrid({
   return (
     <section className="space-y-3">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-300/80">
+        <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
           Batch Table
         </h2>
         <div className="flex flex-wrap gap-2">
@@ -357,7 +303,7 @@ export function OpsPlanningCostGrid({
               type="button"
               onClick={onAddBatch}
               disabled={Boolean(disableAdd)}
-              className="rounded-md border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-200 transition enabled:hover:border-cyan-300/50 enabled:hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
             >
               Add batch
             </button>
@@ -367,7 +313,7 @@ export function OpsPlanningCostGrid({
               type="button"
               onClick={onDeleteBatch}
               disabled={Boolean(disableDelete) || !activeBatchId}
-              className="rounded-md border border-rose-500/60 bg-rose-500/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-300 transition enabled:hover:border-rose-500/80 enabled:hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-700 shadow-sm transition enabled:hover:border-rose-500 enabled:hover:bg-rose-100 enabled:hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/60 dark:bg-rose-500/10 dark:text-rose-300 dark:enabled:hover:border-rose-500/80 dark:enabled:hover:bg-rose-500/20"
             >
               Remove batch
             </button>
@@ -462,7 +408,7 @@ export function OpsPlanningCostGrid({
             onRowsChange(updated)
           }
 
-          flush()
+          scheduleFlush()
         }}
       />
     </section>

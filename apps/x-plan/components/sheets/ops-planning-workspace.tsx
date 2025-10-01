@@ -37,6 +37,7 @@ import {
   type LeadTimeProfile,
 } from '@/lib/calculations'
 import { formatNumericInput, formatPercentInput, parseNumericInput } from '@/components/sheets/validators'
+import { deriveIsoWeek, formatDateDisplay, parseDate, toIsoDate } from '@/lib/utils/dates'
 
 const BATCH_NUMERIC_PRECISION = {
   quantity: 0,
@@ -161,52 +162,20 @@ const DEFAULT_PROFILE: LeadTimeProfile = {
 }
 
 function coerceToLocalDate(value: string | Date | null | undefined): Date | null {
-  if (!value) return null
-  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    const parsed = new Date(`${value}T00:00:00.000Z`)
-    return Number.isNaN(parsed.getTime()) ? null : parsed
-  }
-  const date = value instanceof Date ? value : new Date(String(value))
-  return Number.isNaN(date.getTime()) ? null : date
+  return parseDate(value)
 }
 
 function toIsoDateString(value: string | Date | null | undefined): string | null {
-  if (!value) return null
-  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value
-  const date = value instanceof Date ? value : new Date(String(value))
-  if (Number.isNaN(date.getTime())) return null
-  const year = date.getUTCFullYear()
-  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
-  const day = String(date.getUTCDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+  return toIsoDate(value)
 }
 
 function formatIsoDate(iso: string | null | undefined): string {
   if (!iso) return ''
-  const date = new Date(`${iso}T00:00:00.000Z`)
-  if (Number.isNaN(date.getTime())) return ''
-  return dateFormatter.format(date).replace(',', '')
-}
-
-function deriveIsoWeek(iso: string | null | undefined): string {
-  if (!iso) return ''
-  const [yearStr, monthStr, dayStr] = iso.split('-')
-  const year = Number(yearStr)
-  const month = Number(monthStr)
-  const day = Number(dayStr)
-  if (!year || !month || !day) return ''
-  const date = new Date(Date.UTC(year, month - 1, day))
-  const dayNumber = date.getUTCDay() || 7
-  date.setUTCDate(date.getUTCDate() + 4 - dayNumber)
-  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
-  const week = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
-  return String(week)
+  return formatDateDisplay(iso, dateFormatter)
 }
 
 function formatDisplayDate(value?: string | Date | null) {
-  const date = coerceToLocalDate(value)
-  if (!date) return ''
-  return dateFormatter.format(date).replace(',', '')
+  return formatDateDisplay(value, dateFormatter)
 }
 
 function normalizePercent(value: string | number | null | undefined) {
@@ -1386,12 +1355,12 @@ useEffect(() => {
           />
 
           {isCreateOrderOpen ? (
-            <section className="space-y-4 rounded-xl border border-dashed border-[#0b3a52] bg-[#06182b]/85 p-4 shadow-[0_26px_55px_rgba(1,12,24,0.25)] backdrop-blur-sm">
+            <section className="space-y-4 rounded-xl border border-dashed border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 p-4 shadow-[0_26px_55px_rgba(1,12,24,0.25)] backdrop-blur-sm">
               <header className="space-y-1">
-                <h3 className="text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-300/80">
+                <h3 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
                   New purchase order
                 </h3>
-                <p className="text-xs text-slate-200/80">
+                <p className="text-xs text-slate-700 dark:text-slate-200/80">
                   Set the PO identifier now — assign cost details and the target product in the batch cost table below.
                 </p>
               </header>
@@ -1402,28 +1371,28 @@ useEffect(() => {
                   handleCreateOrder()
                 }}
               >
-                <label className="flex flex-col gap-1 text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-300/80">
+                <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
                   Order code
                   <input
                     type="text"
                     value={newOrderCode}
                     onChange={(event) => setNewOrderCode(event.target.value)}
                     placeholder="Auto-generate if blank"
-                    className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-slate-200 transition focus:outline-none focus:ring-2 focus:ring-cyan-400/60 hover:border-cyan-300/50"
+                    className="rounded-lg border border-slate-300 dark:border-white/15 bg-white/5 px-3 py-2 text-sm text-slate-200 transition focus:outline-none focus:ring-2 focus:ring-cyan-400/60 hover:border-cyan-300/50"
                   />
                 </label>
                 <div className="flex items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setIsCreateOrderOpen(false)}
-                    className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-200 transition hover:border-cyan-300/50 hover:text-cyan-100"
+                    className="rounded-lg border border-slate-300 dark:border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-200 transition hover:border-cyan-300/50 hover:text-cyan-900 dark:text-cyan-100"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isPending}
-                    className="rounded-lg bg-[#00c2b9] px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-[#002430] shadow-[0_12px_24px_rgba(0,194,185,0.25)] transition enabled:hover:bg-[#00a39e] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-lg bg-cyan-600 dark:bg-[#00c2b9] px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white dark:text-[#002430] shadow-md dark:shadow-[0_12px_24px_rgba(0,194,185,0.25)] transition enabled:hover:bg-cyan-700 dark:bg-[#00a39e] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Create
                   </button>
