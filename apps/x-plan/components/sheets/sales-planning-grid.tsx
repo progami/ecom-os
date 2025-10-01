@@ -322,6 +322,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         className="x-plan-hot"
         height="auto"
         rowHeaders={false}
+        undo
         dropdownMenu={{ items: ['filter_by_value'] }}
         filters={false}
         hiddenColumns={{ columns: hiddenColumns, indicators: true }}

@@ -171,6 +171,7 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
           columns={columns}
           colHeaders={['Week', 'Date', 'Units', 'Revenue', 'COGS', 'Amazon Fees', 'Gross Profit', 'GP%', 'PPC', 'Fixed Costs', 'Total OpEx', 'Net Profit']}
           rowHeaders={false}
+          undo
           stretchH="all"
           className="x-plan-hot"
           height="auto"

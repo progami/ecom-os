@@ -13,13 +13,13 @@ const LEGEND_ITEMS = [
     id: 'calculated',
     label: 'Calculated output',
     description: 'Updates from workbook logic',
-    swatchClass: 'bg-slate-500',
+    swatchClass: 'bg-[#6F7B8B]',
   },
   {
     id: 'active',
     label: 'Linked row',
     description: 'Feeds the detail drawer',
-    swatchClass: 'bg-cyan-400',
+    swatchClass: 'bg-[#00C2B9]',
   },
 ] as const
 

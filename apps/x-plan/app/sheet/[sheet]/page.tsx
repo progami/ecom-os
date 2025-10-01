@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { OpsPlanningWorkspace } from '@/components/sheets/ops-planning-workspace'
 import { ProductSetupWorkspace } from '@/components/sheets/product-setup-workspace'
 import { SalesPlanningGrid, SalesPlanningFocusControl, SalesPlanningFocusProvider } from '@/components/sheets/sales-planning-grid'
+import { SalesPlanningVisual } from '@/components/sheets/sales-planning-visual'
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
 import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid'
 import { SheetViewToggle, type SheetViewMode } from '@/components/sheet-view-toggle'
@@ -1230,12 +1231,8 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           financeParameters={view.financeParameters}
         />
       )
-      visualContent = (
-        <VisualPlaceholder
-          title="Product visuals coming soon"
-          description="We’re building assortment and lead-time insights to complement the setup grid."
-        />
-      )
+      // Product setup doesn't need visual mode
+      visualContent = null
       break
     }
     case '2-ops-planning': {
@@ -1282,9 +1279,11 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         />
       )
       visualContent = (
-        <VisualPlaceholder
-          title="Sales visuals in progress"
-          description="Forecast accuracy, stock coverage, and buy box trend charts will live here."
+        <SalesPlanningVisual
+          rows={view.rows}
+          columnMeta={view.columnMeta}
+          columnKeys={view.columnKeys}
+          productOptions={view.productOptions}
         />
       )
       break
@@ -1401,7 +1400,11 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     }
   }
 
-  controls.push(<SheetViewToggle key="sheet-view-toggle" value={viewMode} />)
+  // Only show view toggle if both tabular and visual content exist
+  const hasVisualMode = Boolean(visualContent)
+  if (hasVisualMode) {
+    controls.push(<SheetViewToggle key="sheet-view-toggle" value={viewMode} />)
+  }
   const headerControls = controls.length ? controls : undefined
 
   if (!tabularContent) {
@@ -1422,7 +1425,8 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     )
   }
 
-  const selectedContent = viewMode === 'visual' ? visualContent : tabularContent
+  // If no visual content for this sheet, always show tabular
+  const selectedContent = (hasVisualMode && viewMode === 'visual') ? visualContent : tabularContent
 
   const meta = {
     rows: sheetStatus?.recordCount,

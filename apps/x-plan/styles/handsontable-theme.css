@@ -1,6 +1,7 @@
 /* X-Plan Handsontable Dark Theme - Compact & Clean */
 
 .x-plan-hot {
+  --x-plan-header-row-height: 34px;
   border-radius: 0.75rem;
   border: 1px solid #0b3a52;
   overflow: hidden;
@@ -44,6 +45,13 @@
   border-bottom: 3px solid #00c2b9;
   border-right: 1px solid rgba(11, 58, 82, 0.6);
   vertical-align: middle;
+}
+
+/* Product name headers (first row of nested headers) - larger text */
+.x-plan-hot .ht_clone_top thead tr:first-child th {
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.05em !important;
 }
 
 /* Row header / first column */

@@ -130,6 +130,7 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
         columns={columns}
         colHeaders={['Week', 'Date', 'Amazon Payout', 'Inventory Purchase', 'Fixed Costs', 'Net Cash', 'Cash Balance']}
         rowHeaders={false}
+        undo
         stretchH="all"
         className="x-plan-hot"
         height="auto"

@@ -13,9 +13,32 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
+type InventoryRecord = {
+  id: string
+  product?: {
+    sku?: string | null
+    title?: string | null
+  } | null
+  warehouse?: {
+    name?: string | null
+  } | null
+  quantityOnHand?: number | null
+  quantityReserved?: number | null
+  quantityAvailable?: number | null
+  reorderPoint?: number | null
+  lastCountedAt?: Date | string | null
+  updatedAt?: Date | string | null
+}
+
+function formatDate(value: Date | string | null | undefined) {
+  if (!value) return 'Never'
+  const date = typeof value === 'string' ? new Date(value) : value
+  return Number.isNaN(date.getTime()) ? 'Never' : date.toLocaleDateString()
+}
+
 export default function InventoryPage() {
   // This would come from your database
-  const inventory = []
+  const inventory: InventoryRecord[] = []
 
   return (
     <div className="container mx-auto p-6">
@@ -67,21 +90,17 @@ export default function InventoryPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                inventory.map((item: any) => (
+                inventory.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.product?.sku}</TableCell>
-                    <TableCell>{item.product?.title}</TableCell>
-                    <TableCell>{item.warehouse?.name}</TableCell>
-                    <TableCell>{item.quantityOnHand}</TableCell>
-                    <TableCell>{item.quantityReserved}</TableCell>
-                    <TableCell>{item.quantityAvailable}</TableCell>
-                    <TableCell>{item.reorderPoint || '-'}</TableCell>
-                    <TableCell>
-                      {item.lastCountedAt
-                        ? new Date(item.lastCountedAt).toLocaleDateString()
-                        : 'Never'}
-                    </TableCell>
-                    <TableCell>{new Date(item.updatedAt).toLocaleDateString()}</TableCell>
+                    <TableCell className="font-medium">{item.product?.sku ?? '-'}</TableCell>
+                    <TableCell>{item.product?.title ?? '-'}</TableCell>
+                    <TableCell>{item.warehouse?.name ?? '-'}</TableCell>
+                    <TableCell>{item.quantityOnHand ?? 0}</TableCell>
+                    <TableCell>{item.quantityReserved ?? 0}</TableCell>
+                    <TableCell>{item.quantityAvailable ?? 0}</TableCell>
+                    <TableCell>{item.reorderPoint ?? '-'}</TableCell>
+                    <TableCell>{formatDate(item.lastCountedAt)}</TableCell>
+                    <TableCell>{formatDate(item.updatedAt)}</TableCell>
                   </TableRow>
                 ))
               )}

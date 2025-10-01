@@ -23,7 +23,7 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
     isStack ? 'flex-col' : 'items-center overflow-x-auto'
   )
   const linkBase =
-    'relative min-w-[160px] overflow-hidden rounded-2xl border px-4 py-3 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60'
+    'relative min-w-[160px] overflow-hidden rounded-2xl border px-4 py-3.5 text-sm font-medium transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#00C2B9] touch-manipulation'
 
   const handleClick = (slug: SheetSlug, event: React.MouseEvent<HTMLAnchorElement>) => {
     if (!onSheetSelect) return
@@ -35,6 +35,7 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
     <div className={clsx('flex w-full', isStack ? 'flex-col gap-3' : 'items-center justify-between gap-2 py-2')}>
       <nav className={navClassName}>
         {sheets.map((sheet) => {
+          const Icon = sheet.icon
           const href = sheet.href ?? `/sheet/${sheet.slug}`
           const isActive = activeSlug === sheet.slug || pathname === href
           return (
@@ -45,11 +46,14 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
               className={clsx(
                 linkBase,
                 isActive
-                  ? 'border-[#00c2b9] bg-[#00c2b9]/15 text-cyan-100 shadow-[0_18px_40px_rgba(0,194,185,0.2)]'
-                  : 'border-white/12 bg-white/5 text-slate-200 hover:border-cyan-300/50 hover:text-cyan-100'
+                  ? 'border-[#00C2B9] bg-[#00C2B9]/30 text-white shadow-[0_18px_40px_rgba(0,194,185,0.3)]'
+                  : 'border-[#6F7B8B]/50 bg-[#002C51]/70 text-[#6F7B8B] hover:border-[#00C2B9]/70 hover:bg-[#002C51] hover:text-white'
               )}
             >
-              <span className="relative z-10">{sheet.label}</span>
+              <span className="relative z-10 flex items-center gap-2 text-slate-200/95">
+                {Icon ? <Icon className="h-4 w-4 text-slate-200/80" aria-hidden /> : null}
+                <span>{sheet.label}</span>
+              </span>
             </Link>
           )
         })}

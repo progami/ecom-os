@@ -384,6 +384,7 @@ export function OpsPlanningCostGrid({
         colHeaders={COST_HEADERS}
         stretchH="all"
         className="x-plan-hot"
+        undo
         rowHeaders={false}
         height="auto"
         dropdownMenu

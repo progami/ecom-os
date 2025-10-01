@@ -352,6 +352,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
         colHeaders={HEADERS}
         columns={COLUMNS}
         rowHeaders={false}
+        undo
         height="auto"
         stretchH="all"
         className="x-plan-hot"

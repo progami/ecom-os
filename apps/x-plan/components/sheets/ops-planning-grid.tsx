@@ -359,6 +359,7 @@ export function OpsPlanningGrid({
         className="x-plan-hot"
         rowHeaders={false}
         height="auto"
+        undo
         dropdownMenu
         filters
         cells={(row) => {

@@ -13,9 +13,28 @@ import {
   TableRow,
 } from '@/components/ui/table'
 
+type OrderRecord = {
+  id: string
+  orderNumber: string
+  marketplace?: { name?: string | null } | null
+  customerName?: string | null
+  status: string
+  totalAmount: number
+  currency: string
+  orderDate: Date | string
+  shipByDate?: Date | string | null
+  itemsCount: number
+}
+
+function formatDate(value: Date | string | null | undefined, fallback = '-') {
+  if (!value) return fallback
+  const date = typeof value === 'string' ? new Date(value) : value
+  return Number.isNaN(date.getTime()) ? fallback : date.toLocaleDateString()
+}
+
 export default function OrdersPage() {
   // This would come from your database
-  const orders = []
+  const orders: OrderRecord[] = []
 
   return (
     <div className="container mx-auto p-6">
@@ -67,16 +86,16 @@ export default function OrdersPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                orders.map((order: any) => (
+                orders.map((order) => (
                   <TableRow key={order.id}>
                     <TableCell className="font-medium">{order.orderNumber}</TableCell>
-                    <TableCell>{order.marketplace?.name}</TableCell>
-                    <TableCell>{order.customerName}</TableCell>
+                    <TableCell>{order.marketplace?.name ?? '-'}</TableCell>
+                    <TableCell>{order.customerName ?? '-'}</TableCell>
                     <TableCell>{order.status}</TableCell>
                     <TableCell>{order.totalAmount}</TableCell>
                     <TableCell>{order.currency}</TableCell>
-                    <TableCell>{new Date(order.orderDate).toLocaleDateString()}</TableCell>
-                    <TableCell>{new Date(order.shipByDate).toLocaleDateString()}</TableCell>
+                    <TableCell>{formatDate(order.orderDate)}</TableCell>
+                    <TableCell>{formatDate(order.shipByDate, 'Not scheduled')}</TableCell>
                     <TableCell>{order.itemsCount}</TableCell>
                   </TableRow>
                 ))
