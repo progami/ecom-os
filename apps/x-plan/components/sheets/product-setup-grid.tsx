@@ -322,7 +322,7 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
                               type="button"
                               onClick={() => handleDelete(row)}
                               disabled={isDeletingRow}
-                              className="rounded-lg border border-rose-400/50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-rose-200 transition enabled:hover:border-rose-300 enabled:hover:text-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                              className="rounded-lg border border-rose-400/50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-rose-600 transition enabled:hover:border-rose-500 enabled:hover:bg-rose-50 enabled:hover:text-rose-700 dark:text-rose-400 dark:enabled:hover:bg-rose-950/30 dark:enabled:hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                               {isDeletingRow ? 'Removing…' : 'Delete'}
                             </button>

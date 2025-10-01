@@ -15,9 +15,12 @@
     central_db_port: 3004
     margin_master_port: 3007
     jason_port: 3008
+    xplan_port: 3009
     central_portal_url: "https://{{ ecomos_server_name | default('ecomos.targonglobal.com') }}"
     wms_public_url: "{{ central_portal_url }}/wms"
     wms_nextauth_url: "{{ central_portal_url }}/wms/api/auth"
+    xplan_public_url: "{{ central_portal_url }}/xplan"
+    xplan_nextauth_url: "{{ central_portal_url }}/xplan/api/auth"
     central_auth_schema: "{{ (central_db_schemas | selectattr('name', 'equalto', 'auth') | list).0 }}"
     central_wms_schema: "{{ (central_db_schemas | selectattr('name', 'equalto', 'wms') | list).0 }}"
     central_db_auth_url: "postgresql://{{ central_auth_schema.user }}:{{ central_auth_schema.password }}@localhost:5432/{{ central_db_name }}?schema=auth"
@@ -160,6 +163,16 @@
             mode: '0600'
           no_log: true
           when: (lookup('env', 'ECOMOS_ENV') | default('', true)) | length > 0
+
+        - name: Write X-Plan env
+          copy:
+            dest: "{{ app_base }}/repo/apps/x-plan/.env"
+            content: "{{ lookup('env', 'XPLAN_ENV') | default('', true) }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+          no_log: true
+          when: (lookup('env', 'XPLAN_ENV') | default('', true)) | length > 0
     - name: Write Nginx config
       template:
         src: nginx-monorepo.conf.j2
@@ -269,6 +282,26 @@
           if curl -fsS -H "Host: {{ ecomos_server_name | default('ecomos.targonglobal.com') }}" "http://127.0.0.1:{{ wms_port }}/wms/api/health" | grep -q '"status":"ok"'; then
             echo "WMS health check OK"; break; fi; sleep 3; done
         curl -fsS -H "Host: {{ ecomos_server_name | default('ecomos.targonglobal.com') }}" "http://127.0.0.1:{{ wms_port }}/wms/api/health" | grep -q '"status":"ok"' || (echo 'ERROR: WMS health check failed on localhost' >&2; exit 1)
+      args: { chdir: "{{ app_base }}/repo" }
+
+    - name: Start X-Plan with PM2 (clean restart + verify)
+      shell: |
+        set -e
+        cd {{ app_base }}/repo
+        pm2 delete xplan || true
+        pm2 delete x-plan || true
+        lsof -ti:{{ xplan_port }} | xargs -r kill -9 || true
+        rm -rf apps/x-plan/.next
+        BASE_PATH=/xplan NEXT_PUBLIC_BASE_PATH=/xplan NEXTAUTH_URL={{ xplan_nextauth_url }} NEXT_PUBLIC_APP_URL={{ xplan_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ xplan_public_url }} COOKIE_DOMAIN=.targonglobal.com DATABASE_URL={{ central_db_auth_url }} pnpm --filter @ecom-os/x-plan prisma:generate
+        BASE_PATH=/xplan NEXT_PUBLIC_BASE_PATH=/xplan NEXTAUTH_URL={{ xplan_nextauth_url }} NEXT_PUBLIC_APP_URL={{ xplan_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ xplan_public_url }} COOKIE_DOMAIN=.targonglobal.com DATABASE_URL={{ central_db_auth_url }} pnpm --filter @ecom-os/x-plan build
+        pm2 delete xplan || true
+        BASE_PATH=/xplan NEXT_PUBLIC_BASE_PATH=/xplan NEXTAUTH_URL={{ xplan_nextauth_url }} NEXT_PUBLIC_APP_URL={{ xplan_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ xplan_public_url }} COOKIE_DOMAIN=.targonglobal.com DATABASE_URL={{ central_db_auth_url }} PORT={{ xplan_port }} NODE_ENV=production pm2 start pnpm --name xplan --cwd {{ app_base }}/repo/apps/x-plan --update-env -- start
+        pm2 save
+        # Verify X-Plan responds
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+          if curl -fsS -o /dev/null -H "Host: {{ ecomos_server_name | default('ecomos.targonglobal.com') }}" "http://127.0.0.1:{{ xplan_port }}/xplan"; then
+            echo "X-Plan health check OK"; break; fi; sleep 3; done
+        curl -fsS -o /dev/null -H "Host: {{ ecomos_server_name | default('ecomos.targonglobal.com') }}" "http://127.0.0.1:{{ xplan_port }}/xplan" || (echo 'ERROR: X-Plan health check failed on localhost' >&2; exit 1)
       args: { chdir: "{{ app_base }}/repo" }
 
     - name: Install ecomos housekeeping script
