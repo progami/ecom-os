@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { TransactionType, CostCategory } from '@prisma/client'
 import { businessLogger, perfLogger } from '@/lib/logger/index'
-import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
+import { sanitizeForDisplay, validateNumeric } from '@/lib/security/input-sanitization'
 // handleTransactionCosts removed - costs are handled via frontend pre-filling
 import { parseLocalDateTime } from '@/lib/utils/date-helpers'
 import { recordStorageCostEntry } from '@/services/storageCost.service'
@@ -446,7 +446,7 @@ export async function POST(request: NextRequest) {
       }
 
       const sanitizedBatchLot = sanitizeForDisplay(item.batchLot)
-      if (!sanitizedBatchLot || !/^\d+$/.test(sanitizedBatchLot)) {
+      if (!sanitizedBatchLot || !validateNumeric(sanitizedBatchLot)) {
         const skuForMessage = item.skuCode || 'unknown'
         return NextResponse.json({ 
           error: `Batch/Lot must be numeric for SKU ${skuForMessage}`,

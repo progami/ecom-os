@@ -75,29 +75,39 @@ export async function GET(
 
     let nextBatchNumber = 1
     let lastBatch: string | null = null
-    
-    if (allBatches.length > 0) {
-      // Only consider purely numeric batch lots
-      const numericBatches = allBatches
-        .filter(t => /^\d+$/.test(t.batchLot))
-        .map(t => parseInt(t.batchLot))
-        .filter(n => !isNaN(n) && n > 0)
-      
-      if (numericBatches.length > 0) {
-        const maxBatch = Math.max(...numericBatches)
-        nextBatchNumber = maxBatch + 1
-        lastBatch = maxBatch.toString()
-      } else {
-        // If no numeric batches exist, start from 1
-        nextBatchNumber = 1
+    let suggestedBatchLot = '1'
+
+    const numericBatchLots = allBatches
+      .map(t => t.batchLot)
+      .filter(batchLot => /^\d+$/.test(batchLot))
+
+    if (numericBatchLots.length > 0) {
+      const targetLength = Math.max(...numericBatchLots.map(batch => batch.length))
+      let maxValue = 0n
+      let rawMax = numericBatchLots[0]
+
+      for (const batch of numericBatchLots) {
+        const value = BigInt(batch)
+        if (value > maxValue) {
+          maxValue = value
+          rawMax = batch
+        }
       }
+
+      const nextValue = maxValue + 1n
+      const paddedNext = nextValue.toString().padStart(targetLength, '0')
+
+      const numericSuggestion = Number(nextValue)
+      nextBatchNumber = Number.isSafeInteger(numericSuggestion) ? numericSuggestion : Number.MAX_SAFE_INTEGER
+      lastBatch = rawMax
+      suggestedBatchLot = paddedNext
     }
 
     return NextResponse.json({
       skuCode,
-      lastBatch: lastBatch,
+      lastBatch,
       nextBatchNumber,
-      suggestedBatchLot: `${nextBatchNumber}`
+      suggestedBatchLot
     })
   } catch (_error) {
     // console.error('Error getting next batch number:', error)
