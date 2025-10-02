@@ -5,8 +5,7 @@ import { applyDevAuthDefaults, withSharedAuth, getAppEntitlement } from '@ecom-o
 import { UserRole } from '@prisma/client'
 
 const devPort = process.env.PORT || process.env.WMS_PORT || 3001
-// Use server-side APP_URL in production, fallback to NEXT_PUBLIC_APP_URL for dev
-const devBaseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${devPort}`
+const devBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${devPort}`
 const centralDev = process.env.CENTRAL_AUTH_URL || 'http://localhost:3000'
 applyDevAuthDefaults({
   appId: 'ecomos',
@@ -29,6 +28,7 @@ const baseAuthOptions: NextAuthOptions = {
   },
   secret: sharedSecret,
   debug: false,
+  trustHost: true, // Trust X-Forwarded-Host header from Nginx proxy
   // Include a no-op credentials provider so NextAuth routes (csrf/session) function
   // WMS does not authenticate locally; central portal issues the session cookie
   providers: [
