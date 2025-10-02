@@ -50,7 +50,7 @@ export const ALL_APPS: AppDef[] = [
     id: 'x-plan',
     name: 'X-Plan',
     description: 'Collaborative planning workspace for sales, operations, and finance.',
-    url: 'https://xplan.targonglobal.com',
+    url: 'https://ecomos.targonglobal.com/xplan',
     category: 'Product',
     devUrl: 'http://localhost:3008',
   },
