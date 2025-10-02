@@ -29,6 +29,7 @@ const baseAuthOptions: NextAuthOptions = {
   },
   secret: sharedSecret,
   debug: false,
+  trustHost: true, // Trust X-Forwarded-Host header from Nginx proxy
   // Include a no-op credentials provider so NextAuth routes (csrf/session) function
   // WMS does not authenticate locally; central portal issues the session cookie
   providers: [
