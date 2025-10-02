@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from './generated/client'
 
 let prismaInstance: PrismaClient | null = (globalThis as typeof globalThis & { __centralAuthPrisma?: PrismaClient | null }).__centralAuthPrisma ?? null
 
