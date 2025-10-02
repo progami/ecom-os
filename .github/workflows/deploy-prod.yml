@@ -43,6 +43,8 @@ jobs:
       - run: corepack enable && corepack prepare pnpm@9.0.0 --activate
       - run: pnpm install
       - name: Generate Prisma client for auth package
+        env:
+          CENTRAL_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=auth
         run: pnpm --filter @ecom-os/auth prisma:generate
       - name: Generate Prisma client for WMS
         env:
