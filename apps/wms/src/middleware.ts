@@ -77,8 +77,9 @@ export async function middleware(request: NextRequest) {
     // request.nextUrl gives us localhost:3001, but we need the public-facing URL
     const forwardedProto = request.headers.get('x-forwarded-proto') || 'http'
     const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host
-    // Use pathname which includes the base path (/wms), not normalizedPath which has it stripped
-    const callbackUrl = `${forwardedProto}://${forwardedHost}${pathname}${request.nextUrl.search}`
+    // Next.js strips basePath before middleware, so we need to manually prepend it
+    const basePath = process.env.BASE_PATH || process.env.NEXT_PUBLIC_BASE_PATH || ''
+    const callbackUrl = `${forwardedProto}://${forwardedHost}${basePath}${pathname}${request.nextUrl.search}`
 
     redirect.searchParams.set('callbackUrl', callbackUrl)
     return NextResponse.redirect(redirect)
