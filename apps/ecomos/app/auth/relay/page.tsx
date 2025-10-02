@@ -1,9 +1,12 @@
 "use client"
 
 import { useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 
-export default function AuthRelay({ searchParams }: { searchParams?: { to?: string } }) {
-  const to = searchParams?.to || '/'
+export default function AuthRelay() {
+  const searchParams = useSearchParams()
+  const to = searchParams.get('to') || '/'
+
   useEffect(() => {
     try {
       const url = new URL(to)
