@@ -282,7 +282,14 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         })
       }
     },
-    [activeStockMetric, columnKeys, columnMeta, showFinalError]
+    [
+      activeStockMetric,
+      columnKeys,
+      columnMeta,
+      setActiveStockMetric,
+      setShowFinalError,
+      showFinalError,
+    ]
   )
 
   const handleFlush = useCallback(

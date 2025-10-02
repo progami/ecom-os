@@ -7,6 +7,9 @@ central_db_schemas:
   - name: wms
     user: central_wms
     password: central_wms_password_2024
+  - name: xplan
+    user: central_xplan
+    password: central_xplan_password_2024
 
 # Central portal bootstrap credentials
 central_portal_admin_email: ""
