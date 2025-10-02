@@ -1,4 +1,4 @@
-import { PrismaClient } from './generated/client'
+import { PrismaClient } from '../node_modules/.prisma/client-auth'
 
 let prismaInstance: PrismaClient | null = (globalThis as typeof globalThis & { __centralAuthPrisma?: PrismaClient | null }).__centralAuthPrisma ?? null
 
