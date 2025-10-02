@@ -278,9 +278,8 @@
         BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_public_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} DATABASE_URL={{ central_db_wms_url }} pnpm --filter @ecom-os/wms db:generate
         DATABASE_URL={{ central_db_wms_url }} pnpm --filter @ecom-os/wms db:push
         BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_public_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} DATABASE_URL={{ central_db_wms_url }} pnpm --filter @ecom-os/wms build
-        chown -R ubuntu:ubuntu apps/wms
         pm2 delete wms || true
-        lsof -ti:{{ wms_port }} | xargs -r kill -9 || true
+        sudo lsof -ti:{{ wms_port }} | xargs -r sudo kill -9 || true
         BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_public_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} DATABASE_URL={{ central_db_wms_url }} PORT={{ wms_port }} NODE_ENV=production pm2 start server.js --name wms --cwd {{ app_base }}/repo/apps/wms --update-env
         pm2 save
         # Verify WMS health returns 200 and new version string
