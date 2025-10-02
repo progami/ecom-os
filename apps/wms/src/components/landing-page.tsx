@@ -84,7 +84,7 @@ export default function LandingPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-50 to-brand-teal-50 dark:from-cyan-900/20 dark:to-brand-teal-900/20" />
@@ -145,7 +145,7 @@ export default function LandingPage() {
                 }
                 window.location.href = url.toString()
               }}
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-[#06182b] border border-slate-300 dark:border-[#0b3a52] rounded-lg hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-[#06182b] border border-slate-300 dark:border-[#0b3a52] rounded-lg hover:bg-slate-50 dark:hover:bg-[#06182b]/80 transition-colors"
             >
               <Package2 className="h-5 w-5" />
               <span>Sign In</span>
