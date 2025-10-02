@@ -2,6 +2,8 @@
  * API client that automatically handles base path
  */
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || ''
+
 interface FetchOptions extends RequestInit {
   skipBaseAuth?: boolean
 }
@@ -13,7 +15,13 @@ interface FetchOptions extends RequestInit {
  * @returns Promise with the fetch response
  */
 export async function apiFetch(url: string, options?: FetchOptions): Promise<Response> {
-  return fetch(url, options)
+  // Prepend basePath to API routes
+  let finalUrl = url
+  if (basePath && url.startsWith('/api/')) {
+    const normalizedBase = basePath.startsWith('/') ? basePath : `/${basePath}`
+    finalUrl = `${normalizedBase}${url}`
+  }
+  return fetch(finalUrl, options)
 }
 
 /**
