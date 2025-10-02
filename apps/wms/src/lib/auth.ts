@@ -5,7 +5,8 @@ import { applyDevAuthDefaults, withSharedAuth, getAppEntitlement } from '@ecom-o
 import { UserRole } from '@prisma/client'
 
 const devPort = process.env.PORT || process.env.WMS_PORT || 3001
-const devBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${devPort}`
+// Use server-side APP_URL in production, fallback to NEXT_PUBLIC_APP_URL for dev
+const devBaseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${devPort}`
 const centralDev = process.env.CENTRAL_AUTH_URL || 'http://localhost:3000'
 applyDevAuthDefaults({
   appId: 'ecomos',
