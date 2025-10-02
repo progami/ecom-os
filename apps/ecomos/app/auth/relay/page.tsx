@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 
-export default function AuthRelay() {
+function AuthRelayContent() {
   const searchParams = useSearchParams()
   const to = searchParams.get('to') || '/'
 
@@ -57,5 +57,17 @@ export default function AuthRelay() {
         }
       `}</style>
     </div>
+  )
+}
+
+export default function AuthRelay() {
+  return (
+    <Suspense fallback={
+      <div style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center'}}>
+        <div>Loading...</div>
+      </div>
+    }>
+      <AuthRelayContent />
+    </Suspense>
   )
 }
