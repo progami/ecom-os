@@ -72,7 +72,14 @@ export async function middleware(request: NextRequest) {
       : 'http://localhost:3000'
     const central = process.env.CENTRAL_AUTH_URL || defaultCentral
     const redirect = new URL('/login', central)
-    redirect.searchParams.set('callbackUrl', request.nextUrl.toString())
+
+    // Build callback URL from forwarded headers (from Nginx proxy) instead of request.nextUrl
+    // request.nextUrl gives us localhost:3001, but we need the public-facing URL
+    const forwardedProto = request.headers.get('x-forwarded-proto') || 'http'
+    const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host
+    const callbackUrl = `${forwardedProto}://${forwardedHost}${request.nextUrl.pathname}${request.nextUrl.search}`
+
+    redirect.searchParams.set('callbackUrl', callbackUrl)
     return NextResponse.redirect(redirect)
   }
 
