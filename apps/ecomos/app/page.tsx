@@ -18,6 +18,9 @@ export default async function PortalHome() {
     if (!normalizedRoles['margin-master']) {
       normalizedRoles['margin-master'] = { role: 'admin', depts: ['Product'] }
     }
+    if (!normalizedRoles['x-plan']) {
+      normalizedRoles['x-plan'] = { role: 'admin', depts: ['Product'] }
+    }
     if (!normalizedRoles['legal-suite']) {
       normalizedRoles['legal-suite'] = { role: 'admin', depts: ['Legal'] }
     }

@@ -1,19 +1,18 @@
 name: CD
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'infra/ansible/**'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
+  pull_request_target:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event_name == 'pull_request_target' &&
+           github.event.pull_request.head.ref == 'dev') }}
     permissions:
       id-token: write
       contents: read
@@ -32,6 +31,8 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Install tools (ansible, rsync, jq, curl)
         run: |
           sudo apt-get update
@@ -41,8 +42,30 @@ jobs:
           node-version: 20
       - run: corepack enable && corepack prepare pnpm@9.0.0 --activate
       - run: pnpm install
-      - name: Build website only
-        run: pnpm turbo run build --filter=@ecom-os/website || (echo "Build failed" && exit 1)
+      - name: Generate Prisma client for auth package
+        run: pnpm --filter @ecom-os/auth prisma:generate
+      - name: Generate Prisma client for WMS
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: pnpm --filter @ecom-os/wms db:generate
+      - name: Generate Prisma client for X-Plan
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: pnpm --filter @ecom-os/x-plan prisma:generate
+      - name: Build production apps
+        env:
+          NEXTAUTH_SECRET: test-nextauth-secret
+          CENTRAL_AUTH_SECRET: test-central-secret
+          CENTRAL_AUTH_URL: https://example.com
+          NEXTAUTH_URL: https://example.com/api/auth
+          COOKIE_DOMAIN: .example.com
+          BASE_PATH: /wms
+          NEXT_PUBLIC_BASE_PATH: /wms
+          NEXT_PUBLIC_APP_URL: https://example.com/wms
+          NEXT_PUBLIC_CENTRAL_AUTH_URL: https://example.com
+          CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/wms
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: pnpm turbo run build --filter=@ecom-os/website --filter=@ecom-os/ecomos --filter=@ecom-os/wms --filter=@ecom-os/x-plan || (echo "Build failed" && exit 1)
 
       - name: Configure SSH
         run: |
@@ -203,6 +226,7 @@ jobs:
           MARGIN_MASTER_ENV: ${{ secrets.MARGIN_MASTER_ENV }}
           JASON_ENV: ${{ secrets.JASON_ENV }}
           ECOMOS_ENV: ${{ secrets.ECOMOS_ENV }}
+          XPLAN_ENV: ${{ secrets.XPLAN_ENV }}
         run: |
           set -e
           echo "Inventory:" && cat infra/ansible/inventory/hosts.ini

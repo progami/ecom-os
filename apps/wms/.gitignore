@@ -164,6 +164,7 @@ dist
 # Backup files
 backups/
 *.sql
+!prisma/migrations/**/migration.sql
 *.dump
 
 # Secret files

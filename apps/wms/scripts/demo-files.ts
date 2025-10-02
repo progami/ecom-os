@@ -45,7 +45,7 @@ export const RECEIVE_DOCUMENTS = {
   COMMERCIAL_INVOICE: 'commercial_invoice',
   BILL_OF_LADING: 'bill_of_lading',
   PACKING_LIST: 'packing_list',
-  DELIVERY_NOTE: 'delivery_note',
+  MOVEMENT_NOTE: 'movement_note',
   OTHER: 'other_document'
 }
 
@@ -77,7 +77,7 @@ export function cleanupTempFiles() {
     if (file.includes('-commercial_invoice-') || 
         file.includes('-bill_of_lading-') ||
         file.includes('-packing_list-') ||
-        file.includes('-delivery_note-') ||
+        file.includes('-movement_note-') ||
         file.includes('-proof_of_pickup-') ||
         file.includes('-shipping_label-') ||
         file.includes('-manifest-') ||
