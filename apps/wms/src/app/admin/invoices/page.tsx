@@ -111,7 +111,7 @@ export default function AdminInvoicesPage() {
             title="Total Amount"
             count="£45,678"
             icon={FileText}
-            color="text-blue-600 bg-blue-100"
+            color="text-cyan-600 bg-cyan-100"
           />
         </div>
 

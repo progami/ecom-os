@@ -224,10 +224,10 @@ export default function InvoiceTemplatesPage() {
           title="Invoice Templates"
           subtitle="Configure warehouse-specific billing strategies"
           icon={FileText}
-          iconColor="text-purple-600"
-          bgColor="bg-purple-50"
-          borderColor="border-purple-200"
-          textColor="text-purple-800"
+          iconColor="text-brand-teal-600"
+          bgColor="bg-brand-teal-50"
+          borderColor="border-brand-teal-200"
+          textColor="text-brand-teal-800"
           actions={
             <Button onClick={() => handleOpenModal()} className="gap-2">
               <Plus className="h-4 w-4" />
@@ -260,7 +260,7 @@ export default function InvoiceTemplatesPage() {
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                     template.transactionType === 'RECEIVE' ? 'bg-green-100 text-green-800' :
                     template.transactionType === 'SHIP' ? 'bg-red-100 text-red-800' :
-                    'bg-blue-100 text-blue-800'
+                    'bg-cyan-100 text-cyan-800'
                   }`}>
                     {template.transactionType}
                   </span>

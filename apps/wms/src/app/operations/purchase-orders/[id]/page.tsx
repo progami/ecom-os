@@ -89,7 +89,7 @@ function statusBadgeClasses(status: PurchaseOrderSummary['status']) {
     case 'AWAITING_PROOF':
       return 'bg-sky-50 text-sky-700 border border-sky-200'
     case 'REVIEW':
-      return 'bg-purple-50 text-purple-700 border border-purple-200'
+      return 'bg-brand-teal-50 text-brand-teal-700 border border-brand-teal-200'
     case 'POSTED':
       return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
     case 'CANCELLED':
@@ -545,7 +545,7 @@ export default function PurchaseOrderDetailPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
   const headerTitle = isInbound ? 'Inbound Purchase Order' : 'Outbound Purchase Order'
-  const headerAccent = isInbound ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-blue-600 bg-blue-50 border-blue-200'
+  const headerAccent = isInbound ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-cyan-600 bg-cyan-50 border-cyan-200'
 
   const breadcrumbItems = [
     { label: 'Operations', href: '/operations' },

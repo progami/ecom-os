@@ -476,7 +476,7 @@ function WarehouseAndRatesPageContent() {
               emptyMessage="No warehouses found"
               rowKey="id"
               onRowClick={handleWarehouseRowClick}
-              getRowClassName={(row) => row.id === selectedWarehouseId ? 'bg-indigo-50/60' : ''}
+              getRowClassName={(row) => row.id === selectedWarehouseId ? 'bg-cyan-50/60' : ''}
               className="flex-1"
             />
           </div>
@@ -721,7 +721,7 @@ function renderRateStatus(rate: CostRate, now: number) {
   }
 
   if (effective > now) {
-    return <span className="text-xs text-blue-600">Future</span>
+    return <span className="text-xs text-cyan-600">Future</span>
   }
 
   return <span className="text-xs text-green-600">Active</span>

@@ -37,8 +37,8 @@ export function WarehouseMapSimple({
         <div
           key={warehouse.id}
           className={`border rounded-lg p-4 ${
-            warehouse.id === selectedWarehouseId 
-              ? 'border-blue-500 bg-blue-50' 
+            warehouse.id === selectedWarehouseId
+              ? 'border-cyan-600 bg-cyan-50'
               : 'border-gray-200 bg-white'
           }`}
         >
@@ -46,7 +46,7 @@ export function WarehouseMapSimple({
             <div>
               <div className="flex items-center gap-2">
                 <MapPin className={`h-5 w-5 ${
-                  warehouse.id === selectedWarehouseId ? 'text-blue-600' : 'text-gray-600'
+                  warehouse.id === selectedWarehouseId ? 'text-cyan-600' : 'text-gray-600'
                 }`} />
                 <h4 className="font-semibold">{warehouse.name}</h4>
                 <span className="text-sm text-gray-500">({warehouse.code})</span>
@@ -62,7 +62,7 @@ export function WarehouseMapSimple({
               href={`https://www.google.com/maps?q=${warehouse.latitude},${warehouse.longitude}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+              className="flex items-center gap-1 text-sm text-cyan-600 hover:text-cyan-700"
             >
               View Map
               <ExternalLink className="h-3 w-3" />

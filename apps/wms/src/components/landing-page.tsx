@@ -87,13 +87,13 @@ export default function LandingPage() {
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-900 dark:to-gray-800">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20" />
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-50 to-brand-teal-50 dark:from-cyan-900/20 dark:to-brand-teal-900/20" />
         
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-20 pb-16 text-center">
           <div className="flex justify-center mb-8">
-            <div className="flex items-center gap-3 px-4 py-2 bg-purple-100 dark:bg-purple-900/50 rounded-full">
-              <Sparkles className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-              <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+            <div className="flex items-center gap-3 px-4 py-2 bg-cyan-100 dark:bg-cyan-900/50 rounded-full">
+              <Sparkles className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+              <span className="text-sm font-medium text-cyan-700 dark:text-cyan-300">
                 Try it free with demo data
               </span>
             </div>
@@ -101,7 +101,7 @@ export default function LandingPage() {
           
           <h1 className="text-5xl sm:text-6xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
             Modern Warehouse
-            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 pb-2">
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-brand-teal-600 pb-2">
               Management System
             </span>
           </h1>
@@ -115,7 +115,7 @@ export default function LandingPage() {
             <button
               onClick={handleTryDemo}
               disabled={isLoading}
-              className="group inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="group inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-cyan-600 to-brand-teal-600 rounded-lg hover:from-cyan-700 hover:to-brand-teal-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
               {isLoading ? (
                 <>
@@ -177,7 +177,7 @@ export default function LandingPage() {
                 key={index}
                 className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-sm hover:shadow-lg transition-shadow"
               >
-                <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/50 rounded-lg flex items-center justify-center mb-4 text-purple-600 dark:text-purple-400">
+                <div className="w-12 h-12 bg-cyan-100 dark:bg-cyan-900/50 rounded-lg flex items-center justify-center mb-4 text-cyan-600 dark:text-cyan-400">
                   {feature.icon}
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
@@ -193,18 +193,18 @@ export default function LandingPage() {
       </div>
 
       {/* CTA Section */}
-      <div className="bg-gradient-to-r from-purple-600 to-pink-600 py-16 px-4 sm:px-6 lg:px-8">
+      <div className="bg-gradient-to-r from-cyan-600 to-brand-teal-600 py-16 px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-4xl text-center">
           <h2 className="text-3xl font-bold text-white mb-4">
             Ready to transform your warehouse operations?
           </h2>
-          <p className="text-xl text-purple-100 mb-8">
+          <p className="text-xl text-cyan-100 mb-8">
             Try the demo now and see how WMS can streamline your business
           </p>
           <button
             onClick={handleTryDemo}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 px-8 py-4 text-lg font-medium text-purple-600 bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-8 py-4 text-lg font-medium text-cyan-600 bg-white rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <>
@@ -228,7 +228,7 @@ export default function LandingPage() {
       <footer className="bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
-            <Package2 className="h-8 w-8 text-purple-600 dark:text-purple-400" />
+            <Package2 className="h-8 w-8 text-cyan-600 dark:text-cyan-400" />
             <span className="text-2xl font-bold text-gray-900 dark:text-white">WMS</span>
           </div>
           <p className="text-gray-600 dark:text-gray-400">

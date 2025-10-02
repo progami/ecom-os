@@ -123,7 +123,7 @@ export function InventoryReconciliationReport() {
       case 'CRITICAL': return 'bg-red-500';
       case 'HIGH': return 'bg-orange-500';
       case 'MEDIUM': return 'bg-yellow-500';
-      case 'LOW': return 'bg-blue-500';
+      case 'LOW': return 'bg-cyan-500';
       default: return 'bg-gray-500';
     }
   };

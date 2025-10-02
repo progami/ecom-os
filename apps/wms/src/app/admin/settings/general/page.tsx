@@ -138,8 +138,8 @@ export default function GeneralSettingsPage() {
           {/* Company Information */}
           <div className="border rounded-lg p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Building className="h-5 w-5 text-blue-600" />
+              <div className="p-2 bg-cyan-100 rounded-lg">
+                <Building className="h-5 w-5 text-cyan-600" />
               </div>
               <h3 className="text-lg font-semibold">Company Information</h3>
             </div>
@@ -271,8 +271,8 @@ export default function GeneralSettingsPage() {
           {/* System Defaults */}
           <div className="border rounded-lg p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Clock className="h-5 w-5 text-purple-600" />
+              <div className="p-2 bg-brand-teal-100 rounded-lg">
+                <Clock className="h-5 w-5 text-brand-teal-600" />
               </div>
               <h3 className="text-lg font-semibold">System Defaults</h3>
             </div>

@@ -109,8 +109,8 @@ export function FinSection({ data, loading }: FinSectionProps) {
                 )}
               </div>
             </div>
-            <div className="p-3 rounded-lg bg-indigo-100 dark:bg-indigo-900/30">
-              <Calculator className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+            <div className="p-3 rounded-lg bg-cyan-100 dark:bg-cyan-900/30">
+              <Calculator className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
             </div>
           </div>
         </div>

@@ -566,10 +566,10 @@ function InventoryPage() {
           title="Inventory Ledger"
           subtitle="Real-time inventory balances by warehouse and batch"
           icon={Package}
-          iconColor="text-indigo-600"
-          bgColor="bg-indigo-50"
-          borderColor="border-indigo-200"
-          textColor="text-indigo-800"
+          iconColor="text-cyan-600"
+          bgColor="bg-cyan-50"
+          borderColor="border-cyan-200"
+          textColor="text-cyan-800"
           actions={headerActions}
         />
 
@@ -981,7 +981,7 @@ function InventoryPage() {
                     >
                       {balance.lastTransactionReference ?? '—'}
                     </td>
-                    <td className="px-3 py-2 text-right text-sm font-semibold text-indigo-700 whitespace-nowrap">
+                    <td className="px-3 py-2 text-right text-sm font-semibold text-cyan-700 whitespace-nowrap">
                       {signedCartons.toLocaleString()}
                     </td>
                     <td className="px-3 py-2 text-right text-sm whitespace-nowrap">
@@ -1013,7 +1013,7 @@ function InventoryPage() {
               <div className="col-span-6 md:col-span-6 px-3 py-2 font-semibold text-left">
                 Totals
               </div>
-              <div className="col-span-1 px-3 py-2 text-right font-semibold text-indigo-700 whitespace-nowrap">
+              <div className="col-span-1 px-3 py-2 text-right font-semibold text-cyan-700 whitespace-nowrap">
                 {tableTotals.cartons.toLocaleString()}
               </div>
               <div className="col-span-1 px-3 py-2 text-right font-semibold whitespace-nowrap">

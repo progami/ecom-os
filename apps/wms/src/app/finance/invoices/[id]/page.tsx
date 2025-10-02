@@ -248,7 +248,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       case 'pending':
         return <Clock className="h-5 w-5 text-yellow-500" />
       case 'reconciled':
-        return <CheckCircle className="h-5 w-5 text-blue-500" />
+        return <CheckCircle className="h-5 w-5 text-cyan-500" />
       case 'disputed':
         return <XCircle className="h-5 w-5 text-red-500" />
       case 'paid':

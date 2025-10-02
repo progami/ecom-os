@@ -331,9 +331,9 @@ export default function EditRatePage() {
         </form>
 
         {/* Important Notes */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-semibold text-blue-900 mb-2">Important Notes</h3>
-          <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+        <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
+          <h3 className="font-semibold text-cyan-900 mb-2">Important Notes</h3>
+          <ul className="text-sm text-cyan-800 space-y-1 list-disc list-inside">
             <li>Changes apply immediately and affect all future calculations</li>
             <li>Historical calculations are not affected by rate changes</li>
             <li>To change warehouse or category, create a new rate</li>

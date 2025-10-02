@@ -490,10 +490,10 @@ export default function EditSkuPage() {
           </div>
         </form>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
           <div className="flex items-start">
-            <Package className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-            <div className="text-sm text-blue-800">
+            <Package className="h-5 w-5 text-cyan-600 mt-0.5 mr-3 flex-shrink-0" />
+            <div className="text-sm text-cyan-800">
               <p className="font-semibold mb-1">SKU Update Tips:</p>
               <ul className="list-disc list-inside space-y-1">
                 <li>Changes will apply to future transactions only</li>

@@ -172,8 +172,8 @@ export default function NotificationSettingsPage() {
           {/* Notification Channels */}
           <div className="border rounded-lg p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Bell className="h-5 w-5 text-blue-600" />
+              <div className="p-2 bg-cyan-100 rounded-lg">
+                <Bell className="h-5 w-5 text-cyan-600" />
               </div>
               <h3 className="text-lg font-semibold">Notification Channels</h3>
             </div>
@@ -383,7 +383,7 @@ export default function NotificationSettingsPage() {
         </div>
 
         {/* Test Notifications */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg p-6">
+        <div className="bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold">Test Notifications</h3>
@@ -393,7 +393,7 @@ export default function NotificationSettingsPage() {
             </div>
             <button
               onClick={() => toast.success('Test notification sent!')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700"
             >
               Send Test
             </button>

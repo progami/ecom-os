@@ -333,7 +333,7 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
                     <div className="flex items-center gap-1 ml-2">
                       <label 
                         htmlFor={`${category.id}-replace`}
-                        className="text-blue-600 hover:text-blue-800 cursor-pointer p-1"
+                        className="text-cyan-600 hover:text-cyan-800 cursor-pointer p-1"
                         title="Replace file"
                       >
                         <Upload className="h-4 w-4" />

@@ -81,7 +81,7 @@ function PurchaseOrdersPage() {
   const headerActions = useMemo(() => (
     <Popover>
       <PopoverTrigger asChild>
-        <Button className="gap-2 bg-indigo-600 text-white hover:bg-indigo-500">
+        <Button className="gap-2 bg-cyan-600 text-white hover:bg-cyan-500">
           <FileText className="h-4 w-4" />
           Raise PO
         </Button>
@@ -118,10 +118,10 @@ function PurchaseOrdersPage() {
           title="Purchase Orders"
           subtitle="Create, review, and post inbound or outbound orders"
           icon={FileText}
-          iconColor="text-indigo-600"
-          bgColor="bg-indigo-50"
-          borderColor="border-indigo-200"
-          textColor="text-indigo-800"
+          iconColor="text-cyan-600"
+          bgColor="bg-cyan-50"
+          borderColor="border-cyan-200"
+          textColor="text-cyan-800"
           actions={headerActions}
         />
 
@@ -134,9 +134,9 @@ function PurchaseOrdersPage() {
                   key={tab.value}
                   type="button"
                   onClick={() => setStatusFilter(tab.value)}
-                  className={`rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500 ${
+                  className={`rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-cyan-600 ${
                     isActive
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      ? 'bg-cyan-600 text-white border-cyan-600 shadow-sm'
                       : 'bg-white text-muted-foreground border-border hover:bg-muted'
                   }`}
                   aria-pressed={isActive}

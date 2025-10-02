@@ -162,7 +162,7 @@ export function DeleteTransactionDialog({
                           <div key={type} className="flex justify-between text-sm">
                             <span className="flex items-center gap-2">
                               {type === 'SHIP' ? (
-                                <Truck className="h-3 w-3 text-blue-600" />
+                                <Truck className="h-3 w-3 text-cyan-600" />
                               ) : (
                                 <Package2 className="h-3 w-3 text-gray-600" />
                               )}
@@ -182,7 +182,7 @@ export function DeleteTransactionDialog({
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
                               {dep.transactionType === 'SHIP' ? (
-                                <Truck className="h-3 w-3 text-blue-600" />
+                                <Truck className="h-3 w-3 text-cyan-600" />
                               ) : (
                                 <Package2 className="h-3 w-3 text-gray-600" />
                               )}
@@ -206,7 +206,7 @@ export function DeleteTransactionDialog({
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   {dep.transactionType === 'SHIP' ? (
-                                    <Truck className="h-3 w-3 text-blue-600" />
+                                    <Truck className="h-3 w-3 text-cyan-600" />
                                   ) : (
                                     <Package2 className="h-3 w-3 text-gray-600" />
                                   )}
@@ -223,8 +223,8 @@ export function DeleteTransactionDialog({
                     </div>
 
                     {/* Export Option */}
-                    <div className="bg-blue-50 border border-blue-200 rounded p-2">
-                      <p className="text-xs text-blue-700">
+                    <div className="bg-cyan-50 border border-cyan-200 rounded p-2">
+                      <p className="text-xs text-cyan-700">
                         💡 Tip: Export the full list of dependent transactions to CSV for bulk processing
                       </p>
                     </div>
@@ -237,14 +237,14 @@ export function DeleteTransactionDialog({
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             {dep.transactionType === 'SHIP' ? (
-                              <Truck className="h-4 w-4 text-blue-600" />
+                              <Truck className="h-4 w-4 text-cyan-600" />
                             ) : (
                               <Package2 className="h-4 w-4 text-gray-600" />
                             )}
                             <span className="font-medium text-sm">ID: {dep.id.slice(0, 8)}...</span>
                           </div>
                           <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                            dep.transactionType === 'SHIP' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                            dep.transactionType === 'SHIP' ? 'bg-cyan-100 text-cyan-800' : 'bg-gray-100 text-gray-800'
                           }`}>
                             {dep.transactionType}
                           </span>

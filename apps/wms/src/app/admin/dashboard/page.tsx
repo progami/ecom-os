@@ -642,19 +642,19 @@ export default function AdminDashboardPage() {
             {/* Key Metrics Summary */}
             <div className="grid gap-4 md:grid-cols-4">
               <div className="border rounded-lg p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
-                <p className="text-sm text-blue-700 dark:text-blue-300">Total SKUs</p>
-                <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">1,247</p>
-                <p className="text-xs text-blue-600 dark:text-blue-400">+12% from last month</p>
+                <p className="text-sm text-cyan-700 dark:text-cyan-300">Total SKUs</p>
+                <p className="text-2xl font-bold text-cyan-900 dark:text-cyan-100">1,247</p>
+                <p className="text-xs text-cyan-600 dark:text-cyan-400">+12% from last month</p>
               </div>
               <div className="border rounded-lg p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
                 <p className="text-sm text-green-700 dark:text-green-300">Inventory Value</p>
                 <p className="text-2xl font-bold text-green-900 dark:text-green-100">£2.4M</p>
                 <p className="text-xs text-green-600 dark:text-green-400">+18% growth</p>
               </div>
-              <div className="border rounded-lg p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
-                <p className="text-sm text-purple-700 dark:text-purple-300">Avg. Turnover</p>
-                <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">4.2x</p>
-                <p className="text-xs text-purple-600 dark:text-purple-400">Industry leading</p>
+              <div className="border rounded-lg p-4 bg-gradient-to-br from-brand-teal-50 to-brand-teal-100 dark:from-brand-teal-900/20 dark:to-brand-teal-800/20">
+                <p className="text-sm text-brand-teal-700 dark:text-brand-teal-300">Avg. Turnover</p>
+                <p className="text-2xl font-bold text-brand-teal-900 dark:text-brand-teal-100">4.2x</p>
+                <p className="text-xs text-brand-teal-600 dark:text-brand-teal-400">Industry leading</p>
               </div>
               <div className="border rounded-lg p-4 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20">
                 <p className="text-sm text-orange-700 dark:text-orange-300">Fill Rate</p>
@@ -809,7 +809,7 @@ export default function AdminDashboardPage() {
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-8">
                             <div 
-                              className="bg-blue-500 h-8 rounded-full flex items-center justify-end pr-2"
+                              className="bg-cyan-500 h-8 rounded-full flex items-center justify-end pr-2"
                               style={{ width: `${widthPercentage}%` }}
                             >
                               {warehouse.percentage > 0 && (
@@ -1012,11 +1012,11 @@ export default function AdminDashboardPage() {
                   <p className="text-xs text-muted-foreground">YoY Growth</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-blue-600">£384K</p>
+                  <p className="text-2xl font-bold text-cyan-600">£384K</p>
                   <p className="text-xs text-muted-foreground">Additional Value</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-purple-600">92%</p>
+                  <p className="text-2xl font-bold text-brand-teal-600">92%</p>
                   <p className="text-xs text-muted-foreground">Target Achievement</p>
                 </div>
               </div>
@@ -1031,13 +1031,13 @@ export default function AdminDashboardPage() {
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-lg ${
                         transaction.type === 'RECEIVE' ? 'bg-green-100 dark:bg-green-900/30' :
-                        transaction.type === 'SHIP' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                        transaction.type === 'SHIP' ? 'bg-cyan-100 dark:bg-cyan-900/30' :
                         'bg-yellow-100 dark:bg-yellow-900/30'
                       }`}>
                         {transaction.type === 'RECEIVE' ? (
                           <ArrowRight className="h-4 w-4 text-green-600 dark:text-green-400 rotate-180" />
                         ) : transaction.type === 'SHIP' ? (
-                          <ArrowRight className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <ArrowRight className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
                         ) : (
                           <Activity className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                         )}
@@ -1121,7 +1121,7 @@ export default function AdminDashboardPage() {
               description="View and manage inventory across all warehouses"
               icon={Package}
               href="/admin/inventory"
-              color="bg-blue-500"
+              color="bg-cyan-500"
             />
             <QuickActionCard
               title="Invoice Management"
@@ -1135,7 +1135,7 @@ export default function AdminDashboardPage() {
               description="View detailed reports and analytics"
               icon={BarChart3}
               href="/admin/reports"
-              color="bg-indigo-500"
+              color="bg-cyan-500"
             />
             <QuickActionCard
               title="Warehouse Settings"
@@ -1149,7 +1149,7 @@ export default function AdminDashboardPage() {
               description="Manage users and permissions"
               icon={Users}
               href="/admin/users"
-              color="bg-purple-500"
+              color="bg-brand-teal-500"
             />
             <QuickActionCard
               title="System Settings"
@@ -1262,9 +1262,9 @@ function EnhancedDashboardCard({
   color
 }: EnhancedDashboardCardProps) {
   const colorClasses = {
-    blue: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30',
+    blue: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30',
     green: 'text-green-600 bg-green-100 dark:bg-green-900/30',
-    purple: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30',
+    purple: 'text-brand-teal-600 bg-brand-teal-100 dark:bg-brand-teal-900/30',
     orange: 'text-orange-600 bg-orange-100 dark:bg-orange-900/30'
   }
 

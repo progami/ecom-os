@@ -432,15 +432,15 @@ export const ShipCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
       </div>
 
       {/* Summary Section */}
-      <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
+      <div className="bg-cyan-50 rounded-lg border border-cyan-200 p-6">
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-sm text-blue-700">Total Transaction Costs</p>
-            <p className="text-2xl font-bold text-blue-900">{formatCurrency(totals.total)}</p>
+            <p className="text-sm text-cyan-700">Total Transaction Costs</p>
+            <p className="text-2xl font-bold text-cyan-900">{formatCurrency(totals.total)}</p>
           </div>
           <div>
-            <p className="text-sm text-blue-700">Cost per Carton</p>
-            <p className="text-2xl font-bold text-blue-900">{formatCurrency(totals.perCarton)}</p>
+            <p className="text-sm text-cyan-700">Cost per Carton</p>
+            <p className="text-2xl font-bold text-cyan-900">{formatCurrency(totals.perCarton)}</p>
           </div>
         </div>
         

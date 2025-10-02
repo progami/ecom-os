@@ -34,7 +34,7 @@ export function StorageCostSummary({ summary }: StorageCostSummaryProps) {
         <div className="p-5">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Archive className="h-6 w-6 text-blue-400" />
+              <Archive className="h-6 w-6 text-cyan-400" />
             </div>
             <div className="ml-5 w-0 flex-1">
               <dl>
@@ -77,7 +77,7 @@ export function StorageCostSummary({ summary }: StorageCostSummaryProps) {
         <div className="p-5">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Calculator className="h-6 w-6 text-purple-400" />
+              <Calculator className="h-6 w-6 text-brand-teal-400" />
             </div>
             <div className="ml-5 w-0 flex-1">
               <dl>

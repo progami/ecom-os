@@ -121,10 +121,10 @@ export default function NewWarehouseConfigPage() {
           title="New Warehouse Configuration"
           subtitle="Set cartons per pallet for a SKU"
           icon={Building}
-          iconColor="text-purple-600"
-          bgColor="bg-purple-50"
-          borderColor="border-purple-200"
-          textColor="text-purple-800"
+          iconColor="text-brand-teal-600"
+          bgColor="bg-brand-teal-50"
+          borderColor="border-brand-teal-200"
+          textColor="text-brand-teal-800"
         />
 
         <form onSubmit={handleSubmit} className="bg-white border rounded-lg p-6 space-y-6">
@@ -270,9 +270,9 @@ export default function NewWarehouseConfigPage() {
         </form>
 
         {/* Help Section */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-semibold text-blue-900 mb-2">Important Information</h3>
-          <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+        <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
+          <h3 className="font-semibold text-cyan-900 mb-2">Important Information</h3>
+          <ul className="text-sm text-cyan-800 space-y-1 list-disc list-inside">
             <li>Cartons per pallet values directly impact billing calculations</li>
             <li>Storage configuration is used for storage charges (weekly for standard warehouses, monthly for Amazon)</li>
             <li>Shipping configuration is used when goods are shipped out</li>

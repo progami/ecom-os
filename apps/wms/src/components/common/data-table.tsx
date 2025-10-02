@@ -98,16 +98,16 @@ export function DataTable<T extends Record<string, unknown>>({
     }
 
     return sortDirection === 'asc' ? (
-      <ChevronUp className="h-4 w-4 text-blue-500" />
+      <ChevronUp className="h-4 w-4 text-cyan-600" />
     ) : (
-      <ChevronDown className="h-4 w-4 text-blue-500" />
+      <ChevronDown className="h-4 w-4 text-cyan-600" />
     )
   }
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
       </div>
     )
   }

@@ -101,10 +101,10 @@ export function QuickStartGuide({ userRole }: QuickStartGuideProps) {
   if (!isOpen) return null
 
   return (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 mb-6">
+    <div className="bg-gradient-to-r from-cyan-50 to-cyan-100 border border-cyan-200 rounded-lg p-6 mb-6">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
-          <BookOpen className="h-6 w-6 text-blue-600" />
+          <BookOpen className="h-6 w-6 text-cyan-600" />
           <div>
             <h3 className="text-lg font-semibold">Quick Start Guide</h3>
             <p className="text-sm text-gray-600">Get started with your warehouse management tasks</p>
@@ -130,18 +130,18 @@ export function QuickStartGuide({ userRole }: QuickStartGuideProps) {
               className={`bg-white p-4 rounded-lg border ${
                 isDisabled 
                   ? 'border-gray-200 opacity-60 cursor-not-allowed' 
-                  : 'border-gray-200 hover:border-blue-300 hover:shadow-sm transition-all group cursor-pointer'
+                  : 'border-gray-200 hover:border-cyan-300 hover:shadow-sm transition-all group cursor-pointer'
               }`}
             >
               <div className="flex items-start gap-3">
                 <div className={`p-2 rounded-lg ${
-                  isDisabled ? 'bg-gray-100' : 'bg-blue-100 group-hover:bg-blue-200 transition-colors'
+                  isDisabled ? 'bg-gray-100' : 'bg-cyan-100 group-hover:bg-cyan-200 transition-colors'
                 }`}>
-                  <step.icon className={`h-5 w-5 ${isDisabled ? 'text-gray-400' : 'text-blue-600'}`} />
+                  <step.icon className={`h-5 w-5 ${isDisabled ? 'text-gray-400' : 'text-cyan-600'}`} />
                 </div>
                 <div className="flex-1">
                   <h4 className={`font-medium text-sm mb-1 ${
-                    isDisabled ? 'text-gray-500' : 'group-hover:text-blue-600 transition-colors'
+                    isDisabled ? 'text-gray-500' : 'group-hover:text-cyan-600 transition-colors'
                   }`}>
                     {step.title}
                   </h4>
@@ -150,7 +150,7 @@ export function QuickStartGuide({ userRole }: QuickStartGuideProps) {
                   </p>
                 </div>
                 {!isDisabled && (
-                  <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-blue-600 transition-colors mt-0.5" />
+                  <ArrowRight className="h-4 w-4 text-gray-400 group-hover:text-cyan-600 transition-colors mt-0.5" />
                 )}
               </div>
             </Component>
@@ -167,7 +167,7 @@ export function QuickStartGuide({ userRole }: QuickStartGuideProps) {
         </button>
         <a
           href="/docs/quick-start"
-          className="text-blue-600 hover:text-blue-700 font-medium transition-colors"
+          className="text-cyan-600 hover:text-cyan-700 font-medium transition-colors"
         >
           View full documentation →
         </a>

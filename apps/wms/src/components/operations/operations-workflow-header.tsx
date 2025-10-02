@@ -41,9 +41,9 @@ const workflowSteps: WorkflowStep[] = [
 ]
 
 const groupColors = {
-  outbound: 'bg-purple-100 text-purple-700 border-purple-300',
+  outbound: 'bg-brand-teal-100 text-brand-teal-700 border-brand-teal-300',
   inbound: 'bg-green-100 text-green-700 border-green-300',
-  reporting: 'bg-blue-100 text-blue-700 border-blue-300'
+  reporting: 'bg-cyan-100 text-cyan-700 border-cyan-300'
 }
 
 export function OperationsWorkflowHeader() {
@@ -65,7 +65,7 @@ export function OperationsWorkflowHeader() {
       </div>
       <div className="mt-4 flex gap-6 text-sm">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+          <div className="w-3 h-3 rounded-full bg-brand-teal-500"></div>
           <span className="text-gray-600">Outbound Operations</span>
         </div>
         <div className="flex items-center gap-2">
@@ -73,7 +73,7 @@ export function OperationsWorkflowHeader() {
           <span className="text-gray-600">Inbound Operations</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+          <div className="w-3 h-3 rounded-full bg-cyan-600"></div>
           <span className="text-gray-600">Reporting & Management</span>
         </div>
       </div>

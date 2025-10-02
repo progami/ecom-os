@@ -374,27 +374,27 @@ export default function ShipmentPlanningPage() {
 
         {/* Amazon Integration Status */}
         {showAmazonStatus && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <Settings className="h-5 w-5 text-blue-600 mt-0.5" />
+              <Settings className="h-5 w-5 text-cyan-600 mt-0.5" />
               <div className="flex-1">
-                <h3 className="text-sm font-medium text-blue-900">Amazon Integration Status</h3>
-                <p className="text-sm text-blue-700 mt-1">
+                <h3 className="text-sm font-medium text-cyan-900">Amazon Integration Status</h3>
+                <p className="text-sm text-cyan-700 mt-1">
                   Integration not yet configured. Future SP API integration will enable:
                 </p>
-                <ul className="mt-2 space-y-1 text-sm text-blue-700">
+                <ul className="mt-2 space-y-1 text-sm text-cyan-700">
                   <li>• Automatic inventory sync</li>
                   <li>• Direct shipment creation to Amazon</li>
                   <li>• Real-time FBA fee calculations</li>
                   <li>• Shipment tracking updates</li>
                 </ul>
-                <button className="mt-3 text-sm font-medium text-blue-900 hover:text-blue-800">
+                <button className="mt-3 text-sm font-medium text-cyan-900 hover:text-cyan-800">
                   Configure Integration →
                 </button>
               </div>
               <button
                 onClick={() => setShowAmazonStatus(false)}
-                className="text-blue-400 hover:text-blue-600"
+                className="text-cyan-400 hover:text-cyan-600"
               >
                 <X className="h-4 w-4" />
               </button>

@@ -228,7 +228,7 @@ export function RestockAlertRow({
   }
 
   return (
-    <tr className={`hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}>
+    <tr className={`hover:bg-gray-50 ${isSelected ? 'bg-cyan-50' : ''}`}>
       {onSelect && (
         <td className="px-6 py-4 whitespace-nowrap">
           <input

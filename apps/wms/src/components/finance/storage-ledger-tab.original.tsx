@@ -544,7 +544,7 @@ export function StorageLedgerTab({
                             </div>
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap text-sm text-foreground text-center">
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-cyan-100 text-cyan-800">
                               {snapshot.weekCount} weeks
                             </span>
                           </td>

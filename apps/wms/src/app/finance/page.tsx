@@ -14,14 +14,14 @@ const financeModules = [
     description: 'Manage customer invoices',
     href: '/finance/invoices',
     icon: FileText,
-    color: 'bg-blue-100 text-blue-700'
+    color: 'bg-cyan-100 text-cyan-700'
   },
   {
     title: 'Reconciliation',
     description: 'Match invoices with expected charges',
     href: '/finance/reconciliation',
     icon: Calculator,
-    color: 'bg-purple-100 text-purple-700'
+    color: 'bg-brand-teal-100 text-brand-teal-700'
   },
   {
     title: 'Storage Ledger',
@@ -35,7 +35,7 @@ const financeModules = [
     description: 'Detailed cost breakdown',
     href: '/finance/cost-ledger',
     icon: BarChart3,
-    color: 'bg-indigo-100 text-indigo-700'
+    color: 'bg-cyan-100 text-cyan-700'
   },
   {
     title: 'Reports',

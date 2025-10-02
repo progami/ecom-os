@@ -110,10 +110,10 @@ export default function WarehouseInvoicesPage() {
           title="Warehouse Invoices"
           subtitle="Review and reconcile 3PL billing against purchase orders"
           icon={FileText}
-          iconColor="text-indigo-600"
-          bgColor="bg-indigo-50"
-          borderColor="border-indigo-200"
-          textColor="text-indigo-800"
+          iconColor="text-cyan-600"
+          bgColor="bg-cyan-50"
+          borderColor="border-cyan-200"
+          textColor="text-cyan-800"
         />
 
         <div className="overflow-x-auto rounded-lg border bg-white shadow-sm">

@@ -404,12 +404,12 @@ export default function AmazonIntegrationPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-medium text-gray-600">Combined Total</h3>
-                <p className="text-2xl font-bold text-blue-600 mt-1">
+                <p className="text-2xl font-bold text-cyan-600 mt-1">
                   {totalCombined.toLocaleString()}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">units across all warehouses</p>
               </div>
-              <BarChart3 className="h-8 w-8 text-blue-400" />
+              <BarChart3 className="h-8 w-8 text-cyan-400" />
             </div>
           </div>
           <div className="bg-white border rounded-lg p-4">
@@ -555,7 +555,7 @@ export default function AmazonIntegrationPage() {
                           {item.amazonQty.toLocaleString()}
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${
-                          item.total === 0 ? 'text-gray-400' : isLowStock ? 'text-red-600' : 'text-blue-600'
+                          item.total === 0 ? 'text-gray-400' : isLowStock ? 'text-red-600' : 'text-cyan-600'
                         }`}>
                           <div className="flex items-center justify-end gap-2">
                             {item.total.toLocaleString()}
@@ -581,8 +581,8 @@ export default function AmazonIntegrationPage() {
 
         {/* Analytics Summary */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="font-semibold text-blue-900 mb-2">Inventory Distribution</h3>
+          <div className="bg-gradient-to-r from-cyan-50 to-cyan-100 border border-cyan-200 rounded-lg p-4">
+            <h3 className="font-semibold text-cyan-900 mb-2">Inventory Distribution</h3>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600">SKUs with stock:</span>
@@ -618,8 +618,8 @@ export default function AmazonIntegrationPage() {
         </div>
 
         {/* Info Note */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm text-blue-800">
+        <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
+          <p className="text-sm text-cyan-800">
             <strong>Note:</strong> This page displays inventory levels across all warehouses. Showing {skusWithStock} of {totalSkus} SKUs with stock.
             The total column shows the combined inventory across all warehouses.
           </p>

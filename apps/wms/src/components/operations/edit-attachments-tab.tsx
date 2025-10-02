@@ -273,7 +273,7 @@ export function EditAttachmentsTab({ existingAttachments, onAttachmentsChange, t
                           <Check className="h-4 w-4 text-green-600" />
                         )}
                         {attachment?.isNew && !isDeleted && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">NEW</span>
+                          <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded">NEW</span>
                         )}
                         {isDeleted && (
                           <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">TO DELETE</span>
@@ -296,7 +296,7 @@ export function EditAttachmentsTab({ existingAttachments, onAttachmentsChange, t
                         <div className="flex items-center gap-1 ml-2">
                           <label 
                             htmlFor={`${category.id}-replace`}
-                            className="text-blue-600 hover:text-blue-800 cursor-pointer p-1"
+                            className="text-cyan-600 hover:text-cyan-800 cursor-pointer p-1"
                             title="Replace file"
                           >
                             <Upload className="h-4 w-4" />
@@ -332,7 +332,7 @@ export function EditAttachmentsTab({ existingAttachments, onAttachmentsChange, t
                         <button
                           type="button"
                           onClick={() => undoRemove(category.id)}
-                          className="text-blue-600 hover:text-blue-800 p-1 text-sm"
+                          className="text-cyan-600 hover:text-cyan-800 p-1 text-sm"
                         >
                           Undo
                         </button>

@@ -147,7 +147,7 @@ export default async function FinanceReportsPage() {
         </div>
 
         {/* Custom Report Builder */}
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-2">
+        <div className="bg-gradient-to-r from-cyan-50 to-brand-teal-50 border border-cyan-200 rounded-lg p-2">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold">Custom Report Builder</h3>
@@ -157,19 +157,19 @@ export default async function FinanceReportsPage() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-1 mt-2">
             <div className="bg-white p-2 rounded-lg text-center">
-              <Package2 className="h-8 w-8 mx-auto mb-2 text-indigo-600" />
+              <Package2 className="h-8 w-8 mx-auto mb-2 text-cyan-600" />
               <p className="text-sm font-medium">By Warehouse</p>
             </div>
             <div className="bg-white p-2 rounded-lg text-center">
-              <Calendar className="h-8 w-8 mx-auto mb-2 text-indigo-600" />
+              <Calendar className="h-8 w-8 mx-auto mb-2 text-cyan-600" />
               <p className="text-sm font-medium">By Period</p>
             </div>
             <div className="bg-white p-2 rounded-lg text-center">
-              <DollarSign className="h-8 w-8 mx-auto mb-2 text-indigo-600" />
+              <DollarSign className="h-8 w-8 mx-auto mb-2 text-cyan-600" />
               <p className="text-sm font-medium">By Cost Type</p>
             </div>
             <div className="bg-white p-2 rounded-lg text-center">
-              <TrendingUp className="h-8 w-8 mx-auto mb-2 text-indigo-600" />
+              <TrendingUp className="h-8 w-8 mx-auto mb-2 text-cyan-600" />
               <p className="text-sm font-medium">Trends</p>
             </div>
           </div>

@@ -62,7 +62,7 @@ export default function S3UploadTestPage() {
               name="testFile"
               type="file"
               onChange={handleFileSelect}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"
               aria-label="Select a file to test S3 upload functionality"
               aria-describedby="s3-test-file-help"
             />
@@ -85,7 +85,7 @@ export default function S3UploadTestPage() {
           <button
             onClick={handleUpload}
             disabled={!selectedFile || isUploading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             {isUploading ? 'Uploading...' : 'Upload to S3'}
           </button>
@@ -98,7 +98,7 @@ export default function S3UploadTestPage() {
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
                 <div
-                  className="bg-blue-600 h-2 rounded-full transition-all"
+                  className="bg-cyan-600 h-2 rounded-full transition-all"
                   style={{ width: `${progress.percentage}%` }}
                 />
               </div>
@@ -126,9 +126,9 @@ export default function S3UploadTestPage() {
           )}
         </div>
 
-        <div className="mt-6 bg-blue-50 rounded-lg p-4">
-          <h2 className="font-medium text-blue-900 mb-2">Test Instructions:</h2>
-          <ol className="list-decimal list-inside space-y-1 text-sm text-blue-800">
+        <div className="mt-6 bg-cyan-50 rounded-lg p-4">
+          <h2 className="font-medium text-cyan-900 mb-2">Test Instructions:</h2>
+          <ol className="list-decimal list-inside space-y-1 text-sm text-cyan-800">
             <li>Select a file (preferably under 5MB)</li>
             <li>Click "Upload to S3"</li>
             <li>Check browser console for any CORS errors</li>

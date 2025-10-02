@@ -85,7 +85,7 @@ export function InputField({
         step={step}
         className={`
           w-full px-3 py-2 border rounded-lg
-          focus:outline-none focus:ring-2 focus:ring-blue-500
+          focus:outline-none focus:ring-2 focus:ring-cyan-600
           ${fieldProps.error ? 'border-red-500' : 'border-gray-300'}
           ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}
         `}
@@ -120,7 +120,7 @@ export function SelectField({
         disabled={disabled}
         className={`
           w-full px-3 py-2 border rounded-lg
-          focus:outline-none focus:ring-2 focus:ring-blue-500
+          focus:outline-none focus:ring-2 focus:ring-cyan-600
           ${fieldProps.error ? 'border-red-500' : 'border-gray-300'}
           ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}
         `}
@@ -164,7 +164,7 @@ export function TextAreaField({
         rows={rows}
         className={`
           w-full px-3 py-2 border rounded-lg
-          focus:outline-none focus:ring-2 focus:ring-blue-500
+          focus:outline-none focus:ring-2 focus:ring-cyan-600
           ${fieldProps.error ? 'border-red-500' : 'border-gray-300'}
           ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}
         `}
@@ -203,8 +203,8 @@ export function CheckboxField({
           onChange={(e) => onChange(e.target.checked)}
           disabled={disabled}
           className={`
-            h-4 w-4 text-blue-600 rounded
-            focus:ring-2 focus:ring-blue-500
+            h-4 w-4 text-cyan-600 rounded
+            focus:ring-2 focus:ring-cyan-600
             ${disabled ? 'cursor-not-allowed' : ''}
           `}
         />

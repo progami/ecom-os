@@ -265,10 +265,10 @@ export default function NewWarehousePage() {
           </div>
         </form>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
           <div className="flex items-start">
-            <Building2 className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-            <div className="text-sm text-blue-800">
+            <Building2 className="h-5 w-5 text-cyan-600 mt-0.5 mr-3 flex-shrink-0" />
+            <div className="text-sm text-cyan-800">
               <p className="font-semibold mb-1">Warehouse Setup Tips:</p>
               <ul className="list-disc list-inside space-y-1">
                 <li>Use a unique, memorable code that's easy to reference</li>

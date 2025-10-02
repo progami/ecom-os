@@ -45,7 +45,7 @@ export function DemoWelcome() {
 
         {/* Modal panel */}
         <div className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
-          <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+          <div className="bg-gradient-to-r from-cyan-600 to-brand-teal-600 px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
             <div className="sm:flex sm:items-start">
               <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-white/20 sm:mx-0 sm:h-10 sm:w-10">
                 <Sparkles className="h-6 w-6 text-white" aria-hidden="true" />
@@ -55,7 +55,7 @@ export function DemoWelcome() {
                   Welcome to WMS Demo! 🎉
                 </h3>
                 <div className="mt-2">
-                  <p className="text-sm text-purple-100">
+                  <p className="text-sm text-cyan-100">
                     You're now logged in as an admin with full access to explore all features.
                   </p>
                 </div>
@@ -66,7 +66,7 @@ export function DemoWelcome() {
           <div className="bg-white px-4 pb-4 pt-5 sm:p-6">
             <div className="space-y-4">
               <div className="flex items-start gap-3">
-                <Info className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                <Info className="h-5 w-5 text-cyan-500 flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-sm font-medium text-gray-900">Demo Data Loaded</p>
                   <p className="text-sm text-gray-600">
@@ -100,7 +100,7 @@ export function DemoWelcome() {
           <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
             <button
               type="button"
-              className="inline-flex w-full justify-center rounded-md bg-gradient-to-r from-purple-600 to-pink-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:from-purple-700 hover:to-pink-700 sm:ml-3 sm:w-auto"
+              className="inline-flex w-full justify-center rounded-md bg-gradient-to-r from-cyan-600 to-brand-teal-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:from-cyan-700 hover:to-brand-teal-700 sm:ml-3 sm:w-auto"
               onClick={() => setIsVisible(false)}
             >
               Start Exploring

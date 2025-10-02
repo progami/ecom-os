@@ -137,10 +137,10 @@ export default function EditWarehouseConfigPage() {
           title="Edit Warehouse Configuration"
           subtitle={`${config.warehouse.name} - ${config.sku.skuCode}`}
           icon={Building}
-          iconColor="text-purple-600"
-          bgColor="bg-purple-50"
-          borderColor="border-purple-200"
-          textColor="text-purple-800"
+          iconColor="text-brand-teal-600"
+          bgColor="bg-brand-teal-50"
+          borderColor="border-brand-teal-200"
+          textColor="text-brand-teal-800"
         />
 
         <form onSubmit={handleSubmit} className="bg-white border rounded-lg p-6 space-y-6">

@@ -109,8 +109,8 @@ interface UserCardProps {
 function UserCard({ name, email, role, warehouse, lastLogin, isActive }: UserCardProps) {
   const getRoleBadge = (role: string) => {
     const roleStyles: Record<string, string> = {
-      admin: 'bg-purple-100 text-purple-800',
-      staff: 'bg-blue-100 text-blue-800',
+      admin: 'bg-brand-teal-100 text-brand-teal-800',
+      staff: 'bg-cyan-100 text-cyan-800',
     }
     
     const roleLabels: Record<string, string> = {

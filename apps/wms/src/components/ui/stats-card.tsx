@@ -43,10 +43,10 @@ const variantStyles = {
     border: 'border-red-400'
   },
   info: {
-    container: 'bg-blue-50',
-    icon: 'text-blue-600',
-    value: 'text-blue-600',
-    border: 'border-blue-400'
+    container: 'bg-cyan-50',
+    icon: 'text-cyan-600',
+    value: 'text-cyan-600',
+    border: 'border-cyan-400'
   }
 }
 

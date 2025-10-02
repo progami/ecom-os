@@ -548,7 +548,7 @@ export default function ReceiveTabbedPage() {
             <button
               onClick={handleSubmit}
               disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white bg-cyan-600 rounded-md hover:bg-cyan-700 disabled:opacity-50"
             >
               <Save className="w-4 h-4 mr-2 inline" />
               {isSubmitting ? 'Creating...' : 'Create Transaction'}

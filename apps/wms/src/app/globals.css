@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  @apply min-h-screen antialiased;
+  background: #f8fafc;
+  color: #0f172a;
+  font-feature-settings: "cv11", "ss01";
+  font-optical-sizing: auto;
+}
+
+body.dark {
+  background: #041324;
+  color: rgb(241, 245, 249);
+}
+
 /* Prevent body scrolling */
 html, body {
   height: 100%;
@@ -84,20 +101,44 @@ input:-webkit-autofill:active {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-muted;
+  background: rgba(203, 213, 225, 0.3);
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-muted-foreground/30 rounded-md;
+  background: rgba(8, 145, 178, 0.4);
+  border-radius: 0.5rem;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-muted-foreground/50;
+  background: rgba(8, 145, 178, 0.6);
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(0, 194, 185, 0.3);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 194, 185, 0.5);
+}
+
+/* Selection */
+::selection {
+  background: rgba(8, 145, 178, 0.25);
+  color: #0e7490;
+}
+
+.dark ::selection {
+  background: rgba(0, 194, 185, 0.3);
+  color: rgb(204, 251, 241);
 }
 
 /* Loading animation */

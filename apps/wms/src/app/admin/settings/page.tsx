@@ -179,7 +179,7 @@ export default function AdminSettingsPage() {
               value={
                 <a
                   href={releaseUrl}
-                  className="cursor-help underline hover:text-blue-600 dark:hover:text-blue-400"
+                  className="cursor-help underline hover:text-cyan-600 dark:hover:text-cyan-400"
                   target="_blank"
                   rel="noopener noreferrer"
                   title={`Last deployed: ${new Date(process.env.NEXT_PUBLIC_BUILD_TIME || new Date()).toLocaleDateString('en-US', { 

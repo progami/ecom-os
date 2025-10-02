@@ -80,10 +80,10 @@ export default function WarehouseConfigsClientPage({
         title="Warehouse SKU Configurations"
         subtitle="Configure cartons per pallet for each warehouse and SKU"
         icon={Settings}
-        iconColor="text-purple-600"
-        bgColor="bg-purple-50"
-        borderColor="border-purple-200"
-        textColor="text-purple-800"
+        iconColor="text-brand-teal-600"
+        bgColor="bg-brand-teal-50"
+        borderColor="border-brand-teal-200"
+        textColor="text-brand-teal-800"
         actions={
           <div className="flex gap-2">
             <ImportButton 
@@ -108,7 +108,7 @@ export default function WarehouseConfigsClientPage({
               <p className="text-sm text-gray-600">Total Configurations</p>
               <p className="text-2xl font-bold">{stats.totalConfigs}</p>
             </div>
-            <Settings className="h-8 w-8 text-purple-600 opacity-20" />
+            <Settings className="h-8 w-8 text-brand-teal-600 opacity-20" />
           </div>
         </div>
         
@@ -126,9 +126,9 @@ export default function WarehouseConfigsClientPage({
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-600">Configured SKUs</p>
-              <p className="text-2xl font-bold text-blue-600">{stats.uniqueSkus}</p>
+              <p className="text-2xl font-bold text-cyan-600">{stats.uniqueSkus}</p>
             </div>
-            <Package2 className="h-8 w-8 text-blue-600 opacity-20" />
+            <Package2 className="h-8 w-8 text-cyan-600 opacity-20" />
           </div>
         </div>
         
