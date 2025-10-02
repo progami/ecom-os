@@ -2,8 +2,9 @@
 
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { Plus, Search, MoreVertical, Mail } from '@/lib/lucide-icons'
+import { Plus, Search, MoreVertical, Mail, Users } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 
 export default function AdminUsersPage() {
   const { data: session, status } = useSession()
@@ -12,7 +13,7 @@ export default function AdminUsersPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
         </div>
       </DashboardLayout>
     )
@@ -30,16 +31,12 @@ export default function AdminUsersPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-full space-y-2">
-        {/* Page Header with Description */}
-        <div className="bg-white border rounded-lg p-2">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">User Management</h1>
-              <p className="text-muted-foreground">
-                Manage users and their permissions
-              </p>
-            </div>
+      <PageContainer>
+        <PageHeaderSection
+          title="Users"
+          description="Administration"
+          icon={Users}
+          actions={
             <Link
               href="/admin/users/new"
               className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90"
@@ -47,8 +44,9 @@ export default function AdminUsersPage() {
               <Plus className="h-4 w-4 mr-2" />
               Add User
             </Link>
-          </div>
-        </div>
+          }
+        />
+        <PageContent>
 
         {/* Search */}
         <div className="max-w-md">
@@ -92,7 +90,8 @@ export default function AdminUsersPage() {
             isActive={true}
           />
         </div>
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

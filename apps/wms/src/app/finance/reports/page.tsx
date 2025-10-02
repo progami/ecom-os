@@ -1,8 +1,9 @@
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { FileText, Download, DollarSign, TrendingUp, Package2, Calendar } from '@/lib/lucide-icons'
+import { FileText, Download, DollarSign, TrendingUp, Package2, Calendar, FileBarChart } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 
 export default async function FinanceReportsPage() {
@@ -68,19 +69,19 @@ export default async function FinanceReportsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Financial Reports</h1>
-            <p className="text-muted-foreground">
-              Generate and download financial reports
-            </p>
-          </div>
-          <Button className="gap-2">
-            <Calendar className="h-4 w-4" />
-            Schedule Reports
-          </Button>
-        </div>
+      <PageContainer>
+        <PageHeaderSection
+          title="Reports"
+          description="Finance"
+          icon={FileBarChart}
+          actions={
+            <Button className="gap-2">
+              <Calendar className="h-4 w-4" />
+              Schedule Reports
+            </Button>
+          }
+        />
+        <PageContent>
 
         {/* Featured Reports */}
         <div>
@@ -174,7 +175,8 @@ export default async function FinanceReportsPage() {
             </div>
           </div>
         </div>
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

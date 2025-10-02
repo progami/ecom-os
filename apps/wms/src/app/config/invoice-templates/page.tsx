@@ -3,17 +3,17 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { 
-  FileText, 
-  Plus, 
-  Edit, 
-  Trash2, 
+import {
+  FileType,
+  Plus,
+  Edit,
+  Trash2,
   Save,
   X,
   Copy
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import { toast } from 'react-hot-toast'
@@ -211,7 +211,7 @@ export default function InvoiceTemplatesPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
         </div>
       </DashboardLayout>
     )
@@ -219,15 +219,11 @@ export default function InvoiceTemplatesPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <PageHeader
+      <PageContainer>
+        <PageHeaderSection
           title="Invoice Templates"
-          subtitle="Configure warehouse-specific billing strategies"
-          icon={FileText}
-          iconColor="text-brand-teal-600"
-          bgColor="bg-brand-teal-50"
-          borderColor="border-brand-teal-200"
-          textColor="text-brand-teal-800"
+          description="Configuration"
+          icon={FileType}
           actions={
             <Button onClick={() => handleOpenModal()} className="gap-2">
               <Plus className="h-4 w-4" />
@@ -235,6 +231,7 @@ export default function InvoiceTemplatesPage() {
             </Button>
           }
         />
+        <PageContent>
 
         {/* Templates Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -308,18 +305,19 @@ export default function InvoiceTemplatesPage() {
           ))}
         </div>
 
-        {templates.length === 0 && (
-          <EmptyState
-            icon={FileText}
-            title="No invoice templates"
-            description="Create your first invoice template to define warehouse-specific billing strategies."
-            action={{
-              label: 'Create Template',
-              onClick: () => handleOpenModal()
-            }}
-          />
-        )}
-      </div>
+          {templates.length === 0 && (
+            <EmptyState
+              icon={FileType}
+              title="No invoice templates"
+              description="Create your first invoice template to define warehouse-specific billing strategies."
+              action={{
+                label: 'Create Template',
+                onClick: () => handleOpenModal()
+              }}
+            />
+          )}
+        </PageContent>
+      </PageContainer>
 
       {/* Template Modal */}
       {showModal && (
@@ -550,7 +548,7 @@ export default function InvoiceTemplatesPage() {
             </div>
           </div>
         </div>
-      )}
-    </DashboardLayout>
-  )
-}
+        )}
+      </DashboardLayout>
+    )
+  }

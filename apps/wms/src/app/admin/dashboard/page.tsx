@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { 
-  Package2, 
-  TrendingUp, 
-  DollarSign, 
+import {
+  Package2,
+  TrendingUp,
+  DollarSign,
   AlertCircle,
   Package,
   FileText,
@@ -27,10 +27,11 @@ import {
   Clock,
   Zap,
   FileSpreadsheet,
-  TrendingDown
+  TrendingDown,
+  LayoutDashboard
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { DemoWelcome } from '@/components/ui/demo-welcome'
 import { toast } from 'react-hot-toast'
 import {
@@ -408,7 +409,7 @@ export default function AdminDashboardPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
         </div>
       </DashboardLayout>
     )
@@ -455,17 +456,15 @@ export default function AdminDashboardPage() {
   return (
     <DashboardLayout>
       <DemoWelcome />
-      <div className="space-y-6">
-        {/* Enhanced Header with Actions */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <PageHeader
-            title="Admin Dashboard"
-            subtitle="System Overview"
-            icon={BarChart3}
-          />
-          <div className="flex items-center gap-3">
-            {/* Demo Data Toggle */}
-            <label className="flex items-center gap-2 px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer min-h-[44px]">
+      <PageContainer>
+        <PageHeaderSection
+          title="Admin Dashboard"
+          description="Administration"
+          icon={LayoutDashboard}
+          actions={
+            <div className="flex items-center gap-3">
+              {/* Demo Data Toggle */}
+              <label className="flex items-center gap-2 px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer min-h-[44px]">
               <input
                 type="checkbox"
                 checked={useDemoData}
@@ -527,10 +526,12 @@ export default function AdminDashboardPage() {
             >
               <RefreshCw className={`h-4 w-4 sm:h-5 sm:w-5 ${loadingStats ? 'animate-spin' : ''}`} />
             </button>
-          </div>
-        </div>
+            </div>
+          }
+        />
+        <PageContent>
 
-        {/* Enhanced Stats Cards with Sparklines */}
+          {/* Enhanced Stats Cards with Sparklines */}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {loadingStats ? (
             <>
@@ -1234,7 +1235,8 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         </div>
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

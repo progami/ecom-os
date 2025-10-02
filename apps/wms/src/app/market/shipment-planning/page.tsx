@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { 
-  Package, AlertCircle, 
+import {
+  Package, AlertCircle,
   RefreshCw, Clock, BarChart3,
   ArrowUp, Search,
-  ShoppingCart, Settings, Link2 as LinkIcon, X
+  ShoppingCart, Settings, Link2 as LinkIcon, X, Truck
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
 import { 
@@ -316,7 +316,7 @@ export default function ShipmentPlanningPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
         </div>
       </DashboardLayout>
     )
@@ -324,9 +324,11 @@ export default function ShipmentPlanningPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <PageHeader
-          title="FBA Shipment Planning"
+      <PageContainer>
+        <PageHeaderSection
+          title="Shipment Planning"
+          description="Marketplace"
+          icon={Truck}
           actions={
             <div className="flex items-center gap-2">
               <button
@@ -371,6 +373,7 @@ export default function ShipmentPlanningPage() {
             </div>
           }
         />
+        <PageContent>
 
         {/* Amazon Integration Status */}
         {showAmazonStatus && (
@@ -675,7 +678,8 @@ export default function ShipmentPlanningPage() {
             </div>
           </div>
         </div>
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

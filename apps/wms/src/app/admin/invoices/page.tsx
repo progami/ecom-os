@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { Plus, Search, Filter, Download, FileText, CheckCircle, AlertCircle, Clock } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 
 export default function AdminInvoicesPage() {
   const { data: session, status } = useSession()
@@ -12,7 +13,7 @@ export default function AdminInvoicesPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
         </div>
       </DashboardLayout>
     )
@@ -30,29 +31,28 @@ export default function AdminInvoicesPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Invoice Management</h1>
-            <p className="text-muted-foreground">
-              Process and reconcile 3PL invoices
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </button>
-            <Link
-              href="/admin/invoices/new"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90"
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              New Invoice
-            </Link>
-          </div>
-        </div>
+      <PageContainer>
+        <PageHeaderSection
+          title="Admin Invoices"
+          description="Administration"
+          icon={FileText}
+          actions={
+            <div className="flex items-center gap-2">
+              <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </button>
+              <Link
+                href="/admin/invoices/new"
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                New Invoice
+              </Link>
+            </div>
+          }
+        />
+        <PageContent>
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">
@@ -245,7 +245,8 @@ export default function AdminInvoicesPage() {
             </button>
           </div>
         </div>
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

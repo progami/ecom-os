@@ -5,8 +5,8 @@ import React from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { 
-  Users, 
+import {
+  Users,
   Settings as SettingsIcon,
   Database,
   Bell,
@@ -17,7 +17,8 @@ import {
   FileText,
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader, HelpfulTips } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
+import { HelpfulTips } from '@/components/ui/page-header'
 import { toast } from 'react-hot-toast'
 
 export default function AdminSettingsPage() {
@@ -38,7 +39,7 @@ export default function AdminSettingsPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
         </div>
       </DashboardLayout>
     )
@@ -80,16 +81,13 @@ export default function AdminSettingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <PageHeader
-          title="System Settings"
+      <PageContainer>
+        <PageHeaderSection
+          title="Settings"
+          description="Administration"
           icon={SettingsIcon}
-          iconColor="text-gray-600"
-          bgColor="bg-gray-50"
-          borderColor="border-gray-200"
-          textColor="text-gray-800"
         />
+        <PageContent>
 
         {/* Settings Categories */}
         <div className="grid gap-6 md:grid-cols-2">
@@ -212,7 +210,8 @@ export default function AdminSettingsPage() {
             "Review user permissions periodically to maintain proper access control."
           ]}
         />
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

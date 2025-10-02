@@ -3,6 +3,7 @@
 import React, { Suspense, useState, useEffect } from 'react'
 import { Calculator, AlertCircle, CheckCircle, XCircle, FileText, Save, Loader2, ChevronDown, ChevronRight } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { StatsCard } from '@/components/ui/stats-card'
 import { useSearchParams } from 'next/navigation'
@@ -329,71 +330,68 @@ function FinanceReconciliationPageContent() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-2">
-        {/* Page Header with Description */}
-        <div className="bg-white border rounded-lg p-2">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Invoice Reconciliation</h1>
-              <p className="text-muted-foreground">
-                Compare expected vs actual charges
-              </p>
-            </div>
+      <PageContainer>
+        <PageHeaderSection
+          title="Reconciliation"
+          description="Finance"
+          icon={Calculator}
+          actions={
             <div className="flex items-center gap-2">
-            {!invoiceId && (
-              <>
-                <select
-                  value={selectedWarehouse}
-                  onChange={(e) => setSelectedWarehouse(e.target.value)}
-                  className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="">All Warehouses</option>
-                  {warehouses.map(warehouse => (
-                    <option key={warehouse.id} value={warehouse.id}>
-                      {warehouse.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={selectedPeriod}
-                  onChange={(e) => setSelectedPeriod(e.target.value)}
-                  className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                >
-                  <option value="">All Periods</option>
-                  <option value="2024-01">Jan 16 - Feb 15, 2024</option>
-                  <option value="2023-12">Dec 16 - Jan 15, 2024</option>
-                  <option value="2023-11">Nov 16 - Dec 15, 2023</option>
-                </select>
-                <Button
-                  onClick={runReconciliation}
-                  disabled={processing}
-                  className="gap-2"
-                >
-                  {processing ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Calculator className="h-4 w-4" />
-                      Run Reconciliation
-                    </>
-                  )}
+              {!invoiceId && (
+                <>
+                  <select
+                    value={selectedWarehouse}
+                    onChange={(e) => setSelectedWarehouse(e.target.value)}
+                    className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">All Warehouses</option>
+                    {warehouses.map(warehouse => (
+                      <option key={warehouse.id} value={warehouse.id}>
+                        {warehouse.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={selectedPeriod}
+                    onChange={(e) => setSelectedPeriod(e.target.value)}
+                    className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">All Periods</option>
+                    <option value="2024-01">Jan 16 - Feb 15, 2024</option>
+                    <option value="2023-12">Dec 16 - Jan 15, 2024</option>
+                    <option value="2023-11">Nov 16 - Dec 15, 2023</option>
+                  </select>
+                  <Button
+                    onClick={runReconciliation}
+                    disabled={processing}
+                    className="gap-2"
+                  >
+                    {processing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Calculator className="h-4 w-4" />
+                        Run Reconciliation
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+              {invoiceId && (
+                <Button asChild variant="ghost">
+                  <Link href="/finance/reconciliation">View All Reconciliations</Link>
                 </Button>
-              </>
-            )}
-            {invoiceId && (
-              <Button asChild variant="ghost">
-                <Link href="/finance/reconciliation">View All Reconciliations</Link>
-              </Button>
-            )}
+              )}
             </div>
-          </div>
-        </div>
+          }
+        />
+        <PageContent>
 
-        {/* Summary Cards */}
-        <div className="grid gap-1 md:grid-cols-4">
+          {/* Summary Cards */}
+          <div className="grid gap-1 md:grid-cols-4">
           <StatsCard
             title="Total Invoiced"
             value={formatCurrency(totals.invoicedAmount)}
@@ -423,11 +421,11 @@ function FinanceReconciliationPageContent() {
           />
         </div>
 
-        {/* Reconciliation Details */}
-        <div className="space-y-2">
-          {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          {/* Reconciliation Details */}
+          <div className="space-y-2">
+            {loading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
             </div>
           ) : invoices.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
@@ -668,9 +666,9 @@ function FinanceReconciliationPageContent() {
                 </div>
               )
             })}
-        </div>
+          </div>
 
-        {/* Note Modal */}
+          {/* Note Modal */}
         {noteModalOpen && selectedItem && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 w-full max-w-lg">
@@ -715,7 +713,8 @@ function FinanceReconciliationPageContent() {
             </div>
           </div>
         )}
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

@@ -4,13 +4,14 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useClientLogger } from '@/hooks/useClientLogger'
-import { 
-  Package2, 
-  TrendingUp, 
+import {
+  Home,
+  TrendingUp,
   Calendar,
   ChevronDown
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { SectionHeader } from '@/components/dashboard/section-header'
 import { MarketSection } from '@/components/dashboard/market-section'
 import { toast } from 'react-hot-toast'
@@ -201,7 +202,7 @@ export default function DashboardPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
         </div>
       </DashboardLayout>
     )
@@ -225,7 +226,7 @@ export default function DashboardPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
         </div>
       </DashboardLayout>
     )
@@ -291,18 +292,12 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-full space-y-2">
-        {/* Header with Actions */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Package2 className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-xl font-semibold">Dashboard</h1>
-              <p className="text-sm text-muted-foreground">Welcome back, {session.user.name}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Time Range Selector */}
+      <PageContainer>
+        <PageHeaderSection
+          title="Dashboard"
+          description="Home"
+          icon={Home}
+          metadata={
             <div className="relative">
               <button
                 onClick={() => setShowTimeRangeDropdown(!showTimeRangeDropdown)}
@@ -332,13 +327,12 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-            
-          </div>
-        </div>
+          }
+        />
+        <PageContent>
 
-
-        {/* Main Dashboard Sections */}
-        <div className="grid gap-2">
+          {/* Main Dashboard Sections */}
+          <div className="grid gap-2">
           {/* Market Section - Inventory Level Graph Only */}
           <div className="border rounded-lg p-2 bg-white dark:bg-gray-900">
             <SectionHeader 
@@ -350,7 +344,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

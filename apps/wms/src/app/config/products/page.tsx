@@ -6,9 +6,9 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { toast } from 'react-hot-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
-import { Package2, Plus, Loader2 } from '@/lib/lucide-icons'
+import { Package, Plus, Loader2 } from '@/lib/lucide-icons'
 import ProductsPanel from './products-panel'
 
 const ALLOWED_ROLES = ['admin']
@@ -39,7 +39,7 @@ export default function ProductsPage() {
       <DashboardLayout>
         <div className="flex h-full items-center justify-center">
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <Loader2 className="h-6 w-6 animate-spin" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
             <span>Loading…</span>
           </div>
         </div>
@@ -53,15 +53,11 @@ export default function ProductsPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex h-full min-h-0 flex-col gap-6 overflow-y-auto pr-2">
-        <PageHeader
+      <PageContainer>
+        <PageHeaderSection
           title="Products"
-          subtitle="Maintain SKU definitions and packaging information"
-          icon={Package2}
-          iconColor="text-cyan-600"
-          bgColor="bg-cyan-50"
-          borderColor="border-cyan-200"
-          textColor="text-cyan-800"
+          description="Configuration"
+          icon={Package}
           actions={
             <Button asChild className="gap-2">
               <Link href="/config/products/new">
@@ -71,9 +67,10 @@ export default function ProductsPage() {
             </Button>
           }
         />
-
-        <ProductsPanel />
-      </div>
+        <PageContent>
+          <ProductsPanel />
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

@@ -7,14 +7,14 @@ import {
   Plus,
   Edit,
   Trash2,
-  Building2,
+  Building,
   MapPin,
   RefreshCw,
   AlertTriangle,
   DollarSign,
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { ImportButton } from '@/components/ui/import-button'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
@@ -409,15 +409,11 @@ function WarehouseAndRatesPageContent() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-full space-y-4">
-        <PageHeader
-          title="Warehouses & Cost Rates"
-          subtitle="Select a warehouse to review contacts, activity, and pricing"
-          icon={Building2}
-          iconColor="text-teal-600"
-          bgColor="bg-teal-50"
-          borderColor="border-teal-200"
-          textColor="text-teal-800"
+      <PageContainer>
+        <PageHeaderSection
+          title="Warehouses"
+          description="Configuration"
+          icon={Building}
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <ImportButton
@@ -439,6 +435,7 @@ function WarehouseAndRatesPageContent() {
             </div>
           }
         />
+        <PageContent>
 
         <div className="grid lg:grid-cols-[2fr,3fr] gap-4 flex-1">
           <div className="border rounded-lg bg-white flex flex-col">
@@ -669,14 +666,15 @@ function WarehouseAndRatesPageContent() {
             ) : (
               <div className="flex items-center justify-center flex-1">
                 <div className="text-center text-gray-500">
-                  <Building2 className="h-12 w-12 mx-auto mb-3" />
+                  <Building className="h-12 w-12 mx-auto mb-3" />
                   <p>Select a warehouse to view details</p>
                 </div>
               </div>
             )}
           </div>
         </div>
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

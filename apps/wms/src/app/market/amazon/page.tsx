@@ -5,8 +5,8 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
-import { Package2, RefreshCw, Loader2, Search, TrendingUp, AlertTriangle, BarChart3, Construction, Hammer, Wrench } from '@/lib/lucide-icons'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
+import { ShoppingCart, RefreshCw, Loader2, Search, TrendingUp, AlertTriangle, BarChart3, Construction, Hammer, Wrench } from '@/lib/lucide-icons'
 import { toast } from 'react-hot-toast'
 
 interface InventoryComparison {
@@ -27,10 +27,13 @@ export default function AmazonIntegrationPage() {
   // TEMPORARY: Show under construction page
   return (
     <DashboardLayout>
-      <div className="px-4 sm:px-6 lg:px-8 py-8">
-        <PageHeader
-          title="Amazon FBA Integration"
+      <PageContainer>
+        <PageHeaderSection
+          title="Amazon Integration"
+          description="Marketplace"
+          icon={ShoppingCart}
         />
+        <PageContent>
 
         <div className="mt-8 flex flex-col items-center justify-center text-center py-16">
           <div className="relative">
@@ -81,7 +84,8 @@ export default function AmazonIntegrationPage() {
             Expected availability: Q2 2024
           </p>
         </div>
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 
