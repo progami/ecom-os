@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Download, FileText, Plus, Search, Eye, Check, X, Loader2, Filter } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -300,15 +300,11 @@ export default function FinanceInvoicesPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <PageHeader
-          title="Invoice Management"
-          subtitle="Process and manage warehouse invoices"
+      <PageContainer>
+        <PageHeaderSection
+          title="Invoices"
+          description="Finance"
           icon={FileText}
-          iconColor="text-amber-600"
-          bgColor="bg-amber-50"
-          borderColor="border-amber-200"
-          textColor="text-amber-800"
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative w-64">
@@ -344,8 +340,9 @@ export default function FinanceInvoicesPage() {
             </div>
           }
         />
-
-        <div className="flex flex-col gap-2 rounded-lg border bg-white p-4">
+        <PageContent>
+        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
           <div className="flex flex-col gap-2 sm:flex-row">
             <select 
               value={selectedWarehouse}
@@ -415,7 +412,7 @@ export default function FinanceInvoicesPage() {
         </div>
 
         {/* Invoice Table */}
-        <div className="border rounded-lg overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-slate-200 shadow-soft dark:border-[#0b3a52]">
           <div className="bg-gray-50 px-6 py-3 border-b">
             <h3 className="text-lg font-semibold">Invoices</h3>
             <p className="text-sm text-gray-600 mt-1">
@@ -605,8 +602,9 @@ export default function FinanceInvoicesPage() {
             </div>
           </div>
         )}
-
-      </div>
+        </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

@@ -12,6 +12,7 @@ import { useSession } from 'next-auth/react'
 
 // Internal components
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
 import { ReceiveCostsTab, CostsTabRef } from '@/components/operations/receive-costs-tab'
 import { CargoTab } from '@/components/operations/receive-cargo-tab'
@@ -44,7 +45,7 @@ const displayValidationErrors = (errors: Array<{ field?: string; message: string
 const _getFieldError = (errors: Record<string, string>, field: string) => errors[field]
 
 // Icons
-import { Package2, FileText, DollarSign, Paperclip, Save, X } from '@/lib/lucide-icons'
+import { Package2, FileText, DollarSign, Paperclip, Save, X, PackageCheck } from '@/lib/lucide-icons'
 
 // Types
 interface WarehouseOption {
@@ -530,31 +531,32 @@ export default function ReceiveTabbedPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-full space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Package2 className="h-6 w-6 text-gray-600" />
-            <h1 className="text-2xl font-semibold text-gray-900">New Receipt</h1>
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleCancel}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              <X className="w-4 h-4 mr-2 inline" />
-              Cancel
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-cyan-600 rounded-md hover:bg-cyan-700 disabled:opacity-50"
-            >
-              <Save className="w-4 h-4 mr-2 inline" />
-              {isSubmitting ? 'Creating...' : 'Create Transaction'}
-            </button>
-          </div>
-        </div>
+      <PageContainer>
+        <PageHeaderSection
+          title="Receive Inventory"
+          description="Operations"
+          icon={PackageCheck}
+          actions={
+            <div className="flex gap-2">
+              <button
+                onClick={handleCancel}
+                className="rounded-lg px-4 py-2 text-sm font-medium text-slate-700 transition-all hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10"
+              >
+                <X className="mr-2 inline h-4 w-4" />
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+                className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:bg-cyan-700 disabled:opacity-50 dark:bg-[#00C2B9] dark:text-[#002430]"
+              >
+                <Save className="mr-2 inline h-4 w-4" />
+                {isSubmitting ? 'Creating...' : 'Create Transaction'}
+              </button>
+            </div>
+          }
+        />
+        <PageContent>
 
         {/* Tabbed Content */}
         <TabbedContainer
@@ -699,7 +701,8 @@ export default function ReceiveTabbedPage() {
             />
           </TabPanel>
         </TabbedContainer>
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

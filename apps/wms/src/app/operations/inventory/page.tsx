@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
-import { Search, Building, Package, ArrowUpDown, ArrowUp, ArrowDown, Filter } from '@/lib/lucide-icons'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
+import { Search, Building, Package, ArrowUpDown, ArrowUp, ArrowDown, Filter, BookOpen } from '@/lib/lucide-icons'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
@@ -552,52 +552,51 @@ function InventoryPage() {
   if (status === 'loading') {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-        </div>
+        <PageContainer>
+          <div className="flex h-full items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
+          </div>
+        </PageContainer>
       </DashboardLayout>
     )
   }
 
   return (
     <DashboardLayout>
-      <div className="flex h-full min-h-0 flex-col gap-6 overflow-y-auto pr-2">
-        <PageHeader
+      <PageContainer>
+        <PageHeaderSection
           title="Inventory Ledger"
-          subtitle="Real-time inventory balances by warehouse and batch"
-          icon={Package}
-          iconColor="text-cyan-600"
-          bgColor="bg-cyan-50"
-          borderColor="border-cyan-200"
-          textColor="text-cyan-800"
+          description="Operations"
+          icon={BookOpen}
           actions={headerActions}
         />
+        <PageContent>
+          <div className="flex flex-col gap-6">
+            <StatsCardGrid cols={3}>
+              <StatsCard
+                title="Total Cartons"
+                value={metrics.totalCartons}
+                subtitle={`${metrics.uniqueWarehouses} ${metrics.uniqueWarehouses === 1 ? 'warehouse' : 'warehouses'}`}
+                icon={Package}
+                variant="info"
+              />
+              <StatsCard
+                title="Total Pallets"
+                value={metrics.totalPallets}
+                subtitle="Calculated from cartons"
+                icon={Building}
+                variant="default"
+              />
+              <StatsCard
+                title="Active SKUs"
+                value={metrics.summary.totalSkuCount}
+                subtitle="Reporting inventory"
+                icon={Search}
+                variant="default"
+              />
+            </StatsCardGrid>
 
-        <StatsCardGrid cols={3}>
-          <StatsCard
-            title="Total Cartons"
-            value={metrics.totalCartons}
-            subtitle={`${metrics.uniqueWarehouses} ${metrics.uniqueWarehouses === 1 ? 'warehouse' : 'warehouses'}`}
-            icon={Package}
-            variant="info"
-          />
-          <StatsCard
-            title="Total Pallets"
-            value={metrics.totalPallets}
-            subtitle="Calculated from cartons"
-            icon={Building}
-            variant="default"
-          />
-          <StatsCard
-            title="Active SKUs"
-            value={metrics.summary.totalSkuCount}
-            subtitle="Reporting inventory"
-            icon={Search}
-            variant="default"
-          />
-        </StatsCardGrid>
-
-        <div className="flex min-h-0 flex-col rounded-lg border bg-white shadow-sm">
+            <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
           {/* Reserve space for filters/stats before the table scroll area */}
           <div
             className="relative min-h-0 overflow-x-auto overflow-y-auto"
@@ -1026,8 +1025,10 @@ function InventoryPage() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+          </div>
+        </div>
+      </PageContent>
+    </PageContainer>
   </DashboardLayout>
   )
 }

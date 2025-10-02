@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Badge } from '@/components/ui/badge'
 import { FileText, Loader2 } from '@/lib/lucide-icons'
 
@@ -93,30 +93,25 @@ export default function WarehouseInvoicesPage() {
   if (status === 'loading' || loading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="flex flex-col items-center gap-3 text-muted-foreground">
-            <Loader2 className="h-8 w-8 animate-spin" />
-            <span>Loading warehouse invoices…</span>
+        <PageContainer>
+          <div className="flex h-full items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
           </div>
-        </div>
+        </PageContainer>
       </DashboardLayout>
     )
   }
 
   return (
     <DashboardLayout>
-      <div className="flex h-full min-h-0 flex-col gap-6 overflow-y-auto pr-2">
-        <PageHeader
+      <PageContainer>
+        <PageHeaderSection
           title="Warehouse Invoices"
-          subtitle="Review and reconcile 3PL billing against purchase orders"
+          description="Operations"
           icon={FileText}
-          iconColor="text-cyan-600"
-          bgColor="bg-cyan-50"
-          borderColor="border-cyan-200"
-          textColor="text-cyan-800"
         />
-
-        <div className="overflow-x-auto rounded-lg border bg-white shadow-sm">
+        <PageContent>
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
           <table className="min-w-full table-auto text-sm">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
@@ -158,7 +153,8 @@ export default function WarehouseInvoicesPage() {
             </tbody>
           </table>
         </div>
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

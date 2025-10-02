@@ -16,7 +16,7 @@ import {
   TrendingDown
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { StatsCard } from '@/components/ui/stats-card'
@@ -153,24 +153,22 @@ export default function PalletVariancePage() {
   if (loading || status === 'loading') {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-        </div>
+        <PageContainer>
+          <div className="flex h-full items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
+          </div>
+        </PageContainer>
       </DashboardLayout>
     )
   }
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-full space-y-2">
-        <PageHeader
-          title="Pallet Variance Management"
-          subtitle="Track and reconcile differences between system and physical pallet counts"
-          icon={Package}
-          iconColor="text-orange-600"
-          bgColor="bg-orange-50"
-          borderColor="border-orange-200"
-          textColor="text-orange-800"
+      <PageContainer>
+        <PageHeaderSection
+          title="Pallet Variance"
+          description="Operations"
+          icon={AlertTriangle}
           actions={
             <div className="flex items-center gap-2">
               <Button onClick={fetchVariances} variant="outline" className="gap-2">
@@ -184,9 +182,11 @@ export default function PalletVariancePage() {
             </div>
           }
         />
+        <PageContent>
+        <div className="flex flex-col gap-6">
 
         {/* Summary Cards */}
-        <div className="grid gap-1 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-4">
           <StatsCard
             title="Total Variance"
             value={`${totalVariance > 0 ? '+' : ''}${totalVariance} pallets`}
@@ -266,8 +266,8 @@ export default function PalletVariancePage() {
         </div>
 
         {/* Variance Table */}
-        <div className="border rounded-lg overflow-hidden">
-          <div className="bg-gray-50 px-6 py-3 border-b">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
+          <div className="border-b border-slate-200 bg-slate-50 px-6 py-3 dark:border-[#0b3a52] dark:bg-[#041324]">
             <h3 className="text-lg font-semibold">Pallet Variances</h3>
             <p className="text-sm text-gray-600 mt-1">
               Showing {filteredVariances.length} of {variances.length} variances
@@ -396,7 +396,9 @@ export default function PalletVariancePage() {
             </table>
           </div>
         </div>
-      </div>
+        </div>
+        </PageContent>
+      </PageContainer>
 
       {/* Adjustment Modal */}
       {showAdjustModal && selectedVariance && (
