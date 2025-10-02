@@ -569,7 +569,7 @@ export default function ReceiveTabbedPage() {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
                     Transaction Date & Time *
                   </label>
                   <input
@@ -581,19 +581,19 @@ export default function ReceiveTabbedPage() {
                       // Use UTC time directly - no timezone adjustment
                       return maxDate.toISOString().slice(0, 16)
                     })()}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary"
                     required
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
                     Warehouse *
                   </label>
                   <select
                     value={formData.warehouseId}
                     onChange={(e) => updateFormField('warehouseId', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary"
                     required
                   >
                     <option value="">Select warehouse</option>
@@ -606,14 +606,14 @@ export default function ReceiveTabbedPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    PO # * <span className="text-xs text-gray-500">(Reference Number / Commercial Invoice)</span>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    PO # * <span className="text-xs text-slate-500">(Reference Number / Commercial Invoice)</span>
                   </label>
                   <input
                     type="text"
                     value={formData.referenceNumber}
                     onChange={(e) => updateFormField('referenceNumber', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary"
                     placeholder="e.g., CI-12345"
                     title="Enter Commercial Invoice (CI) or Purchase Order (PO) number"
                     required
@@ -621,53 +621,53 @@ export default function ReceiveTabbedPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
                     Ship Name
                   </label>
                   <input
                     type="text"
                     value={formData.shipName}
                     onChange={(e) => updateFormField('shipName', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary"
                     placeholder="Enter ship or vessel name"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
                     Container Number
                   </label>
                   <input
                     type="text"
                     value={formData.containerNumber}
                     onChange={(e) => updateFormField('containerNumber', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary"
                     placeholder="XXXX-XXXXXXX-X"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
                     Supplier
                   </label>
                   <input
                     type="text"
                     value={formData.supplier}
                     onChange={(e) => updateFormField('supplier', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary"
                     placeholder="Enter supplier name"
                   />
                 </div>
 
                 <div className="col-span-1 md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
                     Notes
                   </label>
                   <textarea
                     value={formData.notes}
                     onChange={(e) => updateFormField('notes', e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary"
                     placeholder="Additional notes or instructions"
                   />
                 </div>

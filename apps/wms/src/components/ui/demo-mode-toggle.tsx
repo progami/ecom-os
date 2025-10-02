@@ -114,7 +114,7 @@ export function DemoModeToggle({ onDataChange }: DemoModeToggleProps) {
             transition-all duration-300 hover:scale-105
             ${isDemoMode 
               ? 'bg-gradient-to-r from-cyan-600 to-brand-teal-600 text-white' 
-              : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
+              : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'
             }
           `}
         >
@@ -145,10 +145,10 @@ export function DemoModeToggle({ onDataChange }: DemoModeToggleProps) {
                 <div className="mx-auto w-16 h-16 bg-gradient-to-br from-cyan-100 to-brand-teal-100 rounded-full flex items-center justify-center mb-4">
                   <Beaker className="h-8 w-8 text-brand-teal-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900">
+                <h3 className="text-xl font-semibold text-slate-900">
                   Demo Mode
                 </h3>
-                <p className="mt-2 text-sm text-gray-600">
+                <p className="mt-2 text-sm text-slate-600">
                   Test the WMS system with sample data
                 </p>
               </div>
@@ -212,14 +212,14 @@ export function DemoModeToggle({ onDataChange }: DemoModeToggleProps) {
 
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="w-full px-4 py-3 text-gray-700 bg-gray-100 rounded-lg font-medium hover:bg-gray-200 transition-all"
+                  className="w-full px-4 py-3 text-slate-700 bg-slate-100 rounded-lg font-medium hover:bg-slate-200 transition-all"
                 >
                   Cancel
                 </button>
               </div>
 
               {/* Info */}
-              <div className="text-center text-xs text-gray-500">
+              <div className="text-center text-xs text-slate-500">
                 Demo data includes sample inventory, transactions, and invoices
               </div>
             </div>

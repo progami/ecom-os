@@ -151,7 +151,7 @@ export function OpsSection({ data, loading }: OpsSectionProps) {
           </div>
           <div className="space-y-1">
             {data.recentTransactions.slice(0, 3).map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div key={transaction.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-[#06182b] rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-lg ${
                     transaction.type === 'RECEIVE' ? 'bg-green-100 dark:bg-green-900/30' :

@@ -285,7 +285,7 @@ export default function TransactionDetailPage() {
     return (
       <DashboardLayout>
         <div className="text-center py-12">
-          <p className="text-gray-500">Transaction not found</p>
+          <p className="text-slate-500">Transaction not found</p>
           <button
             onClick={() => router.push('/operations/inventory')}
             className="mt-4 text-primary hover:underline"
@@ -334,17 +334,17 @@ export default function TransactionDetailPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push('/operations/inventory')}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              className="p-2 hover:bg-slate-100 rounded-lg"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div className="flex items-center gap-2">
               {isReceive ? (
-                <Package2 className="h-6 w-6 text-gray-600" />
+                <Package2 className="h-6 w-6 text-slate-600" />
               ) : (
-                <Truck className="h-6 w-6 text-gray-600" />
+                <Truck className="h-6 w-6 text-slate-600" />
               )}
-              <h1 className="text-2xl font-semibold text-gray-900">
+              <h1 className="text-2xl font-semibold text-slate-900">
                 Transaction Details
               </h1>
               <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -352,7 +352,7 @@ export default function TransactionDetailPage() {
               }`}>
                 {transaction.transactionType}
               </span>
-              <span className="px-2 py-1 text-xs font-mono text-gray-500 bg-gray-100 rounded">
+              <span className="px-2 py-1 text-xs font-mono text-slate-500 bg-slate-100 rounded">
                 {transaction.id}
               </span>
             </div>
@@ -371,7 +371,7 @@ export default function TransactionDetailPage() {
                       stagedAttachments: undefined
                     })
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
                 >
                   <X className="w-4 h-4 mr-2 inline" />
                   Cancel
@@ -396,7 +396,7 @@ export default function TransactionDetailPage() {
                 </button>
                 <button
                   onClick={() => setIsEditMode(true)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                  className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
                 >
                   <Edit2 className="w-4 h-4 mr-2 inline" />
                   Edit
@@ -417,38 +417,38 @@ export default function TransactionDetailPage() {
             <div className="space-y-2">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
                     Transaction Date
                   </label>
                   <input
                     type="date"
                     value={transaction.transactionDate?.split('T')[0] || ''}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                     readOnly
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
                     {isReceive ? 'PI/CI Number' : 'CI/PI Number'}
                   </label>
                   <input
                     type="text"
                     value={isEditMode ? editedData.referenceId : (transaction.referenceId || '')}
                     onChange={(e) => setEditedData({...editedData, referenceId: e.target.value})}
-                    className={`w-full px-3 py-2 border border-gray-300 rounded-md ${isEditMode ? 'bg-white' : 'bg-gray-50'}`}
+                    className={`w-full px-3 py-2 border border-slate-300 rounded-md ${isEditMode ? 'bg-white' : 'bg-slate-50'}`}
                     readOnly={!isEditMode}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
                     Warehouse
                   </label>
                   <input
                     type="text"
                     value={transaction.warehouse?.name || ''}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                     readOnly
                   />
                 </div>
@@ -456,40 +456,40 @@ export default function TransactionDetailPage() {
                 {isReceive && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
                         Ship Name
                       </label>
                       <input
                         type="text"
                         value={isEditMode ? editedData.shipName : (transaction.shipName || '')}
                         onChange={(e) => setEditedData({...editedData, shipName: e.target.value})}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${isEditMode ? 'bg-white' : 'bg-gray-50'}`}
+                        className={`w-full px-3 py-2 border border-slate-300 rounded-md ${isEditMode ? 'bg-white' : 'bg-slate-50'}`}
                         readOnly={!isEditMode}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
                         Container Number
                       </label>
                       <input
                         type="text"
                         value={isEditMode ? editedData.trackingNumber : (transaction.trackingNumber || '')}
                         onChange={(e) => setEditedData({...editedData, trackingNumber: e.target.value})}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${isEditMode ? 'bg-white' : 'bg-gray-50'}`}
+                        className={`w-full px-3 py-2 border border-slate-300 rounded-md ${isEditMode ? 'bg-white' : 'bg-slate-50'}`}
                         readOnly={!isEditMode}
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
                         Supplier
                       </label>
                       <input
                         type="text"
                         value={isEditMode ? editedData.supplier : (transaction.supplier || '')}
                         onChange={(e) => setEditedData({...editedData, supplier: e.target.value})}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${isEditMode ? 'bg-white' : 'bg-gray-50'}`}
+                        className={`w-full px-3 py-2 border border-slate-300 rounded-md ${isEditMode ? 'bg-white' : 'bg-slate-50'}`}
                         readOnly={!isEditMode}
                       />
                     </div>
@@ -499,26 +499,26 @@ export default function TransactionDetailPage() {
                 {isShip && (
                   <>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
                         Pickup Date
                       </label>
                       <input
                         type="date"
                         value={transaction.pickupDate?.split('T')[0] || ''}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                         readOnly
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
                         Tracking Number
                       </label>
                       <input
                         type="text"
                         value={isEditMode ? editedData.trackingNumber : (transaction.trackingNumber || '')}
                         onChange={(e) => setEditedData({...editedData, trackingNumber: e.target.value})}
-                        className={`w-full px-3 py-2 border border-gray-300 rounded-md ${isEditMode ? 'bg-white' : 'bg-gray-50'}`}
+                        className={`w-full px-3 py-2 border border-slate-300 rounded-md ${isEditMode ? 'bg-white' : 'bg-slate-50'}`}
                         readOnly={!isEditMode}
                       />
                     </div>
@@ -535,23 +535,23 @@ export default function TransactionDetailPage() {
             <div className="space-y-4">
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-slate-50">
                     <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch/Lot</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cartons</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Units</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">SKU</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Batch/Lot</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Cartons</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Units</th>
                       {isReceive && (
                         <>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Storage Pallets In</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Storage Cartons/Pallet</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shipping Cartons/Pallet</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Storage Pallets In</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Storage Cartons/Pallet</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Shipping Cartons/Pallet</th>
                         </>
                       )}
                       {isShip && (
                         <>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shipping Pallets Out</th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Shipping Cartons/Pallet</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Shipping Pallets Out</th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Shipping Cartons/Pallet</th>
                         </>
                       )}
                     </tr>
@@ -564,7 +564,7 @@ export default function TransactionDetailPage() {
                             <input
                               type="text"
                               value={item.skuCode}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                              className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                               readOnly
                             />
                           </div>
@@ -573,7 +573,7 @@ export default function TransactionDetailPage() {
                           <input
                             type="text"
                             value={item.batchLot}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                             readOnly
                           />
                         </td>
@@ -581,7 +581,7 @@ export default function TransactionDetailPage() {
                           <input
                             type="number"
                             value={item.cartons}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                             readOnly
                           />
                         </td>
@@ -589,7 +589,7 @@ export default function TransactionDetailPage() {
                           <input
                             type="number"
                             value={item.units}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                             readOnly
                           />
                         </td>
@@ -599,7 +599,7 @@ export default function TransactionDetailPage() {
                               <input
                                 type="number"
                                 value={item.storagePalletsIn}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                                 readOnly
                               />
                             </td>
@@ -607,7 +607,7 @@ export default function TransactionDetailPage() {
                               <input
                                 type="number"
                                 value={item.storageCartonsPerPallet}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                                 readOnly
                               />
                             </td>
@@ -615,7 +615,7 @@ export default function TransactionDetailPage() {
                               <input
                                 type="number"
                                 value={item.shippingCartonsPerPallet}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                                 readOnly
                               />
                             </td>
@@ -627,7 +627,7 @@ export default function TransactionDetailPage() {
                               <input
                                 type="number"
                                 value={item.shippingPalletsOut}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                                 readOnly
                               />
                             </td>
@@ -635,7 +635,7 @@ export default function TransactionDetailPage() {
                               <input
                                 type="number"
                                 value={item.shippingCartonsPerPallet}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                                 readOnly
                               />
                             </td>
@@ -653,20 +653,20 @@ export default function TransactionDetailPage() {
           <TabPanel>
             <div className="space-y-6">
               {(!transaction.calculatedCosts || transaction.calculatedCosts.length === 0) ? (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-slate-500">
                   <p>No costs recorded for this transaction</p>
                   <p className="text-sm mt-2">Costs need to be saved when creating the transaction</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-slate-50">
                       <tr>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost Category</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cost Name</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Rate</th>
-                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Cost</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Cost Category</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Cost Name</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Quantity</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Unit Rate</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Total Cost</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
@@ -676,7 +676,7 @@ export default function TransactionDetailPage() {
                             <input
                               type="text"
                               value={cost.costCategory ?? cost.category ?? ''}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                              className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                               readOnly
                             />
                           </td>
@@ -684,7 +684,7 @@ export default function TransactionDetailPage() {
                             <input
                               type="text"
                               value={cost.costName ?? cost.description ?? ''}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                              className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                               readOnly
                             />
                           </td>
@@ -692,7 +692,7 @@ export default function TransactionDetailPage() {
                             <input
                               type="number"
                               value={cost.quantity ?? 0}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                              className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                               readOnly
                             />
                           </td>
@@ -700,7 +700,7 @@ export default function TransactionDetailPage() {
                             <input
                               type="number"
                               value={cost.unitRate ?? cost.rate ?? 0}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                              className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                               readOnly
                             />
                           </td>
@@ -708,7 +708,7 @@ export default function TransactionDetailPage() {
                             <input
                               type="number"
                               value={cost.totalCost ?? cost.amount ?? 0}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                              className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
                               readOnly
                             />
                           </td>
@@ -741,14 +741,14 @@ export default function TransactionDetailPage() {
               // Read-only view when not in edit mode
               <div className="space-y-4">
                 {(!transaction.attachments || Object.keys(transaction.attachments).length === 0) ? (
-                  <div className="text-center py-12 text-gray-500">
-                    <Paperclip className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <div className="text-center py-12 text-slate-500">
+                    <Paperclip className="h-12 w-12 mx-auto mb-4 text-slate-400" />
                     <p className="text-lg font-medium">No attachments</p>
                     <p className="text-sm mt-2">No documents have been attached to this transaction</p>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-lg border">
-                    <div className="px-6 py-4 border-b bg-gray-50">
+                  <div className="bg-white rounded-xl border">
+                    <div className="px-6 py-4 border-b bg-slate-50">
                       <h3 className="text-lg font-semibold">Transaction Documents</h3>
                     </div>
                     <div className="p-6">
@@ -767,20 +767,20 @@ export default function TransactionDetailPage() {
                           }
                           
                           return (
-                            <div key={category} className="border rounded-lg p-4 bg-gray-50">
+                            <div key={category} className="border rounded-lg p-4 bg-slate-50">
                               <div className="flex items-start justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="font-medium text-sm text-gray-900">
+                                  <h4 className="font-medium text-sm text-slate-900">
                                     {categoryLabels[category] || category}
                                   </h4>
                                   <div className="flex items-center gap-2 mt-2">
-                                    <Paperclip className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                    <p className="text-sm text-gray-700 truncate">
+                                    <Paperclip className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                                    <p className="text-sm text-slate-700 truncate">
                                       {attachment.fileName || attachment.name || 'Document'}
                                     </p>
                                   </div>
                                   {attachment.size && (
-                                    <p className="text-xs text-gray-500 mt-1">
+                                    <p className="text-xs text-slate-500 mt-1">
                                       {(attachment.size / 1024).toFixed(1)} KB
                                     </p>
                                   )}

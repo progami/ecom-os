@@ -174,33 +174,33 @@ export default function DatabaseSettingsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white border rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
-              <HardDrive className="h-5 w-5 text-gray-500" />
+              <HardDrive className="h-5 w-5 text-slate-500" />
               <span className="text-2xl font-bold">{dbInfo.size} MB</span>
             </div>
-            <p className="text-sm text-gray-600">Database Size</p>
+            <p className="text-sm text-slate-600">Database Size</p>
           </div>
           <div className="bg-white border rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
-              <Database className="h-5 w-5 text-gray-500" />
+              <Database className="h-5 w-5 text-slate-500" />
               <span className="text-2xl font-bold">{dbInfo.tables}</span>
             </div>
-            <p className="text-sm text-gray-600">Tables</p>
+            <p className="text-sm text-slate-600">Tables</p>
           </div>
           <div className="bg-white border rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
-              <Database className="h-5 w-5 text-gray-500" />
+              <Database className="h-5 w-5 text-slate-500" />
               <span className="text-2xl font-bold">{dbInfo.records.toLocaleString()}</span>
             </div>
-            <p className="text-sm text-gray-600">Total Records</p>
+            <p className="text-sm text-slate-600">Total Records</p>
           </div>
           <div className="bg-white border rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
-              <Clock className="h-5 w-5 text-gray-500" />
+              <Clock className="h-5 w-5 text-slate-500" />
               <span className="text-sm font-medium">
                 {dbInfo.lastBackup ? new Date(dbInfo.lastBackup).toLocaleDateString() : 'Never'}
               </span>
             </div>
-            <p className="text-sm text-gray-600">Last Backup</p>
+            <p className="text-sm text-slate-600">Last Backup</p>
           </div>
         </div>
 
@@ -227,7 +227,7 @@ export default function DatabaseSettingsPage() {
               <button
                 onClick={restoreBackup}
                 disabled={restoring}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-md hover:bg-slate-50"
               >
                 <Upload className="h-4 w-4 mr-2" />
                 Restore from Backup
@@ -310,7 +310,7 @@ export default function DatabaseSettingsPage() {
                 onChange={(e) => setConnectionPoolSize(parseInt(e.target.value))}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
               />
-              <p className="text-xs text-gray-500 mt-1">Maximum number of database connections</p>
+              <p className="text-xs text-slate-500 mt-1">Maximum number of database connections</p>
             </div>
             
             <div>
@@ -325,7 +325,7 @@ export default function DatabaseSettingsPage() {
                 onChange={(e) => setQueryTimeout(parseInt(e.target.value))}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
               />
-              <p className="text-xs text-gray-500 mt-1">Maximum query execution time</p>
+              <p className="text-xs text-slate-500 mt-1">Maximum query execution time</p>
             </div>
           </div>
 
@@ -384,7 +384,7 @@ export default function DatabaseSettingsPage() {
             >
               <RefreshCw className={`h-5 w-5 mb-2 ${optimizing ? 'animate-spin' : ''}`} />
               <h4 className="font-medium">Optimize Database</h4>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-slate-600 mt-1">
                 Reclaim space and improve performance
               </p>
             </button>
@@ -395,7 +395,7 @@ export default function DatabaseSettingsPage() {
             >
               <Trash2 className="h-5 w-5 mb-2" />
               <h4 className="font-medium">Clear Cache</h4>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-slate-600 mt-1">
                 Clear application and query cache
               </p>
             </button>
@@ -406,7 +406,7 @@ export default function DatabaseSettingsPage() {
             >
               <Database className="h-5 w-5 mb-2" />
               <h4 className="font-medium">Rebuild Indexes</h4>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-slate-600 mt-1">
                 Rebuild database indexes for better performance
               </p>
             </button>

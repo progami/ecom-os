@@ -55,7 +55,7 @@ export function ConfirmDialog({
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4 text-center">
         <div
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          className="fixed inset-0 bg-slate-500 bg-opacity-75 transition-opacity"
           onClick={onClose}
         />
         
@@ -66,28 +66,28 @@ export function ConfirmDialog({
                 <AlertTriangle className={`h-6 w-6 ${styles.icon}`} />
               </div>
               <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-                <h3 className="text-lg font-semibold leading-6 text-gray-900">
+                <h3 className="text-lg font-semibold leading-6 text-slate-900">
                   {title}
                 </h3>
                 <div className="mt-2">
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-slate-500">
                     {message}
                   </p>
                 </div>
               </div>
             </div>
           </div>
-          <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+          <div className="bg-slate-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
             <button
               type="button"
-              className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-sm sm:ml-3 sm:w-auto ${styles.button}`}
+              className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-soft sm:ml-3 sm:w-auto ${styles.button}`}
               onClick={handleConfirm}
             >
               {confirmText}
             </button>
             <button
               type="button"
-              className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+              className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-soft ring-1 ring-inset ring-gray-300 hover:bg-slate-50 sm:mt-0 sm:w-auto"
               onClick={onClose}
             >
               {cancelText}

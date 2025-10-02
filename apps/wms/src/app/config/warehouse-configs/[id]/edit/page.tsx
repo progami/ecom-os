@@ -145,19 +145,19 @@ export default function EditWarehouseConfigPage() {
 
         <form onSubmit={handleSubmit} className="bg-white border rounded-lg p-6 space-y-6">
           {/* Read-only Information */}
-          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-            <h3 className="font-semibold text-gray-900">Configuration Details</h3>
+          <div className="bg-slate-50 rounded-lg p-4 space-y-3">
+            <h3 className="font-semibold text-slate-900">Configuration Details</h3>
             <div className="grid gap-4 md:grid-cols-3 text-sm">
               <div>
-                <span className="text-gray-600">Warehouse:</span>
+                <span className="text-slate-600">Warehouse:</span>
                 <p className="font-medium">{config.warehouse.name} ({config.warehouse.code})</p>
               </div>
               <div>
-                <span className="text-gray-600">SKU:</span>
+                <span className="text-slate-600">SKU:</span>
                 <p className="font-medium">{config.sku.skuCode} - {config.sku.description}</p>
               </div>
               <div>
-                <span className="text-gray-600">Effective Date:</span>
+                <span className="text-slate-600">Effective Date:</span>
                 <p className="font-medium flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
                   {new Date(config.effectiveDate).toLocaleDateString()}
@@ -169,7 +169,7 @@ export default function EditWarehouseConfigPage() {
           <div className="grid gap-6 md:grid-cols-2">
             {/* Storage Cartons per Pallet */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Storage Cartons per Pallet <span className="text-red-500">*</span>
               </label>
               <input
@@ -178,17 +178,17 @@ export default function EditWarehouseConfigPage() {
                 max="200"
                 value={formData.storageCartonsPerPallet}
                 onChange={(e) => setFormData({ ...formData, storageCartonsPerPallet: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Used for calculating storage charges (max: 200)
               </p>
             </div>
 
             {/* Shipping Cartons per Pallet */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Shipping Cartons per Pallet <span className="text-red-500">*</span>
               </label>
               <input
@@ -197,17 +197,17 @@ export default function EditWarehouseConfigPage() {
                 max="200"
                 value={formData.shippingCartonsPerPallet}
                 onChange={(e) => setFormData({ ...formData, shippingCartonsPerPallet: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Used when shipping goods (may differ from storage)
               </p>
             </div>
 
             {/* Max Stacking Height */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Max Stacking Height (cm)
               </label>
               <input
@@ -216,17 +216,17 @@ export default function EditWarehouseConfigPage() {
                 max="500"
                 value={formData.maxStackingHeightCm}
                 onChange={(e) => setFormData({ ...formData, maxStackingHeightCm: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="e.g., 180"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Optional: Maximum height when stacked
               </p>
             </div>
 
             {/* End Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 End Date
               </label>
               <input
@@ -234,9 +234,9 @@ export default function EditWarehouseConfigPage() {
                 value={formData.endDate}
                 onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                 min={config.effectiveDate.split('T')[0]}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Optional: When this configuration should end
               </p>
             </div>
@@ -248,7 +248,7 @@ export default function EditWarehouseConfigPage() {
             <button
               type="button"
               onClick={handleCancel}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              className="px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50"
               disabled={saving}
             >
               <X className="h-4 w-4 mr-2 inline" />

@@ -254,7 +254,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
       case 'paid':
         return <DollarSign className="h-5 w-5 text-green-500" />
       default:
-        return <AlertCircle className="h-5 w-5 text-gray-500" />
+        return <AlertCircle className="h-5 w-5 text-slate-500" />
     }
   }
 
@@ -277,7 +277,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <p className="mt-2 text-gray-600">Loading invoice...</p>
+            <p className="mt-2 text-slate-600">Loading invoice...</p>
           </div>
         </div>
       </DashboardLayout>
@@ -345,7 +345,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="bg-white border rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-medium text-gray-600">Status</h3>
+              <h3 className="text-sm font-medium text-slate-600">Status</h3>
               {getStatusIcon(invoice.status)}
             </div>
             <p className="text-2xl font-bold capitalize">{invoice.status}</p>
@@ -360,18 +360,18 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           </div>
 
           <div className="bg-white border rounded-lg p-4">
-            <h3 className="text-sm font-medium text-gray-600 mb-2">Total Amount</h3>
+            <h3 className="text-sm font-medium text-slate-600 mb-2">Total Amount</h3>
             <p className="text-2xl font-bold text-primary">
               {formatCurrency(invoice.totalAmount)}
             </p>
-            <p className="text-sm text-gray-500">{invoice.lineItems.length} line items</p>
+            <p className="text-sm text-slate-500">{invoice.lineItems.length} line items</p>
           </div>
 
           <div className="bg-white border rounded-lg p-4">
-            <h3 className="text-sm font-medium text-gray-600 mb-2">Reconciliation</h3>
+            <h3 className="text-sm font-medium text-slate-600 mb-2">Reconciliation</h3>
             <div className="flex items-baseline gap-2">
               <span className="text-2xl font-bold text-green-600">{summary?.matchedItems || 0}</span>
-              <span className="text-sm text-gray-500">matched</span>
+              <span className="text-sm text-slate-500">matched</span>
             </div>
             <div className="flex gap-4 text-sm mt-1">
               <span className="text-red-600">{summary?.overbilledItems || 0} over</span>
@@ -380,11 +380,11 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
           </div>
 
           <div className="bg-white border rounded-lg p-4">
-            <h3 className="text-sm font-medium text-gray-600 mb-2">Variance</h3>
-            <p className={`text-2xl font-bold ${(summary?.totalDifference || 0) > 0 ? 'text-red-600' : (summary?.totalDifference || 0) < 0 ? 'text-green-600' : 'text-gray-900'}`}>
+            <h3 className="text-sm font-medium text-slate-600 mb-2">Variance</h3>
+            <p className={`text-2xl font-bold ${(summary?.totalDifference || 0) > 0 ? 'text-red-600' : (summary?.totalDifference || 0) < 0 ? 'text-green-600' : 'text-slate-900'}`}>
               {formatCurrency(Math.abs(summary?.totalDifference || 0))}
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-slate-500">
               {(summary?.totalDifference || 0) > 0 ? 'Overbilled' : (summary?.totalDifference || 0) < 0 ? 'Underbilled' : 'No variance'}
             </p>
           </div>
@@ -399,7 +399,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                 className={`px-6 py-3 text-sm font-medium border-b-2 ${
                   activeTab === 'details'
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
               >
                 Invoice Details
@@ -409,7 +409,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                 className={`px-6 py-3 text-sm font-medium border-b-2 ${
                   activeTab === 'reconciliation'
                     ? 'border-primary text-primary'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                    : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
               >
                 Reconciliation ({summary?.totalReconciliations || 0})
@@ -426,21 +426,21 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                     <h3 className="font-semibold mb-3">Invoice Information</h3>
                     <dl className="space-y-2">
                       <div>
-                        <dt className="text-sm text-gray-600">Invoice Number</dt>
+                        <dt className="text-sm text-slate-600">Invoice Number</dt>
                         <dd className="font-medium">{invoice.invoiceNumber}</dd>
                       </div>
                       <div>
-                        <dt className="text-sm text-gray-600">Billing Period</dt>
+                        <dt className="text-sm text-slate-600">Billing Period</dt>
                         <dd className="font-medium">
                           {formatDate(invoice.billingPeriodStart)} - {formatDate(invoice.billingPeriodEnd)}
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-sm text-gray-600">Invoice Date</dt>
+                        <dt className="text-sm text-slate-600">Invoice Date</dt>
                         <dd className="font-medium">{formatDate(invoice.invoiceDate)}</dd>
                       </div>
                       <div>
-                        <dt className="text-sm text-gray-600">Due Date</dt>
+                        <dt className="text-sm text-slate-600">Due Date</dt>
                         <dd className="font-medium">
                           {invoice.dueDate ? formatDate(invoice.dueDate) : 'Not specified'}
                         </dd>
@@ -452,22 +452,22 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                     <h3 className="font-semibold mb-3">Warehouse Information</h3>
                     <dl className="space-y-2">
                       <div>
-                        <dt className="text-sm text-gray-600">Name</dt>
+                        <dt className="text-sm text-slate-600">Name</dt>
                         <dd className="font-medium">{invoice.warehouse.name}</dd>
                       </div>
                       <div>
-                        <dt className="text-sm text-gray-600">Code</dt>
+                        <dt className="text-sm text-slate-600">Code</dt>
                         <dd className="font-medium">{invoice.warehouse.code}</dd>
                       </div>
                       {invoice.warehouse.contactEmail && (
                         <div>
-                          <dt className="text-sm text-gray-600">Email</dt>
+                          <dt className="text-sm text-slate-600">Email</dt>
                           <dd className="font-medium">{invoice.warehouse.contactEmail}</dd>
                         </div>
                       )}
                       {invoice.warehouse.contactPhone && (
                         <div>
-                          <dt className="text-sm text-gray-600">Phone</dt>
+                          <dt className="text-sm text-slate-600">Phone</dt>
                           <dd className="font-medium">{invoice.warehouse.contactPhone}</dd>
                         </div>
                       )}
@@ -480,21 +480,21 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                   <h3 className="font-semibold mb-3">Line Items</h3>
                   <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                      <thead className="bg-slate-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                             Category
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                             Description
                           </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                             Quantity
                           </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                             Unit Rate
                           </th>
-                          <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                             Amount
                           </th>
                         </tr>
@@ -514,7 +514,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className="bg-gray-50">
+                      <tfoot className="bg-slate-50">
                         <tr>
                           <td colSpan={4} className="px-4 py-3 text-right font-semibold">
                             Total:
@@ -533,8 +533,8 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
               <div className="space-y-4">
                 {invoice.reconciliations.length === 0 ? (
                   <div className="text-center py-12">
-                    <AlertCircle className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-500">No reconciliation data available</p>
+                    <AlertCircle className="h-12 w-12 mx-auto text-slate-400 mb-4" />
+                    <p className="text-slate-500">No reconciliation data available</p>
                     <Link
                       href={`/finance/reconciliation?invoiceId=${invoice.id}`}
                       className="mt-4 inline-flex items-center text-primary hover:underline"
@@ -546,17 +546,17 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                   <>
                     {/* Summary Stats */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <h4 className="text-sm font-medium text-gray-600 mb-1">Expected Total</h4>
+                      <div className="bg-slate-50 rounded-lg p-4">
+                        <h4 className="text-sm font-medium text-slate-600 mb-1">Expected Total</h4>
                         <p className="text-xl font-bold">{formatCurrency(summary?.totalExpected || 0)}</p>
                       </div>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <h4 className="text-sm font-medium text-gray-600 mb-1">Invoiced Total</h4>
+                      <div className="bg-slate-50 rounded-lg p-4">
+                        <h4 className="text-sm font-medium text-slate-600 mb-1">Invoiced Total</h4>
                         <p className="text-xl font-bold">{formatCurrency(summary?.totalInvoiced || 0)}</p>
                       </div>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <h4 className="text-sm font-medium text-gray-600 mb-1">Total Variance</h4>
-                        <p className={`text-xl font-bold ${(summary?.totalDifference || 0) > 0 ? 'text-red-600' : (summary?.totalDifference || 0) < 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                      <div className="bg-slate-50 rounded-lg p-4">
+                        <h4 className="text-sm font-medium text-slate-600 mb-1">Total Variance</h4>
+                        <p className={`text-xl font-bold ${(summary?.totalDifference || 0) > 0 ? 'text-red-600' : (summary?.totalDifference || 0) < 0 ? 'text-green-600' : 'text-slate-900'}`}>
                           {formatCurrency(Math.abs(summary?.totalDifference || 0))}
                         </p>
                       </div>
@@ -565,27 +565,27 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                     {/* Reconciliation Items */}
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-slate-50">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                               Category
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                               Cost Name
                             </th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                               Expected
                             </th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                               Invoiced
                             </th>
-                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                               Difference
                             </th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
                               Status
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                               Resolution
                             </th>
                           </tr>
@@ -614,15 +614,15 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
                               <td className="px-4 py-3 text-sm">
                                 {item.resolutionNotes ? (
                                   <div>
-                                    <p className="text-gray-700">{item.resolutionNotes}</p>
+                                    <p className="text-slate-700">{item.resolutionNotes}</p>
                                     {item.resolvedBy && (
-                                      <p className="text-xs text-gray-500 mt-1">
+                                      <p className="text-xs text-slate-500 mt-1">
                                         by {item.resolvedBy.fullName} on {item.resolvedAt ? formatDate(item.resolvedAt) : ''}
                                       </p>
                                     )}
                                   </div>
                                 ) : (
-                                  <span className="text-gray-400">-</span>
+                                  <span className="text-slate-400">-</span>
                                 )}
                               </td>
                             </tr>
@@ -646,7 +646,7 @@ export default function InvoiceDetailPage({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Metadata */}
-        <div className="bg-gray-50 rounded-lg p-4 text-sm text-gray-600">
+        <div className="bg-slate-50 rounded-lg p-4 text-sm text-slate-600">
           <p>
             Created by {invoice.createdBy.fullName} on {formatDate(invoice.createdAt)}
             {invoice.updatedAt !== invoice.createdAt && (

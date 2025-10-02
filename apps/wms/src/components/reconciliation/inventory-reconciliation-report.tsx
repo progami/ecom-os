@@ -124,7 +124,7 @@ export function InventoryReconciliationReport() {
       case 'HIGH': return 'bg-orange-500';
       case 'MEDIUM': return 'bg-yellow-500';
       case 'LOW': return 'bg-cyan-500';
-      default: return 'bg-gray-500';
+      default: return 'bg-slate-500';
     }
   };
 
@@ -186,7 +186,7 @@ export function InventoryReconciliationReport() {
             {reports.map((report) => (
               <div
                 key={report.id}
-                className="p-4 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+                className="p-4 border rounded-lg cursor-pointer hover:bg-slate-50 transition-colors"
                 onClick={() => fetchReportDetails(report.id)}
               >
                 <div className="flex items-center justify-between">
@@ -230,19 +230,19 @@ export function InventoryReconciliationReport() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="text-center">
                   <p className="text-2xl font-bold">{selectedReport.total_warehouses}</p>
-                  <p className="text-sm text-gray-600">Warehouses</p>
+                  <p className="text-sm text-slate-600">Warehouses</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold">{selectedReport.total_skus}</p>
-                  <p className="text-sm text-gray-600">SKUs</p>
+                  <p className="text-sm text-slate-600">SKUs</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold">{selectedReport.total_discrepancies}</p>
-                  <p className="text-sm text-gray-600">Discrepancies</p>
+                  <p className="text-sm text-slate-600">Discrepancies</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-red-600">{selectedReport.critical_discrepancies}</p>
-                  <p className="text-sm text-gray-600">Critical</p>
+                  <p className="text-sm text-slate-600">Critical</p>
                 </div>
               </div>
             )}
@@ -264,12 +264,12 @@ export function InventoryReconciliationReport() {
                   </thead>
                   <tbody>
                     {discrepancies.map((disc) => (
-                      <tr key={disc.id} className="border-b hover:bg-gray-50">
+                      <tr key={disc.id} className="border-b hover:bg-slate-50">
                         <td className="p-2">{disc.warehouses.name}</td>
                         <td className="p-2">
                           <div>
                             <p className="font-medium">{disc.skus.sku_code}</p>
-                            <p className="text-sm text-gray-600">{disc.skus.description}</p>
+                            <p className="text-sm text-slate-600">{disc.skus.description}</p>
                           </div>
                         </td>
                         <td className="p-2">{disc.batch_lot}</td>

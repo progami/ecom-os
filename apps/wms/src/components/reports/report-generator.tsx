@@ -187,7 +187,7 @@ export function ReportGenerator({
       ))}
 
       {/* Custom Reports */}
-      <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+      <div className="bg-slate-50 dark:bg-[#06182b] rounded-lg p-6">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Calendar className="h-5 w-5" />
           Custom Reports

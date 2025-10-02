@@ -428,13 +428,13 @@ function FinanceReconciliationPageContent() {
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
             </div>
           ) : invoices.length === 0 ? (
-            <div className="text-center py-12 bg-gray-50 rounded-lg">
-              <FileText className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <p className="text-gray-500">No invoices found for reconciliation</p>
+            <div className="text-center py-12 bg-slate-50 rounded-lg">
+              <FileText className="h-12 w-12 mx-auto text-slate-400 mb-4" />
+              <p className="text-slate-500">No invoices found for reconciliation</p>
             </div>
           ) : (
-            <div className="bg-gray-50 p-2 rounded-lg mb-2">
-              <p className="text-sm text-gray-600">
+            <div className="bg-slate-50 p-2 rounded-lg mb-2">
+              <p className="text-sm text-slate-600">
                 Showing {invoices.length} invoice{invoices.length !== 1 ? 's' : ''} with {totals.total} reconciliation item{totals.total !== 1 ? 's' : ''}
               </p>
             </div>
@@ -462,14 +462,14 @@ function FinanceReconciliationPageContent() {
                         )}
                         <div>
                           <h3 className="text-lg font-semibold">{invoice.warehouse.name}</h3>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-slate-600">
                             Invoice #{invoice.invoiceNumber} • 
                             {formatDate(invoice.billingPeriodStart)} - {formatDate(invoice.billingPeriodEnd)}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-gray-600">Total Variance</p>
+                        <p className="text-sm text-slate-600">Total Variance</p>
                         <p className={`text-lg font-bold ${
                           invoiceTotals.difference === 0 ? 'text-green-600' : 
                           invoiceTotals.difference > 0 ? 'text-red-600' : 'text-amber-600'
@@ -483,7 +483,7 @@ function FinanceReconciliationPageContent() {
                   <div className="p-2 overflow-y-auto">
                     {invoice.reconciliations.length === 0 ? (
                       <div className="text-center py-8">
-                        <p className="text-gray-500">No reconciliation data available</p>
+                        <p className="text-slate-500">No reconciliation data available</p>
                         <Link
                           href={`/finance/invoices/${invoice.id}`}
                           className="mt-2 text-primary hover:underline"
@@ -495,7 +495,7 @@ function FinanceReconciliationPageContent() {
                       <>
                         <table className="w-full">
                           <thead>
-                            <tr className="text-left text-sm text-gray-600">
+                            <tr className="text-left text-sm text-slate-600">
                               <th className="pb-2">Cost Category</th>
                               <th className="pb-2">Description</th>
                               <th className="pb-2 text-right">Expected</th>
@@ -508,13 +508,13 @@ function FinanceReconciliationPageContent() {
                           <tbody className="divide-y">
                             {invoice.reconciliations.map((item) => (
                               <React.Fragment key={item.id}>
-                                <tr className="hover:bg-gray-50">
+                                <tr className="hover:bg-slate-50">
                                   <td className="py-2">
                                     <div className="flex items-center gap-2">
                                       {item.status !== 'match' && (
                                         <button
                                           onClick={() => toggleItemExpansion(item.id)}
-                                          className="text-gray-400 hover:text-gray-600"
+                                          className="text-slate-400 hover:text-slate-600"
                                         >
                                           {expandedItems.has(item.id) ? (
                                             <ChevronDown className="h-4 w-4" />
@@ -546,9 +546,9 @@ function FinanceReconciliationPageContent() {
                                   <td className="py-2">
                                     {item.resolutionNotes ? (
                                       <div className="text-sm">
-                                        <p className="text-gray-700">{item.resolutionNotes}</p>
+                                        <p className="text-slate-700">{item.resolutionNotes}</p>
                                         {item.resolvedBy && (
-                                          <p className="text-xs text-gray-500 mt-1">
+                                          <p className="text-xs text-slate-500 mt-1">
                                             - {item.resolvedBy.fullName}
                                           </p>
                                         )}
@@ -568,17 +568,17 @@ function FinanceReconciliationPageContent() {
                                 </tr>
                                 {expandedItems.has(item.id) && (
                                   <tr>
-                                    <td colSpan={7} className="bg-gray-50 px-8 py-4">
+                                    <td colSpan={7} className="bg-slate-50 px-8 py-4">
                                       {loadingDetails.has(item.id) ? (
                                         <div className="flex items-center justify-center py-4">
-                                          <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
+                                          <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
                                         </div>
                                       ) : item.reconciliationDetails && item.reconciliationDetails.length > 0 ? (
                                         <div className="space-y-2">
                                           <h5 className="font-medium text-sm mb-2">Transaction Details</h5>
                                           <table className="w-full text-sm">
                                             <thead>
-                                              <tr className="text-xs text-gray-500">
+                                              <tr className="text-xs text-slate-500">
                                                 <th className="text-left pb-1">Transaction ID</th>
                                                 <th className="text-left pb-1">Type</th>
                                                 <th className="text-left pb-1">Date</th>
@@ -598,7 +598,7 @@ function FinanceReconciliationPageContent() {
                                                       detail.calculatedCost.transactionType === 'RECEIVE' ? 'bg-green-100 text-green-800' :
                                                       detail.calculatedCost.transactionType === 'SHIP' ? 'bg-red-100 text-red-800' :
                                                       detail.calculatedCost.transactionType === 'STORAGE' ? 'bg-cyan-100 text-cyan-800' :
-                                                      'bg-gray-100 text-gray-800'
+                                                      'bg-slate-100 text-slate-800'
                                                     }`}>
                                                       {detail.calculatedCost.transactionType}
                                                     </span>
@@ -609,7 +609,7 @@ function FinanceReconciliationPageContent() {
                                                   <td className="py-1">
                                                     <div>
                                                       <div className="font-medium">{detail.calculatedCost.sku.skuCode}</div>
-                                                      <div className="text-xs text-gray-500">{detail.calculatedCost.sku.description}</div>
+                                                      <div className="text-xs text-slate-500">{detail.calculatedCost.sku.description}</div>
                                                     </div>
                                                   </td>
                                                   <td className="py-1 text-right">
@@ -624,7 +624,7 @@ function FinanceReconciliationPageContent() {
                                           </table>
                                         </div>
                                       ) : (
-                                        <p className="text-sm text-gray-500">No transaction details available</p>
+                                        <p className="text-sm text-slate-500">No transaction details available</p>
                                       )}
                                     </td>
                                   </tr>
@@ -674,7 +674,7 @@ function FinanceReconciliationPageContent() {
             <div className="bg-white rounded-lg p-6 w-full max-w-lg">
               <h3 className="text-lg font-semibold mb-4">Add Resolution Note</h3>
               <div className="mb-4">
-                <p className="text-sm text-gray-600 mb-2">
+                <p className="text-sm text-slate-600 mb-2">
                   {selectedItem.costCategory} - {selectedItem.costName}
                 </p>
                 <p className="text-sm">

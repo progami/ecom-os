@@ -86,12 +86,12 @@ export function RestockAlertCard({
             <AlertCircle className={`h-5 w-5 mt-0.5 ${colors.icon}`} />
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-gray-900">{skuCode}</h3>
+                <h3 className="font-semibold text-slate-900">{skuCode}</h3>
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${colors.badge}`}>
                   {urgencyLevel.toUpperCase()}
                 </span>
               </div>
-              <p className="text-sm text-gray-600 mt-0.5">{description}</p>
+              <p className="text-sm text-slate-600 mt-0.5">{description}</p>
             </div>
           </div>
           {onSelect && (
@@ -100,7 +100,7 @@ export function RestockAlertCard({
               checked={isSelected}
               onChange={(e) => onSelect(e.target.checked)}
               aria-label={`Select ${skuCode} for batch operation`}
-              className="rounded border-gray-300 text-primary focus:ring-primary"
+              className="rounded border-slate-300 text-primary focus:ring-primary"
             />
           )}
         </div>
@@ -108,7 +108,7 @@ export function RestockAlertCard({
         {/* Urgency Score Progress Bar */}
         <div className="mb-3">
           <div className="flex items-center justify-between text-xs mb-1">
-            <span className="text-gray-600">Urgency Score</span>
+            <span className="text-slate-600">Urgency Score</span>
             <span className={`font-medium ${colors.text}`}>{urgencyScore}/100</span>
           </div>
           <div className={`w-full h-2 rounded-full ${colors.progressBg}`}>
@@ -122,7 +122,7 @@ export function RestockAlertCard({
         {/* Stock Metrics */}
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="bg-white rounded p-2">
-            <div className="flex items-center gap-1 text-xs text-gray-600 mb-1">
+            <div className="flex items-center gap-1 text-xs text-slate-600 mb-1">
               <Package className="h-3 w-3" />
               <span>Current FBA Stock</span>
             </div>
@@ -131,12 +131,12 @@ export function RestockAlertCard({
           </div>
           
           <div className="bg-white rounded p-2">
-            <div className="flex items-center gap-1 text-xs text-gray-600 mb-1">
+            <div className="flex items-center gap-1 text-xs text-slate-600 mb-1">
               <TrendingUp className="h-3 w-3" />
               <span>Daily Velocity</span>
             </div>
             <p className="text-lg font-semibold">{dailySalesVelocity}</p>
-            <p className="text-xs text-gray-500">units/day</p>
+            <p className="text-xs text-slate-500">units/day</p>
           </div>
         </div>
 
@@ -148,7 +148,7 @@ export function RestockAlertCard({
         {/* Suggested Shipment */}
         <div className="bg-white rounded p-3 mb-3">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-sm font-medium text-gray-900">Suggested Shipment</h4>
+            <h4 className="text-sm font-medium text-slate-900">Suggested Shipment</h4>
             <Tooltip 
               content={`Calculation: Restock Point = (Daily Velocity × Lead Time) + Safety Stock = (${dailySalesVelocity} × ${leadTimeDays}) + (${dailySalesVelocity} × ${safetyStockDays}) = ${restockPoint} units. Lead Time: ${leadTimeDays} days, Safety Stock: ${safetyStockDays} days`}
               position="left"
@@ -158,23 +158,23 @@ export function RestockAlertCard({
           
           <div className="grid grid-cols-3 gap-2 text-center">
             <div>
-              <p className="text-2xl font-bold text-gray-900">{suggestedQuantity}</p>
-              <p className="text-xs text-gray-500">units</p>
+              <p className="text-2xl font-bold text-slate-900">{suggestedQuantity}</p>
+              <p className="text-xs text-slate-500">units</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{suggestedCartons}</p>
-              <p className="text-xs text-gray-500">cartons</p>
+              <p className="text-2xl font-bold text-slate-900">{suggestedCartons}</p>
+              <p className="text-xs text-slate-500">cartons</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{suggestedPallets}</p>
-              <p className="text-xs text-gray-500">pallet{suggestedPallets !== 1 ? 's' : ''}</p>
+              <p className="text-2xl font-bold text-slate-900">{suggestedPallets}</p>
+              <p className="text-xs text-slate-500">pallet{suggestedPallets !== 1 ? 's' : ''}</p>
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs text-gray-600">
+          <div className="flex items-center gap-2 text-xs text-slate-600">
             <Clock className="h-3 w-3" />
             <span>Lead time: {leadTimeDays} days</span>
           </div>
@@ -228,7 +228,7 @@ export function RestockAlertRow({
   }
 
   return (
-    <tr className={`hover:bg-gray-50 ${isSelected ? 'bg-cyan-50' : ''}`}>
+    <tr className={`hover:bg-slate-50 ${isSelected ? 'bg-cyan-50' : ''}`}>
       {onSelect && (
         <td className="px-6 py-4 whitespace-nowrap">
           <input
@@ -236,7 +236,7 @@ export function RestockAlertRow({
             checked={isSelected}
             onChange={(e) => onSelect(e.target.checked)}
             aria-label={`Select ${skuCode} row`}
-            className="rounded border-gray-300 text-primary focus:ring-primary"
+            className="rounded border-slate-300 text-primary focus:ring-primary"
           />
         </td>
       )}
@@ -249,20 +249,20 @@ export function RestockAlertRow({
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <div>
-          <div className="text-sm font-medium text-gray-900">{skuCode}</div>
-          <div className="text-sm text-gray-500">{description}</div>
+          <div className="text-sm font-medium text-slate-900">{skuCode}</div>
+          <div className="text-sm text-slate-500">{description}</div>
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 text-right">
         {currentStock.toLocaleString()}
       </td>
       <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${stockColors[urgencyLevel]}`}>
         {daysOfStock} days
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 text-right">
         {suggestedCartons} cartons
       </td>
-      <td className="px-6 py-4 text-sm text-gray-500">
+      <td className="px-6 py-4 text-sm text-slate-500">
         {recommendation}
       </td>
     </tr>

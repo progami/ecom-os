@@ -38,13 +38,13 @@ export default function AdminInvoicesPage() {
           icon={FileText}
           actions={
             <div className="flex items-center gap-2">
-              <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+              <button className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-soft text-sm font-medium text-slate-700 bg-white hover:bg-slate-50">
                 <Download className="h-4 w-4 mr-2" />
                 Export
               </button>
               <Link
                 href="/admin/invoices/new"
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90"
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-soft text-sm font-medium text-white bg-primary hover:bg-primary/90"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 New Invoice
@@ -58,7 +58,7 @@ export default function AdminInvoicesPage() {
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type="text"
                 id="invoice-search"
@@ -81,7 +81,7 @@ export default function AdminInvoicesPage() {
             <option>Disputed</option>
             <option>Paid</option>
           </select>
-          <button className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+          <button className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-soft text-sm font-medium text-slate-700 bg-white hover:bg-slate-50">
             <Filter className="h-4 w-4 mr-2" />
             More Filters
           </button>
@@ -118,24 +118,24 @@ export default function AdminInvoicesPage() {
         {/* Invoice Table */}
         <div className="border rounded-lg overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-slate-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Invoice #
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Warehouse
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Billing Period
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Amount
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Date Received
                 </th>
                 <th className="relative px-6 py-3">
@@ -144,17 +144,17 @@ export default function AdminInvoicesPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+              <tr className="hover:bg-slate-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
                   INV-2025-001
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
                   FMC
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                   Dec 16 - Jan 15
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 text-right">
                   £12,456.78
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -162,7 +162,7 @@ export default function AdminInvoicesPage() {
                     Pending
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                   Jan 18, 2025
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -171,17 +171,17 @@ export default function AdminInvoicesPage() {
                   </Link>
                 </td>
               </tr>
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+              <tr className="hover:bg-slate-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
                   INV-2024-089
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
                   Vglobal
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                   Nov 16 - Dec 15
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 text-right">
                   £8,234.50
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -189,7 +189,7 @@ export default function AdminInvoicesPage() {
                     Reconciled
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                   Dec 17, 2024
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -198,17 +198,17 @@ export default function AdminInvoicesPage() {
                   </Link>
                 </td>
               </tr>
-              <tr className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+              <tr className="hover:bg-slate-50">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
                   INV-2024-088
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
                   FMC
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                   Nov 16 - Dec 15
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 text-right">
                   £10,123.45
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -216,7 +216,7 @@ export default function AdminInvoicesPage() {
                     Disputed
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                   Dec 16, 2024
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -231,16 +231,16 @@ export default function AdminInvoicesPage() {
 
         {/* Pagination */}
         <div className="flex items-center justify-between">
-          <div className="text-sm text-gray-700">
+          <div className="text-sm text-slate-700">
             Showing <span className="font-medium">1</span> to{' '}
             <span className="font-medium">10</span> of{' '}
             <span className="font-medium">89</span> results
           </div>
           <div className="flex items-center gap-2">
-            <button className="px-3 py-1 border rounded-md text-sm hover:bg-gray-50">
+            <button className="px-3 py-1 border rounded-md text-sm hover:bg-slate-50">
               Previous
             </button>
-            <button className="px-3 py-1 border rounded-md text-sm hover:bg-gray-50">
+            <button className="px-3 py-1 border rounded-md text-sm hover:bg-slate-50">
               Next
             </button>
           </div>

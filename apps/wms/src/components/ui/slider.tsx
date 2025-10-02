@@ -10,7 +10,7 @@ const Slider = React.forwardRef<HTMLInputElement, SliderProps>(
         type="range"
         ref={ref}
         className={cn(
-          "w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer",
+          "w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer",
           className
         )}
         {...props}

@@ -131,13 +131,13 @@ export default function NewWarehouseConfigPage() {
           <div className="grid gap-6 md:grid-cols-2">
             {/* Warehouse Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Warehouse <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.warehouseId}
                 onChange={(e) => setFormData({ ...formData, warehouseId: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               >
                 <option value="">Select warehouse</option>
@@ -151,13 +151,13 @@ export default function NewWarehouseConfigPage() {
 
             {/* SKU Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 SKU <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.skuId}
                 onChange={(e) => setFormData({ ...formData, skuId: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               >
                 <option value="">Select SKU</option>
@@ -171,7 +171,7 @@ export default function NewWarehouseConfigPage() {
 
             {/* Storage Cartons per Pallet */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Storage Cartons per Pallet <span className="text-red-500">*</span>
               </label>
               <input
@@ -180,18 +180,18 @@ export default function NewWarehouseConfigPage() {
                 max="200"
                 value={formData.storageCartonsPerPallet}
                 onChange={(e) => setFormData({ ...formData, storageCartonsPerPallet: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="e.g., 48"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Used for calculating storage charges (max: 200)
               </p>
             </div>
 
             {/* Shipping Cartons per Pallet */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Shipping Cartons per Pallet <span className="text-red-500">*</span>
               </label>
               <input
@@ -200,18 +200,18 @@ export default function NewWarehouseConfigPage() {
                 max="200"
                 value={formData.shippingCartonsPerPallet}
                 onChange={(e) => setFormData({ ...formData, shippingCartonsPerPallet: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="e.g., 40"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Used when shipping goods (may differ from storage)
               </p>
             </div>
 
             {/* Max Stacking Height */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Max Stacking Height (cm)
               </label>
               <input
@@ -220,27 +220,27 @@ export default function NewWarehouseConfigPage() {
                 max="500"
                 value={formData.maxStackingHeightCm}
                 onChange={(e) => setFormData({ ...formData, maxStackingHeightCm: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="e.g., 180"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Optional: Maximum height when stacked
               </p>
             </div>
 
             {/* Effective Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Effective Date <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
                 value={formData.effectiveDate}
                 onChange={(e) => setFormData({ ...formData, effectiveDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 When this configuration becomes active
               </p>
             </div>
@@ -252,7 +252,7 @@ export default function NewWarehouseConfigPage() {
             <button
               type="button"
               onClick={handleCancel}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              className="px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50"
               disabled={loading}
             >
               <X className="h-4 w-4 mr-2 inline" />

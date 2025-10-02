@@ -88,27 +88,27 @@ export function IncompleteTransactionsAlert() {
 
           {showDetails && (
             <div className="mt-4 bg-white rounded-md p-3 border border-amber-200">
-              <h4 className="text-sm font-medium text-gray-900 mb-2">
+              <h4 className="text-sm font-medium text-slate-900 mb-2">
                 Missing Information by Transaction Type:
               </h4>
               <div className="space-y-2 text-sm">
                 <div>
-                  <strong className="text-gray-700">RECEIVE Transactions:</strong>
-                  <ul className="mt-1 ml-4 text-gray-600 list-disc">
+                  <strong className="text-slate-700">RECEIVE Transactions:</strong>
+                  <ul className="mt-1 ml-4 text-slate-600 list-disc">
                     <li>Tracking Number (for tracking shipments)</li>
                     <li>Pickup Date (for delivery scheduling)</li>
                     <li>Supporting Documents (BOL, customs docs, etc.)</li>
                   </ul>
                 </div>
                 <div>
-                  <strong className="text-gray-700">SHIP Transactions:</strong>
-                  <ul className="mt-1 ml-4 text-gray-600 list-disc">
+                  <strong className="text-slate-700">SHIP Transactions:</strong>
+                  <ul className="mt-1 ml-4 text-slate-600 list-disc">
                     <li>Pickup Date (for delivery tracking)</li>
                     <li>Shipping Documents (packing lists, invoices, etc.)</li>
                   </ul>
                 </div>
               </div>
-              <p className="mt-3 text-xs text-gray-500">
+              <p className="mt-3 text-xs text-slate-500">
                 This data was not available in the Excel import and must be added manually to ensure accurate tracking and billing.
               </p>
             </div>
@@ -116,7 +116,7 @@ export function IncompleteTransactionsAlert() {
         </div>
         <button
           onClick={() => setIncompleteTransactions([])}
-          className="text-gray-400 hover:text-gray-500"
+          className="text-slate-400 hover:text-slate-500"
           aria-label="Dismiss"
         >
           <X className="h-5 w-5" />

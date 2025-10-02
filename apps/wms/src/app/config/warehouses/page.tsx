@@ -228,8 +228,8 @@ function WarehouseAndRatesPageContent() {
       sortable: true,
       render: (_, row) => (
         <div className="flex flex-col">
-          <span className="font-medium text-gray-900">{row.name}</span>
-          <span className="text-xs text-gray-500">Code: {row.code}</span>
+          <span className="font-medium text-slate-900">{row.name}</span>
+          <span className="text-xs text-slate-500">Code: {row.code}</span>
         </div>
       )
     },
@@ -241,7 +241,7 @@ function WarehouseAndRatesPageContent() {
       render: (value) => (
         <span
           className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-            value ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+            value ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
           }`}
         >
           {value ? 'Active' : 'Inactive'}
@@ -331,7 +331,7 @@ function WarehouseAndRatesPageContent() {
       key: 'costName',
       label: 'Cost Name',
       sortable: true,
-      render: (value) => <span className="text-sm text-gray-900">{value as string}</span>
+      render: (value) => <span className="text-sm text-slate-900">{value as string}</span>
     },
     {
       key: 'costValue',
@@ -358,7 +358,7 @@ function WarehouseAndRatesPageContent() {
       label: 'End',
       sortable: true,
       className: 'w-32',
-      render: (value) => value ? formatDate(value as string) : <span className="text-gray-400">Open</span>
+      render: (value) => value ? formatDate(value as string) : <span className="text-slate-400">Open</span>
     },
     {
       key: 'status',
@@ -442,7 +442,7 @@ function WarehouseAndRatesPageContent() {
               <div className="flex items-center justify-between px-4 py-3 border-b">
                 <div>
                   <h2 className="text-lg font-semibold">Warehouses</h2>
-                  <p className="text-xs text-gray-500">Showing {warehouses.length} locations</p>
+                  <p className="text-xs text-slate-500">Showing {warehouses.length} locations</p>
                 </div>
             <div className="flex items-center gap-2">
               <Button
@@ -458,7 +458,7 @@ function WarehouseAndRatesPageContent() {
               <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
                 <input
                   type="checkbox"
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-300"
                   checked={showInactiveWarehouses}
                   onChange={(event) => setShowInactiveWarehouses(event.target.checked)}
                 />
@@ -484,7 +484,7 @@ function WarehouseAndRatesPageContent() {
                 <div className="flex items-start justify-between px-4 py-3 border-b">
                   <div>
                     <h2 className="text-lg font-semibold">{selectedWarehouse.name}</h2>
-                    <p className="text-sm text-gray-500">Code: {selectedWarehouse.code}</p>
+                    <p className="text-sm text-slate-500">Code: {selectedWarehouse.code}</p>
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -533,34 +533,34 @@ function WarehouseAndRatesPageContent() {
                   {detailTab === 'overview' && (
                     <TabsContent className="flex-1 overflow-y-auto px-4 pb-6">
                       <div className="mt-4 space-y-4">
-                        <div className="rounded-lg border border-gray-100 bg-gray-50/40 p-4">
-                          <h3 className="text-sm font-semibold text-gray-900">At a glance</h3>
-                          <dl className="mt-2 grid grid-cols-1 gap-3 text-sm text-gray-600 md:grid-cols-3">
+                        <div className="rounded-xl border border-slate-100 bg-slate-50/40 p-4">
+                          <h3 className="text-sm font-semibold text-slate-900">At a glance</h3>
+                          <dl className="mt-2 grid grid-cols-1 gap-3 text-sm text-slate-600 md:grid-cols-3">
                             <div>
                               <dt className="text-xs uppercase tracking-wide text-muted-foreground">Status</dt>
-                              <dd className="mt-1 font-medium text-gray-900">{selectedWarehouse.isActive ? 'Active' : 'Inactive'}</dd>
+                              <dd className="mt-1 font-medium text-slate-900">{selectedWarehouse.isActive ? 'Active' : 'Inactive'}</dd>
                             </div>
                             <div>
                               <dt className="text-xs uppercase tracking-wide text-muted-foreground">Cost rates</dt>
-                              <dd className="mt-1 font-medium text-gray-900">{selectedWarehouse._count.costRates}</dd>
+                              <dd className="mt-1 font-medium text-slate-900">{selectedWarehouse._count.costRates}</dd>
                             </div>
                             <div>
                               <dt className="text-xs uppercase tracking-wide text-muted-foreground">Inventory txns</dt>
-                              <dd className="mt-1 font-medium text-gray-900">{selectedWarehouse._count.inventoryTransactions}</dd>
+                              <dd className="mt-1 font-medium text-slate-900">{selectedWarehouse._count.inventoryTransactions}</dd>
                             </div>
                           </dl>
                         </div>
 
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                          <div className="rounded-lg border border-gray-100 bg-white p-4">
-                            <h3 className="text-sm font-semibold text-gray-900">Primary contacts</h3>
+                          <div className="rounded-xl border border-slate-100 bg-white p-4">
+                            <h3 className="text-sm font-semibold text-slate-900">Primary contacts</h3>
                             {selectedWarehouse.contactEmail || selectedWarehouse.contactPhone ? (
-                              <ul className="mt-2 space-y-1 text-sm text-gray-600">
+                              <ul className="mt-2 space-y-1 text-sm text-slate-600">
                                 {selectedWarehouse.contactEmail && (
-                                  <li>Email: <span className="text-gray-800">{selectedWarehouse.contactEmail}</span></li>
+                                  <li>Email: <span className="text-slate-800">{selectedWarehouse.contactEmail}</span></li>
                                 )}
                                 {selectedWarehouse.contactPhone && (
-                                  <li>Phone: <span className="text-gray-800">{selectedWarehouse.contactPhone}</span></li>
+                                  <li>Phone: <span className="text-slate-800">{selectedWarehouse.contactPhone}</span></li>
                                 )}
                               </ul>
                             ) : (
@@ -568,9 +568,9 @@ function WarehouseAndRatesPageContent() {
                             )}
                           </div>
 
-                          <div className="rounded-lg border border-gray-100 bg-white p-4">
-                            <h3 className="text-sm font-semibold text-gray-900">Location</h3>
-                            <p className="mt-2 text-sm text-gray-600">
+                          <div className="rounded-xl border border-slate-100 bg-white p-4">
+                            <h3 className="text-sm font-semibold text-slate-900">Location</h3>
+                            <p className="mt-2 text-sm text-slate-600">
                               {selectedWarehouse.address ? selectedWarehouse.address : 'No address provided.'}
                             </p>
                             {selectedWarehouse.latitude && selectedWarehouse.longitude && (
@@ -614,11 +614,11 @@ function WarehouseAndRatesPageContent() {
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
                         <div className="flex flex-wrap items-center gap-3">
                           <div className="flex items-center gap-2">
-                            <label className="text-gray-600">Category</label>
+                            <label className="text-slate-600">Category</label>
                             <select
                               value={rateCategoryFilter}
                               onChange={(event) => setRateCategoryFilter(event.target.value)}
-                              className="rounded-md border-gray-300 text-sm"
+                              className="rounded-md border-slate-300 text-sm"
                             >
                               <option value="all">All</option>
                               {costCategories.map((category) => (
@@ -629,7 +629,7 @@ function WarehouseAndRatesPageContent() {
                           <label className="inline-flex items-center gap-2">
                             <input
                               type="checkbox"
-                              className="rounded border-gray-300"
+                              className="rounded border-slate-300"
                               checked={showActiveRatesOnly}
                               onChange={(event) => {
                                 setShowActiveRatesOnly(event.target.checked)
@@ -665,7 +665,7 @@ function WarehouseAndRatesPageContent() {
               </div>
             ) : (
               <div className="flex items-center justify-center flex-1">
-                <div className="text-center text-gray-500">
+                <div className="text-center text-slate-500">
                   <Building className="h-12 w-12 mx-auto mb-3" />
                   <p>Select a warehouse to view details</p>
                 </div>
@@ -708,14 +708,14 @@ function getCategoryBadgeClass(category: string) {
 
 function renderRateStatus(rate: CostRate, now: number) {
   if (now === 0) {
-    return <span className="text-xs text-gray-400">—</span>
+    return <span className="text-xs text-slate-400">—</span>
   }
 
   const effective = new Date(rate.effectiveDate).getTime()
   const end = rate.endDate ? new Date(rate.endDate).getTime() : null
 
   if (end !== null && end < now) {
-    return <span className="text-xs text-gray-500">Expired</span>
+    return <span className="text-xs text-slate-500">Expired</span>
   }
 
   if (effective > now) {
@@ -734,9 +734,9 @@ interface SummaryCardProps {
 function SummaryCard({ title, value, description }: SummaryCardProps) {
   return (
     <div className="bg-white border rounded-md px-3 py-2">
-      <p className="text-xs text-gray-500 uppercase tracking-wide">{title}</p>
-      <p className="text-lg font-semibold text-gray-900">{value}</p>
-      <p className="text-xs text-gray-500">{description}</p>
+      <p className="text-xs text-slate-500 uppercase tracking-wide">{title}</p>
+      <p className="text-lg font-semibold text-slate-900">{value}</p>
+      <p className="text-xs text-slate-500">{description}</p>
     </div>
   )
 }

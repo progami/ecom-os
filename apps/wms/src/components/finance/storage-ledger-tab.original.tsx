@@ -383,7 +383,7 @@ export function StorageLedgerTab({
                   onClick={() => setAggregationView('weekly')}
                   className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
                     aggregationView === 'weekly' 
-                      ? 'bg-white text-primary shadow-sm' 
+                      ? 'bg-white text-primary shadow-soft' 
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -394,7 +394,7 @@ export function StorageLedgerTab({
                   onClick={() => setAggregationView('monthly')}
                   className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
                     aggregationView === 'monthly' 
-                      ? 'bg-white text-primary shadow-sm' 
+                      ? 'bg-white text-primary shadow-soft' 
                       : 'text-muted-foreground hover:text-foreground'
                   }`}
                 >
@@ -404,7 +404,7 @@ export function StorageLedgerTab({
               <button
                 type="button"
                 onClick={(e) => handleExport(e)}
-                className="inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium hover:bg-muted/30 transition-colors"
+                className="inline-flex items-center px-4 py-2 border rounded-md shadow-soft text-sm font-medium hover:bg-muted/30 transition-colors"
               >
                 <Download className="h-4 w-4 mr-2" />
                 Export

@@ -39,7 +39,7 @@ export function DemoWelcome() {
       <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
         {/* Background overlay */}
         <div 
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
+          className="fixed inset-0 bg-slate-500 bg-opacity-75 transition-opacity"
           onClick={() => setIsVisible(false)}
         />
 
@@ -68,8 +68,8 @@ export function DemoWelcome() {
               <div className="flex items-start gap-3">
                 <Info className="h-5 w-5 text-cyan-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">Demo Data Loaded</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm font-medium text-slate-900">Demo Data Loaded</p>
+                  <p className="text-sm text-slate-600">
                     We've populated the system with sample warehouses, products, inventory, and transactions
                     so you can see how everything works.
                   </p>
@@ -77,10 +77,10 @@ export function DemoWelcome() {
               </div>
 
               <div>
-                <p className="text-sm font-medium text-gray-900 mb-2">Explore these features:</p>
+                <p className="text-sm font-medium text-slate-900 mb-2">Explore these features:</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {features.map((feature, index) => (
-                    <div key={index} className="flex items-center gap-2 text-sm text-gray-600">
+                    <div key={index} className="flex items-center gap-2 text-sm text-slate-600">
                       <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
                       <span>{feature}</span>
                     </div>
@@ -97,17 +97,17 @@ export function DemoWelcome() {
             </div>
           </div>
 
-          <div className="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+          <div className="bg-slate-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
             <button
               type="button"
-              className="inline-flex w-full justify-center rounded-md bg-gradient-to-r from-cyan-600 to-brand-teal-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:from-cyan-700 hover:to-brand-teal-700 sm:ml-3 sm:w-auto"
+              className="inline-flex w-full justify-center rounded-md bg-gradient-to-r from-cyan-600 to-brand-teal-600 px-3 py-2 text-sm font-semibold text-white shadow-soft hover:from-cyan-700 hover:to-brand-teal-700 sm:ml-3 sm:w-auto"
               onClick={() => setIsVisible(false)}
             >
               Start Exploring
             </button>
             <button
               type="button"
-              className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+              className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-soft ring-1 ring-inset ring-gray-300 hover:bg-slate-50 sm:mt-0 sm:w-auto"
               onClick={() => {
                 setIsVisible(false)
                 window.open('/docs/getting-started', '_blank')

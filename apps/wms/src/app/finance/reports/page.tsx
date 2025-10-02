@@ -93,15 +93,15 @@ export default async function FinanceReportsPage() {
                 className="bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/20 rounded-lg p-2 hover:shadow-lg transition-all duration-200 cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className="p-3 bg-white rounded-lg shadow-sm">
+                  <div className="p-3 bg-white rounded-lg shadow-soft">
                     <report.icon className="h-6 w-6 text-primary" />
                   </div>
                   <span className="badge-primary">{report.category}</span>
                 </div>
                 <h3 className="font-semibold text-lg mb-2">{report.name}</h3>
-                <p className="text-sm text-gray-600 mb-4">{report.description}</p>
+                <p className="text-sm text-slate-600 mb-4">{report.description}</p>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-slate-500">
                     Last generated: {report.lastGenerated}
                   </p>
                   <Button variant="ghost" size="sm" className="gap-1 text-primary hover:text-primary">
@@ -124,17 +124,17 @@ export default async function FinanceReportsPage() {
                 className="bg-white border rounded-lg p-2 hover:shadow-lg transition-all duration-200 hover:border-primary cursor-pointer group"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <report.icon className="h-8 w-8 text-gray-400 group-hover:text-primary transition-colors" />
-                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                  <report.icon className="h-8 w-8 text-slate-400 group-hover:text-primary transition-colors" />
+                  <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
                     {report.category}
                   </span>
                 </div>
-                <h3 className="font-semibold text-gray-900 group-hover:text-primary mb-1">
+                <h3 className="font-semibold text-slate-900 group-hover:text-primary mb-1">
                   {report.name}
                 </h3>
-                <p className="text-sm text-gray-600 mb-3">{report.description}</p>
+                <p className="text-sm text-slate-600 mb-3">{report.description}</p>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-slate-500">
                     {report.lastGenerated}
                   </p>
                   <Button variant="ghost" size="sm" className="gap-1 text-primary hover:text-primary">
@@ -152,7 +152,7 @@ export default async function FinanceReportsPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold">Custom Report Builder</h3>
-              <p className="text-sm text-gray-600">Create custom reports with specific filters</p>
+              <p className="text-sm text-slate-600">Create custom reports with specific filters</p>
             </div>
             <Button>Create Custom Report</Button>
           </div>

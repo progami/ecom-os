@@ -209,7 +209,7 @@ export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT' }: Purcha
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-col rounded-lg border bg-white shadow-sm">
+      <div className="flex min-h-0 flex-col rounded-xl border bg-white shadow-soft">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[960px] table-auto text-sm">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">

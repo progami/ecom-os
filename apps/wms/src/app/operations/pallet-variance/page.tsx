@@ -227,7 +227,7 @@ export default function PalletVariancePage() {
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 filter === 'all'
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
               }`}
             >
               All ({variances.length})
@@ -237,7 +237,7 @@ export default function PalletVariancePage() {
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 filter === 'positive'
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
               }`}
             >
               Overages ({positiveCount})
@@ -247,7 +247,7 @@ export default function PalletVariancePage() {
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 filter === 'negative'
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
               }`}
             >
               Shortages ({negativeCount})
@@ -257,7 +257,7 @@ export default function PalletVariancePage() {
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 filter === 'pending'
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
               }`}
             >
               Pending ({pendingCount})
@@ -269,53 +269,53 @@ export default function PalletVariancePage() {
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
           <div className="border-b border-slate-200 bg-slate-50 px-6 py-3 dark:border-[#0b3a52] dark:bg-[#041324]">
             <h3 className="text-lg font-semibold">Pallet Variances</h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-slate-600 mt-1">
               Showing {filteredVariances.length} of {variances.length} variances
             </p>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-slate-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Warehouse
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   SKU
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Batch/Lot
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
                   System Pallets
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Actual Pallets
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Variance
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Last Count
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredVariances.map((variance) => (
-                <tr key={variance.id} className="hover:bg-gray-50">
+                <tr key={variance.id} className="hover:bg-slate-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {variance.warehouse.name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <div>
                       <div className="font-medium">{variance.sku.skuCode}</div>
-                      <div className="text-xs text-gray-500">{variance.sku.description}</div>
+                      <div className="text-xs text-slate-500">{variance.sku.description}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -329,7 +329,7 @@ export default function PalletVariancePage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                     <div className={`inline-flex items-center gap-1 font-medium ${
-                      variance.variance > 0 ? 'text-green-600' : variance.variance < 0 ? 'text-red-600' : 'text-gray-600'
+                      variance.variance > 0 ? 'text-green-600' : variance.variance < 0 ? 'text-red-600' : 'text-slate-600'
                     }`}>
                       {variance.variance > 0 ? (
                         <Plus className="h-3 w-3" />
@@ -350,7 +350,7 @@ export default function PalletVariancePage() {
                       {variance.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                     {variance.lastPhysicalCount 
                       ? new Date(variance.lastPhysicalCount).toLocaleDateString()
                       : 'Never'
@@ -407,7 +407,7 @@ export default function PalletVariancePage() {
             <h3 className="text-lg font-semibold mb-4">Create Pallet Adjustment</h3>
             
             <div className="space-y-2">
-              <div className="bg-gray-50 p-3 rounded">
+              <div className="bg-slate-50 p-3 rounded">
                 <div className="text-sm">
                   <p><span className="font-medium">SKU:</span> {selectedVariance.sku.skuCode}</p>
                   <p><span className="font-medium">Batch:</span> {selectedVariance.batchLot}</p>

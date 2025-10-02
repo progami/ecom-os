@@ -20,8 +20,8 @@ export interface StatsCardProps {
 const variantStyles = {
   default: {
     container: '',
-    icon: 'text-gray-400',
-    value: 'text-gray-900',
+    icon: 'text-slate-400',
+    value: 'text-slate-900',
     border: ''
   },
   success: {
@@ -108,7 +108,7 @@ export function StatsCard({
               {typeof value === 'number' ? value.toLocaleString() : value}
             </p>
             {subtitle && (
-              <p className={cn('text-gray-500', sizes.subtitleSize)}>{subtitle}</p>
+              <p className={cn('text-slate-500', sizes.subtitleSize)}>{subtitle}</p>
             )}
           </div>
           {trend && (
@@ -120,7 +120,7 @@ export function StatsCard({
                 {trend.value >= 0 ? '+' : ''}{trend.value}%
               </span>
               {trend.label && (
-                <span className="text-xs text-gray-500">{trend.label}</span>
+                <span className="text-xs text-slate-500">{trend.label}</span>
               )}
             </div>
           )}

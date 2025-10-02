@@ -110,7 +110,7 @@ export function Tooltip({
           className="cursor-help"
         >
           {children || (
-            <Icon className={`${sizeClasses[iconSize]} text-gray-400 hover:text-gray-600`} />
+            <Icon className={`${sizeClasses[iconSize]} text-slate-400 hover:text-slate-600`} />
           )}
         </div>
       </div>
@@ -129,7 +129,7 @@ interface InlineTooltipProps {
 export function InlineTooltip({ label, tooltip, required }: InlineTooltipProps) {
   return (
     <div className="flex items-center gap-1">
-      <span className="block text-sm font-medium text-gray-700">
+      <span className="block text-sm font-medium text-slate-700">
         {label} {required && <span className="text-red-500">*</span>}
       </span>
       <Tooltip content={tooltip} iconSize="sm" />

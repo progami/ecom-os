@@ -121,12 +121,12 @@ export function ImportButton({ entityName, onImportComplete, className = '', but
       {isOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto">
           <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={handleClose} />
+            <div className="fixed inset-0 bg-slate-500 bg-opacity-75 transition-opacity" onClick={handleClose} />
 
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">
+                  <h3 className="text-lg font-medium text-slate-900">
                     Import {config.displayName}
                   </h3>
                   <Button
@@ -154,14 +154,14 @@ export function ImportButton({ entityName, onImportComplete, className = '', but
                   </div>
 
                   {/* Template download */}
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
                     <div>
-                      <p className="text-sm font-medium text-gray-900">Need a template?</p>
-                      <p className="text-xs text-gray-500">Download a pre-formatted Excel template</p>
+                      <p className="text-sm font-medium text-slate-900">Need a template?</p>
+                      <p className="text-xs text-slate-500">Download a pre-formatted Excel template</p>
                     </div>
                     <button
                       onClick={downloadTemplate}
-                      className="inline-flex items-center px-3 py-1.5 border border-gray-300 text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                      className="inline-flex items-center px-3 py-1.5 border border-slate-300 text-xs font-medium rounded text-slate-700 bg-white hover:bg-slate-50"
                     >
                       <Download className="h-3 w-3 mr-1" />
                       Template
@@ -170,7 +170,7 @@ export function ImportButton({ entityName, onImportComplete, className = '', but
 
                   {/* File upload */}
                   <div>
-                    <label htmlFor={`import-file-${entityName}`} className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor={`import-file-${entityName}`} className="block text-sm font-medium text-slate-700 mb-2">
                       Select Excel file
                     </label>
                     <input
@@ -179,7 +179,7 @@ export function ImportButton({ entityName, onImportComplete, className = '', but
                       type="file"
                       accept=".xlsx,.xls"
                       onChange={handleFileChange}
-                      className="block w-full text-sm text-gray-500
+                      className="block w-full text-sm text-slate-500
                         file:mr-4 file:py-2 file:px-4
                         file:rounded-md file:border-0
                         file:text-sm file:font-medium
@@ -193,7 +193,7 @@ export function ImportButton({ entityName, onImportComplete, className = '', but
                       Upload an Excel file containing {config.displayName} data to import
                     </span>
                     {file && (
-                      <p className="mt-2 text-sm text-gray-600">
+                      <p className="mt-2 text-sm text-slate-600">
                         Selected: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
                       </p>
                     )}
@@ -225,11 +225,11 @@ export function ImportButton({ entityName, onImportComplete, className = '', but
                       
                       <div className="grid grid-cols-2 gap-2 text-sm mb-2">
                         <div>
-                          <span className="text-gray-500">Imported:</span>
+                          <span className="text-slate-500">Imported:</span>
                           <span className="ml-2 font-medium text-green-600">{result.imported}</span>
                         </div>
                         <div>
-                          <span className="text-gray-500">Skipped:</span>
+                          <span className="text-slate-500">Skipped:</span>
                           <span className="ml-2 font-medium text-yellow-600">{result.skipped}</span>
                         </div>
                       </div>
@@ -252,11 +252,11 @@ export function ImportButton({ entityName, onImportComplete, className = '', but
                 </div>
               </div>
 
-              <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+              <div className="bg-slate-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button
                   onClick={handleImport}
                   disabled={!file || importing}
-                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full inline-flex justify-center rounded-md border border-transparent shadow-soft px-4 py-2 bg-primary text-base font-medium text-white hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {importing ? (
                     <>
@@ -275,7 +275,7 @@ export function ImportButton({ entityName, onImportComplete, className = '', but
                 </button>
                 <button
                   onClick={handleClose}
-                  className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+                  className="mt-3 w-full inline-flex justify-center rounded-md border border-slate-300 shadow-soft px-4 py-2 bg-white text-base font-medium text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   Cancel
                 </button>

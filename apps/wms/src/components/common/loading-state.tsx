@@ -23,7 +23,7 @@ export function LoadingState({
     <div className={`flex flex-col items-center justify-center gap-4 ${className}`}>
       <Loader2 className={`animate-spin text-cyan-600 ${sizeClasses[size]}`} />
       {message && (
-        <p className="text-sm text-gray-600">{message}</p>
+        <p className="text-sm text-slate-600">{message}</p>
       )}
     </div>
   )
@@ -74,7 +74,7 @@ export function Skeleton({
   return (
     <div 
       className={`
-        bg-gray-200 rounded
+        bg-slate-200 rounded
         ${animate ? 'animate-pulse' : ''}
         ${className}
       `}
@@ -85,7 +85,7 @@ export function Skeleton({
 export function TableSkeleton({ rows = 5, columns = 4 }) {
   return (
     <div className="w-full">
-      <div className="bg-gray-50 p-4 border-b">
+      <div className="bg-slate-50 p-4 border-b">
         <div className="flex gap-4">
           {Array.from({ length: columns }).map((_, i) => (
             <Skeleton key={i} className="h-4 w-24" />

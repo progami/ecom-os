@@ -155,7 +155,7 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="border rounded-lg p-6 bg-gray-50 dark:bg-gray-800">
+        <div className="border rounded-lg p-6 bg-slate-50 dark:bg-[#06182b]">
           <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
           <div className="grid gap-4">
             <QuickAction
@@ -269,10 +269,10 @@ function QuickAction({ title, description, icon: Icon, onClick, loading, danger 
     >
       <div className="flex items-start gap-3">
         <div className={`p-2 rounded-lg ${
-          danger ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-800'
+          danger ? 'bg-red-100 dark:bg-red-900/30' : 'bg-slate-100 dark:bg-[#06182b]'
         }`}>
           <Icon className={`h-5 w-5 ${
-            danger ? 'text-red-600' : 'text-gray-600'
+            danger ? 'text-red-600' : 'text-slate-600'
           }`} />
         </div>
         <div className="flex-1">

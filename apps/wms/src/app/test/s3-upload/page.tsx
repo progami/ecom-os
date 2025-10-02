@@ -54,7 +54,7 @@ export default function S3UploadTestPage() {
         
         <div className="bg-white rounded-lg shadow p-6 space-y-4">
           <div>
-            <label htmlFor="s3-test-file" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="s3-test-file" className="block text-sm font-medium text-slate-700 mb-2">
               Select a file to test S3 upload
             </label>
             <input
@@ -62,7 +62,7 @@ export default function S3UploadTestPage() {
               name="testFile"
               type="file"
               onChange={handleFileSelect}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"
+              className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100"
               aria-label="Select a file to test S3 upload functionality"
               aria-describedby="s3-test-file-help"
             />
@@ -72,7 +72,7 @@ export default function S3UploadTestPage() {
           </div>
 
           {selectedFile && (
-            <div className="bg-gray-50 rounded p-4">
+            <div className="bg-slate-50 rounded p-4">
               <h3 className="font-medium mb-2">Selected File:</h3>
               <ul className="space-y-1 text-sm">
                 <li><strong>Name:</strong> {selectedFile.name}</li>
@@ -85,7 +85,7 @@ export default function S3UploadTestPage() {
           <button
             onClick={handleUpload}
             disabled={!selectedFile || isUploading}
-            className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700 disabled:bg-slate-400 disabled:cursor-not-allowed"
           >
             {isUploading ? 'Uploading...' : 'Upload to S3'}
           </button>
@@ -96,7 +96,7 @@ export default function S3UploadTestPage() {
                 <span>Upload Progress</span>
                 <span>{progress.percentage}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="w-full bg-slate-200 rounded-full h-2">
                 <div
                   className="bg-cyan-600 h-2 rounded-full transition-all"
                   style={{ width: `${progress.percentage}%` }}

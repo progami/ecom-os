@@ -62,7 +62,7 @@ export default function FinancePage() {
             <Link
               key={module.href}
               href={module.href}
-              className="group relative rounded-lg border p-6 hover:shadow-lg transition-shadow"
+              className="group relative rounded-xl border p-6 hover:shadow-lg transition-shadow"
             >
               <div className="flex items-start justify-between">
                 <div className="space-y-2">
@@ -74,7 +74,7 @@ export default function FinancePage() {
                     {module.description}
                   </p>
                 </div>
-                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-primary transition-colors" />
+                <ArrowRight className="h-5 w-5 text-slate-400 group-hover:text-primary transition-colors" />
               </div>
             </Link>
           ))}
@@ -82,10 +82,10 @@ export default function FinancePage() {
 
         <div className="border rounded-lg p-6 bg-green-50">
           <h3 className="font-semibold mb-2">Billing Cycle</h3>
-          <p className="text-sm text-gray-700 mb-2">
+          <p className="text-sm text-slate-700 mb-2">
             Our billing period runs from the <strong>16th of each month to the 15th of the following month</strong>.
           </p>
-          <ul className="space-y-1 text-sm text-gray-700">
+          <ul className="space-y-1 text-sm text-slate-700">
             <li>• Storage costs are calculated weekly (Monday snapshots)</li>
             <li>• Invoices are generated after the 15th of each month</li>
             <li>• Use Reconciliation to verify warehouse charges</li>

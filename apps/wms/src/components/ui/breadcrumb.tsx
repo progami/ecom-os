@@ -65,25 +65,25 @@ export function Breadcrumb() {
   const homeLink = session?.user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'
 
   return (
-    <nav className="flex items-center space-x-1 text-sm text-gray-600 mb-4">
+    <nav className="flex items-center space-x-1 text-sm text-slate-600 mb-4">
       <Link
         href={homeLink}
-        className="flex items-center hover:text-gray-900 transition-colors"
+        className="flex items-center hover:text-slate-900 transition-colors"
       >
         <Home className="h-4 w-4" />
       </Link>
       
       {breadcrumbs.map((breadcrumb, index) => (
         <div key={breadcrumb.href} className="flex items-center">
-          <ChevronRight className="h-4 w-4 mx-1 text-gray-400" />
+          <ChevronRight className="h-4 w-4 mx-1 text-slate-400" />
           {index === breadcrumbs.length - 1 ? (
-            <span className="font-medium text-gray-900">
+            <span className="font-medium text-slate-900">
               {breadcrumb.label}
             </span>
           ) : (
             <Link
               href={breadcrumb.href}
-              className="hover:text-gray-900 transition-colors"
+              className="hover:text-slate-900 transition-colors"
             >
               {breadcrumb.label}
             </Link>

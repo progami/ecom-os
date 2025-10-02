@@ -240,7 +240,7 @@ export default function InvoiceTemplatesPage() {
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <h3 className="font-semibold text-lg">{template.name}</h3>
-                  <p className="text-sm text-gray-600">{template.warehouse.name}</p>
+                  <p className="text-sm text-slate-600">{template.warehouse.name}</p>
                 </div>
                 {template.isDefault && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -249,11 +249,11 @@ export default function InvoiceTemplatesPage() {
                 )}
               </div>
               
-              <p className="text-sm text-gray-500 mb-3">{template.description}</p>
+              <p className="text-sm text-slate-500 mb-3">{template.description}</p>
               
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="text-gray-500">Transaction Type:</span>
+                  <span className="text-slate-500">Transaction Type:</span>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                     template.transactionType === 'RECEIVE' ? 'bg-green-100 text-green-800' :
                     template.transactionType === 'SHIP' ? 'bg-red-100 text-red-800' :
@@ -264,12 +264,12 @@ export default function InvoiceTemplatesPage() {
                 </div>
                 
                 <div className="text-sm">
-                  <span className="text-gray-500">Active Cost Types:</span>
+                  <span className="text-slate-500">Active Cost Types:</span>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {Object.entries(template.costMappings)
                       .filter(([_, mapping]) => mapping.enabled)
                       .map(([key, mapping]) => (
-                        <span key={key} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        <span key={key} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
                           {mapping.category}
                         </span>
                       ))
@@ -288,7 +288,7 @@ export default function InvoiceTemplatesPage() {
                 </button>
                 <button
                   onClick={() => handleCopy(template)}
-                  className="text-gray-600 hover:text-gray-800"
+                  className="text-slate-600 hover:text-slate-800"
                   title="Copy"
                 >
                   <Copy className="h-4 w-4" />
@@ -330,7 +330,7 @@ export default function InvoiceTemplatesPage() {
                 </h3>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-slate-400 hover:text-slate-600"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -398,7 +398,7 @@ export default function InvoiceTemplatesPage() {
                         type="checkbox"
                         checked={formData.isDefault}
                         onChange={(e) => setFormData({...formData, isDefault: e.target.checked})}
-                        className="rounded border-gray-300"
+                        className="rounded border-slate-300"
                       />
                       <span className="text-sm font-medium">Set as default template</span>
                     </label>
@@ -409,21 +409,21 @@ export default function InvoiceTemplatesPage() {
                   <h4 className="font-medium mb-2">Cost Type Configuration</h4>
                   <div className="border rounded-lg overflow-hidden">
                     <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                      <thead className="bg-slate-50">
                         <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
                             Enabled
                           </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
                             Cost Type
                           </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
                             Calculation Type
                           </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
                             Custom Rate
                           </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
                             Description
                           </th>
                         </tr>
@@ -450,7 +450,7 @@ export default function InvoiceTemplatesPage() {
                                       }
                                     })
                                   }}
-                                  className="rounded border-gray-300"
+                                  className="rounded border-slate-300"
                                 />
                               </td>
                               <td className="px-4 py-2 text-sm font-medium">

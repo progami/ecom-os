@@ -147,9 +147,9 @@ export function MainNav() {
                 {userMenuOpen && (
                   <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-[#06182b] rounded-lg shadow-soft-lg border border-slate-200 dark:border-[#0b3a52] py-1 z-50">
                     <div className="px-3 py-2 border-b border-slate-200 dark:border-[#0b3a52]">
-                      <p className="text-xs text-gray-500">Signed in as</p>
+                      <p className="text-xs text-slate-500">Signed in as</p>
                       <p className="text-sm font-medium truncate">{session.user.name}</p>
-                      <p className="text-xs text-gray-500 truncate">{session.user.email}</p>
+                      <p className="text-xs text-slate-500 truncate">{session.user.email}</p>
                     </div>
                     
                     {/* Admin options */}
