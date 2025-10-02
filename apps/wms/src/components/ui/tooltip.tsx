@@ -82,10 +82,10 @@ export function Tooltip({
                      'translate(0, -50%)'
         }}
       >
-        <div className="bg-gray-900 text-white text-sm rounded-lg px-3 py-2 shadow-lg max-w-xs whitespace-pre-line">
+        <div className="bg-slate-900 text-white text-sm rounded-lg px-3 py-2 shadow-lg max-w-xs whitespace-pre-line dark:bg-[#0b3a52]">
           {content}
-          <div 
-            className={`absolute w-2 h-2 bg-gray-900 transform rotate-45 ${
+          <div
+            className={`absolute w-2 h-2 bg-slate-900 dark:bg-[#0b3a52] transform rotate-45 ${
               position === 'top' ? 'bottom-[-4px] left-1/2 -translate-x-1/2' :
               position === 'bottom' ? 'top-[-4px] left-1/2 -translate-x-1/2' :
               position === 'left' ? 'right-[-4px] top-1/2 -translate-y-1/2' :

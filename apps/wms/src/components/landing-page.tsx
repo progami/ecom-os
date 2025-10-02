@@ -225,7 +225,7 @@ export default function LandingPage() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+      <footer className="bg-slate-50 dark:bg-[#041324] py-12 px-4 sm:px-6 lg:px-8 border-t border-slate-200 dark:border-[#0b3a52]">
         <div className="mx-auto max-w-7xl text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Package2 className="h-8 w-8 text-cyan-600 dark:text-cyan-400" />
