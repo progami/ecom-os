@@ -4,6 +4,7 @@ import './globals.css'
 import Providers from '@/components/providers'
 import { Toaster } from 'react-hot-toast'
 import '@/lib/utils/patch-fetch'
+import FetchPatch from '@/components/fetch-patch'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -21,6 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
+        <FetchPatch />
         <Providers>
           {children}
           <Toaster

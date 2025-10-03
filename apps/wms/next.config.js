@@ -15,7 +15,6 @@ const nextConfig = {
   // The webpack configuration below is ignored when using Turbopack (--turbo flag).
   // Base path configuration - set BASE_PATH env var if needed
   basePath: process.env.BASE_PATH || '',
-  assetPrefix: process.env.BASE_PATH || '',
   
   // Fix for Next.js 15 module resolution and HMR issues
   transpilePackages: ['lucide-react'],
