@@ -21,10 +21,11 @@ if (sharedSecret) {
   process.env.NEXTAUTH_SECRET = sharedSecret
 }
 
-const basePath = process.env.BASE_PATH || process.env.NEXT_PUBLIC_BASE_PATH || ''
-
 const baseAuthOptions: NextAuthOptions = {
-  basePath: basePath ? `${basePath}/api/auth` : '/api/auth',
+  // Note: NextAuth basePath should be '/api/auth' because Next.js basePath
+  // already handles the '/wms' prefix. Setting it to '/wms/api/auth' would
+  // create '/wms/wms/api/auth' due to double-prefixing.
+  basePath: '/api/auth',
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
