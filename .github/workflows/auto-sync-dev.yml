@@ -1,0 +1,33 @@
+name: Auto-sync dev with main
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  sync-dev:
+    # Only run if PR was merged (not just closed) and came from dev
+    if: >-
+      ${{ github.event.pull_request.merged == true &&
+          github.event.pull_request.head.ref == 'dev' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Reset dev to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          echo "Resetting dev to match main after deployment..."
+          git push origin main:dev --force
+
+          echo "✓ Dev branch synchronized with main"
