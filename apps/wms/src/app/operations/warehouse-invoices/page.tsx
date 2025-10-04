@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Badge } from '@/components/ui/badge'
-import { FileText, Loader2 } from '@/lib/lucide-icons'
+import { FileText } from '@/lib/lucide-icons'
 
 interface WarehouseInvoiceLineSummary {
   id: string

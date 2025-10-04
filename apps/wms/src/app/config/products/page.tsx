@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
-import { Package, Plus, Loader2 } from '@/lib/lucide-icons'
+import { Package, Plus } from '@/lib/lucide-icons'
 import ProductsPanel from './products-panel'
 
 const ALLOWED_ROLES = ['admin']

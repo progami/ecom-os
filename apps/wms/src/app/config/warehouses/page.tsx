@@ -749,7 +749,7 @@ interface SummaryCardProps {
   description: string
 }
 
-function SummaryCard({ title, value, description }: SummaryCardProps) {
+function _SummaryCard({ title, value, description }: SummaryCardProps) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 shadow-soft dark:border-[#0b3a52] dark:bg-[#041324]">
       <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</p>
