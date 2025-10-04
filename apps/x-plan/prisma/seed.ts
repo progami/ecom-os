@@ -32,17 +32,17 @@ async function main() {
 
   // Seed lead stage templates
   const stages = [
-    { name: 'Production', durationWeeks: new Prisma.Decimal(4), displayOrder: 1 },
-    { name: 'Quality Control', durationWeeks: new Prisma.Decimal(0.5), displayOrder: 2 },
-    { name: 'Domestic Logistics', durationWeeks: new Prisma.Decimal(1), displayOrder: 3 },
-    { name: 'Ocean Freight', durationWeeks: new Prisma.Decimal(4), displayOrder: 4 },
-    { name: 'Customs Clearance', durationWeeks: new Prisma.Decimal(0.5), displayOrder: 5 },
-    { name: 'Final Mile', durationWeeks: new Prisma.Decimal(1), displayOrder: 6 },
+    { label: 'Production', defaultWeeks: new Prisma.Decimal(4), sequence: 1 },
+    { label: 'Quality Control', defaultWeeks: new Prisma.Decimal(0.5), sequence: 2 },
+    { label: 'Domestic Logistics', defaultWeeks: new Prisma.Decimal(1), sequence: 3 },
+    { label: 'Ocean Freight', defaultWeeks: new Prisma.Decimal(4), sequence: 4 },
+    { label: 'Customs Clearance', defaultWeeks: new Prisma.Decimal(0.5), sequence: 5 },
+    { label: 'Final Mile', defaultWeeks: new Prisma.Decimal(1), sequence: 6 },
   ]
 
   for (const stage of stages) {
     await prisma.leadStageTemplate.upsert({
-      where: { name: stage.name },
+      where: { sequence: stage.sequence },
       update: {},
       create: stage,
     })
