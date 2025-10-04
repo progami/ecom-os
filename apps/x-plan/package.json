@@ -17,7 +17,8 @@
     "prisma:migrate:dev": "prisma migrate dev --schema prisma/schema.prisma",
     "prisma:migrate:deploy": "prisma migrate deploy --schema prisma/schema.prisma",
     "prisma:seed": "tsx prisma/seed.ts",
-    "cleanup:parameters": "tsx scripts/remove-parameter-products.ts"
+    "cleanup:parameters": "tsx scripts/remove-parameter-products.ts",
+    "fix:weekly-costs": "tsx scripts/fix-weekly-fixed-costs.ts"
   },
   "dependencies": {
     "@ecom-os/auth": "workspace:*",
@@ -49,7 +50,6 @@
     "sonner": "^1.5.0",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
-    "xlsx": "^0.18.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {

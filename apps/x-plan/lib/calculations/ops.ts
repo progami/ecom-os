@@ -45,7 +45,17 @@ export interface PurchaseOrderDerived {
   availableDate: Date | null
   totalLeadDays: number | null
   weeksUntilArrival: number | null
+  // Per-unit costs (weighted average from batches)
+  sellingPrice: number
+  manufacturingCost: number
+  freightCost: number
+  tariffRate: number
+  tacosPercent: number
+  fbaFee: number
+  amazonReferralRate: number
+  storagePerMonth: number
   landedUnitCost: number
+  // Totals
   manufacturingCostTotal: number
   freightCostTotal: number
   tariffCostTotal: number
@@ -241,7 +251,7 @@ export function computePurchaseOrderDerived(
 
     const tariffCost = manufacturingCost * tariffRate
     const advertisingCost = sellingPrice * tacosPercent
-    const landedUnitCost = manufacturingCost + freightCost + tariffCost + fbaFee + storagePerMonth
+    const landedUnitCost = manufacturingCost + freightCost + tariffCost
 
     totalQuantity += quantity
     totalSellingPrice += sellingPrice * quantity
@@ -458,7 +468,17 @@ export function computePurchaseOrderDerived(
     availableDate,
     totalLeadDays,
     weeksUntilArrival,
+    // Per-unit costs (weighted average from batches)
+    sellingPrice,
+    manufacturingCost,
+    freightCost,
+    tariffRate,
+    tacosPercent,
+    fbaFee,
+    amazonReferralRate: referralRate,
+    storagePerMonth,
     landedUnitCost,
+    // Totals
     manufacturingCostTotal: manufacturingTotal,
     freightCostTotal: freightTotal,
     tariffCostTotal: tariffTotal,

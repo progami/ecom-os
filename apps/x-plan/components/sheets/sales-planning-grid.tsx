@@ -86,6 +86,14 @@ export function SalesPlanningFocusControl({ productOptions }: { productOptions: 
   )
 }
 
+type BatchAllocationMeta = {
+  orderCode: string
+  batchCode?: string | null
+  quantity: number
+  sellingPrice: number
+  landedUnitCost: number
+}
+
 interface SalesPlanningGridProps {
   rows: SalesRow[]
   columnMeta: ColumnMeta
@@ -93,9 +101,10 @@ interface SalesPlanningGridProps {
   columnKeys: string[]
   productOptions: Array<{ id: string; name: string }>
   stockWarningWeeks: number
+  batchAllocations: Map<string, BatchAllocationMeta[]>
 }
 
-export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys, productOptions, stockWarningWeeks }: SalesPlanningGridProps) {
+export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys, productOptions, stockWarningWeeks, batchAllocations }: SalesPlanningGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const focusContext = useContext(SalesPlanningFocusContext)
   const [activeStockMetric, setActiveStockMetric] = usePersistentState<StockMetricId>('xplan:sales-grid:metric', 'stockWeeks')
@@ -116,6 +125,18 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
     })
     return set
   }, [rows])
+
+  const formatBatchComment = useCallback((allocations: BatchAllocationMeta[]): string => {
+    if (!allocations || allocations.length === 0) return ''
+    const lines = allocations.map((alloc) => {
+      const batchId = alloc.batchCode || alloc.orderCode
+      const qty = Number(alloc.quantity).toFixed(0)
+      const price = Number(alloc.sellingPrice).toFixed(2)
+      const cost = Number(alloc.landedUnitCost).toFixed(2)
+      return `${batchId}: ${qty} units @ $${price} (cost: $${cost})`
+    })
+    return `FIFO Batch Allocation:\n${lines.join('\n')}`
+  }, [])
 
   const visibleMetrics = useMemo(() => {
     const metrics = new Set<string>(['stockStart', 'actualSales', 'forecastSales'])
@@ -343,6 +364,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         height="auto"
         rowHeaders={false}
         undo
+        comments={true}
         dropdownMenu={{ items: ['filter_by_value'] }}
         filters={false}
         hiddenColumns={{ columns: hiddenColumns, indicators: true }}
@@ -372,6 +394,15 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
               cell.className = cell.className ? `${cell.className} cell-warning` : 'cell-warning'
             }
           }
+
+          if (meta?.field === 'finalSales') {
+            const cellKey = `${weekNumber}-${key}`
+            const allocations = batchAllocations.get(cellKey)
+            if (allocations && allocations.length > 0) {
+              cell.comment = { value: formatBatchComment(allocations) }
+            }
+          }
+
           return cell
         }}
         afterChange={(changes, source) => {

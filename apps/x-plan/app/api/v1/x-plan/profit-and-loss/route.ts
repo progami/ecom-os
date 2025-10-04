@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import prisma from '@/lib/prisma'
 import { loadPlanningCalendar } from '@/lib/planning'
+import { getCalendarDateForWeek } from '@/lib/calculations/calendar'
 
 const editableFields = ['units', 'revenue', 'cogs', 'amazonFees', 'ppcSpend', 'fixedCosts'] as const
 
@@ -55,7 +56,12 @@ export async function PUT(request: Request) {
       if (Object.keys(data).length === 0) {
         return prisma.profitAndLossWeek.findFirst({ where: { weekNumber } })
       }
-      return prisma.profitAndLossWeek.update({ where: { weekNumber }, data })
+      const weekDate = getCalendarDateForWeek(weekNumber, planning.calendar)
+      return prisma.profitAndLossWeek.upsert({
+        where: { weekNumber },
+        update: data,
+        create: { weekNumber, weekDate, ...data }
+      })
     })
   )
 
