@@ -195,22 +195,23 @@ jobs:
         run: |
           set -e
           OS_USER=${OS_USER:-${EC2_USER:-ubuntu}}
-          SSH_SCRIPT=$'set -e\n'\
-            $'df -h\n'\
-            $'echo\n'\
-            $'echo "Top-level usage:"\n'\
-            $'sudo du -sh /opt/ecom-os /var/log || true\n'\
-            $'echo\n'\
-            $'echo "/opt/ecom-os breakdown:"\n'\
-            $'sudo du -sh /opt/ecom-os/* 2>/dev/null | sort -hr | head || true\n'\
-            $'echo\n'\
-            $'echo "User cache breakdown:"\n'\
-            $'sudo du -sh "$HOME/.local/share/pnpm" "$HOME/.local/state/pnpm" "$HOME/.pnpm-store" 2>/dev/null || true\n'\
-            $'sudo du -sh "$HOME/.cache" 2>/dev/null | sort -hr | head || true\n'\
-            $'echo\n'\
-            $'echo "PM2 logs:"\n'\
-            $'sudo du -sh "$HOME/.pm2/logs" 2>/dev/null || true'
-          ssh -o StrictHostKeyChecking=no "$OS_USER@$EC2_HOST" "bash -s" <<< "$SSH_SCRIPT"
+          ssh -o StrictHostKeyChecking=no "$OS_USER@$EC2_HOST" bash << 'EOF'
+          set -e
+          df -h
+          echo
+          echo "Top-level usage:"
+          sudo du -sh /opt/ecom-os /var/log || true
+          echo
+          echo "/opt/ecom-os breakdown:"
+          sudo du -sh /opt/ecom-os/* 2>/dev/null | sort -hr | head || true
+          echo
+          echo "User cache breakdown:"
+          sudo du -sh "$HOME/.local/share/pnpm" "$HOME/.local/state/pnpm" "$HOME/.pnpm-store" 2>/dev/null || true
+          sudo du -sh "$HOME/.cache" 2>/dev/null | sort -hr | head || true
+          echo
+          echo "PM2 logs:"
+          sudo du -sh "$HOME/.pm2/logs" 2>/dev/null || true
+          EOF
 
       - name: Update Cloudflare DNS (apex + www) to EC2
         continue-on-error: true
