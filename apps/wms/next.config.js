@@ -92,19 +92,10 @@ const nextConfig = {
     ]
   },
 
+  // Rewrites removed - Next.js basePath handles routing automatically
+  // The previous rewrite was causing double basePath prefixing (/wms/wms/api/...)
   async rewrites() {
-    const rewriteBasePath = basePath || process.env.NEXT_PUBLIC_BASE_PATH || ''
-
-    if (!rewriteBasePath) {
-      return []
-    }
-
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${rewriteBasePath}/api/:path*`,
-      },
-    ]
+    return []
   },
   
   // Environment variables validation
