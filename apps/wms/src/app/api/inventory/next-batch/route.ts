@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     
     // Query existing batch numbers from inventory_transactions for this SKU and warehouse
     // Using transactions table since inventory_balances is not being populated
-    const transactions = await prisma.$queryRaw<{batch_lot: string}[]>`
+    const transactions = await prisma.$queryRaw<{ batch_lot: string | null }[]>`
       SELECT DISTINCT batch_lot 
       FROM inventory_transactions 
       WHERE sku_code = ${sku.skuCode} 
@@ -48,20 +48,17 @@ export async function GET(request: NextRequest) {
       AND batch_lot IS NOT NULL
     `
 
-    // Extract batch numbers and find the highest integer
-    const batchNumbers = transactions
-      .map(t => parseInt(t.batch_lot))
-      .filter(num => !isNaN(num))
+    const numericBatchLots = transactions
+      .map(record => record.batch_lot)
+      .filter((value): value is string => typeof value === 'string' && /^\d+$/.test(value))
 
-    let nextBatch = 1 // Default to 1 if no existing batches
+    const numericValues = numericBatchLots.map(batch => BigInt(batch))
+    const maxValue = numericValues.reduce<bigint>((acc, value) => (value > acc ? value : acc), 0n)
+    const nextValue = maxValue + 1n
+    const targetLength = numericBatchLots.length > 0 ? Math.max(...numericBatchLots.map(batch => batch.length)) : 1
+    const nextBatch = nextValue.toString().padStart(targetLength, '0')
 
-    if (batchNumbers.length > 0) {
-      // Get the highest batch number and increment
-      const maxBatch = Math.max(...batchNumbers)
-      nextBatch = maxBatch + 1
-    }
-
-    return NextResponse.json({ nextBatch: nextBatch.toString() })
+    return NextResponse.json({ nextBatch })
   } catch (_error) {
     // console.error('Error fetching next batch number:', _error)
     return NextResponse.json({ error: 'Failed to fetch next batch number' }, { status: 500 })

@@ -118,7 +118,7 @@ export default function GeneralSettingsPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 disabled:opacity-50"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-soft text-sm font-medium text-white bg-primary hover:bg-primary/90 disabled:opacity-50"
           >
             {saving ? (
               <>
@@ -138,14 +138,14 @@ export default function GeneralSettingsPage() {
           {/* Company Information */}
           <div className="border rounded-lg p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Building className="h-5 w-5 text-blue-600" />
+              <div className="p-2 bg-cyan-100 rounded-lg">
+                <Building className="h-5 w-5 text-cyan-600" />
               </div>
               <h3 className="text-lg font-semibold">Company Information</h3>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Company Name
                 </label>
                 <input
@@ -157,7 +157,7 @@ export default function GeneralSettingsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Address
                 </label>
                 <textarea
@@ -169,7 +169,7 @@ export default function GeneralSettingsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Phone
                 </label>
                 <input
@@ -181,7 +181,7 @@ export default function GeneralSettingsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Email
                 </label>
                 <input
@@ -205,7 +205,7 @@ export default function GeneralSettingsPage() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Timezone
                 </label>
                 <select
@@ -221,7 +221,7 @@ export default function GeneralSettingsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Currency
                 </label>
                 <select
@@ -236,7 +236,7 @@ export default function GeneralSettingsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Date Format
                 </label>
                 <select
@@ -250,7 +250,7 @@ export default function GeneralSettingsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Fiscal Year Start
                 </label>
                 <select
@@ -271,14 +271,14 @@ export default function GeneralSettingsPage() {
           {/* System Defaults */}
           <div className="border rounded-lg p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Clock className="h-5 w-5 text-purple-600" />
+              <div className="p-2 bg-brand-teal-100 rounded-lg">
+                <Clock className="h-5 w-5 text-brand-teal-600" />
               </div>
               <h3 className="text-lg font-semibold">System Defaults</h3>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Default Warehouse
                 </label>
                 <select
@@ -295,7 +295,7 @@ export default function GeneralSettingsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Low Stock Threshold
                 </label>
                 <input
@@ -305,7 +305,7 @@ export default function GeneralSettingsPage() {
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   min="0"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                   Items with cartons below this value will be marked as low stock
                 </p>
               </div>
@@ -315,11 +315,11 @@ export default function GeneralSettingsPage() {
                     type="checkbox"
                     checked={settings.autoCalculateStorage}
                     onChange={(e) => setSettings({ ...settings, autoCalculateStorage: e.target.checked })}
-                    className="rounded border-gray-300"
+                    className="rounded border-slate-300"
                   />
                   <span className="text-sm font-medium">Auto-calculate storage charges</span>
                 </label>
-                <p className="text-xs text-gray-500 mt-1 ml-6">
+                <p className="text-xs text-slate-500 mt-1 ml-6">
                   Automatically generate weekly storage ledger entries
                 </p>
               </div>
@@ -334,7 +334,7 @@ export default function GeneralSettingsPage() {
                 <input
                   type="checkbox"
                   defaultChecked
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-300"
                 />
                 <span className="text-sm">Enable email notifications</span>
               </label>
@@ -342,7 +342,7 @@ export default function GeneralSettingsPage() {
                 <input
                   type="checkbox"
                   defaultChecked
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-300"
                 />
                 <span className="text-sm">Allow data export</span>
               </label>
@@ -350,14 +350,14 @@ export default function GeneralSettingsPage() {
                 <input
                   type="checkbox"
                   defaultChecked
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-300"
                 />
                 <span className="text-sm">Enable API access</span>
               </label>
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-300"
                 />
                 <span className="text-sm">Maintenance mode</span>
               </label>

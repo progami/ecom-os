@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { 
-  Package, AlertCircle, 
+import {
+  Package, AlertCircle,
   RefreshCw, Clock, BarChart3,
   ArrowUp, Search,
-  ShoppingCart, Settings, Link2 as LinkIcon, X
+  ShoppingCart, Settings, Link2 as LinkIcon, X, Truck
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { toast } from 'react-hot-toast'
 import Link from 'next/link'
 import { 
@@ -316,7 +316,7 @@ export default function ShipmentPlanningPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
         </div>
       </DashboardLayout>
     )
@@ -324,14 +324,16 @@ export default function ShipmentPlanningPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <PageHeader
-          title="FBA Shipment Planning"
+      <PageContainer>
+        <PageHeaderSection
+          title="Shipment Planning"
+          description="Marketplace"
+          icon={Truck}
           actions={
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowAmazonStatus(!showAmazonStatus)}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-soft text-sm font-medium text-slate-700 bg-white hover:bg-slate-50"
               >
                 <LinkIcon className="h-4 w-4 mr-2" />
                 Amazon Integration
@@ -339,7 +341,7 @@ export default function ShipmentPlanningPage() {
               <button
                 onClick={handleRefresh}
                 disabled={refreshing}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-soft text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50"
               >
                 <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
                 Refresh FBA Data
@@ -363,7 +365,7 @@ export default function ShipmentPlanningPage() {
                     }))
                   }
                 }}
-                className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 ${selectedItems.size === 0 ? 'opacity-50 pointer-events-none' : ''}`}
+                className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-soft text-sm font-medium text-white bg-primary hover:bg-primary/90 ${selectedItems.size === 0 ? 'opacity-50 pointer-events-none' : ''}`}
               >
                 <ShoppingCart className="h-4 w-4 mr-2" />
                 Create Shipment Plan ({selectedItems.size})
@@ -371,30 +373,31 @@ export default function ShipmentPlanningPage() {
             </div>
           }
         />
+        <PageContent>
 
         {/* Amazon Integration Status */}
         {showAmazonStatus && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <Settings className="h-5 w-5 text-blue-600 mt-0.5" />
+              <Settings className="h-5 w-5 text-cyan-600 mt-0.5" />
               <div className="flex-1">
-                <h3 className="text-sm font-medium text-blue-900">Amazon Integration Status</h3>
-                <p className="text-sm text-blue-700 mt-1">
+                <h3 className="text-sm font-medium text-cyan-900">Amazon Integration Status</h3>
+                <p className="text-sm text-cyan-700 mt-1">
                   Integration not yet configured. Future SP API integration will enable:
                 </p>
-                <ul className="mt-2 space-y-1 text-sm text-blue-700">
+                <ul className="mt-2 space-y-1 text-sm text-cyan-700">
                   <li>• Automatic inventory sync</li>
                   <li>• Direct shipment creation to Amazon</li>
                   <li>• Real-time FBA fee calculations</li>
                   <li>• Shipment tracking updates</li>
                 </ul>
-                <button className="mt-3 text-sm font-medium text-blue-900 hover:text-blue-800">
+                <button className="mt-3 text-sm font-medium text-cyan-900 hover:text-cyan-800">
                   Configure Integration →
                 </button>
               </div>
               <button
                 onClick={() => setShowAmazonStatus(false)}
-                className="text-blue-400 hover:text-blue-600"
+                className="text-cyan-400 hover:text-cyan-600"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -425,7 +428,7 @@ export default function ShipmentPlanningPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
               />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -434,21 +437,21 @@ export default function ShipmentPlanningPage() {
                 type="checkbox"
                 checked={showOnlyLowStock}
                 onChange={(e) => setShowOnlyLowStock(e.target.checked)}
-                className="rounded border-gray-300"
+                className="rounded border-slate-300"
               />
               <span className="text-sm">Show only low stock items</span>
             </label>
             <div className="flex items-center gap-2 border-l pl-4">
               <button
                 onClick={() => setViewMode('table')}
-                className={`p-2 rounded ${viewMode === 'table' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+                className={`p-2 rounded ${viewMode === 'table' ? 'bg-slate-200' : 'hover:bg-slate-100'}`}
                 title="Table view"
               >
                 <BarChart3 className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode('cards')}
-                className={`p-2 rounded ${viewMode === 'cards' ? 'bg-gray-200' : 'hover:bg-gray-100'}`}
+                className={`p-2 rounded ${viewMode === 'cards' ? 'bg-slate-200' : 'hover:bg-slate-100'}`}
                 title="Card view"
               >
                 <Package className="h-4 w-4" />
@@ -496,40 +499,40 @@ export default function ShipmentPlanningPage() {
         ) : (
           <div className="border rounded-lg overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-slate-50">
                 <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Select
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   SKU
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Description
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Warehouse Stock
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                   FBA Stock
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Daily Velocity
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Days of Stock
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Suggested Shipment
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Recommendation
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredStockItems.map((item) => (
-                <tr key={item.skuCode} className="hover:bg-gray-50">
+                <tr key={item.skuCode} className="hover:bg-slate-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <input
                       type="checkbox"
@@ -543,20 +546,20 @@ export default function ShipmentPlanningPage() {
                         }
                         setSelectedItems(newSelected)
                       }}
-                      className="rounded border-gray-300"
+                      className="rounded border-slate-300"
                       disabled={item.warehouseStock === 0}
                     />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
                     {item.skuCode}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
+                  <td className="px-6 py-4 text-sm text-slate-500">
                     {item.description}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-900">
                     {item.warehouseStock.toLocaleString()}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-slate-900">
                     {item.fbaStock.toLocaleString()}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
@@ -568,7 +571,7 @@ export default function ShipmentPlanningPage() {
                       min="0"
                       step="0.1"
                     />
-                    <span className="text-xs text-gray-500 ml-1">/day</span>
+                    <span className="text-xs text-slate-500 ml-1">/day</span>
                   </td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm text-right ${
                     item.daysOfStock <= SHIPMENT_PLANNING_CONFIG.URGENCY_LEVELS.CRITICAL 
@@ -591,21 +594,21 @@ export default function ShipmentPlanningPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                     {item.suggestedShipmentCartons > 0 ? (
                       <div>
-                        <div className="font-medium text-gray-900">
+                        <div className="font-medium text-slate-900">
                           {item.optimalShipmentCartons} cartons
                         </div>
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-slate-500">
                           ({Math.ceil(item.optimalShipmentCartons / SHIPMENT_PLANNING_CONFIG.DEFAULT_CARTONS_PER_PALLET)} pallets)
                         </div>
                       </div>
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-slate-400">-</span>
                     )}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     {item.restockMetrics?.urgencyLevel !== 'low' && (
                       <div className="space-y-1">
-                        <div className="text-xs font-medium text-gray-900">
+                        <div className="text-xs font-medium text-slate-900">
                           {item.restockMetrics?.recommendation}
                         </div>
                         {item.daysOfStock < SHIPMENT_PLANNING_CONFIG.LOW_STOCK_THRESHOLD_DAYS && (
@@ -658,7 +661,7 @@ export default function ShipmentPlanningPage() {
                   {stockItems.length}
                 </p>
               </div>
-              <Package className="h-8 w-8 text-gray-400" />
+              <Package className="h-8 w-8 text-slate-400" />
             </div>
           </div>
           <div className="border rounded-lg p-4">
@@ -671,11 +674,12 @@ export default function ShipmentPlanningPage() {
                     : 'Never'}
                 </p>
               </div>
-              <Clock className="h-8 w-8 text-gray-400" />
+              <Clock className="h-8 w-8 text-slate-400" />
             </div>
           </div>
         </div>
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

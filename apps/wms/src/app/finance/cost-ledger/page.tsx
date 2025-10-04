@@ -17,7 +17,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
 import { Button } from '@/components/ui/button'
 import { formatCurrency } from '@/lib/utils'
@@ -304,24 +304,22 @@ function CostLedgerPage() {
   if (status === 'loading') {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-        </div>
+        <PageContainer>
+          <div className="flex h-full items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
+          </div>
+        </PageContainer>
       </DashboardLayout>
     )
   }
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col gap-6">
-        <PageHeader
+      <PageContainer>
+        <PageHeaderSection
           title="Cost Ledger"
-        subtitle="Weekly cost allocations"
-          icon={DollarSign}
-          iconColor="text-emerald-600"
-          bgColor="bg-emerald-50"
-          borderColor="border-emerald-200"
-          textColor="text-emerald-800"
+          description="Finance"
+          icon={BarChart3}
           actions={
             <Button
               type="button"
@@ -335,6 +333,8 @@ function CostLedgerPage() {
             </Button>
           }
         />
+        <PageContent>
+        <div className="flex flex-col gap-6">
 
         <StatsCardGrid cols={6}>
           {summaryCards.map((card) => (
@@ -342,7 +342,7 @@ function CostLedgerPage() {
           ))}
         </StatsCardGrid>
 
-        <div className="bg-white border rounded-lg shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
           <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Filter className="h-4 w-4" />
@@ -497,7 +497,9 @@ function CostLedgerPage() {
             </table>
           </div>
         </div>
-      </div>
+        </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

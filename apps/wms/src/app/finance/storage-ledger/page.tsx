@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { DollarSign, Package } from '@/lib/lucide-icons'
+import { DollarSign, Package, Calendar } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { EmptyState } from '@/components/ui/empty-state'
 import { StorageLedgerHeader } from '@/components/finance/storage-ledger/StorageLedgerHeader'
 import { StorageLedgerStats } from '@/components/finance/storage-ledger/StorageLedgerStats'
@@ -34,18 +34,20 @@ export default function StorageLedgerPage() {
   if (status === 'loading') {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-        </div>
+        <PageContainer>
+          <div className="flex h-full items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
+          </div>
+        </PageContainer>
       </DashboardLayout>
     )
   }
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-full space-y-4">
+      <PageContainer>
         <StorageLedgerContent />
-      </div>
+      </PageContainer>
     </DashboardLayout>
   )
 }
@@ -77,17 +79,13 @@ function StorageLedgerContent() {
 
   return (
     <>
-      <PageHeader
+      <PageHeaderSection
         title="Storage Ledger"
-        subtitle="Weekly inventory balance tracking"
-        icon={DollarSign}
-        iconColor="text-green-600"
-        bgColor="bg-green-50"
-        borderColor="border-green-200"
-        textColor="text-green-800"
+        description="Finance"
+        icon={Calendar}
         actions={headerActions}
       />
-
+      <PageContent>
       {loading ? (
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
@@ -115,6 +113,7 @@ function StorageLedgerContent() {
           />
         </div>
       )}
+      </PageContent>
     </>
   )
 }

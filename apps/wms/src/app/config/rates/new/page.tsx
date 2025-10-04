@@ -217,13 +217,13 @@ function NewRatePageContent() {
           <div className="grid gap-6 md:grid-cols-2">
             {/* Warehouse */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Warehouse <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.warehouseId}
                 onChange={(e) => setFormData({ ...formData, warehouseId: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               >
                 <option value="">Select warehouse</option>
@@ -237,13 +237,13 @@ function NewRatePageContent() {
 
             {/* Category */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Cost Category <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.costCategory}
                 onChange={(e) => handleCategoryChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               >
                 <option value="">Select category</option>
@@ -257,14 +257,14 @@ function NewRatePageContent() {
 
             {/* Cost Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Cost Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.costName}
                 onChange={(e) => setFormData({ ...formData, costName: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="e.g., Container Unloading"
                 required
                 list="cost-names"
@@ -280,13 +280,13 @@ function NewRatePageContent() {
 
             {/* Unit of Measure */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Unit of Measure <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.unitOfMeasure}
                 onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               >
                 <option value="">Select unit</option>
@@ -300,7 +300,7 @@ function NewRatePageContent() {
 
             {/* Cost Value */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Rate (£) <span className="text-red-500">*</span>
               </label>
               <input
@@ -309,7 +309,7 @@ function NewRatePageContent() {
                 min="0"
                 value={formData.costValue}
                 onChange={(e) => setFormData({ ...formData, costValue: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="0.00"
                 required
               />
@@ -317,21 +317,21 @@ function NewRatePageContent() {
 
             {/* Effective Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Effective Date <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
                 value={formData.effectiveDate}
                 onChange={(e) => setFormData({ ...formData, effectiveDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               />
             </div>
 
             {/* End Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 End Date
               </label>
               <input
@@ -339,9 +339,9 @@ function NewRatePageContent() {
                 value={formData.endDate}
                 onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                 min={formData.effectiveDate}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Leave blank for indefinite rates
               </p>
             </div>
@@ -371,7 +371,7 @@ function NewRatePageContent() {
             <button
               type="button"
               onClick={handleCancel}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              className="px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50"
               disabled={loading || checkingOverlap}
             >
               <X className="h-4 w-4 mr-2 inline" />

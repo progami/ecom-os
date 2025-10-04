@@ -33,7 +33,7 @@ export default function Error({
               An unexpected error occurred while processing your request.
             </p>
             {error.message && (
-              <p className="text-sm text-gray-600 mt-2 p-3 bg-gray-100 rounded">
+              <p className="text-sm text-slate-600 mt-2 p-3 bg-slate-100 rounded">
                 {error.message}
               </p>
             )}
@@ -42,14 +42,14 @@ export default function Error({
           <div className="flex items-center justify-center gap-4">
             <button
               onClick={reset}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+              className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-soft text-sm font-medium text-slate-700 bg-white hover:bg-slate-50"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Try Again
             </button>
             <Link
               href="/dashboard"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-soft text-sm font-medium text-white bg-primary hover:bg-primary/90"
             >
               <Home className="h-4 w-4 mr-2" />
               Go to Dashboard

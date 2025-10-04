@@ -86,7 +86,10 @@ function generateBatchHash(seedParts: string[]): string {
     hash.update(part)
     hash.update('::')
   }
-  return hash.digest('hex').slice(0, 12).toUpperCase()
+
+  const hexDigest = hash.digest('hex')
+  const numericValue = BigInt('0x' + hexDigest) % (10n ** 12n)
+  return numericValue.toString().padStart(12, '0')
 }
 
 export function resolveBatchLot(params: {
@@ -107,7 +110,7 @@ export function resolveBatchLot(params: {
     params.skuCode
   ])
 
-  return `BATCH-${fallback}`
+  return fallback
 }
 
 function mapTransactionToOrderType(type: TransactionType): PurchaseOrderType {

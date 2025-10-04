@@ -68,7 +68,7 @@ export function DemoModeBanner() {
 
   return (
     <div className="relative">
-      <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+      <div className="bg-gradient-to-r from-cyan-600 to-brand-teal-600 text-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-3">
             <div className="flex items-center space-x-3">
@@ -76,7 +76,7 @@ export function DemoModeBanner() {
                 <Sparkles className="h-5 w-5 animate-pulse" />
                 <span className="font-semibold">Demo Mode Active</span>
               </div>
-              <div className="hidden sm:flex items-center space-x-2 text-purple-100">
+              <div className="hidden sm:flex items-center space-x-2 text-cyan-100">
                 <Info className="h-4 w-4" />
                 <span className="text-sm">
                   You're viewing sample data. Feel free to explore all features!
@@ -118,7 +118,7 @@ export function DemoModeBanner() {
           
           {/* Mobile info text */}
           <div className="sm:hidden pb-3">
-            <div className="flex items-center space-x-2 text-purple-100">
+            <div className="flex items-center space-x-2 text-cyan-100">
               <Info className="h-4 w-4 flex-shrink-0" />
               <span className="text-sm">
                 You're viewing sample data. Explore all features!

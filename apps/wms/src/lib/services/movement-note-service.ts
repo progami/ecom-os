@@ -229,7 +229,7 @@ export async function postMovementNote(id: string, user: UserContext) {
       }
 
       const sku = await tx.sku.findFirst({ where: { skuCode: poLine.skuCode } })
-      const unitsPerCarton = sku?.unitsPerCarton ?? poLine.quantity ?? 1
+      const unitsPerCarton = sku?.unitsPerCarton ?? 1
 
       await tx.inventoryTransaction.create({
         data: {

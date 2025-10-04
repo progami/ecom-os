@@ -304,19 +304,19 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
   return (
     <div className="space-y-6">
       {/* Transaction Documents Section */}
-      <div className="bg-white rounded-lg border">
-        <div className="px-6 py-4 border-b bg-gray-50">
+      <div className="bg-white rounded-xl border">
+        <div className="px-6 py-4 border-b bg-slate-50">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Transaction Documents
           </h3>
-          <p className="text-sm text-gray-600 mt-1">Upload supporting documents (Max 5MB per file)</p>
+          <p className="text-sm text-slate-600 mt-1">Upload supporting documents (Max 5MB per file)</p>
         </div>
         
         <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Proof of Pickup */}
-        <div className="border rounded-lg p-4 bg-gray-50 hover:shadow-sm transition-shadow">
+        <div className="border rounded-lg p-4 bg-slate-50 hover:shadow-soft transition-shadow">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
               <h4 className="font-medium text-sm flex items-center gap-2">
@@ -325,24 +325,24 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
                   <Check className="h-4 w-4 text-green-600" />
                 )}
               </h4>
-              <p className="text-xs text-gray-600 mt-0.5">BOL, pickup receipt</p>
+              <p className="text-xs text-slate-600 mt-0.5">BOL, pickup receipt</p>
             </div>
           </div>
           
           {proofOfPickup ? (
-            <div className="bg-white p-3 rounded border border-gray-200">
+            <div className="bg-white p-3 rounded border border-slate-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                  <FileText className="h-4 w-4 text-slate-500 flex-shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm text-gray-700 truncate">{proofOfPickup.name}</p>
-                    <p className="text-xs text-gray-500">{formatFileSize(proofOfPickup.size)}</p>
+                    <p className="text-sm text-slate-700 truncate">{proofOfPickup.name}</p>
+                    <p className="text-xs text-slate-500">{formatFileSize(proofOfPickup.size)}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 ml-2">
                   <label 
                     htmlFor="proof-of-pickup-replace"
-                    className="text-blue-600 hover:text-blue-800 cursor-pointer p-1"
+                    className="text-cyan-600 hover:text-cyan-800 cursor-pointer p-1"
                     title="Replace file"
                   >
                     <Upload className="h-4 w-4" />
@@ -369,19 +369,19 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
             <div className="upload-container">
               <label htmlFor="proof-of-pickup-upload" className="cursor-pointer block">
                 <div 
-                  className={`border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors ${
+                  className={`border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors ${
                     uploading['proof_of_pickup'] ? 'opacity-50 cursor-wait' : ''
                   }`}
                 >
                   {uploading['proof_of_pickup'] ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary mx-auto" />
-                      <p className="text-xs text-gray-600 mt-2">Uploading...</p>
+                      <p className="text-xs text-slate-600 mt-2">Uploading...</p>
                     </>
                   ) : (
                     <>
-                      <Upload className="h-5 w-5 text-gray-400 mx-auto" />
-                      <p className="text-xs text-gray-600 mt-1">Click to upload</p>
+                      <Upload className="h-5 w-5 text-slate-400 mx-auto" />
+                      <p className="text-xs text-slate-600 mt-1">Click to upload</p>
                     </>
                   )}
                 </div>
@@ -399,29 +399,29 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
         </div>
 
         {/* Other Attachments */}
-        <div className="border rounded-lg p-4 bg-gray-50 hover:shadow-sm transition-shadow">
+        <div className="border rounded-lg p-4 bg-slate-50 hover:shadow-soft transition-shadow">
           <div className="flex items-start justify-between mb-3">
             <div className="flex-1">
               <h4 className="font-medium text-sm">Other Documents</h4>
-              <p className="text-xs text-gray-600 mt-0.5">Additional supporting documents</p>
+              <p className="text-xs text-slate-600 mt-0.5">Additional supporting documents</p>
             </div>
           </div>
           
           <div className="space-y-2">
             {otherAttachments.map((attachment, index) => (
-              <div key={index} className="bg-white p-3 rounded border border-gray-200">
+              <div key={index} className="bg-white p-3 rounded border border-slate-200">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                    <FileText className="h-4 w-4 text-slate-500 flex-shrink-0" />
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm text-gray-700 truncate">{attachment.name}</p>
-                      <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
+                      <p className="text-sm text-slate-700 truncate">{attachment.name}</p>
+                      <p className="text-xs text-slate-500">{formatFileSize(attachment.size)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1 ml-2">
                     <label 
                       htmlFor={`other-replace-${index}`}
-                      className="text-blue-600 hover:text-blue-800 cursor-pointer p-1"
+                      className="text-cyan-600 hover:text-cyan-800 cursor-pointer p-1"
                       title="Replace file"
                     >
                       <Upload className="h-4 w-4" />
@@ -454,12 +454,12 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
             <div className="upload-container">
               <label htmlFor="other-documents-upload" className="cursor-pointer block">
                 <div 
-                  className={`border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors ${
+                  className={`border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors ${
                     isUploadingAny ? 'opacity-50 cursor-wait' : ''
                   }`}
                 >
-                  <Plus className="h-5 w-5 text-gray-400 mx-auto" />
-                  <p className="text-xs text-gray-600 mt-1">Add more documents</p>
+                  <Plus className="h-5 w-5 text-slate-400 mx-auto" />
+                  <p className="text-xs text-slate-600 mt-1">Add more documents</p>
                 </div>
               </label>
               <input
@@ -480,13 +480,13 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
       
       {isUploadingAny && progress.percentage > 0 && (
         <div className="mt-4">
-          <div className="bg-gray-200 rounded-full h-2">
+          <div className="bg-slate-200 rounded-full h-2">
             <div 
               className="bg-primary h-2 rounded-full transition-all duration-300"
               style={{ width: `${progress.percentage}%` }}
             />
           </div>
-          <p className="text-xs text-gray-600 mt-1 text-center">
+          <p className="text-xs text-slate-600 mt-1 text-center">
             Uploading: {progress.percentage}%
           </p>
         </div>

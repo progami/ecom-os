@@ -89,7 +89,7 @@ function statusBadgeClasses(status: PurchaseOrderSummary['status']) {
     case 'AWAITING_PROOF':
       return 'bg-sky-50 text-sky-700 border border-sky-200'
     case 'REVIEW':
-      return 'bg-purple-50 text-purple-700 border border-purple-200'
+      return 'bg-brand-teal-50 text-brand-teal-700 border border-brand-teal-200'
     case 'POSTED':
       return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
     case 'CANCELLED':
@@ -545,7 +545,7 @@ export default function PurchaseOrderDetailPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
   const headerTitle = isInbound ? 'Inbound Purchase Order' : 'Outbound Purchase Order'
-  const headerAccent = isInbound ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-blue-600 bg-blue-50 border-blue-200'
+  const headerAccent = isInbound ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-cyan-600 bg-cyan-50 border-cyan-200'
 
   const breadcrumbItems = [
     { label: 'Operations', href: '/operations' },
@@ -562,7 +562,7 @@ export default function PurchaseOrderDetailPage() {
       <nav className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
         {breadcrumbItems.map((item, index) => (
           <div key={`${item.label}-${index}`} className="flex items-center gap-1">
-            {index > 0 && <ChevronRight className="h-4 w-4 text-gray-300" />}
+            {index > 0 && <ChevronRight className="h-4 w-4 text-slate-300" />}
             {item.href ? (
               <Link href={item.href} className="hover:text-foreground transition-colors">
                 {item.label}
@@ -693,7 +693,7 @@ export default function PurchaseOrderDetailPage() {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-white p-4 shadow-sm">
+        <div className="rounded-xl border bg-white p-4 shadow-soft">
           <div className="flex flex-col gap-2 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
             <span>Expected: {formatDate(order.expectedDate)} • Posted: {formatDate(order.postedAt)}</span>
             <span>Created: {formatDate(order.createdAt)} • Updated: {formatDate(order.updatedAt)}</span>
@@ -785,7 +785,7 @@ export default function PurchaseOrderDetailPage() {
                 <span>{order.lines.length} line{order.lines.length === 1 ? '' : 's'}</span>
                 <span>Total quantity: {totalQuantity.toLocaleString()}</span>
               </div>
-              <div className="overflow-x-auto rounded-lg border">
+              <div className="overflow-x-auto rounded-xl border">
                 <table className="min-w-full table-auto text-sm">
                   <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>
@@ -821,7 +821,7 @@ export default function PurchaseOrderDetailPage() {
               {attachmentCategoriesOrdered.map(category => {
                 const items = attachmentSummary[category.id] ?? []
                 return (
-                  <div key={category.id} className="rounded-lg border bg-white p-4">
+                  <div key={category.id} className="rounded-xl border bg-white p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -850,7 +850,7 @@ export default function PurchaseOrderDetailPage() {
                         </p>
                       ) : (
                         items.map(item => (
-                          <div key={`${category.id}-${item.name}-${item.source}`} className="rounded border bg-gray-50 p-3">
+                          <div key={`${category.id}-${item.name}-${item.source}`} className="rounded border bg-slate-50 p-3">
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                               <div>
                                 <p className="text-sm font-medium text-foreground">{item.name}</p>
@@ -875,10 +875,10 @@ export default function PurchaseOrderDetailPage() {
               })}
 
               {additionalAttachmentCategories.length > 0 && (
-                <div className="rounded-lg border bg-white p-4 space-y-3">
+                <div className="rounded-xl border bg-white p-4 space-y-3">
                   <h3 className="text-sm font-semibold text-foreground">Additional Documents</h3>
                   {additionalAttachmentCategories.map(category => (
-                    <div key={category} className="rounded border bg-gray-50 p-3 space-y-2">
+                    <div key={category} className="rounded border bg-slate-50 p-3 space-y-2">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-medium text-foreground">{category}</p>
@@ -922,7 +922,7 @@ export default function PurchaseOrderDetailPage() {
                   <span>Movement notes linked to this order</span>
                   <span>{linkedLoading ? 'Refreshing…' : `${movementNotes.length} note${movementNotes.length === 1 ? '' : 's'}`}</span>
                 </div>
-                <div className="overflow-x-auto rounded-lg border">
+                <div className="overflow-x-auto rounded-xl border">
                   <table className="min-w-full table-auto text-sm">
                     <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                       <tr>
@@ -966,7 +966,7 @@ export default function PurchaseOrderDetailPage() {
                 <span>Warehouse invoices linked to this order</span>
                 <span>{linkedLoading ? 'Refreshing…' : `${invoices.length} invoice${invoices.length === 1 ? '' : 's'}`}</span>
               </div>
-              <div className="overflow-x-auto rounded-lg border">
+              <div className="overflow-x-auto rounded-xl border">
                 <table className="min-w-full table-auto text-sm">
                   <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                     <tr>

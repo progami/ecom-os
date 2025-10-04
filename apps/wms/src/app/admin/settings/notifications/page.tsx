@@ -152,7 +152,7 @@ export default function NotificationSettingsPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 disabled:opacity-50"
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-soft text-sm font-medium text-white bg-primary hover:bg-primary/90 disabled:opacity-50"
           >
             {saving ? (
               <>
@@ -172,55 +172,55 @@ export default function NotificationSettingsPage() {
           {/* Notification Channels */}
           <div className="border rounded-lg p-6">
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Bell className="h-5 w-5 text-blue-600" />
+              <div className="p-2 bg-cyan-100 rounded-lg">
+                <Bell className="h-5 w-5 text-cyan-600" />
               </div>
               <h3 className="text-lg font-semibold">Notification Channels</h3>
             </div>
             <div className="space-y-4">
               <label className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                  <Mail className="h-5 w-5 text-slate-400" />
                   <div>
                     <p className="font-medium">Email Notifications</p>
-                    <p className="text-sm text-gray-500">Send notifications via email</p>
+                    <p className="text-sm text-slate-500">Send notifications via email</p>
                   </div>
                 </div>
                 <input
                   type="checkbox"
                   checked={settings.emailEnabled}
                   onChange={(e) => setSettings({ ...settings, emailEnabled: e.target.checked })}
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-300"
                 />
               </label>
               <label className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <MessageSquare className="h-5 w-5 text-gray-400" />
+                  <MessageSquare className="h-5 w-5 text-slate-400" />
                   <div>
                     <p className="font-medium">SMS Notifications</p>
-                    <p className="text-sm text-gray-500">Send text message alerts</p>
+                    <p className="text-sm text-slate-500">Send text message alerts</p>
                   </div>
                 </div>
                 <input
                   type="checkbox"
                   checked={settings.smsEnabled}
                   onChange={(e) => setSettings({ ...settings, smsEnabled: e.target.checked })}
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-300"
                 />
               </label>
               <label className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Smartphone className="h-5 w-5 text-gray-400" />
+                  <Smartphone className="h-5 w-5 text-slate-400" />
                   <div>
                     <p className="font-medium">Push Notifications</p>
-                    <p className="text-sm text-gray-500">In-app and browser notifications</p>
+                    <p className="text-sm text-slate-500">In-app and browser notifications</p>
                   </div>
                 </div>
                 <input
                   type="checkbox"
                   checked={settings.pushEnabled}
                   onChange={(e) => setSettings({ ...settings, pushEnabled: e.target.checked })}
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-300"
                 />
               </label>
             </div>
@@ -233,61 +233,61 @@ export default function NotificationSettingsPage() {
               <label className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Low Stock Alerts</p>
-                  <p className="text-sm text-gray-500">Notify when inventory is low</p>
+                  <p className="text-sm text-slate-500">Notify when inventory is low</p>
                 </div>
                 <input
                   type="checkbox"
                   checked={settings.lowStockAlerts}
                   onChange={(e) => setSettings({ ...settings, lowStockAlerts: e.target.checked })}
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-300"
                 />
               </label>
               <label className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">New Transaction Alerts</p>
-                  <p className="text-sm text-gray-500">Notify on new inventory movements</p>
+                  <p className="text-sm text-slate-500">Notify on new inventory movements</p>
                 </div>
                 <input
                   type="checkbox"
                   checked={settings.newTransactionAlerts}
                   onChange={(e) => setSettings({ ...settings, newTransactionAlerts: e.target.checked })}
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-300"
                 />
               </label>
               <label className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Daily Reports</p>
-                  <p className="text-sm text-gray-500">Daily summary of activities</p>
+                  <p className="text-sm text-slate-500">Daily summary of activities</p>
                 </div>
                 <input
                   type="checkbox"
                   checked={settings.dailyReports}
                   onChange={(e) => setSettings({ ...settings, dailyReports: e.target.checked })}
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-300"
                 />
               </label>
               <label className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Weekly Reports</p>
-                  <p className="text-sm text-gray-500">Weekly inventory and cost summary</p>
+                  <p className="text-sm text-slate-500">Weekly inventory and cost summary</p>
                 </div>
                 <input
                   type="checkbox"
                   checked={settings.weeklyReports}
                   onChange={(e) => setSettings({ ...settings, weeklyReports: e.target.checked })}
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-300"
                 />
               </label>
               <label className="flex items-center justify-between">
                 <div>
                   <p className="font-medium">Monthly Reports</p>
-                  <p className="text-sm text-gray-500">Monthly billing and reconciliation</p>
+                  <p className="text-sm text-slate-500">Monthly billing and reconciliation</p>
                 </div>
                 <input
                   type="checkbox"
                   checked={settings.monthlyReports}
                   onChange={(e) => setSettings({ ...settings, monthlyReports: e.target.checked })}
-                  className="rounded border-gray-300"
+                  className="rounded border-slate-300"
                 />
               </label>
             </div>
@@ -296,7 +296,7 @@ export default function NotificationSettingsPage() {
           {/* Alert Recipients */}
           <div className="border rounded-lg p-6">
             <h3 className="text-lg font-semibold mb-4">Alert Recipients</h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-slate-500 mb-4">
               Email addresses that will receive system alerts
             </p>
             <div className="space-y-3">
@@ -311,14 +311,14 @@ export default function NotificationSettingsPage() {
                 />
                 <button
                   onClick={addAlertRecipient}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  className="px-4 py-2 border border-slate-300 rounded-md text-sm font-medium text-slate-700 bg-white hover:bg-slate-50"
                 >
                   Add
                 </button>
               </div>
               <div className="space-y-2">
                 {settings.alertRecipients.map((email) => (
-                  <div key={email} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded">
+                  <div key={email} className="flex items-center justify-between bg-slate-50 dark:bg-[#06182b] px-3 py-2 rounded">
                     <span className="text-sm">{email}</span>
                     <button
                       onClick={() => removeAlertRecipient(email)}
@@ -329,7 +329,7 @@ export default function NotificationSettingsPage() {
                   </div>
                 ))}
                 {settings.alertRecipients.length === 0 && (
-                  <p className="text-sm text-gray-500 text-center py-2">
+                  <p className="text-sm text-slate-500 text-center py-2">
                     No recipients added yet
                   </p>
                 )}
@@ -340,7 +340,7 @@ export default function NotificationSettingsPage() {
           {/* Report Recipients */}
           <div className="border rounded-lg p-6">
             <h3 className="text-lg font-semibold mb-4">Report Recipients</h3>
-            <p className="text-sm text-gray-500 mb-4">
+            <p className="text-sm text-slate-500 mb-4">
               Email addresses that will receive scheduled reports
             </p>
             <div className="space-y-3">
@@ -355,14 +355,14 @@ export default function NotificationSettingsPage() {
                 />
                 <button
                   onClick={addReportRecipient}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                  className="px-4 py-2 border border-slate-300 rounded-md text-sm font-medium text-slate-700 bg-white hover:bg-slate-50"
                 >
                   Add
                 </button>
               </div>
               <div className="space-y-2">
                 {settings.reportRecipients.map((email) => (
-                  <div key={email} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded">
+                  <div key={email} className="flex items-center justify-between bg-slate-50 dark:bg-[#06182b] px-3 py-2 rounded">
                     <span className="text-sm">{email}</span>
                     <button
                       onClick={() => removeReportRecipient(email)}
@@ -373,7 +373,7 @@ export default function NotificationSettingsPage() {
                   </div>
                 ))}
                 {settings.reportRecipients.length === 0 && (
-                  <p className="text-sm text-gray-500 text-center py-2">
+                  <p className="text-sm text-slate-500 text-center py-2">
                     No recipients added yet
                   </p>
                 )}
@@ -383,17 +383,17 @@ export default function NotificationSettingsPage() {
         </div>
 
         {/* Test Notifications */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 rounded-lg p-6">
+        <div className="bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 rounded-lg p-6">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-semibold">Test Notifications</h3>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-slate-600 mt-1">
                 Send a test notification to verify your settings
               </p>
             </div>
             <button
               onClick={() => toast.success('Test notification sent!')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="px-4 py-2 bg-cyan-600 text-white rounded-md hover:bg-cyan-700"
             >
               Send Test
             </button>

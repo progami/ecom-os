@@ -14,14 +14,14 @@ export function StorageCostSummary({ summary }: StorageCostSummaryProps) {
         <div className="p-5">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Package className="h-6 w-6 text-gray-400" />
+              <Package className="h-6 w-6 text-slate-400" />
             </div>
             <div className="ml-5 w-0 flex-1">
               <dl>
-                <dt className="text-sm font-medium text-gray-500 truncate">
+                <dt className="text-sm font-medium text-slate-500 truncate">
                   Total Entries
                 </dt>
-                <dd className="text-lg font-medium text-gray-900">
+                <dd className="text-lg font-medium text-slate-900">
                   {summary.totalEntries.toLocaleString()}
                 </dd>
               </dl>
@@ -34,14 +34,14 @@ export function StorageCostSummary({ summary }: StorageCostSummaryProps) {
         <div className="p-5">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Archive className="h-6 w-6 text-blue-400" />
+              <Archive className="h-6 w-6 text-cyan-400" />
             </div>
             <div className="ml-5 w-0 flex-1">
               <dl>
-                <dt className="text-sm font-medium text-gray-500 truncate">
+                <dt className="text-sm font-medium text-slate-500 truncate">
                   Total Cartons
                 </dt>
-                <dd className="text-lg font-medium text-gray-900">
+                <dd className="text-lg font-medium text-slate-900">
                   {summary.totalCartons.toLocaleString()}
                 </dd>
               </dl>
@@ -58,10 +58,10 @@ export function StorageCostSummary({ summary }: StorageCostSummaryProps) {
             </div>
             <div className="ml-5 w-0 flex-1">
               <dl>
-                <dt className="text-sm font-medium text-gray-500 truncate">
+                <dt className="text-sm font-medium text-slate-500 truncate">
                   Total Storage Cost
                 </dt>
-                <dd className="text-lg font-medium text-gray-900">
+                <dd className="text-lg font-medium text-slate-900">
                   ${summary.totalStorageCost.toLocaleString('en-US', { 
                     minimumFractionDigits: 2, 
                     maximumFractionDigits: 2 
@@ -77,16 +77,16 @@ export function StorageCostSummary({ summary }: StorageCostSummaryProps) {
         <div className="p-5">
           <div className="flex items-center">
             <div className="flex-shrink-0">
-              <Calculator className="h-6 w-6 text-purple-400" />
+              <Calculator className="h-6 w-6 text-brand-teal-400" />
             </div>
             <div className="ml-5 w-0 flex-1">
               <dl>
-                <dt className="text-sm font-medium text-gray-500 truncate">
+                <dt className="text-sm font-medium text-slate-500 truncate">
                   Costs Calculated
                 </dt>
-                <dd className="text-lg font-medium text-gray-900">
+                <dd className="text-lg font-medium text-slate-900">
                   {summary.entriesWithCosts} / {summary.totalEntries}
-                  <span className="text-sm text-gray-500 ml-2">
+                  <span className="text-sm text-slate-500 ml-2">
                     ({summary.costCalculationRate}%)
                   </span>
                 </dd>

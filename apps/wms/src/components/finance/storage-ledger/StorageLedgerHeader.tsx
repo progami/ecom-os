@@ -55,13 +55,13 @@ export function StorageLedgerHeader({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="flex items-center gap-2 rounded-lg border border-muted">
+      <div className="flex items-center gap-2 rounded-xl border border-muted">
         <button
           onClick={() => onAggregationChange('weekly')}
           className={cn(
             'px-3 py-2 rounded-l-lg transition-colors',
             aggregationView === 'weekly'
-              ? 'bg-primary text-primary-foreground shadow-sm'
+              ? 'bg-primary text-primary-foreground shadow-soft'
               : 'text-muted-foreground hover:bg-muted/30'
           )}
         >
@@ -72,7 +72,7 @@ export function StorageLedgerHeader({
           className={cn(
             'px-3 py-2 rounded-r-lg transition-colors',
             aggregationView === 'monthly'
-              ? 'bg-primary text-primary-foreground shadow-sm'
+              ? 'bg-primary text-primary-foreground shadow-soft'
               : 'text-muted-foreground hover:bg-muted/30'
           )}
         >

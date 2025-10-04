@@ -5,8 +5,8 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
-import { Package2, RefreshCw, Loader2, Search, TrendingUp, AlertTriangle, BarChart3, Construction, Hammer, Wrench } from '@/lib/lucide-icons'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
+import { ShoppingCart, RefreshCw, Loader2, Search, TrendingUp, AlertTriangle, BarChart3, Construction, Hammer, Wrench } from '@/lib/lucide-icons'
 import { toast } from 'react-hot-toast'
 
 interface InventoryComparison {
@@ -27,10 +27,13 @@ export default function AmazonIntegrationPage() {
   // TEMPORARY: Show under construction page
   return (
     <DashboardLayout>
-      <div className="px-4 sm:px-6 lg:px-8 py-8">
-        <PageHeader
-          title="Amazon FBA Integration"
+      <PageContainer>
+        <PageHeaderSection
+          title="Amazon Integration"
+          description="Marketplace"
+          icon={ShoppingCart}
         />
+        <PageContent>
 
         <div className="mt-8 flex flex-col items-center justify-center text-center py-16">
           <div className="relative">
@@ -39,11 +42,11 @@ export default function AmazonIntegrationPage() {
             <Wrench className="h-8 w-8 text-yellow-600 absolute -left-2 bottom-0 animate-pulse" />
           </div>
           
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
             Under Construction
           </h2>
           
-          <p className="text-gray-600 dark:text-gray-400 max-w-md mb-8">
+          <p className="text-slate-600 dark:text-slate-400 max-w-md mb-8">
             We're working hard to bring you the Amazon FBA Integration module. 
             This feature will allow you to sync inventory levels, manage FBA shipments, 
             and track Amazon warehouse inventory in real-time.
@@ -77,11 +80,12 @@ export default function AmazonIntegrationPage() {
             </ul>
           </div>
 
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-8">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-8">
             Expected availability: Q2 2024
           </p>
         </div>
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 
@@ -276,7 +280,7 @@ export default function AmazonIntegrationPage() {
                 onChange={(e) => setIsDemoMode(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-600"></div>
+              <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-yellow-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-600"></div>
             </label>
           </div>
         </div>
@@ -284,7 +288,7 @@ export default function AmazonIntegrationPage() {
         {/* Actions Bar */}
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
               placeholder="Search by SKU or description..."
@@ -379,23 +383,23 @@ export default function AmazonIntegrationPage() {
           <div className="bg-white border rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-medium text-gray-600">Warehouse Stock</h3>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
+                <h3 className="text-sm font-medium text-slate-600">Warehouse Stock</h3>
+                <p className="text-2xl font-bold text-slate-900 mt-1">
                   {totalWarehouse.toLocaleString()}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">units</p>
+                <p className="text-xs text-slate-500 mt-1">units</p>
               </div>
-              <Package2 className="h-8 w-8 text-gray-400" />
+              <Package2 className="h-8 w-8 text-slate-400" />
             </div>
           </div>
           <div className="bg-white border rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-medium text-gray-600">Amazon FBA</h3>
+                <h3 className="text-sm font-medium text-slate-600">Amazon FBA</h3>
                 <p className="text-2xl font-bold text-orange-600 mt-1">
                   {totalAmazon.toLocaleString()}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">units</p>
+                <p className="text-xs text-slate-500 mt-1">units</p>
               </div>
               <Package2 className="h-8 w-8 text-orange-400" />
             </div>
@@ -403,23 +407,23 @@ export default function AmazonIntegrationPage() {
           <div className="bg-white border rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-medium text-gray-600">Combined Total</h3>
-                <p className="text-2xl font-bold text-blue-600 mt-1">
+                <h3 className="text-sm font-medium text-slate-600">Combined Total</h3>
+                <p className="text-2xl font-bold text-cyan-600 mt-1">
                   {totalCombined.toLocaleString()}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">units across all warehouses</p>
+                <p className="text-xs text-slate-500 mt-1">units across all warehouses</p>
               </div>
-              <BarChart3 className="h-8 w-8 text-blue-400" />
+              <BarChart3 className="h-8 w-8 text-cyan-400" />
             </div>
           </div>
           <div className="bg-white border rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-medium text-gray-600">Stock Alerts</h3>
+                <h3 className="text-sm font-medium text-slate-600">Stock Alerts</h3>
                 <p className="text-2xl font-bold text-red-600 mt-1">
                   {lowStockSkus}
                 </p>
-                <p className="text-xs text-gray-500 mt-1">SKUs low/out of stock</p>
+                <p className="text-xs text-slate-500 mt-1">SKUs low/out of stock</p>
               </div>
               <AlertTriangle className="h-8 w-8 text-red-400" />
             </div>
@@ -427,14 +431,14 @@ export default function AmazonIntegrationPage() {
         </div>
 
         {/* View Filters */}
-        <div className="bg-gray-50 p-4 rounded-lg">
+        <div className="bg-slate-50 p-4 rounded-lg">
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setSelectedView('all')}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 selectedView === 'all'
                   ? 'bg-primary text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                  : 'bg-white text-slate-700 hover:bg-slate-100'
               }`}
             >
               All SKUs ({totalSkus})
@@ -444,7 +448,7 @@ export default function AmazonIntegrationPage() {
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 selectedView === 'warehouse'
                   ? 'bg-primary text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                  : 'bg-white text-slate-700 hover:bg-slate-100'
               }`}
             >
               Warehouse Only
@@ -454,7 +458,7 @@ export default function AmazonIntegrationPage() {
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 selectedView === 'amazon'
                   ? 'bg-primary text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                  : 'bg-white text-slate-700 hover:bg-slate-100'
               }`}
             >
               Amazon FBA Only
@@ -464,13 +468,13 @@ export default function AmazonIntegrationPage() {
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
                 selectedView === 'lowstock'
                   ? 'bg-primary text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                  : 'bg-white text-slate-700 hover:bg-slate-100'
               }`}
             >
               Low Stock ({lowStockSkus})
             </button>
             <div className="ml-auto flex items-center gap-2">
-              <label className="text-sm font-medium text-gray-700">Sort by:</label>
+              <label className="text-sm font-medium text-slate-700">Sort by:</label>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'sku' | 'total' | 'trend')}
@@ -488,21 +492,21 @@ export default function AmazonIntegrationPage() {
         <div className="bg-white border rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+              <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     SKU
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Description
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Warehouse Units
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Amazon FBA
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                     Total (Units)
                   </th>
                 </tr>
@@ -511,12 +515,12 @@ export default function AmazonIntegrationPage() {
                 {loading ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-4 text-center">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-gray-400" />
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-slate-400" />
                     </td>
                   </tr>
                 ) : filteredInventory.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-4 text-center text-gray-500">
+                    <td colSpan={5} className="px-6 py-4 text-center text-slate-500">
                       No inventory data found
                     </td>
                   </tr>
@@ -525,8 +529,8 @@ export default function AmazonIntegrationPage() {
                     const hasNoStock = item.total === 0
                     const isLowStock = item.total > 0 && item.total < 50
                     return (
-                      <tr key={item.sku} className={`hover:bg-gray-50 ${hasNoStock ? 'opacity-50' : ''}`}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <tr key={item.sku} className={`hover:bg-slate-50 ${hasNoStock ? 'opacity-50' : ''}`}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
                           <div className="flex items-center gap-2">
                             {item.sku}
                             {isLowStock && (
@@ -535,27 +539,27 @@ export default function AmazonIntegrationPage() {
                               </span>
                             )}
                             {hasNoStock && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
                                 Out of Stock
                               </span>
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
+                        <td className="px-6 py-4 text-sm text-slate-500">
                           {item.description}
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm text-right ${
-                          item.warehouseQty === 0 ? 'text-gray-400' : 'text-gray-900'
+                          item.warehouseQty === 0 ? 'text-slate-400' : 'text-slate-900'
                         }`}>
                           {item.warehouseQty.toLocaleString()}
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${
-                          item.amazonQty === 0 ? 'text-gray-400' : 'text-orange-600'
+                          item.amazonQty === 0 ? 'text-slate-400' : 'text-orange-600'
                         }`}>
                           {item.amazonQty.toLocaleString()}
                         </td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${
-                          item.total === 0 ? 'text-gray-400' : isLowStock ? 'text-red-600' : 'text-blue-600'
+                          item.total === 0 ? 'text-slate-400' : isLowStock ? 'text-red-600' : 'text-cyan-600'
                         }`}>
                           <div className="flex items-center justify-end gap-2">
                             {item.total.toLocaleString()}
@@ -564,7 +568,7 @@ export default function AmazonIntegrationPage() {
                                 className={`h-4 w-4 ${
                                   item.trend === 'up' ? 'text-green-500' : 
                                   item.trend === 'down' ? 'text-red-500' : 
-                                  'text-gray-400'
+                                  'text-slate-400'
                                 }`}
                               />
                             )}
@@ -581,19 +585,19 @@ export default function AmazonIntegrationPage() {
 
         {/* Analytics Summary */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4">
-            <h3 className="font-semibold text-blue-900 mb-2">Inventory Distribution</h3>
+          <div className="bg-gradient-to-r from-cyan-50 to-cyan-100 border border-cyan-200 rounded-lg p-4">
+            <h3 className="font-semibold text-cyan-900 mb-2">Inventory Distribution</h3>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">SKUs with stock:</span>
+                <span className="text-slate-600">SKUs with stock:</span>
                 <span className="font-medium">{skusWithStock} / {totalSkus}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Warehouse coverage:</span>
+                <span className="text-slate-600">Warehouse coverage:</span>
                 <span className="font-medium">{((totalWarehouse / totalCombined) * 100).toFixed(1)}%</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Amazon FBA coverage:</span>
+                <span className="text-slate-600">Amazon FBA coverage:</span>
                 <span className="font-medium">{((totalAmazon / totalCombined) * 100).toFixed(1)}%</span>
               </div>
             </div>
@@ -602,15 +606,15 @@ export default function AmazonIntegrationPage() {
             <h3 className="font-semibold text-red-900 mb-2">Stock Health</h3>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Low stock SKUs:</span>
+                <span className="text-slate-600">Low stock SKUs:</span>
                 <span className="font-medium text-orange-600">{lowStockSkus}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Out of stock SKUs:</span>
+                <span className="text-slate-600">Out of stock SKUs:</span>
                 <span className="font-medium text-red-600">{outOfStockSkus}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Healthy stock SKUs:</span>
+                <span className="text-slate-600">Healthy stock SKUs:</span>
                 <span className="font-medium text-green-600">{skusWithStock - lowStockSkus}</span>
               </div>
             </div>
@@ -618,8 +622,8 @@ export default function AmazonIntegrationPage() {
         </div>
 
         {/* Info Note */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-sm text-blue-800">
+        <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
+          <p className="text-sm text-cyan-800">
             <strong>Note:</strong> This page displays inventory levels across all warehouses. Showing {skusWithStock} of {totalSkus} SKUs with stock.
             The total column shows the combined inventory across all warehouses.
           </p>

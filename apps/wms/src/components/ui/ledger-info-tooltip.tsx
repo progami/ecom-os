@@ -6,7 +6,7 @@ export function LedgerInfoTooltip() {
     <Tooltip 
       content="Immutable Ledger: Transactions cannot be edited or deleted. Use ADJUST_IN/OUT for corrections."
     >
-      <Info className="h-4 w-4 text-gray-400 hover:text-gray-600 cursor-help" />
+      <Info className="h-4 w-4 text-slate-400 hover:text-slate-600 cursor-help" />
     </Tooltip>
   )
 }

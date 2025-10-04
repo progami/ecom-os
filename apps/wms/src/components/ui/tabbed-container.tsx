@@ -29,10 +29,10 @@ export function TabbedContainer({ tabs, children, defaultTab, onChange }: Tabbed
   const childrenArray = React.Children.toArray(children)
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border">
+    <div className="rounded-xl border border-slate-200 bg-white shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
       {/* Tab Headers */}
-      <div className="border-b">
-        <nav className="flex space-x-8 px-6" aria-label="Tabs">
+      <div className="border-b border-slate-200 dark:border-[#0b3a52]">
+        <nav className="flex space-x-6 px-6" aria-label="Tabs">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -42,8 +42,8 @@ export function TabbedContainer({ tabs, children, defaultTab, onChange }: Tabbed
               className={cn(
                 'py-4 px-1 border-b-2 font-medium text-sm transition-colors relative',
                 activeTab === tab.id
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+                  ? 'border-cyan-600 text-cyan-700 dark:border-[#00C2B9] dark:text-cyan-100'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:border-slate-600',
                 tab.disabled && 'opacity-50 cursor-not-allowed'
               )}
             >

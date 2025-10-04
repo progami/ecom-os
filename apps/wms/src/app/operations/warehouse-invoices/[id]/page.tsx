@@ -133,10 +133,10 @@ export default function WarehouseInvoiceDetailPage() {
           title={`Warehouse Invoice ${invoice.invoiceNumber}`}
           subtitle={`${invoice.warehouseName} (${invoice.warehouseCode})`}
           icon={FileText}
-          iconColor="text-indigo-600"
-          bgColor="bg-indigo-50"
-          borderColor="border-indigo-200"
-          textColor="text-indigo-800"
+          iconColor="text-cyan-600"
+          bgColor="bg-cyan-50"
+          borderColor="border-cyan-200"
+          textColor="text-cyan-800"
           actions={headerActions}
         />
 
@@ -147,7 +147,7 @@ export default function WarehouseInvoiceDetailPage() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-lg border bg-white p-4 shadow-sm">
+          <div className="rounded-xl border bg-white p-4 shadow-soft">
             <h3 className="text-sm font-semibold text-muted-foreground">Summary</h3>
             <dl className="mt-3 space-y-2 text-sm">
               <div className="flex justify-between">
@@ -162,7 +162,7 @@ export default function WarehouseInvoiceDetailPage() {
           </div>
         </div>
 
-        <div className="flex min-h-0 flex-col rounded-lg border bg-white shadow-sm">
+        <div className="flex min-h-0 flex-col rounded-xl border bg-white shadow-soft">
           <div className="border-b px-4 py-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Invoice Lines</h3>
           </div>

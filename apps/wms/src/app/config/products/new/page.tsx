@@ -134,7 +134,7 @@ export default function NewSkuPage() {
             <h2 className="text-lg font-semibold mb-4">Basic Information</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   SKU Code *
                 </label>
                 <input
@@ -153,7 +153,7 @@ export default function NewSkuPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   ASIN
                 </label>
                 <input
@@ -166,7 +166,7 @@ export default function NewSkuPage() {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Description *
                 </label>
                 <input
@@ -184,7 +184,7 @@ export default function NewSkuPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Pack Size *
                 </label>
                 <input
@@ -202,7 +202,7 @@ export default function NewSkuPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Material
                 </label>
                 <input
@@ -221,7 +221,7 @@ export default function NewSkuPage() {
             <h2 className="text-lg font-semibold mb-4">Unit Specifications</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Unit Dimensions (cm)
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -256,7 +256,7 @@ export default function NewSkuPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Unit Weight (kg)
                 </label>
                 <input
@@ -281,7 +281,7 @@ export default function NewSkuPage() {
             <h2 className="text-lg font-semibold mb-4">Carton Specifications</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Units per Carton *
                 </label>
                 <input
@@ -299,7 +299,7 @@ export default function NewSkuPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Packaging Type
                 </label>
                 <input
@@ -312,7 +312,7 @@ export default function NewSkuPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Carton Dimensions (cm)
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -347,7 +347,7 @@ export default function NewSkuPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Carton Weight (kg)
                 </label>
                 <input
@@ -378,9 +378,9 @@ export default function NewSkuPage() {
                   id="isActive"
                   checked={formData.isActive}
                   onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                  className="h-4 w-4 text-primary focus:ring-primary border-slate-300 rounded"
                 />
-                <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
+                <label htmlFor="isActive" className="ml-2 text-sm text-slate-700">
                   Active SKU (available for transactions)
                 </label>
               </div>
@@ -408,10 +408,10 @@ export default function NewSkuPage() {
           </div>
         </form>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
           <div className="flex items-start">
-            <Package className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
-            <div className="text-sm text-blue-800">
+            <Package className="h-5 w-5 text-cyan-600 mt-0.5 mr-3 flex-shrink-0" />
+            <div className="text-sm text-cyan-800">
               <p className="font-semibold mb-1">SKU Setup Tips:</p>
               <ul className="list-disc list-inside space-y-1">
                 <li>Use a consistent naming convention for SKU codes</li>
