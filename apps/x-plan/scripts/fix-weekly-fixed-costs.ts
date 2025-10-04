@@ -12,7 +12,7 @@ async function main() {
     return
   }
 
-  if (param.valueNumeric !== null) {
+  if (param.valueNumeric !== null && param.valueNumeric !== undefined) {
     console.log('Weekly Fixed Costs already has numeric value:', param.valueNumeric.toString())
     return
   }

@@ -104,21 +104,43 @@ export function computeProfitAndLoss(
 
     const derived = salesRows.reduce(
       (acc, row) => {
-        const product = products.get(row.productId)
-        if (!product) return acc
-        const units = row.finalSales
-        const revenue = units * product.sellingPrice
-        const landedCost = units * product.landedUnitCost
-        const referralFee = revenue * product.amazonReferralRate
-        const fbaFees = units * product.fbaFee
-        const amazonFees = referralFee + fbaFees
-        const advertising = units * product.sellingPrice * product.tacosPercent
+        // Use batch allocations if available (FIFO costing)
+        if (row.batchAllocations && row.batchAllocations.length > 0) {
+          for (const allocation of row.batchAllocations) {
+            const units = allocation.quantity
+            const revenue = units * allocation.sellingPrice
+            const landedCost = units * allocation.landedUnitCost
+            const referralFee = revenue * allocation.amazonReferralRate
+            const fbaFees = units * allocation.fbaFee
+            const storageFees = units * allocation.storagePerMonth
+            const amazonFees = referralFee + fbaFees + storageFees
+            const advertising = units * allocation.sellingPrice * allocation.tacosPercent
 
-        acc.units += units
-        acc.revenue += revenue
-        acc.cogs += landedCost
-        acc.amazonFees += amazonFees
-        acc.ppcSpend += advertising
+            acc.units += units
+            acc.revenue += revenue
+            acc.cogs += landedCost
+            acc.amazonFees += amazonFees
+            acc.ppcSpend += advertising
+          }
+        } else {
+          // Fallback to product defaults (for backwards compatibility)
+          const product = products.get(row.productId)
+          if (!product) return acc
+          const units = row.finalSales
+          const revenue = units * product.sellingPrice
+          const landedCost = units * product.landedUnitCost
+          const referralFee = revenue * product.amazonReferralRate
+          const fbaFees = units * product.fbaFee
+          const storageFees = units * product.storagePerMonth
+          const amazonFees = referralFee + fbaFees + storageFees
+          const advertising = units * product.sellingPrice * product.tacosPercent
+
+          acc.units += units
+          acc.revenue += revenue
+          acc.cogs += landedCost
+          acc.amazonFees += amazonFees
+          acc.ppcSpend += advertising
+        }
         return acc
       },
       { units: 0, revenue: 0, cogs: 0, amazonFees: 0, ppcSpend: 0 }

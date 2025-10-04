@@ -11,6 +11,21 @@ interface ComputeSalesPlanOptions {
 
 const PLANNING_PLACEHOLDER_PRODUCT_ID = '__planning__'
 
+export interface BatchAllocation {
+  orderCode: string
+  batchCode?: string | null
+  quantity: number
+  sellingPrice: number
+  landedUnitCost: number
+  manufacturingCost: number
+  freightCost: number
+  tariffRate: number
+  tacosPercent: number
+  fbaFee: number
+  amazonReferralRate: number
+  storagePerMonth: number
+}
+
 export interface SalesWeekDerived {
   productId: string
   weekNumber: number
@@ -24,11 +39,29 @@ export interface SalesWeekDerived {
   finalPercentError: number | null
   stockEnd: number
   stockWeeks: number
+  batchAllocations?: BatchAllocation[]
+}
+
+interface BatchInventory {
+  orderCode: string
+  batchCode?: string | null
+  quantity: number
+  arrivalWeek: number
+  sellingPrice: number
+  landedUnitCost: number
+  manufacturingCost: number
+  freightCost: number
+  tariffRate: number
+  tacosPercent: number
+  fbaFee: number
+  amazonReferralRate: number
+  storagePerMonth: number
 }
 
 type ArrivalScheduleEntry = {
   quantity: number
   orders: Array<{ orderCode: string; shipName?: string | null; productId: string; quantity: number }>
+  batches: BatchInventory[]
 }
 
 function buildArrivalSchedule(
@@ -43,7 +76,7 @@ function buildArrivalSchedule(
     const weekNumber = weekNumberForDate(arrivalDate, calendar)
     if (weekNumber == null) continue
     const key = `${order.productId}:${weekNumber}`
-    const entry = schedule.get(key) ?? { quantity: 0, orders: [] }
+    const entry = schedule.get(key) ?? { quantity: 0, orders: [], batches: [] }
     entry.quantity += order.quantity
     entry.orders.push({
       orderCode: order.orderCode,
@@ -51,6 +84,24 @@ function buildArrivalSchedule(
       productId: order.productId,
       quantity: order.quantity,
     })
+
+    // Add batch with costs
+    entry.batches.push({
+      orderCode: order.orderCode,
+      batchCode: order.orderCode, // Use orderCode as batchCode for now
+      quantity: order.quantity,
+      arrivalWeek: weekNumber,
+      sellingPrice: order.sellingPrice,
+      landedUnitCost: order.landedUnitCost,
+      manufacturingCost: order.manufacturingCost,
+      freightCost: order.freightCost,
+      tariffRate: order.tariffRate,
+      tacosPercent: order.tacosPercent,
+      fbaFee: order.fbaFee,
+      amazonReferralRate: order.amazonReferralRate,
+      storagePerMonth: order.storagePerMonth,
+    })
+
     schedule.set(key, entry)
   }
 
@@ -59,6 +110,59 @@ function buildArrivalSchedule(
 
 function clampNonNegative(value: number): number {
   return value < 0 ? 0 : value
+}
+
+/**
+ * Allocate sales using FIFO from available batch inventory
+ * Returns the batch allocations for the sales quantity
+ */
+function allocateSalesFIFO(
+  salesQuantity: number,
+  batchInventory: BatchInventory[]
+): {  allocations: BatchAllocation[]; remainingBatches: BatchInventory[] } {
+  if (salesQuantity <= 0 || batchInventory.length === 0) {
+    return { allocations: [], remainingBatches: [...batchInventory] }
+  }
+
+  const allocations: BatchAllocation[] = []
+  const remaining: BatchInventory[] = []
+  let unallocated = salesQuantity
+
+  // Sort batches by arrival week (FIFO - oldest first)
+  const sortedBatches = [...batchInventory].sort((a, b) => a.arrivalWeek - b.arrivalWeek)
+
+  for (const batch of sortedBatches) {
+    if (unallocated <= 0) {
+      remaining.push(batch)
+      continue
+    }
+
+    const quantityToAllocate = Math.min(unallocated, batch.quantity)
+
+    allocations.push({
+      orderCode: batch.orderCode,
+      batchCode: batch.batchCode,
+      quantity: quantityToAllocate,
+      sellingPrice: batch.sellingPrice,
+      landedUnitCost: batch.landedUnitCost,
+      manufacturingCost: batch.manufacturingCost,
+      freightCost: batch.freightCost,
+      tariffRate: batch.tariffRate,
+      tacosPercent: batch.tacosPercent,
+      fbaFee: batch.fbaFee,
+      amazonReferralRate: batch.amazonReferralRate,
+      storagePerMonth: batch.storagePerMonth,
+    })
+
+    const remainingQuantity = batch.quantity - quantityToAllocate
+    if (remainingQuantity > 0) {
+      remaining.push({ ...batch, quantity: remainingQuantity })
+    }
+
+    unallocated -= quantityToAllocate
+  }
+
+  return { allocations, remainingBatches: remaining }
 }
 
 export function computeSalesPlan(
@@ -93,6 +197,9 @@ export function computeSalesPlan(
     const stockEndSeries: number[] = []
     const productWeeks = weeksByProduct.get(productId)
 
+    // Track FIFO batch inventory across weeks for this product
+    let batchInventory: BatchInventory[] = []
+
     for (let index = 0; index < weekNumbers.length; index += 1) {
       const weekNumber = weekNumbers[index]
       const week = productWeeks?.get(weekNumber)
@@ -104,8 +211,15 @@ export function computeSalesPlan(
         const tentative = week.weekDate instanceof Date ? week.weekDate : new Date(week.weekDate)
         weekDate = isValid(tentative) ? tentative : null
       }
+
       const arrivalEntry = arrivalSchedule.get(`${productId}:${weekNumber}`)
       const arrivals = arrivalEntry?.quantity ?? 0
+
+      // Add arriving batches to inventory
+      if (arrivalEntry) {
+        batchInventory.push(...arrivalEntry.batches)
+      }
+
       const previousEnd = index > 0 ? stockEndSeries[index - 1] : coerceNumber(week?.stockStart)
       const manualStart = week?.stockStart
       const baseStart = manualStart != null ? coerceNumber(manualStart) : previousEnd
@@ -121,6 +235,10 @@ export function computeSalesPlan(
         const demand = actualSales != null ? actualSales : forecastSales ?? 0
         computedFinalSales = clampNonNegative(Math.min(stockStart, demand))
       }
+
+      // Allocate sales using FIFO
+      const { allocations, remainingBatches } = allocateSalesFIFO(computedFinalSales, batchInventory)
+      batchInventory = remainingBatches
 
       const stockEnd = clampNonNegative(stockStart - computedFinalSales)
       let percentError: number | null = null
@@ -142,6 +260,7 @@ export function computeSalesPlan(
         finalPercentError: percentError,
         stockEnd,
         stockWeeks: 0, // updated after loop
+        batchAllocations: allocations.length > 0 ? allocations : undefined,
       })
     }
 
