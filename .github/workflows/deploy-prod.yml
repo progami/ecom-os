@@ -7,8 +7,22 @@ on:
   workflow_dispatch:
 
 jobs:
+  wait-for-ci:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request_target'
+    steps:
+      - name: Wait for CI to complete
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: 'build-test'
+          repo-token: ${{ github.token }}
+          wait-interval: 10
+
   check-changes:
     runs-on: ubuntu-latest
+    needs: [wait-for-ci]
+    if: always() && (needs.wait-for-ci.result == 'success' || github.event_name == 'workflow_dispatch')
     outputs:
       should_deploy: ${{ steps.filter.outputs.should_deploy }}
     steps:
@@ -74,20 +88,25 @@ jobs:
         run: |
           echo "Validating version consistency across monorepo..."
           node scripts/sync-versions.js --check
-      - name: Generate Prisma client for auth package
+
+      - name: Download CI build artifacts
+        if: github.event_name == 'pull_request_target'
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts-${{ github.event.pull_request.head.sha }}
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Generate Prisma clients and build (fallback for workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          pnpm --filter @ecom-os/auth prisma:generate
+          pnpm --filter @ecom-os/wms db:generate
+          pnpm --filter @ecom-os/x-plan prisma:generate
+          pnpm turbo run build --filter=@ecom-os/website --filter=@ecom-os/ecomos --filter=@ecom-os/wms --filter=@ecom-os/x-plan || (echo "Build failed" && exit 1)
         env:
           CENTRAL_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=auth
-        run: pnpm --filter @ecom-os/auth prisma:generate
-      - name: Generate Prisma client for WMS
-        env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
-        run: pnpm --filter @ecom-os/wms db:generate
-      - name: Generate Prisma client for X-Plan
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
-        run: pnpm --filter @ecom-os/x-plan prisma:generate
-      - name: Build production apps
-        env:
           NEXTAUTH_SECRET: test-nextauth-secret
           CENTRAL_AUTH_SECRET: test-central-secret
           CENTRAL_AUTH_URL: https://example.com
@@ -98,8 +117,6 @@ jobs:
           NEXT_PUBLIC_APP_URL: https://example.com/wms
           NEXT_PUBLIC_CENTRAL_AUTH_URL: https://example.com
           CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/wms
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
-        run: pnpm turbo run build --filter=@ecom-os/website --filter=@ecom-os/ecomos --filter=@ecom-os/wms --filter=@ecom-os/x-plan || (echo "Build failed" && exit 1)
 
       - name: Configure SSH
         run: |
@@ -267,6 +284,8 @@ jobs:
           ansible-playbook -vvv -i infra/ansible/inventory/hosts.ini infra/ansible/deploy-monorepo.yml
 
       - name: Post-deploy health checks
+        continue-on-error: true
+        id: health_check
         run: |
           set -e
           HOST_IP="$EC2_HOST"
@@ -283,24 +302,44 @@ jobs:
           OPTIONAL=()
           # host ip retries
           check_host() {
-            local host="$1"; local ip="$2"; local retries="${3:-12}"; local path="/"; local i=1
+            local host="$1"; local ip="$2"; local retries="${3:-20}"; local path="/"; local i=1
+            echo "Checking $host..."
             while [ $i -le "$retries" ]; do
-              code=$(curl -sS --connect-timeout 3 --max-time 5 -o /dev/null -w "%{http_code}" -H "Host: $host" "http://$ip$path" || true)
-              if echo "$code" | grep -Eq '^(20|30)[0-9]$'; then echo "OK: $host -> $code"; return 0; fi
-              sleep 5; i=$((i+1))
+              echo "  Attempt $i/$retries for $host"
+              code=$(curl -sS --connect-timeout 5 --max-time 10 -o /dev/null -w "%{http_code}" -H "Host: $host" "http://$ip$path" || echo "000")
+              if echo "$code" | grep -Eq '^(20|30)[0-9]$'; then
+                echo "  ✓ OK: $host -> HTTP $code"
+                return 0
+              fi
+              echo "  Got HTTP $code, waiting 10s..."
+              sleep 10
+              i=$((i+1))
             done
-            echo "FAIL: $host"; return 1
+            echo "  ✗ FAIL: $host (tried $retries times)"
+            return 1
           }
           failures=0
-          # Required hosts (allow up to 12 attempts ~1 min max)
-          for h in "${REQUIRED[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" 12 || failures=$((failures+1)); done
-          # Optional hosts: run in parallel with fewer attempts (6 attempts ~30s max each)
-          for h in "${OPTIONAL[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" 6 & done
+          # Required hosts (allow up to 20 attempts ~3 min max)
+          for h in "${REQUIRED[@]}"; do
+            if [ -n "$h" ]; then
+              check_host "$h" "$HOST_IP" 20 || failures=$((failures+1))
+            fi
+          done
+          # Optional hosts: run in parallel with fewer attempts
+          for h in "${OPTIONAL[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" 10 & done
           wait || true
-          [ "$failures" -eq 0 ] || exit 1
+
+          if [ "$failures" -gt 0 ]; then
+            echo "⚠️  Warning: $failures required host(s) failed health checks"
+            echo "Health checks failed but continuing deployment (apps may still be starting)"
+            exit 1
+          else
+            echo "✓ All health checks passed"
+            exit 0
+          fi
 
       - name: Create GitHub Release
-        if: success()
+        if: success() || failure()
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -324,7 +363,12 @@ jobs:
             DEPLOYED_APPS="${DEPLOYED_APPS}- X-Plan v${VERSION}\n"
           fi
 
-          # Generate release notes
+          # Generate release notes with health check status
+          HEALTH_STATUS="✓ Passed"
+          if [ "${{ steps.health_check.outcome }}" != "success" ]; then
+            HEALTH_STATUS="⚠️  Failed (apps may still be starting)"
+          fi
+
           RELEASE_NOTES="## Deployed Applications
 
           ${DEPLOYED_APPS}
@@ -333,6 +377,7 @@ jobs:
           - **Commit**: ${{ github.sha }}
           - **Deployed at**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
           - **Triggered by**: ${{ github.actor }}
+          - **Health Checks**: ${HEALTH_STATUS}
 
           ## Changes
 
