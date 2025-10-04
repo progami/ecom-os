@@ -30,9 +30,9 @@ export function computeProductCostSummary(product: ProductInput): ProductCostSum
   const amazonReferralRate = coerceNumber(product.amazonReferralRate)
   const storagePerMonth = coerceNumber(product.storagePerMonth)
 
-  const tariffCost = sellingPrice * tariffRate
+  const tariffCost = manufacturingCost * tariffRate
   const advertisingCost = sellingPrice * tacosPercent
-  const landedUnitCost = manufacturingCost + freightCost + tariffCost + fbaFee + storagePerMonth
+  const landedUnitCost = manufacturingCost + freightCost + tariffCost
   const grossContribution = sellingPrice - landedUnitCost - advertisingCost
   const grossMarginPercent = sellingPrice === 0 ? 0 : grossContribution / sellingPrice
 

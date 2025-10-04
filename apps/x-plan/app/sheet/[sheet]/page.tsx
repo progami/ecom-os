@@ -69,6 +69,14 @@ type SalesRow = {
   [key: string]: string
 }
 
+type BatchAllocationMeta = {
+  orderCode: string
+  batchCode?: string | null
+  quantity: number
+  sellingPrice: number
+  landedUnitCost: number
+}
+
 function formatDate(value: Date | string | null | undefined): string {
   if (!value) return ''
   return formatDateDisplay(value)
@@ -1178,6 +1186,24 @@ function getSalesPlanningView(
     return row
   })
 
+  const batchAllocations = new Map<string, BatchAllocationMeta[]>()
+  productList.forEach((product, productIdx) => {
+    weekNumbers.forEach((weekNumber) => {
+      const derived = salesLookup.get(`${product.id}-${weekNumber}`)
+      if (derived?.batchAllocations && derived.batchAllocations.length > 0) {
+        const key = columnKey(productIdx, 'finalSales')
+        const cellKey = `${weekNumber}-${key}`
+        batchAllocations.set(cellKey, derived.batchAllocations.map((alloc) => ({
+          orderCode: alloc.orderCode,
+          batchCode: alloc.batchCode,
+          quantity: alloc.quantity,
+          sellingPrice: alloc.sellingPrice,
+          landedUnitCost: alloc.landedUnitCost,
+        })))
+      }
+    })
+  })
+
   return {
     rows,
     columnMeta,
@@ -1185,6 +1211,7 @@ function getSalesPlanningView(
     nestedHeaders,
     productOptions: productList.map((product) => ({ id: product.id, name: product.name })),
     stockWarningWeeks: context.parameters.stockWarningWeeks,
+    batchAllocations,
   }
 }
 
@@ -1369,6 +1396,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           nestedHeaders={view.nestedHeaders}
           productOptions={view.productOptions}
           stockWarningWeeks={view.stockWarningWeeks}
+          batchAllocations={view.batchAllocations}
         />
       )
       visualContent = (

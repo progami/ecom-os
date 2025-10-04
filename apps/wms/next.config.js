@@ -9,14 +9,15 @@
 // Get version from package.json
 const { version } = require('./package.json')
 
+const basePath = process.env.BASE_PATH || ''
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Note: This config supports both Webpack (for production builds) and Turbopack (for development).
   // The webpack configuration below is ignored when using Turbopack (--turbo flag).
   // Base path configuration - set BASE_PATH env var if needed
-  basePath: process.env.BASE_PATH || '',
-  assetPrefix: process.env.BASE_PATH || '',
-  
+  basePath,
+
   // Fix for Next.js 15 module resolution and HMR issues
   transpilePackages: ['lucide-react'],
   
@@ -91,19 +92,10 @@ const nextConfig = {
     ]
   },
 
+  // Rewrites removed - Next.js basePath handles routing automatically
+  // The previous rewrite was causing double basePath prefixing (/wms/wms/api/...)
   async rewrites() {
-    const basePath = process.env.BASE_PATH || process.env.NEXT_PUBLIC_BASE_PATH || ''
-
-    if (!basePath) {
-      return []
-    }
-
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${basePath}/api/:path*`,
-      },
-    ]
+    return []
   },
   
   // Environment variables validation
@@ -111,6 +103,7 @@ const nextConfig = {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
     NEXT_PUBLIC_BUILD_TIME: process.env.BUILD_TIME || new Date().toISOString(),
     NEXT_PUBLIC_VERSION: version,
+    NEXT_PUBLIC_BASE_PATH: process.env.NEXT_PUBLIC_BASE_PATH || basePath,
   },
   
   // Webpack configuration (for production builds)

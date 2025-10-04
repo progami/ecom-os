@@ -22,6 +22,7 @@ if (sharedSecret) {
 }
 
 const baseAuthOptions: NextAuthOptions = {
+  // NextAuth automatically inherits Next.js basePath, no need to specify it here
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
