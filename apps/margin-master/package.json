@@ -1,6 +1,6 @@
 {
   "name": "@ecom-os/margin-master",
-  "version": "0.1.0",
+  "version": "0.8.1",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3007",
