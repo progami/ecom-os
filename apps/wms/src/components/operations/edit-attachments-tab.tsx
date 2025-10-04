@@ -246,13 +246,13 @@ export function EditAttachmentsTab({ existingAttachments, onAttachmentsChange, t
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg border">
-        <div className="px-6 py-4 border-b bg-gray-50">
+      <div className="bg-white rounded-xl border">
+        <div className="px-6 py-4 border-b bg-slate-50">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Transaction Documents (Staged Changes)
           </h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <p className="text-sm text-slate-600 mt-1">
             Changes will only be saved when you click Save
           </p>
         </div>
@@ -264,7 +264,7 @@ export function EditAttachmentsTab({ existingAttachments, onAttachmentsChange, t
               const isDeleted = attachment?.deleted
               
               return (
-                <div key={category.id} className={`border rounded-lg p-4 ${isDeleted ? 'bg-red-50 border-red-200' : 'bg-gray-50'} hover:shadow-sm transition-shadow`}>
+                <div key={category.id} className={`border rounded-lg p-4 ${isDeleted ? 'bg-red-50 border-red-200' : 'bg-slate-50'} hover:shadow-soft transition-shadow`}>
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <h4 className="font-medium text-sm flex items-center gap-2">
@@ -273,30 +273,30 @@ export function EditAttachmentsTab({ existingAttachments, onAttachmentsChange, t
                           <Check className="h-4 w-4 text-green-600" />
                         )}
                         {attachment?.isNew && !isDeleted && (
-                          <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">NEW</span>
+                          <span className="text-xs bg-cyan-100 text-cyan-700 px-2 py-0.5 rounded">NEW</span>
                         )}
                         {isDeleted && (
                           <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">TO DELETE</span>
                         )}
                       </h4>
-                      <p className="text-xs text-gray-600 mt-0.5">{category.description}</p>
+                      <p className="text-xs text-slate-600 mt-0.5">{category.description}</p>
                     </div>
                   </div>
                   
                   {attachment && !isDeleted ? (
-                    <div className="bg-white p-3 rounded border border-gray-200">
+                    <div className="bg-white p-3 rounded border border-slate-200">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                          <FileText className="h-4 w-4 text-slate-500 flex-shrink-0" />
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm text-gray-700 truncate">{attachment.name}</p>
-                            <p className="text-xs text-gray-500">{formatFileSize(attachment.size)}</p>
+                            <p className="text-sm text-slate-700 truncate">{attachment.name}</p>
+                            <p className="text-xs text-slate-500">{formatFileSize(attachment.size)}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1 ml-2">
                           <label 
                             htmlFor={`${category.id}-replace`}
-                            className="text-blue-600 hover:text-blue-800 cursor-pointer p-1"
+                            className="text-cyan-600 hover:text-cyan-800 cursor-pointer p-1"
                             title="Replace file"
                           >
                             <Upload className="h-4 w-4" />
@@ -332,7 +332,7 @@ export function EditAttachmentsTab({ existingAttachments, onAttachmentsChange, t
                         <button
                           type="button"
                           onClick={() => undoRemove(category.id)}
-                          className="text-blue-600 hover:text-blue-800 p-1 text-sm"
+                          className="text-cyan-600 hover:text-cyan-800 p-1 text-sm"
                         >
                           Undo
                         </button>
@@ -341,9 +341,9 @@ export function EditAttachmentsTab({ existingAttachments, onAttachmentsChange, t
                   ) : (
                     <div className="upload-container">
                       <label htmlFor={`${category.id}-upload`} className="cursor-pointer block">
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                          <Upload className="h-5 w-5 text-gray-400 mx-auto" />
-                          <p className="text-xs text-gray-600 mt-1">Click to upload</p>
+                        <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                          <Upload className="h-5 w-5 text-slate-400 mx-auto" />
+                          <p className="text-xs text-slate-600 mt-1">Click to upload</p>
                         </div>
                       </label>
                       <input

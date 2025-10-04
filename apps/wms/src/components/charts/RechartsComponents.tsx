@@ -10,7 +10,7 @@ const createLazyChart = (chartName: string) =>
     import('recharts').then((mod) => mod[chartName] as React.ComponentType<RechartComponentProps>),
     {
       ssr: false,
-      loading: () => <div className="w-full h-full animate-pulse bg-gray-100 rounded" />
+      loading: () => <div className="w-full h-full animate-pulse bg-slate-100 rounded" />
     }
   )
 

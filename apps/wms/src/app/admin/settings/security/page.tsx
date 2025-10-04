@@ -316,7 +316,7 @@ export default function SecuritySettingsPage() {
             {settings.ipWhitelist.length > 0 && (
               <div className="space-y-2">
                 {settings.ipWhitelist.map((ip) => (
-                  <div key={ip} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                  <div key={ip} className="flex items-center justify-between p-2 bg-slate-50 rounded">
                     <span className="font-mono text-sm">{ip}</span>
                     <button
                       onClick={() => removeIpAddress(ip)}
@@ -352,7 +352,7 @@ export default function SecuritySettingsPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500"
                 >
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>

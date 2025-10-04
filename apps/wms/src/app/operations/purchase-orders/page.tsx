@@ -1,15 +1,16 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { FileText } from '@/lib/lucide-icons'
+import { FileText, Plus } from '@/lib/lucide-icons'
 import { PurchaseOrdersPanel, PurchaseOrderFilter } from '../inventory/purchase-orders-panel'
+import { cn } from '@/lib/utils'
 
 type StatusConfig = {
   value: PurchaseOrderFilter
@@ -78,85 +79,86 @@ function PurchaseOrdersPage() {
     }
   }, [session, status, router])
 
-  const headerActions = useMemo(() => (
-    <Popover>
-      <PopoverTrigger asChild>
-        <Button className="gap-2 bg-indigo-600 text-white hover:bg-indigo-500">
-          <FileText className="h-4 w-4" />
-          Raise PO
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-56 space-y-1 p-2">
-        <Button asChild variant="ghost" className="w-full justify-start">
-          <Link href="/operations/receive" prefetch={false}>
-            Receive (Inbound PO)
-          </Link>
-        </Button>
-        <Button asChild variant="ghost" className="w-full justify-start">
-          <Link href="/operations/ship" prefetch={false}>
-            Ship (Outbound PO)
-          </Link>
-        </Button>
-      </PopoverContent>
-    </Popover>
-  ), [])
-
   if (status === 'loading') {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-        </div>
+        <PageContainer>
+          <div className="flex h-full items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
+          </div>
+        </PageContainer>
       </DashboardLayout>
     )
   }
 
+  const currentTab = STATUS_TABS.find(tab => tab.value === statusFilter)
+
   return (
     <DashboardLayout>
-      <div className="flex h-full min-h-0 flex-col gap-6 overflow-y-auto pr-2">
-        <PageHeader
+      <PageContainer>
+        <PageHeaderSection
           title="Purchase Orders"
-          subtitle="Create, review, and post inbound or outbound orders"
+          description="Operations"
           icon={FileText}
-          iconColor="text-indigo-600"
-          bgColor="bg-indigo-50"
-          borderColor="border-indigo-200"
-          textColor="text-indigo-800"
-          actions={headerActions}
-        />
-
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            {STATUS_TABS.map(tab => {
-              const isActive = statusFilter === tab.value
-              return (
-                <button
-                  key={tab.value}
-                  type="button"
-                  onClick={() => setStatusFilter(tab.value)}
-                  className={`rounded-full border px-3 py-1.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-indigo-500 ${
-                    isActive
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                      : 'bg-white text-muted-foreground border-border hover:bg-muted'
-                  }`}
-                  aria-pressed={isActive}
-                >
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
-          <div className="rounded-lg border bg-white p-4 shadow-sm text-sm text-muted-foreground">
-            <div className="font-semibold text-foreground">{STATUS_TABS.find(tab => tab.value === statusFilter)?.label ?? 'All'}</div>
-            <div>{STATUS_TABS.find(tab => tab.value === statusFilter)?.description ?? ''}</div>
-            <div className="text-xs text-muted-foreground/80 mt-1">
-              {STATUS_TABS.find(tab => tab.value === statusFilter)?.hint ?? ''}
+          actions={
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Raise PO
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-56 space-y-1 p-2">
+                <Button asChild variant="ghost" className="w-full justify-start">
+                  <Link href="/operations/receive" prefetch={false}>
+                    Receive (Inbound PO)
+                  </Link>
+                </Button>
+                <Button asChild variant="ghost" className="w-full justify-start">
+                  <Link href="/operations/ship" prefetch={false}>
+                    Ship (Outbound PO)
+                  </Link>
+                </Button>
+              </PopoverContent>
+            </Popover>
+          }
+          metadata={
+            <div className="flex flex-wrap items-center gap-2">
+              {STATUS_TABS.map(tab => {
+                const isActive = statusFilter === tab.value
+                return (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    onClick={() => setStatusFilter(tab.value)}
+                    className={cn(
+                      'rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
+                      isActive
+                        ? 'bg-cyan-600 text-white shadow-md dark:bg-[#00C2B9] dark:text-[#002430]'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
+                    )}
+                    aria-pressed={isActive}
+                  >
+                    {tab.label}
+                  </button>
+                )
+              })}
             </div>
+          }
+        />
+        <PageContent>
+          <div className="flex flex-col gap-4">
+            {currentTab && (
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
+                <div className="text-sm font-semibold text-slate-900 dark:text-white">{currentTab.label}</div>
+                <div className="mt-1 text-sm text-slate-600 dark:text-slate-400">{currentTab.description}</div>
+                <div className="mt-2 text-xs text-slate-500 dark:text-slate-500">{currentTab.hint}</div>
+              </div>
+            )}
+            <PurchaseOrdersPanel onPosted={() => {}} statusFilter={statusFilter} />
           </div>
-        </div>
-
-        <PurchaseOrdersPanel onPosted={() => {}} statusFilter={statusFilter} />
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

@@ -54,8 +54,8 @@ function AuthErrorContent() {
         <CardContent>
           <div className="space-y-4">
             {error && (
-              <div className="rounded-md bg-gray-50 p-3 text-center">
-                <p className="text-sm text-gray-600">
+              <div className="rounded-md bg-slate-50 p-3 text-center">
+                <p className="text-sm text-slate-600">
                   Error code: <span className="font-mono text-xs">{error}</span>
                 </p>
               </div>
@@ -79,8 +79,8 @@ export default function AuthError() {
       <div className="flex min-h-screen items-center justify-center px-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-              <AlertCircle className="h-6 w-6 text-gray-400" />
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100">
+              <AlertCircle className="h-6 w-6 text-slate-400" />
             </div>
             <CardTitle className="text-2xl">Loading...</CardTitle>
           </CardHeader>

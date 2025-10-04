@@ -166,7 +166,7 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+          <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
         </div>
       </DashboardLayout>
     )
@@ -193,7 +193,7 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Warehouse Code *
                 </label>
                 <input
@@ -209,13 +209,13 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
                 {errors.code && (
                   <p className="text-red-500 text-sm mt-1">{errors.code}</p>
                 )}
-                <p className="text-gray-500 text-xs mt-1">
+                <p className="text-slate-500 text-xs mt-1">
                   Unique identifier, max 10 characters
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Warehouse Name *
                 </label>
                 <input
@@ -234,7 +234,7 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 Address
               </label>
               <textarea
@@ -248,7 +248,7 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Contact Email
                 </label>
                 <input
@@ -266,7 +266,7 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Contact Phone
                 </label>
                 <input
@@ -281,7 +281,7 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Latitude
                 </label>
                 <input
@@ -296,11 +296,11 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
                 {errors.latitude && (
                   <p className="text-red-500 text-sm mt-1">{errors.latitude}</p>
                 )}
-                <p className="text-gray-500 text-xs mt-1">Optional: For map display</p>
+                <p className="text-slate-500 text-xs mt-1">Optional: For map display</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                   Longitude
                 </label>
                 <input
@@ -315,7 +315,7 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
                 {errors.longitude && (
                   <p className="text-red-500 text-sm mt-1">{errors.longitude}</p>
                 )}
-                <p className="text-gray-500 text-xs mt-1">Optional: For map display</p>
+                <p className="text-slate-500 text-xs mt-1">Optional: For map display</p>
               </div>
             </div>
 
@@ -325,9 +325,9 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
                 id="isActive"
                 checked={formData.isActive}
                 onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                className="h-4 w-4 text-primary focus:ring-primary border-slate-300 rounded"
               />
-              <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
+              <label htmlFor="isActive" className="ml-2 text-sm text-slate-700">
                 Active warehouse (can receive transactions)
               </label>
             </div>
