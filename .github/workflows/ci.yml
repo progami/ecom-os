@@ -43,3 +43,15 @@ jobs:
           NEXTAUTH_URL: http://localhost:3000
           CENTRAL_AUTH_URL: https://example.com
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
+      - name: Upload build artifacts
+        if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts-${{ github.sha }}
+          path: |
+            apps/website/.next
+            apps/ecomos/.next
+            apps/wms/.next
+            apps/x-plan/.next
+          retention-days: 1
