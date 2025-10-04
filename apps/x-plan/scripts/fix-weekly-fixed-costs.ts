@@ -3,8 +3,6 @@ import { Prisma, PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-  await prisma.$executeRawUnsafe('SET search_path TO x_plan;')
-
   const param = await prisma.businessParameter.findUnique({
     where: { label: 'Weekly Fixed Costs' },
   })
