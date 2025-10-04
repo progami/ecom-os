@@ -1,6 +1,6 @@
 {
   "name": "@ecom-os/fcc",
-  "version": "0.1.0",
+  "version": "0.8.1",
   "private": true,
   "scripts": {
     "dev": "npm-run-all --parallel dev:server workers:dev",
