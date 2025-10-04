@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
 // Next.js imports
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 
 // Third-party libraries
 import { toast } from 'react-hot-toast'
@@ -94,7 +94,7 @@ interface LinkedPurchaseOrderLine {
   postedQuantity: number
 }
 
-interface LinkedPurchaseOrderSummary {
+interface _LinkedPurchaseOrderSummary {
   id: string
   orderNumber: string
   warehouseCode: string
