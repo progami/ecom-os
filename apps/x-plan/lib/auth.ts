@@ -1,8 +1,9 @@
 import type { NextAuthOptions } from 'next-auth'
 import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 
+// Use NEXTAUTH_URL if available (runtime), otherwise fall back to NEXT_PUBLIC_APP_URL (build-time) or localhost
 const devPort = process.env.PORT || process.env.CROSS_PLAN_PORT || 3008
-const devBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${devPort}`
+const devBaseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${devPort}`
 const centralDev = process.env.CENTRAL_AUTH_URL || 'http://localhost:3000'
 
 applyDevAuthDefaults({
