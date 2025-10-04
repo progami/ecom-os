@@ -255,16 +255,18 @@ export function computeCashFlow(
     overridesByWeek.set(override.weekNumber, override)
   }
 
-  const revenueByWeek = new Map<number, number>()
+  const netPayoutByWeek = new Map<number, number>()
   for (const row of weeklyPnl) {
-    revenueByWeek.set(row.weekNumber, row.revenue)
+    // Amazon payout = Revenue - Amazon Fees - PPC Spend
+    const netPayout = row.revenue - row.amazonFees - row.ppcSpend
+    netPayoutByWeek.set(row.weekNumber, netPayout)
   }
 
   const payoutDelay = Math.max(0, Math.round(businessParams.amazonPayoutDelayWeeks))
   const amazonPayoutByWeek = new Map<number, number>()
-  for (const [weekNumber, revenue] of revenueByWeek.entries()) {
+  for (const [weekNumber, netPayout] of netPayoutByWeek.entries()) {
     const payoutWeek = weekNumber + payoutDelay
-    amazonPayoutByWeek.set(payoutWeek, (amazonPayoutByWeek.get(payoutWeek) ?? 0) + revenue)
+    amazonPayoutByWeek.set(payoutWeek, (amazonPayoutByWeek.get(payoutWeek) ?? 0) + netPayout)
   }
 
   const inventorySpendByWeek = new Map<number, number>()
