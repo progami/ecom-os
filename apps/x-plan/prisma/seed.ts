@@ -3,9 +3,6 @@ import { Prisma, PrismaClient } from '@prisma/client'
 const prisma = new PrismaClient()
 
 async function main() {
-  await prisma.$executeRawUnsafe('CREATE SCHEMA IF NOT EXISTS x_plan;')
-  await prisma.$executeRawUnsafe('SET search_path TO x_plan;')
-
   // Seed business parameters
   const parameters = [
     // Operations parameters
