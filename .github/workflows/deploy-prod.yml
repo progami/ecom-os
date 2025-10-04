@@ -15,9 +15,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
       - name: Check for code changes
         id: filter
         run: |
+          # For manual triggers (workflow_dispatch), always deploy
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_deploy=true" >> $GITHUB_OUTPUT
+            echo "Manual trigger - deploying"
+            exit 0
+          fi
           # Skip deploy if only docs/workflow files changed
           if git diff --name-only ${{ github.event.pull_request.base.sha || 'HEAD^' }} ${{ github.event.pull_request.head.sha || 'HEAD' }} | grep -qvE '^(BRANCHING\.md|\.github/workflows/(auto-sync-dev|pr-policy)\.yml|docs/|README\.md)'; then
             echo "should_deploy=true" >> $GITHUB_OUTPUT
