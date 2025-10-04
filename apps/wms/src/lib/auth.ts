@@ -22,10 +22,7 @@ if (sharedSecret) {
 }
 
 const baseAuthOptions: NextAuthOptions = {
-  // Note: NextAuth basePath should be '/api/auth' because Next.js basePath
-  // already handles the '/wms' prefix. Setting it to '/wms/api/auth' would
-  // create '/wms/wms/api/auth' due to double-prefixing.
-  basePath: '/api/auth',
+  // NextAuth automatically inherits Next.js basePath, no need to specify it here
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60, // 30 days
