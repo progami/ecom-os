@@ -39,7 +39,7 @@ const _getFieldError = (errors: ValidationErrorItem[], field: string) =>
   errors.find(error => error.field === field)?.message
 
 // Icons
-import { Package2, FileText, DollarSign, Paperclip, Save, X, Truck, PackageX } from '@/lib/lucide-icons'
+import { Package2, FileText, DollarSign, Paperclip, Save, X, PackageX } from '@/lib/lucide-icons'
 
 // Types
 interface WarehouseOption {
