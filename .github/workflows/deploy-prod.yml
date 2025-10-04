@@ -7,8 +7,22 @@ on:
   workflow_dispatch:
 
 jobs:
+  wait-for-ci:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request_target'
+    steps:
+      - name: Wait for CI to complete
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: 'build-test'
+          repo-token: ${{ github.token }}
+          wait-interval: 10
+
   check-changes:
     runs-on: ubuntu-latest
+    needs: [wait-for-ci]
+    if: always() && (needs.wait-for-ci.result == 'success' || github.event_name == 'workflow_dispatch')
     outputs:
       should_deploy: ${{ steps.filter.outputs.should_deploy }}
     steps:
@@ -74,20 +88,25 @@ jobs:
         run: |
           echo "Validating version consistency across monorepo..."
           node scripts/sync-versions.js --check
-      - name: Generate Prisma client for auth package
+
+      - name: Download CI build artifacts
+        if: github.event_name == 'pull_request_target'
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts-${{ github.event.pull_request.head.sha }}
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Generate Prisma clients and build (fallback for workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          pnpm --filter @ecom-os/auth prisma:generate
+          pnpm --filter @ecom-os/wms db:generate
+          pnpm --filter @ecom-os/x-plan prisma:generate
+          pnpm turbo run build --filter=@ecom-os/website --filter=@ecom-os/ecomos --filter=@ecom-os/wms --filter=@ecom-os/x-plan || (echo "Build failed" && exit 1)
         env:
           CENTRAL_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=auth
-        run: pnpm --filter @ecom-os/auth prisma:generate
-      - name: Generate Prisma client for WMS
-        env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
-        run: pnpm --filter @ecom-os/wms db:generate
-      - name: Generate Prisma client for X-Plan
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
-        run: pnpm --filter @ecom-os/x-plan prisma:generate
-      - name: Build production apps
-        env:
           NEXTAUTH_SECRET: test-nextauth-secret
           CENTRAL_AUTH_SECRET: test-central-secret
           CENTRAL_AUTH_URL: https://example.com
@@ -98,8 +117,6 @@ jobs:
           NEXT_PUBLIC_APP_URL: https://example.com/wms
           NEXT_PUBLIC_CENTRAL_AUTH_URL: https://example.com
           CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/wms
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
-        run: pnpm turbo run build --filter=@ecom-os/website --filter=@ecom-os/ecomos --filter=@ecom-os/wms --filter=@ecom-os/x-plan || (echo "Build failed" && exit 1)
 
       - name: Configure SSH
         run: |
