@@ -1,6 +1,6 @@
 {
   "name": "@ecom-os/website",
-  "version": "1.1.0",
+  "version": "0.8.1",
   "private": true,
   "description": "Targon Global – Company site and Ecom OS hub",
   "scripts": {

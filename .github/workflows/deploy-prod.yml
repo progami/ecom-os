@@ -42,7 +42,7 @@ jobs:
            github.event.pull_request.head.ref == 'dev')) }}
     permissions:
       id-token: write
-      contents: read
+      contents: write
     env:
       # expose secrets as env; avoid using `secrets.*` in `if:` expressions
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -69,6 +69,11 @@ jobs:
           node-version: 20
       - run: corepack enable && corepack prepare pnpm@9.0.0 --activate
       - run: pnpm install
+
+      - name: Validate version consistency
+        run: |
+          echo "Validating version consistency across monorepo..."
+          node scripts/sync-versions.js --check
       - name: Generate Prisma client for auth package
         env:
           CENTRAL_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=auth
@@ -293,3 +298,106 @@ jobs:
           for h in "${OPTIONAL[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" 6 & done
           wait || true
           [ "$failures" -eq 0 ] || exit 1
+
+      - name: Create GitHub Release
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+
+          # Get version from root package.json
+          VERSION=$(node -p "require('./package.json').version")
+
+          # Determine which apps were deployed
+          DEPLOYED_APPS=""
+          if pnpm list --filter @ecom-os/wms --depth 0 &>/dev/null; then
+            DEPLOYED_APPS="${DEPLOYED_APPS}- WMS v${VERSION}\n"
+          fi
+          if pnpm list --filter @ecom-os/website --depth 0 &>/dev/null; then
+            DEPLOYED_APPS="${DEPLOYED_APPS}- Website v${VERSION}\n"
+          fi
+          if pnpm list --filter @ecom-os/ecomos --depth 0 &>/dev/null; then
+            DEPLOYED_APPS="${DEPLOYED_APPS}- Ecomos v${VERSION}\n"
+          fi
+          if pnpm list --filter @ecom-os/x-plan --depth 0 &>/dev/null; then
+            DEPLOYED_APPS="${DEPLOYED_APPS}- X-Plan v${VERSION}\n"
+          fi
+
+          # Generate release notes
+          RELEASE_NOTES="## Deployed Applications
+
+          ${DEPLOYED_APPS}
+          ## Deployment Info
+
+          - **Commit**: ${{ github.sha }}
+          - **Deployed at**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          - **Triggered by**: ${{ github.actor }}
+
+          ## Changes
+
+          See commit history for details.
+          "
+
+          # Create or update release for each app
+          # WMS Release
+          if echo "$DEPLOYED_APPS" | grep -q "WMS"; then
+            TAG="wms-${VERSION}"
+            if gh release view "$TAG" &>/dev/null; then
+              echo "Release $TAG already exists, updating..."
+              gh release edit "$TAG" --notes "$RELEASE_NOTES"
+            else
+              echo "Creating new release $TAG..."
+              gh release create "$TAG" \
+                --title "WMS v${VERSION}" \
+                --notes "$RELEASE_NOTES" \
+                --target main
+            fi
+          fi
+
+          # Website Release
+          if echo "$DEPLOYED_APPS" | grep -q "Website"; then
+            TAG="website-${VERSION}"
+            if gh release view "$TAG" &>/dev/null; then
+              echo "Release $TAG already exists, updating..."
+              gh release edit "$TAG" --notes "$RELEASE_NOTES"
+            else
+              echo "Creating new release $TAG..."
+              gh release create "$TAG" \
+                --title "Website v${VERSION}" \
+                --notes "$RELEASE_NOTES" \
+                --target main
+            fi
+          fi
+
+          # Ecomos Release
+          if echo "$DEPLOYED_APPS" | grep -q "Ecomos"; then
+            TAG="ecomos-${VERSION}"
+            if gh release view "$TAG" &>/dev/null; then
+              echo "Release $TAG already exists, updating..."
+              gh release edit "$TAG" --notes "$RELEASE_NOTES"
+            else
+              echo "Creating new release $TAG..."
+              gh release create "$TAG" \
+                --title "Ecomos v${VERSION}" \
+                --notes "$RELEASE_NOTES" \
+                --target main
+            fi
+          fi
+
+          # X-Plan Release
+          if echo "$DEPLOYED_APPS" | grep -q "X-Plan"; then
+            TAG="x-plan-${VERSION}"
+            if gh release view "$TAG" &>/dev/null; then
+              echo "Release $TAG already exists, updating..."
+              gh release edit "$TAG" --notes "$RELEASE_NOTES"
+            else
+              echo "Creating new release $TAG..."
+              gh release create "$TAG" \
+                --title "X-Plan v${VERSION}" \
+                --notes "$RELEASE_NOTES" \
+                --target main
+            fi
+          fi
+
+          echo "✓ GitHub releases created/updated for version ${VERSION}"
