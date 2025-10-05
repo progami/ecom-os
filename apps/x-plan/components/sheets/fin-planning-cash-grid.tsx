@@ -33,6 +33,9 @@ interface CashFlowGridProps {
 
 const editableFields: (keyof WeeklyRow)[] = ['amazonPayout', 'inventorySpend', 'fixedCosts']
 
+const WEEK_COLUMN_WIDTH = 92
+const DATE_COLUMN_WIDTH = 136
+
 function normalizeEditable(value: unknown) {
   return formatNumericInput(value, 2)
 }
@@ -62,8 +65,8 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
 
   const columns: Handsontable.ColumnSettings[] = useMemo(
     () => [
-      { data: 'weekNumber', readOnly: true, className: 'cell-readonly' },
-      { data: 'weekDate', readOnly: true, className: 'cell-readonly' },
+      { data: 'weekNumber', readOnly: true, className: 'cell-readonly', width: WEEK_COLUMN_WIDTH },
+      { data: 'weekDate', readOnly: true, className: 'cell-readonly', width: DATE_COLUMN_WIDTH },
       {
         data: 'amazonPayout',
         type: 'numeric',

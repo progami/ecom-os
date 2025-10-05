@@ -56,6 +56,9 @@ interface ProfitAndLossGridProps {
 
 const editableFields: (keyof WeeklyRow)[] = ['units', 'revenue', 'cogs', 'amazonFees', 'ppcSpend', 'fixedCosts']
 
+const WEEK_COLUMN_WIDTH = 92
+const DATE_COLUMN_WIDTH = 136
+
 function normalizeEditable(value: unknown) {
   return formatNumericInput(value, 2)
 }
@@ -73,8 +76,8 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
 
   const columns: Handsontable.ColumnSettings[] = useMemo(
     () => [
-      { data: 'weekNumber', readOnly: true, className: 'cell-readonly' },
-      { data: 'weekDate', readOnly: true, className: 'cell-readonly' },
+      { data: 'weekNumber', readOnly: true, className: 'cell-readonly', width: WEEK_COLUMN_WIDTH },
+      { data: 'weekDate', readOnly: true, className: 'cell-readonly', width: DATE_COLUMN_WIDTH },
       {
         data: 'units',
         type: 'numeric',

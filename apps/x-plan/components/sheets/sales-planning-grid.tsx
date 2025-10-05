@@ -36,6 +36,9 @@ const STOCK_METRIC_OPTIONS = [
 ] as const
 type StockMetricId = (typeof STOCK_METRIC_OPTIONS)[number]['id']
 
+const WEEK_COLUMN_WIDTH = 92
+const DATE_COLUMN_WIDTH = 136
+
 function isEditableMetric(field: string | undefined) {
   return Boolean(field && editableMetrics.has(field))
 }
@@ -170,8 +173,8 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
     }
 
     const map: Record<string, number> = {}
-    map.weekNumber = measure(rows.map((row) => row.weekNumber), { min: 85, max: 150, padding: 24 })
-    map.weekDate = measure(rows.map((row) => row.weekDate), { min: 130, max: 200, padding: 20 })
+    map.weekNumber = WEEK_COLUMN_WIDTH
+    map.weekDate = DATE_COLUMN_WIDTH
     map.arrivalDetail = measure(rows.map((row) => row.arrivalDetail ?? ''), { min: 110, max: 220, padding: 14 })
 
       columnKeys.forEach((key) => {
