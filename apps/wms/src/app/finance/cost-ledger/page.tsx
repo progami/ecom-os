@@ -7,15 +7,12 @@ import { useRouter } from 'next/navigation'
 import {
   DollarSign,
   BarChart3,
-  Filter,
   Download,
   Truck,
   Box,
   Package,
   type LucideIcon,
 } from '@/lib/lucide-icons'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
@@ -124,54 +121,6 @@ function CostLedgerPage() {
     }
   }, [fetchCostLedger, status])
 
-  const renderNumericFilter = (
-    label: string,
-    minKey: keyof typeof columnFilters,
-    maxKey: keyof typeof columnFilters
-  ) => (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label={`Filter ${label}`}
-          className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors hover:bg-muted/30 hover:text-primary"
-        >
-          <Filter className="h-3.5 w-3.5" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-56 space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-foreground">{label} range</span>
-          <button
-            type="button"
-            className="text-xs font-medium text-primary hover:underline"
-            onClick={() => setColumnFilters(prev => ({ ...prev, [minKey]: '', [maxKey]: '' }))}
-          >
-            Clear
-          </button>
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="number"
-            inputMode="numeric"
-            value={columnFilters[minKey] as string}
-            onChange={(event) => setColumnFilters(prev => ({ ...prev, [minKey]: event.target.value }))}
-            placeholder="Min"
-            className={`${baseFilterInputClass} text-right`}
-          />
-          <input
-            type="number"
-            inputMode="numeric"
-            value={columnFilters[maxKey] as string}
-            onChange={(event) => setColumnFilters(prev => ({ ...prev, [maxKey]: event.target.value }))}
-            placeholder="Max"
-            className={`${baseFilterInputClass} text-right`}
-          />
-        </div>
-      </PopoverContent>
-    </Popover>
-  )
-
   const filteredLedgerData = useMemo(() => {
     const parseNumber = (value: string) => {
       const trimmed = value.trim()
@@ -277,7 +226,7 @@ function CostLedgerPage() {
       { key: 'carton', title: 'Carton', icon: Package },
       { key: 'unit', title: 'Unit', icon: Package },
       { key: 'transportation', title: 'Transportation', icon: Truck },
-      { key: 'accessorial', title: 'Accessorial', icon: Filter },
+      { key: 'accessorial', title: 'Accessorial', icon: BarChart3 },
       { key: 'other', title: 'Other', icon: BarChart3 },
     ]
 
@@ -345,7 +294,6 @@ function CostLedgerPage() {
         <div className="rounded-xl border border-slate-200 bg-white shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
           <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Filter className="h-4 w-4" />
               <span>
                 Showing {filteredLedgerData.length} weeks of cost activity
               </span>
@@ -356,112 +304,59 @@ function CostLedgerPage() {
             <table className="w-full table-auto text-sm">
               <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-2 text-left font-semibold">
-                    <div className="flex items-center justify-between gap-1">
-                  <span>Week Ending</span>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <button
-                            type="button"
-                        aria-label="Filter week ending"
-                            className={cn(
-                              'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
-                              columnFilters.weekEnding
-                                ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
-                                : 'hover:bg-muted/30 hover:text-primary'
-                            )}
-                          >
-                            <Filter className="h-3.5 w-3.5" />
-                          </button>
-                        </PopoverTrigger>
-                        <PopoverContent align="start" className="w-64 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-foreground">Week ending filter</span>
-                            <button
-                              type="button"
-                              className="text-xs font-medium text-primary hover:underline"
-                              onClick={() => setColumnFilters(prev => ({ ...prev, weekEnding: '' }))}
-                            >
-                              Clear
-                            </button>
-                          </div>
-                          <input
-                            type="text"
-                            value={columnFilters.weekEnding}
-                            onChange={(event) => setColumnFilters(prev => ({ ...prev, weekEnding: event.target.value }))}
-                            placeholder="Search week ending"
-                            className={baseFilterInputClass}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    <div className="flex items-center justify-end gap-1">
-                      <span>Storage</span>
-                      {renderNumericFilter('Storage', 'storageMin', 'storageMax')}
-                    </div>
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    <div className="flex items-center justify-end gap-1">
-                      <span>Container</span>
-                      {renderNumericFilter('Container', 'containerMin', 'containerMax')}
-                    </div>
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    <div className="flex items-center justify-end gap-1">
-                      <span>Pallet</span>
-                      {renderNumericFilter('Pallet', 'palletMin', 'palletMax')}
-                    </div>
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    <div className="flex items-center justify-end gap-1">
-                      <span>Carton</span>
-                      {renderNumericFilter('Carton', 'cartonMin', 'cartonMax')}
-                    </div>
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    <div className="flex items-center justify-end gap-1">
-                      <span>Unit</span>
-                      {renderNumericFilter('Unit', 'unitMin', 'unitMax')}
-                    </div>
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    <div className="flex items-center justify-end gap-1">
-                      <span>Transportation</span>
-                      {renderNumericFilter('Transportation', 'transportationMin', 'transportationMax')}
-                    </div>
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    <div className="flex items-center justify-end gap-1">
-                      <span>Accessorial</span>
-                      {renderNumericFilter('Accessorial', 'accessorialMin', 'accessorialMax')}
-                    </div>
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    <div className="flex items-center justify-end gap-1">
-                      <span>Other</span>
-                      {renderNumericFilter('Other', 'otherMin', 'otherMax')}
-                    </div>
-                  </th>
-                  <th className="px-3 py-2 text-right font-semibold">
-                    <div className="flex items-center justify-end gap-1">
-                      <span>Total</span>
-                      {renderNumericFilter('Total', 'totalMin', 'totalMax')}
-                    </div>
-                  </th>
+                  <th className="px-3 py-2 text-left font-semibold">Week Ending</th>
+                  <th className="px-3 py-2 text-right font-semibold">Storage</th>
+                  <th className="px-3 py-2 text-right font-semibold">Container</th>
+                  <th className="px-3 py-2 text-right font-semibold">Pallet</th>
+                  <th className="px-3 py-2 text-right font-semibold">Carton</th>
+                  <th className="px-3 py-2 text-right font-semibold">Unit</th>
+                  <th className="px-3 py-2 text-right font-semibold">Transportation</th>
+                  <th className="px-3 py-2 text-right font-semibold">Accessorial</th>
+                  <th className="px-3 py-2 text-right font-semibold">Other</th>
+                  <th className="px-3 py-2 text-right font-semibold">Total</th>
                 </tr>
                 <tr className="bg-white text-xs text-muted-foreground">
-                  <th className="px-3 py-2" />
-                  <th className="px-3 py-2" />
-                  <th className="px-3 py-2" />
-                  <th className="px-3 py-2" />
-                  <th className="px-3 py-2" />
-                  <th className="px-3 py-2" />
-                  <th className="px-3 py-2" />
-                  <th className="px-3 py-2" />
-                  <th className="px-3 py-2" />
-                  <th className="px-3 py-2" />
+                  <th className="px-3 py-2">
+                    <input
+                      type="text"
+                      value={columnFilters.weekEnding}
+                      onChange={(event) => setColumnFilters(prev => ({ ...prev, weekEnding: event.target.value }))}
+                      placeholder="Search week"
+                      className={baseFilterInputClass}
+                    />
+                  </th>
+                  {[
+                    ['storageMin', 'storageMax'],
+                    ['containerMin', 'containerMax'],
+                    ['palletMin', 'palletMax'],
+                    ['cartonMin', 'cartonMax'],
+                    ['unitMin', 'unitMax'],
+                    ['transportationMin', 'transportationMax'],
+                    ['accessorialMin', 'accessorialMax'],
+                    ['otherMin', 'otherMax'],
+                    ['totalMin', 'totalMax'],
+                  ].map(([minKey, maxKey]) => (
+                    <th key={minKey} className="px-3 py-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={columnFilters[minKey as keyof typeof columnFilters] as string}
+                          onChange={(event) => setColumnFilters(prev => ({ ...prev, [minKey]: event.target.value }))}
+                          placeholder="Min"
+                          className={`${baseFilterInputClass} text-right`}
+                        />
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          value={columnFilters[maxKey as keyof typeof columnFilters] as string}
+                          onChange={(event) => setColumnFilters(prev => ({ ...prev, [maxKey]: event.target.value }))}
+                          placeholder="Max"
+                          className={`${baseFilterInputClass} text-right`}
+                        />
+                      </div>
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
