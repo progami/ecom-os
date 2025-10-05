@@ -1,0 +1,34 @@
+{
+  "apps": {
+    "case-hunter": {
+      "lifecycle": "dev"
+    },
+    "central-db": {
+      "lifecycle": "dev"
+    },
+    "ecomos": {
+      "lifecycle": "dev"
+    },
+    "fcc": {
+      "lifecycle": "dev"
+    },
+    "hrms": {
+      "lifecycle": "dev"
+    },
+    "jason": {
+      "lifecycle": "dev"
+    },
+    "legal-suite": {
+      "lifecycle": "dev"
+    },
+    "margin-master": {
+      "lifecycle": "dev"
+    },
+    "website": {
+      "lifecycle": "dev"
+    },
+    "ye-2024": {
+      "lifecycle": "dev"
+    }
+  }
+}
