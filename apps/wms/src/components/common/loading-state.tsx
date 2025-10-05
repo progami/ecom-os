@@ -23,14 +23,14 @@ export function LoadingState({
     <div className={`flex flex-col items-center justify-center gap-4 ${className}`}>
       <Loader2 className={`animate-spin text-cyan-600 ${sizeClasses[size]}`} />
       {message && (
-        <p className="text-sm text-slate-600">{message}</p>
+        <p className="text-sm text-foreground">{message}</p>
       )}
     </div>
   )
 
   if (fullScreen) {
     return (
-      <div className="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-background/75 flex items-center justify-center z-50">
         {content}
       </div>
     )
@@ -54,7 +54,7 @@ export function LoadingOverlay({
     <div className="relative">
       {children}
       {loading && (
-        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+        <div className="absolute inset-0 bg-background/75 flex items-center justify-center z-10 rounded-lg">
           <LoadingState message={message} />
         </div>
       )}
@@ -67,14 +67,14 @@ interface SkeletonProps {
   animate?: boolean
 }
 
-export function Skeleton({ 
-  className = '', 
-  animate = true 
+export function Skeleton({
+  className = '',
+  animate = true
 }: SkeletonProps) {
   return (
-    <div 
+    <div
       className={`
-        bg-slate-200 rounded
+        bg-muted rounded
         ${animate ? 'animate-pulse' : ''}
         ${className}
       `}
@@ -85,7 +85,7 @@ export function Skeleton({
 export function TableSkeleton({ rows = 5, columns = 4 }) {
   return (
     <div className="w-full">
-      <div className="bg-slate-50 p-4 border-b">
+      <div className="bg-secondary p-4 border-b">
         <div className="flex gap-4">
           {Array.from({ length: columns }).map((_, i) => (
             <Skeleton key={i} className="h-4 w-24" />
@@ -110,7 +110,7 @@ export function TableSkeleton({ rows = 5, columns = 4 }) {
 
 export function CardSkeleton() {
   return (
-    <div className="bg-white rounded-lg shadow p-6 space-y-4">
+    <div className="bg-card rounded-lg shadow p-6 space-y-4">
       <Skeleton className="h-4 w-24" />
       <Skeleton className="h-8 w-32" />
       <div className="flex items-center gap-2">

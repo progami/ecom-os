@@ -3,10 +3,10 @@ import { withAuthAndParams, ApiResponses, z } from '@/lib/api'
 import { serializePurchaseOrder, transitionPurchaseOrderStatus } from '@/lib/services/purchase-order-service'
 
 const UpdateStatusSchema = z.object({
-  status: z.enum(['DRAFT', 'AWAITING_PROOF', 'REVIEW', 'POSTED'] as const),
+  status: z.enum(['DRAFT', 'SHIPPED', 'WAREHOUSE', 'CLOSED'] as const),
 })
 
-export const PATCH = withAuthAndParams(async (request: NextRequest, params, _session) => {
+export const PATCH = withAuthAndParams(async (request: NextRequest, params, session) => {
   const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params?.id?.[0] : undefined
   if (!id) {
     return ApiResponses.badRequest('Purchase order ID is required')
@@ -20,7 +20,10 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
   }
 
   try {
-    const order = await transitionPurchaseOrderStatus(id, result.data.status)
+    const order = await transitionPurchaseOrderStatus(id, result.data.status, {
+      id: session.user.id,
+      role: session.user.role,
+    })
     return ApiResponses.success(serializePurchaseOrder(order))
   } catch (error) {
     return ApiResponses.handleError(error)

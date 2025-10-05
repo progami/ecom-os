@@ -82,10 +82,10 @@ export function Tooltip({
                      'translate(0, -50%)'
         }}
       >
-        <div className="bg-slate-900 text-white text-sm rounded-lg px-3 py-2 shadow-lg max-w-xs whitespace-pre-line dark:bg-[#0b3a52]">
+        <div className="bg-popover text-popover-foreground text-sm rounded-lg px-3 py-2 shadow-lg max-w-xs whitespace-pre-line border border-border">
           {content}
           <div
-            className={`absolute w-2 h-2 bg-slate-900 dark:bg-[#0b3a52] transform rotate-45 ${
+            className={`absolute w-2 h-2 bg-popover border-border transform rotate-45 ${
               position === 'top' ? 'bottom-[-4px] left-1/2 -translate-x-1/2' :
               position === 'bottom' ? 'top-[-4px] left-1/2 -translate-x-1/2' :
               position === 'left' ? 'right-[-4px] top-1/2 -translate-y-1/2' :
@@ -110,7 +110,7 @@ export function Tooltip({
           className="cursor-help"
         >
           {children || (
-            <Icon className={`${sizeClasses[iconSize]} text-slate-400 hover:text-slate-600`} />
+            <Icon className={`${sizeClasses[iconSize]} text-muted-foreground hover:text-foreground`} />
           )}
         </div>
       </div>
@@ -129,7 +129,7 @@ interface InlineTooltipProps {
 export function InlineTooltip({ label, tooltip, required }: InlineTooltipProps) {
   return (
     <div className="flex items-center gap-1">
-      <span className="block text-sm font-medium text-slate-700">
+      <span className="block text-sm font-medium text-foreground">
         {label} {required && <span className="text-red-500">*</span>}
       </span>
       <Tooltip content={tooltip} iconSize="sm" />

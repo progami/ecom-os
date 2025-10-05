@@ -105,7 +105,7 @@ export default function WarehouseConfigsClientPage({
         <div className="bg-white p-4 rounded-xl border">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-600">Total Configurations</p>
+              <p className="text-sm text-foreground">Total Configurations</p>
               <p className="text-2xl font-bold">{stats.totalConfigs}</p>
             </div>
             <Settings className="h-8 w-8 text-brand-teal-600 opacity-20" />
@@ -115,7 +115,7 @@ export default function WarehouseConfigsClientPage({
         <div className="bg-white p-4 rounded-xl border">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-600">Active Configurations</p>
+              <p className="text-sm text-foreground">Active Configurations</p>
               <p className="text-2xl font-bold text-green-600">{stats.activeConfigs}</p>
             </div>
             <Settings className="h-8 w-8 text-green-600 opacity-20" />
@@ -125,7 +125,7 @@ export default function WarehouseConfigsClientPage({
         <div className="bg-white p-4 rounded-xl border">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-600">Configured SKUs</p>
+              <p className="text-sm text-foreground">Configured SKUs</p>
               <p className="text-2xl font-bold text-cyan-600">{stats.uniqueSkus}</p>
             </div>
             <Package2 className="h-8 w-8 text-cyan-600 opacity-20" />
@@ -135,7 +135,7 @@ export default function WarehouseConfigsClientPage({
         <div className="bg-white p-4 rounded-xl border">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-slate-600">Warehouses</p>
+              <p className="text-sm text-foreground">Warehouses</p>
               <p className="text-2xl font-bold text-teal-600">{stats.warehouses}</p>
             </div>
             <Building className="h-8 w-8 text-teal-600 opacity-20" />
@@ -165,17 +165,17 @@ export default function WarehouseConfigsClientPage({
           <div key={warehouseName} className="bg-white rounded-xl border">
             <button
               onClick={() => toggleWarehouse(warehouseName)}
-              className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
+              className="w-full px-6 py-4 flex items-center justify-between hover:bg-secondary transition-colors"
             >
               <div className="flex items-center gap-3">
-                <Building className="h-5 w-5 text-slate-400" />
+                <Building className="h-5 w-5 text-muted-foreground" />
                 <h3 className="text-lg font-semibold">{warehouseName}</h3>
-                <span className="text-sm text-slate-500">
+                <span className="text-sm text-muted-foreground">
                   ({warehouseConfigs.length} configurations)
                 </span>
               </div>
               <svg
-                className={`h-5 w-5 text-slate-400 transition-transform ${
+                className={`h-5 w-5 text-muted-foreground transition-transform ${
                   expandedWarehouses.has(warehouseName) ? 'transform rotate-180' : ''
                 }`}
                 fill="none"
@@ -194,54 +194,54 @@ export default function WarehouseConfigsClientPage({
             {expandedWarehouses.has(warehouseName) && (
               <div className="border-t">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-secondary">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         SKU
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Storage CPP
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Shipping CPP
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Max Height (cm)
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Effective Date
                       </th>
-                      <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {warehouseConfigs.map((config) => (
-                      <tr key={config.id} className="hover:bg-slate-50">
+                      <tr key={config.id} className="hover:bg-secondary">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div>
-                            <p className="text-sm font-medium text-slate-900">
+                            <p className="text-sm font-medium text-foreground">
                               {config.sku.skuCode}
                             </p>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-muted-foreground">
                               {config.sku.description}
                             </p>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-slate-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-foreground">
                           {config.storageCartonsPerPallet}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-slate-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-foreground">
                           {config.shippingCartonsPerPallet}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-slate-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-muted-foreground">
                           {config.maxStackingHeightCm || '-'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-slate-500">
+                        <td className="px-6 py-4 whitespace-nowrap text-center text-sm text-muted-foreground">
                           {formatDate(config.effectiveDate)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -269,9 +269,9 @@ export default function WarehouseConfigsClientPage({
 
       {configs.length === 0 && (
         <div className="text-center py-12">
-          <Settings className="mx-auto h-12 w-12 text-slate-400" />
-          <h3 className="mt-2 text-sm font-medium text-slate-900">No configurations</h3>
-          <p className="mt-1 text-sm text-slate-500">
+          <Settings className="mx-auto h-12 w-12 text-muted-foreground" />
+          <h3 className="mt-2 text-sm font-medium text-foreground">No configurations</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
             Get started by creating your first warehouse SKU configuration.
           </p>
           <div className="mt-6">

@@ -84,7 +84,7 @@ export default function LandingPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-gradient-to-b from-secondary to-background">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-cyan-50 to-brand-teal-50 dark:from-cyan-900/20 dark:to-brand-teal-900/20" />
@@ -99,14 +99,14 @@ export default function LandingPage() {
             </div>
           </div>
           
-          <h1 className="text-5xl sm:text-6xl font-bold text-slate-900 dark:text-white mb-6 leading-tight">
+          <h1 className="text-5xl sm:text-6xl font-bold text-foreground mb-6 leading-tight">
             Modern Warehouse
             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-brand-teal-600 pb-2">
               Management System
             </span>
           </h1>
           
-          <p className="text-xl text-slate-600 dark:text-slate-300 mb-10 max-w-3xl mx-auto">
+          <p className="text-xl text-muted-foreground mb-10 max-w-3xl mx-auto">
             Streamline your warehouse operations with our comprehensive inventory tracking, 
             automated billing, and real-time analytics platform.
           </p>
@@ -145,14 +145,14 @@ export default function LandingPage() {
                 }
                 window.location.href = url.toString()
               }}
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-[#06182b] border border-slate-300 dark:border-[#0b3a52] rounded-lg hover:bg-slate-50 dark:hover:bg-[#06182b]/80 transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted transition-colors"
             >
               <Package2 className="h-5 w-5" />
               <span>Sign In</span>
             </a>
           </div>
           
-          <div className="mt-8 flex items-center justify-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+          <div className="mt-8 flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <CheckCircle2 className="h-4 w-4 text-green-500" />
             <span>No credit card required • Instant access • Real sample data</span>
           </div>
@@ -163,27 +163,27 @@ export default function LandingPage() {
       <div className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-4">
+            <h2 className="text-3xl font-bold text-foreground mb-4">
               Everything you need to manage your warehouse
             </h2>
-            <p className="text-lg text-slate-600 dark:text-slate-300">
+            <p className="text-lg text-muted-foreground">
               Powerful features designed for modern 3PL operations
             </p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, index) => (
-              <div 
+              <div
                 key={index}
-                className="bg-white dark:bg-[#06182b] rounded-xl p-6 shadow-soft hover:shadow-lg transition-shadow"
+                className="bg-card rounded-xl p-6 shadow-soft hover:shadow-lg transition-shadow"
               >
                 <div className="w-12 h-12 bg-cyan-100 dark:bg-cyan-900/50 rounded-lg flex items-center justify-center mb-4 text-cyan-600 dark:text-cyan-400">
                   {feature.icon}
                 </div>
-                <h3 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">
+                <h3 className="text-xl font-semibold text-foreground mb-2">
                   {feature.title}
                 </h3>
-                <p className="text-slate-600 dark:text-slate-300">
+                <p className="text-muted-foreground">
                   {feature.description}
                 </p>
               </div>
@@ -204,7 +204,7 @@ export default function LandingPage() {
           <button
             onClick={handleTryDemo}
             disabled={isLoading}
-            className="inline-flex items-center gap-2 px-8 py-4 text-lg font-medium text-cyan-600 bg-white rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center gap-2 px-8 py-4 text-lg font-medium text-cyan-600 bg-white rounded-lg hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <>
@@ -225,13 +225,13 @@ export default function LandingPage() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-slate-50 dark:bg-[#041324] py-12 px-4 sm:px-6 lg:px-8 border-t border-slate-200 dark:border-[#0b3a52]">
+      <footer className="bg-secondary py-12 px-4 sm:px-6 lg:px-8 border-t border-border">
         <div className="mx-auto max-w-7xl text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Package2 className="h-8 w-8 text-cyan-600 dark:text-cyan-400" />
-            <span className="text-2xl font-bold text-slate-900 dark:text-white">WMS</span>
+            <span className="text-2xl font-bold text-foreground">WMS</span>
           </div>
-          <p className="text-slate-600 dark:text-slate-400">
+          <p className="text-muted-foreground">
             Modern warehouse management for the digital age
           </p>
         </div>

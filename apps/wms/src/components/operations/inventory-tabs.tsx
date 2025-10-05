@@ -16,7 +16,7 @@ export function InventoryTabs({ activeTab, onTabChange }: InventoryTabsProps) {
   }
 
   return (
-    <div className="bg-white border rounded-lg">
+    <div className="bg-card border rounded-lg">
       <div className="border-b">
         <nav className="-mb-px flex" role="tablist">
           <button
@@ -27,7 +27,7 @@ export function InventoryTabs({ activeTab, onTabChange }: InventoryTabsProps) {
             className={`py-3 px-6 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'transactions'
                 ? 'border-primary text-primary'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
             }`}
           >
             <BookOpen className="h-4 w-4 inline mr-2" />
@@ -41,7 +41,7 @@ export function InventoryTabs({ activeTab, onTabChange }: InventoryTabsProps) {
             className={`py-3 px-6 text-sm font-medium border-b-2 transition-colors ${
               activeTab === 'balances'
                 ? 'border-primary text-primary'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
             }`}
           >
             <Package className="h-4 w-4 inline mr-2" />

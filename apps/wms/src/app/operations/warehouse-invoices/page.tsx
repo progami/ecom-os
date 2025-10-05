@@ -1,14 +1,16 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Badge } from '@/components/ui/badge'
-import { FileText } from '@/lib/lucide-icons'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { FileText, Filter, Search, X } from '@/lib/lucide-icons'
+import { cn } from '@/lib/utils'
 
 interface WarehouseInvoiceLineSummary {
   id: string
@@ -37,11 +39,59 @@ function formatCurrency(value: number, currency: string) {
   return value.toLocaleString(undefined, { style: 'currency', currency })
 }
 
+type ColumnFilterKey = 'search' | 'status'
+
+interface ColumnFiltersState {
+  search: string
+  status: string[]
+}
+
+const createColumnFilterDefaults = (): ColumnFiltersState => ({
+  search: '',
+  status: [],
+})
+
 export default function WarehouseInvoicesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [invoices, setInvoices] = useState<WarehouseInvoiceSummary[]>([])
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(createColumnFilterDefaults())
+
+  const isFilterActive = useCallback(
+    (keys: ColumnFilterKey[]) =>
+      keys.some(key => {
+        const value = columnFilters[key]
+        if (Array.isArray(value)) {
+          return value.length > 0
+        }
+        return typeof value === 'string' && value.trim().length > 0
+      }),
+    [columnFilters]
+  )
+
+  const clearColumnFilter = useCallback((keys: ColumnFilterKey[]) => {
+    setColumnFilters(prev => {
+      const next = { ...prev }
+      for (const key of keys) {
+        if (key === 'search') {
+          next.search = ''
+        } else if (key === 'status') {
+          next.status = []
+        }
+      }
+      return next
+    })
+  }, [])
+
+  const toggleStatusFilter = useCallback((statusValue: string) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      status: prev.status.includes(statusValue)
+        ? prev.status.filter(s => s !== statusValue)
+        : [...prev.status, statusValue]
+    }))
+  }, [])
 
   useEffect(() => {
     if (status === 'loading') return
@@ -92,6 +142,23 @@ export default function WarehouseInvoicesPage() {
     loadInvoices()
   }, [router, session, status])
 
+  // Filter invoices based on column filters
+  const filteredInvoices = invoices.filter(invoice => {
+    // Search filter
+    if (columnFilters.search) {
+      const searchLower = columnFilters.search.toLowerCase()
+      const matchesSearch = invoice.invoiceNumber.toLowerCase().includes(searchLower)
+      if (!matchesSearch) return false
+    }
+
+    // Status filter
+    if (columnFilters.status.length > 0) {
+      if (!columnFilters.status.includes(invoice.status)) return false
+    }
+
+    return true
+  })
+
   if (status === 'loading' || loading) {
     return (
       <DashboardLayout>
@@ -113,26 +180,132 @@ export default function WarehouseInvoicesPage() {
           icon={FileText}
         />
         <PageContent>
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
+        <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
           <table className="min-w-full table-auto text-sm">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-3 py-2 text-left font-semibold">Invoice</th>
-                <th className="px-3 py-2 text-left font-semibold">Status</th>
+                <th className="px-3 py-2 text-left font-semibold">
+                  <div className="flex items-center gap-2">
+                    Invoice
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter invoice numbers"
+                          className={cn(
+                            'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            isFilterActive(['search'])
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-3.5 w-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-64 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Search invoice</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => clearColumnFilter(['search'])}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <input
+                            type="text"
+                            placeholder="Search invoice number..."
+                            value={columnFilters.search}
+                            onChange={e => setColumnFilters(prev => ({ ...prev, search: e.target.value }))}
+                            className="w-full rounded-md border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
+                <th className="px-3 py-2 text-left font-semibold">
+                  <div className="flex items-center gap-2">
+                    Status
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter status"
+                          className={cn(
+                            'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            isFilterActive(['status'])
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-3.5 w-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-64 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Status filter</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => clearColumnFilter(['status'])}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {['DRAFT', 'IMPORTED', 'MATCHED', 'DISPUTED', 'CLOSED'].map(statusValue => (
+                            <label key={statusValue} className="flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={columnFilters.status.includes(statusValue)}
+                                onChange={() => toggleStatusFilter(statusValue)}
+                                className="rounded border-border"
+                              />
+                              <span className="text-foreground">{statusValue}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {columnFilters.status.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {columnFilters.status.map(s => (
+                              <span
+                                key={s}
+                                className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                              >
+                                {s}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleStatusFilter(s)}
+                                  className="hover:text-primary/70"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </th>
                 <th className="px-3 py-2 text-left font-semibold">Issued</th>
                 <th className="px-3 py-2 text-right font-semibold">Total</th>
                 <th className="px-3 py-2 text-left font-semibold">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {invoices.length === 0 ? (
+              {filteredInvoices.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
-                    No warehouse invoices recorded yet.
+                    {invoices.length === 0 ? 'No warehouse invoices recorded yet.' : 'No invoices match the current filters.'}
                   </td>
                 </tr>
               ) : (
-                invoices.map(invoice => (
+                filteredInvoices.map(invoice => (
                   <tr key={invoice.id} className="odd:bg-muted/20">
                     <td className="px-3 py-2 whitespace-nowrap">
                       <Link href={`/operations/warehouse-invoices/${invoice.id}`} className="text-primary hover:underline" prefetch={false}>

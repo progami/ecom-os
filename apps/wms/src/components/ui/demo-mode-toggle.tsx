@@ -112,9 +112,9 @@ export function DemoModeToggle({ onDataChange }: DemoModeToggleProps) {
           className={`
             group flex items-center gap-2 px-4 py-3 rounded-full shadow-lg
             transition-all duration-300 hover:scale-105
-            ${isDemoMode 
-              ? 'bg-gradient-to-r from-cyan-600 to-brand-teal-600 text-white' 
-              : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'
+            ${isDemoMode
+              ? 'bg-gradient-to-r from-cyan-600 to-brand-teal-600 text-white'
+              : 'bg-card text-foreground hover:bg-secondary border border-border'
             }
           `}
         >
@@ -139,16 +139,16 @@ export function DemoModeToggle({ onDataChange }: DemoModeToggleProps) {
             />
             
             {/* Modal */}
-            <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6 space-y-6">
+            <div className="relative bg-card rounded-2xl shadow-xl max-w-md w-full p-6 space-y-6">
               {/* Header */}
               <div className="text-center">
                 <div className="mx-auto w-16 h-16 bg-gradient-to-br from-cyan-100 to-brand-teal-100 rounded-full flex items-center justify-center mb-4">
                   <Beaker className="h-8 w-8 text-brand-teal-600" />
                 </div>
-                <h3 className="text-xl font-semibold text-slate-900">
+                <h3 className="text-xl font-semibold text-foreground">
                   Demo Mode
                 </h3>
-                <p className="mt-2 text-sm text-slate-600">
+                <p className="mt-2 text-sm text-muted-foreground">
                   Test the WMS system with sample data
                 </p>
               </div>
@@ -212,14 +212,14 @@ export function DemoModeToggle({ onDataChange }: DemoModeToggleProps) {
 
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="w-full px-4 py-3 text-slate-700 bg-slate-100 rounded-lg font-medium hover:bg-slate-200 transition-all"
+                  className="w-full px-4 py-3 text-foreground bg-secondary rounded-lg font-medium hover:bg-muted transition-all"
                 >
                   Cancel
                 </button>
               </div>
 
               {/* Info */}
-              <div className="text-center text-xs text-slate-500">
+              <div className="text-center text-xs text-muted-foreground">
                 Demo data includes sample inventory, transactions, and invoices
               </div>
             </div>

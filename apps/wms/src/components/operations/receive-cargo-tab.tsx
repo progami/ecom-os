@@ -278,7 +278,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
     <div className="space-y-6">
       {/* Cargo Details Section */}
       <div className="bg-white rounded-xl border">
-        <div className="px-6 py-4 border-b bg-slate-50 flex justify-between items-center">
+        <div className="px-6 py-4 border-b bg-secondary flex justify-between items-center">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <Package2 className="h-5 w-5" />
             Cargo Details
@@ -309,7 +309,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
       ) : skusLoading ? (
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          <span className="ml-3 text-slate-600">Loading data...</span>
+          <span className="ml-3 text-muted-foreground">Loading data...</span>
         </div>
       ) : skus.length === 0 ? (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
@@ -321,9 +321,9 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
           </div>
         </div>
       ) : items.length === 0 ? (
-        <div className="text-center py-12 bg-slate-50 rounded-lg">
-          <Package2 className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-          <p className="text-slate-500">No items added yet</p>
+        <div className="text-center py-12 bg-secondary rounded-lg">
+          <Package2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">No items added yet</p>
           <button
             type="button"
             onClick={addItem}
@@ -336,16 +336,16 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
         <>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-slate-50">
+              <thead className="bg-secondary">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">SKU / Batch</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">New Batch</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Cartons</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Units/Carton</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Storage Config</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Shipping Config</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Pallets</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">Total Units</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">SKU / Batch</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">New Batch</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Cartons</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Units/Carton</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Storage Config</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Shipping Config</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Pallets</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase">Total Units</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -357,7 +357,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                         name={`sku-${item.id}`}
                         value={item.skuCode}
                         onChange={(e) => updateItem(item.id, 'skuCode', e.target.value)}
-                        className="w-full px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary"
+                        className="w-full px-2 py-1 border border-border rounded focus:ring-2 focus:ring-primary"
                         required
                       >
                         <option value="">Select SKU...</option>
@@ -381,12 +381,12 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                               updateItem(item.id, 'batchLot', value)
                             }
                           }}
-                          className="w-full px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary"
+                          className="w-full px-2 py-1 border border-border rounded focus:ring-2 focus:ring-primary"
                           placeholder={item.loadingBatch ? "Loading..." : "Enter batch..."}
                           required
                         />
                         {item.loadingBatch && (
-                          <Loader2 className="absolute right-2 top-1.5 h-4 w-4 animate-spin text-slate-400" />
+                          <Loader2 className="absolute right-2 top-1.5 h-4 w-4 animate-spin text-muted-foreground" />
                         )}
                       </div>
                     </td>
@@ -397,7 +397,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                         min="1"
                         value={item.cartons || ''}
                         onChange={(e) => updateItem(item.id, 'cartons', parseInt(e.target.value) || 0)}
-                        className="w-full px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary text-right"
+                        className="w-full px-2 py-1 border border-border rounded focus:ring-2 focus:ring-primary text-right"
                         required
                       />
                     </td>
@@ -408,7 +408,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                         min="1"
                         value={item.unitsPerCarton || ''}
                         onChange={(e) => updateItem(item.id, 'unitsPerCarton', parseInt(e.target.value) || 1)}
-                        className="w-full px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary text-right"
+                        className="w-full px-2 py-1 border border-border rounded focus:ring-2 focus:ring-primary text-right"
                         placeholder="1"
                         required
                       />
@@ -420,7 +420,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                           min="1"
                           value={item.storageCartonsPerPallet || ''}
                           onChange={(e) => updateItem(item.id, 'storageCartonsPerPallet', parseInt(e.target.value) || 0)}
-                          className={`w-20 px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary text-right ${
+                          className={`w-20 px-2 py-1 border border-border rounded focus:ring-2 focus:ring-primary text-right ${
                             item.configLoaded && item.storageCartonsPerPallet > 0 ? 'bg-yellow-50' : ''
                           }`}
                           placeholder={!item.skuCode ? "" : item.configLoaded ? "0" : "..."}
@@ -429,7 +429,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             'Loaded from warehouse config (editable)' : 'Enter value'}
                           required
                         />
-                        <span className="text-xs text-slate-500">c/p</span>
+                        <span className="text-xs text-muted-foreground">c/p</span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -439,7 +439,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                           min="1"
                           value={item.shippingCartonsPerPallet || ''}
                           onChange={(e) => updateItem(item.id, 'shippingCartonsPerPallet', parseInt(e.target.value) || 0)}
-                          className={`w-20 px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary text-right ${
+                          className={`w-20 px-2 py-1 border border-border rounded focus:ring-2 focus:ring-primary text-right ${
                             item.configLoaded && item.shippingCartonsPerPallet > 0 ? 'bg-yellow-50' : ''
                           }`}
                           placeholder={!item.skuCode ? "" : item.configLoaded ? "0" : "..."}
@@ -448,7 +448,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             'Loaded from warehouse config (editable)' : 'Enter value'}
                           required
                         />
-                        <span className="text-xs text-slate-500">c/p</span>
+                        <span className="text-xs text-muted-foreground">c/p</span>
                       </div>
                     </td>
                     <td className="px-4 py-3">
@@ -457,7 +457,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                         min="0"
                         value={item.storagePalletsIn || ''}
                         onChange={(e) => updateItem(item.id, 'storagePalletsIn', parseInt(e.target.value) || 0)}
-                        className="w-full px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary text-right"
+                        className="w-full px-2 py-1 border border-border rounded focus:ring-2 focus:ring-primary text-right"
                         placeholder={
                           item.cartons > 0 && item.storageCartonsPerPallet > 0 
                             ? `${Math.ceil(item.cartons / item.storageCartonsPerPallet)}` 
@@ -470,7 +470,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                       <input
                         type="number"
                         value={item.units}
-                        className="w-full px-2 py-1 border border-slate-300 rounded bg-slate-100 text-right"
+                        className="w-full px-2 py-1 border border-border rounded bg-muted text-right"
                         readOnly
                         title="Units are calculated based on cartons × units per carton"
                       />
@@ -488,7 +488,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="bg-slate-50">
+              <tfoot className="bg-secondary">
                 <tr>
                   <td className="px-4 py-3 text-right font-semibold" colSpan={2}>
                     Totals:

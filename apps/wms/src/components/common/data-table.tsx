@@ -94,7 +94,7 @@ export function DataTable<T extends Record<string, unknown>>({
 
     const key = column.key as string
     if (sortColumn !== key) {
-      return <ArrowUpDown className="h-4 w-4 text-slate-400" />
+      return <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
     }
 
     return sortDirection === 'asc' ? (
@@ -114,7 +114,7 @@ export function DataTable<T extends Record<string, unknown>>({
 
   if (data.length === 0) {
     return (
-      <div className="text-center py-12 text-slate-500">
+      <div className="text-center py-12 text-muted-foreground">
         {emptyMessage}
       </div>
     )
@@ -143,7 +143,7 @@ export function DataTable<T extends Record<string, unknown>>({
             ))}
           </tr>
         </thead>
-        <tbody className="bg-white">
+        <tbody className="bg-card">
           {sortedData.map((row, rowIndex) => {
             const key = getRowKey(row, rowIndex)
             const isExpanded = expandable?.isExpanded(row) || false
@@ -171,7 +171,7 @@ export function DataTable<T extends Record<string, unknown>>({
                 </tr>
                 {isExpanded && expandable && (
                   <tr key={`${key}-expanded`}>
-                    <td colSpan={columns.length} className="px-6 py-4 bg-slate-50">
+                    <td colSpan={columns.length} className="px-6 py-4 bg-secondary">
                       {expandable.renderExpanded(row)}
                     </td>
                   </tr>

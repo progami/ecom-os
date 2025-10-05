@@ -83,7 +83,7 @@ export default function ConfigurationPage() {
                     {module.description}
                   </p>
                 </div>
-                <ArrowRight className="h-5 w-5 text-slate-400 group-hover:text-primary transition-colors" />
+                <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
               </div>
             </Link>
           ))}
@@ -91,7 +91,7 @@ export default function ConfigurationPage() {
 
         <div className="border rounded-lg p-6 bg-amber-50">
           <h3 className="font-semibold mb-2">Configuration Tips</h3>
-          <ul className="space-y-1 text-sm text-slate-700">
+          <ul className="space-y-1 text-sm text-foreground">
             <li>• Set up <strong>Products (SKUs)</strong> before creating transactions</li>
             <li>• Configure <strong>Cost Rates</strong> for accurate billing</li>
             <li>• Use <strong>Warehouse Configs</strong> for SKU-specific pallet settings</li>

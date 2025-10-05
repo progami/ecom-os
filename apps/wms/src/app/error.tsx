@@ -33,7 +33,7 @@ export default function Error({
               An unexpected error occurred while processing your request.
             </p>
             {error.message && (
-              <p className="text-sm text-slate-600 mt-2 p-3 bg-slate-100 rounded">
+              <p className="text-sm text-muted-foreground mt-2 p-3 bg-muted rounded">
                 {error.message}
               </p>
             )}
@@ -42,7 +42,7 @@ export default function Error({
           <div className="flex items-center justify-center gap-4">
             <button
               onClick={reset}
-              className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-soft text-sm font-medium text-slate-700 bg-white hover:bg-slate-50"
+              className="inline-flex items-center px-4 py-2 border border-border rounded-md shadow-soft text-sm font-medium text-foreground bg-card hover:bg-secondary"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Try Again

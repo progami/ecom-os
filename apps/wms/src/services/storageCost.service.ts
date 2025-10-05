@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { Prisma, TransactionType } from '@prisma/client'
+import { Prisma, TransactionType, PurchaseOrderStatus } from '@prisma/client'
 import { endOfWeek, startOfWeek } from 'date-fns'
 import { randomUUID } from 'crypto'
 import { getStorageRate, calculateStorageCost, type StorageRateResult } from './storageRate.service'
@@ -40,6 +40,10 @@ export async function recordStorageCostEntry({
       skuCode,
       batchLot,
       transactionDate: { lt: weekStartingDate },
+      OR: [
+        { purchaseOrderId: null },
+        { purchaseOrder: { status: { in: [PurchaseOrderStatus.WAREHOUSE, PurchaseOrderStatus.CLOSED] } } },
+      ],
     },
   })
 
@@ -56,6 +60,10 @@ export async function recordStorageCostEntry({
         gte: weekStartingDate,
         lte: weekEndingDate,
       },
+      OR: [
+        { purchaseOrderId: null },
+        { purchaseOrder: { status: { in: [PurchaseOrderStatus.WAREHOUSE, PurchaseOrderStatus.CLOSED] } } },
+      ],
     },
     select: {
       transactionType: true,
@@ -95,13 +103,6 @@ export async function recordStorageCostEntry({
   const normalizedClosingBalance = Math.max(0, closingBalance)
   const averageBalance = Math.max(0, (openingBalance + normalizedClosingBalance) / 2)
 
-  const hasMovement =
-    openingBalance !== 0 || weeklyReceive !== 0 || weeklyShip !== 0 || weeklyAdjust !== 0
-
-  if (!hasMovement) {
-    return null
-  }
-
   const existing = await prisma.storageLedger.findUnique({
     where: {
       warehouseCode_skuCode_batchLot_weekEndingDate: {
@@ -112,6 +113,16 @@ export async function recordStorageCostEntry({
       },
     },
   })
+
+  const hasMovement =
+    openingBalance !== 0 || weeklyReceive !== 0 || weeklyShip !== 0 || weeklyAdjust !== 0
+
+  if (!hasMovement) {
+    if (existing) {
+      await prisma.storageLedger.delete({ where: { id: existing.id } })
+    }
+    return null
+  }
 
   let storageRate: StorageRateResult | null = null
   let ratePerCarton: number | null = existing?.storageRatePerCarton
@@ -199,7 +210,13 @@ export async function ensureWeeklyStorageEntries(date: Date = new Date()) {
   const aggregates = await prisma.inventoryTransaction.groupBy({
     by: ['warehouseCode', 'warehouseName', 'skuCode', 'skuDescription', 'batchLot'],
     _sum: { cartonsIn: true, cartonsOut: true },
-    where: { transactionDate: { lte: date } }
+    where: {
+      transactionDate: { lte: date },
+      OR: [
+        { purchaseOrderId: null },
+        { purchaseOrder: { status: { in: [PurchaseOrderStatus.WAREHOUSE, PurchaseOrderStatus.CLOSED] } } },
+      ],
+    }
   })
 
   let processed = 0

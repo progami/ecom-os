@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma, PurchaseOrderStatus } from '@prisma/client'
 import {
   getPaginationParams,
   getPaginationSkipTake,
@@ -68,7 +68,13 @@ export async function GET(req: NextRequest) {
     }
 
     const transactions = await prisma.inventoryTransaction.findMany({
-      where: transactionWhere,
+      where: {
+        ...transactionWhere,
+        OR: [
+          { purchaseOrderId: null },
+          { purchaseOrder: { status: { in: [PurchaseOrderStatus.WAREHOUSE, PurchaseOrderStatus.CLOSED] } } },
+        ],
+      },
       orderBy: [
         { transactionDate: 'asc' },
         { createdAt: 'asc' }

@@ -98,7 +98,7 @@ export function ExportButton({
       <button
         onClick={() => handleExport(formats[0])}
         disabled={loading}
-        className={`inline-flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-soft text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 ${className}`}
+        className={`inline-flex items-center px-4 py-2 border border-border rounded-md shadow-soft text-sm font-medium text-foreground bg-card hover:bg-muted disabled:opacity-50 ${className}`}
       >
         <Download className="h-4 w-4 mr-2" />
         {loading ? 'Exporting...' : buttonText}
@@ -111,14 +111,14 @@ export function ExportButton({
       <button
         onClick={() => setShowFormats(!showFormats)}
         disabled={loading}
-        className={`inline-flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-soft text-sm font-medium text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50 ${className}`}
+        className={`inline-flex items-center px-4 py-2 border border-border rounded-md shadow-soft text-sm font-medium text-foreground bg-card hover:bg-muted disabled:opacity-50 ${className}`}
       >
         <Download className="h-4 w-4 mr-2" />
         {loading ? 'Exporting...' : buttonText}
       </button>
-      
+
       {showFormats && (
-        <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
+        <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-card ring-1 ring-border ring-opacity-5 z-10">
           <div className="py-1" role="menu">
             {formats.map((format) => {
               const Icon = formatIcons[format]
@@ -126,7 +126,7 @@ export function ExportButton({
                 <button
                   key={format}
                   onClick={() => handleExport(format)}
-                  className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 hover:text-slate-900 flex items-center gap-2"
+                  className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted hover:text-foreground flex items-center gap-2"
                   role="menuitem"
                 >
                   <Icon className="h-4 w-4" />

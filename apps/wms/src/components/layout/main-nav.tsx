@@ -41,7 +41,7 @@ const baseNavigation: NavSection[] = [
   {
     title: 'Operations',
     items: [
-      { name: 'Purchase Orders', href: '/operations/purchase-orders', icon: FileText },
+      { name: 'Purchase/Sales Orders', href: '/operations/purchase-orders', icon: FileText },
       { name: 'Inventory Ledger', href: '/operations/inventory', icon: BookOpen },
       { name: 'Pallet Variance', href: '/operations/pallet-variance', icon: AlertTriangle },
     ]
@@ -117,14 +117,14 @@ export function MainNav() {
         "hidden md:fixed md:inset-y-0 md:z-50 md:flex md:flex-col transition-all duration-300",
         isTabletCollapsed ? "md:w-16 lg:w-64" : "md:w-64"
       )}>
-        <div className="flex grow flex-col gap-y-3 overflow-y-auto border-r border-slate-200 bg-white dark:bg-[#041324] dark:border-[#0b3a52] px-4 pb-3">
+        <div className="flex grow flex-col gap-y-3 overflow-y-auto border-r border-border bg-card dark:bg-[#041324] dark:border-[#0b3a52] px-4 pb-3">
           <div className="flex h-16 shrink-0 items-center justify-between">
             <div className="flex items-center gap-3">
               <Link href="/dashboard" scroll={false} className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-brand-teal-500 shadow-md dark:shadow-[0_12px_24px_rgba(0,194,185,0.25)]">
                   <span className="text-lg font-bold text-white">W</span>
                 </div>
-                <span className={cn("text-xl font-bold text-slate-900 dark:text-white transition-all duration-300", isTabletCollapsed && "md:hidden lg:inline")}>WMS</span>
+                <span className={cn("text-xl font-bold text-foreground transition-all duration-300", isTabletCollapsed && "md:hidden lg:inline")}>WMS</span>
               </Link>
             </div>
             
@@ -134,7 +134,7 @@ export function MainNav() {
               <div className={cn("relative transition-all duration-300 user-menu-container", isTabletCollapsed && "md:hidden lg:block")}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+                  className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-muted dark:hover:bg-white/5 transition-colors"
                 >
                   <div className="h-7 w-7 rounded-full bg-cyan-600/10 dark:bg-[#00C2B9]/20 flex items-center justify-center">
                     <span className="text-xs font-medium text-cyan-700 dark:text-[#00C2B9]">
@@ -144,21 +144,21 @@ export function MainNav() {
                 </button>
                 {/* Dropdown menu */}
                 {userMenuOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-[#06182b] rounded-lg shadow-soft-lg border border-slate-200 dark:border-[#0b3a52] py-1 z-50">
-                    <div className="px-3 py-2 border-b border-slate-200 dark:border-[#0b3a52]">
-                      <p className="text-xs text-slate-500">Signed in as</p>
+                  <div className="absolute right-0 top-full mt-1 w-56 bg-card dark:bg-[#06182b] rounded-lg shadow-soft-lg border border-border dark:border-[#0b3a52] py-1 z-50">
+                    <div className="px-3 py-2 border-b border-border dark:border-[#0b3a52]">
+                      <p className="text-xs text-muted-foreground">Signed in as</p>
                       <p className="text-sm font-medium truncate">{session.user.name}</p>
-                      <p className="text-xs text-slate-500 truncate">{session.user.email}</p>
+                      <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
                     </div>
-                    
+
                     {/* Admin options */}
                     {isAdmin && (
                       <>
-                        <div className="py-1 border-b border-slate-200 dark:border-[#0b3a52]">
+                        <div className="py-1 border-b border-border dark:border-[#0b3a52]">
                           <Link
                             href="/admin/users"
                             onClick={() => setUserMenuOpen(false)}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-secondary dark:hover:bg-white/5 transition-colors flex items-center gap-2"
                           >
                             <Users className="h-4 w-4" />
                             Users
@@ -166,7 +166,7 @@ export function MainNav() {
                           <Link
                             href="/admin/settings"
                             onClick={() => setUserMenuOpen(false)}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-secondary dark:hover:bg-white/5 transition-colors flex items-center gap-2"
                           >
                             <Settings className="h-4 w-4" />
                             Settings
@@ -182,7 +182,7 @@ export function MainNav() {
                         url.searchParams.set('callbackUrl', window.location.origin + '/auth/login')
                         window.location.href = url.toString()
                       }}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-white/5 transition-colors flex items-center gap-2"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-secondary dark:hover:bg-white/5 transition-colors flex items-center gap-2"
                     >
                       <LogOut className="h-4 w-4" />
                       Sign out
@@ -194,7 +194,7 @@ export function MainNav() {
               {/* Tablet collapse button */}
               <button
                 onClick={() => setIsTabletCollapsed(!isTabletCollapsed)}
-                className="hidden md:block lg:hidden p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+                className="hidden md:block lg:hidden p-1.5 rounded-lg hover:bg-muted dark:hover:bg-white/5 transition-colors"
               >
                 <Menu className="h-5 w-5" />
               </button>
@@ -223,7 +223,7 @@ export function MainNav() {
                               className={cn(
                                 matchesPath(item.href)
                                   ? 'bg-cyan-50 text-cyan-900 dark:bg-[#00C2B9]/10 dark:text-cyan-100'
-                                  : 'text-slate-700 hover:text-cyan-700 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-cyan-100',
+                                  : 'text-foreground hover:text-cyan-700 hover:bg-secondary dark:hover:bg-white/5 dark:hover:text-cyan-100',
                                 'group flex gap-x-3 rounded-lg py-2 px-3 text-sm leading-5 font-medium transition-all duration-200'
                               )}
                             >
@@ -231,7 +231,7 @@ export function MainNav() {
                                 className={cn(
                                   matchesPath(item.href)
                                     ? 'text-cyan-600 dark:text-[#00C2B9]'
-                                    : 'text-slate-400 group-hover:text-cyan-600 dark:group-hover:text-[#00C2B9]',
+                                    : 'text-muted-foreground group-hover:text-cyan-600 dark:group-hover:text-[#00C2B9]',
                                   'h-5 w-5 shrink-0'
                                 )}
                                 aria-hidden="true"
@@ -256,16 +256,16 @@ export function MainNav() {
       </div>
 
       {/* Mobile Navigation */}
-      <div className="sticky top-0 z-40 flex items-center gap-x-6 bg-white dark:bg-[#041324] px-4 py-4 shadow-soft border-b border-slate-200 dark:border-[#0b3a52] sm:px-6 md:hidden">
+      <div className="sticky top-0 z-40 flex items-center gap-x-6 bg-card dark:bg-[#041324] px-4 py-4 shadow-soft border-b border-border dark:border-[#0b3a52] sm:px-6 md:hidden">
         <button
           type="button"
-          className="-m-2.5 p-2.5 text-slate-700 dark:text-slate-300"
+          className="-m-2.5 p-2.5 text-foreground"
           onClick={() => setMobileMenuOpen(true)}
         >
           <span className="sr-only">Open sidebar</span>
           <Menu className="h-6 w-6" aria-hidden="true" />
         </button>
-        <div className="flex-1 text-sm font-semibold leading-6 text-slate-900 dark:text-white">
+        <div className="flex-1 text-sm font-semibold leading-6 text-foreground">
           {getCurrentPageName()}
         </div>
       </div>
@@ -274,7 +274,7 @@ export function MainNav() {
       {mobileMenuOpen && (
         <div className="relative z-50 lg:hidden">
           <div
-            className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm"
+            className="fixed inset-0 bg-background/80 backdrop-blur-sm"
             onClick={() => setMobileMenuOpen(false)}
           />
           <div className="fixed inset-0 flex">
@@ -289,13 +289,13 @@ export function MainNav() {
                   <X className="h-6 w-6 text-white" aria-hidden="true" />
                 </button>
               </div>
-              <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white dark:bg-[#041324] px-6 pb-4">
+              <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-card dark:bg-[#041324] px-6 pb-4">
                 <div className="flex h-16 shrink-0 items-center">
                   <Link href="/dashboard" scroll={false} className="flex items-center gap-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-brand-teal-500 shadow-md dark:shadow-[0_12px_24px_rgba(0,194,185,0.25)]">
                       <span className="text-lg font-bold text-white">W</span>
                     </div>
-                    <span className="text-xl font-bold text-slate-900 dark:text-white">WMS</span>
+                    <span className="text-xl font-bold text-foreground">WMS</span>
                   </Link>
                 </div>
                 <nav className="flex flex-1 flex-col">
@@ -318,7 +318,7 @@ export function MainNav() {
                                     className={cn(
                                       matchesPath(item.href)
                                         ? 'bg-cyan-50 text-cyan-900 dark:bg-[#00C2B9]/10 dark:text-cyan-100'
-                                        : 'text-slate-700 hover:text-cyan-700 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-cyan-100',
+                                        : 'text-foreground hover:text-cyan-700 hover:bg-secondary dark:hover:bg-white/5 dark:hover:text-cyan-100',
                                       'group flex gap-x-3 rounded-lg py-2 px-3 text-sm leading-5 font-medium transition-all duration-200'
                                     )}
                                     onClick={() => setMobileMenuOpen(false)}
@@ -327,7 +327,7 @@ export function MainNav() {
                                       className={cn(
                                         matchesPath(item.href)
                                           ? 'text-cyan-600 dark:text-[#00C2B9]'
-                                          : 'text-slate-400 group-hover:text-cyan-600 dark:group-hover:text-[#00C2B9]',
+                                          : 'text-muted-foreground group-hover:text-cyan-600 dark:group-hover:text-[#00C2B9]',
                                         'h-5 w-5 shrink-0'
                                       )}
                                       aria-hidden="true"

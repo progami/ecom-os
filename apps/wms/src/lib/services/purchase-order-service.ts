@@ -8,6 +8,7 @@ import {
   PurchaseOrderStatus,
   PurchaseOrderType,
   TransactionType,
+  MovementNoteStatus,
 } from '@prisma/client'
 
 export interface UserContext {
@@ -43,6 +44,27 @@ export type PurchaseOrderWithLines = Prisma.PurchaseOrderGetPayload<{
   include: { lines: true }
 }>
 
+export interface PurchaseOrderLineCreateInput {
+  skuCode: string
+  quantity: number
+  unitCost?: number | null
+  batchLot?: string | null
+}
+
+export interface CreatePurchaseOrderInput {
+  orderNumber: string
+  warehouseCode: string
+  type: PurchaseOrderType
+  status?: PurchaseOrderStatus
+  counterpartyName?: string | null
+  expectedDate?: Date | null
+  notes?: string | null
+  lines: PurchaseOrderLineCreateInput[]
+  postedAt?: Date | null
+  createdById?: string | null
+  createdByName?: string | null
+}
+
 export function serializePurchaseOrder(order: PurchaseOrderWithLines) {
   return {
     ...order,
@@ -57,6 +79,85 @@ export function serializePurchaseOrder(order: PurchaseOrderWithLines) {
       updatedAt: line.updatedAt.toISOString(),
     })),
   }
+}
+
+export async function createPurchaseOrder(input: CreatePurchaseOrderInput): Promise<PurchaseOrderWithLines> {
+  if (input.lines.length === 0) {
+    throw new ValidationError('At least one line item is required')
+  }
+
+  const warehouse = await prisma.warehouse.findUnique({
+    where: { code: input.warehouseCode },
+  })
+
+  if (!warehouse) {
+    throw new NotFoundError(`Warehouse not found for code ${input.warehouseCode}`)
+  }
+
+  const existing = await prisma.purchaseOrder.findUnique({
+    where: {
+      warehouseCode_orderNumber: {
+        warehouseCode: warehouse.code,
+        orderNumber: input.orderNumber,
+      },
+    },
+  })
+
+  if (existing) {
+    throw new ConflictError(`Purchase order ${input.orderNumber} already exists for warehouse ${warehouse.code}`)
+  }
+
+  const skuCodes = Array.from(new Set(input.lines.map((line) => line.skuCode)))
+  const skus = await prisma.sku.findMany({
+    where: { skuCode: { in: skuCodes } },
+  })
+  const skuMap = new Map(skus.map((sku) => [sku.skuCode, sku]))
+
+  const lineData = input.lines.map((line, index) => {
+    const sku = skuMap.get(line.skuCode)
+    if (!sku) {
+      throw new ValidationError(`SKU ${line.skuCode} does not exist`)
+    }
+    if (!Number.isInteger(line.quantity) || line.quantity <= 0) {
+      throw new ValidationError(`Quantity must be a positive integer for SKU ${line.skuCode}`)
+    }
+
+    const batchLot = line.batchLot?.trim().length ? line.batchLot.trim() : `LOT-${index + 1}`
+
+    return {
+      skuCode: sku.skuCode,
+      skuDescription: sku.description ?? null,
+      batchLot,
+      quantity: line.quantity,
+      unitCost: line.unitCost != null ? new Prisma.Decimal(line.unitCost) : null,
+    }
+  })
+
+  const expectedDate = input.expectedDate ?? null
+  const status = input.status ?? PurchaseOrderStatus.DRAFT
+  const postedAt = status === PurchaseOrderStatus.CLOSED ? input.postedAt ?? new Date() : input.postedAt ?? null
+
+  const order = await prisma.purchaseOrder.create({
+    data: {
+      orderNumber: input.orderNumber,
+      type: input.type,
+      status,
+      warehouseCode: warehouse.code,
+      warehouseName: warehouse.name,
+      counterpartyName: input.counterpartyName ?? null,
+      expectedDate,
+      postedAt,
+      notes: input.notes ?? null,
+      createdById: input.createdById ?? null,
+      createdByName: input.createdByName ?? null,
+      lines: {
+        create: lineData,
+      },
+    },
+    include: { lines: true },
+  })
+
+  return order
 }
 
 export interface UpdatePurchaseOrderInput {
@@ -185,98 +286,6 @@ export async function updatePurchaseOrderDetails(
   return updated
 }
 
-export async function postPurchaseOrder(id: string, user: UserContext): Promise<PurchaseOrderWithLines> {
-  return prisma.$transaction(async (tx) => {
-    const order = await tx.purchaseOrder.findUnique({
-      where: { id },
-      include: { lines: true },
-    })
-
-    if (!order) {
-      throw new Error('Purchase order not found')
-    }
-
-    if (order.status !== PurchaseOrderStatus.DRAFT) {
-      throw new Error('Only draft purchase orders can be posted')
-    }
-
-    const postedAt = new Date()
-    const isInbound = order.type === PurchaseOrderType.PURCHASE
-    const transactionType = isInbound ? TransactionType.RECEIVE : TransactionType.SHIP
-
-    const warehouse = await tx.warehouse.findFirst({ where: { code: order.warehouseCode } })
-
-    for (const line of order.lines) {
-      if (line.quantity === 0) continue
-
-      const sku = await tx.sku.findFirst({ where: { skuCode: line.skuCode } })
-      const unitsPerCarton = sku?.unitsPerCarton ?? 1
-
-      const normalizedBatchLot = resolveBatchLot({
-        rawBatchLot: line.batchLot,
-        orderNumber: order.orderNumber,
-        warehouseCode: order.warehouseCode,
-        skuCode: line.skuCode,
-        transactionDate: postedAt,
-      })
-
-      await tx.inventoryTransaction.create({
-        data: {
-          warehouseCode: order.warehouseCode,
-          warehouseName: order.warehouseName,
-          warehouseAddress: warehouse?.address ?? null,
-          skuCode: line.skuCode,
-          skuDescription: line.skuDescription ?? (sku?.description ?? ''),
-          unitDimensionsCm: sku?.unitDimensionsCm ?? null,
-          unitWeightKg: sku?.unitWeightKg ?? null,
-          cartonDimensionsCm: sku?.cartonDimensionsCm ?? null,
-          cartonWeightKg: sku?.cartonWeightKg ?? null,
-          packagingType: sku?.packagingType ?? null,
-          unitsPerCarton,
-          batchLot: normalizedBatchLot,
-          transactionType,
-          referenceId: order.orderNumber,
-          cartonsIn: isInbound ? line.quantity : 0,
-          cartonsOut: isInbound ? 0 : line.quantity,
-          storagePalletsIn: isInbound ? 0 : 0,
-          shippingPalletsOut: isInbound ? 0 : 0,
-          transactionDate: postedAt,
-          pickupDate: postedAt,
-          isReconciled: false,
-          isDemo: false,
-          createdById: normalizeNullable(user.id) ?? SYSTEM_FALLBACK_ID,
-          createdByName: normalizeNullable(user.name) ?? SYSTEM_FALLBACK_NAME,
-          shippingCartonsPerPallet: null,
-          storageCartonsPerPallet: null,
-          shipName: isInbound ? null : order.counterpartyName ?? null,
-          trackingNumber: null,
-          attachments: null,
-          supplier: isInbound ? order.counterpartyName ?? null : null,
-          purchaseOrderId: order.id,
-          purchaseOrderLineId: line.id,
-        },
-      })
-
-      await tx.purchaseOrderLine.update({
-        where: { id: line.id },
-        data: {
-          status: PurchaseOrderLineStatus.POSTED,
-          postedQuantity: line.quantity,
-        },
-      })
-    }
-
-    return tx.purchaseOrder.update({
-      where: { id: order.id },
-      data: {
-        status: PurchaseOrderStatus.POSTED,
-        postedAt,
-      },
-      include: { lines: true },
-    })
-  })
-}
-
 export async function ensurePurchaseOrderForTransaction(
   client: Prisma.TransactionClient,
   input: EnsurePurchaseOrderForTransactionInput
@@ -327,7 +336,7 @@ export async function ensurePurchaseOrderForTransaction(
       data: {
         orderNumber,
         type: orderType,
-        status: PurchaseOrderStatus.AWAITING_PROOF,
+        status: PurchaseOrderStatus.SHIPPED,
         warehouseCode: input.warehouseCode,
         warehouseName: input.warehouseName,
         counterpartyName: counterparty ?? null,
@@ -454,6 +463,7 @@ export async function ensurePurchaseOrderForTransaction(
 export async function transitionPurchaseOrderStatus(
   id: string,
   targetStatus: PurchaseOrderStatus,
+  user: { id?: string | null; role?: string | null } = {},
 ): Promise<PurchaseOrderWithLines> {
   const order = await prisma.purchaseOrder.findUnique({
     where: { id },
@@ -472,30 +482,10 @@ export async function transitionPurchaseOrderStatus(
     return order
   }
 
-  if (order.status === PurchaseOrderStatus.POSTED && targetStatus !== PurchaseOrderStatus.POSTED) {
-    throw new Error('Posted purchase orders cannot be reverted')
-  }
-
-  if (targetStatus === PurchaseOrderStatus.POSTED) {
-    if (order.status !== PurchaseOrderStatus.REVIEW) {
-      throw new Error('Only purchase orders in review can be posted')
-    }
-
-    return prisma.purchaseOrder.update({
-      where: { id },
-      data: {
-        status: PurchaseOrderStatus.POSTED,
-        postedAt: new Date(),
-      },
-      include: { lines: true },
-    })
-  }
-
   const allowedTransitions: Record<PurchaseOrderStatus, PurchaseOrderStatus[]> = {
-    [PurchaseOrderStatus.DRAFT]: [PurchaseOrderStatus.AWAITING_PROOF],
-    [PurchaseOrderStatus.AWAITING_PROOF]: [PurchaseOrderStatus.DRAFT, PurchaseOrderStatus.REVIEW],
-    [PurchaseOrderStatus.REVIEW]: [PurchaseOrderStatus.AWAITING_PROOF],
-    [PurchaseOrderStatus.POSTED]: [],
+    [PurchaseOrderStatus.DRAFT]: [PurchaseOrderStatus.SHIPPED],
+    [PurchaseOrderStatus.SHIPPED]: [PurchaseOrderStatus.DRAFT, PurchaseOrderStatus.WAREHOUSE],
+    [PurchaseOrderStatus.WAREHOUSE]: [PurchaseOrderStatus.SHIPPED, PurchaseOrderStatus.CLOSED],
     [PurchaseOrderStatus.CLOSED]: [],
     [PurchaseOrderStatus.CANCELLED]: [],
   }
@@ -503,6 +493,38 @@ export async function transitionPurchaseOrderStatus(
   const nextStatuses = allowedTransitions[order.status] ?? []
   if (!nextStatuses.includes(targetStatus)) {
     throw new Error(`Cannot change purchase order status from ${order.status} to ${targetStatus}`)
+  }
+
+  if (targetStatus === PurchaseOrderStatus.WAREHOUSE && user.role !== 'admin') {
+    throw new Error('Only administrators can approve delivery notes')
+  }
+
+  if (targetStatus === PurchaseOrderStatus.WAREHOUSE) {
+    const postedNote = await prisma.movementNote.findFirst({
+      where: {
+        purchaseOrderId: id,
+        status: MovementNoteStatus.POSTED,
+      },
+    })
+
+    if (!postedNote) {
+      throw new Error('A posted delivery note is required before approving the warehouse stage')
+    }
+  }
+
+  if (targetStatus === PurchaseOrderStatus.CLOSED && order.status !== PurchaseOrderStatus.WAREHOUSE) {
+    throw new Error('Orders must reach the warehouse stage before closing')
+  }
+
+  if (targetStatus === PurchaseOrderStatus.CLOSED) {
+    return prisma.purchaseOrder.update({
+      where: { id },
+      data: {
+        status: PurchaseOrderStatus.CLOSED,
+        postedAt: new Date(),
+      },
+      include: { lines: true },
+    })
   }
 
   return prisma.purchaseOrder.update({

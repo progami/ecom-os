@@ -38,13 +38,13 @@ export function DemoWelcome() {
     <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
       <div className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
         {/* Background overlay */}
-        <div 
-          className="fixed inset-0 bg-slate-500 bg-opacity-75 transition-opacity"
+        <div
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity"
           onClick={() => setIsVisible(false)}
         />
 
         {/* Modal panel */}
-        <div className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+        <div className="relative transform overflow-hidden rounded-lg bg-card text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
           <div className="bg-gradient-to-r from-cyan-600 to-brand-teal-600 px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
             <div className="sm:flex sm:items-start">
               <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-white/20 sm:mx-0 sm:h-10 sm:w-10">
@@ -63,13 +63,13 @@ export function DemoWelcome() {
             </div>
           </div>
           
-          <div className="bg-white px-4 pb-4 pt-5 sm:p-6">
+          <div className="bg-card px-4 pb-4 pt-5 sm:p-6">
             <div className="space-y-4">
               <div className="flex items-start gap-3">
                 <Info className="h-5 w-5 text-cyan-500 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-slate-900">Demo Data Loaded</p>
-                  <p className="text-sm text-slate-600">
+                  <p className="text-sm font-medium text-foreground">Demo Data Loaded</p>
+                  <p className="text-sm text-foreground">
                     We've populated the system with sample warehouses, products, inventory, and transactions
                     so you can see how everything works.
                   </p>
@@ -77,10 +77,10 @@ export function DemoWelcome() {
               </div>
 
               <div>
-                <p className="text-sm font-medium text-slate-900 mb-2">Explore these features:</p>
+                <p className="text-sm font-medium text-foreground mb-2">Explore these features:</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {features.map((feature, index) => (
-                    <div key={index} className="flex items-center gap-2 text-sm text-slate-600">
+                    <div key={index} className="flex items-center gap-2 text-sm text-foreground">
                       <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
                       <span>{feature}</span>
                     </div>
@@ -97,7 +97,7 @@ export function DemoWelcome() {
             </div>
           </div>
 
-          <div className="bg-slate-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+          <div className="bg-secondary px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
             <button
               type="button"
               className="inline-flex w-full justify-center rounded-md bg-gradient-to-r from-cyan-600 to-brand-teal-600 px-3 py-2 text-sm font-semibold text-white shadow-soft hover:from-cyan-700 hover:to-brand-teal-700 sm:ml-3 sm:w-auto"
@@ -107,7 +107,7 @@ export function DemoWelcome() {
             </button>
             <button
               type="button"
-              className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-soft ring-1 ring-inset ring-gray-300 hover:bg-slate-50 sm:mt-0 sm:w-auto"
+              className="mt-3 inline-flex w-full justify-center rounded-md bg-card px-3 py-2 text-sm font-semibold text-foreground shadow-soft ring-1 ring-inset ring-border hover:bg-secondary sm:mt-0 sm:w-auto"
               onClick={() => {
                 setIsVisible(false)
                 window.open('/docs/getting-started', '_blank')

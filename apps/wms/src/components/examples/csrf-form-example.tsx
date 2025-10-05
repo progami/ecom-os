@@ -53,7 +53,7 @@ export function CSRFFormExample() {
           type="text"
           value={formData.name}
           onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-          className="mt-1 block w-full rounded-md border-slate-300"
+          className="mt-1 block w-full rounded-md border-border"
           required
         />
       </div>
@@ -66,7 +66,7 @@ export function CSRFFormExample() {
           id="description"
           value={formData.description}
           onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-          className="mt-1 block w-full rounded-md border-slate-300"
+          className="mt-1 block w-full rounded-md border-border"
           rows={3}
         />
       </div>

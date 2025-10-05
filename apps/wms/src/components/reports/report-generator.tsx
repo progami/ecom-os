@@ -187,7 +187,7 @@ export function ReportGenerator({
       ))}
 
       {/* Custom Reports */}
-      <div className="bg-slate-50 dark:bg-[#06182b] rounded-xl p-6">
+      <div className="bg-secondary rounded-xl p-6">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
           <Calendar className="h-5 w-5" />
           Custom Reports
@@ -305,7 +305,7 @@ interface ReportSectionComponentProps {
 
 function ReportSectionComponent({ title, icon: Icon, reports }: ReportSectionComponentProps) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
+    <div className="rounded-xl border border-border bg-card p-6 shadow-soft">
       <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
         <Icon className="h-5 w-5" />
         {title}

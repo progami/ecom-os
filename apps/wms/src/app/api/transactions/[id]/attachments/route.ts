@@ -16,7 +16,24 @@ interface AttachmentData {
   contentType: string;
 }
 
-type AttachmentsRecord = Record<string, AttachmentData>
+type AttachmentsRecord = Record<string, AttachmentData | AttachmentData[]>
+
+function appendAttachment(
+  store: AttachmentsRecord,
+  category: string,
+  data: AttachmentData
+): AttachmentsRecord {
+  const existing = store[category]
+  if (!existing) {
+    return { ...store, [category]: data }
+  }
+
+  const list = Array.isArray(existing) ? existing : [existing]
+  return {
+    ...store,
+    [category]: [...list, data],
+  }
+}
 type AttachmentInput = Partial<AttachmentData> & {
   name?: string
   category?: string
@@ -64,7 +81,7 @@ export async function POST(
       // Upload base64 attachments to S3
       const attachmentInputs = attachments as AttachmentInput[]
       const currentAttachments = (transaction.attachments as unknown as AttachmentsRecord) || {}
-      const updatedAttachments: AttachmentsRecord = { ...currentAttachments }
+      let updatedAttachments: AttachmentsRecord = { ...currentAttachments }
 
       for (const attachment of attachmentInputs) {
         try {
@@ -132,19 +149,11 @@ export async function POST(
               contentType: uploadResult.contentType || mimeType
             }
 
-            if (currentAttachments[category]?.s3Key && currentAttachments[category].s3Key !== attachmentData.s3Key) {
-              try {
-                await s3Service.deleteFile(currentAttachments[category].s3Key)
-              } catch (_error) {
-                // ignore deletion failure
-              }
-            }
-
-            updatedAttachments[category] = attachmentData
+            updatedAttachments = appendAttachment(updatedAttachments, category, attachmentData)
           } else {
             // Already has S3 key or no data
             if (attachment.s3Key) {
-              updatedAttachments[category] = {
+              const attachmentData: AttachmentData = {
                 fileName: attachment.fileName || attachment.name || category,
                 uploadedAt: attachment.uploadedAt || new Date().toISOString(),
                 uploadedBy: attachment.uploadedBy || session.user.id,
@@ -153,6 +162,7 @@ export async function POST(
                 size: attachment.size || 0,
                 contentType: attachment.contentType || 'application/octet-stream'
               }
+              updatedAttachments = appendAttachment(updatedAttachments, category, attachmentData)
             }
           }
         } catch (_error) {
@@ -242,30 +252,39 @@ export async function POST(
 
       // Update transaction attachments
       const currentAttachments = (transaction.attachments as unknown as AttachmentsRecord) || {}
-      
+
       // Delete old file from S3 if replacing an existing attachment
-      if (currentAttachments[documentType]?.s3Key) {
+      if (Array.isArray(currentAttachments[documentType])) {
+        const list = currentAttachments[documentType] as AttachmentData[]
+        await Promise.all(
+          list.map(async attachment => {
+            try {
+              await s3Service.deleteFile(attachment.s3Key)
+            } catch (_error) {
+              // ignore deletion failures
+            }
+          })
+        )
+      } else if (currentAttachments[documentType]) {
+        const attachment = currentAttachments[documentType] as AttachmentData
         try {
-          await s3Service.deleteFile(currentAttachments[documentType].s3Key)
-          // File deleted from S3
+          await s3Service.deleteFile(attachment.s3Key)
         } catch (_error) {
-          // console.error('Failed to delete old S3 file:', _error)
-          // Continue even if deletion fails
+          // ignore deletion failures
         }
       }
-      
-      const updatedAttachments = {
-        ...currentAttachments,
-        [documentType]: {
-          fileName: file.name,
-          uploadedAt: new Date().toISOString(),
-          uploadedBy: session.user.id,
-          s3Key: uploadResult.key,
-          s3Url: presignedUrl,
-          size: uploadResult.size,
-          contentType: uploadResult.contentType,
-        }
+
+      const attachmentData: AttachmentData = {
+        fileName: file.name,
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: session.user.id,
+        s3Key: uploadResult.key,
+        s3Url: presignedUrl,
+        size: uploadResult.size,
+        contentType: uploadResult.contentType,
       }
+
+      const updatedAttachments = appendAttachment(currentAttachments, documentType, attachmentData)
 
       // Check if all required documents are now present
       const hasAllRequiredDocs = checkIfAllRequiredDocsPresent(transaction.transactionType, updatedAttachments)
@@ -279,10 +298,11 @@ export async function POST(
         }
       })
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: true,
         message: 'Document uploaded successfully',
-        reconciled: hasAllRequiredDocs
+        reconciled: hasAllRequiredDocs,
+        attachments: updatedAttachments,
       })
     }
   } catch (_error) {

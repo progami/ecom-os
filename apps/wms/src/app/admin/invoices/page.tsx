@@ -2,12 +2,63 @@
 
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { Plus, Search, Filter, Download, FileText, CheckCircle, AlertCircle, Clock } from '@/lib/lucide-icons'
+import { useState, useCallback } from 'react'
+import { Plus, Search, Filter, Download, FileText, CheckCircle, AlertCircle, Clock, X } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
+
+type ColumnFilterKey = 'search' | 'status'
+
+interface ColumnFiltersState {
+  search: string
+  status: string[]
+}
+
+const createColumnFilterDefaults = (): ColumnFiltersState => ({
+  search: '',
+  status: [],
+})
 
 export default function AdminInvoicesPage() {
   const { data: session, status } = useSession()
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(createColumnFilterDefaults())
+
+  const isFilterActive = useCallback(
+    (keys: ColumnFilterKey[]) =>
+      keys.some(key => {
+        const value = columnFilters[key]
+        if (Array.isArray(value)) {
+          return value.length > 0
+        }
+        return typeof value === 'string' && value.trim().length > 0
+      }),
+    [columnFilters]
+  )
+
+  const clearColumnFilter = useCallback((keys: ColumnFilterKey[]) => {
+    setColumnFilters(prev => {
+      const next = { ...prev }
+      for (const key of keys) {
+        if (key === 'search') {
+          next.search = ''
+        } else if (key === 'status') {
+          next.status = []
+        }
+      }
+      return next
+    })
+  }, [])
+
+  const toggleStatusFilter = useCallback((status: string) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      status: prev.status.includes(status)
+        ? prev.status.filter(s => s !== status)
+        : [...prev.status, status]
+    }))
+  }, [])
 
   if (status === 'loading') {
     return (
@@ -38,7 +89,7 @@ export default function AdminInvoicesPage() {
           icon={FileText}
           actions={
             <div className="flex items-center gap-2">
-              <button className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-soft text-sm font-medium text-slate-700 bg-white hover:bg-slate-50">
+              <button className="inline-flex items-center px-4 py-2 border border-border rounded-md shadow-soft text-sm font-medium text-foreground bg-white hover:bg-secondary">
                 <Download className="h-4 w-4 mr-2" />
                 Export
               </button>
@@ -53,39 +104,6 @@ export default function AdminInvoicesPage() {
           }
         />
         <PageContent>
-
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                id="invoice-search"
-                name="search"
-                aria-label="Search invoices by number or warehouse"
-                placeholder="Search by invoice number or warehouse..."
-                className="pl-10 pr-4 py-2 w-full border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-          </div>
-          <select 
-            id="status-filter"
-            name="status"
-            aria-label="Filter invoices by status"
-            className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-          >
-            <option>All Statuses</option>
-            <option>Pending</option>
-            <option>Reconciled</option>
-            <option>Disputed</option>
-            <option>Paid</option>
-          </select>
-          <button className="inline-flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-soft text-sm font-medium text-slate-700 bg-white hover:bg-slate-50">
-            <Filter className="h-4 w-4 mr-2" />
-            More Filters
-          </button>
-        </div>
 
         {/* Summary Cards */}
         <div className="grid gap-4 md:grid-cols-4">
@@ -118,24 +136,126 @@ export default function AdminInvoicesPage() {
         {/* Invoice Table */}
         <div className="border rounded-lg overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-slate-50">
+            <thead className="bg-secondary">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Invoice #
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <div className="flex items-center gap-2">
+                    Invoice #
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter invoice numbers"
+                          className={cn(
+                            'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            isFilterActive(['search'])
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-3.5 w-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-64 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Search filter</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => clearColumnFilter(['search'])}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <input
+                            type="text"
+                            placeholder="Search invoice #, warehouse..."
+                            value={columnFilters.search}
+                            onChange={e => setColumnFilters(prev => ({ ...prev, search: e.target.value }))}
+                            className="w-full rounded-md border border-border bg-background pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                          />
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Warehouse
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Billing Period
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Amount
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Status
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <div className="flex items-center gap-2">
+                    Status
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter status"
+                          className={cn(
+                            'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            isFilterActive(['status'])
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-3.5 w-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-64 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Status filter</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => clearColumnFilter(['status'])}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {['Pending', 'Reconciled', 'Disputed', 'Paid'].map(status => (
+                            <label key={status} className="flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={columnFilters.status.includes(status)}
+                                onChange={() => toggleStatusFilter(status)}
+                                className="rounded border-border"
+                              />
+                              <span className="text-foreground">{status}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {columnFilters.status.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {columnFilters.status.map(s => (
+                              <span
+                                key={s}
+                                className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                              >
+                                {s}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleStatusFilter(s)}
+                                  className="hover:text-primary/70"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Date Received
                 </th>
                 <th className="relative px-6 py-3">
@@ -144,17 +264,17 @@ export default function AdminInvoicesPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              <tr className="hover:bg-slate-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+              <tr className="hover:bg-secondary">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                   INV-2025-001
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                   FMC
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                   Dec 16 - Jan 15
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 text-right">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-right">
                   £12,456.78
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -162,7 +282,7 @@ export default function AdminInvoicesPage() {
                     Pending
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                   Jan 18, 2025
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -171,17 +291,17 @@ export default function AdminInvoicesPage() {
                   </Link>
                 </td>
               </tr>
-              <tr className="hover:bg-slate-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+              <tr className="hover:bg-secondary">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                   INV-2024-089
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                   Vglobal
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                   Nov 16 - Dec 15
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 text-right">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-right">
                   £8,234.50
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -189,7 +309,7 @@ export default function AdminInvoicesPage() {
                     Reconciled
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                   Dec 17, 2024
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -198,17 +318,17 @@ export default function AdminInvoicesPage() {
                   </Link>
                 </td>
               </tr>
-              <tr className="hover:bg-slate-50">
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+              <tr className="hover:bg-secondary">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                   INV-2024-088
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                   FMC
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                   Nov 16 - Dec 15
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 text-right">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-right">
                   £10,123.45
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -216,7 +336,7 @@ export default function AdminInvoicesPage() {
                     Disputed
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                   Dec 16, 2024
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -231,16 +351,16 @@ export default function AdminInvoicesPage() {
 
         {/* Pagination */}
         <div className="flex items-center justify-between">
-          <div className="text-sm text-slate-700">
+          <div className="text-sm text-foreground">
             Showing <span className="font-medium">1</span> to{' '}
             <span className="font-medium">10</span> of{' '}
             <span className="font-medium">89</span> results
           </div>
           <div className="flex items-center gap-2">
-            <button className="px-3 py-1 border rounded-md text-sm hover:bg-slate-50">
+            <button className="px-3 py-1 border rounded-md text-sm hover:bg-secondary">
               Previous
             </button>
-            <button className="px-3 py-1 border rounded-md text-sm hover:bg-slate-50">
+            <button className="px-3 py-1 border rounded-md text-sm hover:bg-secondary">
               Next
             </button>
           </div>

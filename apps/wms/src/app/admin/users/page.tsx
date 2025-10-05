@@ -51,7 +51,7 @@ export default function AdminUsersPage() {
         {/* Search */}
         <div className="max-w-md">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search users..."
@@ -61,8 +61,8 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Users Grid */}
-        <div className="bg-slate-50 p-2 rounded-lg mb-2">
-          <p className="text-sm text-slate-600">Showing 3 users</p>
+        <div className="bg-secondary p-2 rounded-lg mb-2">
+          <p className="text-sm text-foreground">Showing 3 users</p>
         </div>
         <div className="grid gap-1 md:grid-cols-2 lg:grid-cols-3" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
           <UserCard
@@ -118,7 +118,7 @@ function UserCard({ name, email, role, warehouse, lastLogin, isActive }: UserCar
     }
 
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${roleStyles[role] || 'bg-slate-100 text-slate-800'}`}>
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${roleStyles[role] || 'bg-muted text-foreground'}`}>
         {roleLabels[role] || role}
       </span>
     )
@@ -129,14 +129,14 @@ function UserCard({ name, email, role, warehouse, lastLogin, isActive }: UserCar
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center">
-            <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center">
-              <span className="text-lg font-medium text-slate-600">
+            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+              <span className="text-lg font-medium text-foreground">
                 {name.split(' ').map(n => n[0]).join('')}
               </span>
             </div>
             <div className="ml-4">
-              <h3 className="text-sm font-medium text-slate-900">{name}</h3>
-              <p className="text-sm text-slate-500 flex items-center gap-1">
+              <h3 className="text-sm font-medium text-foreground">{name}</h3>
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
                 <Mail className="h-3 w-3" />
                 {email}
               </p>
@@ -145,27 +145,27 @@ function UserCard({ name, email, role, warehouse, lastLogin, isActive }: UserCar
           
           <div className="mt-2 space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-500">Role</span>
+              <span className="text-sm text-muted-foreground">Role</span>
               {getRoleBadge(role)}
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-500">Warehouse</span>
+              <span className="text-sm text-muted-foreground">Warehouse</span>
               <span className="text-sm font-medium">{warehouse}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-500">Last Login</span>
+              <span className="text-sm text-muted-foreground">Last Login</span>
               <span className="text-sm">{lastLogin}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-500">Status</span>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isActive ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'}`}>
+              <span className="text-sm text-muted-foreground">Status</span>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isActive ? 'bg-green-100 text-green-800' : 'bg-muted text-foreground'}`}>
                 {isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
           </div>
         </div>
         
-        <button className="ml-4 text-slate-400 hover:text-slate-600">
+        <button className="ml-4 text-muted-foreground hover:text-foreground">
           <MoreVertical className="h-5 w-5" />
         </button>
       </div>

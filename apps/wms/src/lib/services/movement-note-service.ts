@@ -139,7 +139,7 @@ export async function createMovementNote(input: CreateMovementNoteInput, user: U
     if (purchaseOrder.status === PurchaseOrderStatus.DRAFT) {
       await tx.purchaseOrder.update({
         where: { id: purchaseOrder.id },
-        data: { status: PurchaseOrderStatus.AWAITING_PROOF },
+        data: { status: PurchaseOrderStatus.SHIPPED },
       })
     }
 
@@ -307,7 +307,7 @@ export async function postMovementNote(id: string, user: UserContext) {
       },
     })
 
-    const nextStatus = allPosted ? PurchaseOrderStatus.REVIEW : PurchaseOrderStatus.AWAITING_PROOF
+    const nextStatus = allPosted ? PurchaseOrderStatus.WAREHOUSE : PurchaseOrderStatus.SHIPPED
 
     await tx.purchaseOrder.update({
       where: { id: po.id },

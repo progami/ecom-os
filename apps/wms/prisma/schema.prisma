@@ -399,9 +399,8 @@ enum PurchaseOrderType {
 
 enum PurchaseOrderStatus {
   DRAFT
-  AWAITING_PROOF
-  REVIEW
-  POSTED
+  SHIPPED
+  WAREHOUSE
   CANCELLED
   CLOSED
 

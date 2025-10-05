@@ -1,13 +1,15 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Download, FileText, Plus, Search, Eye, Check, X, Loader2, Filter } from '@/lib/lucide-icons'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { Download, FileText, Plus, Search, Eye, Check, X as XIcon, Loader2, Filter } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { format } from 'date-fns'
+import { cn } from '@/lib/utils'
 
 interface Invoice {
   id: string
@@ -55,15 +57,23 @@ interface Pagination {
   totalPages: number
 }
 
+type ColumnFilterKey = 'warehouse' | 'status'
+
+interface ColumnFiltersState {
+  warehouse: string[]
+  status: string[]
+}
+
+const createColumnFilterDefaults = (): ColumnFiltersState => ({
+  warehouse: [],
+  status: [],
+})
+
 export default function FinanceInvoicesPage() {
   const router = useRouter()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedWarehouse, setSelectedWarehouse] = useState('')
-  const [selectedStatus, setSelectedStatus] = useState('')
-  const [selectedMonth, setSelectedMonth] = useState('')
-  const [selectedYear, setSelectedYear] = useState('')
-  const [showFilters, setShowFilters] = useState(false)
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(createColumnFilterDefaults())
   const [invoices, setInvoices] = useState<Invoice[]>([])
   const [pagination, setPagination] = useState<Pagination>({
     page: 1,
@@ -79,6 +89,44 @@ export default function FinanceInvoicesPage() {
     code: string
   }>>([])
 
+  const isFilterActive = useCallback(
+    (keys: ColumnFilterKey[]) =>
+      keys.some(key => {
+        const value = columnFilters[key]
+        return Array.isArray(value) ? value.length > 0 : false
+      }),
+    [columnFilters]
+  )
+
+  const clearColumnFilter = useCallback((keys: ColumnFilterKey[]) => {
+    setColumnFilters(prev => {
+      const defaults = createColumnFilterDefaults()
+      const next = { ...prev }
+      for (const key of keys) {
+        next[key] = defaults[key]
+      }
+      return next
+    })
+  }, [])
+
+  const toggleWarehouseFilter = useCallback((warehouseId: string) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      warehouse: prev.warehouse.includes(warehouseId)
+        ? prev.warehouse.filter(w => w !== warehouseId)
+        : [...prev.warehouse, warehouseId]
+    }))
+  }, [])
+
+  const toggleStatusFilter = useCallback((status: string) => {
+    setColumnFilters(prev => ({
+      ...prev,
+      status: prev.status.includes(status)
+        ? prev.status.filter(s => s !== status)
+        : [...prev.status, status]
+    }))
+  }, [])
+
   // Fetch invoices
   const fetchInvoices = async () => {
     setLoading(true)
@@ -87,12 +135,14 @@ export default function FinanceInvoicesPage() {
         page: pagination.page.toString(),
         limit: pagination.limit.toString()
       })
-      
+
       if (searchTerm) params.append('search', searchTerm)
-      if (selectedWarehouse) params.append('warehouseId', selectedWarehouse)
-      if (selectedStatus) params.append('status', selectedStatus)
-      if (selectedMonth) params.append('month', selectedMonth)
-      if (selectedYear) params.append('year', selectedYear)
+      if (columnFilters.warehouse.length > 0) {
+        columnFilters.warehouse.forEach(w => params.append('warehouseId', w))
+      }
+      if (columnFilters.status.length > 0) {
+        columnFilters.status.forEach(s => params.append('status', s))
+      }
 
       const response = await fetch(`/api/invoices?${params}`)
       if (!response.ok) throw new Error('Failed to fetch invoices')
@@ -121,7 +171,7 @@ export default function FinanceInvoicesPage() {
     fetchInvoices()
     fetchWarehouses()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.page, searchTerm, selectedWarehouse, selectedStatus, selectedMonth, selectedYear])
+  }, [pagination.page, searchTerm, columnFilters])
 
   // Handle file upload
   const _handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -232,21 +282,17 @@ export default function FinanceInvoicesPage() {
     }
   }
 
-  const clearFilters = () => {
-    setSelectedWarehouse('')
-    setSelectedStatus('')
-    setSelectedMonth('')
-    setSelectedYear('')
-  }
 
   // Handle export
   const handleExport = async () => {
     try {
       const params = new URLSearchParams({ type: 'invoices' })
-      if (selectedWarehouse) params.append('warehouseId', selectedWarehouse)
-      if (selectedStatus) params.append('status', selectedStatus)
-      if (selectedMonth) params.append('month', selectedMonth)
-      if (selectedYear) params.append('year', selectedYear)
+      if (columnFilters.warehouse.length > 0) {
+        columnFilters.warehouse.forEach(w => params.append('warehouseId', w))
+      }
+      if (columnFilters.status.length > 0) {
+        columnFilters.status.forEach(s => params.append('status', s))
+      }
       
       const response = await fetch(`/api/export?${params}`)
       if (!response.ok) throw new Error('Export failed')
@@ -319,7 +365,7 @@ export default function FinanceInvoicesPage() {
                   placeholder="Search invoices..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-md border border-border/60 bg-white py-2 pl-9 pr-3 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full rounded-md border border-border/60 bg-card py-2 pl-9 pr-3 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
                   aria-label="Search invoices by invoice number, warehouse, or amount"
                 />
               </div>
@@ -342,103 +388,161 @@ export default function FinanceInvoicesPage() {
         />
         <PageContent>
         <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <select 
-              value={selectedWarehouse}
-              onChange={(e) => setSelectedWarehouse(e.target.value)}
-              className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">All Warehouses</option>
-              {warehouses.map(warehouse => (
-                <option key={warehouse.id} value={warehouse.id}>
-                  {warehouse.name}
-                </option>
-              ))}
-            </select>
-            <select 
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="reconciled">Reconciled</option>
-              <option value="disputed">Disputed</option>
-              <option value="paid">Paid</option>
-            </select>
-            <select 
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">All Months</option>
-              {Array.from({ length: 12 }).map((_, index) => (
-                <option key={index} value={index + 1}>
-                  {format(new Date(2023, index, 1), 'MMMM')}
-                </option>
-              ))}
-            </select>
-            <select 
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="">All Years</option>
-              {Array.from({ length: 5 }).map((_, index) => (
-                <option key={index} value={2023 - index}>{2023 - index}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              onClick={() => setShowFilters(!showFilters)}
-              variant="ghost"
-              className="gap-2 text-sm text-muted-foreground hover:text-primary"
-            >
-              <Filter className="h-4 w-4" />
-              {showFilters ? 'Hide advanced filters' : 'Show advanced filters'}
-            </Button>
-            {(selectedWarehouse || selectedStatus || selectedMonth || selectedYear) && (
-              <Button
-                onClick={clearFilters}
-                variant="link"
-                className="text-sm"
-              >
-                Clear all filters
-              </Button>
-            )}
-          </div>
-        </div>
-
         {/* Invoice Table */}
-        <div className="overflow-hidden rounded-xl border border-slate-200 shadow-soft dark:border-[#0b3a52]">
-          <div className="bg-slate-50 px-6 py-3 border-b">
+        <div className="overflow-hidden rounded-xl border border-border shadow-soft dark:border-[#0b3a52]">
+          <div className="bg-secondary px-6 py-3 border-b">
             <h3 className="text-lg font-semibold">Invoices</h3>
-            <p className="text-sm text-slate-600 mt-1">
+            <p className="text-sm text-foreground mt-1">
               Showing {invoices.length} of {pagination.totalCount} invoices
             </p>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-slate-50">
+            <thead className="bg-secondary">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Invoice #
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Warehouse
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <div className="flex items-center gap-2">
+                    Warehouse
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter warehouses"
+                          className={cn(
+                            'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            isFilterActive(['warehouse'])
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-3.5 w-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-64 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Warehouse filter</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => clearColumnFilter(['warehouse'])}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {warehouses.map(warehouse => (
+                            <label key={warehouse.id} className="flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={columnFilters.warehouse.includes(warehouse.id)}
+                                onChange={() => toggleWarehouseFilter(warehouse.id)}
+                                className="rounded border-border"
+                              />
+                              <span className="text-foreground">{warehouse.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {columnFilters.warehouse.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {columnFilters.warehouse.map(wId => {
+                              const warehouse = warehouses.find(w => w.id === wId)
+                              return warehouse ? (
+                                <span
+                                  key={wId}
+                                  className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+                                >
+                                  {warehouse.name}
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleWarehouseFilter(wId)}
+                                    className="hover:text-primary/70"
+                                  >
+                                    <XIcon className="h-3 w-3" />
+                                  </button>
+                                </span>
+                              ) : null
+                            })}
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Billing Period
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Amount
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
-                  Status
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  <div className="flex items-center gap-2">
+                    Status
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label="Filter status"
+                          className={cn(
+                            'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                            isFilterActive(['status'])
+                              ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                              : 'hover:bg-muted hover:text-primary'
+                          )}
+                        >
+                          <Filter className="h-3.5 w-3.5" />
+                        </button>
+                      </PopoverTrigger>
+                      <PopoverContent align="start" className="w-64 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-foreground">Status filter</span>
+                          <button
+                            type="button"
+                            className="text-xs font-medium text-primary hover:underline"
+                            onClick={() => clearColumnFilter(['status'])}
+                          >
+                            Clear
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          {['pending', 'reconciled', 'disputed', 'paid'].map(status => (
+                            <label key={status} className="flex items-center gap-2 text-sm">
+                              <input
+                                type="checkbox"
+                                checked={columnFilters.status.includes(status)}
+                                onChange={() => toggleStatusFilter(status)}
+                                className="rounded border-border"
+                              />
+                              <span className="text-foreground capitalize">{status}</span>
+                            </label>
+                          ))}
+                        </div>
+                        {columnFilters.status.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {columnFilters.status.map(s => (
+                              <span
+                                key={s}
+                                className="inline-flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary capitalize"
+                              >
+                                {s}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleStatusFilter(s)}
+                                  className="hover:text-primary/70"
+                                >
+                                  <XIcon className="h-3 w-3" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">
                   Due Date
                 </th>
                 <th className="relative px-6 py-3">
@@ -450,30 +554,30 @@ export default function FinanceInvoicesPage() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-slate-400" />
-                    <p className="mt-2 text-slate-500">Loading invoices...</p>
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                    <p className="mt-2 text-muted-foreground">Loading invoices...</p>
                   </td>
                 </tr>
               ) : invoices.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center">
-                    <FileText className="h-12 w-12 mx-auto text-slate-400" />
-                    <p className="mt-2 text-slate-500">No invoices found</p>
+                    <FileText className="h-12 w-12 mx-auto text-muted-foreground" />
+                    <p className="mt-2 text-muted-foreground">No invoices found</p>
                   </td>
                 </tr>
               ) : (
                 invoices.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                  <tr key={invoice.id} className="hover:bg-secondary">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                       {invoice.invoiceNumber}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                       {invoice.warehouse.name}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {formatDate(invoice.billingPeriodStart)} - {formatDate(invoice.billingPeriodEnd)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 text-right">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground text-right">
                       {formatCurrency(invoice.totalAmount)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -481,7 +585,7 @@ export default function FinanceInvoicesPage() {
                         {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
                       {invoice.dueDate ? formatDate(invoice.dueDate) : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -510,7 +614,7 @@ export default function FinanceInvoicesPage() {
                             size="sm"
                             className="px-0 gap-1 text-red-600 hover:text-red-700"
                           >
-                            <X className="h-4 w-4" />
+                            <XIcon className="h-4 w-4" />
                             Dispute
                           </Button>
                         </>
@@ -532,7 +636,7 @@ export default function FinanceInvoicesPage() {
                             size="sm"
                             className="px-0 gap-1 text-red-600 hover:text-red-700"
                           >
-                            <X className="h-4 w-4" />
+                            <XIcon className="h-4 w-4" />
                             Dispute
                           </Button>
                         </>
@@ -553,21 +657,21 @@ export default function FinanceInvoicesPage() {
               <button
                 onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                 disabled={pagination.page === 1}
-                className="relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50"
+                className="relative inline-flex items-center px-4 py-2 border border-border text-sm font-medium rounded-md text-foreground bg-white hover:bg-secondary disabled:opacity-50"
               >
                 Previous
               </button>
               <button
                 onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.totalPages, prev.page + 1) }))}
                 disabled={pagination.page === pagination.totalPages}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50"
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-border text-sm font-medium rounded-md text-foreground bg-white hover:bg-secondary disabled:opacity-50"
               >
                 Next
               </button>
             </div>
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm text-slate-700">
+                <p className="text-sm text-foreground">
                   Showing{' '}
                   <span className="font-medium">
                     {(pagination.page - 1) * pagination.limit + 1}
@@ -586,14 +690,14 @@ export default function FinanceInvoicesPage() {
                   <button
                     onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                     disabled={pagination.page === 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-border bg-white text-sm font-medium text-muted-foreground hover:bg-secondary disabled:opacity-50"
                   >
                     Previous
                   </button>
                   <button
                     onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.totalPages, prev.page + 1) }))}
                     disabled={pagination.page === pagination.totalPages}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-border bg-white text-sm font-medium text-muted-foreground hover:bg-secondary disabled:opacity-50"
                   >
                     Next
                   </button>

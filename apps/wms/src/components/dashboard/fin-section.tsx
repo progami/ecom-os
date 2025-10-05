@@ -101,7 +101,7 @@ export function FinSection({ data, loading }: FinSectionProps) {
                     </div>
                     <div className="flex gap-4 text-xs">
                       <span className="text-red-600">{data.reconciliationStatus.mismatched} mismatched</span>
-                      <span className="text-slate-600">{data.reconciliationStatus.pending} pending</span>
+                      <span className="text-muted-foreground">{data.reconciliationStatus.pending} pending</span>
                     </div>
                   </div>
                 ) : (
@@ -117,9 +117,9 @@ export function FinSection({ data, loading }: FinSectionProps) {
       </div>
 
       {/* Storage Cost Link */}
-      <Link 
-        href="/finance/storage-ledger" 
-        className="block border rounded-lg p-4 hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors group"
+      <Link
+        href="/finance/storage-ledger"
+        className="block border rounded-lg p-4 hover:bg-muted transition-colors group"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -131,7 +131,7 @@ export function FinSection({ data, loading }: FinSectionProps) {
               <p className="text-sm text-muted-foreground">Detailed weekly and monthly cost analysis</p>
             </div>
           </div>
-          <ArrowRight className="h-5 w-5 text-slate-400 group-hover:text-slate-600 transition-colors" />
+          <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
         </div>
       </Link>
 
@@ -146,9 +146,9 @@ export function FinSection({ data, loading }: FinSectionProps) {
           </div>
           <div className="space-y-3">
             {data.recentInvoices.slice(0, 3).map((invoice) => (
-              <div key={invoice.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-[#06182b] rounded-lg">
+              <div key={invoice.id} className="flex items-center justify-between p-3 bg-secondary rounded-lg">
                 <div className="flex items-center gap-3">
-                  <FileText className="h-4 w-4 text-slate-600" />
+                  <FileText className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="text-sm font-medium">{invoice.clientName}</p>
                     <p className="text-xs text-muted-foreground">Invoice #{invoice.id}</p>

@@ -22,10 +22,10 @@ export function DevLoginWrapper() {
     <div className="mt-4">
       <div className="relative">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-300" />
+          <div className="w-full border-t border-border" />
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="px-2 bg-slate-50 dark:bg-[#041324] text-slate-500">
+          <span className="px-2 bg-secondary dark:bg-[#041324] text-muted-foreground">
             Development Only
           </span>
         </div>

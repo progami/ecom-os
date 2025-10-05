@@ -21,7 +21,7 @@ interface PageContentProps {
 
 export function PageContainer({ children, className }: PageContainerProps) {
   return (
-    <div className={cn('flex min-h-0 flex-1 flex-col bg-slate-50 dark:bg-[#041324]', className)}>
+    <div className={cn('flex min-h-0 flex-1 flex-col bg-background', className)}>
       {children}
     </div>
   )
@@ -29,7 +29,7 @@ export function PageContainer({ children, className }: PageContainerProps) {
 
 export function PageHeaderSection({ title, description, icon: Icon, actions, metadata }: PageHeaderProps) {
   return (
-    <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-4 shadow-soft backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-10 border-b border-border bg-card/95 px-4 py-4 shadow-soft backdrop-blur-xl dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] sm:px-6 lg:px-8">
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -44,7 +44,7 @@ export function PageHeaderSection({ title, description, icon: Icon, actions, met
                   {description}
                 </span>
               )}
-              <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">{title}</h1>
+              <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
             </div>
           </div>
           {actions && <div className="flex shrink-0 items-center gap-3">{actions}</div>}

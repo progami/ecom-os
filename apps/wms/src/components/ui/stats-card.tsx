@@ -19,34 +19,34 @@ export interface StatsCardProps {
 
 const variantStyles = {
   default: {
-    container: 'bg-white dark:bg-[#06182b]',
-    icon: 'text-slate-400 dark:text-slate-500',
-    value: 'text-slate-900 dark:text-white',
-    border: 'border-slate-200 dark:border-[#0b3a52]'
+    container: 'bg-card dark:bg-[#06182b]',
+    icon: 'text-muted-foreground',
+    value: 'text-foreground',
+    border: 'border-border dark:border-[#0b3a52]'
   },
   success: {
-    container: 'bg-white dark:bg-[#06182b]',
+    container: 'bg-card dark:bg-[#06182b]',
     icon: 'text-green-600 dark:text-green-500',
     value: 'text-green-600 dark:text-green-500',
-    border: 'border-slate-200 dark:border-[#0b3a52]'
+    border: 'border-border dark:border-[#0b3a52]'
   },
   warning: {
-    container: 'bg-white dark:bg-[#06182b]',
+    container: 'bg-card dark:bg-[#06182b]',
     icon: 'text-amber-600 dark:text-amber-500',
     value: 'text-amber-600 dark:text-amber-500',
-    border: 'border-slate-200 dark:border-[#0b3a52]'
+    border: 'border-border dark:border-[#0b3a52]'
   },
   danger: {
-    container: 'bg-white dark:bg-[#06182b]',
+    container: 'bg-card dark:bg-[#06182b]',
     icon: 'text-red-600 dark:text-red-500',
     value: 'text-red-600 dark:text-red-500',
-    border: 'border-slate-200 dark:border-[#0b3a52]'
+    border: 'border-border dark:border-[#0b3a52]'
   },
   info: {
-    container: 'bg-white dark:bg-[#06182b]',
+    container: 'bg-card dark:bg-[#06182b]',
     icon: 'text-cyan-600 dark:text-cyan-500',
     value: 'text-cyan-600 dark:text-cyan-500',
-    border: 'border-slate-200 dark:border-[#0b3a52]'
+    border: 'border-border dark:border-[#0b3a52]'
   }
 }
 
@@ -102,13 +102,13 @@ export function StatsCard({
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className={cn('text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider', sizes.titleSize)}>{title}</p>
+          <p className={cn('text-muted-foreground font-medium uppercase tracking-wider', sizes.titleSize)}>{title}</p>
           <div className="flex items-baseline gap-2 mt-2">
             <p className={cn('font-bold', sizes.valueSize, styles.value)}>
               {typeof value === 'number' ? value.toLocaleString() : value}
             </p>
             {subtitle && (
-              <p className={cn('text-slate-500 dark:text-slate-400', sizes.subtitleSize)}>{subtitle}</p>
+              <p className={cn('text-muted-foreground', sizes.subtitleSize)}>{subtitle}</p>
             )}
           </div>
           {trend && (
@@ -120,7 +120,7 @@ export function StatsCard({
                 {trend.value >= 0 ? '+' : ''}{trend.value}%
               </span>
               {trend.label && (
-                <span className="text-xs text-slate-500">{trend.label}</span>
+                <span className="text-xs text-muted-foreground">{trend.label}</span>
               )}
             </div>
           )}

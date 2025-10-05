@@ -228,8 +228,8 @@ function WarehouseAndRatesPageContent() {
       sortable: true,
       render: (_, row) => (
         <div className="flex flex-col">
-          <span className="font-medium text-slate-900">{row.name}</span>
-          <span className="text-xs text-slate-500">Code: {row.code}</span>
+          <span className="font-medium text-foreground">{row.name}</span>
+          <span className="text-xs text-muted-foreground">Code: {row.code}</span>
         </div>
       )
     },
@@ -241,7 +241,7 @@ function WarehouseAndRatesPageContent() {
       render: (value) => (
         <span
           className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-            value ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
+            value ? 'bg-green-100 text-green-700' : 'bg-muted text-foreground'
           }`}
         >
           {value ? 'Active' : 'Inactive'}
@@ -331,7 +331,7 @@ function WarehouseAndRatesPageContent() {
       key: 'costName',
       label: 'Cost Name',
       sortable: true,
-      render: (value) => <span className="text-sm text-slate-900">{value as string}</span>
+      render: (value) => <span className="text-sm text-foreground">{value as string}</span>
     },
     {
       key: 'costValue',
@@ -358,7 +358,7 @@ function WarehouseAndRatesPageContent() {
       label: 'End',
       sortable: true,
       className: 'w-32',
-      render: (value) => value ? formatDate(value as string) : <span className="text-slate-400">Open</span>
+      render: (value) => value ? formatDate(value as string) : <span className="text-muted-foreground">Open</span>
     },
     {
       key: 'status',
@@ -438,11 +438,11 @@ function WarehouseAndRatesPageContent() {
         <PageContent>
         <div className="flex flex-col gap-6 flex-1">
           {/* Warehouse List Section */}
-          <div className="border rounded-xl bg-white shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-[#0b3a52]">
+          <div className="border rounded-xl bg-card shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-[#0b3a52]">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Warehouses</h2>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Showing {warehouses.length} locations</p>
+                <h2 className="text-lg font-semibold text-foreground dark:text-white">Warehouses</h2>
+                <p className="text-sm text-muted-foreground dark:text-muted-foreground mt-1">Showing {warehouses.length} locations</p>
               </div>
               <div className="flex items-center gap-3">
                 <Button
@@ -455,10 +455,10 @@ function WarehouseAndRatesPageContent() {
                 >
                   <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                 </Button>
-                <label className="inline-flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                <label className="inline-flex items-center gap-2 text-sm text-foreground dark:text-muted-foreground">
                   <input
                     type="checkbox"
-                    className="rounded border-slate-300 dark:border-slate-600"
+                    className="rounded border-border"
                     checked={showInactiveWarehouses}
                     onChange={(event) => setShowInactiveWarehouses(event.target.checked)}
                   />
@@ -479,22 +479,22 @@ function WarehouseAndRatesPageContent() {
 
           {/* Warehouse Details Section */}
           {selectedWarehouse && (
-            <div className="border rounded-xl bg-white shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 px-6 py-4 border-b border-slate-200 dark:border-[#0b3a52]">
+            <div className="border rounded-xl bg-card shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 px-6 py-4 border-b border-border dark:border-[#0b3a52]">
                 <div>
                   <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{selectedWarehouse.name}</h2>
+                    <h2 className="text-xl font-semibold text-foreground dark:text-white">{selectedWarehouse.name}</h2>
                     <span
                       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                         selectedWarehouse.isActive
                           ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                          : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                          : 'bg-muted text-foreground dark:text-muted-foreground'
                       }`}
                     >
                       {selectedWarehouse.isActive ? 'Active' : 'Inactive'}
                     </span>
                   </div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Code: {selectedWarehouse.code}</p>
+                  <p className="text-sm text-muted-foreground dark:text-muted-foreground mt-1">Code: {selectedWarehouse.code}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -548,21 +548,21 @@ function WarehouseAndRatesPageContent() {
                     <div className="mt-6 space-y-6">
                       {/* Stats Grid */}
                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-[#0b3a52] dark:bg-[#041324]">
-                          <dt className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Status</dt>
-                          <dd className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
+                        <div className="rounded-xl border border-border bg-secondary p-4 dark:border-[#0b3a52] dark:bg-[#041324]">
+                          <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground dark:text-muted-foreground">Status</dt>
+                          <dd className="mt-2 text-2xl font-bold text-foreground dark:text-white">
                             {selectedWarehouse.isActive ? 'Active' : 'Inactive'}
                           </dd>
                         </div>
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-[#0b3a52] dark:bg-[#041324]">
-                          <dt className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Cost Rates</dt>
-                          <dd className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
+                        <div className="rounded-xl border border-border bg-secondary p-4 dark:border-[#0b3a52] dark:bg-[#041324]">
+                          <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground dark:text-muted-foreground">Cost Rates</dt>
+                          <dd className="mt-2 text-2xl font-bold text-foreground dark:text-white">
                             {selectedWarehouse._count.costRates}
                           </dd>
                         </div>
-                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-[#0b3a52] dark:bg-[#041324]">
-                          <dt className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Inventory Txns</dt>
-                          <dd className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">
+                        <div className="rounded-xl border border-border bg-secondary p-4 dark:border-[#0b3a52] dark:bg-[#041324]">
+                          <dt className="text-xs font-medium uppercase tracking-wider text-muted-foreground dark:text-muted-foreground">Inventory Txns</dt>
+                          <dd className="mt-2 text-2xl font-bold text-foreground dark:text-white">
                             {selectedWarehouse._count.inventoryTransactions}
                           </dd>
                         </div>
@@ -570,31 +570,31 @@ function WarehouseAndRatesPageContent() {
 
                       {/* Contact & Location Grid */}
                       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft dark:border-[#0b3a52] dark:bg-[#041324]">
-                          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Primary Contacts</h3>
+                        <div className="rounded-xl border border-border bg-card p-5 shadow-soft dark:border-[#0b3a52] dark:bg-[#041324]">
+                          <h3 className="text-sm font-semibold text-foreground dark:text-white">Primary Contacts</h3>
                           {selectedWarehouse.contactEmail || selectedWarehouse.contactPhone ? (
-                            <ul className="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+                            <ul className="mt-3 space-y-2 text-sm text-foreground dark:text-muted-foreground">
                               {selectedWarehouse.contactEmail && (
                                 <li className="flex items-start gap-2">
-                                  <span className="text-slate-500 dark:text-slate-400">Email:</span>
-                                  <span className="font-medium text-slate-900 dark:text-white">{selectedWarehouse.contactEmail}</span>
+                                  <span className="text-muted-foreground dark:text-muted-foreground">Email:</span>
+                                  <span className="font-medium text-foreground dark:text-white">{selectedWarehouse.contactEmail}</span>
                                 </li>
                               )}
                               {selectedWarehouse.contactPhone && (
                                 <li className="flex items-start gap-2">
-                                  <span className="text-slate-500 dark:text-slate-400">Phone:</span>
-                                  <span className="font-medium text-slate-900 dark:text-white">{selectedWarehouse.contactPhone}</span>
+                                  <span className="text-muted-foreground dark:text-muted-foreground">Phone:</span>
+                                  <span className="font-medium text-foreground dark:text-white">{selectedWarehouse.contactPhone}</span>
                                 </li>
                               )}
                             </ul>
                           ) : (
-                            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">No contacts on file.</p>
+                            <p className="mt-3 text-sm text-muted-foreground dark:text-muted-foreground">No contacts on file.</p>
                           )}
                         </div>
 
-                        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft dark:border-[#0b3a52] dark:bg-[#041324]">
-                          <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Location</h3>
-                          <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+                        <div className="rounded-xl border border-border bg-card p-5 shadow-soft dark:border-[#0b3a52] dark:bg-[#041324]">
+                          <h3 className="text-sm font-semibold text-foreground dark:text-white">Location</h3>
+                          <p className="mt-3 text-sm text-foreground dark:text-muted-foreground">
                             {selectedWarehouse.address ? selectedWarehouse.address : 'No address provided.'}
                           </p>
                           {selectedWarehouse.latitude && selectedWarehouse.longitude && (
@@ -623,28 +623,28 @@ function WarehouseAndRatesPageContent() {
                     )}
 
                     <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft dark:border-[#0b3a52] dark:bg-[#041324]">
-                        <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Active Rates</p>
-                        <p className="mt-2 text-3xl font-bold text-slate-900 dark:text-white">{selectedWarehouseStats.active}</p>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Currently applied</p>
+                      <div className="rounded-xl border border-border bg-card p-5 shadow-soft dark:border-[#0b3a52] dark:bg-[#041324]">
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground dark:text-muted-foreground">Active Rates</p>
+                        <p className="mt-2 text-3xl font-bold text-foreground dark:text-white">{selectedWarehouseStats.active}</p>
+                        <p className="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">Currently applied</p>
                       </div>
-                      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft dark:border-[#0b3a52] dark:bg-[#041324]">
-                        <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Last Effective</p>
-                        <p className="mt-2 text-lg font-semibold text-slate-900 dark:text-white">
+                      <div className="rounded-xl border border-border bg-card p-5 shadow-soft dark:border-[#0b3a52] dark:bg-[#041324]">
+                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground dark:text-muted-foreground">Last Effective</p>
+                        <p className="mt-2 text-lg font-semibold text-foreground dark:text-white">
                           {selectedWarehouseStats.lastUpdated ? formatDate(selectedWarehouseStats.lastUpdated.toISOString()) : 'No rates yet'}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Most recent start</p>
+                        <p className="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">Most recent start</p>
                       </div>
                     </div>
 
                     <div className="mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                       <div className="flex flex-wrap items-center gap-3 text-sm">
                         <div className="flex items-center gap-2">
-                          <label className="text-slate-600 dark:text-slate-400">Category</label>
+                          <label className="text-foreground dark:text-muted-foreground">Category</label>
                           <select
                             value={rateCategoryFilter}
                             onChange={(event) => setRateCategoryFilter(event.target.value)}
-                            className="rounded-md border-slate-300 text-sm dark:border-slate-600 dark:bg-[#041324] dark:text-slate-200"
+                            className="rounded-md border-border text-sm dark:bg-[#041324]"
                           >
                             <option value="all">All</option>
                             {costCategories.map((category) => (
@@ -655,14 +655,14 @@ function WarehouseAndRatesPageContent() {
                         <label className="inline-flex items-center gap-2">
                           <input
                             type="checkbox"
-                            className="rounded border-slate-300 dark:border-slate-600"
+                            className="rounded border-border"
                             checked={showActiveRatesOnly}
                             onChange={(event) => {
                               setShowActiveRatesOnly(event.target.checked)
                               setNow(Date.now())
                             }}
                           />
-                          <span className="text-slate-600 dark:text-slate-400">Active only</span>
+                          <span className="text-foreground dark:text-muted-foreground">Active only</span>
                         </label>
                       </div>
                       <div className="flex items-center gap-2">
@@ -726,14 +726,14 @@ function getCategoryBadgeClass(category: string) {
 
 function renderRateStatus(rate: CostRate, now: number) {
   if (now === 0) {
-    return <span className="text-xs text-slate-400">—</span>
+    return <span className="text-xs text-muted-foreground">—</span>
   }
 
   const effective = new Date(rate.effectiveDate).getTime()
   const end = rate.endDate ? new Date(rate.endDate).getTime() : null
 
   if (end !== null && end < now) {
-    return <span className="text-xs text-slate-500">Expired</span>
+    return <span className="text-xs text-muted-foreground">Expired</span>
   }
 
   if (effective > now) {
@@ -751,10 +751,10 @@ interface SummaryCardProps {
 
 function _SummaryCard({ title, value, description }: SummaryCardProps) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 shadow-soft dark:border-[#0b3a52] dark:bg-[#041324]">
-      <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">{title}</p>
-      <p className="mt-2 text-2xl font-bold text-slate-900 dark:text-white">{value}</p>
-      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{description}</p>
+    <div className="bg-white border border-border rounded-xl px-5 py-4 shadow-soft dark:border-[#0b3a52] dark:bg-[#041324]">
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground dark:text-muted-foreground">{title}</p>
+      <p className="mt-2 text-2xl font-bold text-foreground dark:text-white">{value}</p>
+      <p className="mt-1 text-xs text-muted-foreground dark:text-muted-foreground">{description}</p>
     </div>
   )
 }

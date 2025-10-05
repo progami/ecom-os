@@ -11,17 +11,17 @@ import {
   Truck,
   Box,
   Package,
+  Filter,
   type LucideIcon,
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
 import { Button } from '@/components/ui/button'
-import { formatCurrency } from '@/lib/utils'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { formatCurrency, cn } from '@/lib/utils'
 import { toast } from 'react-hot-toast'
 import type { CostLedgerBucketTotals, CostLedgerGroupResult } from '@ecom-os/ledger'
-
-const baseFilterInputClass = 'w-full rounded-md border border-muted px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary'
 
 interface CostLedgerResponse {
   groups: CostLedgerGroupResult[]
@@ -179,6 +179,25 @@ function CostLedgerPage() {
     })
   }, [ledgerData, columnFilters])
 
+  const clearColumnFilter = useCallback((keys: Array<keyof typeof columnFilters>) => {
+    setColumnFilters(prev => {
+      const next = { ...prev }
+      for (const key of keys) {
+        next[key] = ''
+      }
+      return next
+    })
+  }, [])
+
+  const isFilterActive = useCallback(
+    (keys: Array<keyof typeof columnFilters>) =>
+      keys.some(key => {
+        const value = columnFilters[key]
+        return value.trim().length > 0
+      }),
+    [columnFilters]
+  )
+
   const handleExport = useCallback(async () => {
     try {
       setExporting(true)
@@ -291,7 +310,7 @@ function CostLedgerPage() {
           ))}
         </StatsCardGrid>
 
-        <div className="rounded-xl border border-slate-200 bg-white shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
+        <div className="rounded-xl border border-border bg-card shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
           <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>
@@ -304,59 +323,489 @@ function CostLedgerPage() {
             <table className="w-full table-auto text-sm">
               <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-2 text-left font-semibold">Week Ending</th>
-                  <th className="px-3 py-2 text-right font-semibold">Storage</th>
-                  <th className="px-3 py-2 text-right font-semibold">Container</th>
-                  <th className="px-3 py-2 text-right font-semibold">Pallet</th>
-                  <th className="px-3 py-2 text-right font-semibold">Carton</th>
-                  <th className="px-3 py-2 text-right font-semibold">Unit</th>
-                  <th className="px-3 py-2 text-right font-semibold">Transportation</th>
-                  <th className="px-3 py-2 text-right font-semibold">Accessorial</th>
-                  <th className="px-3 py-2 text-right font-semibold">Other</th>
-                  <th className="px-3 py-2 text-right font-semibold">Total</th>
-                </tr>
-                <tr className="bg-white text-xs text-muted-foreground">
-                  <th className="px-3 py-2">
-                    <input
-                      type="text"
-                      value={columnFilters.weekEnding}
-                      onChange={(event) => setColumnFilters(prev => ({ ...prev, weekEnding: event.target.value }))}
-                      placeholder="Search week"
-                      className={baseFilterInputClass}
-                    />
+                  <th className="px-3 py-2 text-left font-semibold">
+                    <div className="flex items-center justify-between gap-1">
+                      <span>Week Ending</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Filter week ending"
+                            className={cn(
+                              'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                              isFilterActive(['weekEnding'])
+                                ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                                : 'hover:bg-muted hover:text-primary'
+                            )}
+                          >
+                            <Filter className="h-3.5 w-3.5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-64 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">Week ending filter</span>
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-primary hover:underline"
+                              onClick={() => clearColumnFilter(['weekEnding'])}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              value={columnFilters.weekEnding}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, weekEnding: e.target.value }))}
+                              placeholder="Search week"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </th>
-                  {[
-                    ['storageMin', 'storageMax'],
-                    ['containerMin', 'containerMax'],
-                    ['palletMin', 'palletMax'],
-                    ['cartonMin', 'cartonMax'],
-                    ['unitMin', 'unitMax'],
-                    ['transportationMin', 'transportationMax'],
-                    ['accessorialMin', 'accessorialMax'],
-                    ['otherMin', 'otherMax'],
-                    ['totalMin', 'totalMax'],
-                  ].map(([minKey, maxKey]) => (
-                    <th key={minKey} className="px-3 py-2">
-                      <div className="flex gap-2">
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          value={columnFilters[minKey as keyof typeof columnFilters] as string}
-                          onChange={(event) => setColumnFilters(prev => ({ ...prev, [minKey]: event.target.value }))}
-                          placeholder="Min"
-                          className={`${baseFilterInputClass} text-right`}
-                        />
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          value={columnFilters[maxKey as keyof typeof columnFilters] as string}
-                          onChange={(event) => setColumnFilters(prev => ({ ...prev, [maxKey]: event.target.value }))}
-                          placeholder="Max"
-                          className={`${baseFilterInputClass} text-right`}
-                        />
-                      </div>
-                    </th>
-                  ))}
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-between gap-1">
+                      <span>Storage</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Filter storage"
+                            className={cn(
+                              'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                              isFilterActive(['storageMin', 'storageMax'])
+                                ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                                : 'hover:bg-muted hover:text-primary'
+                            )}
+                          >
+                            <Filter className="h-3.5 w-3.5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-64 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">Storage filter</span>
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-primary hover:underline"
+                              onClick={() => clearColumnFilter(['storageMin', 'storageMax'])}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="number"
+                              value={columnFilters.storageMin}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, storageMin: e.target.value }))}
+                              placeholder="Minimum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                            <input
+                              type="number"
+                              value={columnFilters.storageMax}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, storageMax: e.target.value }))}
+                              placeholder="Maximum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-between gap-1">
+                      <span>Container</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Filter container"
+                            className={cn(
+                              'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                              isFilterActive(['containerMin', 'containerMax'])
+                                ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                                : 'hover:bg-muted hover:text-primary'
+                            )}
+                          >
+                            <Filter className="h-3.5 w-3.5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-64 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">Container filter</span>
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-primary hover:underline"
+                              onClick={() => clearColumnFilter(['containerMin', 'containerMax'])}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="number"
+                              value={columnFilters.containerMin}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, containerMin: e.target.value }))}
+                              placeholder="Minimum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                            <input
+                              type="number"
+                              value={columnFilters.containerMax}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, containerMax: e.target.value }))}
+                              placeholder="Maximum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-between gap-1">
+                      <span>Pallet</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Filter pallet"
+                            className={cn(
+                              'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                              isFilterActive(['palletMin', 'palletMax'])
+                                ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                                : 'hover:bg-muted hover:text-primary'
+                            )}
+                          >
+                            <Filter className="h-3.5 w-3.5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-64 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">Pallet filter</span>
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-primary hover:underline"
+                              onClick={() => clearColumnFilter(['palletMin', 'palletMax'])}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="number"
+                              value={columnFilters.palletMin}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, palletMin: e.target.value }))}
+                              placeholder="Minimum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                            <input
+                              type="number"
+                              value={columnFilters.palletMax}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, palletMax: e.target.value }))}
+                              placeholder="Maximum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-between gap-1">
+                      <span>Carton</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Filter carton"
+                            className={cn(
+                              'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                              isFilterActive(['cartonMin', 'cartonMax'])
+                                ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                                : 'hover:bg-muted hover:text-primary'
+                            )}
+                          >
+                            <Filter className="h-3.5 w-3.5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-64 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">Carton filter</span>
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-primary hover:underline"
+                              onClick={() => clearColumnFilter(['cartonMin', 'cartonMax'])}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="number"
+                              value={columnFilters.cartonMin}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, cartonMin: e.target.value }))}
+                              placeholder="Minimum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                            <input
+                              type="number"
+                              value={columnFilters.cartonMax}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, cartonMax: e.target.value }))}
+                              placeholder="Maximum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-between gap-1">
+                      <span>Unit</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Filter unit"
+                            className={cn(
+                              'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                              isFilterActive(['unitMin', 'unitMax'])
+                                ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                                : 'hover:bg-muted hover:text-primary'
+                            )}
+                          >
+                            <Filter className="h-3.5 w-3.5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-64 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">Unit filter</span>
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-primary hover:underline"
+                              onClick={() => clearColumnFilter(['unitMin', 'unitMax'])}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="number"
+                              value={columnFilters.unitMin}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, unitMin: e.target.value }))}
+                              placeholder="Minimum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                            <input
+                              type="number"
+                              value={columnFilters.unitMax}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, unitMax: e.target.value }))}
+                              placeholder="Maximum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-between gap-1">
+                      <span>Transportation</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Filter transportation"
+                            className={cn(
+                              'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                              isFilterActive(['transportationMin', 'transportationMax'])
+                                ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                                : 'hover:bg-muted hover:text-primary'
+                            )}
+                          >
+                            <Filter className="h-3.5 w-3.5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-64 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">Transportation filter</span>
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-primary hover:underline"
+                              onClick={() => clearColumnFilter(['transportationMin', 'transportationMax'])}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="number"
+                              value={columnFilters.transportationMin}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, transportationMin: e.target.value }))}
+                              placeholder="Minimum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                            <input
+                              type="number"
+                              value={columnFilters.transportationMax}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, transportationMax: e.target.value }))}
+                              placeholder="Maximum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-between gap-1">
+                      <span>Accessorial</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Filter accessorial"
+                            className={cn(
+                              'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                              isFilterActive(['accessorialMin', 'accessorialMax'])
+                                ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                                : 'hover:bg-muted hover:text-primary'
+                            )}
+                          >
+                            <Filter className="h-3.5 w-3.5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-64 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">Accessorial filter</span>
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-primary hover:underline"
+                              onClick={() => clearColumnFilter(['accessorialMin', 'accessorialMax'])}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="number"
+                              value={columnFilters.accessorialMin}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, accessorialMin: e.target.value }))}
+                              placeholder="Minimum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                            <input
+                              type="number"
+                              value={columnFilters.accessorialMax}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, accessorialMax: e.target.value }))}
+                              placeholder="Maximum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-between gap-1">
+                      <span>Other</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Filter other"
+                            className={cn(
+                              'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                              isFilterActive(['otherMin', 'otherMax'])
+                                ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                                : 'hover:bg-muted hover:text-primary'
+                            )}
+                          >
+                            <Filter className="h-3.5 w-3.5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-64 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">Other filter</span>
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-primary hover:underline"
+                              onClick={() => clearColumnFilter(['otherMin', 'otherMax'])}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="number"
+                              value={columnFilters.otherMin}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, otherMin: e.target.value }))}
+                              placeholder="Minimum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                            <input
+                              type="number"
+                              value={columnFilters.otherMax}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, otherMax: e.target.value }))}
+                              placeholder="Maximum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    <div className="flex items-center justify-between gap-1">
+                      <span>Total</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Filter total"
+                            className={cn(
+                              'inline-flex h-7 w-7 items-center justify-center rounded-md border border-transparent text-muted-foreground transition-colors',
+                              isFilterActive(['totalMin', 'totalMax'])
+                                ? 'border-primary/50 bg-primary/10 text-primary hover:bg-primary/20'
+                                : 'hover:bg-muted hover:text-primary'
+                            )}
+                          >
+                            <Filter className="h-3.5 w-3.5" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-64 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-foreground">Total filter</span>
+                            <button
+                              type="button"
+                              className="text-xs font-medium text-primary hover:underline"
+                              onClick={() => clearColumnFilter(['totalMin', 'totalMax'])}
+                            >
+                              Clear
+                            </button>
+                          </div>
+                          <div className="space-y-2">
+                            <input
+                              type="number"
+                              value={columnFilters.totalMin}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, totalMin: e.target.value }))}
+                              placeholder="Minimum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                            <input
+                              type="number"
+                              value={columnFilters.totalMax}
+                              onChange={(e) => setColumnFilters(prev => ({ ...prev, totalMax: e.target.value }))}
+                              placeholder="Maximum"
+                              className="w-full rounded-md border border-border px-2 py-1 text-sm"
+                            />
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody>

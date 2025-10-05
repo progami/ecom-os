@@ -24,18 +24,18 @@ export function FormField({
 }: FormFieldProps) {
   return (
     <div className={`space-y-1 ${className}`}>
-      <label 
+      <label
         htmlFor={name}
-        className="block text-sm font-medium text-slate-700"
+        className="block text-sm font-medium text-foreground"
       >
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
-      
+
       {children}
-      
+
       {hint && !error && (
-        <p className="text-xs text-slate-500">{hint}</p>
+        <p className="text-xs text-muted-foreground">{hint}</p>
       )}
       
       {error && (
@@ -86,8 +86,8 @@ export function InputField({
         className={`
           w-full px-3 py-2 border rounded-lg
           focus:outline-none focus:ring-2 focus:ring-cyan-600
-          ${fieldProps.error ? 'border-red-500' : 'border-slate-300'}
-          ${disabled ? 'bg-slate-100 cursor-not-allowed' : ''}
+          ${fieldProps.error ? 'border-red-500' : 'border-border'}
+          ${disabled ? 'bg-muted cursor-not-allowed' : ''}
         `}
       />
     </FormField>
@@ -121,8 +121,8 @@ export function SelectField({
         className={`
           w-full px-3 py-2 border rounded-lg
           focus:outline-none focus:ring-2 focus:ring-cyan-600
-          ${fieldProps.error ? 'border-red-500' : 'border-slate-300'}
-          ${disabled ? 'bg-slate-100 cursor-not-allowed' : ''}
+          ${fieldProps.error ? 'border-red-500' : 'border-border'}
+          ${disabled ? 'bg-muted cursor-not-allowed' : ''}
         `}
       >
         <option value="">{placeholder}</option>
@@ -165,8 +165,8 @@ export function TextAreaField({
         className={`
           w-full px-3 py-2 border rounded-lg
           focus:outline-none focus:ring-2 focus:ring-cyan-600
-          ${fieldProps.error ? 'border-red-500' : 'border-slate-300'}
-          ${disabled ? 'bg-slate-100 cursor-not-allowed' : ''}
+          ${fieldProps.error ? 'border-red-500' : 'border-border'}
+          ${disabled ? 'bg-muted cursor-not-allowed' : ''}
         `}
       />
     </FormField>
@@ -208,13 +208,13 @@ export function CheckboxField({
             ${disabled ? 'cursor-not-allowed' : ''}
           `}
         />
-        <span className="text-sm font-medium text-slate-700">
+        <span className="text-sm font-medium text-foreground">
           {label}
         </span>
       </label>
-      
+
       {hint && (
-        <p className="text-xs text-slate-500 ml-6">{hint}</p>
+        <p className="text-xs text-muted-foreground ml-6">{hint}</p>
       )}
     </div>
   )

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { toast } from 'react-hot-toast'
@@ -31,7 +31,7 @@ interface PurchaseOrderSummary {
   id: string
   orderNumber: string
   type: 'PURCHASE' | 'FULFILLMENT' | 'ADJUSTMENT'
-  status: 'DRAFT' | 'AWAITING_PROOF' | 'REVIEW' | 'POSTED' | 'CANCELLED' | 'CLOSED'
+  status: 'DRAFT' | 'SHIPPED' | 'WAREHOUSE' | 'CANCELLED' | 'CLOSED'
   warehouseCode: string
   warehouseName: string
   counterpartyName: string | null
@@ -87,16 +87,14 @@ function statusBadgeClasses(status: PurchaseOrderSummary['status']) {
   switch (status) {
     case 'DRAFT':
       return 'bg-amber-50 text-amber-700 border border-amber-200'
-    case 'AWAITING_PROOF':
+    case 'SHIPPED':
       return 'bg-sky-50 text-sky-700 border border-sky-200'
-    case 'REVIEW':
-      return 'bg-brand-teal-50 text-brand-teal-700 border border-brand-teal-200'
-    case 'POSTED':
+    case 'WAREHOUSE':
       return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
     case 'CANCELLED':
       return 'bg-red-50 text-red-700 border border-red-200'
     case 'CLOSED':
-      return 'bg-slate-100 text-slate-600 border border-slate-200'
+      return 'bg-muted text-muted-foreground border border-border'
     default:
       return 'bg-muted text-muted-foreground border border-muted'
   }
@@ -106,12 +104,10 @@ function formatStatusLabel(status: PurchaseOrderSummary['status']) {
   switch (status) {
     case 'DRAFT':
       return 'Draft'
-    case 'AWAITING_PROOF':
-      return 'Awaiting Proof'
-    case 'REVIEW':
-      return 'Review'
-    case 'POSTED':
-      return 'Posted'
+    case 'SHIPPED':
+      return 'In Transit'
+    case 'WAREHOUSE':
+      return 'At Warehouse'
     case 'CANCELLED':
       return 'Cancelled'
     case 'CLOSED':
@@ -245,6 +241,51 @@ export default function PurchaseOrderDetailPage() {
       Object.keys(attachmentSummary).filter(category => !knownAttachmentCategories.has(category)),
     [attachmentSummary, knownAttachmentCategories]
   )
+
+  const hasAttachment = useCallback(
+    (categories: string | string[]) => {
+      const list = Array.isArray(categories) ? categories : [categories]
+      return list.some(category => (attachmentSummary[category]?.length ?? 0) > 0)
+    },
+    [attachmentSummary]
+  )
+
+  const hasPostedMovement = useMemo(
+    () => movementNotes.some(note => note.status === 'POSTED'),
+    [movementNotes]
+  )
+
+  const isInbound = order.type === 'PURCHASE'
+
+  const requirementItems = useMemo(() => {
+    if (!order) return []
+
+    const inboundRequirements: Array<{ label: string; met: boolean }> = [
+      { label: 'Pro forma invoice uploaded', met: hasAttachment('proforma_invoice') },
+      { label: 'Commercial invoice on file', met: hasAttachment('commercial_invoice') },
+      { label: 'House B/L or Bill of Lading attached', met: hasAttachment(['house_bl', 'bill_of_lading']) },
+      { label: 'Packing list uploaded', met: hasAttachment('packing_list') },
+      { label: 'Delivery note approved by admin', met: hasPostedMovement },
+      { label: 'Warehouse invoice received', met: invoices.length > 0 },
+    ]
+
+    const outboundRequirements: Array<{ label: string; met: boolean }> = [
+      { label: 'Pick & pack documents uploaded', met: hasAttachment(['packing_list', 'cube_master']) },
+      { label: 'Carrier labels / BOL on file', met: hasAttachment(['house_bl', 'bill_of_lading']) },
+      { label: 'Proof of delivery captured', met: hasAttachment('proof_of_delivery') || hasPostedMovement },
+      { label: 'Warehouse invoice received', met: invoices.length > 0 },
+    ]
+
+    const stageByStatus: Record<PurchaseOrderSummary['status'], Array<{ label: string; met: boolean }>> = {
+      DRAFT: isInbound ? inboundRequirements.slice(0, 1) : outboundRequirements.slice(0, 1),
+      SHIPPED: isInbound ? inboundRequirements.slice(0, 4) : outboundRequirements.slice(0, 3),
+      WAREHOUSE: isInbound ? inboundRequirements.slice(0, 5) : outboundRequirements.slice(0, 3),
+      CANCELLED: [],
+      CLOSED: isInbound ? inboundRequirements.slice(0, 6) : outboundRequirements.slice(0, 4),
+    }
+
+    return stageByStatus[order.status] ?? []
+  }, [order, isInbound, hasAttachment, hasPostedMovement, invoices.length])
 
   const attachmentCategoriesOrdered = useMemo(() => {
     const priority = ['movement_note']
@@ -392,14 +433,21 @@ export default function PurchaseOrderDetailPage() {
     if (!order || statusUpdating || detailsSaving) return
     if (nextStatus === order.status) return
 
-    const allowed = ['DRAFT', 'AWAITING_PROOF', 'REVIEW', 'POSTED'] as const
+    const allowed = ['DRAFT', 'SHIPPED', 'WAREHOUSE', 'CLOSED'] as const
     if (!allowed.includes(nextStatus as typeof allowed[number])) {
       toast.error('Unsupported status change')
       return
     }
 
-    if (nextStatus === 'POSTED') {
-      const confirmed = window.confirm('Approve and post this purchase order? This will lock the workflow state.')
+    const confirmationMessage =
+      nextStatus === 'WAREHOUSE'
+        ? 'Approve the delivery note and move this order into the warehouse? This requires admin privileges.'
+        : nextStatus === 'CLOSED'
+          ? 'Close this order? This will lock further operational changes.'
+          : undefined
+
+    if (confirmationMessage) {
+      const confirmed = window.confirm(confirmationMessage)
       if (!confirmed) {
         return
       }
@@ -421,13 +469,15 @@ export default function PurchaseOrderDetailPage() {
 
       const updated = await response.json()
       setOrder(updated)
-      toast.success(
-        nextStatus === 'POSTED'
-          ? 'Purchase order posted'
-          : nextStatus === 'AWAITING_PROOF'
-            ? 'Purchase order marked as awaiting proof'
-            : 'Purchase order returned to draft'
-      )
+      const successMessage =
+        nextStatus === 'SHIPPED'
+          ? 'Purchase order marked as in transit'
+          : nextStatus === 'WAREHOUSE'
+            ? 'Delivery note approved – purchase order is now at warehouse'
+            : nextStatus === 'CLOSED'
+              ? 'Purchase order closed'
+              : 'Purchase order returned to draft'
+      toast.success(successMessage)
     } catch (_error) {
       toast.error('Failed to update status')
     } finally {
@@ -506,35 +556,34 @@ export default function PurchaseOrderDetailPage() {
   const totalQuantity = order.lines.reduce((sum, line) => sum + line.quantity, 0)
   const formatCurrency = (value: number, currency: string) =>
     value.toLocaleString(undefined, { style: 'currency', currency })
-  const isInbound = order.type === 'PURCHASE'
   const workflowLabel = isInbound ? 'Receive' : order.type === 'FULFILLMENT' ? 'Ship' : 'Adjustment'
   const statusHelper = statusUpdating
     ? 'Updating status…'
     : detailsSaving
       ? 'Saving purchase order changes…'
       : order.status === 'DRAFT'
-        ? 'Prepare the order and submit for proof once documents are ready.'
-        : order.status === 'AWAITING_PROOF'
-          ? 'We are waiting on a delivery note or supporting documents.'
-          : order.status === 'REVIEW'
-            ? 'Documents are in. Complete the review and decide to post or send back.'
-            : order.status === 'POSTED'
-              ? 'Order posted to the ledger. No further changes allowed.'
-              : order.status === 'CANCELLED'
-                ? 'This purchase order was cancelled early in the workflow.'
-                : order.status === 'CLOSED'
-                  ? 'This purchase order is closed and archived.'
-                  : 'Review the current status for next steps.'
+        ? 'Attach the pro forma invoice and confirm supplier details before booking freight.'
+        : order.status === 'SHIPPED'
+          ? 'Cargo is in transit. Collect the commercial invoice, House B/L, and packing list.'
+          : order.status === 'WAREHOUSE'
+            ? (isInbound
+              ? 'Delivery note is ready for admin approval to release stock into inventory.'
+              : 'Shipment has left the warehouse. Capture carrier POD or FBA acceptance.')
+            : order.status === 'CANCELLED'
+              ? 'This order has been cancelled and recorded for audit.'
+              : order.status === 'CLOSED'
+                ? 'Order is closed and fully reconciled.'
+                : 'Review the current status for next steps.'
   const statusSteps = [
     { value: 'DRAFT', label: 'Draft' },
-    { value: 'AWAITING_PROOF', label: isInbound ? 'Awaiting Proof (Inbound)' : 'Awaiting Proof' },
-    { value: 'REVIEW', label: 'Review' },
-    { value: 'POSTED', label: 'Posted' },
+    { value: 'SHIPPED', label: isInbound ? 'In Transit (Inbound)' : 'In Transit' },
+    { value: 'WAREHOUSE', label: 'At Warehouse' },
+    { value: 'CLOSED', label: 'Closed' },
   ] as const
   const rawStatusIndex = statusSteps.findIndex(step => step.value === order.status)
   const activeStatusIndex = rawStatusIndex === -1 ? 0 : rawStatusIndex
   const showMovementTab = movementNotes.length > 0
-  const canEditDetails = ['DRAFT', 'AWAITING_PROOF', 'REVIEW', 'POSTED'].includes(order.status)
+  const canEditDetails = ['DRAFT', 'SHIPPED'].includes(order.status)
   const actionBusy = statusUpdating || detailsSaving
   const tabConfig = [
     { id: 'details', label: isInbound ? 'Receipt Details' : 'Shipment Details', icon: <FileText className="h-4 w-4" /> },
@@ -557,7 +606,7 @@ export default function PurchaseOrderDetailPage() {
 
   const breadcrumbItems = [
     { label: 'Operations', href: '/operations' },
-    { label: 'Purchase Orders', href: '/operations/purchase-orders' },
+    { label: 'Purchase/Sales Orders', href: '/operations/purchase-orders' },
     { label: `PO ${order.orderNumber}` },
   ]
 
@@ -570,7 +619,7 @@ export default function PurchaseOrderDetailPage() {
       <nav className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
         {breadcrumbItems.map((item, index) => (
           <div key={`${item.label}-${index}`} className="flex items-center gap-1">
-            {index > 0 && <ChevronRight className="h-4 w-4 text-slate-300" />}
+            {index > 0 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
             {item.href ? (
               <Link href={item.href} className="hover:text-foreground transition-colors">
                 {item.label}
@@ -622,26 +671,40 @@ export default function PurchaseOrderDetailPage() {
                 })}
               </div>
               <p className="text-xs text-muted-foreground max-w-sm">{statusHelper}</p>
+              {requirementItems.length > 0 && (
+                <ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+                  {requirementItems.map((requirement, index) => (
+                    <li key={`${order.id}-requirement-${index}`} className="flex items-center gap-2">
+                      <span
+                        className={`h-3 w-3 rounded-full border ${requirement.met ? 'bg-emerald-500 border-emerald-500' : 'bg-transparent border-border'}`}
+                        aria-hidden="true"
+                      />
+                      <span className={requirement.met ? 'text-foreground' : ''}>{requirement.label}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 {order.status === 'DRAFT' && (
                   <>
                     <Button
-                      onClick={() => updateStatus('AWAITING_PROOF')}
+                      onClick={() => updateStatus('SHIPPED')}
                       disabled={actionBusy}
                       className="gap-2"
                     >
-                      {statusUpdating ? 'Moving…' : 'Submit for Proof'}
+                      {statusUpdating ? 'Moving…' : 'Mark In Transit'}
                     </Button>
                   </>
                 )}
-                {order.status === 'AWAITING_PROOF' && (
+                {order.status === 'SHIPPED' && (
                   <>
                     <Button
-                      onClick={() => updateStatus('REVIEW')}
-                      disabled={actionBusy}
+                      onClick={() => updateStatus('WAREHOUSE')}
+                      disabled={actionBusy || session?.user?.role !== 'admin'}
                       className="gap-2"
+                      title={session?.user?.role !== 'admin' ? 'Only administrators can approve delivery notes' : undefined}
                     >
-                      {statusUpdating ? 'Advancing…' : 'Mark Ready for Review'}
+                      {statusUpdating ? 'Approving…' : 'Approve Delivery Note'}
                     </Button>
                     <Button
                       variant="outline"
@@ -652,25 +715,18 @@ export default function PurchaseOrderDetailPage() {
                     </Button>
                   </>
                 )}
-                {order.status === 'REVIEW' && (
+                {order.status === 'WAREHOUSE' && (
                   <>
                     <Button
-                      onClick={() => updateStatus('POSTED')}
+                      onClick={() => updateStatus('CLOSED')}
                       disabled={actionBusy}
                       className="gap-2"
                     >
-                      {statusUpdating ? 'Posting…' : 'Approve & Post'}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => updateStatus('AWAITING_PROOF')}
-                      disabled={actionBusy}
-                    >
-                      Return to Proof
+                      {statusUpdating ? 'Closing…' : 'Close order'}
                     </Button>
                   </>
                 )}
-                {order.status !== 'POSTED' && order.status !== 'CANCELLED' && (
+                {order.status !== 'CLOSED' && order.status !== 'CANCELLED' && (
                   <Button variant="destructive" onClick={handleVoid} disabled={actionBusy || actionLoading}>
                     {actionLoading ? 'Working…' : 'Void PO'}
                   </Button>
@@ -701,7 +757,7 @@ export default function PurchaseOrderDetailPage() {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-white p-4 shadow-soft">
+        <div className="rounded-xl border bg-card p-4 shadow-soft">
           <div className="flex flex-col gap-2 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between">
             <span>Expected: {formatDate(order.expectedDate)} • Posted: {formatDate(order.postedAt)}</span>
             <span>Created: {formatDate(order.createdAt)} • Updated: {formatDate(order.updatedAt)}</span>
@@ -829,7 +885,7 @@ export default function PurchaseOrderDetailPage() {
               {attachmentCategoriesOrdered.map(category => {
                 const items = attachmentSummary[category.id] ?? []
                 return (
-                  <div key={category.id} className="rounded-xl border bg-white p-4">
+                  <div key={category.id} className="rounded-xl border bg-card p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -858,7 +914,7 @@ export default function PurchaseOrderDetailPage() {
                         </p>
                       ) : (
                         items.map(item => (
-                          <div key={`${category.id}-${item.name}-${item.source}`} className="rounded border bg-slate-50 p-3">
+                          <div key={`${category.id}-${item.name}-${item.source}`} className="rounded border bg-secondary p-3">
                             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                               <div>
                                 <p className="text-sm font-medium text-foreground">{item.name}</p>
@@ -883,10 +939,10 @@ export default function PurchaseOrderDetailPage() {
               })}
 
               {additionalAttachmentCategories.length > 0 && (
-                <div className="rounded-xl border bg-white p-4 space-y-3">
+                <div className="rounded-xl border bg-card p-4 space-y-3">
                   <h3 className="text-sm font-semibold text-foreground">Additional Documents</h3>
                   {additionalAttachmentCategories.map(category => (
-                    <div key={category} className="rounded border bg-slate-50 p-3 space-y-2">
+                    <div key={category} className="rounded border bg-secondary p-3 space-y-2">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-sm font-medium text-foreground">{category}</p>
@@ -895,7 +951,7 @@ export default function PurchaseOrderDetailPage() {
                         <Badge variant="default">{attachmentSummary[category].length}</Badge>
                       </div>
                       {attachmentSummary[category].map(item => (
-                        <div key={`${category}-${item.name}-${item.source}`} className="rounded border bg-white p-2">
+                        <div key={`${category}-${item.name}-${item.source}`} className="rounded border bg-card p-2">
                           <p className="text-sm text-foreground">{item.name}</p>
                           <p className="text-xs text-muted-foreground">{formatFileSize(item.size)} • {item.source}</p>
                           {item.viewUrl && (

@@ -191,19 +191,19 @@ export default function EditRatePage() {
 
         <form onSubmit={handleSubmit} className="bg-white border rounded-lg p-6 space-y-6">
           {/* Read-only Information */}
-          <div className="bg-slate-50 rounded-lg p-4 space-y-3">
-            <h3 className="font-semibold text-slate-900">Rate Details</h3>
+          <div className="bg-secondary rounded-lg p-4 space-y-3">
+            <h3 className="font-semibold text-foreground">Rate Details</h3>
             <div className="grid gap-4 md:grid-cols-3 text-sm">
               <div>
-                <span className="text-slate-600">Warehouse:</span>
+                <span className="text-foreground">Warehouse:</span>
                 <p className="font-medium">{rate.warehouse.name} ({rate.warehouse.code})</p>
               </div>
               <div>
-                <span className="text-slate-600">Category:</span>
+                <span className="text-foreground">Category:</span>
                 <p className="font-medium">{rate.costCategory}</p>
               </div>
               <div>
-                <span className="text-slate-600">Effective Date:</span>
+                <span className="text-foreground">Effective Date:</span>
                 <p className="font-medium flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
                   {new Date(rate.effectiveDate).toLocaleDateString()}
@@ -215,19 +215,19 @@ export default function EditRatePage() {
           <div className="grid gap-6 md:grid-cols-2">
             {/* Cost Name */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Cost Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={formData.costName}
                 onChange={(e) => setFormData({ ...formData, costName: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 required
                 disabled={rate.costCategory === 'Storage'}
               />
               {rate.costCategory === 'Storage' && (
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   Storage category name cannot be changed
                 </p>
               )}
@@ -235,13 +235,13 @@ export default function EditRatePage() {
 
             {/* Unit of Measure */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Unit of Measure <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.unitOfMeasure}
                 onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 required
                 disabled={rate.costCategory === 'Storage'}
               >
@@ -253,7 +253,7 @@ export default function EditRatePage() {
                 ))}
               </select>
               {rate.costCategory === 'Storage' && (
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-muted-foreground mt-1">
                   Storage must use pallet/week
                 </p>
               )}
@@ -261,7 +261,7 @@ export default function EditRatePage() {
 
             {/* Cost Value */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 Rate (£) <span className="text-red-500">*</span>
               </label>
               <input
@@ -270,14 +270,14 @@ export default function EditRatePage() {
                 min="0"
                 value={formData.costValue}
                 onChange={(e) => setFormData({ ...formData, costValue: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               />
             </div>
 
             {/* End Date */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
                 End Date
               </label>
               <input
@@ -285,9 +285,9 @@ export default function EditRatePage() {
                 value={formData.endDate}
                 onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                 min={rate.effectiveDate.split('T')[0]}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
               />
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-muted-foreground mt-1">
                 Set an end date to expire this rate
               </p>
             </div>
@@ -313,7 +313,7 @@ export default function EditRatePage() {
             <button
               type="button"
               onClick={handleCancel}
-              className="px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50"
+              className="px-4 py-2 border border-border rounded-md text-foreground hover:bg-secondary"
               disabled={saving || checkingOverlap}
             >
               <X className="h-4 w-4 mr-2 inline" />

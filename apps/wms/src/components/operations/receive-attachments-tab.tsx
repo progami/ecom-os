@@ -40,6 +40,12 @@ interface ApiAttachment {
 
 export const ATTACHMENT_CATEGORIES = [
   {
+    id: 'proforma_invoice',
+    label: 'Pro Forma Invoice',
+    description: 'Supplier quotation and payment terms',
+    required: false
+  },
+  {
     id: 'commercial_invoice',
     label: 'Commercial Invoice',
     description: 'Invoice with pricing',
@@ -52,6 +58,12 @@ export const ATTACHMENT_CATEGORIES = [
     required: false
   },
   {
+    id: 'house_bl',
+    label: 'House B/L',
+    description: 'House bill issued by forwarder',
+    required: false
+  },
+  {
     id: 'packing_list',
     label: 'Packing List',
     description: 'Items & quantities',
@@ -59,8 +71,8 @@ export const ATTACHMENT_CATEGORIES = [
   },
   {
     id: 'movement_note',
-    label: 'Movement Note',
-    description: 'Proof of movement',
+    label: 'Delivery Note',
+    description: 'Signed warehouse receiving document',
     required: false
   },
   {
@@ -79,6 +91,12 @@ export const ATTACHMENT_CATEGORIES = [
     id: 'custom_declaration',
     label: 'CDS',
     description: 'Customs clearance',
+    required: false
+  },
+  {
+    id: 'proof_of_delivery',
+    label: 'Proof of Delivery',
+    description: 'Customer or FBA receipt confirmation',
     required: false
   }
 ]
@@ -289,13 +307,13 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
   return (
     <div className="space-y-6">
       {/* Transaction Documents Section */}
-      <div className="bg-white rounded-xl border">
-        <div className="px-6 py-4 border-b bg-slate-50">
+      <div className="bg-card rounded-xl border">
+        <div className="px-6 py-4 border-b bg-secondary">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Transaction Documents
           </h3>
-          <p className="text-sm text-slate-600 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             {transactionId ? 'Upload or replace supporting documents' : 'Upload supporting documents'} (Max 5MB per file)
           </p>
         </div>
@@ -307,7 +325,7 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
           const isUploading = uploading[category.id]
           
           return (
-            <div key={category.id} className="border rounded-lg p-4 bg-slate-50 hover:shadow-soft transition-shadow">
+            <div key={category.id} className="border rounded-lg p-4 bg-secondary hover:shadow-soft transition-shadow">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">
                   <h4 className="font-medium text-sm flex items-center gap-2">
@@ -316,18 +334,18 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
                       <Check className="h-4 w-4 text-green-600" />
                     )}
                   </h4>
-                  <p className="text-xs text-slate-600 mt-0.5">{category.description}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{category.description}</p>
                 </div>
               </div>
               
               {attachment ? (
-                <div className="bg-white p-3 rounded border border-slate-200">
+                <div className="bg-card p-3 rounded border border-border">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <FileText className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                      <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm text-slate-700 truncate">{attachment.name}</p>
-                        <p className="text-xs text-slate-500">{formatFileSize(attachment.size)}</p>
+                        <p className="text-sm text-foreground truncate">{attachment.name}</p>
+                        <p className="text-xs text-muted-foreground">{formatFileSize(attachment.size)}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 ml-2">
@@ -360,19 +378,19 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
                 <div className="upload-container">
                   <label htmlFor={`${category.id}-upload`} className="cursor-pointer block">
                     <div 
-                      className={`border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors ${
+                      className={`border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-muted-foreground transition-colors ${
                         isUploading ? 'opacity-50 cursor-wait' : ''
                       }`}
                     >
                       {isUploading ? (
                         <>
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary mx-auto" />
-                          <p className="text-xs text-slate-600 mt-2">Uploading...</p>
+                          <p className="text-xs text-muted-foreground mt-2">Uploading...</p>
                         </>
                       ) : (
                         <>
-                          <Upload className="h-5 w-5 text-slate-400 mx-auto" />
-                          <p className="text-xs text-slate-600 mt-1">Click to upload</p>
+                          <Upload className="h-5 w-5 text-muted-foreground mx-auto" />
+                          <p className="text-xs text-muted-foreground mt-1">Click to upload</p>
                         </>
                       )}
                     </div>
@@ -396,13 +414,13 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
       
       {Object.keys(uploading).some(key => uploading[key]) && progress.percentage > 0 && (
         <div className="mt-4">
-          <div className="bg-slate-200 rounded-full h-2">
+          <div className="bg-muted rounded-full h-2">
             <div 
               className="bg-primary h-2 rounded-full transition-all duration-300"
               style={{ width: `${progress.percentage}%` }}
             />
           </div>
-          <p className="text-xs text-slate-600 mt-1 text-center">
+          <p className="text-xs text-muted-foreground mt-1 text-center">
             Uploading: {progress.percentage}%
           </p>
         </div>

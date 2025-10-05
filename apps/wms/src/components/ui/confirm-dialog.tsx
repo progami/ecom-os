@@ -55,29 +55,29 @@ export function ConfirmDialog({
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4 text-center">
         <div
-          className="fixed inset-0 bg-slate-500 bg-opacity-75 transition-opacity"
+          className="fixed inset-0 bg-background/80 backdrop-blur-sm transition-opacity"
           onClick={onClose}
         />
-        
-        <div className="relative transform overflow-hidden rounded-lg bg-white text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
-          <div className="bg-white px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+
+        <div className="relative transform overflow-hidden rounded-lg bg-card text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg">
+          <div className="bg-card px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
             <div className="sm:flex sm:items-start">
               <div className={`mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full ${styles.bg} sm:mx-0 sm:h-10 sm:w-10`}>
                 <AlertTriangle className={`h-6 w-6 ${styles.icon}`} />
               </div>
               <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-                <h3 className="text-lg font-semibold leading-6 text-slate-900">
+                <h3 className="text-lg font-semibold leading-6 text-foreground">
                   {title}
                 </h3>
                 <div className="mt-2">
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-muted-foreground">
                     {message}
                   </p>
                 </div>
               </div>
             </div>
           </div>
-          <div className="bg-slate-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+          <div className="bg-secondary px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
             <button
               type="button"
               className={`inline-flex w-full justify-center rounded-md px-3 py-2 text-sm font-semibold text-white shadow-soft sm:ml-3 sm:w-auto ${styles.button}`}
@@ -87,7 +87,7 @@ export function ConfirmDialog({
             </button>
             <button
               type="button"
-              className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-soft ring-1 ring-inset ring-gray-300 hover:bg-slate-50 sm:mt-0 sm:w-auto"
+              className="mt-3 inline-flex w-full justify-center rounded-md bg-card px-3 py-2 text-sm font-semibold text-foreground shadow-soft ring-1 ring-inset ring-border hover:bg-secondary sm:mt-0 sm:w-auto"
               onClick={onClose}
             >
               {cancelText}

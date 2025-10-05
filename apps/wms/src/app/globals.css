@@ -176,6 +176,56 @@ input:-webkit-autofill:active {
   @apply text-sm text-destructive mt-1;
 }
 
+/* Fix native form element styling */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+textarea,
+select {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border-color: hsl(var(--border));
+}
+
+input[type="text"]::placeholder,
+input[type="email"]::placeholder,
+input[type="password"]::placeholder,
+input[type="number"]::placeholder,
+input[type="tel"]::placeholder,
+input[type="url"]::placeholder,
+input[type="search"]::placeholder,
+textarea::placeholder {
+  color: hsl(var(--muted-foreground));
+  opacity: 0.7;
+}
+
+select option {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  padding: 0.5rem;
+}
+
+select option:checked,
+select option:hover {
+  background-color: hsl(var(--primary) / 0.1);
+  color: hsl(var(--foreground));
+}
+
+/* Focus states for form elements */
+input:focus,
+textarea:focus,
+select:focus {
+  outline-color: hsl(var(--ring));
+  border-color: hsl(var(--ring));
+}
+
 /* Card hover effects */
 .card-hover {
   @apply transition-all duration-200 hover:shadow-lg hover:-translate-y-1;

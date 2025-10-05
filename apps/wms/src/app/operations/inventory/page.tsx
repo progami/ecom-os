@@ -547,7 +547,7 @@ function InventoryPage() {
     }
   }, [balances, summary])
 
-  const baseFilterInputClass = 'w-full rounded-md border border-slate-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary'
+  const baseFilterInputClass = 'w-full rounded-md border border-border px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary'
 
   if (status === 'loading') {
     return (
@@ -596,7 +596,7 @@ function InventoryPage() {
               />
             </StatsCardGrid>
 
-            <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
+            <div className="flex min-h-0 flex-col rounded-xl border border-border bg-card shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
           {/* Reserve space for filters/stats before the table scroll area */}
           <div
             className="relative min-h-0 overflow-x-auto overflow-y-auto"
@@ -658,7 +658,7 @@ function InventoryPage() {
                                 type="checkbox"
                                 checked={columnFilters.warehouse.includes(option.value)}
                                 onChange={() => toggleMultiValueFilter('warehouse', option.value)}
-                                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                               />
                               <span className="flex-1 text-sm">{option.label}</span>
                             </label>
@@ -717,7 +717,7 @@ function InventoryPage() {
                                 type="checkbox"
                                 checked={columnFilters.sku.includes(option.value)}
                                 onChange={() => toggleMultiValueFilter('sku', option.value)}
-                                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                               />
                               <span className="flex-1 text-sm">{option.label}</span>
                             </label>
@@ -816,7 +816,7 @@ function InventoryPage() {
                                 type="checkbox"
                                 checked={columnFilters.batch.includes(option.value)}
                                 onChange={() => toggleMultiValueFilter('batch', option.value)}
-                                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+                                className="h-4 w-4 rounded border-border text-primary focus:ring-primary"
                               />
                               <span className="flex-1 text-sm">{option.label}</span>
                             </label>

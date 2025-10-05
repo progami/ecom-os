@@ -246,13 +246,13 @@ export function EditAttachmentsTab({ existingAttachments, onAttachmentsChange, t
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-xl border">
-        <div className="px-6 py-4 border-b bg-slate-50">
+      <div className="bg-card rounded-xl border">
+        <div className="px-6 py-4 border-b bg-secondary">
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <FileText className="h-5 w-5" />
             Transaction Documents (Staged Changes)
           </h3>
-          <p className="text-sm text-slate-600 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             Changes will only be saved when you click Save
           </p>
         </div>
@@ -264,7 +264,7 @@ export function EditAttachmentsTab({ existingAttachments, onAttachmentsChange, t
               const isDeleted = attachment?.deleted
               
               return (
-                <div key={category.id} className={`border rounded-lg p-4 ${isDeleted ? 'bg-red-50 border-red-200' : 'bg-slate-50'} hover:shadow-soft transition-shadow`}>
+                <div key={category.id} className={`border rounded-lg p-4 ${isDeleted ? 'bg-red-50 border-red-200' : 'bg-secondary'} hover:shadow-soft transition-shadow`}>
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1">
                       <h4 className="font-medium text-sm flex items-center gap-2">
@@ -279,18 +279,18 @@ export function EditAttachmentsTab({ existingAttachments, onAttachmentsChange, t
                           <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">TO DELETE</span>
                         )}
                       </h4>
-                      <p className="text-xs text-slate-600 mt-0.5">{category.description}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{category.description}</p>
                     </div>
                   </div>
                   
                   {attachment && !isDeleted ? (
-                    <div className="bg-white p-3 rounded border border-slate-200">
+                    <div className="bg-card p-3 rounded border border-border">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <FileText className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                          <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                           <div className="min-w-0 flex-1">
-                            <p className="text-sm text-slate-700 truncate">{attachment.name}</p>
-                            <p className="text-xs text-slate-500">{formatFileSize(attachment.size)}</p>
+                            <p className="text-sm text-foreground truncate">{attachment.name}</p>
+                            <p className="text-xs text-muted-foreground">{formatFileSize(attachment.size)}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-1 ml-2">
@@ -341,9 +341,9 @@ export function EditAttachmentsTab({ existingAttachments, onAttachmentsChange, t
                   ) : (
                     <div className="upload-container">
                       <label htmlFor={`${category.id}-upload`} className="cursor-pointer block">
-                        <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                          <Upload className="h-5 w-5 text-slate-400 mx-auto" />
-                          <p className="text-xs text-slate-600 mt-1">Click to upload</p>
+                        <div className="border-2 border-dashed border-border rounded-lg p-6 text-center hover:border-muted-foreground transition-colors">
+                          <Upload className="h-5 w-5 text-muted-foreground mx-auto" />
+                          <p className="text-xs text-muted-foreground mt-1">Click to upload</p>
                         </div>
                       </label>
                       <input

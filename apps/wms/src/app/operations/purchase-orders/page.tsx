@@ -23,32 +23,26 @@ const STATUS_TABS: StatusConfig[] = [
   {
     value: 'DRAFT',
     label: 'Draft',
-    description: 'Orders being prepared before proof submission',
-    hint: 'Complete details before moving forward',
+    description: 'Orders being prepared before departure',
+    hint: 'Attach pro forma and confirm supplier details',
   },
   {
-    value: 'AWAITING_PROOF',
-    label: 'Awaiting Proof',
-    description: 'Waiting on delivery proof or supporting documents',
-    hint: 'Upload delivery note or supporting docs',
+    value: 'SHIPPED',
+    label: 'In Transit',
+    description: 'Goods are in transit from supplier or to customer',
+    hint: 'Collect commercial docs while cargo is moving',
   },
   {
-    value: 'REVIEW',
-    label: 'Review',
-    description: 'Proof received – ready for final approval',
-    hint: 'Validate documents and approve',
-  },
-  {
-    value: 'POSTED',
-    label: 'Posted',
-    description: 'Orders posted to the ledger',
-    hint: 'Locked for edits',
+    value: 'WAREHOUSE',
+    label: 'At Warehouse',
+    description: 'Delivery note received – ready for admin approval',
+    hint: 'Admins approve delivery notes to release stock',
   },
   {
     value: 'CANCELLED',
     label: 'Cancelled',
     description: 'Orders cancelled before completion',
-    hint: 'For historical reference only',
+    hint: 'Historical reference only',
   },
   {
     value: 'CLOSED',
@@ -84,7 +78,7 @@ function PurchaseOrdersPage() {
       <DashboardLayout>
         <PageContainer>
           <div className="flex h-full items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" />
           </div>
         </PageContainer>
       </DashboardLayout>
@@ -97,7 +91,7 @@ function PurchaseOrdersPage() {
     <DashboardLayout>
       <PageContainer>
         <PageHeaderSection
-          title="Purchase Orders"
+          title="Purchase/Sales Orders"
           description="Operations"
           icon={FileText}
           actions={
@@ -134,8 +128,8 @@ function PurchaseOrdersPage() {
                     className={cn(
                       'rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
                       isActive
-                        ? 'bg-cyan-600 text-white shadow-md dark:bg-[#00C2B9] dark:text-[#002430]'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10'
+                        ? 'bg-cyan-600 text-white shadow-md'
+                        : 'bg-muted text-foreground hover:bg-muted/80'
                     )}
                     aria-pressed={isActive}
                   >
@@ -149,10 +143,10 @@ function PurchaseOrdersPage() {
         <PageContent>
           <div className="flex flex-col gap-4">
             {currentTab && (
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
-                <div className="text-sm font-semibold text-slate-900 dark:text-white">{currentTab.label}</div>
-                <div className="mt-1 text-sm text-slate-600 dark:text-slate-400">{currentTab.description}</div>
-                <div className="mt-2 text-xs text-slate-500 dark:text-slate-500">{currentTab.hint}</div>
+              <div className="rounded-xl border bg-card p-4 shadow-soft">
+                <div className="text-sm font-semibold text-foreground">{currentTab.label}</div>
+                <div className="mt-1 text-sm text-muted-foreground">{currentTab.description}</div>
+                <div className="mt-2 text-xs text-muted-foreground">{currentTab.hint}</div>
               </div>
             )}
             <PurchaseOrdersPanel onPosted={() => {}} statusFilter={statusFilter} />

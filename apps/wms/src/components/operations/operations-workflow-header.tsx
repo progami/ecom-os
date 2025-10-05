@@ -48,7 +48,7 @@ const groupColors = {
 
 export function OperationsWorkflowHeader() {
   return (
-    <div className="mb-8 p-6 border rounded-lg bg-slate-50">
+    <div className="mb-8 p-6 border rounded-lg bg-secondary">
       <h2 className="text-lg font-semibold mb-4">Operations Workflow</h2>
       <div className="flex flex-wrap items-center gap-2">
         {workflowSteps.map((step, index) => (
@@ -58,7 +58,7 @@ export function OperationsWorkflowHeader() {
               <div className="text-xs opacity-80">{step.description}</div>
             </div>
             {index < workflowSteps.length - 1 && (
-              <ArrowRight className="h-4 w-4 text-slate-400 flex-shrink-0" />
+              <ArrowRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
             )}
           </React.Fragment>
         ))}
@@ -66,15 +66,15 @@ export function OperationsWorkflowHeader() {
       <div className="mt-4 flex gap-6 text-sm">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-brand-teal-500"></div>
-          <span className="text-slate-600">Outbound Operations</span>
+          <span className="text-muted-foreground">Outbound Operations</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-green-500"></div>
-          <span className="text-slate-600">Inbound Operations</span>
+          <span className="text-muted-foreground">Inbound Operations</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-cyan-600"></div>
-          <span className="text-slate-600">Reporting & Management</span>
+          <span className="text-muted-foreground">Reporting & Management</span>
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import { withAuth, ApiResponses } from '@/lib/api'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma, PurchaseOrderStatus } from '@prisma/client'
 import { aggregateCostLedger } from '@ecom-os/ledger'
 
 export const dynamic = 'force-dynamic'
@@ -32,7 +32,15 @@ export const GET = withAuth(async (request, _session) => {
   }
 
   const costEntries = await prisma.costLedger.findMany({
-    where,
+    where: {
+      ...where,
+      transaction: {
+        OR: [
+          { purchaseOrderId: null },
+          { purchaseOrder: { status: { in: [PurchaseOrderStatus.WAREHOUSE, PurchaseOrderStatus.CLOSED] } } },
+        ],
+      },
+    },
     include: {
       transaction: {
         select: {
