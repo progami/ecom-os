@@ -1,4 +1,6 @@
-const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || '/wms'
+import { getBasePath } from '@/lib/utils/base-path'
+
+const BASE_PATH = getBasePath()
 
 function shouldPrefix(input: RequestInfo | URL): input is string {
   return typeof input === 'string' && input.startsWith('/api/')
