@@ -1,7 +1,9 @@
 import fs from 'fs'
 import path from 'path'
 
-export type AppDef = {
+export type AppLifecycle = 'active' | 'dev'
+
+type AppBase = {
   id: string
   name: string
   description: string
@@ -13,7 +15,20 @@ export type AppDef = {
   devUrl?: string
 }
 
-export const ALL_APPS: AppDef[] = [
+type AppManifestEntry = {
+  lifecycle?: AppLifecycle
+}
+
+type AppManifest = {
+  apps?: Record<string, AppManifestEntry>
+  devOnly?: string[]
+}
+
+export type AppDef = AppBase & {
+  lifecycle: AppLifecycle
+}
+
+const BASE_APPS: AppBase[] = [
   {
     id: 'wms',
     name: 'Warehouse Management',
@@ -73,6 +88,94 @@ export const ALL_APPS: AppDef[] = [
     roles: ['admin', 'legal'],
   },
 ]
+
+let manifestCache: AppManifest | null | undefined
+
+function tryLoadAppManifest(): AppManifest | null {
+  if (manifestCache !== undefined) {
+    return manifestCache
+  }
+
+  const candidates = [
+    path.resolve(process.cwd(), '../../app-manifest.json'),
+    path.resolve(process.cwd(), '../app-manifest.json'),
+    path.resolve(process.cwd(), 'app-manifest.json'),
+  ]
+
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) {
+        const raw = fs.readFileSync(candidate, 'utf8')
+        manifestCache = JSON.parse(raw) as AppManifest
+        return manifestCache
+      }
+    } catch (_err) {
+      manifestCache = null
+      return manifestCache
+    }
+  }
+
+  manifestCache = null
+  return manifestCache
+}
+
+const devOnlyEnv = process.env.APP_DEV_ONLY
+const devOnlySet = new Set(
+  devOnlyEnv
+    ? devOnlyEnv
+        .split(',')
+        .map((value) => value.trim().toLowerCase())
+        .filter((value) => value.length > 0)
+    : []
+)
+
+const LIFECYCLE_ENV_PREFIX = 'APP_LIFECYCLE_'
+
+function getEnvLifecycle(appId: string): AppLifecycle | undefined {
+  const normalizedId = appId.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()
+  const envValue = process.env[`${LIFECYCLE_ENV_PREFIX}${normalizedId}`]
+  if (!envValue) {
+    return undefined
+  }
+  const normalizedValue = envValue.trim().toLowerCase()
+  if (normalizedValue === 'dev' || normalizedValue === 'development') {
+    return 'dev'
+  }
+  if (normalizedValue === 'active' || normalizedValue === 'stable' || normalizedValue === 'prod' || normalizedValue === 'production') {
+    return 'active'
+  }
+  return undefined
+}
+
+function resolveLifecycle(appId: string): AppLifecycle {
+  const envLifecycle = getEnvLifecycle(appId)
+  if (envLifecycle) {
+    return envLifecycle
+  }
+
+  if (devOnlySet.has(appId.toLowerCase())) {
+    return 'dev'
+  }
+
+  const manifest = tryLoadAppManifest()
+  const manifestEntry = manifest?.apps?.[appId]
+  if (manifestEntry?.lifecycle === 'dev') {
+    return 'dev'
+  }
+  if (manifestEntry?.lifecycle === 'active') {
+    return 'active'
+  }
+  if (manifest?.devOnly?.some((value) => value.toLowerCase() === appId.toLowerCase())) {
+    return 'dev'
+  }
+
+  return 'active'
+}
+
+export const ALL_APPS: AppDef[] = BASE_APPS.map((app) => ({
+  ...app,
+  lifecycle: resolveLifecycle(app.id),
+}))
 
 export function filterAppsForUser(role: string | undefined, allowedAppIds?: string[]) {
   const set = new Set(allowedAppIds ?? [])

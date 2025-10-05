@@ -1,15 +1,9 @@
 import type { ReactNode } from 'react'
 import type { Session } from 'next-auth'
 
-import styles from './portal.module.css'
+import type { AppDef } from '@/lib/apps'
 
-type PortalApp = {
-  id: string
-  name: string
-  description: string
-  url: string
-  category: string
-}
+import styles from './portal.module.css'
 
 type PortalRoleMap = Record<string, { role: string; depts?: string[] }>
 
@@ -146,7 +140,7 @@ const getAppIcon = (appId: string): ReactNode => APP_ICONS[appId] ?? FALLBACK_IC
 
 type PortalClientProps = {
   session: Session
-  apps: PortalApp[]
+  apps: AppDef[]
   roles?: PortalRoleMap
 }
 
@@ -159,7 +153,7 @@ export default function PortalClient({ session, apps, roles }: PortalClientProps
     return trimmed && trimmed.length > 0 ? trimmed : OTHER_CATEGORY
   }
 
-  const appsByCategory = apps.reduce<Record<string, PortalApp[]>>((acc, app) => {
+  const appsByCategory = apps.reduce<Record<string, AppDef[]>>((acc, app) => {
     const assigned = roleMap[app.id]?.depts
     const primaryCategory = normalizeCategory(assigned?.[0] ?? (app as any).category)
     acc[primaryCategory] = acc[primaryCategory]
@@ -237,7 +231,7 @@ export default function PortalClient({ session, apps, roles }: PortalClientProps
                 </div>
                 <div className={styles.grid}>
                   {appsByCategory[category]?.map((app) => {
-                    const isDisabled = app.category === 'Legal'
+                    const isDisabled = app.lifecycle === 'dev'
                     const cardClassName = isDisabled
                       ? `${styles.card} ${styles.cardDisabled}`
                       : styles.card
@@ -259,6 +253,7 @@ export default function PortalClient({ session, apps, roles }: PortalClientProps
                             />
                           </svg>
                         </div>
+                        {isDisabled && <span className={styles.lifecycleBadge}>In development</span>}
                         <div className={styles.name}>{app.name}</div>
                         <p className={styles.description}>{app.description}</p>
                       </a>
