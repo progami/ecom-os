@@ -4,10 +4,10 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { 
-  Package2, 
-  TrendingUp, 
-  DollarSign, 
+import {
+  Package2,
+  TrendingUp,
+  DollarSign,
   AlertCircle,
   Package,
   FileText,
@@ -27,10 +27,11 @@ import {
   Clock,
   Zap,
   FileSpreadsheet,
-  TrendingDown
+  TrendingDown,
+  LayoutDashboard
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { DemoWelcome } from '@/components/ui/demo-welcome'
 import { toast } from 'react-hot-toast'
 import {
@@ -408,7 +409,7 @@ export default function AdminDashboardPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
         </div>
       </DashboardLayout>
     )
@@ -455,17 +456,15 @@ export default function AdminDashboardPage() {
   return (
     <DashboardLayout>
       <DemoWelcome />
-      <div className="space-y-6">
-        {/* Enhanced Header with Actions */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <PageHeader
-            title="Admin Dashboard"
-            subtitle="System Overview"
-            icon={BarChart3}
-          />
-          <div className="flex items-center gap-3">
-            {/* Demo Data Toggle */}
-            <label className="flex items-center gap-2 px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors cursor-pointer min-h-[44px]">
+      <PageContainer>
+        <PageHeaderSection
+          title="Admin Dashboard"
+          description="Administration"
+          icon={LayoutDashboard}
+          actions={
+            <div className="flex items-center gap-3">
+              {/* Demo Data Toggle */}
+              <label className="flex items-center gap-2 px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 border rounded-lg hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors cursor-pointer min-h-[44px]">
               <input
                 type="checkbox"
                 checked={useDemoData}
@@ -479,7 +478,7 @@ export default function AdminDashboardPage() {
             <div className="relative">
               <button
                 onClick={() => setShowTimeRangeDropdown(!showTimeRangeDropdown)}
-                className="flex items-center gap-2 px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors min-h-[44px]"
+                className="flex items-center gap-2 px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 border rounded-lg hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors min-h-[44px]"
               >
                 <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
                 <span className="text-xs sm:text-sm">
@@ -489,7 +488,7 @@ export default function AdminDashboardPage() {
                 <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
               </button>
               {showTimeRangeDropdown && (
-                <div className="absolute right-0 mt-2 w-40 sm:w-44 md:w-48 bg-white dark:bg-gray-800 border rounded-lg shadow-lg z-10">
+                <div className="absolute right-0 mt-2 w-40 sm:w-44 md:w-48 bg-white dark:bg-[#06182b] border rounded-lg shadow-lg z-10">
                   {Object.entries(timeRanges).map(([key, range]) => (
                     <button
                       key={key}
@@ -497,7 +496,7 @@ export default function AdminDashboardPage() {
                         setSelectedTimeRange(key)
                         setShowTimeRangeDropdown(false)
                       }}
-                      className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${selectedTimeRange === key ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+                      className={`w-full px-4 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-gray-700 ${selectedTimeRange === key ? 'bg-slate-100 dark:bg-gray-700' : ''}`}
                     >
                       {range.label}
                     </button>
@@ -512,7 +511,7 @@ export default function AdminDashboardPage() {
               className={`flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 border rounded-lg transition-all min-h-[44px] ${
                 autoRefresh 
                   ? 'bg-green-50 border-green-300 text-green-700 dark:bg-green-900/20 dark:border-green-700 dark:text-green-400' 
-                  : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                  : 'hover:bg-slate-50 dark:hover:bg-gray-800'
               }`}
             >
               <RefreshCw className={`h-4 w-4 sm:h-5 sm:w-5 ${autoRefresh ? 'animate-spin' : ''}`} />
@@ -523,22 +522,24 @@ export default function AdminDashboardPage() {
             <button
               onClick={() => fetchDashboardStats()}
               disabled={loadingStats}
-              className="p-2 sm:p-2.5 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50 min-w-[44px] min-h-[44px]"
+              className="p-2 sm:p-2.5 border rounded-lg hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors disabled:opacity-50 min-w-[44px] min-h-[44px]"
             >
               <RefreshCw className={`h-4 w-4 sm:h-5 sm:w-5 ${loadingStats ? 'animate-spin' : ''}`} />
             </button>
-          </div>
-        </div>
+            </div>
+          }
+        />
+        <PageContent>
 
-        {/* Enhanced Stats Cards with Sparklines */}
+          {/* Enhanced Stats Cards with Sparklines */}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {loadingStats ? (
             <>
               {[...Array(4)].map((_, i) => (
                 <div key={i} className="border rounded-lg p-6 animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
-                  <div className="h-8 bg-gray-200 rounded w-32 mb-1"></div>
-                  <div className="h-3 bg-gray-200 rounded w-40"></div>
+                  <div className="h-4 bg-slate-200 rounded w-24 mb-2"></div>
+                  <div className="h-8 bg-slate-200 rounded w-32 mb-1"></div>
+                  <div className="h-3 bg-slate-200 rounded w-40"></div>
                 </div>
               ))}
             </>
@@ -642,19 +643,19 @@ export default function AdminDashboardPage() {
             {/* Key Metrics Summary */}
             <div className="grid gap-4 md:grid-cols-4">
               <div className="border rounded-lg p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20">
-                <p className="text-sm text-blue-700 dark:text-blue-300">Total SKUs</p>
-                <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">1,247</p>
-                <p className="text-xs text-blue-600 dark:text-blue-400">+12% from last month</p>
+                <p className="text-sm text-cyan-700 dark:text-cyan-300">Total SKUs</p>
+                <p className="text-2xl font-bold text-cyan-900 dark:text-cyan-100">1,247</p>
+                <p className="text-xs text-cyan-600 dark:text-cyan-400">+12% from last month</p>
               </div>
               <div className="border rounded-lg p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20">
                 <p className="text-sm text-green-700 dark:text-green-300">Inventory Value</p>
                 <p className="text-2xl font-bold text-green-900 dark:text-green-100">£2.4M</p>
                 <p className="text-xs text-green-600 dark:text-green-400">+18% growth</p>
               </div>
-              <div className="border rounded-lg p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20">
-                <p className="text-sm text-purple-700 dark:text-purple-300">Avg. Turnover</p>
-                <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">4.2x</p>
-                <p className="text-xs text-purple-600 dark:text-purple-400">Industry leading</p>
+              <div className="border rounded-lg p-4 bg-gradient-to-br from-brand-teal-50 to-brand-teal-100 dark:from-brand-teal-900/20 dark:to-brand-teal-800/20">
+                <p className="text-sm text-brand-teal-700 dark:text-brand-teal-300">Avg. Turnover</p>
+                <p className="text-2xl font-bold text-brand-teal-900 dark:text-brand-teal-100">4.2x</p>
+                <p className="text-xs text-brand-teal-600 dark:text-brand-teal-400">Industry leading</p>
               </div>
               <div className="border rounded-lg p-4 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20">
                 <p className="text-sm text-orange-700 dark:text-orange-300">Fill Rate</p>
@@ -718,14 +719,14 @@ export default function AdminDashboardPage() {
                         : 'Aggregated by billing period (16th to 15th)'}
                     </p>
                   </div>
-                  <div className="flex items-center bg-gray-100 rounded-md p-1">
+                  <div className="flex items-center bg-slate-100 rounded-md p-1">
                     <button
                       type="button"
                       onClick={() => setStorageCostView('weekly')}
                       className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
                         storageCostView === 'weekly' 
-                          ? 'bg-white text-primary shadow-sm' 
-                          : 'text-gray-600 hover:text-gray-900'
+                          ? 'bg-white text-primary shadow-soft' 
+                          : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
                       Weekly
@@ -735,8 +736,8 @@ export default function AdminDashboardPage() {
                       onClick={() => setStorageCostView('monthly')}
                       className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
                         storageCostView === 'monthly' 
-                          ? 'bg-white text-primary shadow-sm' 
-                          : 'text-gray-600 hover:text-gray-900'
+                          ? 'bg-white text-primary shadow-soft' 
+                          : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
                       Monthly
@@ -807,9 +808,9 @@ export default function AdminDashboardPage() {
                             <span className="font-medium">{warehouse.name}</span>
                             <span className="text-muted-foreground">{warehouse.value.toLocaleString()} cartons</span>
                           </div>
-                          <div className="w-full bg-gray-200 rounded-full h-8">
+                          <div className="w-full bg-slate-200 rounded-full h-8">
                             <div 
-                              className="bg-blue-500 h-8 rounded-full flex items-center justify-end pr-2"
+                              className="bg-cyan-500 h-8 rounded-full flex items-center justify-end pr-2"
                               style={{ width: `${widthPercentage}%` }}
                             >
                               {warehouse.percentage > 0 && (
@@ -958,7 +959,7 @@ export default function AdminDashboardPage() {
                         if (active && payload && payload.length) {
                           const data = payload[0].payload
                           return (
-                            <div className="bg-white dark:bg-gray-800 p-3 rounded shadow-lg border">
+                            <div className="bg-white dark:bg-[#06182b] p-3 rounded shadow-lg border">
                               <p className="font-semibold">{data.category}</p>
                               <p className="text-sm">Quantity: {data.quantity} units</p>
                               <p className="text-sm">Value: £{data.value.toLocaleString()}</p>
@@ -1012,11 +1013,11 @@ export default function AdminDashboardPage() {
                   <p className="text-xs text-muted-foreground">YoY Growth</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-blue-600">£384K</p>
+                  <p className="text-2xl font-bold text-cyan-600">£384K</p>
                   <p className="text-xs text-muted-foreground">Additional Value</p>
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-purple-600">92%</p>
+                  <p className="text-2xl font-bold text-brand-teal-600">92%</p>
                   <p className="text-xs text-muted-foreground">Target Achievement</p>
                 </div>
               </div>
@@ -1027,17 +1028,17 @@ export default function AdminDashboardPage() {
               <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
               <div className="space-y-3">
                 {(useDemoData ? dummyData.recentTransactions : (chartData?.recentTransactions || [])).map((transaction) => (
-                  <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div key={transaction.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-[#06182b] rounded-lg">
                     <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-lg ${
                         transaction.type === 'RECEIVE' ? 'bg-green-100 dark:bg-green-900/30' :
-                        transaction.type === 'SHIP' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                        transaction.type === 'SHIP' ? 'bg-cyan-100 dark:bg-cyan-900/30' :
                         'bg-yellow-100 dark:bg-yellow-900/30'
                       }`}>
                         {transaction.type === 'RECEIVE' ? (
                           <ArrowRight className="h-4 w-4 text-green-600 dark:text-green-400 rotate-180" />
                         ) : transaction.type === 'SHIP' ? (
-                          <ArrowRight className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          <ArrowRight className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
                         ) : (
                           <Activity className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                         )}
@@ -1121,7 +1122,7 @@ export default function AdminDashboardPage() {
               description="View and manage inventory across all warehouses"
               icon={Package}
               href="/admin/inventory"
-              color="bg-blue-500"
+              color="bg-cyan-500"
             />
             <QuickActionCard
               title="Invoice Management"
@@ -1135,7 +1136,7 @@ export default function AdminDashboardPage() {
               description="View detailed reports and analytics"
               icon={BarChart3}
               href="/admin/reports"
-              color="bg-indigo-500"
+              color="bg-cyan-500"
             />
             <QuickActionCard
               title="Warehouse Settings"
@@ -1149,14 +1150,14 @@ export default function AdminDashboardPage() {
               description="Manage users and permissions"
               icon={Users}
               href="/admin/users"
-              color="bg-purple-500"
+              color="bg-brand-teal-500"
             />
             <QuickActionCard
               title="System Settings"
               description="Configure system settings and rates"
               icon={Settings}
               href="/admin/settings"
-              color="bg-gray-500"
+              color="bg-slate-500"
             />
           </div>
         </div>
@@ -1234,7 +1235,8 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         </div>
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }
@@ -1262,9 +1264,9 @@ function EnhancedDashboardCard({
   color
 }: EnhancedDashboardCardProps) {
   const colorClasses = {
-    blue: 'text-blue-600 bg-blue-100 dark:bg-blue-900/30',
+    blue: 'text-cyan-600 bg-cyan-100 dark:bg-cyan-900/30',
     green: 'text-green-600 bg-green-100 dark:bg-green-900/30',
-    purple: 'text-purple-600 bg-purple-100 dark:bg-purple-900/30',
+    purple: 'text-brand-teal-600 bg-brand-teal-100 dark:bg-brand-teal-900/30',
     orange: 'text-orange-600 bg-orange-100 dark:bg-orange-900/30'
   }
 
@@ -1383,10 +1385,10 @@ function SystemAction({ title, description, icon: Icon, onClick, loading, danger
     >
       <div className="flex items-start gap-3">
         <div className={`p-2 rounded-lg transition-colors ${
-          danger ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-100 dark:bg-gray-800 group-hover:bg-primary/10'
+          danger ? 'bg-red-100 dark:bg-red-900/30' : 'bg-slate-100 dark:bg-[#06182b] group-hover:bg-primary/10'
         }`}>
           <Icon className={`h-5 w-5 ${
-            danger ? 'text-red-600' : 'text-gray-600 group-hover:text-primary'
+            danger ? 'text-red-600' : 'text-slate-600 group-hover:text-primary'
           }`} />
         </div>
         <div className="flex-1">
@@ -1426,16 +1428,16 @@ function StatusItem({ label, status, indicator, icon: Icon, details }: StatusIte
       case 'success': return 'text-green-600 dark:text-green-400'
       case 'warning': return 'text-yellow-600 dark:text-yellow-400'
       case 'error': return 'text-red-600 dark:text-red-400'
-      default: return 'text-gray-600 dark:text-gray-400'
+      default: return 'text-slate-600 dark:text-slate-400'
     }
   }
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors">
       <div className="flex items-center gap-3">
         {Icon && (
-          <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-            <Icon className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+          <div className="p-2 bg-slate-100 dark:bg-[#06182b] rounded-lg">
+            <Icon className="h-4 w-4 text-slate-600 dark:text-slate-400" />
           </div>
         )}
         <div>
@@ -1461,11 +1463,11 @@ interface InfoItemProps {
 
 function InfoItem({ label, value, icon: Icon }: InfoItemProps) {
   return (
-    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+    <div className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors">
       <div className="flex items-center gap-3">
         {Icon && (
-          <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-lg">
-            <Icon className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+          <div className="p-2 bg-slate-100 dark:bg-[#06182b] rounded-lg">
+            <Icon className="h-4 w-4 text-slate-600 dark:text-slate-400" />
           </div>
         )}
         <span className="text-sm text-muted-foreground">{label}</span>

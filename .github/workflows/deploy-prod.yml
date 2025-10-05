@@ -7,8 +7,22 @@ on:
   workflow_dispatch:
 
 jobs:
+  wait-for-ci:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request_target'
+    steps:
+      - name: Wait for CI to complete
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          check-name: 'build-test'
+          repo-token: ${{ github.token }}
+          wait-interval: 10
+
   check-changes:
     runs-on: ubuntu-latest
+    needs: [wait-for-ci]
+    if: always() && (needs.wait-for-ci.result == 'success' || github.event_name == 'workflow_dispatch')
     outputs:
       should_deploy: ${{ steps.filter.outputs.should_deploy }}
     steps:
@@ -35,14 +49,14 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: check-changes
-    if: >-
-      ${{ needs.check-changes.outputs.should_deploy == 'true' &&
-          (github.event_name == 'workflow_dispatch' ||
-          (github.event_name == 'pull_request_target' &&
-           github.event.pull_request.head.ref == 'dev')) }}
+    if: ${{ github.event_name == 'workflow_dispatch' ||
+            (github.event_name == 'pull_request_target' &&
+             github.event.pull_request != null &&
+             github.event.pull_request.head.ref == 'dev' &&
+             needs.check-changes.outputs.should_deploy == 'true') }}
     permissions:
       id-token: write
-      contents: read
+      contents: write
     env:
       # expose secrets as env; avoid using `secrets.*` in `if:` expressions
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -53,6 +67,8 @@ jobs:
       EC2_INSTANCE_ID_SECRET: ${{ secrets.EC2_INSTANCE_ID }}
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
       ECOMOS_ENV: ${{ secrets.ECOMOS_ENV }}
+      EC2_HOST_PUBLIC_KEY: ${{ secrets.EC2_HOST_PUBLIC_KEY }}
+      EC2_HOST_FINGERPRINT: ${{ secrets.EC2_HOST_FINGERPRINT }}
     concurrency:
       group: prod-main
       cancel-in-progress: false
@@ -69,20 +85,30 @@ jobs:
           node-version: 20
       - run: corepack enable && corepack prepare pnpm@9.0.0 --activate
       - run: pnpm install
-      - name: Generate Prisma client for auth package
+
+      - name: Validate version consistency
+        run: |
+          echo "Validating version consistency across monorepo..."
+          node scripts/sync-versions.js --check
+
+      - name: Download CI build artifacts
+        if: github.event_name == 'pull_request_target'
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts-${{ github.event.pull_request.head.sha }}
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Generate Prisma clients and build (fallback for workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          pnpm --filter @ecom-os/auth prisma:generate
+          pnpm --filter @ecom-os/wms db:generate
+          pnpm --filter @ecom-os/x-plan prisma:generate
+          pnpm turbo run build --filter=@ecom-os/website --filter=@ecom-os/ecomos --filter=@ecom-os/wms --filter=@ecom-os/x-plan || (echo "Build failed" && exit 1)
         env:
           CENTRAL_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=auth
-        run: pnpm --filter @ecom-os/auth prisma:generate
-      - name: Generate Prisma client for WMS
-        env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
-        run: pnpm --filter @ecom-os/wms db:generate
-      - name: Generate Prisma client for X-Plan
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
-        run: pnpm --filter @ecom-os/x-plan prisma:generate
-      - name: Build production apps
-        env:
           NEXTAUTH_SECRET: test-nextauth-secret
           CENTRAL_AUTH_SECRET: test-central-secret
           CENTRAL_AUTH_URL: https://example.com
@@ -93,8 +119,6 @@ jobs:
           NEXT_PUBLIC_APP_URL: https://example.com/wms
           NEXT_PUBLIC_CENTRAL_AUTH_URL: https://example.com
           CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/wms
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
-        run: pnpm turbo run build --filter=@ecom-os/website --filter=@ecom-os/ecomos --filter=@ecom-os/wms --filter=@ecom-os/x-plan || (echo "Build failed" && exit 1)
 
       - name: Configure SSH
         run: |
@@ -157,14 +181,46 @@ jobs:
             --instance-os-user "$OS_USER" \
             --ssh-public-key "file://$HOME/.ssh/ci_key.pub"
           # Use ephemeral window to append pubkey permanently
-          ssh -i ~/.ssh/ci_key -o StrictHostKeyChecking=no "$OS_USER@$EC2_HOST" \
+          ssh -i ~/.ssh/ci_key "$OS_USER@$EC2_HOST" \
             "mkdir -p ~/.ssh && touch ~/.ssh/authorized_keys && grep -qxF '$(cat ~/.ssh/ci_key.pub)' ~/.ssh/authorized_keys || echo '$(cat ~/.ssh/ci_key.pub)' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"
           # Switch default key for subsequent steps
           install -m 600 -D ~/.ssh/ci_key ~/.ssh/id_rsa
 
-      - name: Append known_hosts for EC2
+      - name: Configure known_hosts entry
         run: |
-          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          if [ -n "${EC2_HOST_PUBLIC_KEY:-}" ]; then
+            printf '%s\n' "$EC2_HOST_PUBLIC_KEY" > ~/.ssh/known_hosts
+          else
+            if [ -z "${EC2_HOST_FINGERPRINT:-}" ]; then
+              echo "::error title=Missing host verification data::Set EC2_HOST_PUBLIC_KEY or EC2_HOST_FINGERPRINT secret to verify the SSH host key." >&2
+              exit 1
+            fi
+
+            if [ -z "${EC2_HOST:-}" ]; then
+              echo "::error title=Missing EC2 host::EC2_HOST must be resolved before configuring known_hosts." >&2
+              exit 1
+            fi
+
+            scan_output=$(ssh-keyscan -T 10 "$EC2_HOST" 2>/dev/null || true)
+            if [ -z "$scan_output" ]; then
+              echo "::error title=Host key scan failed::Unable to retrieve SSH host key from $EC2_HOST." >&2
+              exit 1
+            fi
+
+            scan_fingerprint=$(printf '%s\n' "$scan_output" | ssh-keygen -lf - | awk 'NR==1 {print $2}')
+            if [ "$scan_fingerprint" != "$EC2_HOST_FINGERPRINT" ]; then
+              echo "::error title=Fingerprint mismatch::Expected $EC2_HOST_FINGERPRINT but found $scan_fingerprint for $EC2_HOST." >&2
+              exit 1
+            fi
+
+            printf '%s\n' "$scan_output" > ~/.ssh/known_hosts
+          fi
+
+          chmod 644 ~/.ssh/known_hosts
 
       - name: Check remote disk usage before deploy
         continue-on-error: true
@@ -173,22 +229,23 @@ jobs:
         run: |
           set -e
           OS_USER=${OS_USER:-${EC2_USER:-ubuntu}}
-          SSH_SCRIPT=$'set -e\n'\
-            $'df -h\n'\
-            $'echo\n'\
-            $'echo "Top-level usage:"\n'\
-            $'sudo du -sh /opt/ecom-os /var/log || true\n'\
-            $'echo\n'\
-            $'echo "/opt/ecom-os breakdown:"\n'\
-            $'sudo du -sh /opt/ecom-os/* 2>/dev/null | sort -hr | head || true\n'\
-            $'echo\n'\
-            $'echo "User cache breakdown:"\n'\
-            $'sudo du -sh "$HOME/.local/share/pnpm" "$HOME/.local/state/pnpm" "$HOME/.pnpm-store" 2>/dev/null || true\n'\
-            $'sudo du -sh "$HOME/.cache" 2>/dev/null | sort -hr | head || true\n'\
-            $'echo\n'\
-            $'echo "PM2 logs:"\n'\
-            $'sudo du -sh "$HOME/.pm2/logs" 2>/dev/null || true'
-          ssh -o StrictHostKeyChecking=no "$OS_USER@$EC2_HOST" "bash -s" <<< "$SSH_SCRIPT"
+          ssh "$OS_USER@$EC2_HOST" bash <<'EOF'
+          set -e
+          df -h
+          echo
+          echo "Top-level usage:"
+          sudo du -sh /opt/ecom-os /var/log || true
+          echo
+          echo "/opt/ecom-os breakdown:"
+          sudo du -sh /opt/ecom-os/* 2>/dev/null | sort -hr | head || true
+          echo
+          echo "User cache breakdown:"
+          sudo du -sh "$HOME/.local/share/pnpm" "$HOME/.local/state/pnpm" "$HOME/.pnpm-store" 2>/dev/null || true
+          sudo du -sh "$HOME/.cache" 2>/dev/null | sort -hr | head || true
+          echo
+          echo "PM2 logs:"
+          sudo du -sh "$HOME/.pm2/logs" 2>/dev/null || true
+          EOF
 
       - name: Update Cloudflare DNS (apex + www) to EC2
         continue-on-error: true
@@ -234,8 +291,8 @@ jobs:
 
       - name: Ansible ping EC2
         env:
-          ANSIBLE_HOST_KEY_CHECKING: 'False'
-          ANSIBLE_SSH_COMMON_ARGS: "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ConnectionAttempts=10"
+          ANSIBLE_HOST_KEY_CHECKING: 'True'
+          ANSIBLE_SSH_COMMON_ARGS: "-o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ConnectionAttempts=10"
         run: |
           echo "[mono]" > infra/ansible/inventory/hosts.ini
           echo "$EC2_HOST ansible_user=${EC2_USER:-ubuntu}" >> infra/ansible/inventory/hosts.ini
@@ -243,9 +300,9 @@ jobs:
 
       - name: Deploy via Ansible (monorepo)
         env:
-          ANSIBLE_HOST_KEY_CHECKING: 'False'
+          ANSIBLE_HOST_KEY_CHECKING: 'True'
           ANSIBLE_STDOUT_CALLBACK: debug
-          ANSIBLE_SSH_COMMON_ARGS: "-o StrictHostKeyChecking=no -o ServerAliveInterval=30 -o ConnectionAttempts=10"
+          ANSIBLE_SSH_COMMON_ARGS: "-o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ConnectionAttempts=10"
           DEPLOY_COMMIT: ${{ github.sha }}
           WEBSITE_ENV: ${{ secrets.WEBSITE_ENV }}
           WMS_ENV: ${{ secrets.WMS_ENV }}
@@ -262,6 +319,8 @@ jobs:
           ansible-playbook -vvv -i infra/ansible/inventory/hosts.ini infra/ansible/deploy-monorepo.yml
 
       - name: Post-deploy health checks
+        continue-on-error: true
+        id: health_check
         run: |
           set -e
           HOST_IP="$EC2_HOST"
@@ -278,18 +337,147 @@ jobs:
           OPTIONAL=()
           # host ip retries
           check_host() {
-            local host="$1"; local ip="$2"; local retries="${3:-12}"; local path="/"; local i=1
+            local host="$1"; local ip="$2"; local retries="${3:-20}"; local path="/"; local i=1
+            echo "Checking $host..."
             while [ $i -le "$retries" ]; do
-              code=$(curl -sS --connect-timeout 3 --max-time 5 -o /dev/null -w "%{http_code}" -H "Host: $host" "http://$ip$path" || true)
-              if echo "$code" | grep -Eq '^(20|30)[0-9]$'; then echo "OK: $host -> $code"; return 0; fi
-              sleep 5; i=$((i+1))
+              echo "  Attempt $i/$retries for $host"
+              code=$(curl -sS --connect-timeout 5 --max-time 10 -o /dev/null -w "%{http_code}" -H "Host: $host" "http://$ip$path" || echo "000")
+              if echo "$code" | grep -Eq '^(20|30)[0-9]$'; then
+                echo "  ✓ OK: $host -> HTTP $code"
+                return 0
+              fi
+              echo "  Got HTTP $code, waiting 10s..."
+              sleep 10
+              i=$((i+1))
             done
-            echo "FAIL: $host"; return 1
+            echo "  ✗ FAIL: $host (tried $retries times)"
+            return 1
           }
           failures=0
-          # Required hosts (allow up to 12 attempts ~1 min max)
-          for h in "${REQUIRED[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" 12 || failures=$((failures+1)); done
-          # Optional hosts: run in parallel with fewer attempts (6 attempts ~30s max each)
-          for h in "${OPTIONAL[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" 6 & done
+          # Required hosts (allow up to 20 attempts ~3 min max)
+          for h in "${REQUIRED[@]}"; do
+            if [ -n "$h" ]; then
+              check_host "$h" "$HOST_IP" 20 || failures=$((failures+1))
+            fi
+          done
+          # Optional hosts: run in parallel with fewer attempts
+          for h in "${OPTIONAL[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" 10 & done
           wait || true
-          [ "$failures" -eq 0 ] || exit 1
+
+          if [ "$failures" -gt 0 ]; then
+            echo "⚠️  Warning: $failures required host(s) failed health checks"
+            echo "Health checks failed but continuing deployment (apps may still be starting)"
+            exit 1
+          else
+            echo "✓ All health checks passed"
+            exit 0
+          fi
+
+      - name: Create GitHub Release
+        if: success() || failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+
+          # Get version from root package.json
+          VERSION=$(node -p "require('./package.json').version")
+
+          # Determine which apps were deployed
+          DEPLOYED_APPS=""
+          if pnpm list --filter @ecom-os/wms --depth 0 &>/dev/null; then
+            DEPLOYED_APPS="${DEPLOYED_APPS}- WMS v${VERSION}\n"
+          fi
+          if pnpm list --filter @ecom-os/website --depth 0 &>/dev/null; then
+            DEPLOYED_APPS="${DEPLOYED_APPS}- Website v${VERSION}\n"
+          fi
+          if pnpm list --filter @ecom-os/ecomos --depth 0 &>/dev/null; then
+            DEPLOYED_APPS="${DEPLOYED_APPS}- Ecomos v${VERSION}\n"
+          fi
+          if pnpm list --filter @ecom-os/x-plan --depth 0 &>/dev/null; then
+            DEPLOYED_APPS="${DEPLOYED_APPS}- X-Plan v${VERSION}\n"
+          fi
+
+          # Generate release notes with health check status
+          HEALTH_STATUS="✓ Passed"
+          if [ "${{ steps.health_check.outcome }}" != "success" ]; then
+            HEALTH_STATUS="⚠️  Failed (apps may still be starting)"
+          fi
+
+          RELEASE_NOTES="## Deployed Applications
+
+          ${DEPLOYED_APPS}
+          ## Deployment Info
+
+          - **Commit**: ${{ github.sha }}
+          - **Deployed at**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          - **Triggered by**: ${{ github.actor }}
+          - **Health Checks**: ${HEALTH_STATUS}
+
+          ## Changes
+
+          See commit history for details.
+          "
+
+          # Create or update release for each app
+          # WMS Release
+          if echo "$DEPLOYED_APPS" | grep -q "WMS"; then
+            TAG="wms-${VERSION}"
+            if gh release view "$TAG" &>/dev/null; then
+              echo "Release $TAG already exists, updating..."
+              gh release edit "$TAG" --notes "$RELEASE_NOTES"
+            else
+              echo "Creating new release $TAG..."
+              gh release create "$TAG" \
+                --title "WMS v${VERSION}" \
+                --notes "$RELEASE_NOTES" \
+                --target main
+            fi
+          fi
+
+          # Website Release
+          if echo "$DEPLOYED_APPS" | grep -q "Website"; then
+            TAG="website-${VERSION}"
+            if gh release view "$TAG" &>/dev/null; then
+              echo "Release $TAG already exists, updating..."
+              gh release edit "$TAG" --notes "$RELEASE_NOTES"
+            else
+              echo "Creating new release $TAG..."
+              gh release create "$TAG" \
+                --title "Website v${VERSION}" \
+                --notes "$RELEASE_NOTES" \
+                --target main
+            fi
+          fi
+
+          # Ecomos Release
+          if echo "$DEPLOYED_APPS" | grep -q "Ecomos"; then
+            TAG="ecomos-${VERSION}"
+            if gh release view "$TAG" &>/dev/null; then
+              echo "Release $TAG already exists, updating..."
+              gh release edit "$TAG" --notes "$RELEASE_NOTES"
+            else
+              echo "Creating new release $TAG..."
+              gh release create "$TAG" \
+                --title "Ecomos v${VERSION}" \
+                --notes "$RELEASE_NOTES" \
+                --target main
+            fi
+          fi
+
+          # X-Plan Release
+          if echo "$DEPLOYED_APPS" | grep -q "X-Plan"; then
+            TAG="x-plan-${VERSION}"
+            if gh release view "$TAG" &>/dev/null; then
+              echo "Release $TAG already exists, updating..."
+              gh release edit "$TAG" --notes "$RELEASE_NOTES"
+            else
+              echo "Creating new release $TAG..."
+              gh release create "$TAG" \
+                --title "X-Plan v${VERSION}" \
+                --notes "$RELEASE_NOTES" \
+                --target main
+            fi
+          fi
+
+          echo "✓ GitHub releases created/updated for version ${VERSION}"

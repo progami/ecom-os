@@ -2,8 +2,9 @@
 
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { Plus, Search, MoreVertical, Mail } from '@/lib/lucide-icons'
+import { Plus, Search, MoreVertical, Mail, Users } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 
 export default function AdminUsersPage() {
   const { data: session, status } = useSession()
@@ -12,7 +13,7 @@ export default function AdminUsersPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
         </div>
       </DashboardLayout>
     )
@@ -30,30 +31,27 @@ export default function AdminUsersPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-full space-y-2">
-        {/* Page Header with Description */}
-        <div className="bg-white border rounded-lg p-2">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">User Management</h1>
-              <p className="text-muted-foreground">
-                Manage users and their permissions
-              </p>
-            </div>
+      <PageContainer>
+        <PageHeaderSection
+          title="Users"
+          description="Administration"
+          icon={Users}
+          actions={
             <Link
               href="/admin/users/new"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-soft text-sm font-medium text-white bg-primary hover:bg-primary/90"
             >
               <Plus className="h-4 w-4 mr-2" />
               Add User
             </Link>
-          </div>
-        </div>
+          }
+        />
+        <PageContent>
 
         {/* Search */}
         <div className="max-w-md">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
               placeholder="Search users..."
@@ -63,8 +61,8 @@ export default function AdminUsersPage() {
         </div>
 
         {/* Users Grid */}
-        <div className="bg-gray-50 p-2 rounded-lg mb-2">
-          <p className="text-sm text-gray-600">Showing 3 users</p>
+        <div className="bg-slate-50 p-2 rounded-lg mb-2">
+          <p className="text-sm text-slate-600">Showing 3 users</p>
         </div>
         <div className="grid gap-1 md:grid-cols-2 lg:grid-cols-3" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
           <UserCard
@@ -92,7 +90,8 @@ export default function AdminUsersPage() {
             isActive={true}
           />
         </div>
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }
@@ -109,8 +108,8 @@ interface UserCardProps {
 function UserCard({ name, email, role, warehouse, lastLogin, isActive }: UserCardProps) {
   const getRoleBadge = (role: string) => {
     const roleStyles: Record<string, string> = {
-      admin: 'bg-purple-100 text-purple-800',
-      staff: 'bg-blue-100 text-blue-800',
+      admin: 'bg-brand-teal-100 text-brand-teal-800',
+      staff: 'bg-cyan-100 text-cyan-800',
     }
     
     const roleLabels: Record<string, string> = {
@@ -119,7 +118,7 @@ function UserCard({ name, email, role, warehouse, lastLogin, isActive }: UserCar
     }
 
     return (
-      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${roleStyles[role] || 'bg-gray-100 text-gray-800'}`}>
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${roleStyles[role] || 'bg-slate-100 text-slate-800'}`}>
         {roleLabels[role] || role}
       </span>
     )
@@ -130,14 +129,14 @@ function UserCard({ name, email, role, warehouse, lastLogin, isActive }: UserCar
       <div className="flex items-start justify-between">
         <div className="flex-1">
           <div className="flex items-center">
-            <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-              <span className="text-lg font-medium text-gray-600">
+            <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center">
+              <span className="text-lg font-medium text-slate-600">
                 {name.split(' ').map(n => n[0]).join('')}
               </span>
             </div>
             <div className="ml-4">
-              <h3 className="text-sm font-medium text-gray-900">{name}</h3>
-              <p className="text-sm text-gray-500 flex items-center gap-1">
+              <h3 className="text-sm font-medium text-slate-900">{name}</h3>
+              <p className="text-sm text-slate-500 flex items-center gap-1">
                 <Mail className="h-3 w-3" />
                 {email}
               </p>
@@ -146,27 +145,27 @@ function UserCard({ name, email, role, warehouse, lastLogin, isActive }: UserCar
           
           <div className="mt-2 space-y-1">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Role</span>
+              <span className="text-sm text-slate-500">Role</span>
               {getRoleBadge(role)}
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Warehouse</span>
+              <span className="text-sm text-slate-500">Warehouse</span>
               <span className="text-sm font-medium">{warehouse}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Last Login</span>
+              <span className="text-sm text-slate-500">Last Login</span>
               <span className="text-sm">{lastLogin}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">Status</span>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isActive ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+              <span className="text-sm text-slate-500">Status</span>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${isActive ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'}`}>
                 {isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
           </div>
         </div>
         
-        <button className="ml-4 text-gray-400 hover:text-gray-600">
+        <button className="ml-4 text-slate-400 hover:text-slate-600">
           <MoreVertical className="h-5 w-5" />
         </button>
       </div>

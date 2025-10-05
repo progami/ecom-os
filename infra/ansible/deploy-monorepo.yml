@@ -232,10 +232,7 @@
         pm2 delete targon-frontend || true
         pm2 delete targon || true
         lsof -ti:{{ website_port }} | xargs -r kill -9 || true
-        # Rebuild website cleanly
-        rm -rf apps/website/.next
-        pnpm --filter @ecom-os/website build
-        # Restart PM2 with explicit CWD
+        # Use CI-built .next folder (no rebuild needed)
         pm2 delete website || true
         PORT={{ website_port }} NODE_ENV=production pm2 start server.js --name website --cwd {{ app_base }}/repo/apps/website --update-env
         pm2 save
@@ -244,12 +241,6 @@
           if curl -fsS -H "Host: {{ website_server_name | default('www.targonglobal.com') }}" "http://127.0.0.1:{{ website_port }}/" | grep -Eiq '(INNOVATION TO IMPACT|Everyday, Done Better)'; then
             echo "Content verification OK"; break; fi; sleep 3; done
         curl -fsS -H "Host: {{ website_server_name | default('www.targonglobal.com') }}" "http://127.0.0.1:{{ website_port }}/" | grep -Eiq '(INNOVATION TO IMPACT|Everyday, Done Better)' || (echo 'ERROR: Content verification failed on localhost' >&2; exit 1)
-      args: { chdir: "{{ app_base }}/repo" }
-
-    - name: Build EcomOS portal
-      shell: |
-        set -e
-        NEXTAUTH_URL={{ central_portal_url }}/api/auth COOKIE_DOMAIN=.targonglobal.com CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} pnpm --filter @ecom-os/ecomos build
       args: { chdir: "{{ app_base }}/repo" }
 
     - name: Start EcomOS portal with PM2 (clean restart + verify)
@@ -271,14 +262,15 @@
       shell: |
         set -e
         cd {{ app_base }}/repo
-        pm2 delete wms-app || true
-        pm2 delete wms || true
+        pm2 delete wms-app 2>/dev/null || true
+        pm2 delete wms 2>/dev/null || true
         sudo lsof -ti:{{ wms_port }} | xargs -r sudo kill -9 || true
-        rm -rf apps/wms/.next
+        # Generate Prisma client for runtime (needed for database access)
         BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_public_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} DATABASE_URL={{ central_db_wms_url }} pnpm --filter @ecom-os/wms db:generate
+        # Push schema changes to database
         DATABASE_URL={{ central_db_wms_url }} pnpm --filter @ecom-os/wms db:push
-        BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_public_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} DATABASE_URL={{ central_db_wms_url }} pnpm --filter @ecom-os/wms build
-        pm2 delete wms || true
+        # Use CI-built .next folder (no rebuild needed)
+        pm2 delete wms 2>/dev/null || true
         sudo lsof -ti:{{ wms_port }} | xargs -r sudo kill -9 || true
         BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_public_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} DATABASE_URL={{ central_db_wms_url }} PORT={{ wms_port }} NODE_ENV=production pm2 start server.js --name wms --cwd {{ app_base }}/repo/apps/wms --update-env
         pm2 save
@@ -293,14 +285,15 @@
       shell: |
         set -e
         cd {{ app_base }}/repo
-        pm2 delete xplan || true
-        pm2 delete x-plan || true
+        pm2 delete xplan 2>/dev/null || true
+        pm2 delete x-plan 2>/dev/null || true
         lsof -ti:{{ xplan_port }} | xargs -r kill -9 || true
-        rm -rf apps/x-plan/.next
+        # Generate Prisma client for runtime (needed for database access)
         BASE_PATH=/xplan NEXT_PUBLIC_BASE_PATH=/xplan NEXTAUTH_URL={{ xplan_nextauth_url }} NEXT_PUBLIC_APP_URL={{ xplan_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ xplan_public_url }} COOKIE_DOMAIN=.targonglobal.com DATABASE_URL={{ central_db_xplan_url }} pnpm --filter @ecom-os/x-plan prisma:generate
+        # Push schema changes to database
         DATABASE_URL={{ central_db_xplan_url }} pnpm --filter @ecom-os/x-plan prisma:push
-        BASE_PATH=/xplan NEXT_PUBLIC_BASE_PATH=/xplan NEXTAUTH_URL={{ xplan_nextauth_url }} NEXT_PUBLIC_APP_URL={{ xplan_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ xplan_public_url }} COOKIE_DOMAIN=.targonglobal.com DATABASE_URL={{ central_db_xplan_url }} pnpm --filter @ecom-os/x-plan build
-        pm2 delete xplan || true
+        # Use CI-built .next folder (no rebuild needed)
+        pm2 delete xplan 2>/dev/null || true
         BASE_PATH=/xplan NEXT_PUBLIC_BASE_PATH=/xplan NEXTAUTH_URL={{ xplan_nextauth_url }} NEXT_PUBLIC_APP_URL={{ xplan_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ xplan_public_url }} COOKIE_DOMAIN=.targonglobal.com DATABASE_URL={{ central_db_xplan_url }} PORT={{ xplan_port }} NODE_ENV=production pm2 start pnpm --name xplan --cwd {{ app_base }}/repo/apps/x-plan --update-env -- start
         pm2 save
         # Verify X-Plan responds

@@ -16,7 +16,7 @@ import {
   TrendingDown
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { StatsCard } from '@/components/ui/stats-card'
@@ -153,24 +153,22 @@ export default function PalletVariancePage() {
   if (loading || status === 'loading') {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-        </div>
+        <PageContainer>
+          <div className="flex h-full items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
+          </div>
+        </PageContainer>
       </DashboardLayout>
     )
   }
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-full space-y-2">
-        <PageHeader
-          title="Pallet Variance Management"
-          subtitle="Track and reconcile differences between system and physical pallet counts"
-          icon={Package}
-          iconColor="text-orange-600"
-          bgColor="bg-orange-50"
-          borderColor="border-orange-200"
-          textColor="text-orange-800"
+      <PageContainer>
+        <PageHeaderSection
+          title="Pallet Variance"
+          description="Operations"
+          icon={AlertTriangle}
           actions={
             <div className="flex items-center gap-2">
               <Button onClick={fetchVariances} variant="outline" className="gap-2">
@@ -184,9 +182,11 @@ export default function PalletVariancePage() {
             </div>
           }
         />
+        <PageContent>
+        <div className="flex flex-col gap-6">
 
         {/* Summary Cards */}
-        <div className="grid gap-1 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-4">
           <StatsCard
             title="Total Variance"
             value={`${totalVariance > 0 ? '+' : ''}${totalVariance} pallets`}
@@ -227,7 +227,7 @@ export default function PalletVariancePage() {
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 filter === 'all'
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
               }`}
             >
               All ({variances.length})
@@ -237,7 +237,7 @@ export default function PalletVariancePage() {
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 filter === 'positive'
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
               }`}
             >
               Overages ({positiveCount})
@@ -247,7 +247,7 @@ export default function PalletVariancePage() {
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 filter === 'negative'
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
               }`}
             >
               Shortages ({negativeCount})
@@ -257,7 +257,7 @@ export default function PalletVariancePage() {
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 filter === 'pending'
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
               }`}
             >
               Pending ({pendingCount})
@@ -266,56 +266,56 @@ export default function PalletVariancePage() {
         </div>
 
         {/* Variance Table */}
-        <div className="border rounded-lg overflow-hidden">
-          <div className="bg-gray-50 px-6 py-3 border-b">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
+          <div className="border-b border-slate-200 bg-slate-50 px-6 py-3 dark:border-[#0b3a52] dark:bg-[#041324]">
             <h3 className="text-lg font-semibold">Pallet Variances</h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-slate-600 mt-1">
               Showing {filteredVariances.length} of {variances.length} variances
             </p>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-slate-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Warehouse
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   SKU
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Batch/Lot
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
                   System Pallets
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Actual Pallets
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Variance
                 </th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Last Count
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredVariances.map((variance) => (
-                <tr key={variance.id} className="hover:bg-gray-50">
+                <tr key={variance.id} className="hover:bg-slate-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {variance.warehouse.name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <div>
                       <div className="font-medium">{variance.sku.skuCode}</div>
-                      <div className="text-xs text-gray-500">{variance.sku.description}</div>
+                      <div className="text-xs text-slate-500">{variance.sku.description}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -329,7 +329,7 @@ export default function PalletVariancePage() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
                     <div className={`inline-flex items-center gap-1 font-medium ${
-                      variance.variance > 0 ? 'text-green-600' : variance.variance < 0 ? 'text-red-600' : 'text-gray-600'
+                      variance.variance > 0 ? 'text-green-600' : variance.variance < 0 ? 'text-red-600' : 'text-slate-600'
                     }`}>
                       {variance.variance > 0 ? (
                         <Plus className="h-3 w-3" />
@@ -350,7 +350,7 @@ export default function PalletVariancePage() {
                       {variance.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                     {variance.lastPhysicalCount 
                       ? new Date(variance.lastPhysicalCount).toLocaleDateString()
                       : 'Never'
@@ -396,7 +396,9 @@ export default function PalletVariancePage() {
             </table>
           </div>
         </div>
-      </div>
+        </div>
+        </PageContent>
+      </PageContainer>
 
       {/* Adjustment Modal */}
       {showAdjustModal && selectedVariance && (
@@ -405,7 +407,7 @@ export default function PalletVariancePage() {
             <h3 className="text-lg font-semibold mb-4">Create Pallet Adjustment</h3>
             
             <div className="space-y-2">
-              <div className="bg-gray-50 p-3 rounded">
+              <div className="bg-slate-50 p-3 rounded">
                 <div className="text-sm">
                   <p><span className="font-medium">SKU:</span> {selectedVariance.sku.skuCode}</p>
                   <p><span className="font-medium">Batch:</span> {selectedVariance.batchLot}</p>

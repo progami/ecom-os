@@ -18,10 +18,10 @@ export function PageHeader({
   subtitle,
   description: _description,
   icon: _Icon,
-  iconColor: _iconColor = 'text-blue-600',
-  bgColor: _bgColor = 'bg-blue-50',
-  borderColor: _borderColor = 'border-blue-200',
-  textColor: _textColor = 'text-blue-800',
+  iconColor: _iconColor = 'text-cyan-600',
+  bgColor: _bgColor = 'bg-cyan-50',
+  borderColor: _borderColor = 'border-cyan-200',
+  textColor: _textColor = 'text-cyan-800',
   actions
 }: PageHeaderProps) {
   return (
@@ -58,10 +58,10 @@ export function HelpfulTips({
   title = 'Helpful Tips:',
   tips,
   icon: Icon,
-  iconColor = 'text-blue-600',
-  bgColor = 'bg-blue-50',
-  borderColor = 'border-blue-200',
-  textColor = 'text-blue-800'
+  iconColor = 'text-cyan-600',
+  bgColor = 'bg-cyan-50',
+  borderColor = 'border-cyan-200',
+  textColor = 'text-cyan-800'
 }: HelpfulTipsProps) {
   return (
     <div className={`${bgColor} border ${borderColor} rounded-lg p-4`}>

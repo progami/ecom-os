@@ -28,11 +28,11 @@ export default async function OrderManagementPage() {
             <Wrench className="h-8 w-8 text-yellow-600 absolute -left-2 bottom-0 animate-pulse" />
           </div>
           
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-4">
             Under Construction
           </h2>
           
-          <p className="text-gray-600 dark:text-gray-400 max-w-md mb-8">
+          <p className="text-slate-600 dark:text-slate-400 max-w-md mb-8">
             We're working hard to bring you the Order Management module. 
             This feature will allow you to track and manage customer orders, 
             handle fulfillment workflows, and integrate with e-commerce platforms.
@@ -66,7 +66,7 @@ export default async function OrderManagementPage() {
             </ul>
           </div>
 
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-8">
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-8">
             Expected availability: Q2 2024
           </p>
         </div>

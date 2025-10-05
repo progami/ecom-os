@@ -185,7 +185,7 @@ const ProductsPanel = forwardRef<ProductsPanelHandle>((_, ref) => {
 
   return (
     <div className="flex min-h-0 flex-col gap-6">
-      <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border bg-white shadow-sm">
+      <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border bg-white shadow-soft">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
           <div className="flex flex-col gap-1">
             <h3 className="text-sm font-semibold text-muted-foreground">Products</h3>
@@ -207,10 +207,10 @@ const ProductsPanel = forwardRef<ProductsPanelHandle>((_, ref) => {
                 value={searchTerm}
                 onChange={event => setSearchTerm(event.target.value)}
                 placeholder="Search by SKU, description, ASIN"
-                className="w-full rounded-md border border-border/60 bg-white py-2 pl-9 pr-3 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full rounded-md border border-border/60 bg-white py-2 pl-9 pr-3 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
-            <div className="flex items-center gap-1 rounded-lg border border-border/60 bg-white p-1">
+            <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-white p-1">
               {STATUS_FILTERS.map(filter => (
                 <Button
                   key={filter.value}

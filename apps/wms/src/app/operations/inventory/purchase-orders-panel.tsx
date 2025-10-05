@@ -72,7 +72,7 @@ function statusBadgeClasses(status: PurchaseOrderStatusOption) {
     case 'AWAITING_PROOF':
       return 'bg-sky-50 text-sky-700 border border-sky-200'
     case 'REVIEW':
-      return 'bg-purple-50 text-purple-700 border border-purple-200'
+      return 'bg-brand-teal-50 text-brand-teal-700 border border-brand-teal-200'
     case 'POSTED':
       return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
     case 'CANCELLED':
@@ -209,7 +209,7 @@ export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT' }: Purcha
         </div>
       </div>
 
-      <div className="flex min-h-0 flex-col rounded-lg border bg-white shadow-sm">
+      <div className="flex min-h-0 flex-col rounded-xl border bg-white shadow-soft">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[960px] table-auto text-sm">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">

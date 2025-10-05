@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { TransactionType, CostCategory } from '@prisma/client'
 import { businessLogger, perfLogger } from '@/lib/logger/index'
-import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
+import { sanitizeForDisplay, validateNumeric } from '@/lib/security/input-sanitization'
 // handleTransactionCosts removed - costs are handled via frontend pre-filling
 import { parseLocalDateTime } from '@/lib/utils/date-helpers'
 import { recordStorageCostEntry } from '@/services/storageCost.service'
@@ -444,19 +444,19 @@ export async function POST(request: NextRequest) {
           error: `Batch/Lot is required for SKU ${item.skuCode}` 
         }, { status: 400 })
       }
-      
-      // Validate batch lot is numeric for RECEIVE transactions
-      if (txType === 'RECEIVE' && !/^\d+$/.test(item.batchLot.trim())) {
-        // Log warning but don't block for now to avoid breaking existing workflows
-        // console.warn(`Non-numeric batch lot for SKU ${item.skuCode}: ${item.batchLot}`)
-        // In future, enforce this validation:
-        // return NextResponse.json({ 
-        //   error: `Batch/Lot must be numeric for SKU ${item.skuCode}. Got: ${item.batchLot}` 
-        // }, { status: 400 })
+
+      const sanitizedBatchLot = sanitizeForDisplay(item.batchLot)
+      if (!sanitizedBatchLot || !validateNumeric(sanitizedBatchLot)) {
+        const skuForMessage = item.skuCode || 'unknown'
+        return NextResponse.json({ 
+          error: `Batch/Lot must be numeric for SKU ${skuForMessage}`,
+          value: sanitizedBatchLot ?? item.batchLot
+        }, { status: 400 })
       }
-      
-      item.batchLot = sanitizeForDisplay(item.batchLot)
-      item.skuCode = sanitizeForDisplay(item.skuCode)
+
+      const sanitizedSkuCode = sanitizeForDisplay(item.skuCode)
+      item.batchLot = sanitizedBatchLot
+      item.skuCode = sanitizedSkuCode
     }
 
     // Check for duplicate SKU/batch combinations in the request

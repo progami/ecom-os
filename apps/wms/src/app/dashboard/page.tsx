@@ -4,13 +4,14 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { useClientLogger } from '@/hooks/useClientLogger'
-import { 
-  Package2, 
-  TrendingUp, 
+import {
+  Home,
+  TrendingUp,
   Calendar,
   ChevronDown
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { SectionHeader } from '@/components/dashboard/section-header'
 import { MarketSection } from '@/components/dashboard/market-section'
 import { toast } from 'react-hot-toast'
@@ -201,7 +202,7 @@ export default function DashboardPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
         </div>
       </DashboardLayout>
     )
@@ -213,7 +214,7 @@ export default function DashboardPage() {
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
-            <p className="text-gray-500">Redirecting to login...</p>
+            <p className="text-slate-500">Redirecting to login...</p>
           </div>
         </div>
       </DashboardLayout>
@@ -225,7 +226,7 @@ export default function DashboardPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
         </div>
       </DashboardLayout>
     )
@@ -238,7 +239,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-center h-96">
           <div className="text-center space-y-4">
             <p className="text-red-500 text-lg">Failed to load dashboard data</p>
-            <p className="text-gray-500">Please check your connection and try again</p>
+            <p className="text-slate-500">Please check your connection and try again</p>
             <button
               onClick={() => {
                 setHasError(false)
@@ -291,22 +292,16 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col h-full space-y-2">
-        {/* Header with Actions */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Package2 className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="text-xl font-semibold">Dashboard</h1>
-              <p className="text-sm text-muted-foreground">Welcome back, {session.user.name}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {/* Time Range Selector */}
+      <PageContainer>
+        <PageHeaderSection
+          title="Dashboard"
+          description="Home"
+          icon={Home}
+          metadata={
             <div className="relative">
               <button
                 onClick={() => setShowTimeRangeDropdown(!showTimeRangeDropdown)}
-                className="flex items-center gap-2 px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors min-h-[44px]"
+                className="flex items-center gap-2 px-2 py-1 sm:px-3 sm:py-1.5 md:px-4 md:py-2 border rounded-lg hover:bg-slate-50 dark:hover:bg-gray-800 transition-colors min-h-[44px]"
               >
                 <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
                 <span className="text-xs sm:text-sm">
@@ -316,7 +311,7 @@ export default function DashboardPage() {
                 <ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
               </button>
               {showTimeRangeDropdown && (
-                <div className="absolute right-0 mt-2 w-40 sm:w-44 md:w-48 bg-white dark:bg-gray-800 border rounded-lg shadow-lg z-10">
+                <div className="absolute right-0 mt-2 w-40 sm:w-44 md:w-48 bg-white dark:bg-[#06182b] border rounded-lg shadow-lg z-10">
                   {Object.entries(timeRanges).map(([key, range]) => (
                     <button
                       key={key}
@@ -324,7 +319,7 @@ export default function DashboardPage() {
                         setSelectedTimeRange(key)
                         setShowTimeRangeDropdown(false)
                       }}
-                      className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 ${selectedTimeRange === key ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+                      className={`w-full px-4 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-gray-700 ${selectedTimeRange === key ? 'bg-slate-100 dark:bg-gray-700' : ''}`}
                     >
                       {range.label}
                     </button>
@@ -332,15 +327,14 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
-            
-          </div>
-        </div>
+          }
+        />
+        <PageContent>
 
-
-        {/* Main Dashboard Sections */}
-        <div className="grid gap-2">
+          {/* Main Dashboard Sections */}
+          <div className="grid gap-2">
           {/* Market Section - Inventory Level Graph Only */}
-          <div className="border rounded-lg p-2 bg-white dark:bg-gray-900">
+          <div className="border rounded-lg p-2 bg-white dark:bg-[#041324]">
             <SectionHeader 
               title="Inventory Levels" 
               icon={TrendingUp} 
@@ -350,7 +344,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

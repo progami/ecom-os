@@ -19,56 +19,56 @@ export interface StatsCardProps {
 
 const variantStyles = {
   default: {
-    container: '',
-    icon: 'text-gray-400',
-    value: 'text-gray-900',
-    border: ''
+    container: 'bg-white dark:bg-[#06182b]',
+    icon: 'text-slate-400 dark:text-slate-500',
+    value: 'text-slate-900 dark:text-white',
+    border: 'border-slate-200 dark:border-[#0b3a52]'
   },
   success: {
-    container: 'bg-green-50',
-    icon: 'text-green-600',
-    value: 'text-green-600',
-    border: 'border-green-200'
+    container: 'bg-white dark:bg-[#06182b]',
+    icon: 'text-green-600 dark:text-green-500',
+    value: 'text-green-600 dark:text-green-500',
+    border: 'border-slate-200 dark:border-[#0b3a52]'
   },
   warning: {
-    container: 'bg-orange-50',
-    icon: 'text-orange-600',
-    value: 'text-orange-600',
-    border: 'border-orange-400'
+    container: 'bg-white dark:bg-[#06182b]',
+    icon: 'text-amber-600 dark:text-amber-500',
+    value: 'text-amber-600 dark:text-amber-500',
+    border: 'border-slate-200 dark:border-[#0b3a52]'
   },
   danger: {
-    container: 'bg-red-50',
-    icon: 'text-red-600',
-    value: 'text-red-600',
-    border: 'border-red-400'
+    container: 'bg-white dark:bg-[#06182b]',
+    icon: 'text-red-600 dark:text-red-500',
+    value: 'text-red-600 dark:text-red-500',
+    border: 'border-slate-200 dark:border-[#0b3a52]'
   },
   info: {
-    container: 'bg-blue-50',
-    icon: 'text-blue-600',
-    value: 'text-blue-600',
-    border: 'border-blue-400'
+    container: 'bg-white dark:bg-[#06182b]',
+    icon: 'text-cyan-600 dark:text-cyan-500',
+    value: 'text-cyan-600 dark:text-cyan-500',
+    border: 'border-slate-200 dark:border-[#0b3a52]'
   }
 }
 
 const sizeStyles = {
   sm: {
-    padding: 'p-2',
+    padding: 'p-4',
     titleSize: 'text-xs',
-    valueSize: 'text-lg',
+    valueSize: 'text-2xl',
     subtitleSize: 'text-xs',
-    iconSize: 'h-4 w-4'
+    iconSize: 'h-5 w-5'
   },
   md: {
-    padding: 'p-4',
+    padding: 'p-6',
     titleSize: 'text-sm',
-    valueSize: 'text-2xl',
+    valueSize: 'text-3xl',
     subtitleSize: 'text-xs',
     iconSize: 'h-6 w-6'
   },
   lg: {
-    padding: 'p-6',
+    padding: 'p-8',
     titleSize: 'text-base',
-    valueSize: 'text-3xl',
+    valueSize: 'text-4xl',
     subtitleSize: 'text-sm',
     iconSize: 'h-8 w-8'
   }
@@ -91,7 +91,7 @@ export function StatsCard({
   return (
     <div
       className={cn(
-        'border rounded-lg transition-all',
+        'border rounded-xl shadow-soft transition-all',
         sizes.padding,
         styles.container,
         styles.border,
@@ -102,13 +102,13 @@ export function StatsCard({
     >
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className={cn('text-muted-foreground', sizes.titleSize)}>{title}</p>
-          <div className="flex items-baseline gap-2">
+          <p className={cn('text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider', sizes.titleSize)}>{title}</p>
+          <div className="flex items-baseline gap-2 mt-2">
             <p className={cn('font-bold', sizes.valueSize, styles.value)}>
               {typeof value === 'number' ? value.toLocaleString() : value}
             </p>
             {subtitle && (
-              <p className={cn('text-gray-500', sizes.subtitleSize)}>{subtitle}</p>
+              <p className={cn('text-slate-500 dark:text-slate-400', sizes.subtitleSize)}>{subtitle}</p>
             )}
           </div>
           {trend && (
@@ -120,7 +120,7 @@ export function StatsCard({
                 {trend.value >= 0 ? '+' : ''}{trend.value}%
               </span>
               {trend.label && (
-                <span className="text-xs text-gray-500">{trend.label}</span>
+                <span className="text-xs text-slate-500">{trend.label}</span>
               )}
             </div>
           )}

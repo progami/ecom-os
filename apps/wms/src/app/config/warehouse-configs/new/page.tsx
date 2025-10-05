@@ -121,23 +121,23 @@ export default function NewWarehouseConfigPage() {
           title="New Warehouse Configuration"
           subtitle="Set cartons per pallet for a SKU"
           icon={Building}
-          iconColor="text-purple-600"
-          bgColor="bg-purple-50"
-          borderColor="border-purple-200"
-          textColor="text-purple-800"
+          iconColor="text-brand-teal-600"
+          bgColor="bg-brand-teal-50"
+          borderColor="border-brand-teal-200"
+          textColor="text-brand-teal-800"
         />
 
         <form onSubmit={handleSubmit} className="bg-white border rounded-lg p-6 space-y-6">
           <div className="grid gap-6 md:grid-cols-2">
             {/* Warehouse Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Warehouse <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.warehouseId}
                 onChange={(e) => setFormData({ ...formData, warehouseId: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               >
                 <option value="">Select warehouse</option>
@@ -151,13 +151,13 @@ export default function NewWarehouseConfigPage() {
 
             {/* SKU Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 SKU <span className="text-red-500">*</span>
               </label>
               <select
                 value={formData.skuId}
                 onChange={(e) => setFormData({ ...formData, skuId: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               >
                 <option value="">Select SKU</option>
@@ -171,7 +171,7 @@ export default function NewWarehouseConfigPage() {
 
             {/* Storage Cartons per Pallet */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Storage Cartons per Pallet <span className="text-red-500">*</span>
               </label>
               <input
@@ -180,18 +180,18 @@ export default function NewWarehouseConfigPage() {
                 max="200"
                 value={formData.storageCartonsPerPallet}
                 onChange={(e) => setFormData({ ...formData, storageCartonsPerPallet: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="e.g., 48"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Used for calculating storage charges (max: 200)
               </p>
             </div>
 
             {/* Shipping Cartons per Pallet */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Shipping Cartons per Pallet <span className="text-red-500">*</span>
               </label>
               <input
@@ -200,18 +200,18 @@ export default function NewWarehouseConfigPage() {
                 max="200"
                 value={formData.shippingCartonsPerPallet}
                 onChange={(e) => setFormData({ ...formData, shippingCartonsPerPallet: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="e.g., 40"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Used when shipping goods (may differ from storage)
               </p>
             </div>
 
             {/* Max Stacking Height */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Max Stacking Height (cm)
               </label>
               <input
@@ -220,27 +220,27 @@ export default function NewWarehouseConfigPage() {
                 max="500"
                 value={formData.maxStackingHeightCm}
                 onChange={(e) => setFormData({ ...formData, maxStackingHeightCm: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 placeholder="e.g., 180"
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Optional: Maximum height when stacked
               </p>
             </div>
 
             {/* Effective Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-slate-700 mb-2">
                 Effective Date <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
                 value={formData.effectiveDate}
                 onChange={(e) => setFormData({ ...formData, effectiveDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                 required
               />
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 When this configuration becomes active
               </p>
             </div>
@@ -252,7 +252,7 @@ export default function NewWarehouseConfigPage() {
             <button
               type="button"
               onClick={handleCancel}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              className="px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50"
               disabled={loading}
             >
               <X className="h-4 w-4 mr-2 inline" />
@@ -270,9 +270,9 @@ export default function NewWarehouseConfigPage() {
         </form>
 
         {/* Help Section */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <h3 className="font-semibold text-blue-900 mb-2">Important Information</h3>
-          <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+        <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
+          <h3 className="font-semibold text-cyan-900 mb-2">Important Information</h3>
+          <ul className="text-sm text-cyan-800 space-y-1 list-disc list-inside">
             <li>Cartons per pallet values directly impact billing calculations</li>
             <li>Storage configuration is used for storage charges (weekly for standard warehouses, monthly for Amazon)</li>
             <li>Shipping configuration is used when goods are shipped out</li>

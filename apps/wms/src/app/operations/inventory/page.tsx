@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
-import { Search, Building, Package, ArrowUpDown, ArrowUp, ArrowDown, Filter } from '@/lib/lucide-icons'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
+import { Search, Building, Package, ArrowUpDown, ArrowUp, ArrowDown, Filter, BookOpen } from '@/lib/lucide-icons'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
@@ -547,57 +547,56 @@ function InventoryPage() {
     }
   }, [balances, summary])
 
-  const baseFilterInputClass = 'w-full rounded-md border border-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary'
+  const baseFilterInputClass = 'w-full rounded-md border border-slate-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary'
 
   if (status === 'loading') {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
-        </div>
+        <PageContainer>
+          <div className="flex h-full items-center justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
+          </div>
+        </PageContainer>
       </DashboardLayout>
     )
   }
 
   return (
     <DashboardLayout>
-      <div className="flex h-full min-h-0 flex-col gap-6 overflow-y-auto pr-2">
-        <PageHeader
+      <PageContainer>
+        <PageHeaderSection
           title="Inventory Ledger"
-          subtitle="Real-time inventory balances by warehouse and batch"
-          icon={Package}
-          iconColor="text-indigo-600"
-          bgColor="bg-indigo-50"
-          borderColor="border-indigo-200"
-          textColor="text-indigo-800"
+          description="Operations"
+          icon={BookOpen}
           actions={headerActions}
         />
+        <PageContent>
+          <div className="flex flex-col gap-6">
+            <StatsCardGrid cols={3}>
+              <StatsCard
+                title="Total Cartons"
+                value={metrics.totalCartons}
+                subtitle={`${metrics.uniqueWarehouses} ${metrics.uniqueWarehouses === 1 ? 'warehouse' : 'warehouses'}`}
+                icon={Package}
+                variant="info"
+              />
+              <StatsCard
+                title="Total Pallets"
+                value={metrics.totalPallets}
+                subtitle="Calculated from cartons"
+                icon={Building}
+                variant="default"
+              />
+              <StatsCard
+                title="Active SKUs"
+                value={metrics.summary.totalSkuCount}
+                subtitle="Reporting inventory"
+                icon={Search}
+                variant="default"
+              />
+            </StatsCardGrid>
 
-        <StatsCardGrid cols={3}>
-          <StatsCard
-            title="Total Cartons"
-            value={metrics.totalCartons}
-            subtitle={`${metrics.uniqueWarehouses} ${metrics.uniqueWarehouses === 1 ? 'warehouse' : 'warehouses'}`}
-            icon={Package}
-            variant="info"
-          />
-          <StatsCard
-            title="Total Pallets"
-            value={metrics.totalPallets}
-            subtitle="Calculated from cartons"
-            icon={Building}
-            variant="default"
-          />
-          <StatsCard
-            title="Active SKUs"
-            value={metrics.summary.totalSkuCount}
-            subtitle="Reporting inventory"
-            icon={Search}
-            variant="default"
-          />
-        </StatsCardGrid>
-
-        <div className="flex min-h-0 flex-col rounded-lg border bg-white shadow-sm">
+            <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
           {/* Reserve space for filters/stats before the table scroll area */}
           <div
             className="relative min-h-0 overflow-x-auto overflow-y-auto"
@@ -659,7 +658,7 @@ function InventoryPage() {
                                 type="checkbox"
                                 checked={columnFilters.warehouse.includes(option.value)}
                                 onChange={() => toggleMultiValueFilter('warehouse', option.value)}
-                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
                               />
                               <span className="flex-1 text-sm">{option.label}</span>
                             </label>
@@ -718,7 +717,7 @@ function InventoryPage() {
                                 type="checkbox"
                                 checked={columnFilters.sku.includes(option.value)}
                                 onChange={() => toggleMultiValueFilter('sku', option.value)}
-                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
                               />
                               <span className="flex-1 text-sm">{option.label}</span>
                             </label>
@@ -817,7 +816,7 @@ function InventoryPage() {
                                 type="checkbox"
                                 checked={columnFilters.batch.includes(option.value)}
                                 onChange={() => toggleMultiValueFilter('batch', option.value)}
-                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
                               />
                               <span className="flex-1 text-sm">{option.label}</span>
                             </label>
@@ -981,7 +980,7 @@ function InventoryPage() {
                     >
                       {balance.lastTransactionReference ?? '—'}
                     </td>
-                    <td className="px-3 py-2 text-right text-sm font-semibold text-indigo-700 whitespace-nowrap">
+                    <td className="px-3 py-2 text-right text-sm font-semibold text-cyan-700 whitespace-nowrap">
                       {signedCartons.toLocaleString()}
                     </td>
                     <td className="px-3 py-2 text-right text-sm whitespace-nowrap">
@@ -1013,7 +1012,7 @@ function InventoryPage() {
               <div className="col-span-6 md:col-span-6 px-3 py-2 font-semibold text-left">
                 Totals
               </div>
-              <div className="col-span-1 px-3 py-2 text-right font-semibold text-indigo-700 whitespace-nowrap">
+              <div className="col-span-1 px-3 py-2 text-right font-semibold text-cyan-700 whitespace-nowrap">
                 {tableTotals.cartons.toLocaleString()}
               </div>
               <div className="col-span-1 px-3 py-2 text-right font-semibold whitespace-nowrap">
@@ -1026,8 +1025,10 @@ function InventoryPage() {
             </div>
           </div>
         </div>
-      </div>
-    </div>
+          </div>
+        </div>
+      </PageContent>
+    </PageContainer>
   </DashboardLayout>
   )
 }

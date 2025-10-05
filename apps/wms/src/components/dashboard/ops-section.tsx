@@ -151,17 +151,17 @@ export function OpsSection({ data, loading }: OpsSectionProps) {
           </div>
           <div className="space-y-1">
             {data.recentTransactions.slice(0, 3).map((transaction) => (
-              <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div key={transaction.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-[#06182b] rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className={`p-2 rounded-lg ${
                     transaction.type === 'RECEIVE' ? 'bg-green-100 dark:bg-green-900/30' :
-                    transaction.type === 'SHIP' ? 'bg-blue-100 dark:bg-blue-900/30' :
+                    transaction.type === 'SHIP' ? 'bg-cyan-100 dark:bg-cyan-900/30' :
                     'bg-yellow-100 dark:bg-yellow-900/30'
                   }`}>
                     {transaction.type === 'RECEIVE' ? (
                       <ArrowRight className="h-4 w-4 text-green-600 dark:text-green-400 rotate-180" />
                     ) : transaction.type === 'SHIP' ? (
-                      <ArrowRight className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <ArrowRight className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
                     ) : (
                       <Activity className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                     )}

@@ -1,16 +1,16 @@
 {
   "name": "ecom-os",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.8.1",
   "packageManager": "pnpm@9.0.0",
   "scripts": {
     "predev": "node scripts/prepare-dev-logs.js",
     "dev": "turbo run dev --parallel",
-    "build": "turbo run build",
-    "test": "turbo run test",
-    "lint": "turbo run lint",
-    "typecheck": "turbo run type-check",
-    "format": "turbo run format"
+    "build": "node scripts/run-turbo-task.js build",
+    "test": "node scripts/run-turbo-task.js test",
+    "lint": "node scripts/run-turbo-task.js lint",
+    "typecheck": "node scripts/run-turbo-task.js type-check",
+    "format": "node scripts/run-turbo-task.js format"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

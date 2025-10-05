@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Download, FileText, Plus, Search, Eye, Check, X, Loader2, Filter } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -300,15 +300,11 @@ export default function FinanceInvoicesPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <PageHeader
-          title="Invoice Management"
-          subtitle="Process and manage warehouse invoices"
+      <PageContainer>
+        <PageHeaderSection
+          title="Invoices"
+          description="Finance"
           icon={FileText}
-          iconColor="text-amber-600"
-          bgColor="bg-amber-50"
-          borderColor="border-amber-200"
-          textColor="text-amber-800"
           actions={
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative w-64">
@@ -323,7 +319,7 @@ export default function FinanceInvoicesPage() {
                   placeholder="Search invoices..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-md border border-border/60 bg-white py-2 pl-9 pr-3 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full rounded-md border border-border/60 bg-white py-2 pl-9 pr-3 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
                   aria-label="Search invoices by invoice number, warehouse, or amount"
                 />
               </div>
@@ -344,8 +340,9 @@ export default function FinanceInvoicesPage() {
             </div>
           }
         />
-
-        <div className="flex flex-col gap-2 rounded-lg border bg-white p-4">
+        <PageContent>
+        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
           <div className="flex flex-col gap-2 sm:flex-row">
             <select 
               value={selectedWarehouse}
@@ -415,33 +412,33 @@ export default function FinanceInvoicesPage() {
         </div>
 
         {/* Invoice Table */}
-        <div className="border rounded-lg overflow-hidden">
-          <div className="bg-gray-50 px-6 py-3 border-b">
+        <div className="overflow-hidden rounded-xl border border-slate-200 shadow-soft dark:border-[#0b3a52]">
+          <div className="bg-slate-50 px-6 py-3 border-b">
             <h3 className="text-lg font-semibold">Invoices</h3>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-slate-600 mt-1">
               Showing {invoices.length} of {pagination.totalCount} invoices
             </p>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-slate-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Invoice #
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Warehouse
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Billing Period
                 </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Amount
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
                   Due Date
                 </th>
                 <th className="relative px-6 py-3">
@@ -453,30 +450,30 @@ export default function FinanceInvoicesPage() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-gray-400" />
-                    <p className="mt-2 text-gray-500">Loading invoices...</p>
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto text-slate-400" />
+                    <p className="mt-2 text-slate-500">Loading invoices...</p>
                   </td>
                 </tr>
               ) : invoices.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-12 text-center">
-                    <FileText className="h-12 w-12 mx-auto text-gray-400" />
-                    <p className="mt-2 text-gray-500">No invoices found</p>
+                    <FileText className="h-12 w-12 mx-auto text-slate-400" />
+                    <p className="mt-2 text-slate-500">No invoices found</p>
                   </td>
                 </tr>
               ) : (
                 invoices.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <tr key={invoice.id} className="hover:bg-slate-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
                       {invoice.invoiceNumber}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
                       {invoice.warehouse.name}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                       {formatDate(invoice.billingPeriodStart)} - {formatDate(invoice.billingPeriodEnd)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900 text-right">
                       {formatCurrency(invoice.totalAmount)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -484,7 +481,7 @@ export default function FinanceInvoicesPage() {
                         {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
                       {invoice.dueDate ? formatDate(invoice.dueDate) : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -556,21 +553,21 @@ export default function FinanceInvoicesPage() {
               <button
                 onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                 disabled={pagination.page === 1}
-                className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                className="relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50"
               >
                 Previous
               </button>
               <button
                 onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.totalPages, prev.page + 1) }))}
                 disabled={pagination.page === pagination.totalPages}
-                className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+                className="ml-3 relative inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 disabled:opacity-50"
               >
                 Next
               </button>
             </div>
             <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-slate-700">
                   Showing{' '}
                   <span className="font-medium">
                     {(pagination.page - 1) * pagination.limit + 1}
@@ -585,18 +582,18 @@ export default function FinanceInvoicesPage() {
                 </p>
               </div>
               <div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <nav className="relative z-0 inline-flex rounded-md shadow-soft -space-x-px" aria-label="Pagination">
                   <button
                     onClick={() => setPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
                     disabled={pagination.page === 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50"
                   >
                     Previous
                   </button>
                   <button
                     onClick={() => setPagination(prev => ({ ...prev, page: Math.min(prev.totalPages, prev.page + 1) }))}
                     disabled={pagination.page === pagination.totalPages}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-slate-300 bg-white text-sm font-medium text-slate-500 hover:bg-slate-50 disabled:opacity-50"
                   >
                     Next
                   </button>
@@ -605,8 +602,9 @@ export default function FinanceInvoicesPage() {
             </div>
           </div>
         )}
-
-      </div>
+        </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

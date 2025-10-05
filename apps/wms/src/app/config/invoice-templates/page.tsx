@@ -3,17 +3,17 @@
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import { 
-  FileText, 
-  Plus, 
-  Edit, 
-  Trash2, 
+import {
+  FileType,
+  Plus,
+  Edit,
+  Trash2,
   Save,
   X,
   Copy
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { PageHeader } from '@/components/ui/page-header'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import { toast } from 'react-hot-toast'
@@ -211,7 +211,7 @@ export default function InvoiceTemplatesPage() {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
         </div>
       </DashboardLayout>
     )
@@ -219,15 +219,11 @@ export default function InvoiceTemplatesPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
-        <PageHeader
+      <PageContainer>
+        <PageHeaderSection
           title="Invoice Templates"
-          subtitle="Configure warehouse-specific billing strategies"
-          icon={FileText}
-          iconColor="text-purple-600"
-          bgColor="bg-purple-50"
-          borderColor="border-purple-200"
-          textColor="text-purple-800"
+          description="Configuration"
+          icon={FileType}
           actions={
             <Button onClick={() => handleOpenModal()} className="gap-2">
               <Plus className="h-4 w-4" />
@@ -235,6 +231,7 @@ export default function InvoiceTemplatesPage() {
             </Button>
           }
         />
+        <PageContent>
 
         {/* Templates Grid */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -243,7 +240,7 @@ export default function InvoiceTemplatesPage() {
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <h3 className="font-semibold text-lg">{template.name}</h3>
-                  <p className="text-sm text-gray-600">{template.warehouse.name}</p>
+                  <p className="text-sm text-slate-600">{template.warehouse.name}</p>
                 </div>
                 {template.isDefault && (
                   <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -252,27 +249,27 @@ export default function InvoiceTemplatesPage() {
                 )}
               </div>
               
-              <p className="text-sm text-gray-500 mb-3">{template.description}</p>
+              <p className="text-sm text-slate-500 mb-3">{template.description}</p>
               
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
-                  <span className="text-gray-500">Transaction Type:</span>
+                  <span className="text-slate-500">Transaction Type:</span>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                     template.transactionType === 'RECEIVE' ? 'bg-green-100 text-green-800' :
                     template.transactionType === 'SHIP' ? 'bg-red-100 text-red-800' :
-                    'bg-blue-100 text-blue-800'
+                    'bg-cyan-100 text-cyan-800'
                   }`}>
                     {template.transactionType}
                   </span>
                 </div>
                 
                 <div className="text-sm">
-                  <span className="text-gray-500">Active Cost Types:</span>
+                  <span className="text-slate-500">Active Cost Types:</span>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {Object.entries(template.costMappings)
                       .filter(([_, mapping]) => mapping.enabled)
                       .map(([key, mapping]) => (
-                        <span key={key} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                        <span key={key} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
                           {mapping.category}
                         </span>
                       ))
@@ -291,7 +288,7 @@ export default function InvoiceTemplatesPage() {
                 </button>
                 <button
                   onClick={() => handleCopy(template)}
-                  className="text-gray-600 hover:text-gray-800"
+                  className="text-slate-600 hover:text-slate-800"
                   title="Copy"
                 >
                   <Copy className="h-4 w-4" />
@@ -308,18 +305,19 @@ export default function InvoiceTemplatesPage() {
           ))}
         </div>
 
-        {templates.length === 0 && (
-          <EmptyState
-            icon={FileText}
-            title="No invoice templates"
-            description="Create your first invoice template to define warehouse-specific billing strategies."
-            action={{
-              label: 'Create Template',
-              onClick: () => handleOpenModal()
-            }}
-          />
-        )}
-      </div>
+          {templates.length === 0 && (
+            <EmptyState
+              icon={FileType}
+              title="No invoice templates"
+              description="Create your first invoice template to define warehouse-specific billing strategies."
+              action={{
+                label: 'Create Template',
+                onClick: () => handleOpenModal()
+              }}
+            />
+          )}
+        </PageContent>
+      </PageContainer>
 
       {/* Template Modal */}
       {showModal && (
@@ -332,7 +330,7 @@ export default function InvoiceTemplatesPage() {
                 </h3>
                 <button
                   onClick={() => setShowModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-slate-400 hover:text-slate-600"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -400,7 +398,7 @@ export default function InvoiceTemplatesPage() {
                         type="checkbox"
                         checked={formData.isDefault}
                         onChange={(e) => setFormData({...formData, isDefault: e.target.checked})}
-                        className="rounded border-gray-300"
+                        className="rounded border-slate-300"
                       />
                       <span className="text-sm font-medium">Set as default template</span>
                     </label>
@@ -411,21 +409,21 @@ export default function InvoiceTemplatesPage() {
                   <h4 className="font-medium mb-2">Cost Type Configuration</h4>
                   <div className="border rounded-lg overflow-hidden">
                     <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
+                      <thead className="bg-slate-50">
                         <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
                             Enabled
                           </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
                             Cost Type
                           </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
                             Calculation Type
                           </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
                             Custom Rate
                           </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
                             Description
                           </th>
                         </tr>
@@ -452,7 +450,7 @@ export default function InvoiceTemplatesPage() {
                                       }
                                     })
                                   }}
-                                  className="rounded border-gray-300"
+                                  className="rounded border-slate-300"
                                 />
                               </td>
                               <td className="px-4 py-2 text-sm font-medium">
@@ -550,7 +548,7 @@ export default function InvoiceTemplatesPage() {
             </div>
           </div>
         </div>
-      )}
-    </DashboardLayout>
-  )
-}
+        )}
+      </DashboardLayout>
+    )
+  }

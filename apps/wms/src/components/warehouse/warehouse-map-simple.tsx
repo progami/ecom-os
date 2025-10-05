@@ -24,9 +24,9 @@ export function WarehouseMapSimple({
   
   if (warehousesWithCoords.length === 0) {
     return (
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-        <MapPin className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-        <p className="text-gray-500">No warehouses available</p>
+      <div className="bg-slate-50 border border-slate-200 rounded-lg p-8 text-center">
+        <MapPin className="h-12 w-12 text-slate-400 mx-auto mb-2" />
+        <p className="text-slate-500">No warehouses available</p>
       </div>
     )
   }
@@ -37,24 +37,24 @@ export function WarehouseMapSimple({
         <div
           key={warehouse.id}
           className={`border rounded-lg p-4 ${
-            warehouse.id === selectedWarehouseId 
-              ? 'border-blue-500 bg-blue-50' 
-              : 'border-gray-200 bg-white'
+            warehouse.id === selectedWarehouseId
+              ? 'border-cyan-600 bg-cyan-50'
+              : 'border-slate-200 bg-white'
           }`}
         >
           <div className="flex items-start justify-between">
             <div>
               <div className="flex items-center gap-2">
                 <MapPin className={`h-5 w-5 ${
-                  warehouse.id === selectedWarehouseId ? 'text-blue-600' : 'text-gray-600'
+                  warehouse.id === selectedWarehouseId ? 'text-cyan-600' : 'text-slate-600'
                 }`} />
                 <h4 className="font-semibold">{warehouse.name}</h4>
-                <span className="text-sm text-gray-500">({warehouse.code})</span>
+                <span className="text-sm text-slate-500">({warehouse.code})</span>
               </div>
               {warehouse.address && (
-                <p className="text-sm text-gray-600 mt-1 ml-7">{warehouse.address}</p>
+                <p className="text-sm text-slate-600 mt-1 ml-7">{warehouse.address}</p>
               )}
-              <p className="text-xs text-gray-500 mt-1 ml-7">
+              <p className="text-xs text-slate-500 mt-1 ml-7">
                 Coordinates: {warehouse.latitude?.toFixed(4)}, {warehouse.longitude?.toFixed(4)}
               </p>
             </div>
@@ -62,7 +62,7 @@ export function WarehouseMapSimple({
               href={`https://www.google.com/maps?q=${warehouse.latitude},${warehouse.longitude}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+              className="flex items-center gap-1 text-sm text-cyan-600 hover:text-cyan-700"
             >
               View Map
               <ExternalLink className="h-3 w-3" />

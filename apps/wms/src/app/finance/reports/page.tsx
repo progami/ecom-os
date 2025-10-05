@@ -1,8 +1,9 @@
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { FileText, Download, DollarSign, TrendingUp, Package2, Calendar } from '@/lib/lucide-icons'
+import { FileText, Download, DollarSign, TrendingUp, Package2, Calendar, FileBarChart } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 
 export default async function FinanceReportsPage() {
@@ -68,19 +69,19 @@ export default async function FinanceReportsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Financial Reports</h1>
-            <p className="text-muted-foreground">
-              Generate and download financial reports
-            </p>
-          </div>
-          <Button className="gap-2">
-            <Calendar className="h-4 w-4" />
-            Schedule Reports
-          </Button>
-        </div>
+      <PageContainer>
+        <PageHeaderSection
+          title="Reports"
+          description="Finance"
+          icon={FileBarChart}
+          actions={
+            <Button className="gap-2">
+              <Calendar className="h-4 w-4" />
+              Schedule Reports
+            </Button>
+          }
+        />
+        <PageContent>
 
         {/* Featured Reports */}
         <div>
@@ -92,15 +93,15 @@ export default async function FinanceReportsPage() {
                 className="bg-gradient-to-br from-primary/5 to-accent/5 border border-primary/20 rounded-lg p-2 hover:shadow-lg transition-all duration-200 cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className="p-3 bg-white rounded-lg shadow-sm">
+                  <div className="p-3 bg-white rounded-lg shadow-soft">
                     <report.icon className="h-6 w-6 text-primary" />
                   </div>
                   <span className="badge-primary">{report.category}</span>
                 </div>
                 <h3 className="font-semibold text-lg mb-2">{report.name}</h3>
-                <p className="text-sm text-gray-600 mb-4">{report.description}</p>
+                <p className="text-sm text-slate-600 mb-4">{report.description}</p>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-slate-500">
                     Last generated: {report.lastGenerated}
                   </p>
                   <Button variant="ghost" size="sm" className="gap-1 text-primary hover:text-primary">
@@ -123,17 +124,17 @@ export default async function FinanceReportsPage() {
                 className="bg-white border rounded-lg p-2 hover:shadow-lg transition-all duration-200 hover:border-primary cursor-pointer group"
               >
                 <div className="flex items-start justify-between mb-4">
-                  <report.icon className="h-8 w-8 text-gray-400 group-hover:text-primary transition-colors" />
-                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                  <report.icon className="h-8 w-8 text-slate-400 group-hover:text-primary transition-colors" />
+                  <span className="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded">
                     {report.category}
                   </span>
                 </div>
-                <h3 className="font-semibold text-gray-900 group-hover:text-primary mb-1">
+                <h3 className="font-semibold text-slate-900 group-hover:text-primary mb-1">
                   {report.name}
                 </h3>
-                <p className="text-sm text-gray-600 mb-3">{report.description}</p>
+                <p className="text-sm text-slate-600 mb-3">{report.description}</p>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-slate-500">
                     {report.lastGenerated}
                   </p>
                   <Button variant="ghost" size="sm" className="gap-1 text-primary hover:text-primary">
@@ -147,34 +148,35 @@ export default async function FinanceReportsPage() {
         </div>
 
         {/* Custom Report Builder */}
-        <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-2">
+        <div className="bg-gradient-to-r from-cyan-50 to-brand-teal-50 border border-cyan-200 rounded-lg p-2">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-lg font-semibold">Custom Report Builder</h3>
-              <p className="text-sm text-gray-600">Create custom reports with specific filters</p>
+              <p className="text-sm text-slate-600">Create custom reports with specific filters</p>
             </div>
             <Button>Create Custom Report</Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-1 mt-2">
             <div className="bg-white p-2 rounded-lg text-center">
-              <Package2 className="h-8 w-8 mx-auto mb-2 text-indigo-600" />
+              <Package2 className="h-8 w-8 mx-auto mb-2 text-cyan-600" />
               <p className="text-sm font-medium">By Warehouse</p>
             </div>
             <div className="bg-white p-2 rounded-lg text-center">
-              <Calendar className="h-8 w-8 mx-auto mb-2 text-indigo-600" />
+              <Calendar className="h-8 w-8 mx-auto mb-2 text-cyan-600" />
               <p className="text-sm font-medium">By Period</p>
             </div>
             <div className="bg-white p-2 rounded-lg text-center">
-              <DollarSign className="h-8 w-8 mx-auto mb-2 text-indigo-600" />
+              <DollarSign className="h-8 w-8 mx-auto mb-2 text-cyan-600" />
               <p className="text-sm font-medium">By Cost Type</p>
             </div>
             <div className="bg-white p-2 rounded-lg text-center">
-              <TrendingUp className="h-8 w-8 mx-auto mb-2 text-indigo-600" />
+              <TrendingUp className="h-8 w-8 mx-auto mb-2 text-cyan-600" />
               <p className="text-sm font-medium">Trends</p>
             </div>
           </div>
         </div>
-      </div>
+        </PageContent>
+      </PageContainer>
     </DashboardLayout>
   )
 }

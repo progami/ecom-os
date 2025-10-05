@@ -26,7 +26,7 @@ export function FormField({
     <div className={`space-y-1 ${className}`}>
       <label 
         htmlFor={name}
-        className="block text-sm font-medium text-gray-700"
+        className="block text-sm font-medium text-slate-700"
       >
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
@@ -35,7 +35,7 @@ export function FormField({
       {children}
       
       {hint && !error && (
-        <p className="text-xs text-gray-500">{hint}</p>
+        <p className="text-xs text-slate-500">{hint}</p>
       )}
       
       {error && (
@@ -85,9 +85,9 @@ export function InputField({
         step={step}
         className={`
           w-full px-3 py-2 border rounded-lg
-          focus:outline-none focus:ring-2 focus:ring-blue-500
-          ${fieldProps.error ? 'border-red-500' : 'border-gray-300'}
-          ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}
+          focus:outline-none focus:ring-2 focus:ring-cyan-600
+          ${fieldProps.error ? 'border-red-500' : 'border-slate-300'}
+          ${disabled ? 'bg-slate-100 cursor-not-allowed' : ''}
         `}
       />
     </FormField>
@@ -120,9 +120,9 @@ export function SelectField({
         disabled={disabled}
         className={`
           w-full px-3 py-2 border rounded-lg
-          focus:outline-none focus:ring-2 focus:ring-blue-500
-          ${fieldProps.error ? 'border-red-500' : 'border-gray-300'}
-          ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}
+          focus:outline-none focus:ring-2 focus:ring-cyan-600
+          ${fieldProps.error ? 'border-red-500' : 'border-slate-300'}
+          ${disabled ? 'bg-slate-100 cursor-not-allowed' : ''}
         `}
       >
         <option value="">{placeholder}</option>
@@ -164,9 +164,9 @@ export function TextAreaField({
         rows={rows}
         className={`
           w-full px-3 py-2 border rounded-lg
-          focus:outline-none focus:ring-2 focus:ring-blue-500
-          ${fieldProps.error ? 'border-red-500' : 'border-gray-300'}
-          ${disabled ? 'bg-gray-100 cursor-not-allowed' : ''}
+          focus:outline-none focus:ring-2 focus:ring-cyan-600
+          ${fieldProps.error ? 'border-red-500' : 'border-slate-300'}
+          ${disabled ? 'bg-slate-100 cursor-not-allowed' : ''}
         `}
       />
     </FormField>
@@ -203,18 +203,18 @@ export function CheckboxField({
           onChange={(e) => onChange(e.target.checked)}
           disabled={disabled}
           className={`
-            h-4 w-4 text-blue-600 rounded
-            focus:ring-2 focus:ring-blue-500
+            h-4 w-4 text-cyan-600 rounded
+            focus:ring-2 focus:ring-cyan-600
             ${disabled ? 'cursor-not-allowed' : ''}
           `}
         />
-        <span className="text-sm font-medium text-gray-700">
+        <span className="text-sm font-medium text-slate-700">
           {label}
         </span>
       </label>
       
       {hint && (
-        <p className="text-xs text-gray-500 ml-6">{hint}</p>
+        <p className="text-xs text-slate-500 ml-6">{hint}</p>
       )}
     </div>
   )

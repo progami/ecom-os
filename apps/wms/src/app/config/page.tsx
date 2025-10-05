@@ -16,14 +16,14 @@ const configModules = [
     description: 'Manage product master data',
     href: '/config/products',
     icon: Package,
-    color: 'bg-blue-100 text-blue-700'
+    color: 'bg-cyan-100 text-cyan-700'
   },
   {
     title: 'Batch Attributes',
     description: 'Define batch tracking attributes',
     href: '/config/batch-attributes',
     icon: Eye,
-    color: 'bg-purple-100 text-purple-700'
+    color: 'bg-brand-teal-100 text-brand-teal-700'
   },
   {
     title: 'Warehouse Configs',
@@ -44,7 +44,7 @@ const configModules = [
     description: 'Control SKU-specific warehouse rules',
     href: '/config/warehouse-configs',
     icon: Warehouse,
-    color: 'bg-indigo-100 text-indigo-700'
+    color: 'bg-cyan-100 text-cyan-700'
   },
   {
     title: 'Invoice Templates',
@@ -71,7 +71,7 @@ export default function ConfigurationPage() {
             <Link
               key={module.href}
               href={module.href}
-              className="group relative rounded-lg border p-6 hover:shadow-lg transition-shadow"
+              className="group relative rounded-xl border p-6 hover:shadow-lg transition-shadow"
             >
               <div className="flex items-start justify-between">
                 <div className="space-y-2">
@@ -83,7 +83,7 @@ export default function ConfigurationPage() {
                     {module.description}
                   </p>
                 </div>
-                <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-primary transition-colors" />
+                <ArrowRight className="h-5 w-5 text-slate-400 group-hover:text-primary transition-colors" />
               </div>
             </Link>
           ))}
@@ -91,7 +91,7 @@ export default function ConfigurationPage() {
 
         <div className="border rounded-lg p-6 bg-amber-50">
           <h3 className="font-semibold mb-2">Configuration Tips</h3>
-          <ul className="space-y-1 text-sm text-gray-700">
+          <ul className="space-y-1 text-sm text-slate-700">
             <li>• Set up <strong>Products (SKUs)</strong> before creating transactions</li>
             <li>• Configure <strong>Cost Rates</strong> for accurate billing</li>
             <li>• Use <strong>Warehouse Configs</strong> for SKU-specific pallet settings</li>
