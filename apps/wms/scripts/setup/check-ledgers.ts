@@ -7,7 +7,7 @@
  *   pnpm --filter @ecom-os/wms exec tsx scripts/setup/check-ledgers.ts [--verbose]
  */
 
-import { SetupClient } from './api-client'
+import { SetupClient } from '../../src/lib/setup/setup-client'
 
 const args = process.argv.slice(2)
 const verbose = args.includes('--verbose')

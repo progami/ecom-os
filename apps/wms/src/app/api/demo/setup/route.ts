@@ -7,93 +7,73 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
 import bcrypt from 'bcryptjs'
-import { createDemoTransactions } from '@/lib/demo-transactions'
-
-async function cleanupDemoData() {
-  await prisma.costLedger.deleteMany({})
-  await prisma.inventoryTransaction.deleteMany({})
-  await prisma.purchaseOrderLine.deleteMany({})
-  await prisma.purchaseOrder.deleteMany({})
-  await prisma.costRate.deleteMany({})
-  await prisma.user.deleteMany({ where: { isDemo: true } })
-}
+import { prisma } from '@/lib/prisma'
+import { SetupClient } from '@/lib/setup/setup-client'
+import { seedWarehouses } from '@/lib/setup/warehouse-configs'
+import { seedProducts } from '@/lib/setup/products'
+import { seedPurchaseOrders } from '@/lib/setup/purchase-orders'
 
 export async function POST(request: NextRequest) {
   try {
     const force = request.nextUrl.searchParams.get('force') === 'true'
-    // Check if demo users already exist
-    const demoUser = await prisma.user.findFirst({
-      where: {
-        isDemo: true
-      }
+    const existingDemoUser = await prisma.user.findFirst({
+      where: { isDemo: true }
     })
-    
-    if (demoUser && !force) {
-      return NextResponse.json({
-        success: false,
-        message: 'Demo environment already exists. Pass force=true to recreate.'
-      }, { status: 409 })
+
+    if (existingDemoUser && !force) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Demo environment already exists. Pass force=true to recreate.',
+        },
+        { status: 409 }
+      )
     }
 
     if (force) {
       await cleanupDemoData()
     }
 
-    // Start transaction to ensure atomic operation
-    const result = await prisma.$transaction(async (tx) => {
-      // Always create a demo admin user
-      const demoAdminPassword = process.env.DEMO_ADMIN_PASSWORD || 'SecureWarehouse2024!'
-      const hashedPassword = await bcrypt.hash(demoAdminPassword, 10)
-      
-      // Check if demo admin already exists
-      let demoAdmin = await tx.user.findFirst({
-        where: { 
-          username: 'demo-admin',
-          isDemo: true
-        }
-      })
+    const baseUrl = request.headers.get('origin')
+      ?? request.nextUrl.origin
+      ?? process.env.WMS_BASE_URL
+      ?? process.env.BASE_URL
+      ?? 'http://localhost:3001'
 
-      if (!demoAdmin) {
-        demoAdmin = await tx.user.create({
-          data: {
-            username: 'demo-admin',
-            email: 'demo-admin@warehouse.com',
-            passwordHash: hashedPassword,
-            fullName: 'Demo Administrator',
-            role: 'admin',
-            isActive: true,
-            isDemo: true,
-          }
-        })
-      }
+    const logger: string[] = []
+    const appendLog = (message: string) => {
+      logger.push(message)
+    }
 
-      // Generate basic demo data (users, warehouses, SKUs, cost rates)
-      const { warehouses, skus, staffUser } = await generateBasicDemoData(tx, demoAdmin.id)
-      
-      // Create demo transactions using the v0.5.0 schema
-      const transactionResult = await createDemoTransactions({
-        tx,
-        staffUserId: staffUser.id,
-        warehouses,
-        skus
-      })
-      
-      return {
-        demoAdmin,
-        warehouses,
-        skus,
-        staffUser,
-        transactionsCreated: transactionResult.transactions.length
-      }
+    const client = new SetupClient({ baseUrl })
+
+    const { demoAdmin, staffUser } = await ensureDemoUsers(force)
+
+    const warehouseResult = await seedWarehouses(client, {
+      skipClean: !force,
+      logger: (message) => appendLog(`[warehouses] ${message}`),
+    })
+    await seedProducts(client, {
+      skipClean: !force,
+      logger: (message) => appendLog(`[products] ${message}`),
+    })
+    const poResult = await seedPurchaseOrders(client, {
+      logger: (message) => appendLog(`[purchase-orders] ${message}`),
     })
 
     return NextResponse.json({
       success: true,
       message: 'Demo environment set up successfully',
-      transactionsCreated: result.transactionsCreated
+      summary: {
+        demoAdmin: demoAdmin.email,
+        staffUser: staffUser.email,
+        warehouses: warehouseResult.warehouses.length,
+        purchaseOrders: poResult.purchaseOrdersCreated,
+        inboundTransactionCreated: poResult.inboundTransactionCreated,
+        invoiceCreated: poResult.invoiceCreated,
+        logs: logger,
+      },
     })
   } catch (_error) {
     return NextResponse.json(
@@ -105,225 +85,67 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+async function cleanupDemoData() {
+  await prisma.costLedger.deleteMany({})
+  await prisma.inventoryTransaction.deleteMany({})
+  await prisma.purchaseOrderLine.deleteMany({})
+  await prisma.purchaseOrder.deleteMany({})
+  await prisma.costRate.deleteMany({})
+  await prisma.user.deleteMany({ where: { isDemo: true } })
+}
 
-async function generateBasicDemoData(tx: Prisma.TransactionClient, adminUserId: string) {
-  // Create demo staff user
+async function ensureDemoUsers(force: boolean) {
+  const demoAdminPassword = process.env.DEMO_ADMIN_PASSWORD || 'SecureWarehouse2024!'
   const demoStaffPassword = process.env.DEMO_STAFF_PASSWORD || 'DemoStaff2024!'
-  const hashedPassword = await bcrypt.hash(demoStaffPassword, 10)
-  const staffUser = await tx.user.create({
-    data: {
-      username: 'demo-staff',
-      email: 'demo-staff@warehouse.com',
-      passwordHash: hashedPassword,
-      fullName: 'Demo Staff',
-      role: 'staff',
-      isActive: true,
-      isDemo: true,
-    }
+
+  const hashedAdminPassword = await bcrypt.hash(demoAdminPassword, 10)
+  const hashedStaffPassword = await bcrypt.hash(demoStaffPassword, 10)
+
+  let demoAdmin = await prisma.user.findFirst({
+    where: { username: 'demo-admin', isDemo: true },
   })
 
-  // Use existing warehouses or create if they don't exist
-  let warehouses = await tx.warehouse.findMany({
-    where: {
-      code: {
-        in: ['FMC', 'VGLOBAL']
-      }
-    }
-  })
-  
-  // If warehouses don't exist, create them
-  if (warehouses.length === 0) {
-    warehouses = await Promise.all([
-      tx.warehouse.create({
-        data: {
-          code: 'FMC',
-          name: 'FMC Warehouse',
-          address: '123 Warehouse St, London, UK',
-          contactEmail: 'fmc@warehouse.com',
-          contactPhone: '+44 20 1234 5678',
-          isActive: true,
-        }
-      }),
-      tx.warehouse.create({
-        data: {
-          code: 'VGLOBAL',
-          name: 'Vglobal Distribution Center',
-          address: '456 Industrial Park, Manchester, UK',
-          contactEmail: 'vglobal@warehouse.com',
-          contactPhone: '+44 161 234 5678',
-          isActive: true,
-        }
-      }),
-    ])
+  if (!demoAdmin) {
+    demoAdmin = await prisma.user.create({
+      data: {
+        username: 'demo-admin',
+        email: 'demo-admin@warehouse.com',
+        passwordHash: hashedAdminPassword,
+        fullName: 'Demo Administrator',
+        role: 'admin',
+        isActive: true,
+        isDemo: true,
+      },
+    })
+  } else if (force) {
+    await prisma.user.update({
+      where: { id: demoAdmin.id },
+      data: { passwordHash: hashedAdminPassword, isActive: true },
+    })
   }
 
-  // Update staff user with warehouse assignment
-  await tx.user.update({
-    where: { id: staffUser.id },
-    data: { warehouseId: warehouses[0].id }
+  let staffUser = await prisma.user.findFirst({
+    where: { username: 'demo-staff', isDemo: true },
   })
 
-  // Use existing SKUs or create if they don't exist
-  let skus = await tx.sku.findMany({
-    where: {
-      skuCode: {
-        in: ['CS-007', 'CS-009', 'CS-011', 'CS-022', 'CS-023', 'CDS-001', 'CDS-002']
-      }
-    }
-  })
-  
-  // If SKUs don't exist, create demo ones
-  if (skus.length === 0) {
-    skus = await Promise.all([
-      tx.sku.create({
-        data: {
-          skuCode: 'CS-007',
-          description: 'CS 007 Product',
-          packSize: 1,
-          unitDimensionsCm: '25x20.5x2.3',
-          unitWeightKg: 0.15, // Estimated
-          unitsPerCarton: 60,
-          cartonDimensionsCm: '40x44x52.5',
-          cartonWeightKg: 9.5, // Estimated based on units
-          packagingType: 'Box',
-          isActive: true,
-        }
-      }),
-    tx.sku.create({
+  if (!staffUser) {
+    staffUser = await prisma.user.create({
       data: {
-        skuCode: 'CS-009',
-        description: 'CS 009 Product',
-        packSize: 1,
-        unitDimensionsCm: '25x20.5x3.8',
-        unitWeightKg: 0.25, // Estimated
-        unitsPerCarton: 36,
-        cartonDimensionsCm: '38x44x52.5',
-        cartonWeightKg: 9.5, // Estimated
-        packagingType: 'Box',
+        username: 'demo-staff',
+        email: 'demo-staff@warehouse.com',
+        passwordHash: hashedStaffPassword,
+        fullName: 'Demo Staff',
+        role: 'staff',
         isActive: true,
-      }
-    }),
-    tx.sku.create({
-      data: {
-        skuCode: 'CS-011',
-        description: 'CS 011 Product',
-        packSize: 1,
-        unitDimensionsCm: '25x20.5x3.8',
-        unitWeightKg: 0.25, // Estimated
-        unitsPerCarton: 52,
-        cartonDimensionsCm: '41x28x39.5',
-        cartonWeightKg: 13.5, // Estimated
-        packagingType: 'Box',
-        isActive: true,
-      }
-    }),
-    tx.sku.create({
-      data: {
-        skuCode: 'CS-022',
-        description: 'CS 022 Product',
-        packSize: 1,
-        unitDimensionsCm: '25x20.5x0.5',
-        unitWeightKg: 0.05, // Estimated - thin product
-        unitsPerCarton: 55,
-        cartonDimensionsCm: '40x28x29.5',
-        cartonWeightKg: 3.0, // Estimated
-        packagingType: 'Box',
-        isActive: true,
-      }
-    }),
-    tx.sku.create({
-      data: {
-        skuCode: 'CS-023',
-        description: 'CS 023 Product',
-        packSize: 1,
-        unitDimensionsCm: '25x20.5x4.0',
-        unitWeightKg: 0.3, // Estimated
-        unitsPerCarton: 32,
-        cartonDimensionsCm: '38x44x52.5',
-        cartonWeightKg: 10.0, // Estimated
-        packagingType: 'Box',
-        isActive: true,
-      }
-    }),
-    tx.sku.create({
-      data: {
-        skuCode: 'CDS-001',
-        description: 'CDS 001 Product',
-        packSize: 1,
-        unitDimensionsCm: '30x20x5',
-        unitWeightKg: 0.4, // Estimated
-        unitsPerCarton: 33,
-        cartonDimensionsCm: '39.5x47.5x55',
-        cartonWeightKg: 13.5, // Estimated
-        packagingType: 'Box',
-        isActive: true,
-      }
-    }),
-    tx.sku.create({
-      data: {
-        skuCode: 'CDS-002',
-        description: 'CDS 002 Product',
-        packSize: 1,
-        unitDimensionsCm: '32x22x10',
-        unitWeightKg: 0.8, // Estimated - larger product
-        unitsPerCarton: 14,
-        cartonDimensionsCm: '32x60.5x52',
-        cartonWeightKg: 12.0, // Estimated
-        packagingType: 'Box',
-        isActive: true,
-      }
-    }),
-    ])
+        isDemo: true,
+      },
+    })
+  } else if (force) {
+    await prisma.user.update({
+      where: { id: staffUser.id },
+      data: { passwordHash: hashedStaffPassword, isActive: true },
+    })
   }
 
-  // Create demo cost rates only if they don't exist
-  const costRates = await Promise.all([
-    tx.costRate.create({
-      data: {
-        warehouseId: warehouses[0].id,
-        costCategory: 'Storage',
-        costName: 'Standard Storage - Per Pallet',
-        costValue: 25.00,
-        unitOfMeasure: 'pallet/week',
-        effectiveDate: new Date('2024-01-01'),
-        createdById: adminUserId,
-      }
-    }),
-    tx.costRate.create({
-      data: {
-        warehouseId: warehouses[0].id,
-        costCategory: 'Carton',
-        costName: 'Inbound Processing',
-        costValue: 1.50,
-        unitOfMeasure: 'carton',
-        effectiveDate: new Date('2024-01-01'),
-        createdById: adminUserId,
-      }
-    }),
-    tx.costRate.create({
-      data: {
-        warehouseId: warehouses[0].id,
-        costCategory: 'Carton',
-        costName: 'Outbound Processing',
-        costValue: 1.75,
-        unitOfMeasure: 'carton',
-        effectiveDate: new Date('2024-01-01'),
-        createdById: adminUserId,
-      }
-    }),
-    tx.costRate.create({
-      data: {
-        warehouseId: warehouses[1].id,
-        costCategory: 'Storage',
-        costName: 'Standard Storage - Per Pallet',
-        costValue: 20.00,
-        unitOfMeasure: 'pallet/week',
-        effectiveDate: new Date('2024-01-01'),
-        createdById: adminUserId,
-      }
-    }),
-  ])
-
-  // Return basic entities for enhanced demo data generation
-  return { warehouses, skus, staffUser, costRates }
+  return { demoAdmin, staffUser }
 }

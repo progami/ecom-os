@@ -7,7 +7,7 @@
  *   pnpm --filter @ecom-os/wms exec tsx scripts/setup/storage-rates.ts [--verbose]
  */
 
-import { SetupClient, SetupClientError } from './api-client'
+import { SetupClient, SetupClientError } from '../../src/lib/setup/setup-client'
 
 const args = process.argv.slice(2)
 const verbose = args.includes('--verbose')
