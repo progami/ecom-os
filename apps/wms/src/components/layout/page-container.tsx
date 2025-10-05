@@ -54,10 +54,9 @@ export function PageHeaderSection({ title, description, icon: Icon, actions, met
     </header>
   )
 }
-
 export function PageContent({ children, className }: PageContentProps) {
   return (
-    <div className={cn('flex-1 overflow-auto px-4 py-6 sm:px-6 lg:px-8', className)}>
+    <div className={cn('flex-1 px-4 py-6 sm:px-6 lg:px-8', className)}>
       {children}
     </div>
   )
