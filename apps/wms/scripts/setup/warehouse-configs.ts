@@ -4,16 +4,13 @@
  * Setup script: warehouses + cost rates
  * --------------------------------------------------
  * - Creates default warehouses if missing
- * - Seeds baseline storage / handling cost rates
+ * - Seeds baseline storage / handling cost rates via public APIs
  *
  * Usage:
  *   pnpm --filter @ecom-os/wms exec tsx scripts/setup/warehouse-configs.ts [--skip-clean] [--verbose]
  */
 
-import { PrismaClient, UserRole, CostCategory, Prisma } from '@prisma/client'
-import * as bcrypt from 'bcryptjs'
-
-const prisma = new PrismaClient()
+import { SetupClient, type WarehouseSeed } from './api-client'
 
 const args = process.argv.slice(2)
 const skipClean = args.includes('--skip-clean')
@@ -26,105 +23,90 @@ function log(message: string, data?: unknown) {
   }
 }
 
-async function ensureAdminUser() {
-  let admin = await prisma.user.findFirst({ where: { role: UserRole.admin } })
-  if (!admin) {
-    const passwordHash = await bcrypt.hash('setup123', 10)
-    admin = await prisma.user.create({
-      data: {
-        email: 'setup-admin@local.test',
-        fullName: 'Setup Admin',
-        role: UserRole.admin,
-        passwordHash,
-      },
-    })
-    log('Created fallback admin user setup-admin@local.test (password: setup123)')
-  }
-  return admin
-}
+const WAREHOUSE_SEEDS: WarehouseSeed[] = [
+  {
+    code: 'FMC',
+    name: 'FMC Primary Warehouse',
+    address: '123 Logistics Way, New Jersey, USA',
+  },
+  {
+    code: 'VGLOBAL',
+    name: 'Vglobal Fulfilment Center',
+    address: '456 Distribution Blvd, California, USA',
+  },
+]
 
-async function upsertWarehouses() {
-  const warehouses = [
-    {
-      code: 'FMC',
-      name: 'FMC Primary Warehouse',
-      address: '123 Logistics Way, New Jersey, USA',
-    },
-    {
-      code: 'VGLOBAL',
-      name: 'Vglobal Fulfilment Center',
-      address: '456 Distribution Blvd, California, USA',
-    },
-  ]
+const RATE_BLUEPRINT = [
+  {
+    costName: 'Storage per pallet (monthly)',
+    costCategory: 'Storage' as const,
+    costValue: 18,
+    unitOfMeasure: 'PALLET_MONTH',
+  },
+  {
+    costName: 'Inbound handling per pallet',
+    costCategory: 'Accessorial' as const,
+    costValue: 8,
+    unitOfMeasure: 'PALLET',
+  },
+]
 
-  for (const warehouse of warehouses) {
-    await prisma.warehouse.upsert({
-      where: { code: warehouse.code },
-      create: warehouse,
-      update: {
-        name: warehouse.name,
-        address: warehouse.address,
-      },
-    })
+async function upsertWarehouses(client: SetupClient) {
+  const results = [] as Array<{ code: string; id: string }>
+  for (const warehouse of WAREHOUSE_SEEDS) {
+    const record = await client.upsertWarehouse(warehouse)
+    const id = record.id ?? record?.warehouse?.id
+    if (!id) {
+      throw new Error(`Unable to resolve ID for warehouse ${warehouse.code}`)
+    }
+    results.push({ code: warehouse.code, id })
     log(`Warehouse ready: ${warehouse.code}`)
   }
+  return results
 }
 
-async function seedCostRates() {
-  if (!skipClean) {
-    await prisma.costRate.deleteMany()
-    log('Cleared existing cost rates')
-  }
-
-  const warehouses = await prisma.warehouse.findMany()
-  if (warehouses.length === 0) {
-    log('No warehouses found; skipping cost rate setup')
-    return
-  }
-
-  const admin = await ensureAdminUser()
+async function seedCostRates(client: SetupClient, warehouses: Array<{ code: string; id: string }>) {
   const today = new Date()
   const effectiveDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()))
+    .toISOString()
 
-  const rates = warehouses.flatMap(warehouse => [
-    {
-      warehouseId: warehouse.id,
-      costCategory: CostCategory.Storage,
-      costName: 'Storage per pallet (monthly)',
-      costValue: new Prisma.Decimal(18),
-      unitOfMeasure: 'PALLET_MONTH',
-      effectiveDate,
-      isActive: true,
-      createdById: admin.id,
-    },
-    {
-      warehouseId: warehouse.id,
-      costCategory: CostCategory.Accessorial,
-      costName: 'Inbound handling per pallet',
-      costValue: new Prisma.Decimal(8),
-      unitOfMeasure: 'PALLET',
-      effectiveDate,
-      isActive: true,
-      createdById: admin.id,
-    },
-  ])
+  for (const warehouse of warehouses) {
+    for (const rate of RATE_BLUEPRINT) {
+      if (!skipClean) {
+        await client.retireActiveRates(warehouse.id, rate.costName)
+      }
 
-  if (rates.length > 0) {
-    await prisma.costRate.createMany({ data: rates })
-    log(`Seeded ${rates.length} cost rates`)
+      try {
+        await client.createRate({
+          warehouseId: warehouse.id,
+          costCategory: rate.costCategory,
+          costName: rate.costName,
+          costValue: rate.costValue,
+          unitOfMeasure: rate.unitOfMeasure,
+          effectiveDate,
+        })
+        log(`Rate seeded for ${warehouse.code}: ${rate.costName}`)
+      } catch (error) {
+        if (error instanceof Error) {
+          log(`Skipping rate for ${warehouse.code} (${rate.costName}) - ${error.message}`)
+        } else {
+          log(`Skipping rate for ${warehouse.code} (${rate.costName}) due to unknown error`)
+        }
+      }
+    }
   }
 }
 
 async function main() {
+  const client = new SetupClient({ verbose })
+
   try {
-    await upsertWarehouses()
-    await seedCostRates()
+    const warehouses = await upsertWarehouses(client)
+    await seedCostRates(client, warehouses)
     log('Warehouse setup complete')
   } catch (error) {
     console.error('[setup][warehouses] failed', error)
     process.exitCode = 1
-  } finally {
-    await prisma.$disconnect()
   }
 }
 

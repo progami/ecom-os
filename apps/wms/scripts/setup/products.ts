@@ -7,9 +7,7 @@
  *   pnpm --filter @ecom-os/wms exec tsx scripts/setup/products.ts [--skip-clean] [--verbose]
  */
 
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { SetupClient, type SkuSeed } from './api-client'
 
 const args = process.argv.slice(2)
 const skipClean = args.includes('--skip-clean')
@@ -22,7 +20,7 @@ function log(message: string, data?: unknown) {
   }
 }
 
-const PRODUCTS = [
+const PRODUCTS: SkuSeed[] = [
   {
     skuCode: 'CS-008',
     description: 'Pack of 3 - LD',
@@ -103,37 +101,42 @@ const PRODUCTS = [
   },
 ] as const
 
-async function cleanProducts() {
+async function cleanProducts(client: SetupClient) {
   if (skipClean) {
     log('Skipping product clean up')
     return
   }
 
-  await prisma.sku.deleteMany()
-  log('Removed existing SKUs')
+  for (const product of PRODUCTS) {
+    const existing = await client.findSkuByCode(product.skuCode)
+    if (!existing) continue
+
+    try {
+      await client.deleteSku(existing.id)
+      log(`Deleted existing SKU ${product.skuCode}`)
+    } catch (error) {
+      log(`Failed to delete SKU ${product.skuCode}, attempting to deactivate`, error)
+      await client.upsertSku({ ...product })
+    }
+  }
 }
 
-async function upsertProducts() {
+async function upsertProducts(client: SetupClient) {
   for (const product of PRODUCTS) {
-    await prisma.sku.upsert({
-      where: { skuCode: product.skuCode },
-      create: product,
-      update: product,
-    })
-    log(`Upserted ${product.skuCode}`)
+    await client.upsertSku(product)
   }
 }
 
 async function main() {
+  const client = new SetupClient({ verbose })
+
   try {
-    await cleanProducts()
-    await upsertProducts()
+    await cleanProducts(client)
+    await upsertProducts(client)
     log('Product setup complete')
   } catch (error) {
     console.error('[setup][products] failed', error)
     process.exitCode = 1
-  } finally {
-    await prisma.$disconnect()
   }
 }
 
