@@ -33,7 +33,7 @@ export function withBasePath(path: string): string {
 export function withoutBasePath(path: string): string {
   const basePath = getBasePath()
   if (!basePath || !path.startsWith(basePath)) return path
-  
+
   const pathWithoutBase = path.slice(basePath.length)
   return pathWithoutBase.startsWith('/') ? pathWithoutBase : `/${pathWithoutBase}`
 }
@@ -42,5 +42,5 @@ export function withoutBasePath(path: string): string {
  * Check if we're running with a base path
  */
 export function hasBasePath(): boolean {
-  return !!getBasePath()
+  return getBasePath().length > 0
 }
