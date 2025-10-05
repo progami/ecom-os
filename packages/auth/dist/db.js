@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../node_modules/.prisma/client-auth';
 let prismaInstance = globalThis.__centralAuthPrisma ?? null;
 export function getCentralAuthPrisma() {
     if (!process.env.CENTRAL_DB_URL) {

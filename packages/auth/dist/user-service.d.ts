@@ -1,7 +1,3 @@
-type AppEntitlementMap = Record<string, {
-    role: string;
-    departments: string[];
-}>;
 export type AuthenticatedUser = {
     id: string;
     email: string;
@@ -14,5 +10,4 @@ export type AuthenticatedUser = {
     }>;
 };
 export declare function authenticateWithCentralDirectory(input: unknown): Promise<AuthenticatedUser | null>;
-export declare function getUserEntitlements(userId: string): Promise<AppEntitlementMap>;
-export {};
+export declare function getUserEntitlements(userId: string): Promise<any>;

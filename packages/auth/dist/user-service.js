@@ -24,15 +24,31 @@ export async function authenticateWithCentralDirectory(input) {
             ],
             isActive: true,
         },
-        include: {
+        select: {
+            id: true,
+            email: true,
+            username: true,
+            firstName: true,
+            lastName: true,
+            passwordHash: true,
             roles: {
-                include: {
-                    role: true,
+                select: {
+                    role: {
+                        select: {
+                            name: true,
+                        },
+                    },
                 },
             },
             appAccess: {
-                include: {
-                    app: true,
+                select: {
+                    accessLevel: true,
+                    departments: true,
+                    app: {
+                        select: {
+                            slug: true,
+                        },
+                    },
                 },
             },
         },
@@ -47,7 +63,9 @@ export async function authenticateWithCentralDirectory(input) {
     const entitlements = user.appAccess.reduce((map, assignment) => {
         map[assignment.app.slug] = {
             role: assignment.accessLevel,
-            departments: Array.isArray(assignment.departments) ? assignment.departments : [],
+            departments: Array.isArray(assignment.departments)
+                ? assignment.departments
+                : [],
         };
         return map;
     }, {});
@@ -91,12 +109,22 @@ export async function getUserEntitlements(userId) {
     const prisma = getCentralAuthPrisma();
     const assignments = await prisma.userApp.findMany({
         where: { userId },
-        include: { app: true },
+        select: {
+            accessLevel: true,
+            departments: true,
+            app: {
+                select: {
+                    slug: true,
+                },
+            },
+        },
     });
     return assignments.reduce((map, assignment) => {
         map[assignment.app.slug] = {
             role: assignment.accessLevel,
-            departments: Array.isArray(assignment.departments) ? assignment.departments : [],
+            departments: Array.isArray(assignment.departments)
+                ? assignment.departments
+                : [],
         };
         return map;
     }, {});
