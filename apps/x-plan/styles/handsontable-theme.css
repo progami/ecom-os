@@ -400,7 +400,7 @@
   width: 100%;
   padding: 6px 10px;
   border-radius: 0.5rem;
-  border: 1px solid rgba(203, 213, 225, 0.4);
+  border: 1.5px dashed rgba(8, 145, 178, 0.4);
   background: rgba(241, 245, 249, 0.5);
   font-size: 11px;
   font-weight: 700;
@@ -409,24 +409,30 @@
   color: #0e7490;
   cursor: pointer;
   transition: all 0.15s ease;
+  outline: 2px solid transparent;
+  outline-offset: 1px;
 }
 
 .x-plan-header-toggle:hover {
   background: rgba(8, 145, 178, 0.1);
-  border-color: rgba(8, 145, 178, 0.5);
+  border-color: rgba(8, 145, 178, 0.7);
+  border-style: solid;
+  outline-color: rgba(8, 145, 178, 0.2);
   transform: translateY(-1px);
   color: #164e63;
 }
 
 .dark .x-plan-header-toggle {
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1.5px dashed rgba(0, 194, 185, 0.4);
   background: rgba(255, 255, 255, 0.05);
   color: #5eead4;
 }
 
 .dark .x-plan-header-toggle:hover {
   background: rgba(0, 194, 185, 0.15);
-  border-color: rgba(0, 194, 185, 0.5);
+  border-color: rgba(0, 194, 185, 0.7);
+  border-style: solid;
+  outline-color: rgba(0, 194, 185, 0.2);
   color: #ccfbf1;
 }
 
@@ -438,4 +444,88 @@
 /* Center alignment for certain cells */
 .x-plan-hot .htCore td.htCenter {
   text-align: center;
+}
+
+/* SKU Header Navigation */
+.x-plan-sku-header-nav {
+  display: grid;
+  grid-template-columns: 32px 1fr 32px;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.x-plan-sku-nav-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+
+.x-plan-sku-nav-arrow:disabled {
+  cursor: default;
+  opacity: 0;
+}
+
+.x-plan-sku-nav-arrow:not(:disabled):hover {
+  background: rgba(59, 130, 246, 0.2);
+  color: #2563eb;
+  transform: scale(1.05);
+}
+
+.x-plan-sku-nav-arrow:not(:disabled):active {
+  transform: scale(0.95);
+}
+
+.x-plan-sku-nav-arrow-all {
+  background: rgba(8, 145, 178, 0.15);
+  color: #0e7490;
+}
+
+.x-plan-sku-nav-arrow-all:not(:disabled):hover {
+  background: rgba(8, 145, 178, 0.25);
+  color: #164e63;
+}
+
+.dark .x-plan-sku-nav-arrow {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+}
+
+.dark .x-plan-sku-nav-arrow:not(:disabled):hover {
+  background: rgba(96, 165, 250, 0.25);
+  color: #93c5fd;
+}
+
+.dark .x-plan-sku-nav-arrow-all {
+  background: rgba(0, 194, 185, 0.2);
+  color: #5eead4;
+}
+
+.dark .x-plan-sku-nav-arrow-all:not(:disabled):hover {
+  background: rgba(0, 194, 185, 0.3);
+  color: #ccfbf1;
+}
+
+.x-plan-sku-header-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: #0f172a;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.dark .x-plan-sku-header-label {
+  color: #e2e8f0;
 }

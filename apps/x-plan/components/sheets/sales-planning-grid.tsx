@@ -186,6 +186,9 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
           case 'finalSalesError':
             bounds = { min: 120, max: 200, padding: 26 }
             break
+          case 'stockStart':
+            bounds = { min: 140, max: 240, padding: 36 }
+            break
           default:
             bounds = { min: 130, max: 220, padding: 24 }
             break
@@ -270,6 +273,98 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
   const handleColHeader = useCallback(
     (col: number, TH: HTMLTableCellElement, headerLevel: number) => {
       const offset = 3
+
+      // Handle SKU header row (headerLevel 0) with navigation arrows
+      if (headerLevel === 0 && col >= offset) {
+        const key = columnKeys[col - offset]
+        const meta = columnMeta[key]
+        if (!meta) return
+
+        // Find the current product index and check if we need arrows
+        const currentProductId = meta.productId
+        const currentProductIndex = productOptions.findIndex(p => p.id === currentProductId)
+        if (currentProductIndex === -1) return
+
+        // Only add arrows if there are multiple products
+        if (productOptions.length <= 1) return
+
+        const hasPrev = currentProductIndex > 0
+        const hasNext = currentProductIndex < productOptions.length - 1
+        const showAllArrow = currentProductIndex === 0
+
+        // Check if this is the first column of this product's section
+        const isFirstColumnOfProduct = col === offset || columnMeta[columnKeys[col - offset - 1]]?.productId !== currentProductId
+        if (!isFirstColumnOfProduct) return
+
+        Handsontable.dom.empty(TH)
+        const container = document.createElement('div')
+        container.className = 'x-plan-sku-header-nav'
+
+        // Previous arrow / Show All button
+        const prevBtn = document.createElement('button')
+        prevBtn.type = 'button'
+        if (showAllArrow) {
+          prevBtn.className = 'x-plan-sku-nav-arrow x-plan-sku-nav-arrow-all'
+          prevBtn.innerHTML = '⊞'
+          prevBtn.title = 'Show All SKUs'
+        } else {
+          prevBtn.className = 'x-plan-sku-nav-arrow x-plan-sku-nav-arrow-prev'
+          prevBtn.innerHTML = '◀'
+          prevBtn.title = hasPrev ? `Previous SKU: ${productOptions[currentProductIndex - 1].name}` : ''
+        }
+        prevBtn.style.visibility = (hasPrev || showAllArrow) ? 'visible' : 'hidden'
+        prevBtn.disabled = !(hasPrev || showAllArrow)
+        prevBtn.addEventListener('click', (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          e.stopImmediatePropagation()
+          if (showAllArrow) {
+            focusContext?.setFocusProductId('ALL')
+          } else if (hasPrev) {
+            focusContext?.setFocusProductId(productOptions[currentProductIndex - 1].id)
+          }
+        })
+        prevBtn.addEventListener('mousedown', (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          e.stopImmediatePropagation()
+        })
+        container.appendChild(prevBtn)
+
+        // SKU name
+        const label = document.createElement('span')
+        label.className = 'x-plan-sku-header-label'
+        label.textContent = productOptions[currentProductIndex].name
+        container.appendChild(label)
+
+        // Next arrow
+        const nextBtn = document.createElement('button')
+        nextBtn.type = 'button'
+        nextBtn.className = 'x-plan-sku-nav-arrow x-plan-sku-nav-arrow-next'
+        nextBtn.innerHTML = '▶'
+        nextBtn.style.visibility = hasNext ? 'visible' : 'hidden'
+        nextBtn.title = hasNext ? `Next SKU: ${productOptions[currentProductIndex + 1].name}` : ''
+        nextBtn.disabled = !hasNext
+        nextBtn.addEventListener('click', (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          e.stopImmediatePropagation()
+          if (hasNext) {
+            focusContext?.setFocusProductId(productOptions[currentProductIndex + 1].id)
+          }
+        })
+        nextBtn.addEventListener('mousedown', (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          e.stopImmediatePropagation()
+        })
+        container.appendChild(nextBtn)
+
+        TH.appendChild(container)
+        return
+      }
+
+      // Handle metric header row (headerLevel 1)
       if (headerLevel !== 1 || col < offset) return
       const key = columnKeys[col - offset]
       const meta = columnMeta[key]
@@ -284,7 +379,13 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         button.addEventListener('click', (event) => {
           event.preventDefault()
           event.stopPropagation()
+          event.stopImmediatePropagation()
           handler()
+        })
+        button.addEventListener('mousedown', (event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          event.stopImmediatePropagation()
         })
         TH.appendChild(button)
       }
@@ -310,6 +411,8 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
       setActiveStockMetric,
       setShowFinalError,
       showFinalError,
+      productOptions,
+      focusContext,
     ]
   )
 
@@ -365,18 +468,19 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         rowHeaders={false}
         undo
         comments={true}
-        dropdownMenu={{ items: ['filter_by_value'] }}
-        filters={false}
+        dropdownMenu={true}
+        filters={true}
         hiddenColumns={{ columns: hiddenColumns, indicators: true }}
         cells={(row, col) => {
           const cell: Handsontable.CellMeta = {}
           const offset = 3
           const weekNumber = Number(data[row]?.weekNumber)
           const hasInbound = Number.isFinite(weekNumber) && hasInboundByWeek.has(weekNumber)
-          if (hasInbound) {
-            cell.className = cell.className ? `${cell.className} row-inbound-sales` : 'row-inbound-sales'
-          }
+
           if (col < offset) {
+            if (hasInbound) {
+              cell.className = cell.className ? `${cell.className} row-inbound-sales` : 'row-inbound-sales'
+            }
             return cell
           }
           const key = columnKeys[col - offset]
@@ -384,7 +488,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
           const editable = isEditableMetric(meta?.field)
           cell.readOnly = !editable
           const baseClass = editable ? 'cell-editable' : 'cell-readonly'
-          cell.className = hasInbound ? `${baseClass} row-inbound-sales` : baseClass
+          cell.className = baseClass
 
           if (meta?.field === 'stockWeeks' && activeStockMetric === 'stockWeeks') {
             const record = data[row]
