@@ -76,13 +76,15 @@ export default function WarehouseInvoiceDetailPage() {
         if (!response.ok) {
           throw new Error('Failed to load warehouse invoice')
         }
-        const data = await response.json()
+        const data = (await response.json()) as WarehouseInvoiceSummary & {
+          lines?: WarehouseInvoiceLineSummary[]
+        }
         const normalized: WarehouseInvoiceSummary = {
           ...data,
-          subtotal: Number((data as any).subtotal ?? 0),
+          subtotal: Number(data.subtotal ?? data.total ?? 0),
           total: Number(data.total ?? 0),
-          lines: Array.isArray(data?.lines)
-            ? data.lines.map((line: WarehouseInvoiceLineSummary) => ({
+          lines: Array.isArray(data.lines)
+            ? data.lines.map(line => ({
                 ...line,
                 quantity: Number(line.quantity ?? 0),
                 unitRate: Number(line.unitRate ?? 0),

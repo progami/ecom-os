@@ -43,6 +43,17 @@ export type AuthenticatedHandlerWithParams<T = unknown> = (
   session: Session
 ) => Promise<NextResponse<T | { error: string }>>
 
+type ParamsInput = Promise<Record<string, string>> | Record<string, string>
+
+const isPromiseLike = <T,>(value: unknown): value is Promise<T> => {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'then' in (value as Record<string, unknown>) &&
+    typeof (value as { then?: unknown }).then === 'function'
+  )
+}
+
 /**
  * Higher-order function to wrap API routes with authentication
  * Automatically checks for valid session and returns 401 if not authenticated
@@ -80,19 +91,22 @@ export function withAuthAndParams<T = unknown>(
   handler: AuthenticatedHandlerWithParams<T>
 ): (
   request: NextRequest,
-  context: { params: Promise<Record<string, string>> }
+  context: { params: ParamsInput }
 ) => Promise<NextResponse<T | { error: string }>> {
   return async (
     request: NextRequest,
-    context: { params: Promise<Record<string, string>> }
+    context: { params: ParamsInput }
   ) => {
-    const resolvedContext = context
-    const rawParams = resolvedContext?.params
-    const hydratedParams =
-      rawParams && typeof (rawParams as any)?.then === 'function'
+    const rawParams = context?.params
+    let hydratedParams: Record<string, string>
+    if (rawParams) {
+      hydratedParams = isPromiseLike<Record<string, string>>(rawParams)
         ? await rawParams
-        : ((rawParams ?? {}) as Record<string, string>)
-    const contextParams = hydratedParams as Record<string, unknown>
+        : rawParams
+    } else {
+      hydratedParams = {}
+    }
+    const contextParams: Record<string, unknown> = hydratedParams
 
     if (process.env.BYPASS_AUTH === 'true') {
       try {

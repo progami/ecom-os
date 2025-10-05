@@ -64,11 +64,13 @@ export default function WarehouseInvoicesPage() {
         if (!response.ok) {
           throw new Error('Failed to load warehouse invoices')
         }
-        const data = await response.json()
+        const data = await response.json() as {
+          data?: Array<WarehouseInvoiceSummary & { lines?: WarehouseInvoiceLineSummary[] }>
+        }
         const normalized = Array.isArray(data?.data)
-          ? data.data.map((invoice: WarehouseInvoiceSummary) => ({
+          ? data.data.map(invoice => ({
               ...invoice,
-              subtotal: Number((invoice as any).subtotal ?? 0),
+              subtotal: Number(invoice.subtotal ?? invoice.total ?? 0),
               total: Number(invoice.total ?? 0),
               lines: Array.isArray(invoice.lines)
                 ? invoice.lines.map(line => ({
@@ -79,7 +81,7 @@ export default function WarehouseInvoicesPage() {
             }))
           : []
 
-        setInvoices(normalized as WarehouseInvoiceSummary[])
+        setInvoices(normalized)
       } catch (_error) {
         toast.error('Failed to load warehouse invoices')
       } finally {
