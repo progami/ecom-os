@@ -474,7 +474,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
         >
           <Flatpickr
             options={{ dateFormat: 'Y-m-d', defaultDate: picker.value || undefined, inline: true, clickOpens: false }}
-            onChange={(dates) => {
+            onChange={(dates: Date[]) => {
               const date = dates && dates[0]
               const iso = date ? toIsoDate(date) : ''
               const hot = hotRef.current

@@ -12,8 +12,18 @@
  * Expected outcomes are documented for validation
  */
 
-import { Prisma, LogisticsEventType } from '@prisma/client'
+import { Prisma } from '@prisma/client'
+import type { LogisticsEventType } from '@prisma/client'
 import prisma from '@/lib/prisma'
+
+const LogisticsEventType = {
+  PRODUCTION_START: 'PRODUCTION_START',
+  PRODUCTION_COMPLETE: 'PRODUCTION_COMPLETE',
+  INBOUND_DEPARTURE: 'INBOUND_DEPARTURE',
+  PORT_ARRIVAL: 'PORT_ARRIVAL',
+  WAREHOUSE_ARRIVAL: 'WAREHOUSE_ARRIVAL',
+  CUSTOM: 'CUSTOM',
+} as const satisfies Record<string, LogisticsEventType>
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000'
 const API_BASE = `${BASE_URL}/api/v1/x-plan`
@@ -220,7 +230,7 @@ function toDecimal(value: number | null | undefined) {
 }
 
 async function syncExistingPurchaseOrder(spec: PurchaseOrderSpec): Promise<string> {
-  return prisma.$transaction(async (tx) => {
+  return prisma.$transaction<string>(async (tx: Prisma.TransactionClient) => {
     const order = await tx.purchaseOrder.findUnique({
       where: { orderCode: spec.orderCode },
       include: { batchTableRows: true },
@@ -325,7 +335,7 @@ async function persistPaymentsWithPrisma(payments: PaymentSchedule[]) {
     byOrder.set(payment.purchaseOrderId, list)
   }
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     for (const [orderId, list] of byOrder.entries()) {
       await tx.purchaseOrderPayment.deleteMany({ where: { purchaseOrderId: orderId } })
 
@@ -1183,7 +1193,7 @@ function shiftOrderSpec(
       ...event,
       reference: event.reference ? `${event.reference} ${yearSuffix}` : event.reference,
       notes: event.notes ?? `Cycle ${variantIndex + 1} – leg ${idx + 1}`,
-      eventDate: shiftDateByWeeks(event.eventDate, weekOffset),
+      eventDate: shiftDateByWeeks(event.eventDate, weekOffset)!,
     })),
   }
 }
