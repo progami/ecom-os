@@ -255,7 +255,7 @@ export default function PurchaseOrderDetailPage() {
     [movementNotes]
   )
 
-  const isInbound = order.type === 'PURCHASE'
+  const isInbound = order?.type === 'PURCHASE'
 
   const requirementItems = useMemo(() => {
     if (!order) return []
