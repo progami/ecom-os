@@ -191,6 +191,8 @@ jobs:
 
       - name: Download CI build artifacts
         if: needs.prepare.outputs.artifact_run_id != ''
+        id: download
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: build-artifacts-${{ needs.prepare.outputs.target_sha }}
@@ -199,13 +201,13 @@ jobs:
           path: artifacts
 
       - name: Restore build outputs from artifacts
-        if: needs.prepare.outputs.artifact_run_id != ''
+        if: needs.prepare.outputs.artifact_run_id != '' && steps.download.conclusion == 'success'
         run: |
           set -euo pipefail
           rsync -a artifacts/build-artifacts-${{ needs.prepare.outputs.target_sha }}/ ./
 
       - name: Generate Prisma clients and build (fallback)
-        if: needs.prepare.outputs.artifact_run_id == ''
+        if: needs.prepare.outputs.artifact_run_id == '' || steps.download.conclusion != 'success'
         run: |
           pnpm --filter @ecom-os/auth prisma:generate
           pnpm --filter @ecom-os/wms db:generate
@@ -282,20 +284,26 @@ jobs:
           fi
 
       - name: Generate and inject CI SSH key via EC2 Instance Connect
-        if: ${{ env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' }}
+        if: ${{ github.event_name == 'workflow_run' && env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' && env.EIC_INSTANCE_ID != '' }}
+        continue-on-error: true
         env:
           OS_USER: ${{ env.EC2_USER_SECRET }}
         run: |
-          set -e
           OS_USER=${OS_USER:-ubuntu}
           ssh-keygen -t ed25519 -N '' -f ~/.ssh/ci_key -C ci@github || true
-          aws ec2-instance-connect send-ssh-public-key \
+          if ! aws ec2-instance-connect send-ssh-public-key \
             --instance-id "$EIC_INSTANCE_ID" \
             --availability-zone "$EIC_INSTANCE_AZ" \
             --instance-os-user "$OS_USER" \
-            --ssh-public-key "file://$HOME/.ssh/ci_key.pub"
-          ssh -i ~/.ssh/ci_key "$OS_USER@$EC2_HOST" \
-            "mkdir -p ~/.ssh && touch ~/.ssh/authorized_keys && grep -qxF '$(cat ~/.ssh/ci_key.pub)' ~/.ssh/authorized_keys || echo '$(cat ~/.ssh/ci_key.pub)' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"
+            --ssh-public-key "file://$HOME/.ssh/ci_key.pub"; then
+            echo "::warning title=EIC key injection failed::Continuing with existing SSH credentials" >&2
+            exit 0
+          fi
+          if ! ssh -i ~/.ssh/ci_key "$OS_USER@$EC2_HOST" \
+            "mkdir -p ~/.ssh && touch ~/.ssh/authorized_keys && grep -qxF '$(cat ~/.ssh/ci_key.pub)' ~/.ssh/authorized_keys || echo '$(cat ~/.ssh/ci_key.pub)' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"; then
+            echo "::warning title=EIC SSH propagation failed::Continuing with existing SSH credentials" >&2
+            exit 0
+          fi
           install -m 600 -D ~/.ssh/ci_key ~/.ssh/id_rsa
 
       - name: Configure known_hosts entry
