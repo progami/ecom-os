@@ -67,15 +67,21 @@
 }
 
 /* Product name headers (first row of nested headers) - larger text */
-.x-plan-hot .ht_clone_top thead tr:first-child th {
+.x-plan-hot .ht_clone_top thead tr:first-child th,
+.x-plan-hot .htCore thead tr:first-child th {
   font-size: 13px !important;
   font-weight: 800 !important;
   letter-spacing: 0.05em !important;
 }
 
-/* Second row of nested headers - same as single headers */
-.x-plan-hot .ht_clone_top thead tr:nth-child(2) th {
+/* Second row of nested headers - match single header font size exactly */
+.x-plan-hot .ht_clone_top thead tr:nth-child(2) th,
+.x-plan-hot .htCore thead tr:nth-child(2) th,
+.x-plan-hot thead tr:nth-child(2) th {
   font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
 }
 
 /* Row header / first column */

@@ -38,6 +38,7 @@ type StockMetricId = (typeof STOCK_METRIC_OPTIONS)[number]['id']
 
 const WEEK_COLUMN_WIDTH = 92
 const DATE_COLUMN_WIDTH = 136
+const METRIC_MIN_WIDTH = 132
 
 function isEditableMetric(field: string | undefined) {
   return Boolean(field && editableMetrics.has(field))
@@ -208,13 +209,13 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         data: 'weekNumber',
         readOnly: true,
         className: 'cell-readonly cell-common',
-        width: widthByColumn.weekNumber,
+        width: WEEK_COLUMN_WIDTH,
       },
       {
         data: 'weekDate',
         readOnly: true,
         className: 'cell-readonly cell-common',
-        width: widthByColumn.weekDate,
+        width: DATE_COLUMN_WIDTH,
       },
       {
         data: 'arrivalDetail',
@@ -233,7 +234,8 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
       }
       const editable = isEditableMetric(meta.field)
       const isFinalError = meta.field === 'finalSalesError'
-      const columnWidth = widthByColumn[key] ?? (isFinalError ? 96 : editable ? 88 : 86)
+      const measured = widthByColumn[key] ?? (isFinalError ? 96 : editable ? 88 : 86)
+      const columnWidth = isFinalError ? measured : Math.max(METRIC_MIN_WIDTH, measured)
       base.push({
         data: key,
         type: isFinalError ? 'text' : 'numeric',
@@ -254,6 +256,14 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
     }
     return base
   }, [columnMeta, columnKeys, widthByColumn])
+
+  const columnWidths = useMemo(() => columns.map((column) => column.width ?? METRIC_MIN_WIDTH), [columns])
+
+  const clampStretchWidth = useCallback((width: number, column: number) => {
+    if (column === 0) return WEEK_COLUMN_WIDTH
+    if (column === 1) return DATE_COLUMN_WIDTH
+    return width
+  }, [])
 
   const hiddenColumns = useMemo(() => {
     const hidden: number[] = []
@@ -276,6 +286,14 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
   const handleColHeader = useCallback(
     (col: number, TH: HTMLTableCellElement, headerLevel: number) => {
       const offset = 3
+
+      // Apply consistent font sizing for second header row to match P&L/Cash Flow
+      if (headerLevel === 1) {
+        TH.style.fontSize = '11px'
+        TH.style.fontWeight = '700'
+        TH.style.letterSpacing = '0.1em'
+        TH.style.textTransform = 'uppercase'
+      }
 
       // Handle SKU header row (headerLevel 0) with navigation arrows
       if (headerLevel === 0 && col >= offset) {
@@ -456,89 +474,93 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
     <div className="space-y-6 p-4">
       <div className="space-y-4">
         <HotTable
-        ref={(instance) => {
-          hotRef.current = instance?.hotInstance ?? null
-        }}
-        data={data}
-        licenseKey="non-commercial-and-evaluation"
-        colHeaders={false}
-        columns={columns}
-        nestedHeaders={nestedHeaders as unknown as HandsontableNestedHeaders}
-        afterGetColHeader={handleColHeader}
-        stretchH="all"
-        className="x-plan-hot"
-        height="auto"
-        rowHeaders={false}
-        undo
-        comments={true}
+          ref={(instance) => {
+            hotRef.current = instance?.hotInstance ?? null
+          }}
+          data={data}
+          licenseKey="non-commercial-and-evaluation"
+          width="100%"
+          colHeaders={false}
+          columns={columns}
+          nestedHeaders={nestedHeaders as unknown as HandsontableNestedHeaders}
+          afterGetColHeader={handleColHeader}
+          stretchH="all"
+          className="x-plan-hot"
+          height="auto"
+          rowHeaders={false}
+          undo
+          comments={true}
         dropdownMenu={true}
         filters={true}
         hiddenColumns={{ columns: hiddenColumns, indicators: true }}
+        autoColumnSize={false}
+        colWidths={columnWidths}
+        beforeStretchingColumnWidth={clampStretchWidth}
         cells={(row, col) => {
-          const cell: Handsontable.CellMeta = {}
-          const offset = 3
-          const weekNumber = Number(data[row]?.weekNumber)
-          const hasInbound = Number.isFinite(weekNumber) && hasInboundByWeek.has(weekNumber)
+            const cell: Handsontable.CellMeta = {}
+            const offset = 3
+            const weekNumber = Number(data[row]?.weekNumber)
+            const hasInbound = Number.isFinite(weekNumber) && hasInboundByWeek.has(weekNumber)
 
-          if (col < offset) {
-            if (hasInbound) {
-              cell.className = cell.className ? `${cell.className} row-inbound-sales` : 'row-inbound-sales'
+            if (col < offset) {
+              if (hasInbound) {
+                cell.className = cell.className ? `${cell.className} row-inbound-sales` : 'row-inbound-sales'
+              }
+              return cell
             }
+            const key = columnKeys[col - offset]
+            const meta = columnMeta[key]
+            const editable = isEditableMetric(meta?.field)
+            cell.readOnly = !editable
+            const baseClass = editable ? 'cell-editable' : 'cell-readonly'
+            cell.className = baseClass
+
+            if (meta?.field === 'stockWeeks' && activeStockMetric === 'stockWeeks') {
+              const record = data[row]
+              const rawValue = record?.[key]
+              const numeric = rawValue ? Number(rawValue) : Number.NaN
+              if (!Number.isNaN(numeric) && numeric <= warningThreshold) {
+                cell.className = cell.className ? `${cell.className} cell-warning` : 'cell-warning'
+              }
+            }
+
+            if (meta?.field === 'finalSales') {
+              const cellKey = `${weekNumber}-${key}`
+              const allocations = batchAllocations.get(cellKey)
+              if (allocations && allocations.length > 0) {
+                cell.comment = { value: formatBatchComment(allocations) }
+              }
+            }
+
             return cell
-          }
-          const key = columnKeys[col - offset]
-          const meta = columnMeta[key]
-          const editable = isEditableMetric(meta?.field)
-          cell.readOnly = !editable
-          const baseClass = editable ? 'cell-editable' : 'cell-readonly'
-          cell.className = baseClass
-
-          if (meta?.field === 'stockWeeks' && activeStockMetric === 'stockWeeks') {
-            const record = data[row]
-            const rawValue = record?.[key]
-            const numeric = rawValue ? Number(rawValue) : Number.NaN
-            if (!Number.isNaN(numeric) && numeric <= warningThreshold) {
-              cell.className = cell.className ? `${cell.className} cell-warning` : 'cell-warning'
+          }}
+          afterChange={(changes, source) => {
+            if (!changes || source === 'loadData') return
+            const hot = hotRef.current
+            if (!hot) return
+            for (const change of changes) {
+              const [rowIndex, prop, _oldValue, newValue] = change as [number, string, any, any]
+              const meta = columnMeta[prop]
+              if (!meta || !editableMetrics.has(meta.field)) continue
+              const record = hot.getSourceDataAtRow(rowIndex) as SalesRow | null
+              if (!record) continue
+              const key = `${meta.productId}-${record.weekNumber}`
+              if (!pendingRef.current.has(key)) {
+                pendingRef.current.set(key, {
+                  productId: meta.productId,
+                  weekNumber: Number(record.weekNumber),
+                  values: {},
+                })
+              }
+              const entry = pendingRef.current.get(key)
+              if (!entry) continue
+              const formatted = formatNumericInput(newValue)
+              entry.values[meta.field] = formatted
+              record[prop] = formatted
             }
-          }
-
-          if (meta?.field === 'finalSales') {
-            const cellKey = `${weekNumber}-${key}`
-            const allocations = batchAllocations.get(cellKey)
-            if (allocations && allocations.length > 0) {
-              cell.comment = { value: formatBatchComment(allocations) }
-            }
-          }
-
-          return cell
-        }}
-        afterChange={(changes, source) => {
-          if (!changes || source === 'loadData') return
-          const hot = hotRef.current
-          if (!hot) return
-          for (const change of changes) {
-            const [rowIndex, prop, _oldValue, newValue] = change as [number, string, any, any]
-            const meta = columnMeta[prop]
-            if (!meta || !editableMetrics.has(meta.field)) continue
-            const record = hot.getSourceDataAtRow(rowIndex) as SalesRow | null
-            if (!record) continue
-            const key = `${meta.productId}-${record.weekNumber}`
-            if (!pendingRef.current.has(key)) {
-              pendingRef.current.set(key, {
-                productId: meta.productId,
-                weekNumber: Number(record.weekNumber),
-                values: {},
-              })
-            }
-            const entry = pendingRef.current.get(key)
-            if (!entry) continue
-            const formatted = formatNumericInput(newValue)
-            entry.values[meta.field] = formatted
-            record[prop] = formatted
-          }
-          scheduleFlush()
-        }}
-      />
+            scheduleFlush()
+          }}
+        />
       </div>
     </div>
   )

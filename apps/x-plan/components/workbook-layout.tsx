@@ -68,27 +68,31 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
   }, [activeYear, sortedYears])
 
   const buildSheetHref = useCallback(
-    (slug: SheetSlug) => {
+    (slug: SheetSlug, yearOverride?: number | null) => {
       const base = searchParams ? new URLSearchParams(searchParams.toString()) : new URLSearchParams()
-      if (resolvedYear != null) {
-        base.set('year', String(resolvedYear))
+      const targetYear = yearOverride ?? resolvedYear
+      if (targetYear != null) {
+        base.set('year', String(targetYear))
       } else {
         base.delete('year')
       }
       const query = base.toString()
       return `/sheet/${slug}${query ? `?${query}` : ''}`
     },
-    [resolvedYear, searchParams],
+    [resolvedYear, searchParams]
   )
 
   const goToSheet = useCallback(
-    (slug: SheetSlug) => {
-      if (!slug || slug === activeSlug) return
+    (slug: SheetSlug, yearOverride?: number | null) => {
+      if (!slug) return
+      const targetHref = buildSheetHref(slug, yearOverride)
+      const nextYear = yearOverride ?? resolvedYear
+      if (slug === activeSlug && nextYear === resolvedYear) return
       startTransition(() => {
-        router.push(buildSheetHref(slug))
+        router.push(targetHref)
       })
     },
-    [activeSlug, buildSheetHref, router]
+    [activeSlug, buildSheetHref, resolvedYear, router]
   )
 
   const handleMouseMove = useCallback((event: MouseEvent) => {
@@ -190,6 +194,25 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
 
   const hasControls = Boolean(yearSwitcher || headerControls)
 
+  const yearTraversal = useMemo(() => {
+    if (!sortedYears.length) return [] as Array<{ slug: SheetSlug; year: number }>
+    const sequence = ['3-sales-planning', '4-fin-planning-pl', '5-fin-planning-cash-flow'] as const
+    const result: Array<{ slug: SheetSlug; year: number }> = []
+    for (const segment of sortedYears) {
+      for (const slug of sequence) {
+        if (YEAR_AWARE_SHEETS.has(slug)) {
+          result.push({ slug, year: segment.year })
+        }
+      }
+    }
+    return result
+  }, [sortedYears])
+
+  const traversalIndex = useMemo(() => {
+    if (resolvedYear == null) return -1
+    return yearTraversal.findIndex((entry) => entry.slug === activeSlug && entry.year === resolvedYear)
+  }, [activeSlug, resolvedYear, yearTraversal])
+
   useEffect(() => {
     if (!isResizing) return
     window.addEventListener('mousemove', handleMouseMove)
@@ -202,8 +225,26 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      if (target) {
+        const tagName = target.tagName
+        if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') return
+        if (target.isContentEditable) return
+        if (target.closest('.handsontableInput')) return
+      }
+
       // Ctrl + PageUp/PageDown to navigate sheets
       if (event.ctrlKey && !event.altKey && !event.metaKey) {
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+          if (traversalIndex === -1) return
+          const nextIndex = event.key === 'ArrowLeft' ? traversalIndex - 1 : traversalIndex + 1
+          if (nextIndex < 0 || nextIndex >= yearTraversal.length) return
+          const target = yearTraversal[nextIndex]
+          event.preventDefault()
+          goToSheet(target.slug, target.year)
+          return
+        }
+
         if (event.key === 'PageUp' || event.key === 'PageDown') {
           event.preventDefault()
           const index = sheets.findIndex((sheet) => sheet.slug === activeSlug)
@@ -224,7 +265,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [activeSlug, goToSheet, sheets])
+  }, [activeSlug, goToSheet, sheets, traversalIndex, yearTraversal])
 
   const activeSheet = useMemo(() => sheets.find((sheet) => sheet.slug === activeSlug), [sheets, activeSlug])
 
