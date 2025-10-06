@@ -85,7 +85,36 @@ const toPurchaseOrderSummary = (value: unknown): PurchaseOrderSummary => {
   return {
     id: record.id,
     orderNumber: record.orderNumber,
-    warehouseCode: typeof record.warehouseCode === 'string' ? record.warehouseCode : undefined,
+    type: typeof record.type === 'string' ? (record.type as PurchaseOrderTypeOption) : 'PURCHASE',
+    status: typeof record.status === 'string' ? (record.status as PurchaseOrderStatusOption) : 'DRAFT',
+    warehouseCode: typeof record.warehouseCode === 'string' ? record.warehouseCode : '',
+    warehouseName: typeof record.warehouseName === 'string' ? record.warehouseName : (record.warehouseCode as string) ?? '',
+    counterpartyName: typeof record.counterpartyName === 'string' ? record.counterpartyName : null,
+    expectedDate:
+      typeof record.expectedDate === 'string'
+        ? record.expectedDate
+        : record.expectedDate instanceof Date
+          ? record.expectedDate.toISOString()
+          : null,
+    postedAt:
+      typeof record.postedAt === 'string'
+        ? record.postedAt
+        : record.postedAt instanceof Date
+          ? record.postedAt.toISOString()
+          : null,
+    createdAt:
+      typeof record.createdAt === 'string'
+        ? record.createdAt
+        : record.createdAt instanceof Date
+          ? record.createdAt.toISOString()
+          : new Date().toISOString(),
+    updatedAt:
+      typeof record.updatedAt === 'string'
+        ? record.updatedAt
+        : record.updatedAt instanceof Date
+          ? record.updatedAt.toISOString()
+          : new Date().toISOString(),
+    lines: [],
   }
 }
 
@@ -157,7 +186,7 @@ export interface SeedPurchaseOrderOptions {
   resetBeforeSeeding?: boolean
 }
 
-export interface SeedPurchaseOrderResult {
+export interface SeedPurchaseOrderWarehouseResult {
   warehouseId: string
   warehouseCode: string
   purchaseOrdersCreated: number
@@ -165,19 +194,34 @@ export interface SeedPurchaseOrderResult {
   invoiceCreated: boolean
 }
 
-async function resolveWarehouse(
+export interface SeedPurchaseOrderResult {
+  warehouses: SeedPurchaseOrderWarehouseResult[]
+}
+
+async function resolveWarehouses(
   client: SetupClient,
   preferred: string[]
-): Promise<WarehouseRecord> {
-  for (const code of preferred) {
-    const match = await client.findWarehouseByCode(code)
-    if (match) return toWarehouseRecord(match)
-  }
-  const warehouses = await client.listWarehouses(true)
-  if (!warehouses.length) {
+): Promise<WarehouseRecord[]> {
+  const available = await client.listWarehouses(true)
+  if (!available.length) {
     throw new Error('No warehouses available. Run warehouse setup first.')
   }
-  return toWarehouseRecord(warehouses[0])
+
+  const availableMap = new Map(available.map((entry) => [entry.code, entry]))
+  const resolved: WarehouseRecord[] = []
+
+  for (const code of preferred) {
+    const record = availableMap.get(code)
+    if (record) {
+      resolved.push(toWarehouseRecord(record))
+    }
+  }
+
+  if (!resolved.length) {
+    resolved.push(toWarehouseRecord(available[0]))
+  }
+
+  return resolved
 }
 
 async function resolveSkus(client: SetupClient, codes: string[]) {
@@ -203,10 +247,11 @@ async function createOrders(
 
   const inboundExpected = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
   const reviewExpected = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000)
+  const orderPrefix = warehouse.code === 'FMC' ? '' : `${warehouse.code}-`
 
   const orders: OrderSeed[] = [
     {
-      orderNumber: 'PO-SETUP-1001',
+      orderNumber: `${orderPrefix}PO-SETUP-1001`,
       warehouseCode: warehouse.code,
       type: 'purchase',
       status: 'SHIPPED',
@@ -214,12 +259,22 @@ async function createOrders(
       expectedDate: toIso(inboundExpected),
       notes: 'In transit – seeded via setup script.',
       lines: [
-        { skuCode: 'CS-008', quantity: 120, unitCost: 18, batchLot: '1001' },
-        { skuCode: 'CS-010', quantity: 80, unitCost: 22, batchLot: '1002' },
+        {
+          skuCode: 'CS-008',
+          quantity: 120,
+          unitCost: 18,
+          batchLot: warehouse.code === 'FMC' ? '1001' : '3001',
+        },
+        {
+          skuCode: 'CS-010',
+          quantity: 80,
+          unitCost: 22,
+          batchLot: warehouse.code === 'FMC' ? '1002' : '3002',
+        },
       ],
     },
     {
-      orderNumber: 'PO-SETUP-REVIEW',
+      orderNumber: `${orderPrefix}PO-SETUP-REVIEW`,
       warehouseCode: warehouse.code,
       type: 'purchase',
       status: 'SHIPPED',
@@ -227,12 +282,22 @@ async function createOrders(
       expectedDate: toIso(reviewExpected),
       notes: 'Delivery note approved – ready for reconciliation.',
       lines: [
-        { skuCode: 'CS-007', quantity: 60, unitCost: 25, batchLot: '2001' },
-        { skuCode: 'CS-011', quantity: 36, unitCost: 28, batchLot: '2002' },
+        {
+          skuCode: 'CS-007',
+          quantity: 60,
+          unitCost: 25,
+          batchLot: warehouse.code === 'FMC' ? '2001' : '4001',
+        },
+        {
+          skuCode: 'CS-011',
+          quantity: 36,
+          unitCost: 28,
+          batchLot: warehouse.code === 'FMC' ? '2002' : '4002',
+        },
       ],
     },
     {
-      orderNumber: 'SO-SETUP-2001',
+      orderNumber: `${orderPrefix}SO-SETUP-2001`,
       warehouseCode: warehouse.code,
       type: 'sales',
       status: 'DRAFT',
@@ -240,7 +305,12 @@ async function createOrders(
       expectedDate: toIso(now),
       notes: 'Draft outbound order for fulfilment scenario.',
       lines: [
-        { skuCode: 'CS-008', quantity: 24, unitCost: 0, batchLot: '3001' },
+        {
+          skuCode: 'CS-008',
+          quantity: 24,
+          unitCost: 0,
+          batchLot: warehouse.code === 'FMC' ? '3001' : '5001',
+        },
       ],
     },
   ]
@@ -282,19 +352,20 @@ async function seedInboundWorkflow(
   orders: PurchaseOrderSummary[],
   log: (message: string) => void
 ) {
-  const targetOrders = ['PO-SETUP-1001', 'PO-SETUP-REVIEW']
   let anyTransactions = false
   let invoiceCreated = false
 
-  for (const orderNumber of targetOrders) {
-    let order = orders.find((existing) => existing.orderNumber === orderNumber)
+  const purchaseOrders = orders.filter(order => order.type === 'PURCHASE')
+
+  for (const baseOrder of purchaseOrders) {
+    let order = baseOrder
     if (!order) {
-      const fetched = await client.findPurchaseOrder(orderNumber, warehouse.code)
+      const fetched = await client.findPurchaseOrder(baseOrder.orderNumber, warehouse.code)
       order = fetched ? toPurchaseOrderSummary(fetched) : undefined
     }
 
     if (!order) {
-      log(`Order ${orderNumber} not found; skipping inbound workflow`)
+      log(`Order ${baseOrder.orderNumber} not found; skipping inbound workflow`)
       continue
     }
 
@@ -320,7 +391,7 @@ async function seedInboundWorkflow(
       .filter((line): line is { purchaseOrderLineId: string; quantity: number; batchLot: string; skuCode: string } => line !== null)
 
     if (!enrichedLines?.length) {
-      log(`Order ${orderNumber} has no postable lines; skipping`)
+      log(`Order ${order.orderNumber} has no postable lines; skipping`)
       continue
     }
 
@@ -380,7 +451,7 @@ async function seedInboundWorkflow(
     }
 
     await client.createTransaction(transactionSeed)
-    log(`Inbound transaction recorded for ${orderNumber}`)
+    log(`Inbound transaction recorded for ${order.orderNumber}`)
     anyTransactions = true
 
     if (movementNote.lines?.[0] && !invoiceCreated) {
@@ -434,20 +505,26 @@ export async function seedPurchaseOrders(
     log('Operational data reset complete')
   }
 
-  const warehouse = await resolveWarehouse(client, preferredWarehouseCodes)
+  const warehouses = await resolveWarehouses(client, preferredWarehouseCodes)
 
   const skuMap = await resolveSkus(client, ['CS-007', 'CS-008', 'CS-010', 'CS-011'])
 
-  const orders = await createOrders(client, warehouse, skuMap, log)
-  verbose('Orders ensured', orders.map((order) => order.orderNumber))
+  const results: SeedPurchaseOrderWarehouseResult[] = []
 
-  const inboundResult = await seedInboundWorkflow(client, warehouse, orders, log)
+  for (const warehouse of warehouses) {
+    const orders = await createOrders(client, warehouse, skuMap, log)
+    verbose('Orders ensured', orders.map((order) => order.orderNumber))
 
-  return {
-    warehouseId: warehouse.id,
-    warehouseCode: warehouse.code,
-    purchaseOrdersCreated: orders.length,
-    inboundTransactionCreated: inboundResult.transaction,
-    invoiceCreated: inboundResult.invoice,
+    const inboundResult = await seedInboundWorkflow(client, warehouse, orders, log)
+
+    results.push({
+      warehouseId: warehouse.id,
+      warehouseCode: warehouse.code,
+      purchaseOrdersCreated: orders.length,
+      inboundTransactionCreated: inboundResult.transaction,
+      invoiceCreated: inboundResult.invoice,
+    })
   }
+
+  return { warehouses: results }
 }

@@ -33,7 +33,14 @@ async function main() {
       verboseLogger: verboseLog,
       resetBeforeSeeding: !skipReset,
     })
-    verboseLog?.('Purchase order seed result', result)
+    result.warehouses.forEach(entry => {
+      verboseLog?.('Purchase order seed result', entry)
+    })
+    log(
+      `Seeded warehouses: ${
+        result.warehouses.map((entry) => `${entry.warehouseCode} (orders ${entry.purchaseOrdersCreated})`).join(', ') || 'none'
+      }`
+    )
     log('Purchase & sales order setup complete')
   } catch (error) {
     console.error('[setup][purchase-orders] failed', error)
