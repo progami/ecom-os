@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import prisma from '@/lib/prisma'
+import { getCalendarDateForWeek } from '@/lib/calculations/calendar'
 import { loadPlanningCalendar } from '@/lib/planning'
 
 const editableFields = ['amazonPayout', 'inventorySpend', 'fixedCosts'] as const
@@ -45,20 +47,39 @@ export async function PUT(request: Request) {
     )
   }
 
-  await prisma.$transaction(
-    parsed.data.updates.map(({ weekNumber, values }) => {
+  await prisma.$transaction(async (tx) => {
+    for (const { weekNumber, values } of parsed.data.updates) {
       const data: Record<string, number | null> = {}
       for (const field of editableFields) {
         if (!(field in values)) continue
         data[field] = parseNumber(values[field])
       }
+      const decimalData = Object.fromEntries(
+        Object.entries(data).map(([key, value]) => [key, value == null ? null : new Prisma.Decimal(value)])
+      ) as Record<string, Prisma.Decimal | null>
       if (Object.keys(data).length === 0) {
-        return prisma.cashFlowWeek.findFirst({ where: { weekNumber } })
+        await tx.cashFlowWeek.findFirst({ where: { weekNumber } })
+        continue
       }
-      return prisma.cashFlowWeek.update({ where: { weekNumber }, data })
-    })
-  )
+      try {
+        await tx.cashFlowWeek.update({ where: { weekNumber }, data: decimalData })
+      } catch (error) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+          const weekDate = getCalendarDateForWeek(weekNumber, planning.calendar) ?? planning.calendar.calendarStart ?? new Date()
+          await tx.cashFlowWeek.create({
+            data: {
+              weekNumber,
+              weekDate,
+              periodLabel: `Week ${weekNumber}`,
+              ...decimalData,
+            },
+          })
+          continue
+        }
+        throw error
+      }
+    }
+  })
 
   return NextResponse.json({ ok: true })
 }
-

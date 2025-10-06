@@ -1457,6 +1457,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           title="Performance graphs"
           description="Visualize revenue and profitability using the grid’s underlying assumptions."
           metrics={metrics}
+          storageKey="xplan:visual:pnl"
         />
       )
       break
@@ -1505,6 +1506,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           title="Cash flow charts"
           description="See how cash balances and net movement evolve over time."
           metrics={metrics}
+          storageKey="xplan:visual:cashflow"
         />
       )
       break

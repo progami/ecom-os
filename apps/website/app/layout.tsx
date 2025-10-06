@@ -41,7 +41,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={montserrat.variable}>
-      <body className={`${montserrat.className} antialiased`}>
+      <body className={`${montserrat.className} antialiased`} style={{ backgroundColor: '#021b2b' }}>
         <SiteHeader />
         {children}
         <SiteFooter />

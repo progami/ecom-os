@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
-  serverExternalPackages: ['@prisma/client'],
+  serverExternalPackages: ['@prisma/client', 'handsontable'],
 };
 
 export default nextConfig;
