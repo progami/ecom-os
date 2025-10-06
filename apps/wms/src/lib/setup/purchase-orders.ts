@@ -154,6 +154,7 @@ export interface SeedPurchaseOrderOptions {
   logger?: (message: string) => void
   verboseLogger?: (message: string, data?: unknown) => void
   preferredWarehouseCodes?: string[]
+  resetBeforeSeeding?: boolean
 }
 
 export interface SeedPurchaseOrderResult {
@@ -221,7 +222,7 @@ async function createOrders(
       orderNumber: 'PO-SETUP-REVIEW',
       warehouseCode: warehouse.code,
       type: 'purchase',
-      status: 'WAREHOUSE',
+      status: 'SHIPPED',
       counterpartyName: 'Vglobal Fulfilment',
       expectedDate: toIso(reviewExpected),
       notes: 'Delivery note approved – ready for reconciliation.',
@@ -281,130 +282,137 @@ async function seedInboundWorkflow(
   orders: PurchaseOrderSummary[],
   log: (message: string) => void
 ) {
-  let inboundOrder = orders.find((order) => order.orderNumber === 'PO-SETUP-1001')
-  if (!inboundOrder) {
-    inboundOrder = await client.findPurchaseOrder('PO-SETUP-1001', warehouse.code)
-    inboundOrder = inboundOrder ? toPurchaseOrderSummary(inboundOrder) : undefined
-  }
-  if (!inboundOrder) {
-    log('Inbound order not found; skipping movement note + transactions')
-    return { transaction: false, invoice: false }
-  }
-
-  const orderDetails = toPurchaseOrderDetail(await client.getOrder(inboundOrder.id))
-  const enrichedLines = orderDetails.lines
-    ?.map((line, index) => {
-      if (!line?.id || typeof line.quantity !== 'number' || line.quantity <= 0 || typeof line.skuCode !== 'string') {
-        return null
-      }
-
-      const fallbackBatch = String(1000 + index + 1)
-      const normalizedBatchLot = /^[0-9]+$/.test(line.batchLot ?? '')
-        ? (line.batchLot as string)
-        : fallbackBatch
-
-      return {
-        purchaseOrderLineId: line.id,
-        quantity: line.quantity,
-        batchLot: normalizedBatchLot,
-        skuCode: line.skuCode,
-      }
-    })
-    .filter((line): line is { purchaseOrderLineId: string; quantity: number; batchLot: string; skuCode: string } => line !== null)
-
-  if (!enrichedLines?.length) {
-    log('Inbound order has no postable lines; skipping movement note')
-    return { transaction: false, invoice: false }
-  }
-
-  const movementSeed: MovementNoteSeed = {
-    purchaseOrderId: inboundOrder.id,
-    referenceNumber: `${inboundOrder.orderNumber}-DN`,
-    receivedAt: new Date().toISOString(),
-    lines: enrichedLines.map((line) => ({
-      purchaseOrderLineId: line.purchaseOrderLineId,
-      quantity: line.quantity,
-      batchLot: line.batchLot,
-      storageCartonsPerPallet: 20,
-      shippingCartonsPerPallet: 20,
-    })),
-  }
-
-  const movementNote = toMovementNoteResponse(await client.createMovementNote(movementSeed))
-  log(`Movement note created: ${movementNote.referenceNumber ?? movementNote.id}`)
-  await client.postMovementNote(movementNote.id)
-  log('Movement note posted')
-
-  const transactionItems = enrichedLines.map((line) => ({
-    skuCode: line.skuCode,
-    batchLot: line.batchLot,
-    cartons: line.quantity,
-    storageCartonsPerPallet: 20,
-    shippingCartonsPerPallet: 20,
-  }))
-
-  const totalCartons = transactionItems.reduce((sum, item) => sum + item.cartons, 0)
-
-  const transactionSeed: TransactionSeed = {
-    transactionType: 'RECEIVE',
-    warehouseId: warehouse.id,
-    referenceNumber: inboundOrder.orderNumber,
-    transactionDate: new Date().toISOString(),
-    supplier: inboundOrder.counterpartyName ?? 'Seed Supplier',
-    items: transactionItems,
-    costs: totalCartons
-      ? [
-          {
-            costType: 'storage',
-            costName: 'Storage Fee',
-            quantity: totalCartons,
-            unitRate: 2.5,
-            totalCost: Number((totalCartons * 2.5).toFixed(2)),
-          },
-          {
-            costType: 'carton',
-            costName: 'Inbound Handling',
-            quantity: totalCartons,
-            unitRate: 1,
-            totalCost: totalCartons,
-          },
-        ]
-      : undefined,
-  }
-
-  await client.createTransaction(transactionSeed)
-  log('Inbound transaction recorded')
-
+  const targetOrders = ['PO-SETUP-1001', 'PO-SETUP-REVIEW']
+  let anyTransactions = false
   let invoiceCreated = false
-  if (movementNote.lines?.[0]) {
-    const invoiceSeed: InvoiceSeed = {
-      invoiceNumber: `INV-${inboundOrder.orderNumber}-${Date.now()}`,
-      warehouseCode: warehouse.code,
-      warehouseName: warehouse.name,
-      warehouseId: warehouse.id,
-      issuedAt: new Date().toISOString(),
-      currency: 'USD',
-      subtotal: 140,
-      total: 140,
-      lines: [
-        {
-          purchaseOrderId: inboundOrder.id,
-          movementNoteLineId: movementNote.lines[0].id,
-          chargeCode: 'STORAGE',
-          description: 'Storage and handling',
-          quantity: 1,
-          unitRate: 140,
-          total: 140,
-        },
-      ],
+
+  for (const orderNumber of targetOrders) {
+    let order = orders.find((existing) => existing.orderNumber === orderNumber)
+    if (!order) {
+      const fetched = await client.findPurchaseOrder(orderNumber, warehouse.code)
+      order = fetched ? toPurchaseOrderSummary(fetched) : undefined
     }
 
-    await client.createWarehouseInvoice(invoiceSeed)
-    log('Warehouse invoice generated for inbound flow')
-    invoiceCreated = true
+    if (!order) {
+      log(`Order ${orderNumber} not found; skipping inbound workflow`)
+      continue
+    }
+
+    const orderDetails = toPurchaseOrderDetail(await client.getOrder(order.id))
+    const enrichedLines = orderDetails.lines
+      ?.map((line, index) => {
+        if (!line?.id || typeof line.quantity !== 'number' || line.quantity <= 0 || typeof line.skuCode !== 'string') {
+          return null
+        }
+
+        const fallbackBatch = String(1000 + index + 1)
+        const normalizedBatchLot = /^[0-9]+$/.test(line.batchLot ?? '')
+          ? (line.batchLot as string)
+          : fallbackBatch
+
+        return {
+          purchaseOrderLineId: line.id,
+          quantity: line.quantity,
+          batchLot: normalizedBatchLot,
+          skuCode: line.skuCode,
+        }
+      })
+      .filter((line): line is { purchaseOrderLineId: string; quantity: number; batchLot: string; skuCode: string } => line !== null)
+
+    if (!enrichedLines?.length) {
+      log(`Order ${orderNumber} has no postable lines; skipping`)
+      continue
+    }
+
+    const movementSeed: MovementNoteSeed = {
+      purchaseOrderId: order.id,
+      referenceNumber: `${order.orderNumber}-DN`,
+      receivedAt: new Date().toISOString(),
+      lines: enrichedLines.map((line) => ({
+        purchaseOrderLineId: line.purchaseOrderLineId,
+        quantity: line.quantity,
+        batchLot: line.batchLot,
+        storageCartonsPerPallet: 20,
+        shippingCartonsPerPallet: 20,
+      })),
+    }
+
+    const movementNote = toMovementNoteResponse(await client.createMovementNote(movementSeed))
+    log(`Movement note created: ${movementNote.referenceNumber ?? movementNote.id}`)
+    await client.postMovementNote(movementNote.id)
+    log('Movement note posted')
+
+    const transactionItems = enrichedLines.map((line) => ({
+      skuCode: line.skuCode,
+      batchLot: line.batchLot,
+      cartons: line.quantity,
+      storageCartonsPerPallet: 20,
+      shippingCartonsPerPallet: 20,
+    }))
+
+    const totalCartons = transactionItems.reduce((sum, item) => sum + item.cartons, 0)
+
+    const transactionSeed: TransactionSeed = {
+      transactionType: 'RECEIVE',
+      warehouseId: warehouse.id,
+      referenceNumber: order.orderNumber,
+      transactionDate: new Date().toISOString(),
+      supplier: order.counterpartyName ?? 'Seed Supplier',
+      items: transactionItems,
+      costs: totalCartons
+        ? [
+            {
+              costType: 'storage',
+              costName: 'Storage Fee',
+              quantity: totalCartons,
+              unitRate: 2.5,
+              totalCost: Number((totalCartons * 2.5).toFixed(2)),
+            },
+            {
+              costType: 'carton',
+              costName: 'Inbound Handling',
+              quantity: totalCartons,
+              unitRate: 1,
+              totalCost: totalCartons,
+            },
+          ]
+        : undefined,
+    }
+
+    await client.createTransaction(transactionSeed)
+    log(`Inbound transaction recorded for ${orderNumber}`)
+    anyTransactions = true
+
+    if (movementNote.lines?.[0] && !invoiceCreated) {
+      const invoiceSeed: InvoiceSeed = {
+        invoiceNumber: `INV-${order.orderNumber}-${Date.now()}`,
+        warehouseCode: warehouse.code,
+        warehouseName: warehouse.name,
+        warehouseId: warehouse.id,
+        issuedAt: new Date().toISOString(),
+        currency: 'USD',
+        subtotal: 140,
+        total: 140,
+        lines: [
+          {
+            purchaseOrderId: order.id,
+            movementNoteLineId: movementNote.lines[0].id,
+            chargeCode: 'STORAGE',
+            description: 'Storage and handling',
+            quantity: 1,
+            unitRate: 140,
+            total: 140,
+          },
+        ],
+      }
+
+      await client.createWarehouseInvoice(invoiceSeed)
+      log('Warehouse invoice generated for inbound flow')
+      invoiceCreated = true
+    }
   }
 
-  return { transaction: true, invoice: invoiceCreated }
+  return { transaction: anyTransactions, invoice: invoiceCreated }
 }
 
 export async function seedPurchaseOrders(
@@ -415,10 +423,16 @@ export async function seedPurchaseOrders(
     logger,
     verboseLogger,
     preferredWarehouseCodes = ['FMC', 'VGLOBAL'],
+    resetBeforeSeeding = true,
   } = options
 
   const log = logger ?? (() => {})
   const verbose = verboseLogger ?? ((_message: string, _data?: unknown) => {})
+
+  if (resetBeforeSeeding) {
+    await client.resetOperationalData()
+    log('Operational data reset complete')
+  }
 
   const warehouse = await resolveWarehouse(client, preferredWarehouseCodes)
 

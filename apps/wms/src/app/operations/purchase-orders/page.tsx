@@ -1,8 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useState } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
@@ -55,7 +55,15 @@ const STATUS_TABS: StatusConfig[] = [
 function PurchaseOrdersPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [statusFilter, setStatusFilter] = useState<PurchaseOrderFilter>('DRAFT')
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  const statusValues = useMemo(() => STATUS_TABS.map(tab => tab.value), [])
+
+  const searchParamStatus = searchParams?.get('status') as PurchaseOrderFilter | null
+  const [statusFilter, setStatusFilter] = useState<PurchaseOrderFilter>(
+    searchParamStatus && statusValues.includes(searchParamStatus) ? searchParamStatus : 'DRAFT'
+  )
 
   useEffect(() => {
     if (status === 'loading') return
@@ -73,6 +81,16 @@ function PurchaseOrdersPage() {
     }
   }, [session, status, router])
 
+  useEffect(() => {
+    const param = searchParams?.get('status') as PurchaseOrderFilter | null
+    if (param && statusValues.includes(param) && param !== statusFilter) {
+      setStatusFilter(param)
+    }
+    if (!param && statusFilter !== 'DRAFT') {
+      setStatusFilter('DRAFT')
+    }
+  }, [searchParams, statusValues, statusFilter])
+
   if (status === 'loading') {
     return (
       <DashboardLayout>
@@ -83,6 +101,18 @@ function PurchaseOrdersPage() {
         </PageContainer>
       </DashboardLayout>
     )
+  }
+
+  const handleTabChange = (value: PurchaseOrderFilter) => {
+    setStatusFilter(value)
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (value === 'DRAFT') {
+      params.delete('status')
+    } else {
+      params.set('status', value)
+    }
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
   }
 
   const currentTab = STATUS_TABS.find(tab => tab.value === statusFilter)
@@ -124,7 +154,7 @@ function PurchaseOrdersPage() {
                   <button
                     key={tab.value}
                     type="button"
-                    onClick={() => setStatusFilter(tab.value)}
+                    onClick={() => handleTabChange(tab.value)}
                     className={cn(
                       'rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
                       isActive

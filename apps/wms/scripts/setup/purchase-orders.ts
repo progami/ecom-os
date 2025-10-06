@@ -4,7 +4,7 @@
  * Setup script: sample purchase & sales orders
  * --------------------------------------------------
  * Usage:
- *   pnpm --filter @ecom-os/wms exec tsx scripts/setup/purchase-orders.ts [--verbose]
+ *   pnpm --filter @ecom-os/wms exec tsx scripts/setup/purchase-orders.ts [--verbose] [--skip-reset]
  */
 
 import { SetupClient } from '../../src/lib/setup/setup-client'
@@ -12,6 +12,7 @@ import { seedPurchaseOrders } from '../../src/lib/setup/purchase-orders'
 
 const args = process.argv.slice(2)
 const verbose = args.includes('--verbose')
+const skipReset = args.includes('--skip-reset')
 
 const log = (message: string) => console.log(`[setup][purchase-orders] ${message}`)
 const verboseLog = verbose
@@ -30,6 +31,7 @@ async function main() {
     const result = await seedPurchaseOrders(client, {
       logger: log,
       verboseLogger: verboseLog,
+      resetBeforeSeeding: !skipReset,
     })
     verboseLog?.('Purchase order seed result', result)
     log('Purchase & sales order setup complete')

@@ -465,6 +465,10 @@ export class SetupClient {
     return Array.isArray(response) ? (response as any[]) : []
   }
 
+  async resetOperationalData(): Promise<void> {
+    await this.request('POST', '/api/setup/reset')
+  }
+
   // -------------------- Ledger helpers --------------------
 
   async getStorageLedger(params?: { limit?: number; includeCosts?: boolean }): Promise<any> {
