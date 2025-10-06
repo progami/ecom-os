@@ -292,29 +292,42 @@ async function seedInboundWorkflow(
   }
 
   const orderDetails = toPurchaseOrderDetail(await client.getOrder(inboundOrder.id))
-  const firstLine = orderDetails.lines?.[0]
-  if (!firstLine) {
-    log('Inbound order has no lines; skipping movement note')
+  const enrichedLines = orderDetails.lines
+    ?.map((line, index) => {
+      if (!line?.id || typeof line.quantity !== 'number' || line.quantity <= 0 || typeof line.skuCode !== 'string') {
+        return null
+      }
+
+      const fallbackBatch = String(1000 + index + 1)
+      const normalizedBatchLot = /^[0-9]+$/.test(line.batchLot ?? '')
+        ? (line.batchLot as string)
+        : fallbackBatch
+
+      return {
+        purchaseOrderLineId: line.id,
+        quantity: line.quantity,
+        batchLot: normalizedBatchLot,
+        skuCode: line.skuCode,
+      }
+    })
+    .filter((line): line is { purchaseOrderLineId: string; quantity: number; batchLot: string; skuCode: string } => line !== null)
+
+  if (!enrichedLines?.length) {
+    log('Inbound order has no postable lines; skipping movement note')
     return { transaction: false, invoice: false }
   }
-
-  const inboundBatchLot = /^[0-9]+$/.test(firstLine.batchLot ?? '')
-    ? firstLine.batchLot!
-    : '1001'
 
   const movementSeed: MovementNoteSeed = {
     purchaseOrderId: inboundOrder.id,
     referenceNumber: `${inboundOrder.orderNumber}-DN`,
     receivedAt: new Date().toISOString(),
-    lines: [
-      {
-        purchaseOrderLineId: firstLine.id,
-        quantity: firstLine.quantity,
-        batchLot: inboundBatchLot,
-        storageCartonsPerPallet: 20,
-        shippingCartonsPerPallet: 20,
-      },
-    ],
+    lines: enrichedLines.map((line) => ({
+      purchaseOrderLineId: line.purchaseOrderLineId,
+      quantity: line.quantity,
+      batchLot: line.batchLot,
+      storageCartonsPerPallet: 20,
+      shippingCartonsPerPallet: 20,
+    })),
   }
 
   const movementNote = toMovementNoteResponse(await client.createMovementNote(movementSeed))
@@ -322,25 +335,41 @@ async function seedInboundWorkflow(
   await client.postMovementNote(movementNote.id)
   log('Movement note posted')
 
+  const transactionItems = enrichedLines.map((line) => ({
+    skuCode: line.skuCode,
+    batchLot: line.batchLot,
+    cartons: line.quantity,
+    storageCartonsPerPallet: 20,
+    shippingCartonsPerPallet: 20,
+  }))
+
+  const totalCartons = transactionItems.reduce((sum, item) => sum + item.cartons, 0)
+
   const transactionSeed: TransactionSeed = {
     transactionType: 'RECEIVE',
     warehouseId: warehouse.id,
     referenceNumber: inboundOrder.orderNumber,
     transactionDate: new Date().toISOString(),
     supplier: inboundOrder.counterpartyName ?? 'Seed Supplier',
-    items: [
-      {
-        skuCode: firstLine.skuCode,
-        batchLot: inboundBatchLot,
-        cartons: 40,
-        storageCartonsPerPallet: 20,
-        shippingCartonsPerPallet: 20,
-      },
-    ],
-    costs: [
-      { costType: 'storage', costName: 'Storage Fee', quantity: 40, unitRate: 2.5, totalCost: 100 },
-      { costType: 'carton', costName: 'Inbound Handling', quantity: 40, unitRate: 1, totalCost: 40 },
-    ],
+    items: transactionItems,
+    costs: totalCartons
+      ? [
+          {
+            costType: 'storage',
+            costName: 'Storage Fee',
+            quantity: totalCartons,
+            unitRate: 2.5,
+            totalCost: Number((totalCartons * 2.5).toFixed(2)),
+          },
+          {
+            costType: 'carton',
+            costName: 'Inbound Handling',
+            quantity: totalCartons,
+            unitRate: 1,
+            totalCost: totalCartons,
+          },
+        ]
+      : undefined,
   }
 
   await client.createTransaction(transactionSeed)
