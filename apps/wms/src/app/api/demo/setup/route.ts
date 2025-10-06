@@ -15,6 +15,13 @@ import { seedProducts } from '@/lib/setup/products'
 import { seedPurchaseOrders } from '@/lib/setup/purchase-orders'
 
 export async function POST(request: NextRequest) {
+  if (process.env.ENABLE_DEMO_SETUP !== 'true') {
+    return NextResponse.json(
+      { error: 'Demo setup endpoint is disabled' },
+      { status: 404 }
+    )
+  }
+
   try {
     const force = request.nextUrl.searchParams.get('force') === 'true'
     const existingDemoUser = await prisma.user.findFirst({

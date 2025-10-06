@@ -22,7 +22,6 @@ export async function middleware(request: NextRequest) {
     '/auth/error',
     '/api/health',
     '/api/logs',
-    '/api/demo/setup',
   ]
 
   // Routes that should be prefix-matched
