@@ -1,6 +1,9 @@
 name: CD
 
 on:
+  pull_request_target:
+    branches:
+      - main
   workflow_run:
     workflows: ["CI"]
     branches: [main]
@@ -60,13 +63,13 @@ jobs:
             TRIGGER_KIND="workflow_run"
 
             if [ "$CI_OK" = "true" ]; then
-              git fetch origin "$DEPLOY_REF" --depth=0 || git fetch origin --depth=0
+              git fetch origin "$DEPLOY_REF" || git fetch origin
               git checkout "$TARGET_SHA"
             fi
           else
             TRIGGER_KIND="workflow_dispatch"
             DEPLOY_REF="${INPUT_REF:-main}"
-            git fetch origin --depth=0
+            git fetch origin
 
             if git rev-parse --verify --quiet "$DEPLOY_REF"; then
               TARGET_SHA=$(git rev-parse "$DEPLOY_REF")
@@ -75,7 +78,7 @@ jobs:
               git checkout "origin/$DEPLOY_REF"
             else
               TARGET_SHA="$DEPLOY_REF"
-              git fetch origin "$TARGET_SHA" --depth=0 || true
+              git fetch origin "$TARGET_SHA" || true
             fi
 
             git checkout "$TARGET_SHA"
