@@ -112,7 +112,13 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
     []
   )
 
-  const columnWidths = useMemo(() => columns.map((column) => column.width ?? COLUMN_WIDTHS.cashBalance), [columns])
+  const columnWidths = useMemo<number[]>(
+    () =>
+      columns.map((column) =>
+        typeof column.width === 'number' ? column.width : COLUMN_WIDTHS.cashBalance
+      ),
+    [columns],
+  )
 
   const clampStretchWidth = useCallback((width: number, column: number) => {
     if (column === 0) return COLUMN_WIDTHS.weekNumber

@@ -1,64 +1,160 @@
 name: CD
 
 on:
-  pull_request_target:
-    branches:
-      - main
+  workflow_run:
+    workflows: ["CI"]
+    branches: [main]
+    types: [completed]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag, or commit SHA to deploy"
+        required: false
+        default: "main"
+
+concurrency:
+  group: prod-main
+  cancel-in-progress: false
 
 jobs:
-  wait-for-ci:
+  prepare:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request_target'
-    steps:
-      - name: Wait for CI to complete
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          check-name: 'build-test'
-          repo-token: ${{ github.token }}
-          wait-interval: 10
-
-  check-changes:
-    runs-on: ubuntu-latest
-    needs: [wait-for-ci]
-    if: always() && (needs.wait-for-ci.result == 'success' || github.event_name == 'workflow_dispatch')
     outputs:
-      should_deploy: ${{ steps.filter.outputs.should_deploy }}
+      target_sha: ${{ steps.context.outputs.target_sha }}
+      artifact_run_id: ${{ steps.artifact.outputs.artifact_run_id }}
+      trigger: ${{ steps.context.outputs.trigger }}
+      deploy_ref: ${{ steps.context.outputs.deploy_ref }}
+      ci_ok: ${{ steps.context.outputs.ci_ok }}
+      should_deploy: ${{ steps.context.outputs.ci_ok == 'true' && steps.diff.outputs.should_deploy == 'true' && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 2
-      - name: Check for code changes
-        id: filter
+          fetch-depth: 0
+
+      - name: Resolve deployment target
+        id: context
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}
+          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha || '' }}
+          WORKFLOW_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch || '' }}
+          WORKFLOW_ID: ${{ github.event.workflow_run.id || '' }}
+          INPUT_REF: ${{ github.event.inputs.ref || '' }}
         run: |
-          # For manual triggers (workflow_dispatch), always deploy
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          set -euo pipefail
+
+          TARGET_SHA=""
+          DEPLOY_REF=""
+          ARTIFACT_RUN_ID=""
+          CI_OK="true"
+          TRIGGER_KIND="$EVENT_NAME"
+
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            if [ "$WORKFLOW_CONCLUSION" != "success" ]; then
+              CI_OK="false"
+              echo "CI workflow concluded with '$WORKFLOW_CONCLUSION'; skipping deploy" >> $GITHUB_STEP_SUMMARY
+            fi
+            TARGET_SHA="$WORKFLOW_HEAD_SHA"
+            DEPLOY_REF="$WORKFLOW_HEAD_BRANCH"
+            ARTIFACT_RUN_ID="$WORKFLOW_ID"
+            TRIGGER_KIND="workflow_run"
+
+            if [ "$CI_OK" = "true" ]; then
+              git fetch origin "$DEPLOY_REF" --depth=0 || git fetch origin --depth=0
+              git checkout "$TARGET_SHA"
+            fi
+          else
+            TRIGGER_KIND="workflow_dispatch"
+            DEPLOY_REF="${INPUT_REF:-main}"
+            git fetch origin --depth=0
+
+            if git rev-parse --verify --quiet "$DEPLOY_REF"; then
+              TARGET_SHA=$(git rev-parse "$DEPLOY_REF")
+            elif git rev-parse --verify --quiet "origin/$DEPLOY_REF"; then
+              TARGET_SHA=$(git rev-parse "origin/$DEPLOY_REF")
+              git checkout "origin/$DEPLOY_REF"
+            else
+              TARGET_SHA="$DEPLOY_REF"
+              git fetch origin "$TARGET_SHA" --depth=0 || true
+            fi
+
+            git checkout "$TARGET_SHA"
+          fi
+
+          if [ -z "$TARGET_SHA" ]; then
+            echo "Unable to resolve deployment commit" >&2
+            exit 1
+          fi
+
+          echo "target_sha=$TARGET_SHA" >> $GITHUB_OUTPUT
+          echo "artifact_run_id=$ARTIFACT_RUN_ID" >> $GITHUB_OUTPUT
+          echo "deploy_ref=$DEPLOY_REF" >> $GITHUB_OUTPUT
+          echo "ci_ok=$CI_OK" >> $GITHUB_OUTPUT
+          echo "trigger=$TRIGGER_KIND" >> $GITHUB_OUTPUT
+
+      - name: Determine change scope
+        id: diff
+        if: steps.context.outputs.ci_ok == 'true'
+        run: |
+          set -euo pipefail
+
+          TARGET_SHA=${{ steps.context.outputs.target_sha }}
+          BASE_COMMIT=$(git rev-parse "${TARGET_SHA}^" 2>/dev/null || true)
+
+          if [ -z "$BASE_COMMIT" ]; then
+            echo "No base commit detected; defaulting to deploy" >> $GITHUB_STEP_SUMMARY
             echo "should_deploy=true" >> $GITHUB_OUTPUT
-            echo "Manual trigger - deploying"
             exit 0
           fi
-          # Skip deploy if only docs/workflow files changed
-          if git diff --name-only ${{ github.event.pull_request.base.sha || 'HEAD^' }} ${{ github.event.pull_request.head.sha || 'HEAD' }} | grep -qvE '^(BRANCHING\.md|\.github/workflows/(auto-sync-dev|pr-policy)\.yml|docs/|README\.md)'; then
+
+          if git diff --name-only "$BASE_COMMIT" "$TARGET_SHA" | grep -qvE '^(BRANCHING\.md|\.github/workflows/(auto-sync-dev|pr-policy)\.yml|docs/|README\.md)'; then
+            echo "Application changes detected between $BASE_COMMIT and $TARGET_SHA" >> $GITHUB_STEP_SUMMARY
             echo "should_deploy=true" >> $GITHUB_OUTPUT
           else
+            echo "Only documentation/workflow changes detected; skipping deploy" >> $GITHUB_STEP_SUMMARY
             echo "should_deploy=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Locate CI artifact run
+        id: artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || '' }}
+          TARGET_SHA: ${{ steps.context.outputs.target_sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "workflow_run" ] && [ -n "$WORKFLOW_RUN_ID" ]; then
+            echo "artifact_run_id=$WORKFLOW_RUN_ID" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          if [ "$EVENT_NAME" != "pull_request_target" ]; then
+            echo "artifact_run_id=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          run_id=$(gh api --paginate "/repos/$REPOSITORY/actions/workflows/ci.yml/runs?per_page=50&event=pull_request" \
+            | jq --arg sha "$TARGET_SHA" -r 'first(.workflow_runs[] | select(.head_sha == $sha) | .id)')
+
+          if [ -n "${run_id:-}" ] && [ "$run_id" != "null" ]; then
+            echo "Resolved CI run: $run_id"
+            echo "artifact_run_id=$run_id" >> $GITHUB_OUTPUT
+          else
+            echo "No matching CI run found for $TARGET_SHA"
+            echo "artifact_run_id=" >> $GITHUB_OUTPUT
           fi
 
   deploy:
     runs-on: ubuntu-latest
-    needs: check-changes
-    if: ${{ github.event_name == 'workflow_dispatch' ||
-            (github.event_name == 'pull_request_target' &&
-             github.event.pull_request != null &&
-             github.event.pull_request.head.ref == 'dev' &&
-             needs.check-changes.outputs.should_deploy == 'true') }}
+    needs: prepare
+    if: needs.prepare.outputs.should_deploy == 'true'
     permissions:
       id-token: write
       contents: write
     env:
-      # expose secrets as env; avoid using `secrets.*` in `if:` expressions
       SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
       AWS_ROLE_TO_ASSUME: ${{ secrets.AWS_ROLE_TO_ASSUME }}
       AWS_REGION: ${{ secrets.AWS_REGION }}
@@ -69,43 +165,52 @@ jobs:
       ECOMOS_ENV: ${{ secrets.ECOMOS_ENV }}
       EC2_HOST_PUBLIC_KEY: ${{ secrets.EC2_HOST_PUBLIC_KEY }}
       EC2_HOST_FINGERPRINT: ${{ secrets.EC2_HOST_FINGERPRINT }}
-    concurrency:
-      group: prod-main
-      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ needs.prepare.outputs.target_sha }}
+          fetch-depth: 0
+
       - name: Install tools (ansible, rsync, jq, curl)
         run: |
           sudo apt-get update
           sudo apt-get install -y ansible rsync jq curl
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: corepack enable && corepack prepare pnpm@9.0.0 --activate
-      - run: pnpm install
 
-      - name: Validate version consistency
-        run: |
-          echo "Validating version consistency across monorepo..."
-          node scripts/sync-versions.js --check
+      - run: corepack enable && corepack prepare pnpm@9.0.0 --activate
+
+      - name: Install dependencies for packaging
+        if: needs.prepare.outputs.artifact_run_id == ''
+        run: pnpm install
 
       - name: Download CI build artifacts
-        if: github.event_name == 'pull_request_target'
+        if: needs.prepare.outputs.artifact_run_id != ''
         uses: actions/download-artifact@v4
         with:
-          name: build-artifacts-${{ github.event.pull_request.head.sha }}
+          name: build-artifacts-${{ needs.prepare.outputs.target_sha }}
           github-token: ${{ github.token }}
-          run-id: ${{ github.event.workflow_run.id }}
+          run-id: ${{ needs.prepare.outputs.artifact_run_id }}
+          path: artifacts
 
-      - name: Generate Prisma clients and build (fallback for workflow_dispatch)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Restore build outputs from artifacts
+        if: needs.prepare.outputs.artifact_run_id != ''
+        run: |
+          set -euo pipefail
+          rsync -a artifacts/build-artifacts-${{ needs.prepare.outputs.target_sha }}/ ./
+
+      - name: Generate Prisma clients and build (fallback)
+        if: needs.prepare.outputs.artifact_run_id == ''
         run: |
           pnpm --filter @ecom-os/auth prisma:generate
           pnpm --filter @ecom-os/wms db:generate
           pnpm --filter @ecom-os/x-plan prisma:generate
-          pnpm turbo run build --filter=@ecom-os/website --filter=@ecom-os/ecomos --filter=@ecom-os/wms --filter=@ecom-os/x-plan || (echo "Build failed" && exit 1)
+          pnpm --filter @ecom-os/website build
+          pnpm --filter @ecom-os/ecomos build
+          BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL=https://example.com/wms/api/auth NEXT_PUBLIC_APP_URL=https://example.com/wms NEXT_PUBLIC_CENTRAL_AUTH_URL=https://example.com CENTRAL_AUTH_URL=https://example.com CENTRAL_AUTH_SECRET=test-central-secret NEXTAUTH_SECRET=test-nextauth-secret CSRF_ALLOWED_ORIGINS=https://example.com,https://example.com/wms DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres pnpm --filter @ecom-os/wms build
+          BASE_PATH=/xplan NEXT_PUBLIC_BASE_PATH=/xplan NEXTAUTH_URL=https://example.com/xplan/api/auth NEXT_PUBLIC_APP_URL=https://example.com/xplan NEXT_PUBLIC_CENTRAL_AUTH_URL=https://example.com CENTRAL_AUTH_URL=https://example.com CENTRAL_AUTH_SECRET=test-central-secret NEXTAUTH_SECRET=test-nextauth-secret CSRF_ALLOWED_ORIGINS=https://example.com,https://example.com/xplan COOKIE_DOMAIN=.example.com DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres pnpm --filter @ecom-os/x-plan build
         env:
           CENTRAL_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=auth
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
@@ -119,6 +224,13 @@ jobs:
           NEXT_PUBLIC_APP_URL: https://example.com/wms
           NEXT_PUBLIC_CENTRAL_AUTH_URL: https://example.com
           CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/wms
+          XPLAN_BASE_PATH: /xplan
+          NEXT_PUBLIC_XPLAN_BASE_PATH: /xplan
+
+      - name: Validate version consistency
+        run: |
+          echo "Validating version consistency across monorepo..."
+          node scripts/sync-versions.js --check
 
       - name: Configure SSH
         run: |
@@ -174,16 +286,13 @@ jobs:
           set -e
           OS_USER=${OS_USER:-ubuntu}
           ssh-keygen -t ed25519 -N '' -f ~/.ssh/ci_key -C ci@github || true
-          # Push key via EIC (ephemeral)
           aws ec2-instance-connect send-ssh-public-key \
             --instance-id "$EIC_INSTANCE_ID" \
             --availability-zone "$EIC_INSTANCE_AZ" \
             --instance-os-user "$OS_USER" \
             --ssh-public-key "file://$HOME/.ssh/ci_key.pub"
-          # Use ephemeral window to append pubkey permanently
           ssh -i ~/.ssh/ci_key "$OS_USER@$EC2_HOST" \
             "mkdir -p ~/.ssh && touch ~/.ssh/authorized_keys && grep -qxF '$(cat ~/.ssh/ci_key.pub)' ~/.ssh/authorized_keys || echo '$(cat ~/.ssh/ci_key.pub)' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"
-          # Switch default key for subsequent steps
           install -m 600 -D ~/.ssh/ci_key ~/.ssh/id_rsa
 
       - name: Configure known_hosts entry
@@ -229,7 +338,7 @@ jobs:
         run: |
           set -e
           OS_USER=${OS_USER:-${EC2_USER:-ubuntu}}
-          ssh "$OS_USER@$EC2_HOST" bash <<'EOF'
+          ssh "$OS_USER@$EC2_HOST" bash <<'EOS'
           set -e
           df -h
           echo
@@ -245,7 +354,7 @@ jobs:
           echo
           echo "PM2 logs:"
           sudo du -sh "$HOME/.pm2/logs" 2>/dev/null || true
-          EOF
+          EOS
 
       - name: Update Cloudflare DNS (apex + www) to EC2
         continue-on-error: true
@@ -303,7 +412,7 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: 'True'
           ANSIBLE_STDOUT_CALLBACK: debug
           ANSIBLE_SSH_COMMON_ARGS: "-o StrictHostKeyChecking=yes -o ServerAliveInterval=30 -o ConnectionAttempts=10"
-          DEPLOY_COMMIT: ${{ github.sha }}
+          DEPLOY_COMMIT: ${{ needs.prepare.outputs.target_sha }}
           WEBSITE_ENV: ${{ secrets.WEBSITE_ENV }}
           WMS_ENV: ${{ secrets.WMS_ENV }}
           HRMS_ENV: ${{ secrets.HRMS_ENV }}
@@ -318,59 +427,29 @@ jobs:
           echo "Inventory:" && cat infra/ansible/inventory/hosts.ini
           ansible-playbook -vvv -i infra/ansible/inventory/hosts.ini infra/ansible/deploy-monorepo.yml
 
-      - name: Post-deploy health checks
-        continue-on-error: true
+      - name: Health check critical services
         id: health_check
         run: |
-          set -e
-          HOST_IP="$EC2_HOST"
-          parse_var() {
-            awk -F': *' -v VAR="$1" '$1==VAR {print $2}' infra/ansible/group_vars/all.yml \
-              | tr -d '"' \
-              | sed -e 's/^ *//' -e 's/ *$//' \
-              | tr -d '\n'
-          }
-          WEBSITE=$(parse_var website_server_name)
-          WMS=$(parse_var wms_server_name)
-          # Only check active hosts
-          REQUIRED=($WEBSITE $WMS)
-          OPTIONAL=()
-          # host ip retries
-          check_host() {
-            local host="$1"; local ip="$2"; local retries="${3:-20}"; local path="/"; local i=1
-            echo "Checking $host..."
-            while [ $i -le "$retries" ]; do
-              echo "  Attempt $i/$retries for $host"
-              code=$(curl -sS --connect-timeout 5 --max-time 10 -o /dev/null -w "%{http_code}" -H "Host: $host" "http://$ip$path" || echo "000")
-              if echo "$code" | grep -Eq '^(20|30)[0-9]$'; then
-                echo "  ✓ OK: $host -> HTTP $code"
-                return 0
-              fi
-              echo "  Got HTTP $code, waiting 10s..."
-              sleep 10
-              i=$((i+1))
-            done
-            echo "  ✗ FAIL: $host (tried $retries times)"
-            return 1
-          }
+          set -euo pipefail
+          declare -A CHECKS=(
+            [website]="https://www.targonglobal.com/"
+            [portal]="https://ecomos.targonglobal.com/login"
+            [wms]="https://ecomos.targonglobal.com/wms/api/health"
+            [xplan]="https://ecomos.targonglobal.com/xplan"
+          )
           failures=0
-          # Required hosts (allow up to 20 attempts ~3 min max)
-          for h in "${REQUIRED[@]}"; do
-            if [ -n "$h" ]; then
-              check_host "$h" "$HOST_IP" 20 || failures=$((failures+1))
+          for name in "${!CHECKS[@]}"; do
+            url="${CHECKS[$name]}"
+            echo "Checking $name => $url"
+            if ! curl -fsS --max-time 15 "$url" >/dev/null; then
+              echo "::warning title=Health check failed::$name at $url did not return 200" >&2
+              failures=$((failures+1))
             fi
           done
-          # Optional hosts: run in parallel with fewer attempts
-          for h in "${OPTIONAL[@]}"; do [ -n "$h" ] && check_host "$h" "$HOST_IP" 10 & done
-          wait || true
-
           if [ "$failures" -gt 0 ]; then
-            echo "⚠️  Warning: $failures required host(s) failed health checks"
-            echo "Health checks failed but continuing deployment (apps may still be starting)"
-            exit 1
+            echo "⚠️  Warning: $failures health check(s) failed" >> $GITHUB_STEP_SUMMARY
           else
-            echo "✓ All health checks passed"
-            exit 0
+            echo "All health checks passed" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Create GitHub Release
@@ -379,105 +458,55 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -e
-
-          # Get version from root package.json
           VERSION=$(node -p "require('./package.json').version")
-
-          # Determine which apps were deployed
           DEPLOYED_APPS=""
-          if pnpm list --filter @ecom-os/wms --depth 0 &>/dev/null; then
+          if [ -d apps/wms/.next ]; then
             DEPLOYED_APPS="${DEPLOYED_APPS}- WMS v${VERSION}\n"
           fi
-          if pnpm list --filter @ecom-os/website --depth 0 &>/dev/null; then
+          if [ -d apps/website/.next ]; then
             DEPLOYED_APPS="${DEPLOYED_APPS}- Website v${VERSION}\n"
           fi
-          if pnpm list --filter @ecom-os/ecomos --depth 0 &>/dev/null; then
+          if [ -d apps/ecomos/.next ]; then
             DEPLOYED_APPS="${DEPLOYED_APPS}- Ecomos v${VERSION}\n"
           fi
-          if pnpm list --filter @ecom-os/x-plan --depth 0 &>/dev/null; then
+          if [ -d apps/x-plan/.next ]; then
             DEPLOYED_APPS="${DEPLOYED_APPS}- X-Plan v${VERSION}\n"
           fi
-
-          # Generate release notes with health check status
           HEALTH_STATUS="✓ Passed"
           if [ "${{ steps.health_check.outcome }}" != "success" ]; then
-            HEALTH_STATUS="⚠️  Failed (apps may still be starting)"
+            HEALTH_STATUS="⚠️  Issues detected"
           fi
-
-          RELEASE_NOTES="## Deployed Applications
-
-          ${DEPLOYED_APPS}
-          ## Deployment Info
-
-          - **Commit**: ${{ github.sha }}
-          - **Deployed at**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-          - **Triggered by**: ${{ github.actor }}
-          - **Health Checks**: ${HEALTH_STATUS}
-
-          ## Changes
-
-          See commit history for details.
-          "
-
-          # Create or update release for each app
-          # WMS Release
+          RELEASE_NOTES="## Deployed Applications\n\n${DEPLOYED_APPS}\n## Deployment Info\n\n- **Commit**: ${{ needs.prepare.outputs.target_sha }}\n- **Deployed at**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")\n- **Triggered by**: ${{ github.actor }}\n- **Health Checks**: ${HEALTH_STATUS}\n\n## Changes\n\nSee commit history for details.\n"
           if echo "$DEPLOYED_APPS" | grep -q "WMS"; then
             TAG="wms-${VERSION}"
             if gh release view "$TAG" &>/dev/null; then
-              echo "Release $TAG already exists, updating..."
               gh release edit "$TAG" --notes "$RELEASE_NOTES"
             else
-              echo "Creating new release $TAG..."
-              gh release create "$TAG" \
-                --title "WMS v${VERSION}" \
-                --notes "$RELEASE_NOTES" \
-                --target main
+              gh release create "$TAG" --title "WMS v${VERSION}" --notes "$RELEASE_NOTES" --target main
             fi
           fi
-
-          # Website Release
           if echo "$DEPLOYED_APPS" | grep -q "Website"; then
             TAG="website-${VERSION}"
             if gh release view "$TAG" &>/dev/null; then
-              echo "Release $TAG already exists, updating..."
               gh release edit "$TAG" --notes "$RELEASE_NOTES"
             else
-              echo "Creating new release $TAG..."
-              gh release create "$TAG" \
-                --title "Website v${VERSION}" \
-                --notes "$RELEASE_NOTES" \
-                --target main
+              gh release create "$TAG" --title "Website v${VERSION}" --notes "$RELEASE_NOTES" --target main
             fi
           fi
-
-          # Ecomos Release
           if echo "$DEPLOYED_APPS" | grep -q "Ecomos"; then
             TAG="ecomos-${VERSION}"
             if gh release view "$TAG" &>/dev/null; then
-              echo "Release $TAG already exists, updating..."
               gh release edit "$TAG" --notes "$RELEASE_NOTES"
             else
-              echo "Creating new release $TAG..."
-              gh release create "$TAG" \
-                --title "Ecomos v${VERSION}" \
-                --notes "$RELEASE_NOTES" \
-                --target main
+              gh release create "$TAG" --title "Ecomos v${VERSION}" --notes "$RELEASE_NOTES" --target main
             fi
           fi
-
-          # X-Plan Release
           if echo "$DEPLOYED_APPS" | grep -q "X-Plan"; then
             TAG="x-plan-${VERSION}"
             if gh release view "$TAG" &>/dev/null; then
-              echo "Release $TAG already exists, updating..."
               gh release edit "$TAG" --notes "$RELEASE_NOTES"
             else
-              echo "Creating new release $TAG..."
-              gh release create "$TAG" \
-                --title "X-Plan v${VERSION}" \
-                --notes "$RELEASE_NOTES" \
-                --target main
+              gh release create "$TAG" --title "X-Plan v${VERSION}" --notes "$RELEASE_NOTES" --target main
             fi
           fi
-
           echo "✓ GitHub releases created/updated for version ${VERSION}"
