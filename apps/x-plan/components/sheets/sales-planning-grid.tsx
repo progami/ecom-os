@@ -259,6 +259,17 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
 
   const columnWidths = useMemo(() => columns.map((column) => column.width ?? METRIC_MIN_WIDTH), [columns])
 
+  const stockWeeksKeyByProduct = useMemo(() => {
+    const map = new Map<string, string>()
+    columnKeys.forEach((columnKey) => {
+      const meta = columnMeta[columnKey]
+      if (meta?.field === 'stockWeeks') {
+        map.set(meta.productId, columnKey)
+      }
+    })
+    return map
+  }, [columnKeys, columnMeta])
+
   const clampStretchWidth = useCallback((width: number, column: number) => {
     if (column === 0) return WEEK_COLUMN_WIDTH
     if (column === 1) return DATE_COLUMN_WIDTH
@@ -515,11 +526,16 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
             const baseClass = editable ? 'cell-editable' : 'cell-readonly'
             cell.className = baseClass
 
-            if (meta?.field === 'stockWeeks' && activeStockMetric === 'stockWeeks') {
-              const record = data[row]
-              const rawValue = record?.[key]
-              const numeric = rawValue ? Number(rawValue) : Number.NaN
-              if (!Number.isNaN(numeric) && numeric <= warningThreshold) {
+            if (meta?.productId) {
+              const weeksKey = stockWeeksKeyByProduct.get(meta.productId)
+              const rawWeeks = weeksKey ? data[row]?.[weeksKey] : undefined
+              const weeksNumeric = rawWeeks !== undefined ? Number(rawWeeks) : Number.NaN
+              const isBelowThreshold = !Number.isNaN(weeksNumeric) && weeksNumeric <= warningThreshold
+              const isStockColumn =
+                (meta.field === 'stockWeeks' && activeStockMetric === 'stockWeeks') ||
+                (meta.field === 'stockEnd' && activeStockMetric === 'stockEnd')
+
+              if (isBelowThreshold && isStockColumn) {
                 cell.className = cell.className ? `${cell.className} cell-warning` : 'cell-warning'
               }
             }

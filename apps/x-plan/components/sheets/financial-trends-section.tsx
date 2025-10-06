@@ -16,6 +16,7 @@ import {
   SHEET_TOOLBAR_SEGMENTED,
   SHEET_TOOLBAR_SELECT,
 } from '@/components/sheet-toolbar'
+import { usePersistentState } from '@/hooks/usePersistentState'
 
 export type TrendGranularity = 'weekly' | 'monthly' | 'quarterly'
 export type TrendSeries = Record<TrendGranularity, { labels: string[]; values: number[] }>
@@ -37,11 +38,20 @@ interface FinancialTrendsSectionProps {
   description: string
   metrics: FinancialMetricDefinition[]
   defaultMetricKey?: string
+  storageKey?: string
 }
 
-export function FinancialTrendsSection({ title, description, metrics, defaultMetricKey }: FinancialTrendsSectionProps) {
-  const [granularity, setGranularity] = useState<TrendGranularity>('monthly')
-  const [activeMetric, setActiveMetric] = useState<string>(defaultMetricKey ?? metrics[0]?.key ?? '')
+export function FinancialTrendsSection({ title, description, metrics, defaultMetricKey, storageKey }: FinancialTrendsSectionProps) {
+  const storagePrefix = storageKey ?? `xplan:financial-trends:${title}`
+  const [granularity, setGranularity, granularityHydrated] = usePersistentState<TrendGranularity>(
+    `${storagePrefix}:granularity`,
+    'monthly',
+  )
+  const [activeMetric, setActiveMetric, metricHydrated] = usePersistentState<string>(
+    `${storagePrefix}:metric`,
+    () => defaultMetricKey ?? metrics[0]?.key ?? '',
+  )
+  const hydrated = granularityHydrated && metricHydrated
 
   const granularityAvailability = useMemo(() => {
     return metrics.reduce(
@@ -62,6 +72,7 @@ export function FinancialTrendsSection({ title, description, metrics, defaultMet
   }, [metrics])
 
   useEffect(() => {
+    if (!hydrated) return
     if (!granularityAvailability[granularity]) {
       const fallback: TrendGranularity | null = granularityAvailability.weekly
         ? 'weekly'
@@ -74,15 +85,15 @@ export function FinancialTrendsSection({ title, description, metrics, defaultMet
         setGranularity(fallback)
       }
     }
-  }, [granularity, granularityAvailability])
+  }, [granularity, granularityAvailability, hydrated, setGranularity])
 
   useEffect(() => {
-    if (!metrics.length) return
+    if (!hydrated || !metrics.length) return
     const target = metrics.find((metric) => metric.key === activeMetric)
     if (!target) {
       setActiveMetric(metrics[0]?.key ?? '')
     }
-  }, [metrics, activeMetric])
+  }, [metrics, activeMetric, hydrated, setActiveMetric])
 
   const resolvedMetric = useMemo(() => {
     return metrics.find((metric) => metric.key === activeMetric) ?? metrics[0] ?? null

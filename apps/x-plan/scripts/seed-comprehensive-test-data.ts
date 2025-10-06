@@ -18,6 +18,7 @@ import prisma from '@/lib/prisma'
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000'
 const API_BASE = `${BASE_URL}/api/v1/x-plan`
 const RESET_REQUESTED = process.env.RESET === 'true' || process.argv.includes('--reset')
+const SALES_HORIZON_WEEKS = 156 // Matches planning calendar coverage (2025–2027)
 
 interface Product {
   id?: string
@@ -108,6 +109,26 @@ interface PurchaseOrderSpec {
 }
 
 type ProductSeed = Product & { key: 'sixLD' | 'premiumWidget' | 'economyWidget' | 'deluxeWidget' }
+
+const vesselNames = [
+  'MV Horizon Dawn',
+  'CMA CGM Titan',
+  'Hapag-Lloyd Aurora',
+  'MSC Seascape',
+  'Evergreen Sun',
+  'Maersk Pioneer',
+  'ONE Infinity',
+  'NYK Comet',
+  'APL Meridian',
+  'COSCO Stellar',
+]
+
+const transportPrefixes = ['HLCU', 'MSCU', 'OOLU', 'APMU', 'EMCU', 'CAXU', 'TCKU', 'SEGU']
+
+const additionalYearConfigs = [
+  { yearSuffix: '2026', weekOffset: 52, rotation: 1, productShift: 1 },
+  { yearSuffix: '2027', weekOffset: 104, rotation: 2, productShift: 2 },
+]
 
 // Product definitions
 const productSeeds: ProductSeed[] = [
@@ -459,8 +480,9 @@ async function seedPurchaseOrders(products: Product[]) {
   const premiumWidget = requireProduct('WDG-001')
   const economyWidget = requireProduct('WDG-002')
   const deluxeWidget = requireProduct('WDG-003')
+  const allProducts = [sixLD, premiumWidget, economyWidget, deluxeWidget]
 
-  const orderSpecs: PurchaseOrderSpec[] = [
+  const baseOrderSpecs: PurchaseOrderSpec[] = [
     // 6 LD - replenishment cycles
     {
       orderCode: 'PO-2025-101',
@@ -606,6 +628,36 @@ async function seedPurchaseOrders(products: Product[]) {
       ],
     },
   ]
+
+  const rotateSpecs = <T,>(list: T[], offset: number) => {
+    if (!offset || list.length <= 1) return [...list]
+    const normalized = ((offset % list.length) + list.length) % list.length
+    return [...list.slice(normalized), ...list.slice(0, normalized)]
+  }
+
+  const recurringOrderSpecs = additionalYearConfigs.flatMap((config, variantIndex) => {
+    const rotatedOrders = rotateSpecs(baseOrderSpecs, config.rotation)
+    const rotatedProducts = rotateSpecs(allProducts, config.productShift)
+    return rotatedOrders.map((spec, orderIndex) => {
+      const product = rotatedProducts[orderIndex % rotatedProducts.length]
+      const specForYear: PurchaseOrderSpec = {
+        ...spec,
+        productId: product.id!,
+        product,
+        batches: spec.batches.map((batch) => ({ code: batch.code, quantity: batch.quantity })),
+      }
+      const staggerWeeks = config.weekOffset + orderIndex * 4 + variantIndex * 6
+      return shiftOrderSpec(specForYear, {
+        yearSuffix: config.yearSuffix,
+        weekOffset: staggerWeeks,
+        orderIndex,
+        variantIndex,
+        product,
+      })
+    })
+  })
+
+  const orderSpecs = [...baseOrderSpecs, ...recurringOrderSpecs]
 
   const createdOrders = [] as Array<PurchaseOrder & PurchaseOrderSpec>
   for (const spec of orderSpecs) {
@@ -799,46 +851,103 @@ async function seedPaymentSchedules(orders: any[]) {
 async function seedSalesPlanning(products: Product[]) {
   console.log('\n📈 Creating sales planning data...')
 
-  // Sales patterns for 20 weeks
   const bySku = new Map(products.map((product) => [product.sku, product]))
   const salesPatterns: Record<string, ReturnType<typeof buildSalesPattern>> = {}
 
+  const horizonWeeks = SALES_HORIZON_WEEKS
+
   const sixLD = bySku.get('CS007')
   if (sixLD?.id) {
+    const forecasts = generateForecastSeries({
+      start: 180,
+      weeklyGrowth: 1.2,
+      weeks: horizonWeeks,
+      seasonalBoostEvery: 13,
+      seasonalBoostAmount: 70,
+      cap: 420,
+    })
     salesPatterns[sixLD.id] = buildSalesPattern({
-      forecasts: [180, 188, 192, 198, 204, 210, 216, 222, 228, 234, 240, 246, 252, 258, 264, 270, 276, 282, 288, 294],
-      initialStock: 300,
-      replenishments: { 8: 1200, 16: 1500 },
+      forecasts,
+      initialStock: 7000,
+      replenishments: buildReplenishmentSchedule(
+        [
+          { week: 10, quantity: 9000, repeatEvery: 26 },
+          { week: 24, quantity: 7000, repeatEvery: 26 },
+        ],
+        horizonWeeks,
+      ),
       actualVariance: 0.92,
     })
   }
 
   const premiumWidget = bySku.get('WDG-001')
   if (premiumWidget?.id) {
+    const forecasts = generateForecastSeries({
+      start: 50,
+      weeklyGrowth: 0.85,
+      weeks: horizonWeeks,
+      seasonalBoostEvery: 13,
+      seasonalBoostAmount: 32,
+      cap: 220,
+    })
     salesPatterns[premiumWidget.id] = buildSalesPattern({
-      forecasts: [50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145],
-      initialStock: 150,
-      replenishments: { 10: 1000, 18: 800 },
+      forecasts,
+      initialStock: 3500,
+      replenishments: buildReplenishmentSchedule(
+        [
+          { week: 12, quantity: 5000, repeatEvery: 26 },
+          { week: 26, quantity: 4000, repeatEvery: 26 },
+        ],
+        horizonWeeks,
+      ),
       actualVariance: 0.95,
     })
   }
 
   const economyWidget = bySku.get('WDG-002')
   if (economyWidget?.id) {
+    const forecasts = generateForecastSeries({
+      start: 80,
+      weeklyGrowth: 1.1,
+      weeks: horizonWeeks,
+      seasonalBoostEvery: 13,
+      seasonalBoostAmount: 55,
+      cap: 300,
+    })
     salesPatterns[economyWidget.id] = buildSalesPattern({
-      forecasts: [80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175],
-      initialStock: 220,
-      replenishments: { 16: 1500 },
+      forecasts,
+      initialStock: 4200,
+      replenishments: buildReplenishmentSchedule(
+        [
+          { week: 14, quantity: 6000, repeatEvery: 26 },
+          { week: 30, quantity: 5000, repeatEvery: 26 },
+        ],
+        horizonWeeks,
+      ),
       actualVariance: 0.93,
     })
   }
 
   const deluxeWidget = bySku.get('WDG-003')
   if (deluxeWidget?.id) {
+    const forecasts = generateForecastSeries({
+      start: 20,
+      weeklyGrowth: 0.55,
+      weeks: horizonWeeks,
+      seasonalBoostEvery: 13,
+      seasonalBoostAmount: 24,
+      cap: 140,
+    })
     salesPatterns[deluxeWidget.id] = buildSalesPattern({
-      forecasts: [20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58],
-      initialStock: 90,
-      replenishments: { 12: 500 },
+      forecasts,
+      initialStock: 2200,
+      replenishments: buildReplenishmentSchedule(
+        [
+          { week: 16, quantity: 3200, repeatEvery: 26 },
+          { week: 34, quantity: 2500, repeatEvery: 26 },
+        ],
+        horizonWeeks,
+      ),
       actualVariance: 0.97,
     })
   }
@@ -967,13 +1076,152 @@ function addDays(dateStr: string, days: number): string {
 const formatCurrency = (value: number) => value.toFixed(2)
 const formatPercent = (value: number) => value.toFixed(4)
 
-const purchaseOrderCodes = ['PO-2025-001', 'PO-2025-002', 'PO-2025-003', 'PO-2025-004', 'PO-2025-101', 'PO-2025-102']
 
 type SalesPatternOptions = {
   forecasts: number[]
   initialStock: number
   replenishments?: Record<number, number>
   actualVariance?: number
+}
+
+type ForecastTrendOptions = {
+  start: number
+  weeklyGrowth: number
+  weeks: number
+  seasonalBoostEvery?: number
+  seasonalBoostAmount?: number
+  cap?: number
+}
+
+type ReplenishmentPattern = {
+  week: number
+  quantity: number
+  repeatEvery?: number | null
+}
+
+function shiftDateByWeeks(dateStr: string | undefined, weeks: number) {
+  if (!dateStr) return dateStr
+  const date = new Date(dateStr)
+  date.setDate(date.getDate() + weeks * 7)
+  return date.toISOString().split('T')[0]
+}
+
+function shiftOrderSpec(
+  spec: PurchaseOrderSpec,
+  {
+    yearSuffix,
+    weekOffset,
+    orderIndex,
+    variantIndex,
+    product,
+  }: {
+    yearSuffix: string
+    weekOffset: number
+    orderIndex: number
+    variantIndex: number
+    product: Product
+  },
+): PurchaseOrderSpec {
+  const skuFragment = product.sku.replace(/[^A-Z0-9]/g, '').slice(-3).toUpperCase() || 'SKU'
+  const orderNumber = String(orderIndex + 1 + variantIndex * 5).padStart(2, '0')
+  const orderCode = `PO-${yearSuffix}-${skuFragment}${orderNumber}`
+
+  const vessel = vesselNames[(orderIndex + variantIndex * 3) % vesselNames.length]
+  const transportPrefix = transportPrefixes[(orderIndex + variantIndex * 2) % transportPrefixes.length]
+  const transportSuffix = `${yearSuffix.slice(-2)}${String(5900 + orderIndex * 37 + variantIndex * 19).padStart(4, '0')}`
+  const transportReference = `${transportPrefix}${transportSuffix}`
+
+  const batchVariationBase = 1 + (orderIndex * 0.01 + variantIndex * 0.015)
+
+  const batches = spec.batches.map((batch, batchIndex) => {
+    const variation = batchVariationBase + batchIndex * 0.01
+    return {
+      ...batch,
+      quantity: Math.round(batch.quantity * (1 + variantIndex * 0.05)),
+      code: batch.code.replace('2025', yearSuffix),
+      overrideSellingPrice: parseFloat((product.sellingPrice * (0.98 + batchIndex * 0.01)).toFixed(2)),
+      overrideManufacturingCost: parseFloat(
+        ((batch.overrideManufacturingCost ?? product.manufacturingCost) * variation).toFixed(2),
+      ),
+      overrideFreightCost: parseFloat(
+        ((batch.overrideFreightCost ?? product.freightCost) * (variation - 0.005)).toFixed(2),
+      ),
+      overrideFbaFee: parseFloat(
+        ((batch.overrideFbaFee ?? product.fbaFee) * (1 + batchIndex * 0.01 + variantIndex * 0.01)).toFixed(2),
+      ),
+      overrideStoragePerMonth: parseFloat(
+        ((batch.overrideStoragePerMonth ?? product.storagePerMonth) * (1 + batchIndex * 0.015)).toFixed(2),
+      ),
+      overrideTariffRate: parseFloat(
+        ((batch.overrideTariffRate ?? product.tariffRate) * (1 + variantIndex * 0.02)).toFixed(4),
+      ),
+      overrideTacosPercent: parseFloat(
+        ((batch.overrideTacosPercent ?? product.tacosPercent) * (1 + batchIndex * 0.01)).toFixed(4),
+      ),
+      overrideReferralRate: parseFloat(
+        ((batch.overrideReferralRate ?? product.amazonReferralRate) * (1 + variantIndex * 0.01)).toFixed(4),
+      ),
+    }
+  })
+
+  const totalQuantity = batches.reduce((sum, batch) => sum + batch.quantity, 0)
+
+  return {
+    ...spec,
+    orderCode,
+    productId: product.id!,
+    product,
+    poDate: shiftDateByWeeks(spec.poDate, weekOffset)!,
+    inboundEta: shiftDateByWeeks(spec.inboundEta, weekOffset)!,
+    availableDate: shiftDateByWeeks(spec.availableDate, weekOffset)!,
+    shipName: `${vessel} ${yearSuffix}`,
+    transportReference,
+    quantity: totalQuantity,
+    batches,
+    stageDurations: spec.stageDurations,
+    logisticsEvents: spec.logisticsEvents?.map((event, idx) => ({
+      ...event,
+      reference: event.reference ? `${event.reference} ${yearSuffix}` : event.reference,
+      notes: event.notes ?? `Cycle ${variantIndex + 1} – leg ${idx + 1}`,
+      eventDate: shiftDateByWeeks(event.eventDate, weekOffset),
+    })),
+  }
+}
+
+function generateForecastSeries({
+  start,
+  weeklyGrowth,
+  weeks,
+  seasonalBoostEvery,
+  seasonalBoostAmount = 0,
+  cap,
+}: ForecastTrendOptions) {
+  const values: number[] = []
+  for (let index = 0; index < weeks; index += 1) {
+    const week = index + 1
+    let value = start + weeklyGrowth * index
+    if (seasonalBoostEvery && seasonalBoostEvery > 0 && week % seasonalBoostEvery === 0) {
+      value += seasonalBoostAmount
+    }
+    if (typeof cap === 'number') {
+      value = Math.min(value, cap)
+    }
+    values.push(Math.max(0, Math.round(value)))
+  }
+  return values
+}
+
+function buildReplenishmentSchedule(pattern: ReplenishmentPattern[], weeks: number) {
+  const schedule: Record<number, number> = {}
+  for (const entry of pattern) {
+    if (entry.week <= 0 || entry.quantity <= 0) continue
+    const repeat = entry.repeatEvery && entry.repeatEvery > 0 ? entry.repeatEvery : null
+    for (let week = entry.week; week <= weeks; week += repeat ?? weeks + 1) {
+      schedule[week] = (schedule[week] ?? 0) + entry.quantity
+      if (!repeat) break
+    }
+  }
+  return schedule
 }
 
 function buildSalesPattern({
@@ -1004,13 +1252,14 @@ async function resetSeedData() {
   console.log('\n🧽 Resetting existing seed data...')
 
   try {
+    const productSkus = productSeeds.map((p) => p.sku)
     await prisma.purchaseOrderPayment.deleteMany({
-      where: { purchaseOrder: { orderCode: { in: purchaseOrderCodes } } },
+      where: { purchaseOrder: { product: { sku: { in: productSkus } } } },
     })
     await prisma.batchTableRow.deleteMany({
-      where: { purchaseOrder: { orderCode: { in: purchaseOrderCodes } } },
+      where: { purchaseOrder: { product: { sku: { in: productSkus } } } },
     })
-    await prisma.purchaseOrder.deleteMany({ where: { orderCode: { in: purchaseOrderCodes } } })
+    await prisma.purchaseOrder.deleteMany({ where: { product: { sku: { in: productSkus } } } })
     await prisma.salesWeek.deleteMany({ where: { product: { sku: { in: productSeeds.map((p) => p.sku) } } } })
     await prisma.product.deleteMany({ where: { sku: { in: productSeeds.map((p) => p.sku) } } })
     console.log('  ✓ Previous seed data cleared')

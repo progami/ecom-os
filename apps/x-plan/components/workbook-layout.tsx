@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { SheetTabs } from '@/components/sheet-tabs'
 import { getSheetConfig } from '@/lib/sheets'
 import type { YearSegment } from '@/lib/calculations/calendar'
@@ -213,6 +213,12 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
     return yearTraversal.findIndex((entry) => entry.slug === activeSlug && entry.year === resolvedYear)
   }, [activeSlug, resolvedYear, yearTraversal])
 
+  const traversalIndexRef = useRef(traversalIndex)
+
+  useEffect(() => {
+    traversalIndexRef.current = traversalIndex
+  }, [traversalIndex])
+
   useEffect(() => {
     if (!isResizing) return
     window.addEventListener('mousemove', handleMouseMove)
@@ -236,11 +242,13 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
       // Ctrl + PageUp/PageDown to navigate sheets
       if (event.ctrlKey && !event.altKey && !event.metaKey) {
         if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-          if (traversalIndex === -1) return
-          const nextIndex = event.key === 'ArrowLeft' ? traversalIndex - 1 : traversalIndex + 1
+          const currentIndex = traversalIndexRef.current
+          if (currentIndex === -1) return
+          const nextIndex = event.key === 'ArrowLeft' ? currentIndex - 1 : currentIndex + 1
           if (nextIndex < 0 || nextIndex >= yearTraversal.length) return
           const target = yearTraversal[nextIndex]
           event.preventDefault()
+          traversalIndexRef.current = nextIndex
           goToSheet(target.slug, target.year)
           return
         }
