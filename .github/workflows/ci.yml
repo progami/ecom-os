@@ -40,12 +40,53 @@ jobs:
         env:
           NEXTAUTH_SECRET: test-nextauth-secret
           CENTRAL_AUTH_SECRET: test-central-secret
-          NEXTAUTH_URL: http://localhost:3000
+          NEXTAUTH_URL: https://example.com/wms/api/auth
           CENTRAL_AUTH_URL: https://example.com
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+          BASE_PATH: /wms
+          NEXT_PUBLIC_BASE_PATH: /wms
+          NEXT_PUBLIC_APP_URL: https://example.com/wms
+          NEXT_PUBLIC_CENTRAL_AUTH_URL: https://example.com
+          CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/wms
+
+      - name: Type-check EcomOS portal
+        run: pnpm --filter @ecom-os/ecomos type-check
+
+      - name: Build EcomOS portal
+        run: pnpm --filter @ecom-os/ecomos build
+        env:
+          NEXTAUTH_SECRET: test-nextauth-secret
+          CENTRAL_AUTH_SECRET: test-central-secret
+          NEXTAUTH_URL: https://example.com/api/auth
+          CENTRAL_AUTH_URL: https://example.com
+          COOKIE_DOMAIN: .example.com
+
+      - name: Generate Prisma client for X-Plan
+        run: pnpm --filter @ecom-os/x-plan prisma:generate
+
+      - name: Lint X-Plan
+        run: pnpm --filter @ecom-os/x-plan lint
+
+      - name: Type-check X-Plan
+        run: pnpm --filter @ecom-os/x-plan type-check
+
+      - name: Build X-Plan
+        run: pnpm --filter @ecom-os/x-plan build
+        env:
+          BASE_PATH: /xplan
+          NEXT_PUBLIC_BASE_PATH: /xplan
+          NEXTAUTH_URL: https://example.com/xplan/api/auth
+          NEXT_PUBLIC_APP_URL: https://example.com/xplan
+          NEXT_PUBLIC_CENTRAL_AUTH_URL: https://example.com
+          CENTRAL_AUTH_URL: https://example.com
+          CENTRAL_AUTH_SECRET: test-central-secret
+          NEXTAUTH_SECRET: test-nextauth-secret
+          CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/xplan
+          COOKIE_DOMAIN: .example.com
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
 
       - name: Upload build artifacts
-        if: github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main'
+        if: github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main') || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts-${{ github.sha }}
