@@ -39,7 +39,7 @@ const socialLinks = [
 
 export default function SiteFooter() {
   return (
-    <footer className="bg-[#00C2B9] text-white" style={{ height: '475px', width: '1920px', margin: '0 auto' }}>
+    <footer className="bg-[#00C2B9] text-[#021b2b]" style={{ height: '475px', width: '1920px', margin: '0 auto' }}>
       <div className="mx-auto w-full max-w-[1920px] px-6 py-14 sm:px-10 lg:px-16 h-full flex flex-col justify-between">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
           <div>
@@ -51,17 +51,17 @@ export default function SiteFooter() {
                 height={36}
               />
             </Link>
-            <p className="mt-4 max-w-xs text-sm leading-6 text-white/90">
+            <p className="mt-4 max-w-xs text-sm leading-6">
               Hello, we are Targon, trying to make an effort to put the right people for you to get the best results.
             </p>
           </div>
 
           {footerSections.map((section) => (
             <div key={section.title}>
-              <p className="text-sm font-bold uppercase tracking-[0.3em] text-white/80">
+              <p className="text-sm font-bold uppercase tracking-[0.3em]">
                 {section.title}
               </p>
-              <ul className="mt-6 space-y-2 text-sm text-white/90">
+              <ul className="mt-6 space-y-2 text-sm">
                 {section.links.map((link) => (
                   <li key={link.href}>
                     <Link href={link.href} className="transition-colors hover:text-white">
@@ -74,14 +74,14 @@ export default function SiteFooter() {
           ))}
         </div>
 
-        <div className="mt-12 border-t border-white/30 pt-6">
-          <div className="flex items-center justify-end gap-4 text-white/80">
+        <div className="mt-12 border-t border-[#021b2b]/30 pt-6">
+          <div className="flex items-center justify-end gap-4">
             {socialLinks.map(({ href, icon: Icon, label }) => (
               <Link
                 key={href}
                 href={href}
                 aria-label={label}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/60 transition hover:border-white hover:text-white"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-[#021b2b]/60 transition hover:border-[#021b2b]"
               >
                 <Icon className="h-5 w-5" />
               </Link>
