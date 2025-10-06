@@ -47,7 +47,7 @@ export async function PUT(request: Request) {
     )
   }
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     for (const { weekNumber, values } of parsed.data.updates) {
       const data: Record<string, number | null> = {}
       for (const field of editableFields) {

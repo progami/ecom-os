@@ -79,11 +79,6 @@
           echo "Skipping auth seed: central_portal_admin_email/password not set."
         fi
       args: { chdir: "{{ app_base }}/repo" }
-    - name: Build website only (no turbo)
-      shell: |
-        pnpm --filter @ecom-os/website build
-      args: { chdir: "{{ app_base }}/repo" }
-
     - name: Write per-app environment files from GitHub Secrets
       block:
         - name: Write website env

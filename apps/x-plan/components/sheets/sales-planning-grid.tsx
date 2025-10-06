@@ -257,7 +257,13 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
     return base
   }, [columnMeta, columnKeys, widthByColumn])
 
-  const columnWidths = useMemo(() => columns.map((column) => column.width ?? METRIC_MIN_WIDTH), [columns])
+  const columnWidths = useMemo<number[]>(
+    () =>
+      columns.map((column) =>
+        typeof column.width === 'number' ? column.width : METRIC_MIN_WIDTH
+      ),
+    [columns],
+  )
 
   const stockWeeksKeyByProduct = useMemo(() => {
     const map = new Map<string, string>()
