@@ -27,9 +27,9 @@ export default function MobileControls({ navItems }: MobileControlsProps) {
       </button>
 
       {open && (
-        <div className="md:hidden">
+        <div className="md:hidden" style={{ zIndex: 9999 }}>
           <div className="fixed inset-0 bg-black/40" onClick={() => setOpen(false)} />
-          <div className="fixed right-0 top-0 flex h-full w-72 flex-col bg-white p-6 shadow-xl">
+          <div className="fixed right-0 top-0 flex h-full w-72 flex-col bg-white p-6 shadow-xl" style={{ zIndex: 10000 }}>
             <div className="mb-6 flex items-center justify-between">
               <span className="text-base font-extrabold uppercase text-[#02253b] tracking-[0.3em]">Menu</span>
               <button
