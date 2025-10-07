@@ -35,8 +35,6 @@ jobs:
 
       - name: Resolve deployment target
         id: context
-        env:
-          CALL_REF: ${{ inputs.ref || '' }}
         run: |
           set -euo pipefail
 
@@ -49,7 +47,7 @@ jobs:
           TARGET_SHA_SOURCE="${GITHUB_SHA:-}"
           REF_NAME="${GITHUB_REF_NAME:-main}"
           TRIGGER_KIND="$EVENT_NAME"
-          INPUT_OVERRIDE="${CALL_REF:-}"
+          INPUT_OVERRIDE="${INPUT_REF:-}"
 
           if [ -z "$EVENT_PATH" ] || [ ! -f "$EVENT_PATH" ]; then
             echo "::error title=Missing event payload::GITHUB_EVENT_PATH is unavailable." >&2
