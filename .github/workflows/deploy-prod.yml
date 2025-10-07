@@ -386,7 +386,7 @@ EOF
 
           printf '%b' "$resolved_entries" > ~/.ssh/known_hosts
 
-          echo "Recorded host keys:"
+          echo "Recorded host keys for $EC2_HOST:"
           ssh-keygen -lf ~/.ssh/known_hosts
 
           chmod 644 ~/.ssh/known_hosts
