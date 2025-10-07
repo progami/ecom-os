@@ -201,7 +201,7 @@ jobs:
           path: artifacts
 
       - name: Restore build outputs from artifacts
-        if: needs.prepare.outputs.artifact_run_id != '' && steps.download.outputs.download-path != ''
+        if: needs.prepare.outputs.artifact_run_id != '' && steps.download.outcome == 'success' && steps.download.outputs.download-path != ''
         run: |
           set -euo pipefail
           ARTIFACT_ROOT="${{ steps.download.outputs.download-path }}"
@@ -209,7 +209,7 @@ jobs:
           rsync -a "${ARTIFACT_ROOT}/build-artifacts-${TARGET_SHA}/" ./
 
       - name: Generate Prisma clients and build (fallback)
-        if: needs.prepare.outputs.artifact_run_id == '' || steps.download.outputs.download-path == ''
+        if: needs.prepare.outputs.artifact_run_id == '' || steps.download.outcome != 'success' || steps.download.outputs.download-path == ''
         run: |
           pnpm --filter @ecom-os/auth prisma:generate
           pnpm --filter @ecom-os/wms db:generate
