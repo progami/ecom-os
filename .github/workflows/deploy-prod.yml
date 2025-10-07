@@ -20,6 +20,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: No-op validation
+        run: echo "Workflow validation pass for push event"
+
   prepare:
     if: ${{ github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request_target' }}
     runs-on: ubuntu-latest
