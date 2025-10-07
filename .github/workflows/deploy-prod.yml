@@ -347,34 +347,36 @@ EOF
           fi
 
           if [ -z "$resolved_entries" ] && [ -n "${EC2_HOST_PUBLIC_KEY:-}" ]; then
-            key_line="$EC2_HOST_PUBLIC_KEY"
-            IFS=' ' read -r provided_host provided_type provided_key provided_rest <<<"$key_line"
+            while IFS= read -r key_line; do
+              [ -z "$key_line" ] && continue
+              IFS=' ' read -r provided_host provided_type provided_key provided_rest <<<"$key_line"
 
-            if [ -z "${provided_type:-}" ] || [ -z "${provided_key:-}" ]; then
-              echo "::error title=Invalid host key::EC2_HOST_PUBLIC_KEY must contain a host, key type, and key material." >&2
-              exit 1
-            fi
-
-            target_host="${EC2_HOST:-$provided_host}"
-
-            formatted="$target_host $provided_type $provided_key"
-            if [ -n "${provided_rest:-}" ]; then
-              formatted="$formatted $provided_rest"
-            fi
-
-            if [ -n "${EC2_HOST_FINGERPRINT:-}" ]; then
-              derived_fingerprint=$(printf '%s\n' "$formatted" | ssh-keygen -lf - | awk 'NR==1 {print $2}')
-              if [ "$derived_fingerprint" != "$EC2_HOST_FINGERPRINT" ]; then
-                echo "::error title=Fingerprint mismatch::Expected $EC2_HOST_FINGERPRINT but derived $derived_fingerprint from EC2_HOST_PUBLIC_KEY." >&2
+              if [ -z "${provided_type:-}" ] || [ -z "${provided_key:-}" ]; then
+                echo "::error title=Invalid host key::EC2_HOST_PUBLIC_KEY must contain a host, key type, and key material." >&2
                 exit 1
               fi
-            fi
 
-            resolved_entries+="$formatted\n"
+              target_host="${EC2_HOST:-$provided_host}"
 
-            if [ "$target_host" != "$provided_host" ] && [ -n "$provided_host" ] && [ "${provided_host#|}" = "$provided_host" ]; then
-              resolved_entries+="$key_line\n"
-            fi
+              formatted="$target_host $provided_type $provided_key"
+              if [ -n "${provided_rest:-}" ]; then
+                formatted="$formatted $provided_rest"
+              fi
+
+              if [ -n "${EC2_HOST_FINGERPRINT:-}" ]; then
+                derived_fingerprint=$(printf '%s\n' "$formatted" | ssh-keygen -lf - | awk 'NR==1 {print $2}')
+                if [ "$derived_fingerprint" != "$EC2_HOST_FINGERPRINT" ]; then
+                  echo "::error title=Fingerprint mismatch::Expected $EC2_HOST_FINGERPRINT but derived $derived_fingerprint from EC2_HOST_PUBLIC_KEY." >&2
+                  exit 1
+                fi
+              fi
+
+              resolved_entries+="$formatted\n"
+
+              if [ "$target_host" != "$provided_host" ] && [ -n "$provided_host" ] && [ "${provided_host#|}" = "$provided_host" ]; then
+                resolved_entries+="$key_line\n"
+              fi
+            done <<<"$EC2_HOST_PUBLIC_KEY"
           fi
 
           if [ -z "$resolved_entries" ]; then
