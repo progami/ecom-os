@@ -314,7 +314,39 @@ jobs:
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
 
-          if [ -n "${EC2_HOST_PUBLIC_KEY:-}" ]; then
+          if [ -z "${EC2_HOST:-}" ]; then
+            echo "::error title=Missing EC2 host::EC2_HOST must be resolved before configuring known_hosts." >&2
+            exit 1
+          fi
+
+          resolved_entries=""
+
+          if [ -n "${EC2_HOST_FINGERPRINT:-}" ]; then
+            scan_output=$(ssh-keyscan -T 10 -t ed25519 "$EC2_HOST" 2>/dev/null || true)
+            if [ -z "$scan_output" ]; then
+              scan_output=$(ssh-keyscan -T 10 "$EC2_HOST" 2>/dev/null || true)
+            fi
+
+            if [ -n "$scan_output" ]; then
+              while IFS= read -r line; do
+                [ -z "$line" ] && continue
+                fp=$(printf '%s\n' "$line" | ssh-keygen -lf - | awk 'NR==1 {print $2}')
+                if [ "$fp" = "$EC2_HOST_FINGERPRINT" ]; then
+                  echo "Matched host key type: $(printf '%s\n' "$line" | awk '{print $2}')"
+                  host_token=$(printf '%s\n' "$line" | awk '{print $1}')
+                  rest=$(printf '%s\n' "$line" | cut -d' ' -f2-)
+                  if [ "$host_token" != "$EC2_HOST" ]; then
+                    line="$EC2_HOST $rest"
+                  fi
+                  resolved_entries+="$line\n"
+                fi
+              done <<EOF
+$scan_output
+EOF
+            fi
+          fi
+
+          if [ -z "$resolved_entries" ] && [ -n "${EC2_HOST_PUBLIC_KEY:-}" ]; then
             key_line="$EC2_HOST_PUBLIC_KEY"
             IFS=' ' read -r provided_host provided_type provided_key provided_rest <<<"$key_line"
 
@@ -324,17 +356,11 @@ jobs:
             fi
 
             target_host="${EC2_HOST:-$provided_host}"
-            if [ -z "${target_host:-}" ]; then
-              echo "::error title=Missing EC2 host::EC2_HOST must be resolved before configuring known_hosts." >&2
-              exit 1
-            fi
 
             formatted="$target_host $provided_type $provided_key"
             if [ -n "${provided_rest:-}" ]; then
               formatted="$formatted $provided_rest"
             fi
-
-            printf '%s\n' "$formatted" > ~/.ssh/known_hosts
 
             if [ -n "${EC2_HOST_FINGERPRINT:-}" ]; then
               derived_fingerprint=$(printf '%s\n' "$formatted" | ssh-keygen -lf - | awk 'NR==1 {print $2}')
@@ -344,42 +370,22 @@ jobs:
               fi
             fi
 
+            resolved_entries+="$formatted\n"
+
             if [ "$target_host" != "$provided_host" ] && [ -n "$provided_host" ] && [ "${provided_host#|}" = "$provided_host" ]; then
-              printf '%s\n' "$key_line" >> ~/.ssh/known_hosts
+              resolved_entries+="$key_line\n"
             fi
-          else
-            if [ -z "${EC2_HOST_FINGERPRINT:-}" ]; then
-              echo "::error title=Missing host verification data::Set EC2_HOST_PUBLIC_KEY or EC2_HOST_FINGERPRINT secret to verify the SSH host key." >&2
-              exit 1
-            fi
-
-            if [ -z "${EC2_HOST:-}" ]; then
-              echo "::error title=Missing EC2 host::EC2_HOST must be resolved before configuring known_hosts." >&2
-              exit 1
-            fi
-
-            scan_output=$(ssh-keyscan -T 10 -t ed25519 "$EC2_HOST" 2>/dev/null || true)
-            if [ -z "$scan_output" ]; then
-              scan_output=$(ssh-keyscan -T 10 "$EC2_HOST" 2>/dev/null || true)
-            fi
-            if [ -z "$scan_output" ]; then
-              echo "::error title=Host key scan failed::Unable to retrieve SSH host key from $EC2_HOST." >&2
-              exit 1
-            fi
-
-            key_types=$(printf '%s\n' "$scan_output" | awk '{print $2}' | paste -sd ',' -)
-            echo "Key types retrieved: ${key_types:-unknown}"
-
-            scan_fingerprint=$(printf '%s\n' "$scan_output" | ssh-keygen -lf - | awk 'NR==1 {print $2}')
-            if [ "$scan_fingerprint" != "$EC2_HOST_FINGERPRINT" ]; then
-              echo "::error title=Fingerprint mismatch::Expected $EC2_HOST_FINGERPRINT but found $scan_fingerprint for $EC2_HOST." >&2
-              exit 1
-            fi
-
-            printf '%s\n' "$scan_output" > ~/.ssh/known_hosts
-            echo "Known hosts after scan:"
-            ssh-keygen -lf ~/.ssh/known_hosts
           fi
+
+          if [ -z "$resolved_entries" ]; then
+            echo "::error title=Unable to resolve host key::Provide EC2_HOST_PUBLIC_KEY/EC2_HOST_FINGERPRINT or ensure ssh-keyscan succeeds." >&2
+            exit 1
+          fi
+
+          printf '%b' "$resolved_entries" > ~/.ssh/known_hosts
+
+          echo "Recorded host keys:"
+          ssh-keygen -lf ~/.ssh/known_hosts
 
           chmod 644 ~/.ssh/known_hosts
 
