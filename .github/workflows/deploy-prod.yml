@@ -43,11 +43,6 @@ jobs:
 
       - name: Resolve deployment target
         id: context
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          EVENT_PATH: ${{ github.event_path }}
-          GITHUB_SHA: ${{ github.sha }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
 
@@ -55,7 +50,16 @@ jobs:
           DEPLOY_REF=""
           ARTIFACT_RUN_ID=""
           CI_OK="true"
+          EVENT_NAME="${GITHUB_EVENT_NAME:-}"
+          EVENT_PATH="${GITHUB_EVENT_PATH:-}"
+          TARGET_SHA_SOURCE="${GITHUB_SHA:-}"
+          REF_NAME="${GITHUB_REF_NAME:-main}"
           TRIGGER_KIND="$EVENT_NAME"
+
+          if [ -z "$EVENT_PATH" ] || [ ! -f "$EVENT_PATH" ]; then
+            echo "::error title=Missing event payload::GITHUB_EVENT_PATH is unavailable." >&2
+            exit 1
+          fi
 
           # Extract optional workflow_run values (empty for non-workflow_run events)
           WORKFLOW_CONCLUSION=$(jq -r '.workflow_run.conclusion // ""' "$EVENT_PATH")
@@ -79,7 +83,7 @@ jobs:
               git checkout "$TARGET_SHA"
             fi
           else
-            DEPLOY_REF="${INPUT_REF:-${GITHUB_REF_NAME:-main}}"
+            DEPLOY_REF="${INPUT_REF:-$REF_NAME}"
             git fetch origin
 
             if git rev-parse --verify --quiet "$DEPLOY_REF"; then
@@ -88,7 +92,7 @@ jobs:
               TARGET_SHA=$(git rev-parse "origin/$DEPLOY_REF")
               git checkout "origin/$DEPLOY_REF"
             else
-              TARGET_SHA="${GITHUB_SHA:-$DEPLOY_REF}"
+              TARGET_SHA="${TARGET_SHA_SOURCE:-$DEPLOY_REF}"
               git fetch origin "$TARGET_SHA" || true
             fi
 
@@ -133,15 +137,19 @@ jobs:
         id: artifact
         env:
           GH_TOKEN: ${{ github.token }}
-          EVENT_NAME: ${{ github.event_name }}
-          EVENT_PATH: ${{ github.event_path }}
           TARGET_SHA: ${{ steps.context.outputs.target_sha }}
           REPOSITORY: ${{ github.repository }}
           TRIGGER_KIND: ${{ steps.context.outputs.trigger }}
         run: |
           set -euo pipefail
 
-          WORKFLOW_RUN_ID=$(jq -r '.workflow_run.id // ""' "$EVENT_PATH")
+          EVENT_NAME="${GITHUB_EVENT_NAME:-}"
+          EVENT_PATH="${GITHUB_EVENT_PATH:-}"
+
+          WORKFLOW_RUN_ID=""
+          if [ -n "$EVENT_PATH" ] && [ -f "$EVENT_PATH" ]; then
+            WORKFLOW_RUN_ID=$(jq -r '.workflow_run.id // ""' "$EVENT_PATH")
+          fi
 
           if [ "$TRIGGER_KIND" = "workflow_run" ] && [ -n "$WORKFLOW_RUN_ID" ]; then
             echo "artifact_run_id=$WORKFLOW_RUN_ID" >> $GITHUB_OUTPUT
