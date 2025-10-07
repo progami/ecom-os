@@ -38,11 +38,13 @@ jobs:
         id: context
         env:
           EVENT_NAME: ${{ github.event_name }}
-          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}
-          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha || '' }}
-          WORKFLOW_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch || '' }}
-          WORKFLOW_ID: ${{ github.event.workflow_run.id || '' }}
-          INPUT_REF: ${{ github.event.inputs.ref || '' }}
+          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run && github.event.workflow_run.conclusion || '' }}
+          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run && github.event.workflow_run.head_sha || '' }}
+          WORKFLOW_HEAD_BRANCH: ${{ github.event.workflow_run && github.event.workflow_run.head_branch || '' }}
+          WORKFLOW_ID: ${{ github.event.workflow_run && github.event.workflow_run.id || '' }}
+          INPUT_REF: ${{ github.event.inputs && github.event.inputs.ref || '' }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
 
@@ -67,8 +69,7 @@ jobs:
               git checkout "$TARGET_SHA"
             fi
           else
-            TRIGGER_KIND="workflow_dispatch"
-            DEPLOY_REF="${INPUT_REF:-main}"
+            DEPLOY_REF="${INPUT_REF:-${GITHUB_REF_NAME:-main}}"
             git fetch origin
 
             if git rev-parse --verify --quiet "$DEPLOY_REF"; then
@@ -77,7 +78,7 @@ jobs:
               TARGET_SHA=$(git rev-parse "origin/$DEPLOY_REF")
               git checkout "origin/$DEPLOY_REF"
             else
-              TARGET_SHA="$DEPLOY_REF"
+              TARGET_SHA="${GITHUB_SHA:-$DEPLOY_REF}"
               git fetch origin "$TARGET_SHA" || true
             fi
 
