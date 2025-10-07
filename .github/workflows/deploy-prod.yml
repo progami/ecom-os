@@ -28,6 +28,7 @@ jobs:
         run: echo "Push validation run acknowledged"
 
   prepare:
+    if: ${{ github.event_name != 'push' }}
     runs-on: ubuntu-latest
     outputs:
       target_sha: ${{ steps.context.outputs.target_sha }}
