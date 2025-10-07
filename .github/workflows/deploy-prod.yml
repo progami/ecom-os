@@ -367,6 +367,9 @@ jobs:
               exit 1
             fi
 
+            key_types=$(printf '%s\n' "$scan_output" | awk '{print $2}' | paste -sd ',' -)
+            echo "Key types retrieved: ${key_types:-unknown}"
+
             scan_fingerprint=$(printf '%s\n' "$scan_output" | ssh-keygen -lf - | awk 'NR==1 {print $2}')
             if [ "$scan_fingerprint" != "$EC2_HOST_FINGERPRINT" ]; then
               echo "::error title=Fingerprint mismatch::Expected $EC2_HOST_FINGERPRINT but found $scan_fingerprint for $EC2_HOST." >&2
@@ -374,7 +377,8 @@ jobs:
             fi
 
             printf '%s\n' "$scan_output" > ~/.ssh/known_hosts
-            ssh-keygen -F "$EC2_HOST"
+            echo "Known hosts after scan:"
+            ssh-keygen -lf ~/.ssh/known_hosts
           fi
 
           chmod 644 ~/.ssh/known_hosts
