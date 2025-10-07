@@ -358,7 +358,10 @@ jobs:
               exit 1
             fi
 
-            scan_output=$(ssh-keyscan -T 10 "$EC2_HOST" 2>/dev/null || true)
+            scan_output=$(ssh-keyscan -T 10 -t ed25519 "$EC2_HOST" 2>/dev/null || true)
+            if [ -z "$scan_output" ]; then
+              scan_output=$(ssh-keyscan -T 10 "$EC2_HOST" 2>/dev/null || true)
+            fi
             if [ -z "$scan_output" ]; then
               echo "::error title=Host key scan failed::Unable to retrieve SSH host key from $EC2_HOST." >&2
               exit 1
@@ -371,6 +374,7 @@ jobs:
             fi
 
             printf '%s\n' "$scan_output" > ~/.ssh/known_hosts
+            ssh-keygen -F "$EC2_HOST"
           fi
 
           chmod 644 ~/.ssh/known_hosts
