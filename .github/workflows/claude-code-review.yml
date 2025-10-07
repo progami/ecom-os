@@ -22,6 +22,7 @@ jobs:
 
       - name: Run Claude Code Review
         id: claude-review
+        continue-on-error: true
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -41,3 +42,7 @@ jobs:
             Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
 
           claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+
+      - name: Note Claude Code Review failure
+        if: steps.claude-review.outcome == 'failure'
+        run: echo "::warning title=Claude review unavailable::Claude Code review failed (rate limit or service issue); see workflow logs if you need details."
