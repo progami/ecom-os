@@ -21,6 +21,7 @@ concurrency:
 
 jobs:
   prepare:
+    if: ${{ github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request_target' }}
     runs-on: ubuntu-latest
     outputs:
       target_sha: ${{ steps.context.outputs.target_sha }}
@@ -200,8 +201,26 @@ jobs:
           run-id: ${{ needs.prepare.outputs.artifact_run_id }}
           path: artifacts
 
+      - name: Determine artifact availability
+        id: artifact_state
+        run: |
+          set -euo pipefail
+          RUN_ID="${{ needs.prepare.outputs.artifact_run_id }}"
+          if [ -z "$RUN_ID" ]; then
+            echo "has_artifact=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          DOWNLOAD_PATH="${{ steps.download.outputs.download-path }}"
+          TARGET_SHA="${{ needs.prepare.outputs.target_sha }}"
+          if [ -n "$DOWNLOAD_PATH" ] && [ -d "$DOWNLOAD_PATH/build-artifacts-${TARGET_SHA}" ]; then
+            echo "has_artifact=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_artifact=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Restore build outputs from artifacts
-        if: needs.prepare.outputs.artifact_run_id != '' && steps.download.outcome == 'success' && steps.download.outputs.download-path != ''
+        if: steps.artifact_state.outputs.has_artifact == 'true'
         run: |
           set -euo pipefail
           ARTIFACT_ROOT="${{ steps.download.outputs.download-path }}"
@@ -209,7 +228,7 @@ jobs:
           rsync -a "${ARTIFACT_ROOT}/build-artifacts-${TARGET_SHA}/" ./
 
       - name: Generate Prisma clients and build (fallback)
-        if: needs.prepare.outputs.artifact_run_id == '' || steps.download.outcome != 'success' || steps.download.outputs.download-path == ''
+        if: steps.artifact_state.outputs.has_artifact != 'true'
         run: |
           pnpm --filter @ecom-os/auth prisma:generate
           pnpm --filter @ecom-os/wms db:generate
