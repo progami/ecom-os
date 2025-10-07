@@ -20,6 +20,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  push-ack:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Acknowledge push validation run
+        run: echo "Push validation run acknowledged"
+
   prepare:
     runs-on: ubuntu-latest
     outputs:
