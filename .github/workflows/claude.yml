@@ -39,8 +39,13 @@ jobs:
 
       - name: Run Claude Code
         id: claude
+        continue-on-error: true
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           additional_permissions: |
             actions: read
+
+      - name: Note Claude Code failure
+        if: steps.claude.outcome == 'failure'
+        run: echo "::warning title=Claude automation unavailable::Claude Code run failed (likely rate limit); check workflow logs for specifics."

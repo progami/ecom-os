@@ -89,7 +89,7 @@ jobs:
         if: github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main') || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: build-artifacts-${{ github.sha }}
+          name: build-artifacts-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             apps/website/.next
             apps/ecomos/.next

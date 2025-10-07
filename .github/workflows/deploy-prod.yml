@@ -201,13 +201,15 @@ jobs:
           path: artifacts
 
       - name: Restore build outputs from artifacts
-        if: needs.prepare.outputs.artifact_run_id != '' && steps.download.conclusion == 'success'
+        if: needs.prepare.outputs.artifact_run_id != '' && steps.download.outputs.download-path != ''
         run: |
           set -euo pipefail
-          rsync -a artifacts/build-artifacts-${{ needs.prepare.outputs.target_sha }}/ ./
+          ARTIFACT_ROOT="${{ steps.download.outputs.download-path }}"
+          TARGET_SHA="${{ needs.prepare.outputs.target_sha }}"
+          rsync -a "${ARTIFACT_ROOT}/build-artifacts-${TARGET_SHA}/" ./
 
       - name: Generate Prisma clients and build (fallback)
-        if: needs.prepare.outputs.artifact_run_id == '' || steps.download.conclusion != 'success'
+        if: needs.prepare.outputs.artifact_run_id == '' || steps.download.outputs.download-path == ''
         run: |
           pnpm --filter @ecom-os/auth prisma:generate
           pnpm --filter @ecom-os/wms db:generate
@@ -312,33 +314,78 @@ jobs:
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
 
-          if [ -n "${EC2_HOST_PUBLIC_KEY:-}" ]; then
-            printf '%s\n' "$EC2_HOST_PUBLIC_KEY" > ~/.ssh/known_hosts
-          else
-            if [ -z "${EC2_HOST_FINGERPRINT:-}" ]; then
-              echo "::error title=Missing host verification data::Set EC2_HOST_PUBLIC_KEY or EC2_HOST_FINGERPRINT secret to verify the SSH host key." >&2
-              exit 1
-            fi
-
-            if [ -z "${EC2_HOST:-}" ]; then
-              echo "::error title=Missing EC2 host::EC2_HOST must be resolved before configuring known_hosts." >&2
-              exit 1
-            fi
-
-            scan_output=$(ssh-keyscan -T 10 "$EC2_HOST" 2>/dev/null || true)
-            if [ -z "$scan_output" ]; then
-              echo "::error title=Host key scan failed::Unable to retrieve SSH host key from $EC2_HOST." >&2
-              exit 1
-            fi
-
-            scan_fingerprint=$(printf '%s\n' "$scan_output" | ssh-keygen -lf - | awk 'NR==1 {print $2}')
-            if [ "$scan_fingerprint" != "$EC2_HOST_FINGERPRINT" ]; then
-              echo "::error title=Fingerprint mismatch::Expected $EC2_HOST_FINGERPRINT but found $scan_fingerprint for $EC2_HOST." >&2
-              exit 1
-            fi
-
-            printf '%s\n' "$scan_output" > ~/.ssh/known_hosts
+          if [ -z "${EC2_HOST:-}" ]; then
+            echo "::error title=Missing EC2 host::EC2_HOST must be resolved before configuring known_hosts." >&2
+            exit 1
           fi
+
+          resolved_entries=""
+
+          if [ -n "${EC2_HOST_FINGERPRINT:-}" ]; then
+            scan_output=$(ssh-keyscan -T 10 -t ed25519 "$EC2_HOST" 2>/dev/null || true)
+            if [ -z "$scan_output" ]; then
+              scan_output=$(ssh-keyscan -T 10 "$EC2_HOST" 2>/dev/null || true)
+            fi
+
+            if [ -n "$scan_output" ]; then
+              while IFS= read -r line; do
+                [ -z "$line" ] && continue
+                fp=$(printf '%s\n' "$line" | ssh-keygen -lf - | awk 'NR==1 {print $2}')
+                if [ "$fp" = "$EC2_HOST_FINGERPRINT" ]; then
+                  echo "Matched host key type: $(printf '%s\n' "$line" | awk '{print $2}')"
+                  host_token=$(printf '%s\n' "$line" | awk '{print $1}')
+                  rest=$(printf '%s\n' "$line" | cut -d' ' -f2-)
+                  if [ "$host_token" != "$EC2_HOST" ]; then
+                    line="$EC2_HOST $rest"
+                  fi
+                  resolved_entries+="$line\n"
+                fi
+              done <<EOF
+$scan_output
+EOF
+            fi
+          fi
+
+          if [ -z "$resolved_entries" ] && [ -n "${EC2_HOST_PUBLIC_KEY:-}" ]; then
+            key_line="$EC2_HOST_PUBLIC_KEY"
+            IFS=' ' read -r provided_host provided_type provided_key provided_rest <<<"$key_line"
+
+            if [ -z "${provided_type:-}" ] || [ -z "${provided_key:-}" ]; then
+              echo "::error title=Invalid host key::EC2_HOST_PUBLIC_KEY must contain a host, key type, and key material." >&2
+              exit 1
+            fi
+
+            target_host="${EC2_HOST:-$provided_host}"
+
+            formatted="$target_host $provided_type $provided_key"
+            if [ -n "${provided_rest:-}" ]; then
+              formatted="$formatted $provided_rest"
+            fi
+
+            if [ -n "${EC2_HOST_FINGERPRINT:-}" ]; then
+              derived_fingerprint=$(printf '%s\n' "$formatted" | ssh-keygen -lf - | awk 'NR==1 {print $2}')
+              if [ "$derived_fingerprint" != "$EC2_HOST_FINGERPRINT" ]; then
+                echo "::error title=Fingerprint mismatch::Expected $EC2_HOST_FINGERPRINT but derived $derived_fingerprint from EC2_HOST_PUBLIC_KEY." >&2
+                exit 1
+              fi
+            fi
+
+            resolved_entries+="$formatted\n"
+
+            if [ "$target_host" != "$provided_host" ] && [ -n "$provided_host" ] && [ "${provided_host#|}" = "$provided_host" ]; then
+              resolved_entries+="$key_line\n"
+            fi
+          fi
+
+          if [ -z "$resolved_entries" ]; then
+            echo "::error title=Unable to resolve host key::Provide EC2_HOST_PUBLIC_KEY/EC2_HOST_FINGERPRINT or ensure ssh-keyscan succeeds." >&2
+            exit 1
+          fi
+
+          printf '%b' "$resolved_entries" > ~/.ssh/known_hosts
+
+          echo "Recorded host keys:"
+          ssh-keygen -lf ~/.ssh/known_hosts
 
           chmod 644 ~/.ssh/known_hosts
 
