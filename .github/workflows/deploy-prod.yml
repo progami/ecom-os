@@ -14,6 +14,11 @@ on:
         description: "Branch, tag, or commit SHA to deploy"
         required: false
         default: "main"
+  workflow_call:
+    inputs:
+      ref:
+        required: false
+        type: string
 
 concurrency:
   group: prod-main
@@ -43,6 +48,8 @@ jobs:
 
       - name: Resolve deployment target
         id: context
+        env:
+          CALL_REF: ${{ inputs.ref || '' }}
         run: |
           set -euo pipefail
 
@@ -55,6 +62,7 @@ jobs:
           TARGET_SHA_SOURCE="${GITHUB_SHA:-}"
           REF_NAME="${GITHUB_REF_NAME:-main}"
           TRIGGER_KIND="$EVENT_NAME"
+          INPUT_OVERRIDE="${CALL_REF:-}"
 
           if [ -z "$EVENT_PATH" ] || [ ! -f "$EVENT_PATH" ]; then
             echo "::error title=Missing event payload::GITHUB_EVENT_PATH is unavailable." >&2
@@ -67,6 +75,10 @@ jobs:
           WORKFLOW_HEAD_BRANCH=$(jq -r '.workflow_run.head_branch // ""' "$EVENT_PATH")
           WORKFLOW_ID=$(jq -r '.workflow_run.id // ""' "$EVENT_PATH")
           INPUT_REF=$(jq -r '.inputs.ref // empty' "$EVENT_PATH")
+
+          if [ -z "$INPUT_REF" ] && [ -n "$INPUT_OVERRIDE" ]; then
+            INPUT_REF="$INPUT_OVERRIDE"
+          fi
 
           if [ "$EVENT_NAME" = "workflow_run" ]; then
             if [ "$WORKFLOW_CONCLUSION" != "success" ]; then
