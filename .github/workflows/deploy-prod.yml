@@ -45,11 +45,7 @@ jobs:
         id: context
         env:
           EVENT_NAME: ${{ github.event_name }}
-          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run && github.event.workflow_run.conclusion || '' }}
-          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run && github.event.workflow_run.head_sha || '' }}
-          WORKFLOW_HEAD_BRANCH: ${{ github.event.workflow_run && github.event.workflow_run.head_branch || '' }}
-          WORKFLOW_ID: ${{ github.event.workflow_run && github.event.workflow_run.id || '' }}
-          INPUT_REF: ${{ github.event.inputs && github.event.inputs.ref || '' }}
+          EVENT_PATH: ${{ github.event_path }}
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
         run: |
@@ -60,6 +56,13 @@ jobs:
           ARTIFACT_RUN_ID=""
           CI_OK="true"
           TRIGGER_KIND="$EVENT_NAME"
+
+          # Extract optional workflow_run values (empty for non-workflow_run events)
+          WORKFLOW_CONCLUSION=$(jq -r '.workflow_run.conclusion // ""' "$EVENT_PATH")
+          WORKFLOW_HEAD_SHA=$(jq -r '.workflow_run.head_sha // ""' "$EVENT_PATH")
+          WORKFLOW_HEAD_BRANCH=$(jq -r '.workflow_run.head_branch // ""' "$EVENT_PATH")
+          WORKFLOW_ID=$(jq -r '.workflow_run.id // ""' "$EVENT_PATH")
+          INPUT_REF=$(jq -r '.inputs.ref // empty' "$EVENT_PATH")
 
           if [ "$EVENT_NAME" = "workflow_run" ]; then
             if [ "$WORKFLOW_CONCLUSION" != "success" ]; then
