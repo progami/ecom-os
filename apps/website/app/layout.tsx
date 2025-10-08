@@ -14,12 +14,13 @@ const montserrat = Montserrat({
 
 export const metadata: Metadata = {
   title: "Targon Global – Everyday, Done Better",
-  description: "America's leading sustainable drop cloth manufacturer. GRS certified, Climate Pledge Friendly.",
+  description:
+    "America's leading sustainable drop cloth manufacturer—now optimized for every screen size. GRS certified, Climate Pledge Friendly.",
   keywords: "Targon Global, drop cloths, sustainable, painting supplies, GRS certified",
   authors: [{ name: "Targon Global" }],
   openGraph: {
     title: "Targon Global – Professional Drop Cloths",
-    description: "Simple, sustainable protection at unbeatable prices.",
+    description: "Simple, sustainable protection at unbeatable prices—designed for any device.",
     type: "website",
     url: "https://www.targonglobal.com",
   },
