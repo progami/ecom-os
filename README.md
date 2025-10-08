@@ -39,7 +39,7 @@ We use pnpm workspaces and Turborepo. All apps live under `apps/` and shared cod
   - YE 2024 (`apps/ye-2024`)
 
 Notes
-- Production deploys run on push to `main` via `.github/workflows/deploy-prod.yml`.
+- Production deploys run on push to `main` via `.github/workflows/cd.yml`.
 - Per-app env is templated from GitHub Secrets: `WEBSITE_ENV`, `WMS_ENV`, `HRMS_ENV`, `FCC_ENV`, `CENTRAL_DB_ENV`, `MARGIN_MASTER_ENV`, `JASON_ENV`.
 
 ## Getting started

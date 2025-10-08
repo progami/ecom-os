@@ -18,10 +18,10 @@ Populate the following repository secrets in GitHub before enabling the deploy w
 
 ## 3. CI/CD Entry Points
 - Pull requests into `dev` and `main` run `.github/workflows/ci.yml` (lint, type check, build for Website and WMS).
-- A push to `main` touching app, package, infra, or pnpm files triggers `.github/workflows/deploy-prod.yml`, which performs the production deployment via Ansible.
+- A push to `main` touching app, package, infra, or pnpm files triggers `.github/workflows/cd.yml`, which performs the production deployment via Ansible.
 - The deploy workflow can also be launched manually with `workflow_dispatch` for testing.
 
-## 4. Deploy Workflow Breakdown (`deploy-prod.yml`)
+## 4. Deploy Workflow Breakdown (`cd.yml`)
 1. Check out the repository and install pnpm 9 on Node 20 runners.
 2. Install project dependencies and build the applications required in production (`pnpm turbo run build --filter=@ecom-os/website --filter=@ecom-os/ecomos --filter=@ecom-os/wms`).
 3. Configure SSH credentials for the runner (including optional EC2 Instance Connect key injection when AWS IAM is available).

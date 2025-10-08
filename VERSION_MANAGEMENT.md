@@ -44,7 +44,7 @@ node scripts/sync-versions.js --bump major   # 0.8.1 → 1.0.0
 - Prevents commits if versions are out of sync
 - Provides helpful error messages with fix instructions
 
-### 4. CI/CD Integration (`.github/workflows/deploy-prod.yml`)
+### 4. CI/CD Integration (`.github/workflows/cd.yml`)
 **Validation:**
 - Runs `sync-versions.js --check` before build
 - Fails deployment if versions are mismatched
@@ -210,7 +210,7 @@ const APPS_TO_SYNC = [
 ```
 
 ### Customizing Release Notes
-Edit `.github/workflows/deploy-prod.yml` → "Create GitHub Release" step
+Edit `.github/workflows/cd.yml` → "Create GitHub Release" step
 
 ## Migration Notes
 
