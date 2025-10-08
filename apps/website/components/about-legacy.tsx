@@ -8,23 +8,16 @@ import styles from './about-legacy.module.css'
 
 export default function AboutLegacy() {
   return (
-    <>
-      <style jsx global>{`
-        header.site-header,
-        footer.site-footer {
-          display: none;
-        }
-      `}</style>
-      <div className={`${styles.root} contain`}>
-        <div className="column">
-          <div className="column2">
-            <div className="column3">
-              <div
-                className="column4"
-                style={{
-                  backgroundImage: `url(${assetUrl('/about/about-bg.png')})`,
-                }}
-              >
+    <div className={`${styles.root} contain`}>
+      <div className="column">
+        <div className="column2">
+          <div className="column3">
+            <div
+              className="column4"
+              style={{
+                backgroundImage: `url(${assetUrl('/about/about-bg.png')})`,
+              }}
+            >
               <div className="box2" />
               <div className="row-view2">
                 <div className="column5">
@@ -81,6 +74,5 @@ export default function AboutLegacy() {
         </div>
       </div>
     </div>
-    </>
   )
 }
