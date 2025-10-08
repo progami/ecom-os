@@ -92,14 +92,27 @@ jobs:
 
       - name: Download CI build artifacts
         if: github.event_name == 'pull_request_target'
+        id: download
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: build-artifacts-${{ github.event.pull_request.head.sha }}
           github-token: ${{ github.token }}
           run-id: ${{ github.event.workflow_run.id }}
 
-      - name: Generate Prisma clients and build (fallback for workflow_dispatch)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Restore build outputs from artifacts
+        if: github.event_name == 'pull_request_target' && steps.download.outcome == 'success'
+        run: |
+          set -euo pipefail
+          ARTIFACT_DIR="${{ steps.download.outputs.download-path }}/build-artifacts-${{ github.event.pull_request.head.sha }}"
+          if [ ! -d "$ARTIFACT_DIR" ]; then
+            echo "Artifact directory $ARTIFACT_DIR not found after download."
+            exit 1
+          fi
+          rsync -a "$ARTIFACT_DIR/" ./
+
+      - name: Generate Prisma clients and build (fallback)
+        if: github.event_name != 'pull_request_target' || steps.download.outcome != 'success'
         run: |
           pnpm --filter @ecom-os/auth prisma:generate
           pnpm --filter @ecom-os/wms db:generate
