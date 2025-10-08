@@ -10,14 +10,6 @@ export default function AboutLegacy() {
       <div className="column">
         <div className="column2">
           <div className="column3">
-            <div className="row-view">
-              <span className="text">targon</span>
-              <div className="box" />
-              <span className="text2">about</span>
-              <span className="text3">products</span>
-              <span className="text4">EcomOS</span>
-              <span className="text5">news</span>
-            </div>
             <div
               className="column4"
               style={{
@@ -77,68 +69,6 @@ export default function AboutLegacy() {
             height={943}
             className="absolute-image"
           />
-        </div>
-        <div className="column8">
-          <div className="row-view3">
-            <span className="text12">targon</span>
-            <span className="text13">quick Links</span>
-            <span className="text14">Explore</span>
-            <span className="text15">Company</span>
-          </div>
-          <div className="row-view4">
-            <span className="text16">
-              Hello, we are Targon. trying to make an effort to put the right people for you to get the best results.
-              Just insight
-            </span>
-            <div className="column9">
-              <span className="text17">Legal</span>
-              <span className="text17">Policy</span>
-            </div>
-            <div className="column10">
-              <span className="text17">Resources</span>
-              <span className="text18">Blog</span>
-            </div>
-            <div className="column11">
-              <span className="text17">About us</span>
-              <span className="text17">Partners</span>
-            </div>
-          </div>
-          <div className="view2">
-            <div className="row-view5">
-              <span className="text19">EcomOS</span>
-              <span className="text20">Documents</span>
-              <span className="text21">Customers</span>
-            </div>
-          </div>
-          <div className="view3">
-            <div className="row-view6">
-              <span className="text22">Caelum Star</span>
-              <span className="text23">Contact us</span>
-            </div>
-          </div>
-          <div className="row-view7">
-            <Image
-              src={assetUrl("/about/about-social-facebook.png")}
-              alt="Facebook"
-              width={24}
-              height={50}
-              className="image3"
-            />
-            <Image
-              src={assetUrl("/about/about-social-twitter.png")}
-              alt="Twitter"
-              width={52}
-              height={42}
-              className="image4"
-            />
-            <Image
-              src={assetUrl("/about/about-social-instagram.png")}
-              alt="Instagram"
-              width={54}
-              height={54}
-              className="image5"
-            />
-          </div>
         </div>
       </div>
     </div>
