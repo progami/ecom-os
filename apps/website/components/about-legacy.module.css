@@ -1,0 +1,397 @@
+.root {
+  display: contents;
+}
+.root :global(.absolute-image) {
+	position: absolute;
+	bottom: 350px;
+	left: 0px;
+	width: 943px;
+	height: 943px;
+	object-fit: fill;
+}
+.root :global(.absolute-text) {
+	position: absolute;
+	bottom: 181px;
+	right: 183px;
+	color: #FFFFFF;
+	font-size: 63px;
+	font-weight: bold;
+	width: 1198px;
+}
+.root :global(.absolute-view) {
+	position: absolute;
+	bottom: -2px;
+	left: -272px;
+	width: 350px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	background: #DBDBDB33;
+	border-top-left-radius: 22px;
+	border: 3px solid #00C2B9;
+	box-shadow: 0px 6.073724269866943px 15px #0000004D;
+}
+.root :global(.absolute-view2) {
+	position: absolute;
+	bottom: -2px;
+	right: 93px;
+	width: 350px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	background: #DBDBDB33;
+	border-top-left-radius: 22px;
+	border: 3px solid #00C2B9;
+	box-shadow: 0px 6.073724269866943px 15px #0000004D;
+}
+.root :global(.box) {
+	width: 7px;
+	height: 7px;
+	background: #00C2B9;
+	border-top-left-radius: 1px;
+	margin-top: 18px;
+	margin-right: 511px;
+}
+.root :global(.box2) {
+	width: 1903px;
+	height: 2px;
+	background: #00C2B9;
+	margin-bottom: 131px;
+	margin-left: 16px;
+	box-shadow: 0px 5.333332538604736px 50px #0000004D;
+}
+.root :global(.button) {
+	width: 352px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	background: #00C2B9;
+	border-top-left-radius: 22px;
+	border: 3px solid #00C2B9;
+	padding-top: 13px;
+	padding-bottom: 13px;
+	margin-right: 343px;
+	box-shadow: 0px 6.073724269866943px 15px #0000004D;
+	text-align: left;
+}
+.root :global(.column) {
+	width: 1919px;
+	background: #0B273F;
+}
+.root :global(.column2) {
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	padding-bottom: 474px;
+	position: relative;
+}
+.root :global(.column3) {
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+.root :global(.column4) {
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	padding-top: 2px;
+	padding-bottom: 138px;
+	background-size: cover;
+	background-position: center;
+}
+.root :global(.column5) {
+	width: 695px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+}
+.root :global(.column6) {
+	width: 640px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	position: relative;
+}
+.root :global(.column7) {
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 209px 338px 634px 338px;
+	background-size: cover;
+	background-position: center;
+}
+.root :global(.column8) {
+	align-self: stretch;
+	align-items: flex-start;
+	background: #00C2B9;
+}
+.root :global(.column9) {
+	width: 53px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin-right: 285px;
+	gap: 13px;
+}
+.root :global(.column10) {
+	width: 93px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-right: 235px;
+	gap: 14px;
+}
+.root :global(.column11) {
+	width: 81px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 14px;
+}
+.root :global(.contain) {
+	align-items: flex-start;
+	background: #FFFFFF;
+}
+.root :global(.image) {
+	width: 640px;
+	height: 640px;
+	object-fit: fill;
+}
+.root :global(.image2) {
+	width: 1919px;
+	height: 5px;
+	object-fit: fill;
+}
+.root :global(.image3) {
+	width: 11px;
+	height: 24px;
+	object-fit: fill;
+}
+.root :global(.image4) {
+	width: 25px;
+	height: 20px;
+	object-fit: fill;
+}
+.root :global(.image5) {
+	width: 26px;
+	height: 26px;
+	object-fit: fill;
+}
+.root :global(.row-view) {
+	align-self: stretch;
+	display: flex;
+	align-items: flex-start;
+	background: #FFFFFF;
+	padding-top: 32px;
+	padding-bottom: 32px;
+	box-shadow: 0px 5.333332538604736px 50px #0000004D;
+}
+.root :global(.row-view2) {
+	display: flex;
+	align-items: center;
+	margin-left: 314px;
+	gap: 48px;
+}
+.root :global(.row-view3) {
+	width: 1223px;
+	display: flex;
+	align-items: flex-start;
+	margin: 71px 343px 20px 343px;
+}
+.root :global(.row-view4) {
+	width: 1211px;
+	display: flex;
+	align-items: flex-start;
+	margin-bottom: 1px;
+	margin-left: 343px;
+	margin-right: 364px;
+}
+.root :global(.row-view5) {
+	display: flex;
+	align-items: flex-start;
+	margin-right: 345px;
+}
+.root :global(.row-view6) {
+	display: flex;
+	align-items: flex-start;
+	margin-right: 346px;
+}
+.root :global(.row-view7) {
+	width: 135px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 68px;
+	margin-left: 1469px;
+	margin-right: 314px;
+}
+.root :global(.text) {
+	color: #002C51;
+	font-size: 26px;
+	font-weight: bold;
+	margin-left: 261px;
+	margin-right: 7px;
+}
+.root :global(.text2) {
+	color: #002C51;
+	font-size: 26px;
+	font-weight: bold;
+	margin-right: 147px;
+}
+.root :global(.text3) {
+	color: #002C51;
+	font-size: 26px;
+	font-weight: bold;
+	margin-right: 154px;
+}
+.root :global(.text4) {
+	color: #002C51;
+	font-size: 26px;
+	font-weight: bold;
+	margin-right: 127px;
+}
+.root :global(.text5) {
+	color: #002C51;
+	font-size: 26px;
+	font-weight: bold;
+}
+.root :global(.text6) {
+	color: #FFFFFF;
+	font-size: 63px;
+	font-weight: bold;
+	margin-bottom: 474px;
+	margin-left: 6px;
+	margin-right: 6px;
+	width: 689px;
+}
+.root :global(.text7) {
+	color: #FFFFFF;
+	font-size: 27px;
+	font-weight: bold;
+	text-align: center;
+	width: 100px;
+}
+.root :global(.text8) {
+	color: #FFFFFF;
+	font-size: 27px;
+	font-weight: bold;
+	margin-top: 25px;
+	margin-bottom: 23px;
+}
+.root :global(.text9) {
+	color: #FFFFFF;
+	font-size: 27px;
+	font-weight: bold;
+	text-align: center;
+	margin-top: 13px;
+	margin-bottom: 12px;
+	width: 115px;
+}
+.root :global(.text10) {
+	color: #FFFFFF;
+	font-size: 63px;
+	font-weight: bold;
+	text-align: center;
+	margin-left: 59px;
+	margin-right: 59px;
+	width: 231px;
+}
+.root :global(.text11) {
+	color: #FFFFFF;
+	font-size: 63px;
+	font-weight: bold;
+	text-align: center;
+	width: 1249px;
+}
+.root :global(.text12) {
+	color: #0B273F;
+	font-size: 21px;
+	font-weight: bold;
+	margin-right: 374px;
+}
+.root :global(.text13) {
+	color: #0B273F;
+	font-size: 21px;
+	font-weight: bold;
+	margin-right: 228px;
+}
+.root :global(.text14) {
+	color: #0B273F;
+	font-size: 21px;
+	font-weight: bold;
+	margin-right: 255px;
+}
+.root :global(.text15) {
+	color: #0B273F;
+	font-size: 21px;
+	font-weight: bold;
+}
+.root :global(.text16) {
+	color: #0B273F;
+	font-size: 18px;
+	margin-top: 6px;
+	margin-right: 144px;
+	width: 320px;
+}
+.root :global(.text17) {
+	color: #0B273F;
+	font-size: 21px;
+}
+.root :global(.text18) {
+	color: #0B273F;
+	font-size: 21px;
+	margin-right: 54px;
+}
+.root :global(.text19) {
+	color: #0B273F;
+	font-size: 21px;
+	margin-right: 260px;
+}
+.root :global(.text20) {
+	color: #0B273F;
+	font-size: 21px;
+	margin-top: 2px;
+	margin-bottom: 2px;
+	margin-right: 223px;
+}
+.root :global(.text21) {
+	color: #0B273F;
+	font-size: 21px;
+	margin-top: 2px;
+	margin-bottom: 2px;
+}
+.root :global(.text22) {
+	color: #0B273F;
+	font-size: 21px;
+	margin-right: 550px;
+}
+.root :global(.text23) {
+	color: #0B273F;
+	font-size: 21px;
+	margin-top: 4px;
+	margin-bottom: 4px;
+}
+.root :global(.view) {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-bottom: 247px;
+}
+.root :global(.view2) {
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	margin-bottom: 10px;
+}
+.root :global(.view3) {
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	margin-bottom: 98px;
+}
