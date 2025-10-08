@@ -65,7 +65,13 @@ const quickLinks = [
 
 export default function HomePage() {
   return (
-    <main className="flex flex-col bg-[#021b2b] text-white">
+    <>
+      <style jsx global>{`
+        footer.site-footer {
+          display: none;
+        }
+      `}</style>
+      <main className="flex flex-col bg-[#021b2b] text-white">
       <section className="relative overflow-hidden pb-20 pt-16">
         <div className="absolute inset-0">
           <Image
@@ -183,5 +189,6 @@ export default function HomePage() {
         </div>
       </section>
     </main>
+    </>
   )
 }
