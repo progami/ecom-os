@@ -167,7 +167,14 @@ export default function HomePage() {
       <section className="bg-[#00C2B9] text-[#021b2b]">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-16 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-md space-y-4">
-            <h3 className="text-3xl font-semibold uppercase tracking-[0.3em]">Targon</h3>
+            <Image
+              src={assetUrl('/shared/logo-header.png')}
+              alt="Targon logo"
+              width={180}
+              height={42}
+              className="h-10 w-auto"
+              priority={false}
+            />
             <p className="text-sm leading-relaxed">
               Hello, we are Targon, working to put the right people and systems in place so you get the best results
               across every launch. Insight meets execution.
