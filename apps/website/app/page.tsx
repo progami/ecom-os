@@ -1,5 +1,5 @@
-import HomePageView from '@/components/home-page'
+import HomeLegacy from '@/components/home-legacy'
 
 export default function HomePage() {
-  return <HomePageView />
+  return <HomeLegacy />
 }
