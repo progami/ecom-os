@@ -39,9 +39,9 @@ const socialLinks = [
 
 export default function SiteFooter() {
   return (
-    <footer className="bg-[#00C2B9] text-[#021b2b]" style={{ height: '475px', width: '1920px', margin: '0 auto' }}>
-      <div className="mx-auto w-full max-w-[1920px] px-6 py-14 sm:px-10 lg:px-16 h-full flex flex-col justify-between">
-        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
+    <footer className="bg-[#00C2B9] text-[#021b2b] w-full">
+      <div className="mx-auto w-full px-6 py-10 sm:px-10 lg:px-16 lg:py-14">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-10">
           <div>
             <Link href="/" aria-label="Targon">
               <Image
@@ -61,7 +61,7 @@ export default function SiteFooter() {
               <p className="text-sm font-bold uppercase tracking-[0.3em]">
                 {section.title}
               </p>
-              <ul className="mt-6 space-y-2 text-sm">
+              <ul className="mt-4 lg:mt-6 space-y-2 text-sm">
                 {section.links.map((link) => (
                   <li key={link.href}>
                     <Link href={link.href} className="transition-colors hover:text-white">
@@ -74,8 +74,8 @@ export default function SiteFooter() {
           ))}
         </div>
 
-        <div className="mt-12 border-t border-[#021b2b]/30 pt-6">
-          <div className="flex items-center justify-end gap-4">
+        <div className="mt-8 lg:mt-12 border-t border-[#021b2b]/30 pt-6">
+          <div className="flex items-center justify-center lg:justify-end gap-4">
             {socialLinks.map(({ href, icon: Icon, label }) => (
               <Link
                 key={href}
