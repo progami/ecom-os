@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   title: "Targon Global – Everyday, Done Better",
   description:
     "America's leading sustainable drop cloth manufacturer—now optimized for every screen size. GRS certified, Climate Pledge Friendly.",
-  keywords: "Targon Global, drop cloths, sustainable, painting supplies, GRS certified",
+  keywords: "Targon Global, drop cloths, sustainable, painting supplies, GRS certified, responsive design",
   authors: [{ name: "Targon Global" }],
   openGraph: {
     title: "Targon Global – Professional Drop Cloths",
