@@ -1,9 +1,8 @@
 import type { Metadata } from "next"
 import { Montserrat } from "next/font/google"
 import "./globals.css"
-import SiteHeader from "@/components/site-header"
 import SiteFooter from "@/components/site-footer"
-import ResponsiveWrapper from "@/components/responsive-wrapper"
+import SiteHeader from "@/components/site-header"
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -43,12 +42,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={montserrat.variable}>
-      <body className={`${montserrat.className} antialiased overflow-x-hidden`} style={{ backgroundColor: '#021b2b' }}>
-        <ResponsiveWrapper>
+      <body className={`${montserrat.className} antialiased bg-[#021b2b] text-white`}>
+        <div className="flex min-h-screen flex-col">
           <SiteHeader />
-          {children}
+          <div className="flex-1 overflow-hidden">{children}</div>
           <SiteFooter />
-        </ResponsiveWrapper>
+        </div>
       </body>
     </html>
   )
