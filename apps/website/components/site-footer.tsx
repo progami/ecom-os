@@ -3,6 +3,8 @@ import Link from "next/link"
 
 import { Facebook, Instagram, Twitter } from "lucide-react"
 
+import { assetUrl } from "@/core-services/assets/cdn"
+
 const footerSections = [
   {
     title: "Quick Links",
@@ -39,13 +41,13 @@ const socialLinks = [
 
 export default function SiteFooter() {
   return (
-    <footer className="bg-[#00C2B9] text-[#021b2b] w-full">
+    <footer className="site-footer bg-[#00C2B9] text-[#021b2b] w-full">
       <div className="mx-auto w-full px-6 py-10 sm:px-10 lg:px-16 lg:py-14">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-10">
           <div>
             <Link href="/" aria-label="Targon">
               <Image
-                src="/assets/images/logo-footer.png"
+                src={assetUrl("/shared/logo-footer.png")}
                 alt="Targon logo"
                 width={168}
                 height={36}
