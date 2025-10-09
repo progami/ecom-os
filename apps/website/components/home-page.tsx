@@ -48,30 +48,9 @@ const testimonials = [
 
 const marqueeItems = [...testimonials, ...testimonials]
 
-const quickLinks = [
-  {
-    heading: 'Quick Links',
-    items: ['Policy', 'EcomOS', 'Caelum Star'],
-  },
-  {
-    heading: 'Explore',
-    items: ['Resources', 'Blog', 'Documents'],
-  },
-  {
-    heading: 'Company',
-    items: ['About us', 'Partners', 'Customers', 'Contact us'],
-  },
-]
-
 export default function HomePage() {
   return (
-    <>
-      <style jsx global>{`
-        footer.site-footer {
-          display: none;
-        }
-      `}</style>
-      <main className="flex flex-col bg-[#021b2b] text-white">
+    <main className="flex flex-col bg-[#021b2b] text-white">
       <section className="relative overflow-hidden pb-20 pt-16">
         <div className="absolute inset-0">
           <Image
@@ -164,38 +143,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="bg-[#00C2B9] text-[#021b2b]">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-16 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-md space-y-4">
-            <Image
-              src={assetUrl('/shared/logo-header.png')}
-              alt="Targon logo"
-              width={180}
-              height={42}
-              className="h-10 w-auto"
-              priority={false}
-            />
-            <p className="text-sm leading-relaxed">
-              Hello, we are Targon, working to put the right people and systems in place so you get the best results
-              across every launch. Insight meets execution.
-            </p>
-          </div>
-
-          <div className="flex flex-1 flex-wrap gap-12">
-            {quickLinks.map((group) => (
-              <div key={group.heading} className="min-w-[140px] space-y-3 text-sm">
-                <p className="font-semibold uppercase tracking-[0.25em]">{group.heading}</p>
-                <ul className="space-y-2 text-[#021b2b]/80">
-                  {group.items.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
     </main>
-    </>
   )
 }

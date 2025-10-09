@@ -1,4 +1,4 @@
-import AboutLegacy from "@/components/about-legacy"
+import AboutPageView from "@/components/about-page"
 
 export const metadata = {
   title: "About – Targon Global",
@@ -6,5 +6,5 @@ export const metadata = {
 }
 
 export default function AboutPage() {
-  return <AboutLegacy />
+  return <AboutPageView />
 }
