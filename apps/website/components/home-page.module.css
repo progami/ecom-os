@@ -1,38 +1,547 @@
-@keyframes marquee {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-50%);
-  }
+.root {
+  display: contents;
 }
-
-.marquee {
-  position: relative;
-  overflow: hidden;
-  mask-image: linear-gradient(
-    to right,
-    transparent 0%,
-    rgba(0, 0, 0, 0.8) 8%,
-    rgba(0, 0, 0, 0.8) 92%,
-    transparent 100%
-  );
+.root :global(.absolute-column) {
+	position: absolute;
+	bottom: -276px;
+	left: 0px;
+	width: 1919px;
+	align-items: flex-start;
+	background: #00C2B9;
 }
-
-.track {
-  display: flex;
-  gap: 1.5rem;
-  width: max-content;
-  animation: marquee 36s linear infinite;
-  will-change: transform;
+.root :global(.absolute-image) {
+	position: absolute;
+	bottom: -88px;
+	right: 222px;
+	width: 640px;
+	height: 640px;
+	object-fit: fill;
 }
-
-.track:hover {
-  animation-play-state: paused;
+.root :global(.absolute-image2) {
+	position: absolute;
+	bottom: 8px;
+	left: -417px;
+	width: 463px;
+	height: 463px;
+	object-fit: fill;
 }
-
-.testimonialCard {
-  background: linear-gradient(155deg, rgba(3, 38, 68, 0.92), rgba(2, 27, 43, 0.88));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 22px 45px rgba(0, 0, 0, 0.28);
+.root :global(.absolute-image3) {
+	position: absolute;
+	top: 0px;
+	right: 0px;
+	width: 419px;
+	height: 419px;
+	object-fit: fill;
+}
+.root :global(.absolute-text) {
+	position: absolute;
+	top: 220px;
+	right: -382px;
+	color: #FFFFFF;
+	font-size: 47px;
+	font-weight: bold;
+}
+.root :global(.absolute-text2) {
+	position: absolute;
+	top: 409px;
+	right: -6px;
+	color: #FFFFFF;
+	font-size: 20px;
+	font-weight: bold;
+}
+.root :global(.absolute-text3) {
+	position: absolute;
+	bottom: 461px;
+	right: -202px;
+	color: #FFFFFF;
+	font-size: 18px;
+	font-weight: bold;
+}
+.root :global(.absolute-text4) {
+	position: absolute;
+	bottom: 443px;
+	right: -224px;
+	color: #FFFFFF;
+	font-size: 18px;
+	font-weight: bold;
+}
+.root :global(.absolute-text5) {
+	position: absolute;
+	bottom: 426px;
+	right: -182px;
+	color: #FFFFFF;
+	font-size: 18px;
+	font-weight: bold;
+}
+.root :global(.absolute-text6) {
+	position: absolute;
+	bottom: 408px;
+	right: -41px;
+	color: #FFFFFF;
+	font-size: 18px;
+	font-weight: bold;
+}
+.root :global(.absolute-view) {
+	position: absolute;
+	top: 33px;
+	right: -138px;
+	width: 241px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	background: #00C2B9;
+	border-top-left-radius: 19px;
+	box-shadow: 0px 5.333332061767578px 13px #0000004D;
+}
+.root :global(.box) {
+	width: 7px;
+	height: 7px;
+	background: #00C2B9;
+	border-top-left-radius: 1px;
+	margin-right: 511px;
+}
+.root :global(.box2) {
+	width: 1903px;
+	height: 2px;
+	background: #00C2B9;
+	margin-left: 16px;
+	box-shadow: 0px 5.333332061767578px 50px #0000004D;
+}
+.root :global(.column) {
+	width: 1919px;
+	align-items: flex-start;
+	background: #0B273F;
+}
+.root :global(.column2) {
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	background: #FFFFFF;
+	padding-top: 32px;
+	margin-bottom: 1px;
+	gap: 25px;
+	box-shadow: 0px 5.333332061767578px 50px #0000004D;
+}
+.root :global(.column3) {
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-bottom: 57px;
+}
+.root :global(.column4) {
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-bottom: 83px;
+	position: relative;
+}
+.root :global(.column5) {
+	width: 863px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	padding-top: 69px;
+	margin-bottom: 41px;
+	margin-left: 721px;
+	margin-right: 334px;
+	position: relative;
+}
+.root :global(.column6) {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	position: relative;
+}
+.root :global(.column7) {
+	width: 943px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-right: 330px;
+	position: relative;
+}
+.root :global(.column8) {
+	align-self: stretch;
+	align-items: flex-start;
+	padding-top: 409px;
+	padding-bottom: 409px;
+	background-size: cover;
+	background-position: center;
+}
+.root :global(.column9) {
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-right: 322px;
+	gap: 3px;
+}
+.root :global(.column10) {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-right: 12px;
+	gap: 3px;
+}
+.root :global(.column11) {
+	width: 320px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-right: 144px;
+	gap: 26px;
+}
+.root :global(.column12) {
+	width: 116px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-right: 222px;
+}
+.root :global(.column13) {
+	width: 105px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-right: 223px;
+}
+.root :global(.column14) {
+	width: 101px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 20px;
+}
+.root :global(.column15) {
+	width: 100px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 14px;
+}
+.root :global(.column16) {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-right: 12px;
+}
+.root :global(.column17) {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-bottom: 12px;
+	gap: 3px;
+}
+.root :global(.column18) {
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+}
+.root :global(.contain) {
+	align-items: flex-start;
+	background: #FFFFFF;
+}
+.root :global(.image) {
+	width: 509px;
+	height: 509px;
+	object-fit: fill;
+}
+.root :global(.image2) {
+	width: 11px;
+	height: 24px;
+	object-fit: fill;
+}
+.root :global(.image3) {
+	width: 25px;
+	height: 20px;
+	object-fit: fill;
+}
+.root :global(.image4) {
+	width: 26px;
+	height: 26px;
+	object-fit: fill;
+}
+.root :global(.row-view) {
+	width: 1404px;
+	display: flex;
+	align-items: center;
+	margin-left: 262px;
+	margin-right: 262px;
+}
+.root :global(.row-view2) {
+	align-self: stretch;
+	display: flex;
+	align-items: center;
+	margin-bottom: 276px;
+}
+.root :global(.row-view3) {
+	width: 922px;
+	display: flex;
+	align-items: flex-start;
+	margin-bottom: 12px;
+	margin-right: 20px;
+}
+.root :global(.row-view4) {
+	width: 911px;
+	display: flex;
+	align-items: flex-start;
+	margin-bottom: 10px;
+	margin-right: 32px;
+}
+.root :global(.row-view5) {
+	width: 696px;
+	display: flex;
+	align-items: flex-start;
+	margin-bottom: 2px;
+	margin-right: 247px;
+}
+.root :global(.row-view6) {
+	width: 718px;
+	display: flex;
+	align-items: flex-start;
+	margin-bottom: 2px;
+	margin-right: 225px;
+}
+.root :global(.row-view7) {
+	width: 676px;
+	display: flex;
+	align-items: flex-start;
+	margin-bottom: 2px;
+	margin-right: 267px;
+}
+.root :global(.row-view8) {
+	width: 535px;
+	display: flex;
+	align-items: flex-start;
+	margin-right: 408px;
+}
+.root :global(.row-view9) {
+	width: 1231px;
+	display: flex;
+	align-items: flex-start;
+	margin: 71px 344px 98px 344px;
+}
+.root :global(.row-view10) {
+	width: 135px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 69px;
+	margin-left: 1469px;
+	margin-right: 314px;
+}
+.root :global(.text) {
+	color: #0C243A;
+	font-size: 26px;
+	font-weight: bold;
+	margin-right: 6px;
+}
+.root :global(.text2) {
+	color: #002C51;
+	font-size: 26px;
+	font-weight: bold;
+	margin-right: 147px;
+}
+.root :global(.text3) {
+	color: #002C51;
+	font-size: 26px;
+	font-weight: bold;
+	text-align: right;
+	margin-right: 154px;
+	flex: 1;
+}
+.root :global(.text4) {
+	color: #002C51;
+	font-size: 26px;
+	font-weight: bold;
+	margin-right: 127px;
+}
+.root :global(.text5) {
+	color: #002C51;
+	font-size: 26px;
+	font-weight: bold;
+}
+.root :global(.text6) {
+	color: #FFFFFF;
+	font-size: 95px;
+	font-weight: bold;
+	text-align: right;
+	margin-right: 295px;
+	width: 645px;
+}
+.root :global(.text7) {
+	color: #FFFFFF;
+	font-size: 47px;
+	font-weight: bold;
+	margin-left: 270px;
+	width: 737px;
+}
+.root :global(.text8) {
+	color: #FFFFFF;
+	font-size: 20px;
+	font-weight: bold;
+}
+.root :global(.text9) {
+	color: #FFFFFF;
+	font-size: 11px;
+}
+.root :global(.text10) {
+	color: #FFFFFF;
+	font-size: 11px;
+	margin-left: 1px;
+}
+.root :global(.text11) {
+	color: #FFFFFF;
+	font-size: 11px;
+	margin-top: 18px;
+}
+.root :global(.text12) {
+	color: #01C2B9;
+	font-size: 11px;
+	font-weight: bold;
+}
+.root :global(.text13) {
+	color: #FFFFFF;
+	font-size: 18px;
+	font-weight: bold;
+	flex: 1;
+}
+.root :global(.text14) {
+	color: #FFFFFF;
+	font-size: 18px;
+	font-weight: bold;
+}
+.root :global(.text15) {
+	color: #FFFFFF;
+	font-size: 21px;
+	font-weight: bold;
+	margin-top: 17px;
+	margin-bottom: 14px;
+}
+.root :global(.text16) {
+	color: #0B273F;
+	font-size: 21px;
+	font-weight: bold;
+	margin-right: 230px;
+}
+.root :global(.text17) {
+	color: #0B273F;
+	font-size: 18px;
+	width: 320px;
+}
+.root :global(.text18) {
+	color: #0B273F;
+	font-size: 21px;
+	font-weight: bold;
+	margin-bottom: 20px;
+}
+.root :global(.text19) {
+	color: #0B273F;
+	font-size: 21px;
+	margin-bottom: 13px;
+	margin-right: 63px;
+}
+.root :global(.text20) {
+	color: #0B273F;
+	font-size: 21px;
+	margin-bottom: 13px;
+	margin-right: 38px;
+}
+.root :global(.text21) {
+	color: #0B273F;
+	font-size: 21px;
+}
+.root :global(.text22) {
+	color: #0B273F;
+	font-size: 21px;
+	font-weight: bold;
+	margin-bottom: 20px;
+	margin-right: 32px;
+}
+.root :global(.text23) {
+	color: #0B273F;
+	font-size: 21px;
+	margin-bottom: 14px;
+	margin-right: 12px;
+}
+.root :global(.text24) {
+	color: #0B273F;
+	font-size: 21px;
+	margin-bottom: 14px;
+	margin-right: 66px;
+}
+.root :global(.text25) {
+	color: #0B273F;
+	font-size: 21px;
+	font-weight: bold;
+}
+.root :global(.text26) {
+	color: #0B273F;
+	font-size: 21px;
+	margin-right: 19px;
+}
+.root :global(.text27) {
+	color: #0B273F;
+	font-size: 21px;
+	margin-right: 20px;
+}
+.root :global(.text28) {
+	color: #FFFFFF;
+	font-size: 18px;
+	font-weight: bold;
+	margin-bottom: 2px;
+}
+.root :global(.view) {
+	align-self: stretch;
+	padding-top: 185px;
+	padding-bottom: 239px;
+	background-size: cover;
+	background-position: center;
+}
+.root :global(.view2) {
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+}
+.root :global(.view3) {
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-right: 364px;
+}
+.root :global(.view4) {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-right: 12px;
+}
+.root :global(.view5) {
+	flex-shrink: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-right: 1px;
+}
+.root :global(.view6) {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-bottom: 11px;
+	margin-left: 1px;
+}
+.root :global(.view7) {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	margin-bottom: 11px;
+	margin-left: 2px;
 }

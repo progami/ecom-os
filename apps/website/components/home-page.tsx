@@ -5,197 +5,214 @@ import Link from 'next/link'
 
 import { assetUrl } from '@/core-services/assets/cdn'
 
+import ResponsiveCanvas from './responsive-canvas'
 import styles from './home-page.module.css'
-
-const testimonials = [
-  {
-    name: 'Millon Zahino',
-    title: 'Behavioral Science Lead',
-    quote:
-      'As an industrial operator, securing capacity and optimizing budgets are critical. Targon is the partner that shows up and ships on time.',
-  },
-  {
-    name: 'Sarah Mitchell',
-    title: 'VP, Operations',
-    quote:
-      'Their crews combine real-world manufacturing knowledge with modern tooling. We halved launch timelines without sacrificing quality.',
-  },
-  {
-    name: 'David Chen',
-    title: 'Director of Logistics',
-    quote:
-      'Targon keeps our teams aligned with data we can act on. Every workflow is documented, measurable, and grounded in execution.',
-  },
-  {
-    name: 'Emma Rodriguez',
-    title: 'Head of Merchandising',
-    quote:
-      'Sustainable products, delivered fast. They sweat the details so our buyers can stay focused on the customer experience.',
-  },
-  {
-    name: 'James Thompson',
-    title: 'Chief Revenue Officer',
-    quote:
-      'From forecasting to fulfillment, Targon keeps the flywheel spinning. We’ve unlocked new categories with full margin visibility.',
-  },
-  {
-    name: 'Lisa Anderson',
-    title: 'Plant Manager',
-    quote:
-      'Implementation was the smoothest I’ve seen. The systems they leave behind are the ones our operators actually love using.',
-  },
-]
-
-const marqueeItems = [...testimonials, ...testimonials]
-
-const quickLinks = [
-  {
-    heading: 'Quick Links',
-    items: ['Policy', 'EcomOS', 'Caelum Star'],
-  },
-  {
-    heading: 'Explore',
-    items: ['Resources', 'Blog', 'Documents'],
-  },
-  {
-    heading: 'Company',
-    items: ['About us', 'Partners', 'Customers', 'Contact us'],
-  },
-]
 
 export default function HomePage() {
   return (
     <>
       <style jsx global>{`
+        header.site-header,
         footer.site-footer {
           display: none;
         }
+        body {
+          background-color: #021b2b;
+        }
       `}</style>
-      <main className="flex flex-col bg-[#021b2b] text-white">
-      <section className="relative overflow-hidden pb-20 pt-16">
-        <div className="absolute inset-0">
-          <Image
-            src={assetUrl('/home/hero-bg.png')}
-            alt=""
-            fill
-            priority
-            className="object-cover object-center opacity-80"
-          />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#021b2b]/30 via-[#021b2b]/85 to-[#021b2b]" />
-        </div>
-
-        <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center gap-12 px-6 text-center">
-          <div className="max-w-2xl space-y-6">
-            <p className="text-sm uppercase tracking-[0.32em] text-[#00C2B9]">Innovation to Impact</p>
-            <h1 className="text-4xl font-extrabold uppercase leading-tight md:text-5xl">
-              What the world needs next we are making now.
-            </h1>
-            <p className="text-base leading-relaxed text-white/75 md:text-lg">
-              Targon builds circular-first supply chains and the software that keeps them sharp. From concept to launch,
-              we are the quiet partner powering your next release.
-            </p>
-          </div>
-
-          <Link
-            href="/about"
-            className="inline-flex items-center justify-center rounded-full bg-[#00C2B9] px-10 py-3 text-sm font-semibold uppercase tracking-[0.28em] text-[#002433] shadow-[0_12px_24px_rgba(0,194,185,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(0,194,185,0.35)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#00C2B9] focus-visible:ring-offset-[#021b2b]"
-          >
-            about us
-          </Link>
-
-          <div className="relative flex flex-wrap justify-center gap-8">
-            <div className="relative h-40 w-40 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-[0_18px_45px_rgba(0,0,0,0.35)] md:h-48 md:w-48 lg:h-56 lg:w-56">
-              <Image src={assetUrl('/home/circle-left.png')} alt="" fill className="object-cover object-center" />
-            </div>
-            <div className="relative h-48 w-48 overflow-hidden rounded-full border border-[#00C2B9]/30 bg-[#00C2B9]/15 shadow-[0_18px_45px_rgba(0,0,0,0.35)] md:h-56 md:w-56 lg:h-64 lg:w-64">
-              <Image src={assetUrl('/home/circle-center.png')} alt="" fill className="object-cover object-center" />
-            </div>
-            <div className="relative h-36 w-36 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-[0_18px_45px_rgba(0,0,0,0.35)] md:h-44 md:w-44 lg:h-52 lg:w-52">
-              <Image src={assetUrl('/home/circle-right.png')} alt="" fill className="object-cover object-center" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="relative overflow-hidden py-24">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#021b2b] via-[#011226] to-[#00070f]" />
-        <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-6">
-          <div className="text-center">
-            <p className="text-sm uppercase tracking-[0.3em] text-[#00C2B9]">what our customers think</p>
-            <h2 className="mt-4 text-3xl font-semibold md:text-4xl">The world needs what we’re building—now.</h2>
-            <p className="mt-4 text-sm leading-relaxed text-white/70 md:text-base">
-              Feedback straight from transformation programs we’ve shipped in the last twelve months.
-            </p>
-          </div>
-
-          <div className={styles.marquee}>
-            <div className={styles.track}>
-              {marqueeItems.map((testimonial, index) => (
-                <article
-                  key={`${testimonial.name}-${index}`}
-                  className={`w-80 flex-shrink-0 rounded-3xl p-6 text-left text-sm text-white/80 backdrop-blur-sm ${styles.testimonialCard}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#00C2B9]/20 text-sm font-semibold text-[#00C2B9]">
-                      {testimonial.name
-                        .split(' ')
-                        .map((part) => part[0])
-                        .join('')
-                        .slice(0, 2)}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-white">{testimonial.name}</p>
-                      <p className="text-xs uppercase tracking-[0.2em] text-[#00C2B9]">{testimonial.title}</p>
-                    </div>
-                  </div>
-                  <p className="mt-5 leading-relaxed">{testimonial.quote}</p>
-                  <div className="mt-6 flex gap-1 text-base text-[#00C2B9]">
-                    {Array.from({ length: 5 }).map((_, starIndex) => (
-                      <span key={starIndex} aria-hidden="true">
-                        ★
-                      </span>
-                    ))}
-                    <span className="sr-only">5 out of 5 rating</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-[#00C2B9] text-[#021b2b]">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-16 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-md space-y-4">
-            <Image
-              src={assetUrl('/shared/logo-header.png')}
-              alt="Targon logo"
-              width={180}
-              height={42}
-              className="h-10 w-auto"
-              priority={false}
-            />
-            <p className="text-sm leading-relaxed">
-              Hello, we are Targon, working to put the right people and systems in place so you get the best results
-              across every launch. Insight meets execution.
-            </p>
-          </div>
-
-          <div className="flex flex-1 flex-wrap gap-12">
-            {quickLinks.map((group) => (
-              <div key={group.heading} className="min-w-[140px] space-y-3 text-sm">
-                <p className="font-semibold uppercase tracking-[0.25em]">{group.heading}</p>
-                <ul className="space-y-2 text-[#021b2b]/80">
-                  {group.items.map((item) => (
-                    <li key={item}>{item}</li>
-                  ))}
-                </ul>
+      <ResponsiveCanvas designWidth={1920}>
+        <div className={`${styles.root} contain`}>
+          <div className="column">
+            <div className="column2">
+              <div className="row-view">
+                <Link href="/" className="text" aria-label="Targon home">
+                  targon
+                </Link>
+                <div className="box" />
+                <Link href="/about" className="text2">
+                  about
+                </Link>
+                <Link href="/products" className="text3">
+                  products
+                </Link>
+                <Link href="/ecomos" className="text4">
+                  EcomOS
+                </Link>
+                <Link href="/news" className="text5">
+                  news
+                </Link>
               </div>
-            ))}
+              <div className="box2" />
+            </div>
+            <div className="column3">
+              <div className="column4">
+                <div
+                  className="view"
+                  style={{
+                    backgroundImage: `url(${assetUrl('/home/hero-bg.png')})`,
+                  }}
+                >
+                  <div className="view2">
+                    <span className="text6">{`Innovation\nto\nimpact`}</span>
+                  </div>
+                </div>
+                <Image src={assetUrl('/home/hero-floating.png')} alt="" width={2366} height={2371} className="absolute-image" priority />
+              </div>
+              <span className="text7">{`What the world needs next\nwe are making now.`}</span>
+            </div>
+            <div className="column5">
+              <div className="column6">
+                <Image src={assetUrl('/home/circle-left.png')} alt="" width={1019} height={1019} className="image" priority />
+                <Image src={assetUrl('/home/circle-center.png')} alt="" width={928} height={929} className="absolute-image2" />
+              </div>
+              <Image src={assetUrl('/home/circle-right.png')} alt="" width={841} height={840} className="absolute-image3" />
+            </div>
+            <div className="row-view2">
+              <div className="column7">
+                <div
+                  className="column8"
+                  style={{
+                    backgroundImage: `url(${assetUrl('/home/testimonials-bg.png')})`,
+                  }}
+                >
+                  <div className="row-view3">
+                    <div className="column9">
+                      <span className="text8">Millon Zahino</span>
+                      <span className="text9">Behavioral Science</span>
+                    </div>
+                    <div className="column10">
+                      <span className="text8">Millon Zahino</span>
+                      <span className="text10">Behavioral Science</span>
+                    </div>
+                    <span className="text11">Behavioral Science</span>
+                  </div>
+                  <div className="row-view4">
+                    <div className="view3">
+                      <span className="text12">★ ★ ★ ★ ★</span>
+                    </div>
+                    <div className="view4">
+                      <span className="text12">★ ★ ★ ★ ★</span>
+                    </div>
+                    <div className="view5">
+                      <span className="text12">★ ★ ★ ★ ★</span>
+                    </div>
+                  </div>
+                  <div className="row-view5">
+                    <span className="text13">As an industrial, securing capacity and</span>
+                    <span className="text14">As an industrial, securing capacity and</span>
+                  </div>
+                  <div className="row-view6">
+                    <span className="text13">optimizing budget are key. In that perspe</span>
+                    <span className="text14">optimizing budget are key. In that perspe</span>
+                  </div>
+                  <div className="row-view7">
+                    <span className="text13">ctive, you are looking for a transport</span>
+                    <span className="text14">ctive, you are looking for a transport</span>
+                  </div>
+                  <div className="row-view8">
+                    <span className="text13">partner committed</span>
+                    <span className="text14">partner committed</span>
+                  </div>
+                </div>
+                <div className="absolute-view">
+                  <Link href="/about" className="text15">
+                    about us
+                  </Link>
+                </div>
+                <span className="absolute-text">what our customers think</span>
+                <span className="absolute-text2">Millon Zahino</span>
+                <span className="absolute-text3">As an industrial, securing capacity and</span>
+                <span className="absolute-text4">optimizing budget are key. In that perspe</span>
+                <span className="absolute-text5">ctive, you are looking for a transport</span>
+                <span className="absolute-text6">partner committed</span>
+                <div className="absolute-column">
+                  <div className="row-view9">
+                    <div className="column11">
+                      <span className="text16">targon</span>
+                      <span className="text17">
+                        Hello, we are Targon. trying to make an effort to put the right people for you to get the best
+                        results. Just insight
+                      </span>
+                    </div>
+                    <div className="column12">
+                      <span className="text18">quick Links</span>
+                      <Link href="/policy" className="text19">
+                        Policy
+                      </Link>
+                      <Link href="/ecomos" className="text20">
+                        EcomOS
+                      </Link>
+                      <Link href="/caelum-star" className="text21">
+                        Caelum Star
+                      </Link>
+                    </div>
+                    <div className="column13">
+                      <span className="text22">Explore</span>
+                      <Link href="/resources" className="text23">
+                        Resources
+                      </Link>
+                      <Link href="/blog" className="text24">
+                        Blog
+                      </Link>
+                      <Link href="/documents" className="text21">
+                        Documents
+                      </Link>
+                    </div>
+                    <div className="column14">
+                      <span className="text25">Company</span>
+                      <div className="column15">
+                        <Link href="/about" className="text26">
+                          About us
+                        </Link>
+                        <Link href="/partners" className="text27">
+                          Partners
+                        </Link>
+                        <Link href="/customers" className="text21">
+                          Customers
+                        </Link>
+                        <Link href="/contact" className="text21">
+                          Contact us
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="row-view10">
+                    <Image src={assetUrl('/home/social-facebook.png')} alt="Facebook" width={24} height={49} className="image2" />
+                    <Image src={assetUrl('/home/social-twitter.png')} alt="Twitter" width={52} height={43} className="image3" />
+                    <Image src={assetUrl('/home/social-instagram.png')} alt="Instagram" width={54} height={54} className="image4" />
+                  </div>
+                </div>
+              </div>
+              <div className="column16">
+                <div className="column17">
+                  <span className="text8">Millon Zahino</span>
+                  <span className="text10">Behavioral Science</span>
+                </div>
+                <div className="view6">
+                  <span className="text12">★ ★ ★ ★ ★</span>
+                </div>
+                <span className="text28">As an industrial, securing capacity and</span>
+                <span className="text28">optimizing budget are key. In that perspe</span>
+                <span className="text28">ctive, you are looking for a transport</span>
+                <span className="text14">partner committed</span>
+              </div>
+              <div className="column18">
+                <div className="column17">
+                  <span className="text8">Millon Zahino</span>
+                  <span className="text10">Behavioral Science</span>
+                </div>
+                <div className="view7">
+                  <span className="text12">★ ★ ★ ★ ★</span>
+                </div>
+                <span className="text28">As an industrial, securing capacity and</span>
+                <span className="text28">optimizing budget are key. In that perspe</span>
+                <span className="text28">ctive, you are looking for a transport</span>
+                <span className="text14">partner committed</span>
+              </div>
+            </div>
           </div>
         </div>
-      </section>
-    </main>
+      </ResponsiveCanvas>
     </>
   )
 }
