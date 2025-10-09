@@ -34,7 +34,16 @@ export default function AboutPage() {
   const [activePillar, setActivePillar] = useState(pillars[1].id)
   const active = useMemo(() => pillars.find((pillar) => pillar.id === activePillar) ?? pillars[1], [activePillar])
 
-  const figureAsset = useMemo(() => assetUrl(`/about/${activePillar}.png`), [activePillar])
+  const figureAsset = useMemo(() => {
+    switch (activePillar) {
+      case 'mission':
+        return assetUrl('/about/mission.png')
+      case 'vision':
+        return assetUrl('/about/vision.png')
+      default:
+        return null
+    }
+  }, [activePillar])
 
   return (
     <main className="flex flex-col gap-24 bg-[#021b2b] pb-24 text-white">
@@ -80,7 +89,17 @@ export default function AboutPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#010f1d] via-[#010b16] to-[#00060d]" />
         <div className="relative mx-auto flex w-full max-w-5xl flex-col items-center gap-10 px-6 py-24 text-center">
           <span className="text-sm uppercase tracking-[0.35em] text-[#00C2B9]">{active.label}</span>
-          <Image src={figureAsset} alt={`${active.label} illustration`} width={640} height={360} className="w-full max-w-3xl" />
+          {figureAsset ? (
+            <Image
+              src={figureAsset}
+              alt={`${active.label} illustration`}
+              width={640}
+              height={360}
+              className="w-full max-w-3xl"
+            />
+          ) : (
+            <div className="h-[360px] w-full max-w-3xl rounded-[32px] bg-gradient-to-br from-[#0d516b] via-[#093044] to-[#06192a] shadow-[0_25px_60px_rgba(0,0,0,0.45)]" />
+          )}
           <h2 className="text-3xl font-semibold uppercase leading-snug md:text-4xl">{active.headline}</h2>
           <div className="mt-6 grid w-full gap-6 text-sm uppercase tracking-[0.3em] text-white/60 md:grid-cols-3">
             {commitmentCopy.map((copy, index) => (
