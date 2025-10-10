@@ -128,7 +128,7 @@ export default function HomePage() {
 
       <section className="relative overflow-hidden py-24">
         <div className="absolute inset-0 bg-gradient-to-b from-brand-primary via-brand-primaryDeep to-brand-primaryOverlay" />
-        <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-6">
+        <div className="relative mx-auto flex w-full max-w-[1920px] flex-col gap-10 px-6 sm:px-10 lg:px-16">
           <div className="text-center">
             <h2 className="text-3xl font-extrabold uppercase leading-tight text-white md:text-4xl">What our customers think</h2>
             <p className="mt-4 text-sm leading-relaxed text-white/70 md:text-base">

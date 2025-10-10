@@ -10,13 +10,28 @@
 .marquee {
   position: relative;
   overflow: hidden;
+  width: 100%;
 }
 
-.track:before,
-.track:after {
-  content: '';
-  display: block;
-  width: 4rem;
+.marquee::before,
+.marquee::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 6rem;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.marquee::before {
+  left: 0;
+  background: linear-gradient(to right, rgba(11, 39, 63, 1), rgba(11, 39, 63, 0));
+}
+
+.marquee::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(11, 39, 63, 1), rgba(11, 39, 63, 0));
 }
 
 .track {
