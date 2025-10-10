@@ -63,7 +63,13 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-brand-primaryMuted/45 to-brand-primaryDeep/80" />
         </div>
 
-        <span aria-hidden="true" className={`pointer-events-none ${styles.heroAccent}`} />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute hidden 2xl:block 2xl:z-10"
+          style={{ top: '377px', left: '1157.34px' }}
+        >
+          <span className="block h-[66.67px] w-[66.67px] rounded-tl-[18px] bg-brand-accent" />
+        </span>
 
         <div className="relative mx-auto flex w-full max-w-[1440px] flex-col items-center px-6 text-right sm:px-10 lg:px-16 2xl:max-w-[1920px] 2xl:px-0">
           <div className="relative z-20 flex min-h-[360px] w-full flex-col items-end justify-center gap-8 text-right sm:min-h-[440px] sm:items-end sm:text-right lg:min-h-[520px] lg:items-end xl:min-h-[600px] xl:items-end xl:justify-start 2xl:absolute 2xl:left-[970.66px] 2xl:top-[173px] 2xl:min-h-0 2xl:w-auto 2xl:items-end 2xl:justify-start 2xl:gap-0">

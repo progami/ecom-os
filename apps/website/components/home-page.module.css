@@ -46,30 +46,6 @@
   position: relative;
 }
 
-.heroAccent {
-  position: absolute;
-  display: block;
-  width: clamp(2.6rem, 6vw, 4.2rem);
-  height: clamp(2.6rem, 6vw, 4.2rem);
-  border-top-left-radius: 18px;
-  border-top-right-radius: 6px;
-  border-bottom-left-radius: 6px;
-  border-bottom-right-radius: 18px;
-  background: #00C2B9;
-  box-shadow: 0 12px 24px rgba(0, 194, 185, 0.25);
-  top: clamp(6rem, 18vw, 12rem);
-  left: 50%;
-  transform: translateX(-50%);
-  pointer-events: none;
-  z-index: 1;
-}
-
-@media (min-width: 1024px) {
-  .heroAccent {
-    top: clamp(8rem, 17vw, 16rem);
-  }
-}
-
 @media (min-width: 1536px) {
   .heroCopy {
     position: absolute;
@@ -121,13 +97,5 @@
     width: 420px;
     height: 420px;
     z-index: 5;
-  }
-
-  .heroAccent {
-    top: clamp(14rem, 19.6vw, 23.6rem);
-    left: clamp(42rem, 59vw, 65rem);
-    transform: none;
-    width: clamp(3.3rem, 6.2vw, 4.8rem);
-    height: clamp(3.3rem, 6.2vw, 4.8rem);
   }
 }
