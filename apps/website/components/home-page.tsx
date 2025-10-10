@@ -94,7 +94,7 @@ export default function HomePage() {
 
             <Link
               href="/about"
-              className={`inline-flex h-[60px] w-[241.33px] items-center justify-center rounded-none rounded-tl-[18px] bg-brand-accent text-[20px] font-bold uppercase text-brand-supportNavy shadow-[0_12px_24px_rgba(0,194,185,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(0,194,185,0.35)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-brand-primary ${styles.heroCta} z-20`}
+              className={`inline-flex h-[60px] w-[241.33px] items-center justify-center rounded-none rounded-tl-[18px] bg-brand-accent text-[20px] font-bold uppercase text-brand-supportNavy shadow-[0_8px_18px_rgba(0,194,185,0.2)] transition hover:shadow-[0_12px_24px_rgba(0,194,185,0.25)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-brand-primary ${styles.heroCta} z-20`}
             >
               ABOUT US
             </Link>
@@ -129,9 +129,9 @@ export default function HomePage() {
       <section className="relative overflow-hidden py-24">
         <div className="absolute inset-0 bg-gradient-to-b from-brand-primary via-brand-primaryDeep to-brand-primaryOverlay" />
         <div className="relative mx-auto flex w-full max-w-[1920px] flex-col gap-10 px-6 sm:px-10 lg:px-16">
-          <div className="text-center">
+          <div className="mx-auto w-full max-w-2xl text-center">
             <h2 className="text-3xl font-extrabold uppercase leading-tight text-white md:text-4xl">What our customers think</h2>
-            <p className="mt-4 text-sm leading-relaxed text-white/70 md:text-base">
+            <p className="mt-4 text-base leading-relaxed text-white/70">
               Feedback straight from transformation programs we’ve shipped in the last twelve months.
             </p>
           </div>
