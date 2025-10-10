@@ -46,6 +46,30 @@
   position: relative;
 }
 
+
+.heroAccent {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .heroAccent {
+    display: block;
+    position: absolute;
+    width: calc(min(100vw, 1920px) * 0.0347);
+    height: calc(min(100vw, 1920px) * 0.0347);
+    top: calc(min(100vw, 1920px) * 0.1964);
+    left: calc((100vw - min(100vw, 1920px)) / 2 + min(100vw, 1920px) * 0.6038);
+    border-top-left-radius: 18px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 18px;
+    background: #00C2B9;
+    box-shadow: 0 12px 24px rgba(0, 194, 185, 0.25);
+    z-index: 10;
+    pointer-events: none;
+  }
+}
+
 @media (min-width: 1536px) {
   .heroCopy {
     position: absolute;
@@ -97,5 +121,10 @@
     width: 420px;
     height: 420px;
     z-index: 5;
+  }
+
+  .heroAccent {
+    left: calc((100vw - min(100vw, 1920px)) / 2 + min(100vw, 1920px) * 0.6038);
+    top: calc(min(100vw, 1920px) * 0.1964);
   }
 }

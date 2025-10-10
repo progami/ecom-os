@@ -7,7 +7,7 @@
 
 ## Workflow
 1. Run tests/CI locally (`pnpm lint`, `pnpm typecheck`, etc.).
-2. Push commits to your remote branch (e.g., `origin/work/website` or `origin/dev`).
+2. Push commits to the matching worktree branch (e.g., `work/website` → `origin/work/website`, `dev` → `origin/dev`). Avoid creating new feature branches inside the worktree; reuse the one that already mirrors the remote.
 3. Open PR from your branch → `dev` (skip if already on `dev`).
 4. Wait for CI to pass; fix failures before merging.
 5. Merge `dev` → `main`, wait for CI, create release, trigger CD.
