@@ -21,7 +21,7 @@ export default function DesktopNav({ navItems }: DesktopNavProps) {
           <Link
             key={item.href}
             href={item.href}
-            className={`transition-colors ${active ? 'text-[#00C2B9]' : 'text-[#02253b] hover:text-[#00C2B9]'}`}
+            className={`transition-colors ${active ? 'text-brand-accent' : 'text-brand-supportInk hover:text-brand-accent'}`}
             aria-current={active ? 'page' : undefined}
           >
             {item.label}

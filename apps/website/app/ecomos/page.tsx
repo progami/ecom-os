@@ -15,7 +15,7 @@ export default function Home() {
 
         {/* ECOMOS Intro */}
         <div className="mt-10">
-          <h2 className="text-3xl font-extrabold text-[#00C2B9]">ECOMOS</h2>
+          <h2 className="text-3xl font-extrabold text-brand-accent">ECOMOS</h2>
           <p className="mt-3 max-w-3xl text-white/80">
             Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus semper vitae orci sit amet finibus. Aliquam placerat, erat vitae egestas placerat, orci purus dapibus augue.
           </p>
@@ -42,7 +42,7 @@ export default function Home() {
         </div>
 
         <div className="mt-10 text-center">
-          <button className="px-6 py-3 rounded-full bg-[#00C2B9] text-white font-semibold inline-flex items-center gap-2 hover:brightness-110">
+          <button className="px-6 py-3 rounded-full bg-brand-accent text-white font-semibold inline-flex items-center gap-2 hover:brightness-110">
             Inquire More <ArrowRight className="w-4 h-4" />
           </button>
         </div>

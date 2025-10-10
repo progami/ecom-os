@@ -41,16 +41,17 @@ const socialLinks = [
 
 export default function SiteFooter() {
   return (
-    <footer className="site-footer bg-[#00C2B9] text-[#021b2b] w-full">
-      <div className="mx-auto w-full px-6 py-10 sm:px-10 lg:px-16 lg:py-14">
+    <footer className="site-footer bg-brand-accent text-brand-primary w-full">
+      <div className="mx-auto w-full max-w-[1440px] px-6 py-10 sm:px-10 lg:px-16 lg:py-14">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:gap-10">
           <div>
             <Link href="/" aria-label="Targon">
               <Image
-                src={assetUrl("/shared/logo-footer.png")}
+                src="/brand-logo-light.svg"
                 alt="Targon logo"
-                width={168}
-                height={36}
+                width={180}
+                height={48}
+                priority
               />
             </Link>
             <p className="mt-4 max-w-xs text-sm leading-6">
@@ -76,14 +77,14 @@ export default function SiteFooter() {
           ))}
         </div>
 
-        <div className="mt-8 lg:mt-12 border-t border-[#021b2b]/30 pt-6">
-          <div className="flex items-center justify-center lg:justify-end gap-4">
+        <div className="mt-8 lg:mt-12 border-t border-brand-primary/30 pt-6">
+          <div className="flex items-center justify-center gap-4 lg:justify-end">
             {socialLinks.map(({ href, icon: Icon, label }) => (
               <Link
                 key={href}
                 href={href}
                 aria-label={label}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-[#021b2b]/60 transition hover:border-[#021b2b]"
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-brand-primary/60 transition hover:border-brand-primary"
               >
                 <Icon className="h-5 w-5" />
               </Link>

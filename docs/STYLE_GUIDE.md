@@ -2,83 +2,43 @@
 
 ## Visual Design System
 
-### Color Palette
+### Brand Tokens
 
-#### Brand Colors
-```css
-/* Primary Gradient */
---gradient-primary: from-purple-500 to-pink-500;
+All brand colors, fonts, and radii live in `@ecom-os/theme`. Import from the package (or via the `tailwind.config.ts` aliases) instead of pasting literal hex values so the palette stays consistent across apps.
 
-/* Application Themes */
---wms-gradient: from-blue-500 to-cyan-500;
---bookkeeping-gradient: from-emerald-500 to-green-500;
---centraldb-gradient: from-purple-500 to-pink-500;
-
-/* Background Colors */
---bg-primary: rgb(15, 23, 42);      /* slate-900 */
---bg-secondary: rgb(30, 41, 59);    /* slate-800 */
---bg-surface: rgba(30, 41, 59, 0.5); /* slate-800/50 */
-
-/* Text Colors */
---text-primary: rgb(255, 255, 255);   /* white */
---text-secondary: rgb(209, 213, 219); /* gray-300 */
---text-muted: rgb(156, 163, 175);     /* gray-400 */
+```ts
+import { brandColors, brandFontFamilies, brandRadii } from "@ecom-os/theme"
 ```
 
-### Typography
+#### Color Palette
 
-#### Font Stack
-```css
-font-family: 'Inter', system-ui, -apple-system, sans-serif;
-```
+| Token            | Hex      | Tailwind Class           | Usage                                    |
+|------------------|----------|--------------------------|------------------------------------------|
+| `primary`        | `#0B273F`| `bg-brand-primary`       | Primary backgrounds                      |
+| `primaryMuted`   | `#021B2B`| `bg-brand-primaryMuted`  | Gradient mid tones                       |
+| `primaryDeep`    | `#011226`| `bg-brand-primaryDeep`   | Gradient transitions                     |
+| `primaryOverlay` | `#00070F`| `bg-brand-primaryOverlay`| Footer fades / overlays                  |
+| `secondary`      | `#F5F5F5`| `bg-brand-secondary`     | Light surfaces / cards                   |
+| `accent`         | `#00C2B9`| `bg-brand-accent`        | Primary CTA fills                        |
+| `supportNavy`    | `#002433`| `text-brand-supportNavy` | Accent text on cyan backgrounds          |
+| `supportInk`     | `#02253B`| `text-brand-supportInk`  | Header typography                        |
+| `slate`          | `#6F7B8B`| `text-brand-slate`       | Secondary text                           |
+| `white`          | `#FFFFFF`| `text-brand-white`       | Neutral copy                             |
 
-#### Font Sizes
-```css
-/* Headings */
---text-4xl: 2.25rem;  /* 36px */
---text-3xl: 1.875rem; /* 30px */
---text-2xl: 1.5rem;   /* 24px */
---text-xl: 1.25rem;   /* 20px */
+To apply transparency, use Tailwind’s slash notation (`bg-brand-cyan/20`) or pull the RGBA helpers exported alongside the brand palette (`brandColors.cyanShadow`).
 
-/* Body */
---text-base: 1rem;    /* 16px */
---text-sm: 0.875rem;  /* 14px */
---text-xs: 0.75rem;   /* 12px */
-```
+#### Typography
 
-#### Font Weights
-```css
---font-normal: 400;
---font-medium: 500;
---font-semibold: 600;
---font-bold: 700;
-```
+- Primary family: `brandFontFamilies.primary` (Montserrat). The font is already wired through `app/layout.tsx`; Tailwind exposes it as `font-brand`.
+- Default text color on brand backgrounds is `text-white`; accent copy should use `text-brand-slate` for muted states or `text-brand-cyan` for emphasis.
 
-### Spacing System
+#### CTA Geometry
 
-```css
-/* Based on Tailwind's spacing scale */
---space-1: 0.25rem;  /* 4px */
---space-2: 0.5rem;   /* 8px */
---space-3: 0.75rem;  /* 12px */
---space-4: 1rem;     /* 16px */
---space-6: 1.5rem;   /* 24px */
---space-8: 2rem;     /* 32px */
---space-12: 3rem;    /* 48px */
---space-16: 4rem;    /* 64px */
-```
+- Rounded corners use `brandRadii.lg` (18px) for asymmetric CTAs. Tailwind classes can reference the built-in CSS variable by applying `rounded-tl-[18px]` until a dedicated utility is introduced.
 
-### Border Radius
+#### Tailwind Helpers
 
-```css
---radius-sm: 0.125rem;   /* 2px */
---radius-md: 0.375rem;   /* 6px */
---radius-lg: 0.5rem;     /* 8px */
---radius-xl: 0.75rem;    /* 12px */
---radius-2xl: 1rem;      /* 16px */
---radius-3xl: 1.5rem;    /* 24px */
---radius-full: 9999px;
-```
+`tailwind.config.ts` extends the theme with the brand palette and fonts, so prefer utilities such as `bg-brand-primary`, `text-brand-accent`, and `font-brand` over inline hex codes.
 
 ## Component Patterns
 

@@ -4,8 +4,12 @@
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "prepare": "pnpm run build",
     "dev": "tsc -w -p tsconfig.build.json",
     "type-check": "tsc --noEmit -p tsconfig.build.json"
   },
@@ -13,4 +17,3 @@
     "typescript": "5.9.2"
   }
 }
-
