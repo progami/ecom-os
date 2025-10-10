@@ -9,14 +9,14 @@ import { navItems } from "./site-header/nav-data"
 
 export default function SiteHeader() {
   return (
-    <header className="site-header border-b-4 border-[#00C2B9] bg-[#F5F5F5] text-[#02253b]">
-      <div className="mx-auto flex h-16 w-full max-w-[1440px] items-center justify-between px-6 sm:px-10 lg:px-16">
+    <header className="site-header border-b-4 border-brand-accent bg-brand-secondary text-brand-supportInk">
+      <div className="mx-auto flex h-[95px] w-full max-w-[1440px] items-center justify-between px-6 sm:px-10 lg:px-16">
         <Link href="/" className="flex items-center" aria-label="Targon">
           <Image
-            src={assetUrl("/shared/logo-header.png")}
+            src="/brand-logo-dark.svg"
             alt="Targon logo"
             width={160}
-            height={36}
+            height={48}
             priority
           />
         </Link>

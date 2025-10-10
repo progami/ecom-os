@@ -16,7 +16,7 @@ export default function BlogPage() {
       <MarketingBg>
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <h1 className="text-4xl md:text-5xl font-extrabold text-center">BLOGS</h1>
-          <h2 className="mt-6 text-center text-2xl font-extrabold text-[#00C2B9] tracking-wide">LATEST UPDATES</h2>
+          <h2 className="mt-6 text-center text-2xl font-extrabold text-brand-accent tracking-wide">LATEST UPDATES</h2>
 
           <div className="mt-10 space-y-6">
             {[0,1,2,3,4].map((i) => (
