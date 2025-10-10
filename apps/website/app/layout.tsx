@@ -42,7 +42,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={montserrat.variable}>
-      <body className={`${montserrat.className} antialiased bg-[#021b2b] text-white`}>
+      <body className={`${montserrat.className} antialiased bg-brand-primary text-white`}>
         <div className="flex min-h-screen flex-col">
           <SiteHeader />
           <div className="flex-1 overflow-hidden">{children}</div>

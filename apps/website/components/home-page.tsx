@@ -50,58 +50,87 @@ const marqueeItems = [...testimonials, ...testimonials]
 
 export default function HomePage() {
   return (
-    <main className="flex flex-col bg-[#021b2b] text-white">
-      <section className="relative overflow-hidden pb-20 pt-16">
+    <main className="flex flex-col bg-brand-primary text-white">
+      <section className="relative isolate overflow-hidden pb-20 pt-16 sm:pt-20 lg:pb-24 xl:min-h-[682.67px] 2xl:min-h-[682.67px] 2xl:pb-0 2xl:pt-0">
         <div className="absolute inset-0">
           <Image
-            src={assetUrl('/home/hero-bg.png')}
+            src={assetUrl('/home/hero-innovation.png')}
             alt=""
             fill
             priority
-            className="object-cover object-center opacity-80"
+            className="object-cover object-left-top opacity-95"
           />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#021b2b]/30 via-[#021b2b]/85 to-[#021b2b]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-brand-primaryMuted/45 to-brand-primaryDeep/80" />
         </div>
 
-        <div className="relative mx-auto flex w-full max-w-6xl flex-col items-center gap-12 px-6 text-center">
-          <div className="max-w-2xl space-y-6">
-            <p className="text-sm uppercase tracking-[0.32em] text-[#00C2B9]">Innovation to Impact</p>
-            <h1 className="text-4xl font-extrabold uppercase leading-tight md:text-5xl">
-              What the world needs next we are making now.
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute hidden 2xl:block 2xl:z-10"
+          style={{ top: '377px', left: '1157.34px' }}
+        >
+          <span className="block h-[66.67px] w-[66.67px] rounded-tl-[18px] bg-brand-accent" />
+        </span>
+
+        <div className="relative mx-auto flex w-full max-w-[1440px] flex-col items-center px-6 text-right sm:px-10 lg:px-16 2xl:max-w-[1920px] 2xl:px-0">
+          <div className="relative z-20 flex min-h-[360px] w-full flex-col items-end justify-center gap-8 text-right sm:min-h-[440px] sm:items-end sm:text-right lg:min-h-[520px] lg:items-end xl:min-h-[600px] xl:items-end xl:justify-start 2xl:absolute 2xl:left-[970.66px] 2xl:top-[173px] 2xl:min-h-0 2xl:w-auto 2xl:items-end 2xl:justify-start 2xl:gap-0">
+            <h1 className="flex flex-col text-4xl font-bold uppercase leading-none text-white sm:text-6xl lg:text-[72px] xl:text-[80px] 2xl:text-[96px]">
+              <span className="block leading-none">INNOVATION</span>
+              <span className="block leading-none">TO</span>
+              <span className="block leading-none">IMPACT</span>
             </h1>
-            <p className="text-base leading-relaxed text-white/75 md:text-lg">
-              Targon builds circular-first supply chains and the software that keeps them sharp. From concept to launch,
-              we are the quiet partner powering your next release.
-            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="relative bg-brand-primary py-16 sm:py-20 2xl:min-h-[1100px] 2xl:py-0">
+        <div className="relative mx-auto w-full max-w-[1440px] px-6 sm:px-10 lg:px-16 2xl:max-w-[1920px] 2xl:px-0">
+          <div className="relative flex w-full flex-col items-center gap-6 text-center sm:items-center sm:text-center">
+            <div className={`relative z-20 flex w-full max-w-2xl flex-col gap-6 ${styles.heroCopy}`}>
+              <h2 className="flex flex-col text-2xl font-bold leading-tight text-white sm:text-3xl lg:text-[36px] xl:text-[40px] 2xl:text-[48px] 2xl:leading-[100%]">
+                <span>What the world needs next</span>
+                <span>we are making now.</span>
+              </h2>
+            </div>
+
+            <Link
+              href="/about"
+              className={`inline-flex h-[60px] w-[241.33px] items-center justify-center rounded-none rounded-tl-[18px] bg-brand-accent text-[20px] font-bold uppercase text-brand-supportNavy shadow-[0_12px_24px_rgba(0,194,185,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(0,194,185,0.35)] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-brand-primary ${styles.heroCta} z-20`}
+            >
+              ABOUT US
+            </Link>
           </div>
 
-          <Link
-            href="/about"
-            className="inline-flex items-center justify-center rounded-full bg-[#00C2B9] px-10 py-3 text-sm font-semibold uppercase tracking-[0.28em] text-[#002433] shadow-[0_12px_24px_rgba(0,194,185,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_32px_rgba(0,194,185,0.35)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[#00C2B9] focus-visible:ring-offset-[#021b2b]"
-          >
-            about us
-          </Link>
+          <div className={`relative mt-16 w-full 2xl:mt-0 ${styles.ellipseLayer}`}>
+            <div className="flex flex-wrap justify-center gap-8 2xl:hidden">
+              <div className="relative h-40 w-40 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-[0_18px_45px_rgba(0,0,0,0.35)] md:h-48 md:w-48 lg:h-56 lg:w-56">
+                <Image src={assetUrl('/home/circle-left.png')} alt="" fill className="object-cover object-center" />
+              </div>
+              <div className="relative h-48 w-48 overflow-hidden rounded-full border border-brand-accent/30 bg-brand-accent/15 shadow-[0_18px_45px_rgba(0,0,0,0.35)] md:h-56 md:w-56 lg:h-64 lg:w-64">
+                <Image src={assetUrl('/home/circle-center.png')} alt="" fill className="object-cover object-center" />
+              </div>
+              <div className="relative h-36 w-36 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-[0_18px_45px_rgba(0,0,0,0.35)] md:h-44 md:w-44 lg:h-52 lg:w-52">
+                <Image src={assetUrl('/home/circle-right.png')} alt="" fill className="object-cover object-center" />
+              </div>
+            </div>
 
-          <div className="relative flex flex-wrap justify-center gap-8">
-            <div className="relative h-40 w-40 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-[0_18px_45px_rgba(0,0,0,0.35)] md:h-48 md:w-48 lg:h-56 lg:w-56">
+            <span className={`${styles.heroEllipse} ${styles.ellipsePlastic} hidden 2xl:block`}>
               <Image src={assetUrl('/home/circle-left.png')} alt="" fill className="object-cover object-center" />
-            </div>
-            <div className="relative h-48 w-48 overflow-hidden rounded-full border border-[#00C2B9]/30 bg-[#00C2B9]/15 shadow-[0_18px_45px_rgba(0,0,0,0.35)] md:h-56 md:w-56 lg:h-64 lg:w-64">
+            </span>
+            <span className={`${styles.heroEllipse} ${styles.ellipseBinocular} hidden 2xl:block`}>
               <Image src={assetUrl('/home/circle-center.png')} alt="" fill className="object-cover object-center" />
-            </div>
-            <div className="relative h-36 w-36 overflow-hidden rounded-full border border-white/10 bg-white/5 shadow-[0_18px_45px_rgba(0,0,0,0.35)] md:h-44 md:w-44 lg:h-52 lg:w-52">
+            </span>
+            <span className={`${styles.heroEllipse} ${styles.ellipseGreen} hidden 2xl:block`}>
               <Image src={assetUrl('/home/circle-right.png')} alt="" fill className="object-cover object-center" />
-            </div>
+            </span>
           </div>
         </div>
       </section>
 
       <section className="relative overflow-hidden py-24">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#021b2b] via-[#011226] to-[#00070f]" />
-        <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-10 px-6">
+        <div className="absolute inset-0 bg-gradient-to-b from-brand-primary via-brand-primaryDeep to-brand-primaryOverlay" />
+        <div className="relative mx-auto flex w-full max-w-[1920px] flex-col gap-10 px-6 sm:px-10 lg:px-16">
           <div className="text-center">
-            <p className="text-sm uppercase tracking-[0.3em] text-[#00C2B9]">what our customers think</p>
-            <h2 className="mt-4 text-3xl font-semibold md:text-4xl">The world needs what we’re building—now.</h2>
+            <h2 className="text-3xl font-extrabold uppercase leading-tight text-white md:text-4xl">What our customers think</h2>
             <p className="mt-4 text-sm leading-relaxed text-white/70 md:text-base">
               Feedback straight from transformation programs we’ve shipped in the last twelve months.
             </p>
@@ -115,7 +144,7 @@ export default function HomePage() {
                   className={`w-80 flex-shrink-0 rounded-3xl p-6 text-left text-sm text-white/80 backdrop-blur-sm ${styles.testimonialCard}`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#00C2B9]/20 text-sm font-semibold text-[#00C2B9]">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-accent/20 text-sm font-semibold text-brand-accent">
                       {testimonial.name
                         .split(' ')
                         .map((part) => part[0])
@@ -124,11 +153,11 @@ export default function HomePage() {
                     </div>
                     <div>
                       <p className="font-semibold text-white">{testimonial.name}</p>
-                      <p className="text-xs uppercase tracking-[0.2em] text-[#00C2B9]">{testimonial.title}</p>
+                      <p className="text-xs uppercase tracking-[0.2em] text-brand-accent">{testimonial.title}</p>
                     </div>
                   </div>
                   <p className="mt-5 leading-relaxed">{testimonial.quote}</p>
-                  <div className="mt-6 flex gap-1 text-base text-[#00C2B9]">
+                  <div className="mt-6 flex gap-1 text-base text-brand-accent">
                     {Array.from({ length: 5 }).map((_, starIndex) => (
                       <span key={starIndex} aria-hidden="true">
                         ★
@@ -142,7 +171,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
     </main>
   )
 }
