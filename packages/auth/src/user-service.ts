@@ -82,15 +82,13 @@ export async function authenticateWithCentralDirectory(input: unknown): Promise<
     return null
   }
 
-  const entitlements = user.appAccess.reduce<AppEntitlementMap>((map, assignment) => {
-    map[assignment.app.slug] = {
+  const entitlements: AppEntitlementMap = {}
+  for (const assignment of user.appAccess) {
+    entitlements[assignment.app.slug] = {
       role: assignment.accessLevel,
-      departments: Array.isArray(assignment.departments)
-        ? (assignment.departments as string[])
-        : [],
+      departments: Array.isArray(assignment.departments) ? (assignment.departments as string[]) : [],
     }
-    return map
-  }, {})
+  }
 
   return {
     id: user.id,
@@ -151,13 +149,13 @@ export async function getUserEntitlements(userId: string) {
     },
   })
 
-  return assignments.reduce<AppEntitlementMap>((map, assignment) => {
-    map[assignment.app.slug] = {
+  const entitlements: AppEntitlementMap = {}
+  for (const assignment of assignments) {
+    entitlements[assignment.app.slug] = {
       role: assignment.accessLevel,
-      departments: Array.isArray(assignment.departments)
-        ? (assignment.departments as string[])
-        : [],
+      departments: Array.isArray(assignment.departments) ? (assignment.departments as string[]) : [],
     }
-    return map
-  }, {})
+  }
+
+  return entitlements
 }

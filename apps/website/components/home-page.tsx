@@ -63,20 +63,15 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-brand-primaryMuted/45 to-brand-primaryDeep/80" />
         </div>
 
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute hidden 2xl:block 2xl:z-10"
-          style={{ top: '377px', left: '1157.34px' }}
-        >
-          <span className="block h-[66.67px] w-[66.67px] rounded-tl-[18px] bg-brand-accent" />
-        </span>
-
         <div className="relative mx-auto flex w-full max-w-[1440px] flex-col items-center px-6 text-right sm:px-10 lg:px-16 2xl:max-w-[1920px] 2xl:px-0">
           <div className="relative z-20 flex min-h-[360px] w-full flex-col items-end justify-center gap-8 text-right sm:min-h-[440px] sm:items-end sm:text-right lg:min-h-[520px] lg:items-end xl:min-h-[600px] xl:items-end xl:justify-start 2xl:absolute 2xl:left-[970.66px] 2xl:top-[173px] 2xl:min-h-0 2xl:w-auto 2xl:items-end 2xl:justify-start 2xl:gap-0">
-            <h1 className="flex flex-col text-4xl font-bold uppercase leading-none text-white sm:text-6xl lg:text-[72px] xl:text-[80px] 2xl:text-[96px]">
+            <h1 className={`relative flex flex-col text-4xl font-bold uppercase leading-none text-white sm:text-6xl lg:text-[72px] xl:text-[80px] 2xl:text-[96px] ${styles.heroHeading}`}>
               <span className="block leading-none">INNOVATION</span>
               <span className="block leading-none">TO</span>
-              <span className="block leading-none">IMPACT</span>
+              <span className={`block leading-none ${styles.heroAccentLine}`}>
+                <span aria-hidden="true" className={styles.heroAccent} />
+                <span className={styles.heroAccentText}>IMPACT</span>
+              </span>
             </h1>
           </div>
         </div>
@@ -132,7 +127,6 @@ export default function HomePage() {
           <div className="mx-auto w-full max-w-2xl text-center">
             <h2 className="text-3xl font-extrabold uppercase leading-tight text-white md:text-4xl">What our customers think</h2>
             <p className="mt-4 text-base leading-relaxed text-white/70">
-              Feedback straight from transformation programs we’ve shipped in the last twelve months.
             </p>
           </div>
 
