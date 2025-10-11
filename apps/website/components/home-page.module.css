@@ -46,6 +46,49 @@
   position: relative;
 }
 
+.heroHeading {
+  position: relative;
+  font-family: var(--font-montserrat), 'Montserrat', system-ui, sans-serif;
+}
+
+.heroAccentLine {
+  display: block;
+}
+
+.heroAccentText {
+  display: inline-block;
+}
+
+.heroAccent {
+  display: none;
+  pointer-events: none;
+}
+
+@media (min-width: 1024px) {
+  .heroAccentLine {
+    --hero-accent-size: clamp(2.25rem, 3.47vw, 4.5rem);
+    --hero-accent-gap: clamp(0.45rem, 0.9vw, 1.2rem);
+    display: inline-flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: var(--hero-accent-gap);
+  }
+
+  .heroAccent {
+    display: block;
+    flex-shrink: 0;
+    width: var(--hero-accent-size);
+    height: var(--hero-accent-size);
+    background: #00C2B9;
+    border-top-left-radius: 18px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+    box-shadow: 0 12px 24px rgba(0, 194, 185, 0.25);
+    transform: translateY(-0.12em);
+  }
+}
+
 @media (min-width: 1536px) {
   .heroCopy {
     position: absolute;
