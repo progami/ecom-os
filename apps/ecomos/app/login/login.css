@@ -225,6 +225,11 @@
   outline: none;
 }
 
+/* Add room for the end-control (show/hide) */
+.form-input.with-toggle {
+  padding-right: 44px;
+}
+
 .form-input::placeholder {
   color: #adb5bd;
 }
@@ -253,6 +258,33 @@
   transform: translateY(-50%);
   color: var(--brand-muted);
   pointer-events: none;
+}
+
+/* Show/Hide password control styled to match input icons */
+.toggle-password {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 28px;
+  width: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--brand-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toggle-password:hover,
+.toggle-password:focus-visible {
+  color: var(--brand-navy);
+  background: rgba(0, 194, 185, 0.08);
+  box-shadow: 0 0 0 3px rgba(0, 194, 185, 0.16);
+  outline: none;
 }
 
 .form-error {

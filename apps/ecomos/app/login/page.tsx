@@ -197,7 +197,7 @@ function LoginPageInner() {
                 name="password"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
-                className={`form-input ${errors.password ? 'input-error' : ''}`}
+                className={`form-input ${errors.password ? 'input-error' : ''} with-toggle`}
                 value={formData.password}
                 onChange={(e) => {
                   setFormData({ ...formData, password: e.target.value })
@@ -214,7 +214,21 @@ function LoginPageInner() {
                 aria-pressed={showPassword}
                 onClick={() => setShowPassword(s => !s)}
               >
-                {showPassword ? 'Hide' : 'Show'}
+                {showPassword ? (
+                  // Eye Off icon
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <path d="M3 3l18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M10.58 10.58A2 2 0 0012 14a2 2 0 001.42-3.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M9.88 4.12A10.94 10.94 0 0121 12c-1.8 3.4-5.4 6-9 6-.94 0-1.86-.14-2.72-.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M6.61 6.61A10.94 10.94 0 003 12c1.8 3.4 5.4 6 9 6 .7 0 1.38-.07 2.03-.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                ) : (
+                  // Eye icon
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                )}
               </button>
               <div className="input-icon">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
