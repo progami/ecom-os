@@ -1,7 +1,8 @@
 "use client"
 
 import { Suspense, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { signIn } from 'next-auth/react'
 import './login.css'
 
 export default function LoginPage() {
@@ -14,9 +15,11 @@ export default function LoginPage() {
 
 function LoginPageInner() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const callbackUrl = searchParams.get('callbackUrl') || '/'
   const [csrfToken, setCsrfToken] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState(() => {
     if (process.env.NODE_ENV === 'production') {
       return { emailOrUsername: '', password: '' }
@@ -78,14 +81,39 @@ function LoginPageInner() {
   }
 
   const handleSubmit = (e: React.FormEvent) => {
-    if (!validateForm()) {
-      e.preventDefault()
-      return
-    }
-    if (globalError) {
-      setGlobalError('')
-    }
+    e.preventDefault()
+    if (!validateForm()) return
+    if (globalError) setGlobalError('')
     setIsLoading(true)
+
+    // Use NextAuth client signIn to handle errors in UI (no hard redirects)
+    ;(async () => {
+      try {
+        const res = await signIn('credentials', {
+          redirect: false,
+          emailOrUsername: formData.emailOrUsername,
+          password: formData.password,
+          callbackUrl,
+        })
+
+        if (res && res.ok) {
+          router.push(res.url || callbackUrl)
+          return
+        }
+
+        const err = (res && (res.error || '')) || 'Invalid credentials'
+        const friendly: Record<string, string> = {
+          CredentialsSignin: 'Invalid email or password. Please try again.',
+        }
+        if (err in friendly) setGlobalError(friendly[err])
+        else if (/Too many sign-in attempts/i.test(err)) setGlobalError('Too many sign-in attempts. Please try again later.')
+        else setGlobalError('Invalid email or password. Please try again.')
+      } catch (e) {
+        setGlobalError('Unable to sign in right now. Please try again.')
+      } finally {
+        setIsLoading(false)
+      }
+    })()
   }
 
   return (
@@ -167,7 +195,7 @@ function LoginPageInner() {
               <input
                 id="password"
                 name="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 className={`form-input ${errors.password ? 'input-error' : ''}`}
                 value={formData.password}
@@ -179,6 +207,15 @@ function LoginPageInner() {
                 aria-invalid={!!errors.password}
                 aria-describedby={errors.password ? 'password-error' : undefined}
               />
+              <button
+                type="button"
+                className="toggle-password"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword(s => !s)}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
               <div className="input-icon">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                   <rect x="3" y="8" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.5" opacity="0.3"/>
