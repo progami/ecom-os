@@ -1,7 +1,8 @@
 "use client"
 
 import { Suspense, useEffect, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { signIn } from 'next-auth/react'
 import './login.css'
 
 export default function LoginPage() {
@@ -14,9 +15,11 @@ export default function LoginPage() {
 
 function LoginPageInner() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const callbackUrl = searchParams.get('callbackUrl') || '/'
   const [csrfToken, setCsrfToken] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState(() => {
     if (process.env.NODE_ENV === 'production') {
       return { emailOrUsername: '', password: '' }
@@ -78,14 +81,39 @@ function LoginPageInner() {
   }
 
   const handleSubmit = (e: React.FormEvent) => {
-    if (!validateForm()) {
-      e.preventDefault()
-      return
-    }
-    if (globalError) {
-      setGlobalError('')
-    }
+    e.preventDefault()
+    if (!validateForm()) return
+    if (globalError) setGlobalError('')
     setIsLoading(true)
+
+    // Use NextAuth client signIn to handle errors in UI (no hard redirects)
+    ;(async () => {
+      try {
+        const res = await signIn('credentials', {
+          redirect: false,
+          emailOrUsername: formData.emailOrUsername,
+          password: formData.password,
+          callbackUrl,
+        })
+
+        if (res && res.ok) {
+          router.push(res.url || callbackUrl)
+          return
+        }
+
+        const err = (res && (res.error || '')) || 'Invalid credentials'
+        const friendly: Record<string, string> = {
+          CredentialsSignin: 'Invalid email or password. Please try again.',
+        }
+        if (err in friendly) setGlobalError(friendly[err])
+        else if (/Too many sign-in attempts/i.test(err)) setGlobalError('Too many sign-in attempts. Please try again later.')
+        else setGlobalError('Invalid email or password. Please try again.')
+      } catch (e) {
+        setGlobalError('Unable to sign in right now. Please try again.')
+      } finally {
+        setIsLoading(false)
+      }
+    })()
   }
 
   return (
@@ -167,9 +195,9 @@ function LoginPageInner() {
               <input
                 id="password"
                 name="password"
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
-                className={`form-input ${errors.password ? 'input-error' : ''}`}
+                className={`form-input ${errors.password ? 'input-error' : ''} with-toggle`}
                 value={formData.password}
                 onChange={(e) => {
                   setFormData({ ...formData, password: e.target.value })
@@ -179,6 +207,29 @@ function LoginPageInner() {
                 aria-invalid={!!errors.password}
                 aria-describedby={errors.password ? 'password-error' : undefined}
               />
+              <button
+                type="button"
+                className="toggle-password"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword(s => !s)}
+              >
+                {showPassword ? (
+                  // Eye Off icon
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <path d="M3 3l18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M10.58 10.58A2 2 0 0012 14a2 2 0 001.42-3.42" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M9.88 4.12A10.94 10.94 0 0121 12c-1.8 3.4-5.4 6-9 6-.94 0-1.86-.14-2.72-.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M6.61 6.61A10.94 10.94 0 003 12c1.8 3.4 5.4 6 9 6 .7 0 1.38-.07 2.03-.2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                ) : (
+                  // Eye icon
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                    <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2"/>
+                  </svg>
+                )}
+              </button>
               <div className="input-icon">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                   <rect x="3" y="8" width="14" height="10" rx="2" stroke="currentColor" strokeWidth="1.5" opacity="0.3"/>
