@@ -29,8 +29,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          # Always deploy code from main, regardless of dispatch branch
+          ref: main
           fetch-depth: 0
+      - name: Record deployed commit
+        run: echo "DEPLOY_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
       - name: Install tools (ansible, rsync, jq, curl)
         run: |
           sudo apt-get update
@@ -294,7 +297,7 @@ jobs:
           ANSIBLE_HOST_KEY_CHECKING: 'True'
           ANSIBLE_STDOUT_CALLBACK: debug
           ANSIBLE_SSH_COMMON_ARGS: "-o StrictHostKeyChecking=${{ env.STRICT_SSH_CHECKING }} -o ServerAliveInterval=30 -o ConnectionAttempts=10"
-          DEPLOY_COMMIT: ${{ github.sha }}
+          DEPLOY_COMMIT: ${{ env.DEPLOY_COMMIT }}
           WEBSITE_ENV: ${{ secrets.WEBSITE_ENV }}
           WMS_ENV: ${{ secrets.WMS_ENV }}
           HRMS_ENV: ${{ secrets.HRMS_ENV }}
@@ -401,7 +404,7 @@ jobs:
           ${DEPLOYED_APPS}
           ## Deployment Info
 
-          - **Commit**: ${{ github.sha }}
+          - **Commit**: ${{ env.DEPLOY_COMMIT }}
           - **Deployed at**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
           - **Triggered by**: ${{ github.actor }}
           - **Health Checks**: ${HEALTH_STATUS}
