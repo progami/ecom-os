@@ -102,6 +102,7 @@ jobs:
 
       - name: Optionally assume AWS role and discover EC2 host
         if: ${{ env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' }}
+        continue-on-error: true
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ env.AWS_ROLE_TO_ASSUME }}
@@ -109,6 +110,7 @@ jobs:
 
       - name: Discover EC2 host (if AWS creds available)
         if: ${{ env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' }}
+        continue-on-error: true
         run: |
           set -euo pipefail
           if [ -n "${EC2_INSTANCE_ID_SECRET:-}" ]; then
