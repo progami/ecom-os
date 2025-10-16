@@ -186,6 +186,7 @@ jobs:
 
       - name: Generate and inject CI SSH key via EC2 Instance Connect
         if: ${{ env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' && env.REMOTE_ENABLED == 'true' }}
+        continue-on-error: true
         env:
           OS_USER: ${{ env.EC2_USER_SECRET }}
         run: |
