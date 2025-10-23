@@ -1,6 +1,6 @@
 {
   "name": "@ecom-os/hrms",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "private": true,
   "prisma": {
     "seed": "tsx prisma/seed.ts"

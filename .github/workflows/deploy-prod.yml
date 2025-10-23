@@ -355,7 +355,7 @@ jobs:
           # Required hosts (allow up to 20 attempts ~3 min max)
           for h in "${REQUIRED[@]}"; do
             if [ -n "$h" ]; then
-              check_host "$h" "$HOST_IP" 20 || failures=$((failures+1))
+              check_host "$h" "$HOST_IP" 8 || failures=$((failures+1))
             fi
           done
           # Optional hosts: run in parallel with fewer attempts
