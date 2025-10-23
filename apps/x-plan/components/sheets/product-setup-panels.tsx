@@ -3,6 +3,7 @@
 import clsx from 'clsx'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { withAppBasePath } from '@/lib/base-path'
 
 interface BusinessParameter {
   id: string
@@ -131,7 +132,7 @@ export function ProductSetupParametersPanel({
     })
 
     try {
-      const response = await fetch('/api/v1/x-plan/business-parameters', {
+      const response = await fetch(withAppBasePath('/api/v1/x-plan/business-parameters'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ updates: payload }),

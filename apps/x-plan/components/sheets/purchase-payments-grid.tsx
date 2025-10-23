@@ -19,6 +19,7 @@ import {
   numericValidator,
   parseNumericInput,
 } from '@/components/sheets/validators'
+import { withAppBasePath } from '@/lib/base-path'
 
 registerAllModules()
 
@@ -126,7 +127,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
     async (payload: PaymentUpdate[]) => {
       if (payload.length === 0) return
       try {
-        const res = await fetch('/api/v1/x-plan/purchase-order-payments', {
+        const res = await fetch(withAppBasePath('/api/v1/x-plan/purchase-order-payments'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ updates: payload }),
@@ -489,7 +490,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
                 hot.setDataAtRowProp(picker.row, 'weekNumber', week, 'derived-update')
                 // Persist immediately (no debounce)
                 const payload = [{ id: row.id, values: { dueDate: iso ?? '', dueDateSource: iso ? 'USER' : 'SYSTEM', weekNumber: week } }]
-                fetch('/api/v1/x-plan/purchase-order-payments', {
+                fetch(withAppBasePath('/api/v1/x-plan/purchase-order-payments'), {
                   method: 'PUT',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ updates: payload }),
@@ -537,7 +538,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
                 hot.setDataAtRowProp(rowIdx, 'weekNumber', week, 'derived-update')
                 if (row) {
                   const payload = [{ id: row.id, values: { dueDate: iso ?? '', dueDateSource: iso ? 'USER' : 'SYSTEM', weekNumber: week } }]
-                  fetch('/api/v1/x-plan/purchase-order-payments', {
+                  fetch(withAppBasePath('/api/v1/x-plan/purchase-order-payments'), {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ updates: payload }),

@@ -18,7 +18,17 @@ From the monorepo root:
 pnpm install
 ```
 
-### 3. Provision a database
+### 3. Configure environment variables
+
+Duplicate the example file and populate the required settings:
+
+```bash
+cp apps/x-plan/.env.example apps/x-plan/.env
+```
+
+Set `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, and any other secrets used by the auth gateway. The comprehensive seed script described below assumes your dev server is reachable at `http://localhost:3008`.
+
+### 4. Provision a database (optional Docker helper)
 
 X-Plan stores data inside the `x_plan` schema of the `central_db` database. For local development you can launch Postgres via Docker:
 
@@ -40,16 +50,6 @@ export DATABASE_URL='postgresql://postgres:postgres@localhost:6543/central_db?sc
 
 > Using the shared central database instead of Docker? Point `DATABASE_URL` at that instance while keeping the schema name `x_plan`.
 
-### 4. Configure environment variables
-
-Duplicate the example file and populate the required settings:
-
-```bash
-cp apps/x-plan/.env.example apps/x-plan/.env
-```
-
-Set `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, and any other secrets used by the auth gateway.
-
 ### 5. Generate Prisma client & apply migrations
 
 Always regenerate Prisma after pulling schema changes, then apply migrations so the new supplier payment metadata columns exist:
@@ -59,7 +59,20 @@ pnpm --filter @ecom-os/x-plan prisma:generate
 pnpm --filter @ecom-os/x-plan prisma:migrate:deploy
 ```
 
-### 6. Run the dev server
+### 6. Seed comprehensive demo data
+
+The repository ships with a multi-year test scenario (2025–2027) covering rotating purchase orders, FIFO batches, and sales forecasts. To reset any previous demo data and reseed:
+
+```bash
+BASE_URL=http://localhost:3008 RESET=true \
+pnpm --filter @ecom-os/x-plan exec tsx scripts/seed-comprehensive-test-data.ts --reset
+```
+
+- `BASE_URL` should point to your running dev server (defaults to `http://localhost:3008`).
+- `RESET=true` clears existing records for the seeded SKUs before inserting fresh data.
+- The script prints generated purchase orders, payments, and expected outcomes so you can validate calculations in the UI.
+
+### 7. Run the dev server
 
 ```bash
 pnpm --filter @ecom-os/x-plan dev
@@ -81,6 +94,16 @@ pnpm --filter @ecom-os/x-plan type-check  # tsc in noEmit mode
 - Sheet-specific APIs (`/api/v1/x-plan/*`) that persist changes to PostgreSQL and keep derived totals in sync.
 - Automatic supplier invoice generation (manufacturing deposit/production/final, freight, tariff) so new purchase orders surface immediately in planning and cash views.
 - Prisma schema scoped to the `x_plan` schema inside the central database so the platform can grow without siloed databases.
+
+## Using X-Plan
+
+1. Navigate between workbook tabs with the bar at the top or with `Ctrl` + `PageUp/PageDown`. When focused outside a Handsontable grid you can jump directly between Sales Planning → P&L → Cash Flow (across years) using `Ctrl` + `←/→`.
+2. Use the year pills in the toolbar to scope data to a single planning year. Sales, P&L, Cash Flow, and Ops Planning will all respect the selected year.
+3. In Sales Planning, switch the metric focus or stock cadence from the header toggles; warnings persist regardless of metric view. The focus dropdown filters to a single SKU.
+4. Ops Planning provides both grid and timeline views. Use the stage toggle in the PO grid header to flip between week durations and calendar dates without selecting the entire column.
+5. The comprehensive seed creates demo SKUs (CS007, WDG-001/2/3) with multi-year purchase orders, payment schedules, and forecasts. After seeding, review the PO table, batch allocations, and financial sheets to validate the sample scenario.
+
+All edits persist automatically via the debounced save handlers—watch for the toast notifications to confirm updates.
 
 ## Environment Variables
 

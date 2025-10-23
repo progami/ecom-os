@@ -3,6 +3,7 @@
 import clsx from 'clsx'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
+import { withAppBasePath } from '@/lib/base-path'
 
 interface ProductSetupGridProps {
   products: Array<{ id: string; sku: string; name: string }>
@@ -62,7 +63,7 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
 
     setIsCreating(true)
     try {
-      const response = await fetch('/api/v1/x-plan/products', {
+      const response = await fetch(withAppBasePath('/api/v1/x-plan/products'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sku, name }),
@@ -119,7 +120,7 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
 
     setSavingId(row.id)
     try {
-      const response = await fetch('/api/v1/x-plan/products', {
+      const response = await fetch(withAppBasePath('/api/v1/x-plan/products'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ updates: [{ id: row.id, values: { sku: nextSku, name: nextName } }] }),
@@ -152,7 +153,7 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
     if (!window.confirm(`Remove ${row.name}?`)) return
     setDeletingId(row.id)
     try {
-      const response = await fetch('/api/v1/x-plan/products', {
+      const response = await fetch(withAppBasePath('/api/v1/x-plan/products'), {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: [row.id] }),
