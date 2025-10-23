@@ -15,4 +15,5 @@ export type AuthenticatedUser = {
 };
 export declare function authenticateWithCentralDirectory(input: unknown): Promise<AuthenticatedUser | null>;
 export declare function getUserEntitlements(userId: string): Promise<AppEntitlementMap>;
+export declare function getUserByEmail(email: string): Promise<AuthenticatedUser | null>;
 export {};

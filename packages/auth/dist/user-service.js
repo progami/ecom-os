@@ -7,6 +7,34 @@ const credentialsSchema = z.object({
     emailOrUsername: z.string().min(1),
     password: z.string().min(1),
 });
+const userSelect = {
+    id: true,
+    email: true,
+    username: true,
+    firstName: true,
+    lastName: true,
+    passwordHash: true,
+    roles: {
+        select: {
+            role: {
+                select: {
+                    name: true,
+                },
+            },
+        },
+    },
+    appAccess: {
+        select: {
+            accessLevel: true,
+            departments: true,
+            app: {
+                select: {
+                    slug: true,
+                },
+            },
+        },
+    },
+};
 export async function authenticateWithCentralDirectory(input) {
     const { emailOrUsername, password } = credentialsSchema.parse(input);
     const loginValue = emailOrUsername.trim().toLowerCase();
@@ -24,18 +52,7 @@ export async function authenticateWithCentralDirectory(input) {
             ],
             isActive: true,
         },
-        include: {
-            roles: {
-                include: {
-                    role: true,
-                },
-            },
-            appAccess: {
-                include: {
-                    app: true,
-                },
-            },
-        },
+        select: userSelect,
     });
     if (!user) {
         return null;
@@ -44,21 +61,7 @@ export async function authenticateWithCentralDirectory(input) {
     if (!isMatch) {
         return null;
     }
-    const entitlements = user.appAccess.reduce((map, assignment) => {
-        map[assignment.app.slug] = {
-            role: assignment.accessLevel,
-            departments: Array.isArray(assignment.departments) ? assignment.departments : [],
-        };
-        return map;
-    }, {});
-    return {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        fullName: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
-        roles: user.roles.map(r => r.role.name),
-        entitlements,
-    };
+    return mapCentralUser(user);
 }
 function handleDevFallback(emailOrUsername, password) {
     const demoUsername = (process.env.DEMO_ADMIN_USERNAME || DEFAULT_DEMO_USERNAME).toLowerCase();
@@ -69,6 +72,10 @@ function handleDevFallback(emailOrUsername, password) {
     if (password !== demoPassword) {
         return null;
     }
+    return buildDemoUser();
+}
+function buildDemoUser() {
+    const demoUsername = (process.env.DEMO_ADMIN_USERNAME || DEFAULT_DEMO_USERNAME).toLowerCase();
     const entitlements = {
         wms: { role: 'admin', departments: ['Ops'] },
         fcc: { role: 'admin', departments: ['Finance'] },
@@ -91,13 +98,64 @@ export async function getUserEntitlements(userId) {
     const prisma = getCentralAuthPrisma();
     const assignments = await prisma.userApp.findMany({
         where: { userId },
-        include: { app: true },
+        select: {
+            accessLevel: true,
+            departments: true,
+            app: {
+                select: {
+                    slug: true,
+                },
+            },
+        },
     });
-    return assignments.reduce((map, assignment) => {
-        map[assignment.app.slug] = {
+    const entitlements = {};
+    for (const assignment of assignments) {
+        entitlements[assignment.app.slug] = {
             role: assignment.accessLevel,
             departments: Array.isArray(assignment.departments) ? assignment.departments : [],
         };
-        return map;
+    }
+    return entitlements;
+}
+export async function getUserByEmail(email) {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail)
+        return null;
+    if (!process.env.CENTRAL_DB_URL) {
+        const demoUser = buildDemoUser();
+        if (demoUser.email.toLowerCase() === normalizedEmail) {
+            return demoUser;
+        }
+        return null;
+    }
+    const prisma = getCentralAuthPrisma();
+    const user = await prisma.user.findFirst({
+        where: {
+            email: normalizedEmail,
+            isActive: true,
+        },
+        select: userSelect,
+    });
+    if (!user)
+        return null;
+    return mapCentralUser(user);
+}
+function mapCentralUser(user) {
+    const entitlements = user.appAccess.reduce((acc, assignment) => {
+        acc[assignment.app.slug] = {
+            role: assignment.accessLevel,
+            departments: Array.isArray(assignment.departments)
+                ? assignment.departments
+                : [],
+        };
+        return acc;
     }, {});
+    return {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        fullName: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
+        roles: user.roles.map((role) => role.role.name),
+        entitlements,
+    };
 }
