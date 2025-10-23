@@ -1,16 +1,6 @@
-import type { NextAuthOptions, RequestInternal } from 'next-auth'
-import CredentialsProvider from 'next-auth/providers/credentials'
-import { applyDevAuthDefaults, withSharedAuth, authenticateWithCentralDirectory } from '@ecom-os/auth'
-import {
-  AuthRateLimitError,
-  getAuthRateLimiter,
-  resolveRateLimitContext,
-} from '@/lib/security/auth-rate-limiter'
-
-interface CredentialPayload {
-  emailOrUsername: string
-  password: string
-}
+import type { NextAuthOptions } from 'next-auth'
+import GoogleProvider from 'next-auth/providers/google'
+import { applyDevAuthDefaults, withSharedAuth, getUserByEmail } from '@ecom-os/auth'
 
 const devPort = process.env.PORT || 3000
 const devBaseUrl = `http://localhost:${devPort}`
@@ -28,68 +18,96 @@ if (sharedSecret) {
   process.env.NEXTAUTH_SECRET = sharedSecret
 }
 
+const googleClientId = process.env.GOOGLE_CLIENT_ID
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET
+const hasGoogleOAuth = Boolean(googleClientId && googleClientSecret)
+const isProd = process.env.NODE_ENV === 'production'
+
+if (!hasGoogleOAuth) {
+  throw new Error('GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be configured for EcomOS auth.')
+}
+
+const allowedEmails = parseAllowedEmails(process.env.GOOGLE_ALLOWED_EMAILS || process.env.ALLOWED_GOOGLE_EMAILS)
+if (isProd && allowedEmails.size === 0) {
+  throw new Error('GOOGLE_ALLOWED_EMAILS must include at least one permitted account in production.')
+}
+
+const providers: NextAuthOptions['providers'] = [
+  GoogleProvider({
+    clientId: googleClientId || '',
+    clientSecret: googleClientSecret || '',
+    authorization: { params: { prompt: 'select_account', access_type: 'offline', response_type: 'code' } },
+  }),
+]
+
 const baseAuthOptions: NextAuthOptions = {
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
   secret: sharedSecret,
   pages: {
     signIn: '/login',
+    signOut: '/logout',
     error: '/login',
   },
-  providers: [
-    CredentialsProvider({
-      name: 'credentials',
-      credentials: {
-        emailOrUsername: { label: 'Email or Username', type: 'text' },
-        password: { label: 'Password', type: 'password' },
-      },
-      async authorize(credentials, req) {
-        const limiter = getAuthRateLimiter()
-        const context = resolveRateLimitContext(req as RequestInternal | undefined, credentials?.emailOrUsername)
-
-        try {
-          limiter.assertAllowed(context)
-        } catch (error) {
-          if (error instanceof AuthRateLimitError) {
-            throw new Error(error.message)
-          }
-          throw error
-        }
-
-        if (!credentials?.emailOrUsername || !credentials?.password) {
-          limiter.recordFailure(context)
-          throw new Error('Invalid credentials')
-        }
-
-        try {
-          const user = await authenticateWithCredentials(credentials as CredentialPayload)
-          limiter.recordSuccess(context)
-          return user
-        } catch (error) {
-          limiter.recordFailure(context)
-          if (error instanceof AuthRateLimitError) {
-            throw error
-          }
-          throw new Error('Invalid credentials')
-        }
-      },
-    })
-  ],
+  providers,
   callbacks: {
+    async signIn({ user, account, profile }) {
+      if (account?.provider === 'google') {
+        const email = (profile?.email || user?.email || '').toLowerCase()
+        const emailVerified = typeof (profile as any)?.email_verified === 'boolean'
+          ? Boolean((profile as any)?.email_verified)
+          : typeof (profile as any)?.verified_email === 'boolean'
+            ? Boolean((profile as any)?.verified_email)
+            : true
+
+        if (!email || !emailVerified) {
+          return false
+        }
+
+        if (allowedEmails.size > 0 && !allowedEmails.has(email)) {
+          if (!isProd) {
+            console.warn(`[auth] Blocked Google login for ${email} (not in GOOGLE_ALLOWED_EMAILS)`)
+          }
+          return false
+        }
+
+        let centralUser = await getUserByEmail(email)
+        if (!centralUser && !isProd) {
+          centralUser = buildDevCentralUser(email)
+        }
+        if (!centralUser) {
+          throw new Error('CentralUserMissing')
+        }
+
+        ;(user as any).centralUser = centralUser
+        return true
+      }
+
+      if (account) {
+        return false
+      }
+      return false
+    },
     async jwt({ token, user }) {
-      if (user) {
-        token.sub = (user as any).id
-        token.role = (user as any).role
-        token.apps = (user as any).apps
-        // Central roles claim
-        ;(token as any).roles = (user as any).roles
+      const central = (user as any)?.centralUser
+      if (central) {
+        token.sub = central.id
+        token.email = central.email
+        token.name = central.fullName || user?.name || central.email
+        token.role = central.roles[0] ?? null
+        token.apps = Object.keys(central.entitlements)
+        ;(token as any).roles = central.entitlements
         ;(token as any).entitlements_ver = Date.now()
       }
       return token
     },
     async session({ session, token }) {
-      ;(session.user as any).id = token.sub as string
-      ;(session.user as any).role = (token as any).role as string | undefined
-      ;(session.user as any).apps = (token as any).apps as string[] | undefined
+      if (session.user) {
+        ;(session.user as any).id = token.sub as string
+        session.user.email = (token.email as string | undefined) ?? session.user.email
+        session.user.name = (token.name as string | undefined) ?? session.user.name
+        ;(session.user as any).role = (token as any).role as string | undefined
+        ;(session.user as any).apps = (token as any).apps as string[] | undefined
+      }
       ;(session as any).roles = (token as any).roles
       ;(session as any).entitlements_ver = (token as any).entitlements_ver
       return session
@@ -131,22 +149,39 @@ export const authOptions: NextAuthOptions = withSharedAuth(baseAuthOptions, {
   appId: 'ecomos',
 })
 
-async function authenticateWithCredentials(credentials: CredentialPayload) {
-  const { emailOrUsername, password } = credentials
+function buildDevCentralUser(email: string) {
+  const normalized = email.trim().toLowerCase()
+  const [localPart] = normalized.split('@')
+  const displayName = localPart
+    ? localPart
+        .split(/[.\-_]+/)
+        .filter(Boolean)
+        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+        .join(' ')
+    : normalized
 
-  const user = await authenticateWithCentralDirectory({ emailOrUsername, password })
-  if (!user) {
-    throw new Error('Invalid credentials')
+  const entitlements = {
+    wms: { role: 'admin', departments: ['Ops'] },
+    fcc: { role: 'admin', departments: ['Finance'] },
+    hrms: { role: 'admin', departments: ['People Ops'] },
+    'margin-master': { role: 'admin', departments: ['Product'] },
   }
 
-  const apps = Object.keys(user.entitlements)
-
   return {
-    id: user.id,
-    email: user.email,
-    name: user.fullName,
-    role: user.roles[0] ?? null,
-    roles: user.entitlements,
-    apps,
-  } as any
+    id: `dev-${normalized}`,
+    email: normalized,
+    username: localPart || null,
+    fullName: displayName || normalized,
+    roles: ['admin'],
+    entitlements,
+  }
+}
+
+function parseAllowedEmails(raw: string | undefined): Set<string> {
+  if (!raw) return new Set()
+  const candidates = raw
+    .split(/[,\s]+/)
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+  return new Set(candidates)
 }

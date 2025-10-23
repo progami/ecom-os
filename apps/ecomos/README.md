@@ -17,6 +17,7 @@ How it works
 - NextAuth (JWT sessions) runs only in this app.
 - Session cookie name: `__Secure-next-auth.session-token` (prod) scoped to domain `.targonglobal.com`.
 - Other apps verify the cookie with `next-auth/jwt` in their middleware and do not render their own login.
+- Google OAuth handles primary authentication; only allow-listed company accounts can complete sign-in.
 - On missing/invalid session, apps redirect to `CENTRAL_AUTH_URL + /login?callbackUrl=<originalUrl>`.
 
 Environment
@@ -26,12 +27,19 @@ Environment
 - COOKIE_DOMAIN: `.targonglobal.com`
 - NEXTAUTH_URL: `https://ecomos.targonglobal.com`
 - CENTRAL_DB_URL: `postgresql://central_portal:***@localhost:5432/central_db?schema=auth`
+- GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET: OAuth credentials from the Google Cloud console
+- GOOGLE_ALLOWED_EMAILS: comma or whitespace separated list of permitted Google accounts (e.g. `jarrar@targonglobal.com, mehdi@targonglobal.com`)
 
 Dev
 ---
 
 - In dev, cookie name becomes `ecomos.next-auth.session-token` to avoid collisions.
 - Apps attempt `next-auth.session-token`, `ecomos.next-auth.session-token`, and their legacy cookie name.
+- When `GOOGLE_ALLOWED_EMAILS` is omitted locally, any Google account may sign in (handy for smoke tests).
+- To test Google SSO locally, create `apps/ecomos/.env.local` (gitignored) with:
+  - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` copied from the Google Cloud project (`ecomos-sso`).
+  - `GOOGLE_ALLOWED_EMAILS` set to the Workspace accounts you want exercising the flow.
+  - `NEXTAUTH_SECRET` (and optionally `NEXTAUTH_URL=http://localhost:3000`) so the NextAuth session behavior matches production.
 
 Extending claims
 ----------------
@@ -44,7 +52,7 @@ Files
 
 - `lib/auth.ts` – NextAuth config
 - `app/api/auth/[...nextauth]/route.ts` – NextAuth route handler
-- `app/login/page.tsx` – Sign-in form
+- `app/login/page.tsx` – Google-only sign-in surface
 
 ## Dev app URLs (local ports)
 
