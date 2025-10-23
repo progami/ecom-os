@@ -6,7 +6,8 @@
     "dev": "node ../../scripts/run-dev-with-logs.js ecomos -- next dev -p 3000",
     "build": "next build",
     "start": "next start -p 3000",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "postinstall": "node ../../scripts/link-prisma-client-auth.js"
   },
   "dependencies": {
     "next": "15.5.0",
