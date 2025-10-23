@@ -1,6 +1,7 @@
 import type { NextAuthOptions } from 'next-auth'
 import GoogleProvider from 'next-auth/providers/google'
-import { applyDevAuthDefaults, withSharedAuth, getUserByEmail } from '@ecom-os/auth'
+import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
+import { getUserByEmail } from '@ecom-os/auth/server'
 
 const devPort = process.env.PORT || 3000
 const devBaseUrl = `http://localhost:${devPort}`

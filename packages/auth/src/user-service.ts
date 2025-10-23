@@ -22,6 +22,46 @@ export type AuthenticatedUser = {
   entitlements: Record<string, { role: string; departments: string[] }>
 }
 
+const userSelect = {
+  id: true,
+  email: true,
+  username: true,
+  firstName: true,
+  lastName: true,
+  passwordHash: true,
+  roles: {
+    select: {
+      role: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  },
+  appAccess: {
+    select: {
+      accessLevel: true,
+      departments: true,
+      app: {
+        select: {
+          slug: true,
+        },
+      },
+    },
+  },
+} as const
+
+type CentralUserRecord = {
+  id: string
+  email: string
+  username: string | null
+  firstName: string | null
+  lastName: string | null
+  passwordHash: string
+  roles: Array<{ role: { name: string } }>
+  appAccess: Array<{ accessLevel: string; departments: unknown; app: { slug: string } }>
+}
+
 export async function authenticateWithCentralDirectory(input: unknown): Promise<AuthenticatedUser | null> {
   const { emailOrUsername, password } = credentialsSchema.parse(input)
 
@@ -43,35 +83,8 @@ export async function authenticateWithCentralDirectory(input: unknown): Promise<
       ],
       isActive: true,
     },
-    select: {
-      id: true,
-      email: true,
-      username: true,
-      firstName: true,
-      lastName: true,
-      passwordHash: true,
-      roles: {
-        select: {
-          role: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      },
-      appAccess: {
-        select: {
-          accessLevel: true,
-          departments: true,
-          app: {
-            select: {
-              slug: true,
-            },
-          },
-        },
-      },
-    },
-  })
+    select: userSelect,
+  }) as (CentralUserRecord | null)
 
   if (!user) {
     return null
@@ -82,22 +95,7 @@ export async function authenticateWithCentralDirectory(input: unknown): Promise<
     return null
   }
 
-  const entitlements: AppEntitlementMap = {}
-  for (const assignment of user.appAccess) {
-    entitlements[assignment.app.slug] = {
-      role: assignment.accessLevel,
-      departments: Array.isArray(assignment.departments) ? (assignment.departments as string[]) : [],
-    }
-  }
-
-  return {
-    id: user.id,
-    email: user.email,
-    username: user.username,
-    fullName: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
-    roles: user.roles.map(r => r.role.name),
-    entitlements,
-  }
+  return mapCentralUser(user)
 }
 
 function handleDevFallback(emailOrUsername: string, password: string): AuthenticatedUser | null {
@@ -112,6 +110,11 @@ function handleDevFallback(emailOrUsername: string, password: string): Authentic
     return null
   }
 
+  return buildDemoUser()
+}
+
+function buildDemoUser(): AuthenticatedUser {
+  const demoUsername = (process.env.DEMO_ADMIN_USERNAME || DEFAULT_DEMO_USERNAME).toLowerCase()
   const entitlements: AppEntitlementMap = {
     wms: { role: 'admin', departments: ['Ops'] },
     fcc: { role: 'admin', departments: ['Finance'] },
@@ -158,4 +161,49 @@ export async function getUserEntitlements(userId: string) {
   }
 
   return entitlements
+}
+
+export async function getUserByEmail(email: string): Promise<AuthenticatedUser | null> {
+  const normalizedEmail = email.trim().toLowerCase()
+  if (!normalizedEmail) return null
+
+  if (!process.env.CENTRAL_DB_URL) {
+    const demoUser = buildDemoUser()
+    if (demoUser.email.toLowerCase() === normalizedEmail) {
+      return demoUser
+    }
+    return null
+  }
+
+  const prisma = getCentralAuthPrisma()
+  const user = await prisma.user.findFirst({
+    where: {
+      email: normalizedEmail,
+      isActive: true,
+    },
+    select: userSelect,
+  }) as (CentralUserRecord | null)
+  if (!user) return null
+  return mapCentralUser(user)
+}
+
+function mapCentralUser(user: CentralUserRecord): AuthenticatedUser {
+  const entitlements = user.appAccess.reduce<AppEntitlementMap>((acc, assignment) => {
+    acc[assignment.app.slug] = {
+      role: assignment.accessLevel,
+      departments: Array.isArray(assignment.departments)
+        ? (assignment.departments as string[])
+        : [],
+    }
+    return acc
+  }, {} as AppEntitlementMap)
+
+  return {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    fullName: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
+    roles: user.roles.map((role) => role.role.name),
+    entitlements,
+  }
 }

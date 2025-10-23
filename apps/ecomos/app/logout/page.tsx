@@ -7,7 +7,7 @@ import '../login/login.css'
 import './logout.css'
 
 type LogoutPageProps = {
-  searchParams?: Record<string, string | string[] | undefined>
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
 }
 
 function normalizeCallbackUrl(raw?: string | string[]): string {
@@ -24,8 +24,9 @@ function getAvatarInitial(session: Session | null): string {
 }
 
 export default async function LogoutPage({ searchParams }: LogoutPageProps) {
+  const resolvedParams = searchParams ? await searchParams : undefined
   const session = await getServerSession(authOptions)
-  const callbackUrl = normalizeCallbackUrl(searchParams?.callbackUrl)
+  const callbackUrl = normalizeCallbackUrl(resolvedParams?.callbackUrl)
   const signedIn = Boolean(session)
   const userName = session?.user?.name
   const userEmail = session?.user?.email
