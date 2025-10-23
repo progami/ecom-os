@@ -13,7 +13,7 @@
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:migrate": "prisma db push --schema prisma/schema.prisma",
     "prisma:seed": "prisma db seed --schema prisma/schema.prisma",
-    "prepare": "echo skip prepare"
+    "prepare": "prisma generate --schema prisma/schema.prisma"
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
