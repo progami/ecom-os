@@ -160,8 +160,6 @@ export function getCandidateSessionCookieNames(appId) {
     }
     return names;
 }
-export { getCentralAuthPrisma } from './db.js';
-export { authenticateWithCentralDirectory, getUserEntitlements } from './user-service.js';
 const DEFAULT_CENTRAL_PROD = 'https://ecomos.targonglobal.com';
 const DEFAULT_CENTRAL_DEV = 'http://localhost:3000';
 const missingSecretWarnings = new Set();

@@ -9,24 +9,24 @@ datasource db {
 
 /// Represents a SKU in the Cross Plan workbook ("1. Product Setup")
 model Product {
-  id                   String               @id @default(cuid())
-  name                 String
-  sku                  String               @unique
-  sellingPrice         Decimal              @db.Decimal(10, 2)
-  manufacturingCost    Decimal              @db.Decimal(10, 2)
-  freightCost          Decimal              @db.Decimal(10, 2)
-  tariffRate           Decimal              @db.Decimal(5, 4)
-  tacosPercent         Decimal              @db.Decimal(5, 4)
-  fbaFee               Decimal              @db.Decimal(10, 2)
-  amazonReferralRate   Decimal              @db.Decimal(5, 4)
-  storagePerMonth      Decimal              @db.Decimal(10, 2)
-  isActive             Boolean              @default(true)
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
-  leadTimeOverrides    LeadTimeOverride[]
-  purchaseOrders       PurchaseOrder[]
-  batchTableRows       BatchTableRow[]
-  salesWeeks           SalesWeek[]
+  id                 String             @id @default(cuid())
+  name               String
+  sku                String             @unique
+  sellingPrice       Decimal            @db.Decimal(10, 2)
+  manufacturingCost  Decimal            @db.Decimal(10, 2)
+  freightCost        Decimal            @db.Decimal(10, 2)
+  tariffRate         Decimal            @db.Decimal(5, 4)
+  tacosPercent       Decimal            @db.Decimal(5, 4)
+  fbaFee             Decimal            @db.Decimal(10, 2)
+  amazonReferralRate Decimal            @db.Decimal(5, 4)
+  storagePerMonth    Decimal            @db.Decimal(10, 2)
+  isActive           Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  leadTimeOverrides  LeadTimeOverride[]
+  purchaseOrders     PurchaseOrder[]
+  batchTableRows     BatchTableRow[]
+  salesWeeks         SalesWeek[]
 
   @@index([name])
 }
@@ -144,20 +144,20 @@ model BatchTableRow {
 }
 
 model PurchaseOrderPayment {
-  id              String        @id @default(cuid())
+  id              String               @id @default(cuid())
   purchaseOrderId String
   paymentIndex    Int
   dueDate         DateTime?
   dueDateDefault  DateTime?
   dueDateSource   PaymentDueDateSource @default(SYSTEM)
-  percentage      Decimal?      @db.Decimal(6, 4)
-  amountExpected  Decimal?      @db.Decimal(12, 2)
-  amountPaid      Decimal?      @db.Decimal(12, 2)
-  category        String?       @db.VarChar(32)
-  label           String?       @db.VarChar(64)
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  percentage      Decimal?             @db.Decimal(6, 4)
+  amountExpected  Decimal?             @db.Decimal(12, 2)
+  amountPaid      Decimal?             @db.Decimal(12, 2)
+  category        String?              @db.VarChar(32)
+  label           String?              @db.VarChar(64)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  purchaseOrder   PurchaseOrder        @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
 
   @@unique([purchaseOrderId, paymentIndex])
 }

@@ -9,6 +9,7 @@ import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { withAppBasePath } from '@/lib/base-path'
 
 registerAllModules()
 
@@ -32,6 +33,18 @@ interface CashFlowGridProps {
 }
 
 const editableFields: (keyof WeeklyRow)[] = ['amazonPayout', 'inventorySpend', 'fixedCosts']
+
+const WEEK_COLUMN_WIDTH = 92
+const DATE_COLUMN_WIDTH = 136
+const COLUMN_WIDTHS: Record<keyof WeeklyRow, number> = {
+  weekNumber: WEEK_COLUMN_WIDTH,
+  weekDate: DATE_COLUMN_WIDTH,
+  amazonPayout: 140,
+  inventorySpend: 140,
+  fixedCosts: 140,
+  netCash: 160,
+  cashBalance: 160,
+}
 
 function normalizeEditable(value: unknown) {
   return formatNumericInput(value, 2)
@@ -62,8 +75,8 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
 
   const columns: Handsontable.ColumnSettings[] = useMemo(
     () => [
-      { data: 'weekNumber', readOnly: true, className: 'cell-readonly' },
-      { data: 'weekDate', readOnly: true, className: 'cell-readonly' },
+      { data: 'weekNumber', readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.weekNumber },
+      { data: 'weekDate', readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.weekDate },
       {
         data: 'amazonPayout',
         type: 'numeric',
@@ -72,6 +85,7 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
         className: editableFields.includes('amazonPayout') ? 'cell-editable' : 'cell-readonly',
         validator: editableFields.includes('amazonPayout') ? numericValidator : undefined,
         allowInvalid: false,
+        width: COLUMN_WIDTHS.amazonPayout,
       },
       {
         data: 'inventorySpend',
@@ -81,6 +95,7 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
         className: editableFields.includes('inventorySpend') ? 'cell-editable' : 'cell-readonly',
         validator: editableFields.includes('inventorySpend') ? numericValidator : undefined,
         allowInvalid: false,
+        width: COLUMN_WIDTHS.inventorySpend,
       },
       {
         data: 'fixedCosts',
@@ -90,17 +105,32 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
         className: editableFields.includes('fixedCosts') ? 'cell-editable' : 'cell-readonly',
         validator: editableFields.includes('fixedCosts') ? numericValidator : undefined,
         allowInvalid: false,
+        width: COLUMN_WIDTHS.fixedCosts,
       },
-      { data: 'netCash', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly' },
-      { data: 'cashBalance', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly' },
+      { data: 'netCash', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.netCash },
+      { data: 'cashBalance', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.cashBalance },
     ],
     []
   )
 
+  const columnWidths = useMemo<number[]>(
+    () =>
+      columns.map((column) =>
+        typeof column.width === 'number' ? column.width : COLUMN_WIDTHS.cashBalance
+      ),
+    [columns],
+  )
+
+  const clampStretchWidth = useCallback((width: number, column: number) => {
+    if (column === 0) return COLUMN_WIDTHS.weekNumber
+    if (column === 1) return COLUMN_WIDTHS.weekDate
+    return width
+  }, [])
+
   const handleFlush = useCallback(async (payload: UpdatePayload[]) => {
     if (payload.length === 0) return
     try {
-      const res = await fetch('/api/v1/x-plan/cash-flow', {
+      const res = await fetch(withAppBasePath('/api/v1/x-plan/cash-flow'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ updates: payload }),
@@ -134,6 +164,7 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
         }}
         data={data}
         licenseKey="non-commercial-and-evaluation"
+        width="100%"
         columns={columns}
         colHeaders={['Week', 'Date', 'Amazon Payout', 'Inventory Purchase', 'Fixed Costs', 'Net Cash', 'Cash Balance']}
         rowHeaders={false}
@@ -143,6 +174,9 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
         height="auto"
         dropdownMenu
         filters
+        autoColumnSize={false}
+        colWidths={columnWidths}
+        beforeStretchingColumnWidth={clampStretchWidth}
         afterChange={(changes, source) => {
           if (!changes || source === 'loadData') return
           const hot = hotRef.current

@@ -1,4 +1,5 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": [
       "dom",
@@ -25,6 +26,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@ecom-os/theme": [
+        "../../packages/theme/src"
       ]
     },
     "target": "ES2017"

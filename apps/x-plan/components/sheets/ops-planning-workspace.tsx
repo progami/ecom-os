@@ -38,6 +38,7 @@ import {
 } from '@/lib/calculations'
 import { formatNumericInput, formatPercentInput, parseNumericInput } from '@/components/sheets/validators'
 import { deriveIsoWeek, formatDateDisplay, parseDate, toIsoDate } from '@/lib/utils/dates'
+import { withAppBasePath } from '@/lib/base-path'
 
 const BATCH_NUMERIC_PRECISION = {
   quantity: 0,
@@ -363,15 +364,15 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       pay2Date: null,
       pay3Date: null,
       productionStart: null,
-      productionComplete: null,
-      sourceDeparture: null,
+      productionComplete: parseDateValue(row.productionComplete),
+      sourceDeparture: parseDateValue(row.sourceDeparture),
       transportReference: row.containerNumber ? row.containerNumber : null,
       shipName: row.shipName ? row.shipName : null,
       containerNumber: row.containerNumber ? row.containerNumber : null,
       createdAt: new Date(),
-      portEta: null,
-      inboundEta: null,
-      availableDate: null,
+      portEta: parseDateValue(row.portEta),
+      inboundEta: parseDateValue(row.portEta),
+      availableDate: parseDateValue(row.availableDate),
       totalLeadDays: null,
       status: (row.status as PurchaseOrderStatus) ?? 'PLANNED',
       notes: row.notes ? row.notes : null,
@@ -404,6 +405,11 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       shipName: row.shipName ? row.shipName : base.shipName ?? null,
       containerNumber: row.containerNumber ? row.containerNumber : base.containerNumber ?? base.transportReference ?? null,
       createdAt: base.createdAt ?? new Date(),
+      productionComplete: parseDateValue(row.productionComplete) ?? base.productionComplete ?? null,
+      sourceDeparture: parseDateValue(row.sourceDeparture) ?? base.sourceDeparture ?? null,
+      portEta: parseDateValue(row.portEta) ?? base.portEta ?? null,
+      inboundEta: parseDateValue(row.portEta) ?? base.inboundEta ?? base.portEta ?? null,
+      availableDate: parseDateValue(row.availableDate) ?? base.availableDate ?? null,
       status: (row.status as PurchaseOrderStatus) ?? base.status,
       notes: row.notes ? row.notes : null,
       overrideSellingPrice: parseNumber(row.sellingPrice),
@@ -804,7 +810,7 @@ useEffect(() => {
       })
 
       if (updates.length > 0) {
-        void fetch('/api/v1/x-plan/purchase-order-payments', {
+        void fetch(withAppBasePath('/api/v1/x-plan/purchase-order-payments'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ updates }),
@@ -967,7 +973,7 @@ useEffect(() => {
 
     startTransition(async () => {
       try {
-        const response = await fetch('/api/v1/x-plan/purchase-orders/batches', {
+        const response = await fetch(withAppBasePath('/api/v1/x-plan/purchase-orders/batches'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ purchaseOrderId: orderId, productId: defaultProductId, quantity: 0 }),
@@ -1055,7 +1061,7 @@ useEffect(() => {
 
     startTransition(async () => {
       try {
-        const response = await fetch('/api/v1/x-plan/purchase-orders/batches', {
+        const response = await fetch(withAppBasePath('/api/v1/x-plan/purchase-orders/batches'), {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: batchId }),
@@ -1146,7 +1152,7 @@ useEffect(() => {
 
     setIsAddingPayment(true)
     try {
-      const response = await fetch('/api/v1/x-plan/purchase-order-payments', {
+      const response = await fetch(withAppBasePath('/api/v1/x-plan/purchase-order-payments'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ purchaseOrderId: orderId, paymentIndex: nextIndex }),
@@ -1253,7 +1259,7 @@ useEffect(() => {
 
       startTransition(async () => {
         try {
-          const response = await fetch('/api/v1/x-plan/purchase-orders', {
+          const response = await fetch(withAppBasePath('/api/v1/x-plan/purchase-orders'), {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: orderId }),
@@ -1295,7 +1301,7 @@ useEffect(() => {
           : basePayload
 
         const createRequest = (body: Record<string, unknown>) =>
-          fetch('/api/v1/x-plan/purchase-orders', {
+          fetch(withAppBasePath('/api/v1/x-plan/purchase-orders'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),

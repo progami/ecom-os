@@ -199,6 +199,81 @@
   margin-bottom: 24px;
 }
 
+.login-loading {
+  text-align: center;
+  color: var(--brand-muted);
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.login-divider {
+  position: relative;
+  text-align: center;
+  margin: 32px 0;
+  color: var(--brand-muted);
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 40%;
+  height: 1px;
+  background: var(--brand-border);
+}
+
+.login-divider::before {
+  left: 0;
+}
+
+.login-divider::after {
+  right: 0;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.login-google-button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: #ffffff;
+  border: 1px solid var(--brand-border);
+  border-radius: 999px;
+  padding: 14px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--brand-navy);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.login-google-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    0 8px 20px rgba(0, 194, 185, 0.12),
+    0 0 0 1px rgba(0, 194, 185, 0.2);
+  border-color: rgba(0, 194, 185, 0.35);
+}
+
+.login-google-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.google-icon {
+  width: 18px;
+  height: 18px;
+}
+
 .form-label {
   display: block;
   font-size: 14px;
@@ -223,6 +298,11 @@
   font-size: 15px;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
   outline: none;
+}
+
+/* Add room for the end-control (show/hide) */
+.form-input.with-toggle {
+  padding-right: 44px;
 }
 
 .form-input::placeholder {
@@ -253,6 +333,33 @@
   transform: translateY(-50%);
   color: var(--brand-muted);
   pointer-events: none;
+}
+
+/* Show/Hide password control styled to match input icons */
+.toggle-password {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 28px;
+  width: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--brand-muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.toggle-password:hover,
+.toggle-password:focus-visible {
+  color: var(--brand-navy);
+  background: rgba(0, 194, 185, 0.08);
+  box-shadow: 0 0 0 3px rgba(0, 194, 185, 0.16);
+  outline: none;
 }
 
 .form-error {

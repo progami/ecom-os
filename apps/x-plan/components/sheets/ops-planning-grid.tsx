@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { toIsoDate } from '@/lib/utils/dates'
 import { dateValidator, formatNumericInput, numericValidator } from '@/components/sheets/validators'
+import { withAppBasePath } from '@/lib/base-path'
 
 registerAllModules()
 
@@ -18,6 +19,10 @@ export type OpsInputRow = {
   productId: string
   orderCode: string
   poDate: string
+  productionComplete: string
+  sourceDeparture: string
+  portEta: string
+  availableDate: string
   shipName: string
   containerNumber: string
   productName: string
@@ -167,7 +172,66 @@ const NUMERIC_FIELDS = new Set<keyof OpsInputRow>([
   'referralRate',
   'storagePerMonth',
 ])
-const DATE_FIELDS = new Set<keyof OpsInputRow>(['poDate', 'pay1Date'])
+const DATE_FIELDS = new Set<keyof OpsInputRow>([
+  'poDate',
+  'pay1Date',
+  'productionComplete',
+  'sourceDeparture',
+  'portEta',
+  'availableDate',
+])
+
+const STAGE_CONFIG = [
+  { weeksKey: 'productionWeeks', overrideKey: 'productionComplete' },
+  { weeksKey: 'sourceWeeks', overrideKey: 'sourceDeparture' },
+  { weeksKey: 'oceanWeeks', overrideKey: 'portEta' },
+  { weeksKey: 'finalWeeks', overrideKey: 'availableDate' },
+] as const
+
+type StageWeeksKey = (typeof STAGE_CONFIG)[number]['weeksKey']
+type StageOverrideKey = (typeof STAGE_CONFIG)[number]['overrideKey']
+
+const STAGE_OVERRIDE_FIELDS: Record<StageWeeksKey, StageOverrideKey> = STAGE_CONFIG.reduce(
+  (map, item) => {
+    map[item.weeksKey] = item.overrideKey
+    return map
+  },
+  {} as Record<StageWeeksKey, StageOverrideKey>
+)
+
+function parseIsoDate(value: string | null | undefined): Date | null {
+  if (!value) return null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? `${trimmed}T00:00:00.000Z` : trimmed
+  const parsed = new Date(iso)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function resolveStageStart(row: OpsInputRow, stage: StageWeeksKey): Date | null {
+  const index = STAGE_CONFIG.findIndex((item) => item.weeksKey === stage)
+  if (index <= 0) {
+    return parseIsoDate(row.poDate)
+  }
+  const previous = STAGE_CONFIG[index - 1]
+  const override = parseIsoDate(row[previous.overrideKey])
+  if (override) return override
+  const previousStart = resolveStageStart(row, previous.weeksKey)
+  if (!previousStart) return null
+  const previousWeeks = parseWeeks(row[previous.weeksKey])
+  if (previousWeeks == null) return null
+  return addWeeks(previousStart, previousWeeks)
+}
+
+function resolveStageEnd(row: OpsInputRow, stage: StageWeeksKey): Date | null {
+  const override = parseIsoDate(row[STAGE_OVERRIDE_FIELDS[stage]])
+  if (override) return override
+  const start = resolveStageStart(row, stage)
+  if (!start) return null
+  const weeks = parseWeeks(row[stage])
+  if (weeks == null) return null
+  return addWeeks(start, weeks)
+}
 
 function normalizeNumeric(value: unknown, fractionDigits = 2) {
   return formatNumericInput(value, fractionDigits)
@@ -190,7 +254,7 @@ export function OpsPlanningGrid({
     async (payload: Array<{ id: string; values: Record<string, string> }>) => {
       if (payload.length === 0) return
       try {
-        const response = await fetch('/api/v1/x-plan/purchase-orders', {
+        const response = await fetch(withAppBasePath('/api/v1/x-plan/purchase-orders'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ updates: payload }),
@@ -236,29 +300,38 @@ export function OpsPlanningGrid({
     const makeStageAccessor = (field: keyof OpsInputRow): Handsontable.ColumnSettings => ({
       data: ((rawRow: Handsontable.RowObject, value?: any) => {
         const row = rawRow as OpsInputRow
+        const stageField = field as StageWeeksKey
+        const overrideField = STAGE_OVERRIDE_FIELDS[stageField]
         if (value === undefined) {
-          const po = row.poDate ? new Date(String(row.poDate)) : null
-          const weeks = parseWeeks(row[field] as string | undefined)
-          if (!po || weeks == null) return ''
-          const date = addWeeks(po, weeks)
-          return toIsoDate(date) ?? ''
+          const endDate = resolveStageEnd(row, stageField)
+          return toIsoDate(endDate) ?? ''
         }
 
-        const po = row.poDate ? new Date(String(row.poDate)) : null
-        if (!po) return ''
         const iso = toIsoDate(value)
-        if (!iso) return ''
-        const picked = new Date(`${iso}T00:00:00Z`)
-        const diffDays = (picked.getTime() - po.getTime()) / (24 * 60 * 60 * 1000)
-        const weeks = diffDays / 7
-        const normalized = formatNumericInput(weeks, 2)
-        row[field] = normalized as any
-
         const entry = pendingRef.current.get(row.id) ?? { id: row.id, values: {} }
-        entry.values[field as string] = normalized
+
+        if (!iso) {
+          row[overrideField] = '' as OpsInputRow[StageOverrideKey]
+          entry.values[overrideField] = ''
+          pendingRef.current.set(row.id, entry)
+          scheduleFlush()
+          return ''
+        }
+
+        const picked = new Date(`${iso}T00:00:00Z`)
+        const stageStart = resolveStageStart(row, stageField)
+        if (stageStart) {
+          const diffDays = (picked.getTime() - stageStart.getTime()) / (24 * 60 * 60 * 1000)
+          const weeks = diffDays / 7
+          const normalized = formatNumericInput(weeks, 2)
+          row[field] = normalized as any
+          entry.values[field as string] = normalized
+        }
+
+        row[overrideField] = iso as OpsInputRow[StageOverrideKey]
+        entry.values[overrideField] = iso
         pendingRef.current.set(row.id, entry)
         scheduleFlush()
-
         return iso
       }) as Handsontable.ColumnSettings['data'],
       type: 'date',
@@ -293,6 +366,10 @@ export function OpsPlanningGrid({
       e.preventDefault()
       e.stopPropagation()
       setStageMode((prev) => (prev === 'weeks' ? 'dates' : 'weeks'))
+    })
+    btn.addEventListener('mousedown', (e) => {
+      e.preventDefault()
+      e.stopPropagation()
     })
     TH.appendChild(btn)
   }
@@ -404,6 +481,11 @@ export function OpsPlanningGrid({
               const normalized = normalizeNumeric(newValue, precision)
               entry.values[prop] = normalized
               record[prop] = normalized as OpsInputRow[typeof prop]
+              if ((prop as string) in STAGE_OVERRIDE_FIELDS) {
+                const overrideField = STAGE_OVERRIDE_FIELDS[prop as StageWeeksKey]
+                entry.values[overrideField] = ''
+                record[overrideField] = '' as OpsInputRow[StageOverrideKey]
+              }
             } else if (DATE_FIELDS.has(prop)) {
               const value = newValue ? String(newValue) : ''
               entry.values[prop] = value

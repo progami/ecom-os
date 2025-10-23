@@ -137,12 +137,26 @@ function buildStageSchedule(
   const finalWeeks = resolveStageWeeks(order.finalWeeks, stageProfile.finalWeeks)
 
   const productionStart = inferProductionStart(order) ?? createdAt
-  const productionComplete = addStageDuration(productionStart, productionWeeks)
+  const productionComplete =
+    order.productionComplete ??
+    (productionStart ? addStageDuration(productionStart, productionWeeks) : null)
 
-  const sourceDeparture = addStageDuration(productionComplete, sourceWeeks)
-  const portEta = addStageDuration(sourceDeparture, oceanWeeks)
-  const inboundEta = portEta
-  const availableDate = addStageDuration(portEta, finalWeeks)
+  const sourceBase = productionComplete ?? productionStart
+  const sourceDeparture =
+    order.sourceDeparture ??
+    (sourceBase ? addStageDuration(sourceBase, sourceWeeks) : null)
+
+  const oceanBase = sourceDeparture ?? sourceBase
+  const portEta =
+    order.portEta ??
+    (oceanBase ? addStageDuration(oceanBase, oceanWeeks) : null)
+
+  const inboundEta = order.inboundEta ?? portEta
+
+  const finalBase = portEta ?? inboundEta ?? oceanBase
+  const availableDate =
+    order.availableDate ??
+    (finalBase ? addStageDuration(finalBase, finalWeeks) : null)
 
   return {
     productionWeeks,

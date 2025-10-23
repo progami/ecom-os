@@ -48,8 +48,6 @@ export declare function withSharedAuth(base: NextAuthOptions, optsOrDomain: Shar
  * In dev, returns both generic and app-prefixed variants for robustness.
  */
 export declare function getCandidateSessionCookieNames(appId?: string): string[];
-export { getCentralAuthPrisma } from './db.js';
-export { authenticateWithCentralDirectory, getUserEntitlements } from './user-service.js';
 export interface CentralSessionProbeOptions {
     request: Request;
     appId?: string;

@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss"
+import { brandColors, brandFontFamilies } from "@ecom-os/theme"
 
 const config: Config = {
   darkMode: ["class"],
@@ -10,14 +11,25 @@ const config: Config = {
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: {
+        DEFAULT: "1.5rem",
+        sm: "2rem",
+        lg: "4rem",
+        xl: "5rem",
+        "2xl": "6rem",
+      },
       screens: {
-        "2xl": "1400px",
+        sm: "640px",
+        md: "768px",
+        lg: "1024px",
+        xl: "1280px",
+        "2xl": "1920px",
       },
     },
     extend: {
       fontFamily: {
         sans: ["var(--font-montserrat)", "ui-sans-serif", "system-ui"],
+        brand: [brandFontFamilies.primary],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -26,9 +38,19 @@ const config: Config = {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         brand: {
-          dark: "#002C51",
-          slate: "#6F7B8B",
-          cyan: "#00C2B9",
+          primary: brandColors.primary,
+          primaryMuted: brandColors.primaryMuted,
+          primaryDeep: brandColors.primaryDeep,
+          primaryOverlay: brandColors.primaryOverlay,
+          secondary: brandColors.secondary,
+          accent: brandColors.accent,
+          accentHover: brandColors.accentHover,
+          accentShadow: brandColors.accentShadow,
+          accentShadowHover: brandColors.accentShadowHover,
+          supportNavy: brandColors.supportNavy,
+          supportInk: brandColors.supportInk,
+          slate: brandColors.slate,
+          white: brandColors.white,
         },
         primary: {
           DEFAULT: "hsl(var(--primary))",

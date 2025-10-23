@@ -9,6 +9,7 @@ import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { withAppBasePath } from '@/lib/base-path'
 
 registerAllModules()
 
@@ -56,6 +57,23 @@ interface ProfitAndLossGridProps {
 
 const editableFields: (keyof WeeklyRow)[] = ['units', 'revenue', 'cogs', 'amazonFees', 'ppcSpend', 'fixedCosts']
 
+const WEEK_COLUMN_WIDTH = 92
+const DATE_COLUMN_WIDTH = 136
+const COLUMN_WIDTHS: Record<keyof WeeklyRow, number> = {
+  weekNumber: WEEK_COLUMN_WIDTH,
+  weekDate: DATE_COLUMN_WIDTH,
+  units: 112,
+  revenue: 132,
+  cogs: 132,
+  grossProfit: 148,
+  grossMargin: 96,
+  amazonFees: 132,
+  ppcSpend: 132,
+  fixedCosts: 132,
+  totalOpex: 148,
+  netProfit: 148,
+}
+
 function normalizeEditable(value: unknown) {
   return formatNumericInput(value, 2)
 }
@@ -73,8 +91,8 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
 
   const columns: Handsontable.ColumnSettings[] = useMemo(
     () => [
-      { data: 'weekNumber', readOnly: true, className: 'cell-readonly' },
-      { data: 'weekDate', readOnly: true, className: 'cell-readonly' },
+      { data: 'weekNumber', readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.weekNumber },
+      { data: 'weekDate', readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.weekDate },
       {
         data: 'units',
         type: 'numeric',
@@ -83,6 +101,7 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         className: editableFields.includes('units') ? 'cell-editable' : 'cell-readonly',
         validator: editableFields.includes('units') ? numericValidator : undefined,
         allowInvalid: false,
+        width: COLUMN_WIDTHS.units,
       },
       {
         data: 'revenue',
@@ -92,6 +111,7 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         className: editableFields.includes('revenue') ? 'cell-editable' : 'cell-readonly',
         validator: editableFields.includes('revenue') ? numericValidator : undefined,
         allowInvalid: false,
+        width: COLUMN_WIDTHS.revenue,
       },
       {
         data: 'cogs',
@@ -101,6 +121,7 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         className: editableFields.includes('cogs') ? 'cell-editable' : 'cell-readonly',
         validator: editableFields.includes('cogs') ? numericValidator : undefined,
         allowInvalid: false,
+        width: COLUMN_WIDTHS.cogs,
       },
       {
         data: 'amazonFees',
@@ -110,9 +131,10 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         className: editableFields.includes('amazonFees') ? 'cell-editable' : 'cell-readonly',
         validator: editableFields.includes('amazonFees') ? numericValidator : undefined,
         allowInvalid: false,
+        width: COLUMN_WIDTHS.amazonFees,
       },
-      { data: 'grossProfit', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly' },
-      { data: 'grossMargin', type: 'numeric', numericFormat: { pattern: '0.00%' }, readOnly: true, className: 'cell-readonly' },
+      { data: 'grossProfit', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.grossProfit },
+      { data: 'grossMargin', type: 'numeric', numericFormat: { pattern: '0.00%' }, readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.grossMargin },
       {
         data: 'ppcSpend',
         type: 'numeric',
@@ -121,6 +143,7 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         className: editableFields.includes('ppcSpend') ? 'cell-editable' : 'cell-readonly',
         validator: editableFields.includes('ppcSpend') ? numericValidator : undefined,
         allowInvalid: false,
+        width: COLUMN_WIDTHS.ppcSpend,
       },
       {
         data: 'fixedCosts',
@@ -130,17 +153,24 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
         className: editableFields.includes('fixedCosts') ? 'cell-editable' : 'cell-readonly',
         validator: editableFields.includes('fixedCosts') ? numericValidator : undefined,
         allowInvalid: false,
+        width: COLUMN_WIDTHS.fixedCosts,
       },
-      { data: 'totalOpex', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly' },
-      { data: 'netProfit', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly' },
+      { data: 'totalOpex', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.totalOpex },
+      { data: 'netProfit', type: 'numeric', numericFormat: { pattern: '$0,0.00' }, readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.netProfit },
     ],
     []
   )
 
+  const clampStretchWidth = useCallback((width: number, column: number) => {
+    if (column === 0) return COLUMN_WIDTHS.weekNumber
+    if (column === 1) return COLUMN_WIDTHS.weekDate
+    return width
+  }, [])
+
   const handleFlush = useCallback(async (payload: UpdatePayload[]) => {
     if (payload.length === 0) return
     try {
-      const res = await fetch('/api/v1/x-plan/profit-and-loss', {
+      const res = await fetch(withAppBasePath('/api/v1/x-plan/profit-and-loss'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ updates: payload }),
@@ -175,6 +205,7 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
           }}
           data={data}
           licenseKey="non-commercial-and-evaluation"
+          width="100%"
           columns={columns}
           colHeaders={['Week', 'Date', 'Units', 'Revenue', 'COGS', 'Amazon Fees', 'Gross Profit', 'GP%', 'PPC', 'Fixed Costs', 'Total OpEx', 'Net Profit']}
           rowHeaders={false}
@@ -184,6 +215,8 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
           height="auto"
           dropdownMenu
           filters
+          autoColumnSize={false}
+          beforeStretchingColumnWidth={clampStretchWidth}
           afterChange={(changes, source) => {
             if (!changes || source === 'loadData') return
             const hot = hotRef.current
@@ -197,15 +230,15 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
               if (!pendingRef.current.has(weekNumber)) {
                 pendingRef.current.set(weekNumber, { weekNumber, values: {} })
               }
-            const entry = pendingRef.current.get(weekNumber)
-            if (!entry) continue
-            const formatted = normalizeEditable(newValue)
-            entry.values[prop] = formatted
-            record[prop] = formatted
-          }
-          scheduleFlush()
-        }}
-      />
+              const entry = pendingRef.current.get(weekNumber)
+              if (!entry) continue
+              const formatted = normalizeEditable(newValue)
+              entry.values[prop] = formatted
+              record[prop] = formatted
+            }
+            scheduleFlush()
+          }}
+        />
       </div>
     </div>
   )

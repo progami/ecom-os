@@ -1,95 +1,17 @@
-# Branching Strategy
+# Branching Cheat Sheet
 
-This repository follows a **dev → main** branching workflow with strict branch protection.
-
-## Branch Structure
-
-### `main` (Production)
-- **Protected**: ✅ Requires PR approval, linear history, admin rules enforced
-- **Purpose**: Production-ready code
-- **Pushes**: ❌ Direct pushes forbidden (including admins)
-- **Merges**: ✅ Only from `dev` via approved PRs
-
-### `dev` (Development)
-- **Protected**: No
-- **Purpose**: Integration branch for all feature work
-- **Pushes**: ✅ Allowed
-- **Merges**: From feature branches
-
-### Feature Branches
-- **Naming**: `work/*`, `fix/*`, `feat/*`
-- **Base**: Always branch from `dev`
-- **Merge to**: Always merge to `dev` first
+## Branches
+- `main`: production, protected, only merge via PR from `dev`
+- `dev`: integration branch, push allowed
+- feature branches: use `work/*`, `feat/*`, or `fix/*` off `dev`
 
 ## Workflow
+1. Run tests/CI locally (`pnpm lint`, `pnpm typecheck`, etc.).
+2. Push commits to your remote branch (e.g., `origin/work/website` or `origin/dev`).
+3. Open PR from your branch → `dev` (skip if already on `dev`).
+4. Wait for CI to pass; fix failures before merging.
+5. Merge `dev` → `main`, wait for CI, create release, trigger CD.
+6. Wait for CD to complete; verify deploy.
+7. Sync `dev` from `main` so both point to the same commit.
 
-### 1. Starting New Work
-```bash
-# Ensure dev is up to date
-git checkout dev
-git pull origin dev
-
-# Create feature branch
-git checkout -b work/feature-name
-```
-
-### 2. Development
-```bash
-# Make changes and commit
-git add .
-git commit -m "feat: description"
-git push origin work/feature-name
-```
-
-### 3. Merging to Dev
-```bash
-# Create PR: work/feature-name → dev
-gh pr create --base dev --head work/feature-name
-```
-
-### 4. Deploying to Production
-```bash
-# Only after feature is tested in dev
-# Create PR: dev → main (requires 1 approval)
-gh pr create --base main --head dev
-```
-
-## Branch Protection Rules
-
-### Main Branch
-- ✅ Require pull request reviews (1 approval)
-- ✅ Dismiss stale reviews on new commits
-- ✅ Require linear history (no merge commits)
-- ✅ Enforce for administrators
-- ❌ No force pushes
-- ❌ No deletions
-
-### Dev Branch
-- No protection rules (open for development)
-
-## Important Notes
-
-1. **Never commit directly to main** - All changes must go through dev first
-2. **Keep dev in sync** - Regularly pull from dev before creating feature branches
-3. **Use linear history** - Rebase or squash merge to keep history clean
-4. **Test in dev first** - Never merge untested code to main
-
-## Emergency Hotfixes
-
-For critical production fixes:
-
-```bash
-# Create hotfix branch from main
-git checkout -b hotfix/critical-fix main
-
-# Fix and test
-git commit -m "hotfix: description"
-
-# Create PR to main (requires approval)
-gh pr create --base main --head hotfix/critical-fix
-
-# After merge, sync fix back to dev
-git checkout dev
-git merge main
-git push origin dev
-```
+If any step fails, stop and fix before moving forward. Keep history linear (use rebase or squash).

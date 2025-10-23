@@ -1,6 +1,16 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
+  transpilePackages: ["@ecom-os/theme"],
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "targon-website.s3.amazonaws.com",
+        pathname: "/**",
+      },
+    ],
+  },
   async rewrites() {
     return [
       {

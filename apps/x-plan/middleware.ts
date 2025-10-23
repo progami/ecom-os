@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { hasCentralSession } from '@ecom-os/auth'
 
-const PUBLIC_PREFIXES = ['/api/auth/', '/_next', '/favicon.ico', '/health']
+const PUBLIC_PREFIXES = ['/api/auth/', '/api/v1/', '/_next', '/favicon.ico', '/health']
 const PUBLIC_ROUTES = ['/', '/login']
 
 export async function middleware(request: NextRequest) {

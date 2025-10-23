@@ -79,11 +79,6 @@
           echo "Skipping auth seed: central_portal_admin_email/password not set."
         fi
       args: { chdir: "{{ app_base }}/repo" }
-    - name: Build website only (no turbo)
-      shell: |
-        pnpm --filter @ecom-os/website build
-      args: { chdir: "{{ app_base }}/repo" }
-
     - name: Write per-app environment files from GitHub Secrets
       block:
         - name: Write website env
@@ -165,6 +160,42 @@
             mode: '0600'
           no_log: true
           when: (lookup('env', 'ECOMOS_ENV') | default('', true)) | length > 0
+
+        - name: Ensure GOOGLE_CLIENT_ID present in EcomOS env
+          lineinfile:
+            path: "{{ app_base }}/repo/apps/ecomos/.env"
+            regexp: '^GOOGLE_CLIENT_ID='
+            line: "GOOGLE_CLIENT_ID={{ lookup('env', 'GOOGLE_CLIENT_ID') }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+            create: yes
+          no_log: true
+          when: (lookup('env', 'GOOGLE_CLIENT_ID') | default('', true)) | length > 0
+
+        - name: Ensure GOOGLE_CLIENT_SECRET present in EcomOS env
+          lineinfile:
+            path: "{{ app_base }}/repo/apps/ecomos/.env"
+            regexp: '^GOOGLE_CLIENT_SECRET='
+            line: "GOOGLE_CLIENT_SECRET={{ lookup('env', 'GOOGLE_CLIENT_SECRET') }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+            create: yes
+          no_log: true
+          when: (lookup('env', 'GOOGLE_CLIENT_SECRET') | default('', true)) | length > 0
+
+        - name: Ensure GOOGLE_ALLOWED_EMAILS present in EcomOS env
+          lineinfile:
+            path: "{{ app_base }}/repo/apps/ecomos/.env"
+            regexp: '^GOOGLE_ALLOWED_EMAILS='
+            line: "GOOGLE_ALLOWED_EMAILS={{ lookup('env', 'GOOGLE_ALLOWED_EMAILS') }}"
+            owner: ubuntu
+            group: ubuntu
+            mode: '0600'
+            create: yes
+          no_log: true
+          when: (lookup('env', 'GOOGLE_ALLOWED_EMAILS') | default('', true)) | length > 0
 
         - name: Write X-Plan env
           copy:

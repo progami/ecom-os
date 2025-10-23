@@ -16,7 +16,7 @@ export default function ProductsPage() {
           <div className="mt-8 flex items-center justify-center">
             <div className="text-4xl font-extrabold tracking-wide">
               <span className="text-white">CS</span>
-              <span className="text-[#00C2B9]">|</span>
+              <span className="text-brand-accent">|</span>
               <span className="ml-2">CAELUM</span>
               <span className="ml-2">STAR</span>
             </div>
@@ -29,7 +29,7 @@ export default function ProductsPage() {
 
           {/* Category pills */}
           <div className="mt-6 flex items-center justify-center gap-4">
-            <button className="px-5 py-2 rounded-full bg-[#00C2B9] text-white font-semibold">RECYCLED PLASTIC</button>
+            <button className="px-5 py-2 rounded-full bg-brand-accent text-white font-semibold">RECYCLED PLASTIC</button>
             <button className="px-5 py-2 rounded-full border border-white/40 text-white font-semibold">COTTON</button>
           </div>
 
@@ -43,14 +43,14 @@ export default function ProductsPage() {
             ].map((t) => (
               <div key={t.label} className="rounded-2xl overflow-hidden bg-white/10 backdrop-blur">
                 <div className="h-40 md:h-48 bg-white/40" />
-                <div className="px-4 py-3 bg-[#00C2B9] text-center font-semibold">{t.label}</div>
+                <div className="px-4 py-3 bg-brand-accent text-center font-semibold">{t.label}</div>
           </div>
           ))}
          </div>
 
           {/* Pipeline */}
           <div className="mt-16 text-center">
-            <h3 className="text-3xl font-extrabold text-[#00C2B9]">OUR PIPELINE</h3>
+            <h3 className="text-3xl font-extrabold text-brand-accent">OUR PIPELINE</h3>
             <p className="mt-4 max-w-3xl mx-auto text-white/80">
               Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus semper vitae orci sit amet finibus. Aliquam placerat.
             </p>
