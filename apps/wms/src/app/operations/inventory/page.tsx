@@ -1006,24 +1006,24 @@ function InventoryPage() {
                 )
               })}
             </tbody>
+            <tfoot className="sticky bottom-0 bg-muted/80 text-xs uppercase tracking-wide text-muted-foreground backdrop-blur supports-[backdrop-filter]:bg-muted/60">
+              <tr>
+                <td className="px-3 py-2 font-semibold text-left" colSpan={6}>
+                  Totals
+                </td>
+                <td className="px-3 py-2 text-right font-semibold text-cyan-700 whitespace-nowrap">
+                  {tableTotals.cartons.toLocaleString()}
+                </td>
+                <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">
+                  {tableTotals.pallets.toLocaleString()}
+                </td>
+                <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">
+                  {tableTotals.units.toLocaleString()}
+                </td>
+                <td className="px-3 py-2" colSpan={2} />
+              </tr>
+            </tfoot>
           </table>
-          <div className="sticky bottom-0 left-0 right-0 border-t bg-muted/80 backdrop-blur supports-[backdrop-filter]:bg-muted/60">
-            <div className="grid grid-cols-[repeat(6,minmax(0,1fr))] md:grid-cols-[repeat(11,minmax(0,1fr))] text-xs uppercase tracking-wide text-muted-foreground">
-              <div className="col-span-6 md:col-span-6 px-3 py-2 font-semibold text-left">
-                Totals
-              </div>
-              <div className="col-span-1 px-3 py-2 text-right font-semibold text-cyan-700 whitespace-nowrap">
-                {tableTotals.cartons.toLocaleString()}
-              </div>
-              <div className="col-span-1 px-3 py-2 text-right font-semibold whitespace-nowrap">
-                {tableTotals.pallets.toLocaleString()}
-              </div>
-              <div className="col-span-1 px-3 py-2 text-right font-semibold whitespace-nowrap">
-                {tableTotals.units.toLocaleString()}
-              </div>
-              <div className="hidden md:block col-span-2" />
-            </div>
-          </div>
         </div>
           </div>
         </div>

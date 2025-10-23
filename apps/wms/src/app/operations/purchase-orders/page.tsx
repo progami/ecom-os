@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
@@ -83,13 +83,21 @@ function PurchaseOrdersPage() {
 
   useEffect(() => {
     const param = searchParams?.get('status') as PurchaseOrderFilter | null
-    if (param && statusValues.includes(param) && param !== statusFilter) {
-      setStatusFilter(param)
+    const nextValue = param && statusValues.includes(param) ? param : 'DRAFT'
+    setStatusFilter(prev => (prev === nextValue ? prev : nextValue))
+  }, [searchParams, statusValues])
+
+  const handleTabChange = useCallback((value: PurchaseOrderFilter) => {
+    setStatusFilter(value)
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (value === 'DRAFT') {
+      params.delete('status')
+    } else {
+      params.set('status', value)
     }
-    if (!param && statusFilter !== 'DRAFT') {
-      setStatusFilter('DRAFT')
-    }
-  }, [searchParams, statusValues, statusFilter])
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }, [pathname, router, searchParams])
 
   if (status === 'loading') {
     return (
@@ -101,18 +109,6 @@ function PurchaseOrdersPage() {
         </PageContainer>
       </DashboardLayout>
     )
-  }
-
-  const handleTabChange = (value: PurchaseOrderFilter) => {
-    setStatusFilter(value)
-    const params = new URLSearchParams(searchParams?.toString() ?? '')
-    if (value === 'DRAFT') {
-      params.delete('status')
-    } else {
-      params.set('status', value)
-    }
-    const query = params.toString()
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
   }
 
   const currentTab = STATUS_TABS.find(tab => tab.value === statusFilter)
