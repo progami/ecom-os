@@ -101,6 +101,14 @@
           no_log: true
           when: (lookup('env', 'WMS_ENV') | default('', true)) | length > 0
 
+        - name: Ensure WMS logs directory exists
+          file:
+            path: "{{ app_base }}/repo/apps/wms/logs"
+            state: directory
+            owner: ubuntu
+            group: ubuntu
+            mode: '0755'
+
         - name: Write HRMS env
           copy:
             dest: "{{ app_base }}/repo/apps/hrms/.env"
