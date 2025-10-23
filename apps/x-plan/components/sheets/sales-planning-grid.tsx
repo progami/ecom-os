@@ -16,6 +16,7 @@ import {
   SHEET_TOOLBAR_SELECT,
 } from '@/components/sheet-toolbar'
 import { usePersistentState } from '@/hooks/usePersistentState'
+import { withAppBasePath } from '@/lib/base-path'
 
 registerAllModules()
 
@@ -458,7 +459,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
     async (payload: SalesUpdate[]) => {
       if (payload.length === 0) return
       try {
-        const response = await fetch('/api/v1/x-plan/sales-weeks', {
+        const response = await fetch(withAppBasePath('/api/v1/x-plan/sales-weeks'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ updates: payload }),

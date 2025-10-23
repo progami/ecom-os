@@ -55,7 +55,7 @@ import {
 import type { ProductCostSummary } from '@/lib/calculations/product'
 import { createTimelineOrderFromDerived, type PurchaseTimelineOrder } from '@/lib/planning/timeline'
 import { addMonths, endOfMonth, format, startOfMonth, startOfWeek } from 'date-fns'
-import { getCalendarDateForWeek, type YearSegment } from '@/lib/calculations/calendar'
+import { getCalendarDateForWeek, weekNumberForDate, type YearSegment } from '@/lib/calculations/calendar'
 import { findYearSegment, loadPlanningCalendar, resolveActiveYear } from '@/lib/planning'
 import type { PlanningCalendar } from '@/lib/planning'
 import { deriveIsoWeek, formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
@@ -924,11 +924,32 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
 
   const derivedOrders = deriveOrders(context)
 
-  const inputRows: OpsInputRow[] = derivedOrders.map(({ input, productName }) => ({
+  const weekMatchesSegment = (date: Date | null | undefined) => {
+    if (!planning || !activeSegment) return true
+    const weekNumber = weekNumberForDate(date ?? null, planning.calendar)
+    if (weekNumber == null) return false
+    return weekNumber >= activeSegment.startWeekNumber && weekNumber <= activeSegment.endWeekNumber
+  }
+
+  const visibleOrders = planning && activeSegment
+    ? derivedOrders.filter(({ derived }) =>
+        weekMatchesSegment(derived.availableDate) ||
+        weekMatchesSegment(derived.inboundEta) ||
+        weekMatchesSegment(derived.productionStart)
+      )
+    : derivedOrders
+
+  const visibleOrderIds = new Set(visibleOrders.map((item) => item.derived.id))
+
+  const inputRows: OpsInputRow[] = visibleOrders.map(({ input, productName }) => ({
     id: input.id,
     productId: input.productId,
     orderCode: input.orderCode,
     poDate: formatDate(input.poDate ?? null),
+    productionComplete: toIsoDate(input.productionComplete ?? null) ?? '',
+    sourceDeparture: toIsoDate(input.sourceDeparture ?? null) ?? '',
+    portEta: toIsoDate(input.portEta ?? null) ?? '',
+    availableDate: toIsoDate(input.availableDate ?? null) ?? '',
     productName,
     shipName: input.shipName ?? '',
     containerNumber: input.containerNumber ?? input.transportReference ?? '',
@@ -950,7 +971,7 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
     notes: input.notes ?? '',
   }))
 
-  const timelineRows: OpsTimelineRow[] = derivedOrders.map(({ derived, productName }) => ({
+  const timelineRows: OpsTimelineRow[] = visibleOrders.map(({ derived, productName }) => ({
     id: derived.id,
     orderCode: derived.orderCode,
     productName,
@@ -968,7 +989,7 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
     weeksUntilArrival: derived.weeksUntilArrival != null ? String(derived.weeksUntilArrival) : '',
   }))
 
-  const timelineOrders: PurchaseTimelineOrder[] = derivedOrders.map(({ derived, productName }) =>
+  const timelineOrders: PurchaseTimelineOrder[] = visibleOrders.map(({ derived, productName }) =>
     createTimelineOrderFromDerived({ derived, productName })
   )
 
@@ -997,11 +1018,13 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
     }
   }
 
-  const derivedByOrderId = new Map(derivedOrders.map((item) => [item.derived.id, item.derived]))
+  const derivedByOrderId = new Map(visibleOrders.map((item) => [item.derived.id, item.derived]))
 
-  const payments = rawPurchaseOrders.flatMap((order) => {
-    const derived = derivedByOrderId.get(order.id)
-    const denominator = derived?.supplierCostTotal ?? derived?.plannedPoValue ?? 0
+  const payments = rawPurchaseOrders
+    .filter((order) => visibleOrderIds.has(order.id))
+    .flatMap((order) => {
+      const derived = derivedByOrderId.get(order.id)
+      const denominator = derived?.supplierCostTotal ?? derived?.plannedPoValue ?? 0
 
     return order.payments.map((payment) => {
       const amountExpectedNumeric = payment.amountExpected != null ? Number(payment.amountExpected) : null
@@ -1044,13 +1067,15 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
     finalWeeks: Number(profile.finalWeeks ?? 0),
   }))
 
-  const batchRows = rawPurchaseOrders.flatMap((order) => {
-    if (!Array.isArray(order.batchTableRows) || order.batchTableRows.length === 0) return []
-    return order.batchTableRows.map((batch) => ({
-      id: batch.id,
-      purchaseOrderId: order.id,
-      orderCode: order.orderCode,
-      batchCode: batch.batchCode ?? undefined,
+  const batchRows = rawPurchaseOrders
+    .filter((order) => visibleOrderIds.has(order.id))
+    .flatMap((order) => {
+      if (!Array.isArray(order.batchTableRows) || order.batchTableRows.length === 0) return []
+      return order.batchTableRows.map((batch) => ({
+        id: batch.id,
+        purchaseOrderId: order.id,
+        orderCode: order.orderCode,
+        batchCode: batch.batchCode ?? undefined,
       productId: batch.productId,
       productName: context.productNameById.get(batch.productId) ?? '',
       quantity: formatNumeric(toNumberSafe(batch.quantity), 0),
@@ -1069,7 +1094,9 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
     parameters: context.parameters,
     products: context.productInputs,
     leadProfiles: leadProfilesPayload,
-    purchaseOrders: context.purchaseOrderInputs.map(serializePurchaseOrder),
+    purchaseOrders: context.purchaseOrderInputs
+      .filter((order) => visibleOrderIds.has(order.id))
+      .map(serializePurchaseOrder),
   }
 
   return {

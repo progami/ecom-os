@@ -10,6 +10,7 @@ import { toast } from 'sonner'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { finishEditingSafely } from '@/lib/handsontable'
 import { formatNumericInput, formatPercentInput, numericValidator } from '@/components/sheets/validators'
+import { withAppBasePath } from '@/lib/base-path'
 
 registerAllModules()
 
@@ -130,7 +131,7 @@ export function OpsPlanningCostGrid({
     async (payload: Array<{ id: string; values: Record<string, string | null> }>) => {
       if (payload.length === 0) return
       try {
-        const response = await fetch('/api/v1/x-plan/purchase-orders/batches', {
+        const response = await fetch(withAppBasePath('/api/v1/x-plan/purchase-orders/batches'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ updates: payload }),
