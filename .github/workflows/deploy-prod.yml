@@ -283,7 +283,6 @@ jobs:
         run: ansible --version && ansible-galaxy collection list || true
 
       - name: Ansible ping EC2
-        continue-on-error: true
         if: env.REMOTE_ENABLED == 'true'
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'True'
@@ -294,7 +293,6 @@ jobs:
           ansible -vvv -i infra/ansible/inventory/hosts.ini mono -m ping
 
       - name: Deploy via Ansible (monorepo)
-        continue-on-error: true
         if: env.REMOTE_ENABLED == 'true'
         env:
           ANSIBLE_HOST_KEY_CHECKING: 'True'
@@ -317,7 +315,6 @@ jobs:
 
       - name: Post-deploy health checks
         if: env.REMOTE_ENABLED == 'true'
-        continue-on-error: true
         id: health_check
         run: |
           set -e
