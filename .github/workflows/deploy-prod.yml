@@ -190,26 +190,8 @@ jobs:
             echo "STRICT_SSH_CHECKING=no" >> $GITHUB_ENV
           fi
 
-      - name: Generate and inject CI SSH key via EC2 Instance Connect
-        if: ${{ env.AWS_ROLE_TO_ASSUME != '' && env.AWS_REGION != '' && env.REMOTE_ENABLED == 'true' }}
-        continue-on-error: true
-        env:
-          OS_USER: ${{ env.EC2_USER_SECRET }}
-        run: |
-          set -e
-          OS_USER=${OS_USER:-ubuntu}
-          ssh-keygen -t ed25519 -N '' -f ~/.ssh/ci_key -C ci@github || true
-          # Push key via EIC (ephemeral)
-          aws ec2-instance-connect send-ssh-public-key \
-            --instance-id "$EIC_INSTANCE_ID" \
-            --availability-zone "$EIC_INSTANCE_AZ" \
-            --instance-os-user "$OS_USER" \
-            --ssh-public-key "file://$HOME/.ssh/ci_key.pub"
-          # Use ephemeral window to append pubkey permanently
-          ssh -o StrictHostKeyChecking=${STRICT_SSH_CHECKING:-no} -i ~/.ssh/ci_key "$OS_USER@$EC2_HOST" \
-            "mkdir -p ~/.ssh && touch ~/.ssh/authorized_keys && grep -qxF '$(cat ~/.ssh/ci_key.pub)' ~/.ssh/authorized_keys || echo '$(cat ~/.ssh/ci_key.pub)' >> ~/.ssh/authorized_keys && chmod 700 ~/.ssh && chmod 600 ~/.ssh/authorized_keys"
-          # Switch default key for subsequent steps
-          install -m 600 -D ~/.ssh/ci_key ~/.ssh/id_rsa
+      # Skip ephemeral EC2 Instance Connect key injection; we rely on the
+      # static wms-deploy-key.pem stored in SSH_PRIVATE_KEY.
 
       - name: Check remote disk usage before deploy
         if: env.REMOTE_ENABLED == 'true'
