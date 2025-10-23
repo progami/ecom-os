@@ -203,8 +203,6 @@ export function getCandidateSessionCookieNames(appId?: string): string[] {
   return names;
 }
 
-export { getCentralAuthPrisma } from './db.js'
-export { authenticateWithCentralDirectory, getUserEntitlements } from './user-service.js'
 
 export interface CentralSessionProbeOptions {
   request: Request;

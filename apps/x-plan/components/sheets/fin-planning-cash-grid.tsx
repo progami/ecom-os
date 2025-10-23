@@ -9,6 +9,7 @@ import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { withAppBasePath } from '@/lib/base-path'
 
 registerAllModules()
 
@@ -129,7 +130,7 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
   const handleFlush = useCallback(async (payload: UpdatePayload[]) => {
     if (payload.length === 0) return
     try {
-      const res = await fetch('/api/v1/x-plan/cash-flow', {
+      const res = await fetch(withAppBasePath('/api/v1/x-plan/cash-flow'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ updates: payload }),

@@ -3,8 +3,9 @@ name: CI
 on:
   pull_request:
   push:
-    branches:
+    branches-ignore:
       - main
+      - dev
   workflow_dispatch:
 
 concurrency:
@@ -60,6 +61,9 @@ jobs:
           NEXTAUTH_URL: https://example.com/api/auth
           CENTRAL_AUTH_URL: https://example.com
           COOKIE_DOMAIN: .example.com
+          GOOGLE_CLIENT_ID: test-google-client-id
+          GOOGLE_CLIENT_SECRET: test-google-client-secret
+          GOOGLE_ALLOWED_EMAILS: ci-tester@example.com
 
       - name: Generate Prisma client for X-Plan
         run: pnpm --filter @ecom-os/x-plan prisma:generate
