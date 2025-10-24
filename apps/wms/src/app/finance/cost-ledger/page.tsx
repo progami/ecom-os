@@ -4,23 +4,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-import {
-  DollarSign,
-  BarChart3,
-  Download,
-  Truck,
-  Box,
-  Package,
-  Filter,
-  type LucideIcon,
-} from '@/lib/lucide-icons'
+import { BarChart3, Download, Truck, Box, Package, Filter } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
-import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { formatCurrency, cn } from '@/lib/utils'
 import { toast } from 'react-hot-toast'
+import { buildCentralLoginUrl } from '@/lib/utils/url'
 import type { CostLedgerBucketTotals, CostLedgerGroupResult } from '@ecom-os/ledger'
 
 interface CostLedgerResponse {
@@ -74,10 +65,7 @@ function CostLedgerPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
-      url.searchParams.set('callbackUrl', `${window.location.origin}/finance/cost-ledger`)
-      window.location.href = url.toString()
+      window.location.href = buildCentralLoginUrl('/finance/cost-ledger')
       return
     }
     if (!['staff', 'admin'].includes(session.user.role)) {
@@ -231,43 +219,50 @@ function CostLedgerPage() {
     }
   }, [filters.endDate, filters.startDate, filters.warehouse])
 
-  const summaryCards = useMemo(() => {
+  const categoryBreakdown = useMemo(() => {
     if (!totals) return []
 
     const totalAmount = totals.total || 0
-    const safePercent = (value: number) =>
-      totalAmount > 0 ? `${((value / totalAmount) * 100).toFixed(1)}%` : '0.0%'
-
-    const categoryMap: Array<{ key: keyof Omit<CostLedgerBucketTotals, 'total'>; title: string; icon: LucideIcon }> = [
-      { key: 'storage', title: 'Storage', icon: Box },
-      { key: 'container', title: 'Container', icon: Truck },
-      { key: 'pallet', title: 'Pallet', icon: BarChart3 },
-      { key: 'carton', title: 'Carton', icon: Package },
-      { key: 'unit', title: 'Unit', icon: Package },
-      { key: 'transportation', title: 'Transportation', icon: Truck },
-      { key: 'accessorial', title: 'Accessorial', icon: BarChart3 },
-      { key: 'other', title: 'Other', icon: BarChart3 },
+    const categories: Array<{ key: keyof Omit<CostLedgerBucketTotals, 'total'>; label: string; icon: LucideIcon; value: number; percent: number }> = [
+      { key: 'storage', label: 'Storage', icon: Box, value: totals.storage ?? 0, percent: 0 },
+      { key: 'container', label: 'Container', icon: Truck, value: totals.container ?? 0, percent: 0 },
+      { key: 'pallet', label: 'Pallet', icon: BarChart3, value: totals.pallet ?? 0, percent: 0 },
+      { key: 'carton', label: 'Carton', icon: Package, value: totals.carton ?? 0, percent: 0 },
+      { key: 'unit', label: 'Unit', icon: Package, value: totals.unit ?? 0, percent: 0 },
+      { key: 'transportation', label: 'Transportation', icon: Truck, value: totals.transportation ?? 0, percent: 0 },
+      { key: 'accessorial', label: 'Accessorial', icon: BarChart3, value: totals.accessorial ?? 0, percent: 0 },
+      { key: 'other', label: 'Other', icon: BarChart3, value: totals.other ?? 0, percent: 0 },
     ]
 
-    const cards = categoryMap.map(({ key, title, icon }) => ({
-      title,
-      value: formatCurrency(totals[key] ?? 0),
-      subtitle: safePercent(totals[key] ?? 0),
-      icon,
-      variant: 'default' as const,
-    }))
-
-    return [
-      {
-        title: 'Total Cost',
-        value: formatCurrency(totalAmount),
-        subtitle: 'All categories',
-        icon: DollarSign,
-        variant: 'info' as const,
-      },
-      ...cards,
-    ]
+    return categories
+      .map(category => ({
+        ...category,
+        percent: totalAmount > 0 ? (category.value / totalAmount) * 100 : 0,
+      }))
+      .sort((a, b) => b.percent - a.percent)
   }, [totals])
+
+  const totalCost = totals?.total ?? 0
+  const weeksInView = filteredLedgerData.length
+  const totalTransactions = useMemo(
+    () =>
+      filteredLedgerData.reduce((sum, group) => {
+        return sum + (group.transactions?.length ?? 0)
+      }, 0),
+    [filteredLedgerData]
+  )
+  const averageWeeklyCost = weeksInView > 0 ? totalCost / weeksInView : 0
+  const averagePerTransaction = totalTransactions > 0 ? totalCost / totalTransactions : 0
+  const uniqueWarehouses = useMemo(() => {
+    const codes = new Set<string>()
+    filteredLedgerData.forEach(group => {
+      group.details.forEach(detail => {
+        codes.add(detail.warehouse)
+      })
+    })
+    return codes.size
+  }, [filteredLedgerData])
+  const topCategory = categoryBreakdown.find(category => category.value > 0)
 
   if (status === 'loading') {
     return (
@@ -304,11 +299,67 @@ function CostLedgerPage() {
         <PageContent>
         <div className="flex flex-col gap-6">
 
-        <StatsCardGrid cols={6}>
-          {summaryCards.map((card) => (
-            <StatsCard key={card.title} {...card} />
-          ))}
-        </StatsCardGrid>
+        {totals && (
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.15fr),minmax(0,1fr)]">
+            <div className="rounded-xl border border-border bg-card p-5 shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total cost</p>
+                  <p className="text-3xl font-semibold text-foreground">{formatCurrency(totalCost)}</p>
+                  {weeksInView > 0 && (
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {weeksInView} week{weeksInView === 1 ? '' : 's'} in view • Avg {formatCurrency(averageWeeklyCost)} per week
+                    </p>
+                  )}
+                </div>
+                {topCategory && (
+                  <div className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-primary dark:bg-[#00C2B9]/15 dark:text-[#00C2B9]">
+                    <p className="font-medium">Top category</p>
+                    <p>{topCategory.label} • {topCategory.percent.toFixed(1)}%</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-border/60 bg-muted/20 p-4 dark:border-[#0b3a52] dark:bg-[#041324]">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase">Transactions</p>
+                  <p className="mt-1 text-lg font-semibold text-foreground">{totalTransactions.toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Avg {formatCurrency(averagePerTransaction)} per transaction</p>
+                </div>
+                <div className="rounded-lg border border-border/60 bg-muted/20 p-4 dark:border-[#0b3a52] dark:bg-[#041324]">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase">Warehouses</p>
+                  <p className="mt-1 text-lg font-semibold text-foreground">{uniqueWarehouses}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Distinct locations contributing costs</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-5 shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
+              <p className="text-sm font-semibold text-foreground">Cost breakdown</p>
+              <p className="text-xs text-muted-foreground mt-1">Percent contribution by category</p>
+              <div className="mt-4 space-y-3">
+                {categoryBreakdown.map(category => (
+                  <div key={category.label}>
+                    <div className="flex items-center justify-between text-sm font-medium text-foreground">
+                      <span>{category.label}</span>
+                      <span>{formatCurrency(category.value)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
+                      <span>{category.percent.toFixed(1)}%</span>
+                    </div>
+                    <div className="mt-2 h-2 w-full rounded-full bg-muted">
+                      <div
+                        className="h-2 rounded-full bg-primary transition-[width] dark:bg-[#00C2B9]"
+                        style={{ width: `${Math.min(100, category.percent)}%` }}
+                        aria-hidden
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="rounded-xl border border-border bg-card shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
           <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b">

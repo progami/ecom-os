@@ -15,6 +15,7 @@ import {
   Zap,
   Users
 } from '@/lib/lucide-icons'
+import { buildCentralLoginUrl } from '@/lib/utils/url'
 
 export default function LandingPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -38,10 +39,7 @@ export default function LandingPage() {
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       // Redirect to central login; after login, return to Dashboard
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
-      url.searchParams.set('callbackUrl', window.location.origin + '/dashboard')
-      window.location.href = url.toString()
+      window.location.href = buildCentralLoginUrl('/dashboard')
     } catch (_error) {
       // console.error('Error setting up demo:', error)
       toast.error(_error instanceof Error ? _error.message : 'Failed to set up demo')
@@ -135,15 +133,10 @@ export default function LandingPage() {
             </button>
             
             <a
-              href={(process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com') + '/login'}
+              href={buildCentralLoginUrl('/dashboard')}
               onClick={(e) => {
                 e.preventDefault()
-                const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-                const url = new URL('/login', central)
-                if (typeof window !== 'undefined') {
-                  url.searchParams.set('callbackUrl', `${window.location.origin}/dashboard`)
-                }
-                window.location.href = url.toString()
+                window.location.href = buildCentralLoginUrl('/dashboard')
               }}
               className="inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-medium text-foreground bg-card border border-border rounded-lg hover:bg-muted transition-colors"
             >

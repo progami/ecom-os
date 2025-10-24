@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { FileText, ArrowLeft, Loader2 } from '@/lib/lucide-icons'
+import { buildCentralLoginUrl } from '@/lib/utils/url'
 
 interface WarehouseInvoiceLineSummary {
   id: string
@@ -58,10 +59,7 @@ export default function WarehouseInvoiceDetailPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
-      url.searchParams.set('callbackUrl', `${window.location.origin}/operations/warehouse-invoices/${params.id}`)
-      window.location.href = url.toString()
+      window.location.href = buildCentralLoginUrl(`/finance/warehouse-invoices/${params.id}`)
       return
     }
     if (!['staff', 'admin'].includes(session.user.role)) {
@@ -95,7 +93,7 @@ export default function WarehouseInvoiceDetailPage() {
         setInvoice(normalized)
       } catch (_error) {
         toast.error('Failed to load warehouse invoice')
-        router.push('/operations/warehouse-invoices')
+        router.push('/finance/warehouse-invoices')
       } finally {
         setLoading(false)
       }

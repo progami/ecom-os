@@ -7,6 +7,7 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { Building, Save, X, Calendar } from '@/lib/lucide-icons'
 import { toast } from 'react-hot-toast'
+import { buildCentralLoginUrl } from '@/lib/utils/url'
 
 interface WarehouseConfig {
   id: string
@@ -47,10 +48,7 @@ export default function EditWarehouseConfigPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session || session.user.role !== 'admin') {
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
-      url.searchParams.set('callbackUrl', window.location.origin + `/config/warehouse-configs/${params.id}/edit`)
-      window.location.href = url.toString()
+      window.location.href = buildCentralLoginUrl(`/config/warehouse-configs/${params.id}/edit`)
       return
     }
     fetchConfig()
@@ -75,7 +73,7 @@ export default function EditWarehouseConfigPage() {
       }
     } catch (_error) {
       toast.error('Failed to load configuration')
-      router.push('/admin/settings/warehouse-configs')
+      router.push('/config/warehouse-configs')
     } finally {
       setLoading(false)
     }
@@ -117,7 +115,7 @@ export default function EditWarehouseConfigPage() {
   }
 
   const handleCancel = () => {
-    router.push('/admin/settings/warehouse-configs')
+    router.push('/config/warehouse-configs')
   }
 
   if (loading || !config) {

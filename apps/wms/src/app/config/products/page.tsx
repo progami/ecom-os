@@ -5,6 +5,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { toast } from 'react-hot-toast'
+import { buildCentralLoginUrl } from '@/lib/utils/url'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
@@ -21,10 +22,7 @@ export default function ProductsPage() {
     if (status === 'loading') return
 
     if (!session) {
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
-      url.searchParams.set('callbackUrl', `${window.location.origin}/config/products`)
-      window.location.href = url.toString()
+      window.location.href = buildCentralLoginUrl('/config/products')
       return
     }
 

@@ -7,6 +7,7 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { Building, Save, X } from '@/lib/lucide-icons'
 import { toast } from 'react-hot-toast'
+import { buildCentralLoginUrl } from '@/lib/utils/url'
 
 interface Warehouse {
   id: string
@@ -39,10 +40,7 @@ export default function NewWarehouseConfigPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session || session.user.role !== 'admin') {
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
-      url.searchParams.set('callbackUrl', window.location.origin + '/config/warehouse-configs/new')
-      window.location.href = url.toString()
+      window.location.href = buildCentralLoginUrl('/config/warehouse-configs/new')
       return
     }
     fetchData()
@@ -111,7 +109,7 @@ export default function NewWarehouseConfigPage() {
   }
 
   const handleCancel = () => {
-    router.push('/admin/settings/warehouse-configs')
+    router.push('/config/warehouse-configs')
   }
 
   return (

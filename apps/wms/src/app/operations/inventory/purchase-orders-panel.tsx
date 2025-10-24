@@ -47,6 +47,7 @@ export type PurchaseOrderFilter = PurchaseOrderStatusOption
 interface PurchaseOrdersPanelProps {
   onPosted: () => void
   statusFilter?: PurchaseOrderFilter
+  typeFilter?: PurchaseOrderTypeOption | 'ALL'
 }
 
 function formatStatusLabel(status: PurchaseOrderStatusOption) {
@@ -121,11 +122,33 @@ const createColumnFilterDefaults = (): ColumnFiltersState => ({
   counterparty: '',
 })
 
-export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT' }: PurchaseOrdersPanelProps) {
+export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT', typeFilter = 'ALL' }: PurchaseOrdersPanelProps) {
   const [orders, setOrders] = useState<PurchaseOrderSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [voidingId, setVoidingId] = useState<string | null>(null)
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(createColumnFilterDefaults())
+
+  const panelTitle = useMemo(() => {
+    switch (typeFilter) {
+      case 'FULFILLMENT':
+        return 'Ship Orders'
+      case 'ADJUSTMENT':
+        return 'Adjustment Orders'
+      default:
+        return 'Purchase Orders'
+    }
+  }, [typeFilter])
+
+  const panelDescription = useMemo(() => {
+    switch (typeFilter) {
+      case 'FULFILLMENT':
+        return ''
+      case 'ADJUSTMENT':
+        return ''
+      default:
+        return ''
+    }
+  }, [typeFilter])
 
   const isFilterActive = useCallback(
     (keys: ColumnFilterKey[]) =>
@@ -223,6 +246,9 @@ export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT' }: Purcha
   const { draftCount, shippedCount, warehouseCount, closedCount, cancelledCount } = useMemo(() => {
     return orders.reduce(
       (acc, order) => {
+        if (typeFilter !== 'ALL' && order.type !== typeFilter) {
+          return acc
+        }
         if (order.status === 'DRAFT') acc.draftCount += 1
         if (order.status === 'SHIPPED') acc.shippedCount += 1
         if (order.status === 'WAREHOUSE') acc.warehouseCount += 1
@@ -232,7 +258,7 @@ export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT' }: Purcha
       },
       { draftCount: 0, shippedCount: 0, warehouseCount: 0, closedCount: 0, cancelledCount: 0 }
     )
-  }, [orders])
+  }, [orders, typeFilter])
 
   const uniqueWarehouses = useMemo(() => {
     const warehouses = new Set<string>()
@@ -244,6 +270,8 @@ export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT' }: Purcha
     () => orders.filter(order => {
       // Status filter
       if (order.status !== statusFilter) return false
+
+      if (typeFilter !== 'ALL' && order.type !== typeFilter) return false
 
       // Warehouse filter
       if (columnFilters.warehouse.length > 0) {
@@ -265,7 +293,7 @@ export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT' }: Purcha
 
       return true
     }),
-    [orders, statusFilter, columnFilters]
+    [orders, statusFilter, typeFilter, columnFilters]
   )
 
   return (
@@ -273,10 +301,12 @@ export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT' }: Purcha
       <div className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Purchase/Sales Orders</h2>
-            <p className="text-sm text-muted-foreground">
-              Track inbound and outbound orders from draft through closing with enforced document checkpoints.
-            </p>
+            <h2 className="text-lg font-semibold text-foreground">{panelTitle}</h2>
+            {panelDescription ? (
+              <p className="text-sm text-muted-foreground">
+                {panelDescription}
+              </p>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
             <span>

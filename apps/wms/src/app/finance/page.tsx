@@ -10,9 +10,9 @@ import {
 
 const financeModules = [
   {
-    title: 'Invoices',
-    description: 'Manage customer invoices',
-    href: '/finance/invoices',
+    title: 'Warehouse Invoices',
+    description: 'Manage inbound and outbound warehouse billing',
+    href: '/finance/warehouse-invoices',
     icon: FileText,
     color: 'bg-cyan-100 text-cyan-700'
   },

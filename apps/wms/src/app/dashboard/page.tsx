@@ -16,6 +16,7 @@ import { SectionHeader } from '@/components/dashboard/section-header'
 import { MarketSection } from '@/components/dashboard/market-section'
 import { toast } from 'react-hot-toast'
 import { startOfMonth, endOfMonth, subMonths } from 'date-fns'
+import { buildCentralLoginUrl } from '@/lib/utils/url'
 
 interface DashboardStats {
   totalInventory: number
@@ -179,7 +180,9 @@ export default function DashboardPage() {
       
       // Check if it's an authentication error
       if (_error instanceof Error && _error.message.includes('401')) {
-        router.push('/WMS/auth/login?callbackUrl=/WMS/dashboard')
+        if (typeof window !== 'undefined') {
+          window.location.href = buildCentralLoginUrl('/dashboard')
+        }
       } else {
         toast.error(_error instanceof Error ? _error.message : 'Failed to load dashboard stats')
       }
@@ -349,4 +352,3 @@ export default function DashboardPage() {
     </DashboardLayout>
   )
 }
-

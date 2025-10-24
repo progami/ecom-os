@@ -251,14 +251,14 @@ test.describe('Purchase/Sales order reconciliation workflow', () => {
     await page.goto(`${appUrl}/finance/storage-ledger`)
     await expect(page.locator('table')).toContainText(workflowState.purchaseMovementNote.lines[0].batchLot ?? '1001')
 
-    await page.goto(`${appUrl}/operations/warehouse-invoices`)
+    await page.goto(`${appUrl}/finance/warehouse-invoices`)
     await expect(page.locator('table')).toContainText(workflowState.invoice.invoiceNumber)
 
     await page.goto(`${appUrl}/finance/reconciliation`)
     await expect(page.locator('body')).toContainText(primaryWarehouseLabel())
     await expect(page.locator('body')).toContainText(workflowState.purchaseOrder.orderNumber)
 
-    await page.goto(`${appUrl}/finance/invoices`)
+    await page.goto(`${appUrl}/finance/warehouse-invoices`)
     await expect(page.getByRole('heading', { name: 'Invoices' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'New Invoice' })).toBeVisible()
   })

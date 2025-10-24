@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
 import { ATTACHMENT_CATEGORIES } from '@/components/operations/receive-attachments-tab'
 import { FileText, ArrowLeft, Loader2, Package2, DollarSign, Truck, Paperclip, Check, ChevronRight } from '@/lib/lucide-icons'
+import { buildCentralLoginUrl } from '@/lib/utils/url'
 
 interface PurchaseOrderLineSummary {
   id: string
@@ -300,10 +301,7 @@ export default function PurchaseOrderDetailPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
-      url.searchParams.set('callbackUrl', `${window.location.origin}/operations/purchase-orders/${params.id}`)
-      window.location.href = url.toString()
+      window.location.href = buildCentralLoginUrl(`/operations/purchase-orders/${params.id}`)
       return
     }
     if (!['staff', 'admin'].includes(session.user.role)) {
@@ -606,7 +604,7 @@ export default function PurchaseOrderDetailPage() {
 
   const breadcrumbItems = [
     { label: 'Operations', href: '/operations' },
-    { label: 'Purchase/Sales Orders', href: '/operations/purchase-orders' },
+    { label: 'Orders', href: '/operations/purchase-orders' },
     { label: `PO ${order.orderNumber}` },
   ]
 
@@ -1052,7 +1050,7 @@ export default function PurchaseOrderDetailPage() {
                       invoices.map(invoice => (
                         <tr key={invoice.id} className="odd:bg-muted/20">
                           <td className="px-3 py-2 whitespace-nowrap">
-                            <Link href={`/operations/warehouse-invoices/${invoice.id}`} prefetch={false} className="text-primary hover:underline">
+                            <Link href={`/finance/warehouse-invoices/${invoice.id}`} prefetch={false} className="text-primary hover:underline">
                               {invoice.invoiceNumber}
                             </Link>
                           </td>
@@ -1062,7 +1060,7 @@ export default function PurchaseOrderDetailPage() {
                           <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{invoice.issuedAt ? formatDate(invoice.issuedAt) : '—'}</td>
                           <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">{formatCurrency(invoice.total, invoice.currency)}</td>
                           <td className="px-3 py-2 text-xs text-primary whitespace-nowrap">
-                            <Link href={`/operations/warehouse-invoices/${invoice.id}`} prefetch={false} className="hover:underline">
+                            <Link href={`/finance/warehouse-invoices/${invoice.id}`} prefetch={false} className="hover:underline">
                               View invoice
                             </Link>
                           </td>

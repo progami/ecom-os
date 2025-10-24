@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Plus, Search, MoreVertical, Mail, Users } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
+import { buildCentralLoginUrl } from '@/lib/utils/url'
 
 export default function AdminUsersPage() {
   const { data: session, status } = useSession()
@@ -19,12 +20,9 @@ export default function AdminUsersPage() {
     )
   }
 
-  if (!session || session.user.role !== 'admin') {
+  if (!session) {
     if (typeof window !== 'undefined') {
-      const central = (process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL as string) || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
-      url.searchParams.set('callbackUrl', window.location.origin + '/admin/users')
-      window.location.replace(url.toString())
+      window.location.replace(buildCentralLoginUrl('/admin/users'))
     }
     return null
   }

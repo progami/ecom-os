@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { FileText, Filter, Search, X } from '@/lib/lucide-icons'
 import { cn } from '@/lib/utils'
+import { buildCentralLoginUrl } from '@/lib/utils/url'
 
 interface WarehouseInvoiceLineSummary {
   id: string
@@ -96,10 +97,7 @@ export default function WarehouseInvoicesPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
-      url.searchParams.set('callbackUrl', `${window.location.origin}/operations/warehouse-invoices`)
-      window.location.href = url.toString()
+      window.location.href = buildCentralLoginUrl('/finance/warehouse-invoices')
       return
     }
     if (!['staff', 'admin'].includes(session.user.role)) {
@@ -308,7 +306,7 @@ export default function WarehouseInvoicesPage() {
                 filteredInvoices.map(invoice => (
                   <tr key={invoice.id} className="odd:bg-muted/20">
                     <td className="px-3 py-2 whitespace-nowrap">
-                      <Link href={`/operations/warehouse-invoices/${invoice.id}`} className="text-primary hover:underline" prefetch={false}>
+                      <Link href={`/finance/warehouse-invoices/${invoice.id}`} className="text-primary hover:underline" prefetch={false}>
                         {invoice.invoiceNumber}
                       </Link>
                     </td>
@@ -318,7 +316,7 @@ export default function WarehouseInvoicesPage() {
                     <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{formatDate(invoice.issuedAt)}</td>
                     <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">{formatCurrency(invoice.total, invoice.currency)}</td>
                     <td className="px-3 py-2 text-xs text-primary whitespace-nowrap">
-                      <Link href={`/operations/warehouse-invoices/${invoice.id}`} prefetch={false} className="hover:underline">
+                      <Link href={`/finance/warehouse-invoices/${invoice.id}`} prefetch={false} className="hover:underline">
                         View invoice
                       </Link>
                     </td>

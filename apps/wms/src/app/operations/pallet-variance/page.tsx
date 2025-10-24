@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { StatsCard } from '@/components/ui/stats-card'
 import { toast } from 'react-hot-toast'
+import { buildCentralLoginUrl } from '@/lib/utils/url'
 
 interface PalletVariance {
   id: string
@@ -57,10 +58,7 @@ export default function PalletVariancePage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
-      url.searchParams.set('callbackUrl', window.location.origin + '/operations/pallet-variance')
-      window.location.href = url.toString()
+      window.location.href = buildCentralLoginUrl('/operations/pallet-variance')
       return
     }
     if (!['staff', 'admin'].includes(session.user.role)) {

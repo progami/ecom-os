@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
@@ -9,8 +9,9 @@ import { PageContainer, PageHeaderSection, PageContent } from '@/components/layo
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { FileText, Plus } from '@/lib/lucide-icons'
-import { PurchaseOrdersPanel, PurchaseOrderFilter } from '../inventory/purchase-orders-panel'
+import { PurchaseOrdersPanel, PurchaseOrderFilter, PurchaseOrderTypeOption } from '../inventory/purchase-orders-panel'
 import { cn } from '@/lib/utils'
+import { buildCentralLoginUrl } from '@/lib/utils/url'
 
 type StatusConfig = {
   value: PurchaseOrderFilter
@@ -52,7 +53,38 @@ const STATUS_TABS: StatusConfig[] = [
   },
 ]
 
-function PurchaseOrdersPage() {
+type OrderTypeTab = {
+  value: PurchaseOrderTypeOption
+  label: string
+  description: string
+}
+
+const ORDER_TYPE_TABS: OrderTypeTab[] = [
+  {
+    value: 'PURCHASE',
+    label: 'Purchase Orders',
+    description: '',
+  },
+  {
+    value: 'FULFILLMENT',
+    label: 'Ship Orders',
+    description: '',
+  },
+]
+
+function PurchaseOrdersLoading() {
+  return (
+    <DashboardLayout>
+      <PageContainer>
+        <div className="flex h-full items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" />
+        </div>
+      </PageContainer>
+    </DashboardLayout>
+  )
+}
+
+function PurchaseOrdersPageContent() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const pathname = usePathname()
@@ -60,19 +92,23 @@ function PurchaseOrdersPage() {
 
   const statusValues = useMemo(() => STATUS_TABS.map(tab => tab.value), [])
 
+  const typeValues = useMemo(() => ORDER_TYPE_TABS.map(tab => tab.value), [])
+
   const searchParamStatus = searchParams?.get('status') as PurchaseOrderFilter | null
   const [statusFilter, setStatusFilter] = useState<PurchaseOrderFilter>(
     searchParamStatus && statusValues.includes(searchParamStatus) ? searchParamStatus : 'DRAFT'
+  )
+
+  const searchParamType = searchParams?.get('type') as PurchaseOrderTypeOption | null
+  const [typeFilter, setTypeFilter] = useState<PurchaseOrderTypeOption>(
+    searchParamType && typeValues.includes(searchParamType) ? searchParamType : 'PURCHASE'
   )
 
   useEffect(() => {
     if (status === 'loading') return
 
     if (!session) {
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
-      url.searchParams.set('callbackUrl', `${window.location.origin}/operations/purchase-orders`)
-      window.location.href = url.toString()
+      window.location.href = buildCentralLoginUrl('/operations/purchase-orders')
       return
     }
 
@@ -87,6 +123,12 @@ function PurchaseOrdersPage() {
     setStatusFilter(prev => (prev === nextValue ? prev : nextValue))
   }, [searchParams, statusValues])
 
+  useEffect(() => {
+    const param = searchParams?.get('type') as PurchaseOrderTypeOption | null
+    const nextValue = param && typeValues.includes(param) ? param : 'PURCHASE'
+    setTypeFilter(prev => (prev === nextValue ? prev : nextValue))
+  }, [searchParams, typeValues])
+
   const handleTabChange = useCallback((value: PurchaseOrderFilter) => {
     setStatusFilter(value)
     const params = new URLSearchParams(searchParams?.toString() ?? '')
@@ -99,25 +141,29 @@ function PurchaseOrdersPage() {
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
   }, [pathname, router, searchParams])
 
+  const handleTypeChange = useCallback((value: PurchaseOrderTypeOption) => {
+    setTypeFilter(value)
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (value === 'PURCHASE') {
+      params.delete('type')
+    } else {
+      params.set('type', value)
+    }
+    const query = params.toString()
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false })
+  }, [pathname, router, searchParams])
+
   if (status === 'loading') {
-    return (
-      <DashboardLayout>
-        <PageContainer>
-          <div className="flex h-full items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" />
-          </div>
-        </PageContainer>
-      </DashboardLayout>
-    )
+    return <PurchaseOrdersLoading />
   }
 
-  const currentTab = STATUS_TABS.find(tab => tab.value === statusFilter)
+  const currentTypeTab = ORDER_TYPE_TABS.find(tab => tab.value === typeFilter)
 
   return (
     <DashboardLayout>
       <PageContainer>
         <PageHeaderSection
-          title="Purchase/Sales Orders"
+          title={currentTypeTab?.label ?? 'Purchase Orders'}
           description="Operations"
           icon={FileText}
           actions={
@@ -143,39 +189,55 @@ function PurchaseOrdersPage() {
             </Popover>
           }
           metadata={
-            <div className="flex flex-wrap items-center gap-2">
-              {STATUS_TABS.map(tab => {
-                const isActive = statusFilter === tab.value
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+              {ORDER_TYPE_TABS.map(tab => {
+                const isActive = typeFilter === tab.value
                 return (
                   <button
                     key={tab.value}
-                    type="button"
-                    onClick={() => handleTabChange(tab.value)}
-                    className={cn(
-                      'rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
-                      isActive
-                        ? 'bg-cyan-600 text-white shadow-md'
-                        : 'bg-muted text-foreground hover:bg-muted/80'
-                    )}
-                    aria-pressed={isActive}
-                  >
-                    {tab.label}
-                  </button>
-                )
-              })}
+                      type="button"
+                      onClick={() => handleTypeChange(tab.value)}
+                      className={cn(
+                        'rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
+                        isActive
+                          ? 'bg-cyan-700 text-white shadow-md'
+                          : 'bg-muted text-foreground hover:bg-muted/80'
+                      )}
+                      aria-pressed={isActive}
+                    >
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {STATUS_TABS.map(tab => {
+                  const isActive = statusFilter === tab.value
+                  return (
+                    <button
+                      key={tab.value}
+                      type="button"
+                      onClick={() => handleTabChange(tab.value)}
+                      className={cn(
+                        'rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
+                        isActive
+                          ? 'bg-cyan-600 text-white shadow-md'
+                          : 'bg-muted text-foreground hover:bg-muted/80'
+                      )}
+                      aria-pressed={isActive}
+                    >
+                      {tab.label}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           }
         />
         <PageContent>
           <div className="flex flex-col gap-4">
-            {currentTab && (
-              <div className="rounded-xl border bg-card p-4 shadow-soft">
-                <div className="text-sm font-semibold text-foreground">{currentTab.label}</div>
-                <div className="mt-1 text-sm text-muted-foreground">{currentTab.description}</div>
-                <div className="mt-2 text-xs text-muted-foreground">{currentTab.hint}</div>
-              </div>
-            )}
-            <PurchaseOrdersPanel onPosted={() => {}} statusFilter={statusFilter} />
+            <PurchaseOrdersPanel onPosted={() => {}} statusFilter={statusFilter} typeFilter={typeFilter} />
           </div>
         </PageContent>
       </PageContainer>
@@ -183,4 +245,10 @@ function PurchaseOrdersPage() {
   )
 }
 
-export default PurchaseOrdersPage
+export default function PurchaseOrdersPage() {
+  return (
+    <Suspense fallback={<PurchaseOrdersLoading />}>
+      <PurchaseOrdersPageContent />
+    </Suspense>
+  )
+}

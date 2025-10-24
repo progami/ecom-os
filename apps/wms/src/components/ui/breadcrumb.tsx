@@ -3,12 +3,10 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ChevronRight, Home } from '@/lib/lucide-icons'
-import { useSession } from 'next-auth/react'
+import { getRelativeUrl } from '@/lib/utils/url'
 
 export function Breadcrumb() {
   const pathname = usePathname()
-  const { data: session } = useSession()
-  
   // Don't show breadcrumbs on home or login pages
   if (pathname === '/' || pathname === '/auth/login') {
     return null
@@ -19,7 +17,27 @@ export function Breadcrumb() {
   
   // Create breadcrumb items
   const breadcrumbs = segments.map((segment, index) => {
-    const href = '/' + segments.slice(0, index + 1).join('/')
+    const defaultPath = '/' + segments.slice(0, index + 1).join('/')
+
+    let targetPath: string | null = defaultPath
+
+    if (segment === 'operations') {
+      const next = segments[index + 1]
+      const operationsDefaults: Record<string, string> = {
+        'purchase-orders': '/operations/purchase-orders',
+        'inventory': '/operations/inventory',
+        'receive': '/operations/receive',
+        'ship': '/operations/ship',
+        'pallet-variance': '/operations/pallet-variance',
+      }
+      const fallback = '/operations/purchase-orders'
+      const target = (next && operationsDefaults[next]) || fallback
+      targetPath = getRelativeUrl(target)
+    } else {
+      targetPath = getRelativeUrl(defaultPath)
+    }
+
+    const href = targetPath
     
     // Handle special cases for better labels
     let label = segment
@@ -62,7 +80,7 @@ export function Breadcrumb() {
   })
 
   // Determine home link based on user role
-  const homeLink = session?.user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'
+  const homeLink = getRelativeUrl('/dashboard')
 
   return (
     <nav className="flex items-center space-x-1 text-sm text-muted-foreground mb-4">
@@ -74,19 +92,25 @@ export function Breadcrumb() {
       </Link>
 
       {breadcrumbs.map((breadcrumb, index) => (
-        <div key={breadcrumb.href} className="flex items-center">
+        <div key={`${breadcrumb.label}-${index}`} className="flex items-center">
           <ChevronRight className="h-4 w-4 mx-1 text-muted-foreground" />
           {index === breadcrumbs.length - 1 ? (
             <span className="font-medium text-foreground">
               {breadcrumb.label}
             </span>
           ) : (
-            <Link
-              href={breadcrumb.href}
-              className="hover:text-foreground transition-colors"
-            >
-              {breadcrumb.label}
-            </Link>
+            breadcrumb.href ? (
+              <Link
+                href={breadcrumb.href}
+                className="hover:text-foreground transition-colors"
+              >
+                {breadcrumb.label}
+              </Link>
+            ) : (
+              <span className="text-muted-foreground">
+                {breadcrumb.label}
+              </span>
+            )
           )}
         </div>
       ))}

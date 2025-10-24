@@ -17,6 +17,7 @@ import { PageContainer, PageHeaderSection, PageContent } from '@/components/layo
 import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import { toast } from 'react-hot-toast'
+import { buildCentralLoginUrl } from '@/lib/utils/url'
 
 interface CostMapping {
   enabled: boolean
@@ -89,10 +90,7 @@ export default function InvoiceTemplatesPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
-      url.searchParams.set('callbackUrl', window.location.origin + '/config/invoice-templates')
-      window.location.href = url.toString()
+      window.location.href = buildCentralLoginUrl('/config/invoice-templates')
       return
     }
     if (session.user.role !== 'admin') {

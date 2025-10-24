@@ -7,7 +7,6 @@ import {
   Home,
   Package,
   FileText,
-  Settings,
   Users,
   LogOut,
   Menu,
@@ -21,6 +20,7 @@ import {
 } from '@/lib/lucide-icons'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
+import { buildCentralSignOutUrl } from '@/lib/utils/url'
 
 interface NavSection {
   title: string
@@ -41,7 +41,7 @@ const baseNavigation: NavSection[] = [
   {
     title: 'Operations',
     items: [
-      { name: 'Purchase/Sales Orders', href: '/operations/purchase-orders', icon: FileText },
+      { name: 'Orders', href: '/operations/purchase-orders', icon: FileText },
       { name: 'Inventory Ledger', href: '/operations/inventory', icon: BookOpen },
       { name: 'Pallet Variance', href: '/operations/pallet-variance', icon: AlertTriangle },
     ]
@@ -51,8 +51,7 @@ const baseNavigation: NavSection[] = [
     items: [
       { name: 'Storage Ledger', href: '/finance/storage-ledger', icon: Calendar },
       { name: 'Cost Ledger', href: '/finance/cost-ledger', icon: BarChart3 },
-      { name: 'Warehouse Invoices', href: '/operations/warehouse-invoices', icon: FileText },
-      { name: 'Invoices', href: '/finance/invoices', icon: FileText },
+      { name: 'Warehouse Invoices', href: '/finance/warehouse-invoices', icon: FileText },
       { name: 'Reconciliation', href: '/finance/reconciliation', icon: Calculator },
     ]
   },
@@ -88,8 +87,6 @@ export function MainNav() {
   if (!session) return null
 
   // Check if user has admin role
-  const isAdmin = session.user.role === 'admin'
-  
   // Use base navigation for all users
   const userNavigation = baseNavigation
 
@@ -151,36 +148,20 @@ export function MainNav() {
                       <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
                     </div>
 
-                    {/* Admin options */}
-                    {isAdmin && (
-                      <>
-                        <div className="py-1 border-b border-border dark:border-[#0b3a52]">
-                          <Link
-                            href="/admin/users"
-                            onClick={() => setUserMenuOpen(false)}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-secondary dark:hover:bg-white/5 transition-colors flex items-center gap-2"
-                          >
-                            <Users className="h-4 w-4" />
-                            Users
-                          </Link>
-                          <Link
-                            href="/admin/settings"
-                            onClick={() => setUserMenuOpen(false)}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-secondary dark:hover:bg-white/5 transition-colors flex items-center gap-2"
-                          >
-                            <Settings className="h-4 w-4" />
-                            Settings
-                          </Link>
-                        </div>
-                      </>
-                    )}
+                    <div className="py-1 border-b border-border dark:border-[#0b3a52]">
+                      <Link
+                        href="/admin/users"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-secondary dark:hover:bg-white/5 transition-colors flex items-center gap-2"
+                      >
+                        <Users className="h-4 w-4" />
+                        Manage Users
+                      </Link>
+                    </div>
 
                     <button
                       onClick={() => {
-                        const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-                        const url = new URL('/api/auth/signout', central)
-                        url.searchParams.set('callbackUrl', window.location.origin + '/auth/login')
-                        window.location.href = url.toString()
+                        window.location.href = buildCentralSignOutUrl('/auth/login')
                       }}
                       className="w-full text-left px-3 py-2 text-sm hover:bg-secondary dark:hover:bg-white/5 transition-colors flex items-center gap-2"
                     >

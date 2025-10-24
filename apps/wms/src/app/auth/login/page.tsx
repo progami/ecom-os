@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { getAbsoluteUrl } from '@/lib/utils/url'
 
 type SearchParamsInput =
   | { callbackUrl?: string }
@@ -18,13 +19,12 @@ export default async function LoginPage({ searchParams }: { searchParams?: Searc
     redirect(desired)
   }
   const central = process.env.CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-  const appBase = process.env.NEXT_PUBLIC_APP_URL || ''
   const url = new URL('/login', central)
   // Pass back the full app URL users should land on after central login
   if (desired.startsWith('http')) {
     url.searchParams.set('callbackUrl', desired)
   } else {
-    const final = appBase ? new URL(desired, appBase).toString() : desired
+    const final = getAbsoluteUrl(desired, process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL)
     url.searchParams.set('callbackUrl', final)
   }
   redirect(url.toString())

@@ -72,13 +72,19 @@ export async function middleware(request: NextRequest) {
     const central = process.env.CENTRAL_AUTH_URL || defaultCentral
     const redirect = new URL('/login', central)
 
-    // Build callback URL from forwarded headers (from Nginx proxy) instead of request.nextUrl
-    // request.nextUrl gives us localhost:3001, but we need the public-facing URL
-    const forwardedProto = request.headers.get('x-forwarded-proto') || 'http'
-    const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host
-    // Next.js strips basePath before middleware runs, so manually prepend it
-    const basePath = process.env.BASE_PATH || ''
-    const callbackUrl = `${forwardedProto}://${forwardedHost}${basePath}${pathname}${request.nextUrl.search}`
+    const forwardedProto = request.headers.get('x-forwarded-proto')
+    const forwardedHost = request.headers.get('x-forwarded-host')
+    const forwardedOrigin = forwardedProto && forwardedHost
+      ? `${forwardedProto}://${forwardedHost}`
+      : undefined
+
+    const origin = forwardedOrigin && !/example\.com$/i.test(forwardedHost ?? '')
+      ? forwardedOrigin
+      : request.nextUrl.origin
+
+    const targetPath = normalizedPath || '/'
+    const callbackPath = withBasePath(targetPath)
+    const callbackUrl = `${origin.replace(/\/+$/, '')}${callbackPath}${request.nextUrl.search}`
 
     redirect.searchParams.set('callbackUrl', callbackUrl)
     return NextResponse.redirect(redirect)

@@ -20,9 +20,19 @@ export function withBasePath(path: string): string {
   
   // Ensure path starts with /
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
-  
-  // Avoid double slashes
-  return `${basePath}${normalizedPath}`
+
+  const normalizedBase = (basePath.startsWith('/') ? basePath : `/${basePath}`).replace(/\/+$/, '')
+
+  // If the path already starts with the base path, return as-is
+  if (
+    normalizedPath === normalizedBase ||
+    normalizedPath.startsWith(`${normalizedBase}/`)
+  ) {
+    return normalizedPath
+  }
+
+  // Avoid double slashes when concatenating
+  return `${normalizedBase}${normalizedPath}`.replace(/\/{2,}/g, '/')
 }
 
 /**

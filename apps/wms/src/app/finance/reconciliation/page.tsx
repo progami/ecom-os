@@ -485,7 +485,7 @@ function FinanceReconciliationPageContent() {
                       <div className="text-center py-8">
                         <p className="text-muted-foreground">No reconciliation data available</p>
                         <Link
-                          href={`/finance/invoices/${invoice.id}`}
+                          href={`/finance/warehouse-invoices/${invoice.id}`}
                           className="mt-2 text-primary hover:underline"
                         >
                           View Invoice Details
@@ -649,7 +649,7 @@ function FinanceReconciliationPageContent() {
                         
                         <div className="mt-4 flex gap-2 justify-between">
                           <Link
-                            href={`/finance/invoices/${invoice.id}`}
+                            href={`/finance/warehouse-invoices/${invoice.id}`}
                             className="text-primary hover:underline"
                           >
                             View Invoice Details

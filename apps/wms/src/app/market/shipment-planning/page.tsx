@@ -25,6 +25,7 @@ import {
   RestockCalculationResult 
 } from '@/lib/algorithms/restock-algorithm'
 import { RestockAlertCard } from '@/components/operations/restock-alert-card'
+import { buildCentralLoginUrl } from '@/lib/utils/url'
 
 interface FBAStockItem {
   skuId: string
@@ -69,10 +70,7 @@ export default function ShipmentPlanningPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
-      url.searchParams.set('callbackUrl', window.location.origin + '/market/shipment-planning')
-      window.location.href = url.toString()
+      window.location.href = buildCentralLoginUrl('/market/shipment-planning')
       return
     }
     fetchStockData()

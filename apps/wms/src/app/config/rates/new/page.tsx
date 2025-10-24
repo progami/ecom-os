@@ -7,6 +7,7 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { DollarSign, Save, X, AlertCircle } from '@/lib/lucide-icons'
 import { toast } from 'react-hot-toast'
+import { buildCentralLoginUrl } from '@/lib/utils/url'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 
 interface Warehouse {
@@ -80,10 +81,7 @@ function NewRatePageContent() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session || session.user.role !== 'admin') {
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
-      url.searchParams.set('callbackUrl', window.location.origin + '/config/rates/new')
-      window.location.href = url.toString()
+      window.location.href = buildCentralLoginUrl('/config/rates/new')
       return
     }
     fetchWarehouses()
