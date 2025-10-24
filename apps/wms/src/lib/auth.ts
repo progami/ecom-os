@@ -6,17 +6,17 @@ import { UserRole } from '@prisma/client'
 
 const devPort = process.env.PORT || process.env.WMS_PORT || 3001
 const devBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${devPort}`
-const centralDev = process.env.CENTRAL_AUTH_URL || 'http://localhost:3000'
+const portalDev = process.env.PORTAL_AUTH_URL || 'http://localhost:3000'
 applyDevAuthDefaults({
   appId: 'ecomos',
   port: devPort,
   baseUrl: devBaseUrl,
   cookieDomain: 'localhost',
-  centralUrl: centralDev,
-  publicCentralUrl: process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'http://localhost:3000',
+  portalUrl: portalDev,
+  publicPortalUrl: process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'http://localhost:3000',
 })
 
-const sharedSecret = process.env.CENTRAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
+const sharedSecret = process.env.PORTAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
 if (sharedSecret) {
   process.env.NEXTAUTH_SECRET = sharedSecret
 }
@@ -30,7 +30,7 @@ const baseAuthOptions: NextAuthOptions = {
   secret: sharedSecret,
   debug: false,
   // Include a no-op credentials provider so NextAuth routes (csrf/session) function
-  // WMS does not authenticate locally; central portal issues the session cookie
+  // WMS does not authenticate locally; the portal issues the session cookie
   providers: [
     CredentialsProvider({
       name: 'noop',
@@ -45,7 +45,7 @@ const baseAuthOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user }) {
-      // WMS is decode-only; preserve central claims
+      // WMS is decode-only; preserve portal-issued claims
       const userId = (user as { id?: unknown } | null)?.id
       if (typeof userId === 'string') {
         token.sub = userId
@@ -56,7 +56,7 @@ const baseAuthOptions: NextAuthOptions = {
       if (typeof token.sub === 'string') {
         session.user.id = token.sub
       }
-      // Prefer central roles claim for WMS
+      // Prefer portal roles claim for WMS
       const rolesClaim = (token as { roles?: unknown }).roles
       const wmsEnt = getAppEntitlement(rolesClaim, 'wms')
       const allowedRoles: UserRole[] = ['admin', 'staff']
@@ -78,7 +78,7 @@ export const authOptions: NextAuthOptions = withSharedAuth(
   baseAuthOptions,
   {
     cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
-    // Use central cookie prefix so NextAuth reads the same dev cookie as ecomOS
+    // Use portal cookie prefix so NextAuth reads the same dev cookie as ecomOS
     appId: 'ecomos',
   }
 )

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { hasCentralSession } from '@ecom-os/auth'
+import { hasPortalSession } from '@ecom-os/auth'
 
 const PUBLIC_PREFIXES = ['/api/auth/', '/api/v1/', '/_next', '/favicon.ico', '/health']
 const PUBLIC_ROUTES = ['/', '/login']
@@ -12,19 +12,19 @@ export async function middleware(request: NextRequest) {
 
   if (!isPublicRoute) {
     const debug = process.env.NODE_ENV !== 'production'
-    const hasSession = await hasCentralSession({
+    const hasSession = await hasPortalSession({
       request,
       appId: 'x-plan',
-      centralUrl: process.env.CENTRAL_AUTH_URL,
+      portalUrl: process.env.PORTAL_AUTH_URL,
       debug,
     })
 
     if (!hasSession) {
-      const defaultCentral = process.env.NODE_ENV === 'production' ? 'https://ecomos.targonglobal.com' : 'http://localhost:3000'
-      const central = process.env.CENTRAL_AUTH_URL || defaultCentral
-      const login = new URL('/login', central)
+      const defaultPortal = process.env.NODE_ENV === 'production' ? 'https://ecomos.targonglobal.com' : 'http://localhost:3000'
+      const portal = process.env.PORTAL_AUTH_URL || defaultPortal
+      const login = new URL('/login', portal)
       if (debug) {
-        console.log('[x-plan middleware] no session, redirecting to central login', login.toString())
+        console.log('[x-plan middleware] no session, redirecting to portal login', login.toString())
       }
       login.searchParams.set('callbackUrl', request.nextUrl.toString())
       return NextResponse.redirect(login)

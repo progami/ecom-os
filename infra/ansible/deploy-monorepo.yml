@@ -12,21 +12,21 @@
     fcc_port: 3003
     hrms_port: 3006
     ecomos_port: 3000
-    central_db_port: 3004
+    portal_db_port: 3004
     margin_master_port: 3007
     jason_port: 3008
     xplan_port: 3009
-    central_portal_url: "https://{{ ecomos_server_name | default('ecomos.targonglobal.com') }}"
-    wms_public_url: "{{ central_portal_url }}/wms"
-    wms_nextauth_url: "{{ central_portal_url }}/wms/api/auth"
-    xplan_public_url: "{{ central_portal_url }}/xplan"
-    xplan_nextauth_url: "{{ central_portal_url }}/xplan/api/auth"
-    central_auth_schema: "{{ (central_db_schemas | selectattr('name', 'equalto', 'auth') | list).0 }}"
-    central_wms_schema: "{{ (central_db_schemas | selectattr('name', 'equalto', 'wms') | list).0 }}"
-    central_xplan_schema: "{{ (central_db_schemas | selectattr('name', 'equalto', 'xplan') | list).0 }}"
-    central_db_auth_url: "postgresql://{{ central_auth_schema.user }}:{{ central_auth_schema.password }}@localhost:5432/{{ central_db_name }}?schema=auth"
-    central_db_wms_url: "postgresql://{{ central_wms_schema.user }}:{{ central_wms_schema.password }}@localhost:5432/{{ central_db_name }}?schema=wms"
-    central_db_xplan_url: "postgresql://{{ central_xplan_schema.user }}:{{ central_xplan_schema.password }}@localhost:5432/{{ central_db_name }}?schema=xplan"
+    portal_base_url: "https://{{ ecomos_server_name | default('ecomos.targonglobal.com') }}"
+    wms_public_url: "{{ portal_base_url }}/wms"
+    wms_nextauth_url: "{{ portal_base_url }}/wms/api/auth"
+    xplan_public_url: "{{ portal_base_url }}/xplan"
+    xplan_nextauth_url: "{{ portal_base_url }}/xplan/api/auth"
+    portal_auth_schema: "{{ (portal_db_schemas | selectattr('name', 'equalto', 'auth') | list).0 }}"
+    portal_wms_schema: "{{ (portal_db_schemas | selectattr('name', 'equalto', 'wms') | list).0 }}"
+    portal_xplan_schema: "{{ (portal_db_schemas | selectattr('name', 'equalto', 'xplan') | list).0 }}"
+    portal_db_auth_url: "postgresql://{{ portal_auth_schema.user }}:{{ portal_auth_schema.password }}@localhost:5432/{{ portal_db_name }}?schema=auth"
+    portal_db_wms_url: "postgresql://{{ portal_wms_schema.user }}:{{ portal_wms_schema.password }}@localhost:5432/{{ portal_db_name }}?schema=wms"
+    portal_db_xplan_url: "postgresql://{{ portal_xplan_schema.user }}:{{ portal_xplan_schema.password }}@localhost:5432/{{ portal_db_name }}?schema=xplan"
   tasks:
     - name: Upgrade system packages
       apt:
@@ -63,20 +63,20 @@
     - name: Install dependencies (pnpm)
       shell: pnpm install
       args: { chdir: "{{ app_base }}/repo" }
-    - name: Provision central database
+    - name: Provision portal database
       import_tasks: tasks/database-setup.yml
       vars:
         app_user: ubuntu
         app_dir: "{{ app_base }}"
-    - name: Prepare central auth schema (optional seed)
+    - name: Prepare portal auth schema (optional seed)
       shell: |
         set -e
-        CENTRAL_DB_URL={{ central_db_auth_url }} pnpm --filter @ecom-os/auth prisma:generate
-        CENTRAL_DB_URL={{ central_db_auth_url }} pnpm --filter @ecom-os/auth prisma:migrate
-        if [ -n "{{ central_portal_admin_email | default('', true) }}" ] && [ -n "{{ central_portal_admin_password | default('', true) }}" ]; then
-          CENTRAL_DB_URL={{ central_db_auth_url }} SEED_PORTAL_ADMIN_EMAIL={{ central_portal_admin_email }} SEED_PORTAL_ADMIN_PASSWORD={{ central_portal_admin_password }} pnpm --filter @ecom-os/auth prisma:seed
+        PORTAL_DB_URL={{ portal_db_auth_url }} pnpm --filter @ecom-os/auth prisma:generate
+        PORTAL_DB_URL={{ portal_db_auth_url }} pnpm --filter @ecom-os/auth prisma:migrate
+        if [ -n "{{ portal_admin_email | default('', true) }}" ] && [ -n "{{ portal_admin_password | default('', true) }}" ]; then
+          PORTAL_DB_URL={{ portal_db_auth_url }} SEED_PORTAL_ADMIN_EMAIL={{ portal_admin_email }} SEED_PORTAL_ADMIN_PASSWORD={{ portal_admin_password }} pnpm --filter @ecom-os/auth prisma:seed
         else
-          echo "Skipping auth seed: central_portal_admin_email/password not set."
+          echo "Skipping auth seed: portal_admin_email/password not set."
         fi
       args: { chdir: "{{ app_base }}/repo" }
     - name: Write per-app environment files from GitHub Secrets
@@ -129,15 +129,15 @@
           no_log: true
           when: (lookup('env', 'FCC_ENV') | default('', true)) | length > 0
 
-        - name: Write Central DB env
+        - name: Write Portal DB env
           copy:
             dest: "{{ app_base }}/repo/apps/central-db/.env"
-            content: "{{ lookup('env', 'CENTRAL_DB_ENV') | default('', true) }}"
+            content: "{{ lookup('env', 'PORTAL_DB_ENV') | default('', true) }}"
             owner: ubuntu
             group: ubuntu
             mode: '0600'
           no_log: true
-          when: (lookup('env', 'CENTRAL_DB_ENV') | default('', true)) | length > 0
+          when: (lookup('env', 'PORTAL_DB_ENV') | default('', true)) | length > 0
 
         - name: Write Margin Master env
           copy:
@@ -288,7 +288,7 @@
         cd {{ app_base }}/repo
         pm2 delete ecomos || true
         lsof -ti:{{ ecomos_port }} | xargs -r kill -9 || true
-        PORT={{ ecomos_port }} NODE_ENV=production NEXTAUTH_URL={{ central_portal_url }}/api/auth COOKIE_DOMAIN=.targonglobal.com CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CENTRAL_DB_URL={{ central_db_auth_url }} pm2 start pnpm --name ecomos --cwd {{ app_base }}/repo/apps/ecomos --update-env -- start
+        PORT={{ ecomos_port }} NODE_ENV=production NEXTAUTH_URL={{ portal_base_url }}/api/auth COOKIE_DOMAIN=.targonglobal.com PORTAL_AUTH_URL={{ portal_base_url }} PORTAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} PORTAL_DB_URL={{ portal_db_auth_url }} pm2 start pnpm --name ecomos --cwd {{ app_base }}/repo/apps/ecomos --update-env -- start
         pm2 save
         for i in 1 2 3 4 5 6 7 8 9 10; do
           if curl -fsS -o /dev/null -H "Host: {{ ecomos_server_name | default('ecomos.targonglobal.com') }}" "http://127.0.0.1:{{ ecomos_port }}/login"; then
@@ -305,13 +305,13 @@
         pm2 delete wms 2>/dev/null || true
         sudo lsof -ti:{{ wms_port }} | xargs -r sudo kill -9 || true
         # Generate Prisma client for runtime (needed for database access)
-        BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_public_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} DATABASE_URL={{ central_db_wms_url }} pnpm --filter @ecom-os/wms db:generate
+        BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_public_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_PORTAL_AUTH_URL={{ portal_base_url }} PORTAL_AUTH_URL={{ portal_base_url }} PORTAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ portal_base_url }},{{ wms_public_url }} DATABASE_URL={{ portal_db_wms_url }} pnpm --filter @ecom-os/wms db:generate
         # Push schema changes to database
-        DATABASE_URL={{ central_db_wms_url }} pnpm --filter @ecom-os/wms db:push
+        DATABASE_URL={{ portal_db_wms_url }} pnpm --filter @ecom-os/wms db:push
         # Use CI-built .next folder (no rebuild needed)
         pm2 delete wms 2>/dev/null || true
         sudo lsof -ti:{{ wms_port }} | xargs -r sudo kill -9 || true
-        BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_public_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ wms_public_url }} DATABASE_URL={{ central_db_wms_url }} PORT={{ wms_port }} NODE_ENV=production pm2 start server.js --name wms --cwd {{ app_base }}/repo/apps/wms --update-env
+        BASE_PATH=/wms NEXT_PUBLIC_BASE_PATH=/wms NEXTAUTH_URL={{ wms_public_url }} NEXT_PUBLIC_APP_URL={{ wms_public_url }} NEXT_PUBLIC_PORTAL_AUTH_URL={{ portal_base_url }} PORTAL_AUTH_URL={{ portal_base_url }} PORTAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ portal_base_url }},{{ wms_public_url }} DATABASE_URL={{ portal_db_wms_url }} PORT={{ wms_port }} NODE_ENV=production pm2 start server.js --name wms --cwd {{ app_base }}/repo/apps/wms --update-env
         pm2 save
         # Verify WMS health returns 200 and new version string
         for i in 1 2 3 4 5 6 7 8 9 10; do
@@ -328,12 +328,12 @@
         pm2 delete x-plan 2>/dev/null || true
         lsof -ti:{{ xplan_port }} | xargs -r kill -9 || true
         # Generate Prisma client for runtime (needed for database access)
-        BASE_PATH=/xplan NEXT_PUBLIC_BASE_PATH=/xplan NEXTAUTH_URL={{ xplan_nextauth_url }} NEXT_PUBLIC_APP_URL={{ xplan_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ xplan_public_url }} COOKIE_DOMAIN=.targonglobal.com DATABASE_URL={{ central_db_xplan_url }} pnpm --filter @ecom-os/x-plan prisma:generate
+        BASE_PATH=/xplan NEXT_PUBLIC_BASE_PATH=/xplan NEXTAUTH_URL={{ xplan_nextauth_url }} NEXT_PUBLIC_APP_URL={{ xplan_public_url }} NEXT_PUBLIC_PORTAL_AUTH_URL={{ portal_base_url }} PORTAL_AUTH_URL={{ portal_base_url }} PORTAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ portal_base_url }},{{ xplan_public_url }} COOKIE_DOMAIN=.targonglobal.com DATABASE_URL={{ portal_db_xplan_url }} pnpm --filter @ecom-os/x-plan prisma:generate
         # Push schema changes to database
-        DATABASE_URL={{ central_db_xplan_url }} pnpm --filter @ecom-os/x-plan prisma:push
+        DATABASE_URL={{ portal_db_xplan_url }} pnpm --filter @ecom-os/x-plan prisma:push
         # Use CI-built .next folder (no rebuild needed)
         pm2 delete xplan 2>/dev/null || true
-        BASE_PATH=/xplan NEXT_PUBLIC_BASE_PATH=/xplan NEXTAUTH_URL={{ xplan_nextauth_url }} NEXT_PUBLIC_APP_URL={{ xplan_public_url }} NEXT_PUBLIC_CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_URL={{ central_portal_url }} CENTRAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ central_portal_url }},{{ xplan_public_url }} COOKIE_DOMAIN=.targonglobal.com DATABASE_URL={{ central_db_xplan_url }} PORT={{ xplan_port }} NODE_ENV=production pm2 start pnpm --name xplan --cwd {{ app_base }}/repo/apps/x-plan --update-env -- start
+        BASE_PATH=/xplan NEXT_PUBLIC_BASE_PATH=/xplan NEXTAUTH_URL={{ xplan_nextauth_url }} NEXT_PUBLIC_APP_URL={{ xplan_public_url }} NEXT_PUBLIC_PORTAL_AUTH_URL={{ portal_base_url }} PORTAL_AUTH_URL={{ portal_base_url }} PORTAL_AUTH_SECRET={{ nextauth_secret }} NEXTAUTH_SECRET={{ nextauth_secret }} CSRF_ALLOWED_ORIGINS={{ portal_base_url }},{{ xplan_public_url }} COOKIE_DOMAIN=.targonglobal.com DATABASE_URL={{ portal_db_xplan_url }} PORT={{ xplan_port }} NODE_ENV=production pm2 start pnpm --name xplan --cwd {{ app_base }}/repo/apps/x-plan --update-env -- start
         pm2 save
         # Verify X-Plan responds
         for i in 1 2 3 4 5 6 7 8 9 10; do

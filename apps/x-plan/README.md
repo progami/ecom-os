@@ -1,6 +1,6 @@
 # X-Plan
 
-Next.js 15 application that mirrors the X-Plan workbook so ops, sales, and finance can collaborate without leaving the web. The UI reproduces the Excel tabs (product setup, operations planning, sales forecasting, financial planning, dashboard) and stores data in the shared `central_db.x_plan` schema.
+Next.js 15 application that mirrors the X-Plan workbook so ops, sales, and finance can collaborate without leaving the web. The UI reproduces the Excel tabs (product setup, operations planning, sales forecasting, financial planning, dashboard) and stores data in the shared `portal_db.x_plan` schema.
 
 ## Getting Started
 
@@ -8,7 +8,7 @@ Next.js 15 application that mirrors the X-Plan workbook so ops, sales, and finan
 
 - Node.js **≥ 20.9** (the monorepo tracks the active LTS release).
 - pnpm **≥ 9** (`corepack enable` if pnpm is not globally installed).
-- PostgreSQL 14+ (local Docker instructions below) or access to the shared `central_db` instance.
+- PostgreSQL 14+ (local Docker instructions below) or access to the shared `portal_db` instance.
 
 ### 2. Install workspace dependencies
 
@@ -30,12 +30,12 @@ Set `DATABASE_URL`, `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, and any other secrets use
 
 ### 4. Provision a database (optional Docker helper)
 
-X-Plan stores data inside the `x_plan` schema of the `central_db` database. For local development you can launch Postgres via Docker:
+X-Plan stores data inside the `x_plan` schema of the `portal_db` database. For local development you can launch Postgres via Docker:
 
 ```bash
 docker run --rm \
   --name x-plan-postgres \
-  -e POSTGRES_DB=central_db \
+  -e POSTGRES_DB=portal_db \
   -e POSTGRES_USER=postgres \
   -e POSTGRES_PASSWORD=postgres \
   -p 6543:5432 \
@@ -45,10 +45,10 @@ docker run --rm \
 Then export a connection string that targets that schema before running Prisma or the dev server:
 
 ```bash
-export DATABASE_URL='postgresql://postgres:postgres@localhost:6543/central_db?schema=x_plan'
+export DATABASE_URL='postgresql://postgres:postgres@localhost:6543/portal_db?schema=x_plan'
 ```
 
-> Using the shared central database instead of Docker? Point `DATABASE_URL` at that instance while keeping the schema name `x_plan`.
+> Using the shared portal database instead of Docker? Point `DATABASE_URL` at that instance while keeping the schema name `x_plan`.
 
 ### 5. Generate Prisma client & apply migrations
 
@@ -93,7 +93,7 @@ pnpm --filter @ecom-os/x-plan type-check  # tsc in noEmit mode
 - Handsontable-based grids for each workbook sheet with keyboard navigation, copy/paste, and inline editing.
 - Sheet-specific APIs (`/api/v1/x-plan/*`) that persist changes to PostgreSQL and keep derived totals in sync.
 - Automatic supplier invoice generation (manufacturing deposit/production/final, freight, tariff) so new purchase orders surface immediately in planning and cash views.
-- Prisma schema scoped to the `x_plan` schema inside the central database so the platform can grow without siloed databases.
+- Prisma schema scoped to the `x_plan` schema inside the portal database so the platform can grow without siloed databases.
 
 ## Using X-Plan
 
@@ -111,7 +111,7 @@ All edits persist automatically via the debounced save handlers—watch for the 
 | --- | --- |
 | `DATABASE_URL` | PostgreSQL connection string targeting the `x_plan` schema |
 | `NEXTAUTH_URL` | Public URL for the app (used by NextAuth) |
-| `NEXTAUTH_SECRET` | Shared auth secret (should match the central portal) |
-| `CENTRAL_AUTH_URL` | Base URL for the central auth portal (defaults to `http://localhost:3000` in dev) |
+| `NEXTAUTH_SECRET` | Shared auth secret (should match the portal) |
+| `PORTAL_AUTH_URL` | Base URL for the portal auth service (defaults to `http://localhost:3000` in dev) |
 
 See `.env.example` for quick-start values.

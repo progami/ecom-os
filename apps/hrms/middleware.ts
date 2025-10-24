@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { hasCentralSession } from '@ecom-os/auth'
+import { hasPortalSession } from '@ecom-os/auth'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -14,19 +14,19 @@ export async function middleware(request: NextRequest) {
 
   if (!isPublic) {
     const debug = process.env.NODE_ENV !== 'production'
-    const hasSession = await hasCentralSession({
+    const hasSession = await hasPortalSession({
       request,
       appId: 'ecomos',
-      centralUrl: process.env.CENTRAL_AUTH_URL,
+      portalUrl: process.env.PORTAL_AUTH_URL,
       debug,
     })
 
     if (!hasSession) {
-      const defaultCentral = process.env.NODE_ENV === 'production'
+      const defaultPortal = process.env.NODE_ENV === 'production'
         ? 'https://ecomos.targonglobal.com'
         : 'http://localhost:3000'
-      const central = process.env.CENTRAL_AUTH_URL || defaultCentral
-      const login = new URL('/login', central)
+      const portal = process.env.PORTAL_AUTH_URL || defaultPortal
+      const login = new URL('/login', portal)
       if (debug) {
         console.log('[hrms middleware] missing session, redirecting to', login.toString())
       }

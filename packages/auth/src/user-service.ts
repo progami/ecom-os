@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
-import { getCentralAuthPrisma } from './db.js'
+import { getPortalAuthPrisma } from './db.js'
 
 type AppEntitlementMap = Record<string, { role: string; departments: string[] }>
 
@@ -51,7 +51,7 @@ const userSelect = {
   },
 } as const
 
-type CentralUserRecord = {
+type PortalUserRecord = {
   id: string
   email: string
   username: string | null
@@ -62,18 +62,18 @@ type CentralUserRecord = {
   appAccess: Array<{ accessLevel: string; departments: unknown; app: { slug: string } }>
 }
 
-export async function authenticateWithCentralDirectory(input: unknown): Promise<AuthenticatedUser | null> {
+export async function authenticateWithPortalDirectory(input: unknown): Promise<AuthenticatedUser | null> {
   const { emailOrUsername, password } = credentialsSchema.parse(input)
 
   const loginValue = emailOrUsername.trim().toLowerCase()
 
-  if (!process.env.CENTRAL_DB_URL) {
+  if (!process.env.PORTAL_DB_URL) {
     return process.env.NODE_ENV !== 'production'
       ? handleDevFallback(loginValue, password)
       : null
   }
 
-  const prisma = getCentralAuthPrisma()
+  const prisma = getPortalAuthPrisma()
 
   const user = await prisma.user.findFirst({
     where: {
@@ -84,7 +84,7 @@ export async function authenticateWithCentralDirectory(input: unknown): Promise<
       isActive: true,
     },
     select: userSelect,
-  }) as (CentralUserRecord | null)
+  }) as (PortalUserRecord | null)
 
   if (!user) {
     return null
@@ -95,7 +95,7 @@ export async function authenticateWithCentralDirectory(input: unknown): Promise<
     return null
   }
 
-  return mapCentralUser(user)
+  return mapPortalUser(user)
 }
 
 function handleDevFallback(emailOrUsername: string, password: string): AuthenticatedUser | null {
@@ -133,11 +133,11 @@ function buildDemoUser(): AuthenticatedUser {
 }
 
 export async function getUserEntitlements(userId: string) {
-  if (!process.env.CENTRAL_DB_URL) {
+  if (!process.env.PORTAL_DB_URL) {
     return {}
   }
 
-  const prisma = getCentralAuthPrisma()
+  const prisma = getPortalAuthPrisma()
 
   const assignments = await prisma.userApp.findMany({
     where: { userId },
@@ -167,7 +167,7 @@ export async function getUserByEmail(email: string): Promise<AuthenticatedUser |
   const normalizedEmail = email.trim().toLowerCase()
   if (!normalizedEmail) return null
 
-  if (!process.env.CENTRAL_DB_URL) {
+  if (!process.env.PORTAL_DB_URL) {
     const demoUser = buildDemoUser()
     if (demoUser.email.toLowerCase() === normalizedEmail) {
       return demoUser
@@ -175,19 +175,19 @@ export async function getUserByEmail(email: string): Promise<AuthenticatedUser |
     return null
   }
 
-  const prisma = getCentralAuthPrisma()
+  const prisma = getPortalAuthPrisma()
   const user = await prisma.user.findFirst({
     where: {
       email: normalizedEmail,
       isActive: true,
     },
     select: userSelect,
-  }) as (CentralUserRecord | null)
+  }) as (PortalUserRecord | null)
   if (!user) return null
-  return mapCentralUser(user)
+  return mapPortalUser(user)
 }
 
-function mapCentralUser(user: CentralUserRecord): AuthenticatedUser {
+function mapPortalUser(user: PortalUserRecord): AuthenticatedUser {
   const entitlements = user.appAccess.reduce<AppEntitlementMap>((acc, assignment) => {
     acc[assignment.app.slug] = {
       role: assignment.accessLevel,

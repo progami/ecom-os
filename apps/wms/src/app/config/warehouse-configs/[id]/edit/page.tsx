@@ -47,8 +47,8 @@ export default function EditWarehouseConfigPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session || session.user.role !== 'admin') {
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
+      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+      const url = new URL('/login', portalAuth)
       url.searchParams.set('callbackUrl', window.location.origin + `/config/warehouse-configs/${params.id}/edit`)
       window.location.href = url.toString()
       return

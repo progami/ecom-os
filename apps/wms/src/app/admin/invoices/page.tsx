@@ -21,8 +21,8 @@ export default function AdminInvoicesPage() {
 
   if (!session || session.user.role !== 'admin') {
     if (typeof window !== 'undefined') {
-      const central = (process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL as string) || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
+      const portalAuth = (process.env.NEXT_PUBLIC_PORTAL_AUTH_URL as string) || 'https://ecomos.targonglobal.com'
+      const url = new URL('/login', portalAuth)
       url.searchParams.set('callbackUrl', window.location.origin + '/admin/invoices')
       window.location.replace(url.toString())
     }

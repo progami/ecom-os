@@ -175,9 +175,9 @@ export async function validateSession(
       role: 'user' // Default role since User model doesn't have role field
     };
 
-    // Check admin privileges via central roles claim when present
-    const centralSession = await getServerSession(authOptions)
-    const roles: any = (centralSession as any)?.roles
+    // Check admin privileges via portal roles claim when present
+    const portalSession = await getServerSession(authOptions)
+    const roles: any = (portalSession as any)?.roles
     const fccRole = roles?.fcc?.role as string | undefined
     const isAdmin = fccRole === 'admin'
     if (level === ValidationLevel.ADMIN && !isAdmin) {
@@ -265,7 +265,7 @@ export async function validateSession(
             xeroToken = refreshedToken;
             
             // Update the cookie with the new token
-            // Import the centralized cookie config
+            // Import the shared portal cookie config
             const { AUTH_COOKIE_OPTIONS } = await import('@/lib/cookie-config');
             const cookieStore = cookies();
             cookieStore.set(TOKEN_COOKIE_NAME, JSON.stringify(refreshedToken), AUTH_COOKIE_OPTIONS);

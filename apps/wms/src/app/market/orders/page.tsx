@@ -9,9 +9,9 @@ export default async function OrderManagementPage() {
   const session = await getServerSession(authOptions)
 
   if (!session) {
-    const central = process.env.CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+    const portalAuth = process.env.PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
-    redirect(`${central}/login?callbackUrl=${encodeURIComponent(appUrl + '/market/orders')}`)
+    redirect(`${portalAuth}/login?callbackUrl=${encodeURIComponent(appUrl + '/market/orders')}`)
   }
 
   return (

@@ -13,8 +13,8 @@ Populate the following repository secrets in GitHub before enabling the deploy w
 - `AWS_ROLE_TO_ASSUME`, `AWS_REGION`, optionally `EC2_INSTANCE_ID` – used to discover the host via AWS APIs.
 - `EC2_HOST`, `EC2_USER` – fallback connection details when discovery is skipped.
 - `CF_API_TOKEN` – Cloudflare API token for DNS updates (optional but recommended).
-- Application env payloads: `WEBSITE_ENV`, `WMS_ENV`, `HRMS_ENV`, `FCC_ENV`, `CENTRAL_DB_ENV`, `MARGIN_MASTER_ENV`, `JASON_ENV`, `ECOMOS_ENV`.
-- `ECOMOS_ENV` should contain authentication secrets consumed by the central portal and WMS. Store each `.env` file as a newline-delimited string.
+- Application env payloads: `WEBSITE_ENV`, `WMS_ENV`, `HRMS_ENV`, `FCC_ENV`, `PORTAL_DB_ENV`, `MARGIN_MASTER_ENV`, `JASON_ENV`, `ECOMOS_ENV`.
+- `ECOMOS_ENV` should contain authentication secrets consumed by the portal and WMS. Store each `.env` file as a newline-delimited string.
 
 ## 3. CI/CD Entry Points
 - Pull requests into `dev` and `main` run `.github/workflows/ci.yml` (lint, type check, build for Website and WMS).
@@ -43,7 +43,7 @@ Populate the following repository secrets in GitHub before enabling the deploy w
 - Issues/renews Let’s Encrypt certificates for apex, www, ecomos, and wms domains.
 - Rebuilds and restarts services with pm2:
   - Website (`PORT=3005`, `server.js` under `apps/website`)
-  - EcomOS portal (`PORT=3000`, `pnpm start` under `apps/ecomos` with central auth env vars)
+  - EcomOS portal (`PORT=3000`, `pnpm start` under `apps/ecomos` with portal auth env vars)
   - WMS (`PORT=3001`, rebuild + `server.js` under `apps/wms` with `BASE_PATH=/wms`)
 - Saves the pm2 process list and verifies local health for each service.
 - Installs housekeeping scripts for log cleanup.
@@ -68,6 +68,6 @@ Populate the following repository secrets in GitHub before enabling the deploy w
 - Terraform state is up to date, and the EC2 host is reachable via SSH.
 - All target domains resolve to the EC2 public IP, or Cloudflare credentials are available for the workflow to update records.
 - Required secrets have been uploaded or rotated as needed.
-- Database migrations for WMS or central auth have been validated on staging.
+- Database migrations for WMS or portal auth have been validated on staging.
 
 Following this process keeps provisioning, configuration, and deployment deterministic, with GitHub Actions driving the same Ansible playbook that we can execute manually for troubleshooting.
