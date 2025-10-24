@@ -24,6 +24,19 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 10
           allowed-conclusions: success
+          verbose: true
+
+      - name: Mark build-test status on merge commit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          api_url="https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.event.pull_request.merge_commit_sha }}"
+          payload="{\"state\":\"success\",\"context\":\"build-test\",\"description\":\"Auto-sync acknowledged deploy\",\"target_url\":\"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
+          curl -sSf -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -d "$payload" \
+            "$api_url"
 
       - name: Checkout main
         uses: actions/checkout@v4
