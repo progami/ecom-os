@@ -69,37 +69,37 @@ jobs:
         env:
           NEXTAUTH_SECRET: test-nextauth-secret
           PORTAL_AUTH_SECRET: test-portal-secret
-          NEXTAUTH_URL: https://example.com/api/auth
-          PORTAL_AUTH_URL: https://example.com
-          COOKIE_DOMAIN: .example.com
+          NEXTAUTH_URL: https://ecomos.targonglobal.com/api/auth
+          PORTAL_AUTH_URL: https://ecomos.targonglobal.com
+          COOKIE_DOMAIN: .targonglobal.com
 
       - name: Build WMS
         run: pnpm --filter @ecom-os/wms build
         env:
           NEXTAUTH_SECRET: test-nextauth-secret
           PORTAL_AUTH_SECRET: test-portal-secret
-          NEXTAUTH_URL: https://example.com/wms/api/auth
-          PORTAL_AUTH_URL: https://example.com
+          NEXTAUTH_URL: https://ecomos.targonglobal.com/wms/api/auth
+          PORTAL_AUTH_URL: https://ecomos.targonglobal.com
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
           BASE_PATH: /wms
           NEXT_PUBLIC_BASE_PATH: /wms
-          NEXT_PUBLIC_APP_URL: https://example.com/wms
-          NEXT_PUBLIC_PORTAL_AUTH_URL: https://example.com
-          CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/wms
+          NEXT_PUBLIC_APP_URL: https://ecomos.targonglobal.com/wms
+          NEXT_PUBLIC_PORTAL_AUTH_URL: https://ecomos.targonglobal.com
+          CSRF_ALLOWED_ORIGINS: https://ecomos.targonglobal.com,https://ecomos.targonglobal.com/wms
 
       - name: Build X-Plan
         run: pnpm --filter @ecom-os/x-plan build
         env:
           NEXTAUTH_SECRET: test-nextauth-secret
           PORTAL_AUTH_SECRET: test-portal-secret
-          NEXTAUTH_URL: https://example.com/xplan/api/auth
-          PORTAL_AUTH_URL: https://example.com
+          NEXTAUTH_URL: https://ecomos.targonglobal.com/xplan/api/auth
+          PORTAL_AUTH_URL: https://ecomos.targonglobal.com
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
           BASE_PATH: /xplan
           NEXT_PUBLIC_BASE_PATH: /xplan
-          NEXT_PUBLIC_APP_URL: https://example.com/xplan
-          NEXT_PUBLIC_PORTAL_AUTH_URL: https://example.com
-          CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/xplan
+          NEXT_PUBLIC_APP_URL: https://ecomos.targonglobal.com/xplan
+          NEXT_PUBLIC_PORTAL_AUTH_URL: https://ecomos.targonglobal.com
+          CSRF_ALLOWED_ORIGINS: https://ecomos.targonglobal.com,https://ecomos.targonglobal.com/xplan
 
       - name: Configure SSH
         run: |
