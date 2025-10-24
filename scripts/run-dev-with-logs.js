@@ -43,7 +43,7 @@ try {
 
 const logStream = fs.createWriteStream(logPath, { flags: 'a' })
 
-const sharedSecret = process.env.CENTRAL_AUTH_SECRET
+const sharedSecret = process.env.PORTAL_AUTH_SECRET
   || process.env.NEXTAUTH_SECRET
   || 'dev-only-shared-nextauth-secret-change-me'
 
@@ -53,7 +53,7 @@ const child = spawn(command, commandArgs, {
   env: {
     ...process.env,
     DEV_LOG_NAME: logName,
-    CENTRAL_AUTH_SECRET: sharedSecret,
+    PORTAL_AUTH_SECRET: sharedSecret,
     NEXTAUTH_SECRET: sharedSecret,
   },
 })

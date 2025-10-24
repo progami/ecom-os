@@ -35,8 +35,8 @@ export interface DevAuthDefaultsOptions {
     port?: string | number;
     baseUrl?: string;
     cookieDomain?: string;
-    centralUrl?: string;
-    publicCentralUrl?: string;
+    portalUrl?: string;
+    publicPortalUrl?: string;
 }
 /**
  * Provide sane defaults for local development so NextAuth stops warning about missing env vars.
@@ -48,22 +48,22 @@ export declare function withSharedAuth(base: NextAuthOptions, optsOrDomain: Shar
  * In dev, returns both generic and app-prefixed variants for robustness.
  */
 export declare function getCandidateSessionCookieNames(appId?: string): string[];
-export interface CentralSessionProbeOptions {
+export interface PortalSessionProbeOptions {
     request: Request;
     appId?: string;
     cookieNames?: string[];
     secret?: string;
-    centralUrl?: string;
+    portalUrl?: string;
     debug?: boolean;
     fetchImpl?: typeof fetch;
 }
 /**
- * Determine whether a request already carries a valid central NextAuth session.
+ * Determine whether a request already carries a valid portal NextAuth session.
  * - Tries to decode the session cookie locally using the shared secret.
- * - Falls back to probing the central `/api/auth/session` endpoint to handle
+ * - Falls back to probing the portal `/api/auth/session` endpoint to handle
  *   environments where app-specific secrets differ from the portal.
  */
-export declare function hasCentralSession(options: CentralSessionProbeOptions): Promise<boolean>;
+export declare function hasPortalSession(options: PortalSessionProbeOptions): Promise<boolean>;
 export type AppEntitlement = {
     role: string;
     depts?: string[];

@@ -4,17 +4,17 @@ import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth';
 // NOTE: Keep providers/callbacks/pages here as HRMS evolves.
 const devPort = process.env.PORT || process.env.HRMS_PORT || 3006;
 const devBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${devPort}`;
-const centralDev = process.env.CENTRAL_AUTH_URL || 'http://localhost:3000';
+const portalDev = process.env.PORTAL_AUTH_URL || 'http://localhost:3000';
 applyDevAuthDefaults({
   appId: 'ecomos',
   port: devPort,
   baseUrl: devBaseUrl,
   cookieDomain: 'localhost',
-  centralUrl: centralDev,
-  publicCentralUrl: process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'http://localhost:3000',
+  portalUrl: portalDev,
+  publicPortalUrl: process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'http://localhost:3000',
 });
 
-const sharedSecret = process.env.CENTRAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+const sharedSecret = process.env.PORTAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 if (sharedSecret) {
   process.env.NEXTAUTH_SECRET = sharedSecret;
 }
@@ -32,7 +32,7 @@ const baseAuthOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
-      // propagate central roles for HRMS consumption if needed
+      // propagate portal roles for HRMS consumption if needed
       // @ts-expect-error roles claim passthrough
       session.roles = (token as any).roles
       // @ts-expect-error id

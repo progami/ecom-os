@@ -169,8 +169,8 @@ function InventoryPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
+      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+      const url = new URL('/login', portalAuth)
       url.searchParams.set('callbackUrl', `${window.location.origin}/operations/inventory`)
       window.location.href = url.toString()
       return

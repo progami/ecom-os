@@ -24,7 +24,7 @@ function LoginPageInner() {
     if (!error) return ''
     const messages: Record<string, string> = {
       AccessDenied: 'Your account is not allowed to sign in. Please contact an administrator.',
-      CentralUserMissing: 'Your account is not provisioned in the central directory.',
+      PortalUserMissing: 'Your account is not provisioned in the portal directory.',
       OAuthCallback: 'Google rejected the sign-in request. Please try again.',
     }
     return messages[error] || 'Unable to sign in right now. Please try again or reach out to support.'

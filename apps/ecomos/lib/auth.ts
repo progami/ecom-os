@@ -10,11 +10,11 @@ applyDevAuthDefaults({
   port: devPort,
   baseUrl: devBaseUrl,
   cookieDomain: 'localhost',
-  centralUrl: devBaseUrl,
-  publicCentralUrl: devBaseUrl,
+  portalUrl: devBaseUrl,
+  publicPortalUrl: devBaseUrl,
 })
 
-const sharedSecret = process.env.CENTRAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
+const sharedSecret = process.env.PORTAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
 if (sharedSecret) {
   process.env.NEXTAUTH_SECRET = sharedSecret
 }
@@ -71,15 +71,15 @@ const baseAuthOptions: NextAuthOptions = {
           return false
         }
 
-        let centralUser = await getUserByEmail(email)
-        if (!centralUser && !isProd) {
-          centralUser = buildDevCentralUser(email)
+        let portalUser = await getUserByEmail(email)
+        if (!portalUser && !isProd) {
+          portalUser = buildDevPortalUser(email)
         }
-        if (!centralUser) {
-          throw new Error('CentralUserMissing')
+        if (!portalUser) {
+          throw new Error('PortalUserMissing')
         }
 
-        ;(user as any).centralUser = centralUser
+        ;(user as any).portalUser = portalUser
         return true
       }
 
@@ -89,14 +89,14 @@ const baseAuthOptions: NextAuthOptions = {
       return false
     },
     async jwt({ token, user }) {
-      const central = (user as any)?.centralUser
-      if (central) {
-        token.sub = central.id
-        token.email = central.email
-        token.name = central.fullName || user?.name || central.email
-        token.role = central.roles[0] ?? null
-        token.apps = Object.keys(central.entitlements)
-        ;(token as any).roles = central.entitlements
+      const portal = (user as any)?.portalUser
+      if (portal) {
+        token.sub = portal.id
+        token.email = portal.email
+        token.name = portal.fullName || user?.name || portal.email
+        token.role = portal.roles[0] ?? null
+        token.apps = Object.keys(portal.entitlements)
+        ;(token as any).roles = portal.entitlements
         ;(token as any).entitlements_ver = Date.now()
       }
       return token
@@ -150,7 +150,7 @@ export const authOptions: NextAuthOptions = withSharedAuth(baseAuthOptions, {
   appId: 'ecomos',
 })
 
-function buildDevCentralUser(email: string) {
+function buildDevPortalUser(email: string) {
   const normalized = email.trim().toLowerCase()
   const [localPart] = normalized.split('@')
   const displayName = localPart
