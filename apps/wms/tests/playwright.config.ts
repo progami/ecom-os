@@ -1,5 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const defaultPort = Number(process.env.PORT || process.env.WMS_PORT || 3001);
+const basePath = process.env.BASE_PATH ?? '';
+const defaultHost = process.env.HOST || 'localhost';
+const defaultProtocol = process.env.PROTOCOL || 'http';
+const fallbackBaseUrl = `${defaultProtocol}://${defaultHost}:${defaultPort}${basePath}`;
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 60000,
@@ -13,7 +19,7 @@ export default defineConfig({
     ['list']
   ],
   use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    baseURL: process.env.BASE_URL || fallbackBaseUrl,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -38,7 +44,7 @@ export default defineConfig({
 
   webServer: process.env.CI ? undefined : {
     command: 'npm run dev',
-    port: 3000,
+    port: defaultPort,
     timeout: 120 * 1000,
     reuseExistingServer: true,
     stdout: 'pipe',
@@ -47,9 +53,10 @@ export default defineConfig({
       ...process.env,
       USE_TEST_AUTH: process.env.USE_TEST_AUTH || 'true',
       NODE_ENV: process.env.NODE_ENV || 'test',
-      NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'http://localhost:3000',
+      NEXTAUTH_URL: process.env.NEXTAUTH_URL || fallbackBaseUrl,
       NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || 'test-secret-for-e2e-tests',
       DATABASE_URL: process.env.DATABASE_URL,
+      PORT: String(defaultPort),
     },
   },
 });
