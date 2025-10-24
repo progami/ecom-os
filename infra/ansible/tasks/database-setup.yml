@@ -1,31 +1,31 @@
 ---
-# Provision the central PostgreSQL database and per-app schemas.
+# Provision the portal PostgreSQL database and per-app schemas.
 - name: Ensure PostgreSQL is started and enabled
   systemd:
     name: postgresql
     state: started
     enabled: yes
 
-- name: Ensure central database exists
+- name: Ensure portal database exists
   become_user: postgres
   postgresql_db:
-    name: "{{ central_db_name }}"
+    name: "{{ portal_db_name }}"
     state: present
     encoding: UTF8
 
-- name: Create service roles for central schemas
+- name: Create service roles for portal schemas
   become_user: postgres
   postgresql_user:
     name: "{{ item.user }}"
     password: "{{ item.password }}"
     role_attr_flags: "LOGIN"
     state: present
-  loop: "{{ central_db_schemas }}"
+  loop: "{{ portal_db_schemas }}"
 
 - name: Ensure schemas exist with ownership
   become_user: postgres
   postgresql_query:
-    db: "{{ central_db_name }}"
+    db: "{{ portal_db_name }}"
     query: |
       DO $$
       BEGIN
@@ -38,30 +38,30 @@
           EXECUTE format('ALTER SCHEMA %I OWNER TO %I', '{{ item.name }}', '{{ item.user }}');
         END IF;
       END$$;
-  loop: "{{ central_db_schemas }}"
+  loop: "{{ portal_db_schemas }}"
 
 - name: Configure default search_path for schema roles
   become_user: postgres
   postgresql_query:
-    db: "{{ central_db_name }}"
-    query: "ALTER ROLE {{ item.user | quote }} IN DATABASE {{ central_db_name | quote }} SET search_path TO {{ item.name | quote }};"
-  loop: "{{ central_db_schemas }}"
+    db: "{{ portal_db_name }}"
+    query: "ALTER ROLE {{ item.user | quote }} IN DATABASE {{ portal_db_name | quote }} SET search_path TO {{ item.name | quote }};"
+  loop: "{{ portal_db_schemas }}"
 
 - name: Grant usage on schema to owner role
   become_user: postgres
   postgresql_query:
-    db: "{{ central_db_name }}"
+    db: "{{ portal_db_name }}"
     query: "GRANT ALL ON SCHEMA {{ item.name | quote }} TO {{ item.user | quote }};"
-  loop: "{{ central_db_schemas }}"
+  loop: "{{ portal_db_schemas }}"
 
 - name: Ensure pg_hba entry for schema roles
   lineinfile:
     path: "/etc/postgresql/{{ postgres_version | default('16') }}/main/pg_hba.conf"
-    regexp: "^local\\s+{{ central_db_name }}\\s+{{ item.user }}"
-    line: "local   {{ central_db_name }}   {{ item.user }}                                md5"
+    regexp: "^local\\s+{{ portal_db_name }}\\s+{{ item.user }}"
+    line: "local   {{ portal_db_name }}   {{ item.user }}                                md5"
     insertafter: "^local   all             postgres"
     state: present
-  loop: "{{ central_db_schemas }}"
+  loop: "{{ portal_db_schemas }}"
   notify: restart postgresql
 
 - name: Ensure backup directory exists
@@ -74,16 +74,16 @@
 
 - name: Setup database backup cron job
   cron:
-    name: "Daily central DB backup"
+    name: "Daily portal DB backup"
     user: postgres
-    job: "pg_dump {{ central_db_name }} | gzip > {{ app_dir }}/backups/central_$(date +\\%Y\\%m\\%d_\\%H\\%M\\%S).sql.gz"
+    job: "pg_dump {{ portal_db_name }} | gzip > {{ app_dir }}/backups/portal_$(date +\\%Y\\%m\\%d_\\%H\\%M\\%S).sql.gz"
     minute: "0"
     hour: "2"
     state: present
 
 - name: Setup backup cleanup cron job
   cron:
-    name: "Cleanup old central DB backups"
+    name: "Cleanup old portal DB backups"
     user: "{{ app_user }}"
     job: "find {{ app_dir }}/backups -name '*.sql.gz' -mtime +7 -delete"
     minute: "0"

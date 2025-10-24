@@ -40,14 +40,14 @@ jobs:
         run: pnpm --filter @ecom-os/wms build
         env:
           NEXTAUTH_SECRET: test-nextauth-secret
-          CENTRAL_AUTH_SECRET: test-central-secret
+          PORTAL_AUTH_SECRET: test-portal-secret
           NEXTAUTH_URL: https://example.com/wms/api/auth
-          CENTRAL_AUTH_URL: https://example.com
+          PORTAL_AUTH_URL: https://example.com
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
           BASE_PATH: /wms
           NEXT_PUBLIC_BASE_PATH: /wms
           NEXT_PUBLIC_APP_URL: https://example.com/wms
-          NEXT_PUBLIC_CENTRAL_AUTH_URL: https://example.com
+          NEXT_PUBLIC_PORTAL_AUTH_URL: https://example.com
           CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/wms
 
       - name: Type-check EcomOS portal
@@ -57,9 +57,9 @@ jobs:
         run: pnpm --filter @ecom-os/ecomos build
         env:
           NEXTAUTH_SECRET: test-nextauth-secret
-          CENTRAL_AUTH_SECRET: test-central-secret
+          PORTAL_AUTH_SECRET: test-portal-secret
           NEXTAUTH_URL: https://example.com/api/auth
-          CENTRAL_AUTH_URL: https://example.com
+          PORTAL_AUTH_URL: https://example.com
           COOKIE_DOMAIN: .example.com
           GOOGLE_CLIENT_ID: test-google-client-id
           GOOGLE_CLIENT_SECRET: test-google-client-secret
@@ -81,9 +81,9 @@ jobs:
           NEXT_PUBLIC_BASE_PATH: /xplan
           NEXTAUTH_URL: https://example.com/xplan/api/auth
           NEXT_PUBLIC_APP_URL: https://example.com/xplan
-          NEXT_PUBLIC_CENTRAL_AUTH_URL: https://example.com
-          CENTRAL_AUTH_URL: https://example.com
-          CENTRAL_AUTH_SECRET: test-central-secret
+          NEXT_PUBLIC_PORTAL_AUTH_URL: https://example.com
+          PORTAL_AUTH_URL: https://example.com
+          PORTAL_AUTH_SECRET: test-portal-secret
           NEXTAUTH_SECRET: test-nextauth-secret
           CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/xplan
           COOKIE_DOMAIN: .example.com

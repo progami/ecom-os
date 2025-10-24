@@ -13,9 +13,9 @@ export default async function WarehouseConfigsPage() {
   const session = await getServerSession(authOptions)
 
   if (!session || session.user.role !== 'admin') {
-    const central = process.env.CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+    const portalAuth = process.env.PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
-    redirect(`${central}/login?callbackUrl=${encodeURIComponent(appUrl + '/config/warehouse-configs')}`)
+    redirect(`${portalAuth}/login?callbackUrl=${encodeURIComponent(appUrl + '/config/warehouse-configs')}`)
   }
 
   // WarehouseSkuConfig model removed in v0.5.0

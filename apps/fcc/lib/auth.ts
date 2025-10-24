@@ -3,17 +3,17 @@ import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 
 const devPort = process.env.PORT || process.env.FCC_PORT || 3003
 const devBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${devPort}`
-const centralDev = process.env.CENTRAL_AUTH_URL || 'http://localhost:3000'
+const portalDev = process.env.PORTAL_AUTH_URL || 'http://localhost:3000'
 applyDevAuthDefaults({
   appId: 'ecomos',
   port: devPort,
   baseUrl: devBaseUrl,
   cookieDomain: 'localhost',
-  centralUrl: centralDev,
-  publicCentralUrl: process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'http://localhost:3000',
+  portalUrl: portalDev,
+  publicPortalUrl: process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'http://localhost:3000',
 })
 
-const sharedSecret = process.env.CENTRAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
+const sharedSecret = process.env.PORTAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
 if (sharedSecret) {
   process.env.NEXTAUTH_SECRET = sharedSecret
 }
@@ -35,7 +35,7 @@ const baseAuthOptions: NextAuthOptions = {
       // Basic identity
       // @ts-expect-error id
       session.user.id = (token.sub as string) || session.user.id
-      // Central entitlements
+      // Portal entitlements
       // @ts-expect-error roles claim
       session.roles = (token as any).roles
       // @ts-expect-error version
@@ -43,11 +43,11 @@ const baseAuthOptions: NextAuthOptions = {
       return session
     },
   },
-  // No signIn page here; sign-in happens at central portal (ecomos)
+  // No signIn page here; sign-in happens at the portal (ecomos)
 }
 
 export const authOptions: NextAuthOptions = withSharedAuth(baseAuthOptions, {
   cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
-  // Read central cookie in dev
+  // Read portal cookie in dev
   appId: 'ecomos',
 })

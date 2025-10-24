@@ -1,7 +1,7 @@
-ecomOS Portal (Central Auth)
-=================================
+ecomOS Portal (Auth)
+====================
 
-Central authentication and app launcher for all ecomOS apps.
+Portal-managed authentication and app launcher for all ecomOS apps.
 
 Goals
 -----
@@ -18,7 +18,7 @@ How it works
 - Session cookie name: `__Secure-next-auth.session-token` (prod) scoped to domain `.targonglobal.com`.
 - Other apps verify the cookie with `next-auth/jwt` in their middleware and do not render their own login.
 - Google OAuth handles primary authentication; only allow-listed company accounts can complete sign-in.
-- On missing/invalid session, apps redirect to `CENTRAL_AUTH_URL + /login?callbackUrl=<originalUrl>`.
+- On missing/invalid session, apps redirect to `PORTAL_AUTH_URL + /login?callbackUrl=<originalUrl>`.
 
 Environment
 -----------
@@ -26,7 +26,7 @@ Environment
 - NEXTAUTH_SECRET: strong secret shared by all apps (required)
 - COOKIE_DOMAIN: `.targonglobal.com`
 - NEXTAUTH_URL: `https://ecomos.targonglobal.com`
-- CENTRAL_DB_URL: `postgresql://central_portal:***@localhost:5432/central_db?schema=auth`
+- PORTAL_DB_URL: `postgresql://portal_auth:***@localhost:5432/portal_db?schema=auth`
 - GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET: OAuth credentials from the Google Cloud console
 - GOOGLE_ALLOWED_EMAILS: comma or whitespace separated list of permitted Google accounts (e.g. `jarrar@targonglobal.com, mehdi@targonglobal.com`)
 

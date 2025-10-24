@@ -6,7 +6,7 @@ This repository hosts the Ecom Operating System monorepo with these apps:
 - WMS (`apps/wms`, package `@ecom-os/wms`)
 - FCC (`apps/fcc`, package `@ecom-os/fcc`)
 - Website (`apps/website`, package `@ecom-os/website`)
-- Central DB (`apps/central-db`, package `@ecom-os/central-db`)
+- Portal DB (`apps/central-db`, package `@ecom-os/central-db`)
 - Margin Master (`apps/margin-master`, package `@ecom-os/margin-master`)
 - Jason (`apps/jason`, package `@ecom-os/jason`)
 - YE 2024 (`apps/ye-2024`, package `@ecom-os/ye-2024`) – experimental/non-production data and dashboards
@@ -31,7 +31,7 @@ We use pnpm workspaces and Turborepo. All apps live under `apps/` and shared cod
   - @ecom-os/hrms (`apps/hrms`) – hrms.targonglobal.com
   - @ecom-os/fcc (`apps/fcc`) – fcc.targonglobal.com
 - In development (not released)
-  - @ecom-os/central-db (`apps/central-db`) – centraldb.targonglobal.com
+  - @ecom-os/central-db (`apps/central-db`) – portaldb.targonglobal.com
   - @ecom-os/margin-master (`apps/margin-master`) – mm.targonglobal.com
   - @ecom-os/jason (`apps/jason`) – jason.targonglobal.com
 - Experimental (non-production)
@@ -40,7 +40,7 @@ We use pnpm workspaces and Turborepo. All apps live under `apps/` and shared cod
 
 Notes
 - Production deploys run on push to `main` via `.github/workflows/deploy-prod.yml`.
-- Per-app env is templated from GitHub Secrets: `WEBSITE_ENV`, `WMS_ENV`, `HRMS_ENV`, `FCC_ENV`, `CENTRAL_DB_ENV`, `MARGIN_MASTER_ENV`, `JASON_ENV`.
+- Per-app env is templated from GitHub Secrets: `WEBSITE_ENV`, `WMS_ENV`, `HRMS_ENV`, `FCC_ENV`, `PORTAL_DB_ENV`, `MARGIN_MASTER_ENV`, `JASON_ENV`.
 
 ## Getting started
 

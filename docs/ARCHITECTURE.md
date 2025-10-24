@@ -133,7 +133,7 @@ app/
 - **Stateless API:** RESTful design
 - **Client-Side State:** React Query for caching
 
-### 3. CentralDB (Active - Core Service)
+### 3. PortalDB (Active - Core Service)
 
 #### Data Warehouse Architecture
 ```
@@ -141,7 +141,7 @@ Future Architecture:
 ├── ETL Pipeline
 │   ├── Extractors (from WMS, Bookkeeping)
 │   ├── Transformers (data normalization)
-│   └── Loaders (to central DB)
+│   └── Loaders (to portal DB)
 ├── Analytics Engine
 │   ├── Real-time dashboards
 │   ├── Historical reports
@@ -258,16 +258,16 @@ enum ErrorCode {
 ## Authentication & Authorization
 
 ### Current State
-- `@ecom-os/auth` owns the Prisma schema for the central `auth` schema inside the shared `central_db` database.
-- The EcomOS portal is the only app running NextAuth; it authenticates against the central `User` table and projects entitlements into the JWT.
+- `@ecom-os/auth` owns the Prisma schema for the portal `auth` schema inside the shared `portal_db` database.
+- The EcomOS portal is the only app running NextAuth; it authenticates against the portal `User` table and projects entitlements into the JWT.
 - Downstream apps (WMS, HRMS, FCC, etc.) consume the shared cookie, decode claims via `@ecom-os/auth`, and never touch the user tables directly.
-- The `central_db` Postgres instance hosts per-app schemas (`auth`, `wms`, …) so services can keep their domain data while sharing the auth tables.
+- The `portal_db` Postgres instance hosts per-app schemas (`auth`, `wms`, …) so services can keep their domain data while sharing the auth tables.
 
 ### SSO Data Flow
 ```mermaid
 flowchart LR
     User -->|Credentials| Portal
-    Portal -->|Prisma (auth schema)| CentralDB[(central_db)]
+    Portal -->|Prisma (auth schema)| PortalDB[(portal_db)]
     Portal -->|JWT with entitlements| Browser
     Browser -->|cookie| WMS
     Browser -->|cookie| HRMS

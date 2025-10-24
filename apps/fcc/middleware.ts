@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { hasCentralSession } from '@ecom-os/auth';
+import { hasPortalSession } from '@ecom-os/auth';
 
 // Content Security Policy
 const CSP_DIRECTIVES = [
@@ -120,10 +120,10 @@ export async function middleware(request: NextRequest) {
       ? ['__Secure-next-auth.session-token', '__Secure-fcc.next-auth.session-token']
       : ['next-auth.session-token', 'ecomos.next-auth.session-token', 'fcc.next-auth.session-token'];
 
-    const hasSession = devBypassSession ? true : await hasCentralSession({
+    const hasSession = devBypassSession ? true : await hasPortalSession({
       request: request as any,
       cookieNames,
-      centralUrl: process.env.CENTRAL_AUTH_URL,
+      portalUrl: process.env.PORTAL_AUTH_URL,
       debug: process.env.NODE_ENV === 'development' && !pathname.includes('.'),
     });
 
@@ -134,11 +134,11 @@ export async function middleware(request: NextRequest) {
           { status: 401 }
         );
       }
-      const defaultCentral = process.env.NODE_ENV === 'production'
+      const defaultPortal = process.env.NODE_ENV === 'production'
         ? 'https://ecomos.targonglobal.com'
         : 'http://localhost:3000'
-      const central = process.env.CENTRAL_AUTH_URL || defaultCentral
-      const login = new URL('/login', central)
+      const portal = process.env.PORTAL_AUTH_URL || defaultPortal
+      const login = new URL('/login', portal)
       login.searchParams.set('callbackUrl', request.nextUrl.toString())
       return NextResponse.redirect(login);
     }

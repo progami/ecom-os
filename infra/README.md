@@ -21,11 +21,10 @@ terraform plan
 - wms: 3001 → wms.targonglobal.com
 - fcc: 3003 → fcc.targonglobal.com
 - hrms: 3006 → hrms.targonglobal.com
-- central-db: 3004 → centraldb.targonglobal.com (optional)
+- portal-db: 3004 → portaldb.targonglobal.com (optional)
 - margin-master: 3007 → margin.targonglobal.com (optional)
 
 ```bash
 # Ansible deploy (GitHub Actions does this on push to main):
 ansible-playbook -i ansible/inventory/hosts.ini ansible/deploy-monorepo.yml
 ```
-

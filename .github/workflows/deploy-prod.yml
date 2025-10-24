@@ -58,7 +58,7 @@ jobs:
           pnpm --filter @ecom-os/wms db:generate
           pnpm --filter @ecom-os/x-plan prisma:generate
         env:
-          CENTRAL_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=auth
+          PORTAL_DB_URL: postgresql://postgres:postgres@localhost:5432/postgres?schema=auth
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
 
       - name: Build Website
@@ -68,37 +68,37 @@ jobs:
         run: pnpm --filter @ecom-os/ecomos build
         env:
           NEXTAUTH_SECRET: test-nextauth-secret
-          CENTRAL_AUTH_SECRET: test-central-secret
+          PORTAL_AUTH_SECRET: test-portal-secret
           NEXTAUTH_URL: https://example.com/api/auth
-          CENTRAL_AUTH_URL: https://example.com
+          PORTAL_AUTH_URL: https://example.com
           COOKIE_DOMAIN: .example.com
 
       - name: Build WMS
         run: pnpm --filter @ecom-os/wms build
         env:
           NEXTAUTH_SECRET: test-nextauth-secret
-          CENTRAL_AUTH_SECRET: test-central-secret
+          PORTAL_AUTH_SECRET: test-portal-secret
           NEXTAUTH_URL: https://example.com/wms/api/auth
-          CENTRAL_AUTH_URL: https://example.com
+          PORTAL_AUTH_URL: https://example.com
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
           BASE_PATH: /wms
           NEXT_PUBLIC_BASE_PATH: /wms
           NEXT_PUBLIC_APP_URL: https://example.com/wms
-          NEXT_PUBLIC_CENTRAL_AUTH_URL: https://example.com
+          NEXT_PUBLIC_PORTAL_AUTH_URL: https://example.com
           CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/wms
 
       - name: Build X-Plan
         run: pnpm --filter @ecom-os/x-plan build
         env:
           NEXTAUTH_SECRET: test-nextauth-secret
-          CENTRAL_AUTH_SECRET: test-central-secret
+          PORTAL_AUTH_SECRET: test-portal-secret
           NEXTAUTH_URL: https://example.com/xplan/api/auth
-          CENTRAL_AUTH_URL: https://example.com
+          PORTAL_AUTH_URL: https://example.com
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
           BASE_PATH: /xplan
           NEXT_PUBLIC_BASE_PATH: /xplan
           NEXT_PUBLIC_APP_URL: https://example.com/xplan
-          NEXT_PUBLIC_CENTRAL_AUTH_URL: https://example.com
+          NEXT_PUBLIC_PORTAL_AUTH_URL: https://example.com
           CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/xplan
 
       - name: Configure SSH
@@ -285,7 +285,7 @@ jobs:
           WMS_ENV: ${{ secrets.WMS_ENV }}
           HRMS_ENV: ${{ secrets.HRMS_ENV }}
           FCC_ENV: ${{ secrets.FCC_ENV }}
-          CENTRAL_DB_ENV: ${{ secrets.CENTRAL_DB_ENV }}
+          PORTAL_DB_ENV: ${{ secrets.PORTAL_DB_ENV }}
           MARGIN_MASTER_ENV: ${{ secrets.MARGIN_MASTER_ENV }}
           JASON_ENV: ${{ secrets.JASON_ENV }}
           ECOMOS_ENV: ${{ secrets.ECOMOS_ENV }}
@@ -334,7 +334,7 @@ jobs:
           # Required hosts (allow up to 20 attempts ~3 min max)
           for h in "${REQUIRED[@]}"; do
             if [ -n "$h" ]; then
-              check_host "$h" "$HOST_IP" 20 || failures=$((failures+1))
+              check_host "$h" "$HOST_IP" 8 || failures=$((failures+1))
             fi
           done
           # Optional hosts: run in parallel with fewer attempts

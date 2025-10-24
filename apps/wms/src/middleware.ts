@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { hasCentralSession } from '@ecom-os/auth'
+import { hasPortalSession } from '@ecom-os/auth'
 import { withBasePath, withoutBasePath } from '@/lib/utils/base-path'
 
 export async function middleware(request: NextRequest) {
@@ -58,20 +58,20 @@ export async function middleware(request: NextRequest) {
     ? ['__Secure-next-auth.session-token', '__Secure-wms.next-auth.session-token']
     : ['next-auth.session-token', 'ecomos.next-auth.session-token', 'wms.next-auth.session-token']
 
-  const hasSession = await hasCentralSession({
+  const hasSession = await hasPortalSession({
     request,
     cookieNames,
-    centralUrl: process.env.CENTRAL_AUTH_URL,
+    portalUrl: process.env.PORTAL_AUTH_URL,
     debug: process.env.NODE_ENV !== 'production',
   })
 
-  // If no token and trying to access protected route, redirect to central login
+  // If no token and trying to access protected route, redirect to portal login
   if (!hasSession && !normalizedPath.startsWith('/auth/')) {
-    const defaultCentral = process.env.NODE_ENV === 'production'
+    const defaultPortal = process.env.NODE_ENV === 'production'
       ? 'https://ecomos.targonglobal.com'
       : 'http://localhost:3000'
-    const central = process.env.CENTRAL_AUTH_URL || defaultCentral
-    const redirect = new URL('/login', central)
+    const portal = process.env.PORTAL_AUTH_URL || defaultPortal
+    const redirect = new URL('/login', portal)
 
     // Build callback URL from forwarded headers (from Nginx proxy) instead of request.nextUrl
     // request.nextUrl gives us localhost:3001, but we need the public-facing URL

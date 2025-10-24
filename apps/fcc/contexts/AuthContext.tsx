@@ -291,8 +291,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const signOut = async () => {
     try {
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/api/auth/signout', central)
+      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+      const url = new URL('/api/auth/signout', portalAuth)
       url.searchParams.set('callbackUrl', window.location.origin + '/login')
       window.location.href = url.toString()
     } catch (error) {

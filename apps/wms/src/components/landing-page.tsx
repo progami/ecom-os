@@ -37,9 +37,9 @@ export default function LandingPage() {
       // Wait a moment for the database transaction to complete
       await new Promise(resolve => setTimeout(resolve, 1000))
 
-      // Redirect to central login; after login, return to Dashboard
-      const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', central)
+      // Redirect to portalAuth login; after login, return to Dashboard
+      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+      const url = new URL('/login', portalAuth)
       url.searchParams.set('callbackUrl', window.location.origin + '/dashboard')
       window.location.href = url.toString()
     } catch (_error) {
@@ -135,11 +135,11 @@ export default function LandingPage() {
             </button>
             
             <a
-              href={(process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com') + '/login'}
+              href={(process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com') + '/login'}
               onClick={(e) => {
                 e.preventDefault()
-                const central = process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-                const url = new URL('/login', central)
+                const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+                const url = new URL('/login', portalAuth)
                 if (typeof window !== 'undefined') {
                   url.searchParams.set('callbackUrl', `${window.location.origin}/dashboard`)
                 }

@@ -11,9 +11,9 @@ export default async function AdminReportsPage() {
   const session = await getServerSession(authOptions)
 
   if (!session || session.user.role !== 'admin') {
-    const central = process.env.CENTRAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+    const portalAuth = process.env.PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
-    redirect(`${central}/login?callbackUrl=${encodeURIComponent(appUrl + '/admin/reports')}`)
+    redirect(`${portalAuth}/login?callbackUrl=${encodeURIComponent(appUrl + '/admin/reports')}`)
   }
 
   // Fetch current stats

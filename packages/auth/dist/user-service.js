@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-import { getCentralAuthPrisma } from './db.js';
+import { getPortalAuthPrisma } from './db.js';
 const DEFAULT_DEMO_USERNAME = 'demo-admin';
 const DEFAULT_DEMO_PASSWORD = 'demo-password';
 const credentialsSchema = z.object({
@@ -35,15 +35,15 @@ const userSelect = {
         },
     },
 };
-export async function authenticateWithCentralDirectory(input) {
+export async function authenticateWithPortalDirectory(input) {
     const { emailOrUsername, password } = credentialsSchema.parse(input);
     const loginValue = emailOrUsername.trim().toLowerCase();
-    if (!process.env.CENTRAL_DB_URL) {
+    if (!process.env.PORTAL_DB_URL) {
         return process.env.NODE_ENV !== 'production'
             ? handleDevFallback(loginValue, password)
             : null;
     }
-    const prisma = getCentralAuthPrisma();
+    const prisma = getPortalAuthPrisma();
     const user = await prisma.user.findFirst({
         where: {
             OR: [
@@ -61,7 +61,7 @@ export async function authenticateWithCentralDirectory(input) {
     if (!isMatch) {
         return null;
     }
-    return mapCentralUser(user);
+    return mapPortalUser(user);
 }
 function handleDevFallback(emailOrUsername, password) {
     const demoUsername = (process.env.DEMO_ADMIN_USERNAME || DEFAULT_DEMO_USERNAME).toLowerCase();
@@ -92,10 +92,10 @@ function buildDemoUser() {
     };
 }
 export async function getUserEntitlements(userId) {
-    if (!process.env.CENTRAL_DB_URL) {
+    if (!process.env.PORTAL_DB_URL) {
         return {};
     }
-    const prisma = getCentralAuthPrisma();
+    const prisma = getPortalAuthPrisma();
     const assignments = await prisma.userApp.findMany({
         where: { userId },
         select: {
@@ -121,14 +121,14 @@ export async function getUserByEmail(email) {
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail)
         return null;
-    if (!process.env.CENTRAL_DB_URL) {
+    if (!process.env.PORTAL_DB_URL) {
         const demoUser = buildDemoUser();
         if (demoUser.email.toLowerCase() === normalizedEmail) {
             return demoUser;
         }
         return null;
     }
-    const prisma = getCentralAuthPrisma();
+    const prisma = getPortalAuthPrisma();
     const user = await prisma.user.findFirst({
         where: {
             email: normalizedEmail,
@@ -138,9 +138,9 @@ export async function getUserByEmail(email) {
     });
     if (!user)
         return null;
-    return mapCentralUser(user);
+    return mapPortalUser(user);
 }
-function mapCentralUser(user) {
+function mapPortalUser(user) {
     const entitlements = user.appAccess.reduce((acc, assignment) => {
         acc[assignment.app.slug] = {
             role: assignment.accessLevel,

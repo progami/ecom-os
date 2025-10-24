@@ -6,14 +6,14 @@
       "outputs": ["dist/**", ".next/**"],
       "env": [
         "NEXTAUTH_SECRET",
-        "CENTRAL_AUTH_SECRET",
-        "CENTRAL_AUTH_URL",
+        "PORTAL_AUTH_SECRET",
+        "PORTAL_AUTH_URL",
         "NEXTAUTH_URL",
         "COOKIE_DOMAIN",
         "BASE_PATH",
         "NEXT_PUBLIC_BASE_PATH",
         "NEXT_PUBLIC_APP_URL",
-        "NEXT_PUBLIC_CENTRAL_AUTH_URL",
+        "NEXT_PUBLIC_PORTAL_AUTH_URL",
         "CSRF_ALLOWED_ORIGINS",
         "DATABASE_URL"
       ]

@@ -90,11 +90,13 @@ export function applyDevAuthDefaults(options = {}) {
     if (!process.env.COOKIE_DOMAIN && options.cookieDomain) {
         process.env.COOKIE_DOMAIN = options.cookieDomain;
     }
-    if (!process.env.CENTRAL_AUTH_URL && options.centralUrl) {
-        process.env.CENTRAL_AUTH_URL = options.centralUrl;
+    const portalUrl = options.portalUrl;
+    if (!process.env.PORTAL_AUTH_URL && portalUrl) {
+        process.env.PORTAL_AUTH_URL = portalUrl;
     }
-    if (!process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL && options.publicCentralUrl) {
-        process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL = options.publicCentralUrl;
+    const publicPortalUrl = options.publicPortalUrl;
+    if (!process.env.NEXT_PUBLIC_PORTAL_AUTH_URL && publicPortalUrl) {
+        process.env.NEXT_PUBLIC_PORTAL_AUTH_URL = publicPortalUrl;
     }
     if (process.env.NEXTAUTH_DEBUG === undefined) {
         // Default to off; callers can opt-in with NEXTAUTH_DEBUG=1 if needed.
@@ -112,7 +114,7 @@ export function withSharedAuth(base, optsOrDomain) {
     const envMode = process.env.NODE_ENV ?? 'development';
     const isDevLike = envMode === 'development' || envMode === 'test';
     if (!resolvedSecret) {
-        throw new Error('NEXTAUTH_SECRET (or CENTRAL_AUTH_SECRET) must be provided for shared auth.');
+        throw new Error('NEXTAUTH_SECRET (or PORTAL_AUTH_SECRET) must be provided for shared auth.');
     }
     if (!isDevLike) {
         const result = AuthEnvSchema.safeParse({
@@ -160,22 +162,22 @@ export function getCandidateSessionCookieNames(appId) {
     }
     return names;
 }
-const DEFAULT_CENTRAL_PROD = 'https://ecomos.targonglobal.com';
-const DEFAULT_CENTRAL_DEV = 'http://localhost:3000';
+const DEFAULT_PORTAL_PROD = 'https://ecomos.targonglobal.com';
+const DEFAULT_PORTAL_DEV = 'http://localhost:3000';
 const missingSecretWarnings = new Set();
 /**
- * Determine whether a request already carries a valid central NextAuth session.
+ * Determine whether a request already carries a valid portal NextAuth session.
  * - Tries to decode the session cookie locally using the shared secret.
- * - Falls back to probing the central `/api/auth/session` endpoint to handle
+ * - Falls back to probing the portal `/api/auth/session` endpoint to handle
  *   environments where app-specific secrets differ from the portal.
  */
-export async function hasCentralSession(options) {
+export async function hasPortalSession(options) {
     const { request, appId, cookieNames, debug = process.env.NODE_ENV !== 'production', fetchImpl, } = options;
     const names = Array.from(new Set((cookieNames && cookieNames.length > 0)
         ? cookieNames
         : getCandidateSessionCookieNames(appId)));
     const sharedSecret = options.secret
-        || process.env.CENTRAL_AUTH_SECRET
+        || process.env.PORTAL_AUTH_SECRET
         || process.env.NEXTAUTH_SECRET;
     if (sharedSecret) {
         for (const name of names) {
@@ -201,7 +203,7 @@ export async function hasCentralSession(options) {
         const warnKey = names.join('|') || 'global';
         if (!missingSecretWarnings.has(warnKey)) {
             missingSecretWarnings.add(warnKey);
-            console.warn('[auth] missing shared NEXTAUTH_SECRET; falling back to central probe');
+            console.warn('[auth] missing shared NEXTAUTH_SECRET; falling back to portal probe');
         }
     }
     const cookieHeader = request.headers.get('cookie');
@@ -212,14 +214,14 @@ export async function hasCentralSession(options) {
     if (!hasCandidateCookie) {
         return false;
     }
-    const centralBase = options.centralUrl
-        || process.env.CENTRAL_AUTH_URL
-        || (process.env.NODE_ENV === 'production' ? DEFAULT_CENTRAL_PROD : DEFAULT_CENTRAL_DEV);
-    if (!centralBase) {
+    const portalBase = options.portalUrl
+        || process.env.PORTAL_AUTH_URL
+        || (process.env.NODE_ENV === 'production' ? DEFAULT_PORTAL_PROD : DEFAULT_PORTAL_DEV);
+    if (!portalBase) {
         return false;
     }
     try {
-        const endpoint = new URL('/api/auth/session', centralBase);
+        const endpoint = new URL('/api/auth/session', portalBase);
         const res = await (fetchImpl ?? fetch)(endpoint, {
             method: 'GET',
             headers: {
@@ -231,7 +233,7 @@ export async function hasCentralSession(options) {
         });
         if (!res.ok) {
             if (debug) {
-                console.warn('[auth] central session probe returned status', res.status);
+                console.warn('[auth] portal session probe returned status', res.status);
             }
             return false;
         }
@@ -241,7 +243,7 @@ export async function hasCentralSession(options) {
     catch (error) {
         if (debug) {
             const detail = error instanceof Error ? error.message : String(error);
-            console.warn('[auth] central session probe failed', detail);
+            console.warn('[auth] portal session probe failed', detail);
         }
         return false;
     }

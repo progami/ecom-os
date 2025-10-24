@@ -3,7 +3,7 @@ import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 
 // Only set dev defaults in development - production uses NEXTAUTH_URL at runtime
 const devPort = process.env.PORT || process.env.CROSS_PLAN_PORT || 3008
-const centralDev = process.env.CENTRAL_AUTH_URL || 'http://localhost:3000'
+const portalDev = process.env.PORTAL_AUTH_URL || 'http://localhost:3000'
 
 // Don't override NEXTAUTH_URL if it's already set (production uses runtime env vars)
 applyDevAuthDefaults({
@@ -11,15 +11,15 @@ applyDevAuthDefaults({
   port: devPort,
   // Don't pass baseUrl - let applyDevAuthDefaults compute it only if NEXTAUTH_URL is not set
   cookieDomain: 'localhost',
-  centralUrl: centralDev,
-  publicCentralUrl: process.env.NEXT_PUBLIC_CENTRAL_AUTH_URL || 'http://localhost:3000',
+  portalUrl: portalDev,
+  publicPortalUrl: process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'http://localhost:3000',
 })
 
 if (!process.env.NEXTAUTH_SECRET) {
   process.env.NEXTAUTH_SECRET = 'build-only-nextauth-secret-x-plan'
 }
 
-const sharedSecret = process.env.CENTRAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
+const sharedSecret = process.env.PORTAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
 if (sharedSecret) {
   process.env.NEXTAUTH_SECRET = sharedSecret
 }

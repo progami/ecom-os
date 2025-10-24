@@ -1,2 +1,2 @@
-export { getCentralAuthPrisma } from './db.js'
-export { authenticateWithCentralDirectory, getUserEntitlements, getUserByEmail } from './user-service.js'
+export { getPortalAuthPrisma } from './db.js'
+export { authenticateWithPortalDirectory, getUserEntitlements, getUserByEmail } from './user-service.js'
