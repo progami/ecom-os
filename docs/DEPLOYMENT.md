@@ -1,73 +1,86 @@
-# Deployment Strategy
+# Deployment Strategy (ECS + RDS)
 
-This document records how we provision infrastructure and ship builds into production for the Ecom OS monorepo.
+This guide explains how we provision infrastructure, build containers, and ship updates now that the monolith is running on Amazon ECS (EC2 launch type) with Amazon RDS PostgreSQL. The goals were:
 
-## 1. Infrastructure Provisioning
-- Terraform (`infra/terraform/`) creates the single EC2 host, security group, IAM instance profile, Elastic IP, and shared S3 bucket.
-- Run `terraform init && terraform plan` (and `terraform apply` when ready) from within `infra/terraform/` to ensure the EC2 resources match the desired state.
-- Terraform writes `infra/ansible/inventory/production.yml` so Ansible and GitHub Actions have a consistent inventory entry for the target host.
+- identical container images for local dev and production;
+- lean infrastructure sized for a ~10 user workload;
+- a single GitHub Actions pipeline that builds, pushes, and deploys without extra manual steps.
 
-## 2. Required Secrets & Credentials
-Populate the following repository secrets in GitHub before enabling the deploy workflow:
-- `SSH_PRIVATE_KEY` – PEM key with access to the EC2 box.
-- `AWS_ROLE_TO_ASSUME`, `AWS_REGION`, optionally `EC2_INSTANCE_ID` – used to discover the host via AWS APIs.
-- `EC2_HOST`, `EC2_USER` – fallback connection details when discovery is skipped.
-- `CF_API_TOKEN` – Cloudflare API token for DNS updates (optional but recommended).
-- Application env payloads: `WEBSITE_ENV`, `WMS_ENV`, `HRMS_ENV`, `FCC_ENV`, `PORTAL_DB_ENV`, `MARGIN_MASTER_ENV`, `JASON_ENV`, `ECOMOS_ENV`.
-- `ECOMOS_ENV` should contain authentication secrets consumed by the portal and WMS. Store each `.env` file as a newline-delimited string.
+## 1. Infrastructure Overview
 
-## 3. CI/CD Entry Points
-- Pull requests into `dev` and `main` run `.github/workflows/ci.yml` (lint, type check, build for Website and WMS).
-- A push to `main` touching app, package, infra, or pnpm files triggers `.github/workflows/deploy-prod.yml`, which performs the production deployment via Ansible.
-- The deploy workflow can also be launched manually with `workflow_dispatch` for testing.
+- **VPC:** one VPC (`10.40.0.0/16`) with two public subnets (ALB + ECS instances) and two private subnets (RDS). No NAT gateway; ECS instances receive public IPs for outbound traffic.
+- **ECS Cluster:** a t3.medium Auto Scaling Group (min/des/ max = 1/1/2) registered as an ECS capacity provider. Desired count is one task per service.
+- **Services & Target Groups:**
+  - `@ecom-os/ecomos` → `/` on the ALB.
+  - `@ecom-os/wms` → `/wms` (path rule).
+  - `@ecom-os/x-plan` → `/xplan` (path rule).
+  - `@ecom-os/website` → `www.targonglobal.com` (host rule).
+- **Database:** single-AZ Amazon RDS PostgreSQL (`db.t4g.small`) hosting `portal_db` with schemas `auth`, `wms`, `xplan`.
+- **Repositories:** four dedicated ECR repositories managed by Terraform.
+- **Observability:** per-service CloudWatch log groups (7-day retention).
 
-## 4. Deploy Workflow Breakdown (`deploy-prod.yml`)
-1. Check out the repository and install pnpm 9 on Node 20 runners.
-2. Install project dependencies and build the applications required in production (`pnpm turbo run build --filter=@ecom-os/website --filter=@ecom-os/ecomos --filter=@ecom-os/wms`).
-3. Configure SSH credentials for the runner (including optional EC2 Instance Connect key injection when AWS IAM is available).
-4. Resolve the target host either through AWS lookup or fallback secrets; append the host key to `known_hosts`.
-5. Run a disk-usage preflight to track available space on the EC2 node.
-6. Optionally update Cloudflare DNS A records to the resolved host IP.
-7. Emit `infra/ansible/inventory/hosts.ini` matching the resolved host + SSH user.
-8. Execute `ansible-playbook infra/ansible/deploy-monorepo.yml` with secrets forwarded as env vars.
-9. Perform HTTP health checks against the Website and WMS using the domains defined in `group_vars/all.yml`.
+Terraform definitions live in `infra/terraform/`. Outputs expose the ALB DNS name, ECS cluster name, RDS endpoint, and ECR repository URLs.
 
-## 5. Ansible Deployment Flow (`deploy-monorepo.yml`)
-- Ensures system dependencies are present and runs `apt` to refresh critical packages (`update_cache: yes`, `upgrade: dist`, `autoremove: yes`).
-- Installs Node 20 via Nodesource and global `pm2`/`pnpm`.
-- Synchronizes the GitHub Actions workspace into `/opt/ecom-os/repo` on the host, excluding `.git`, `node_modules`, and `.turbo` caches.
-- Runs `pnpm install` on the host to rebuild the lockfile dependencies.
-- Provisions PostgreSQL schemas and credentials via `tasks/database-setup.yml`, including daily backups.
-- Writes per-app `.env` files from the secrets provided by GitHub Actions.
-- Renders the Nginx configuration (`nginx-monorepo.conf.j2`) mapping each domain to the appropriate local port.
-- Issues/renews Let’s Encrypt certificates for apex, www, ecomos, and wms domains.
-- Rebuilds and restarts services with pm2:
-  - Website (`PORT=3005`, `server.js` under `apps/website`)
-  - EcomOS portal (`PORT=3000`, `pnpm start` under `apps/ecomos` with portal auth env vars)
-  - WMS (`PORT=3001`, rebuild + `server.js` under `apps/wms` with `BASE_PATH=/wms`)
-- Saves the pm2 process list and verifies local health for each service.
-- Installs housekeeping scripts for log cleanup.
+## 2. Required GitHub Secrets & Variables
 
-## 6. Health Verification
-- The workflow performs curl-based checks against Website (expected marketing copy) and WMS (`/wms/api/health` must return `status":"ok"`).
-- Post-deploy monitoring should include manual spot checks of `https://www.targonglobal.com`, `https://ecomos.targonglobal.com`, and `https://ecomos.targonglobal.com/wms` to confirm routing.
+| Name | Type | Description |
+|------|------|-------------|
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | Secret | IAM user or role credentials with permissions for ECR, ECS, EC2, RDS, and networking. |
+| `RDS_MASTER_USERNAME`, `RDS_MASTER_PASSWORD` | Secret | Master auth used to create and access `portal_db`. |
+| `ECOMOS_ENV`, `WMS_ENV`, `XPLAN_ENV`, `WEBSITE_ENV` | Secret | Exact `.env` payloads for each app (same as local). They are parsed into JSON and injected into task definitions. |
+| `vars.PORTAL_DOMAIN` | Repository variable | e.g., `ecomos.targonglobal.com`. |
+| `vars.WEBSITE_DOMAIN` | Repository variable | e.g., `www.targonglobal.com`. |
+| `vars.COOKIE_DOMAIN` | Repository variable (optional) | Defaults to `.targonglobal.com` when unset. |
 
-## 7. Manual Operations
-- For targeted deployments or debugging, run `ansible-playbook -i infra/ansible/inventory/hosts.ini infra/ansible/deploy-monorepo.yml` from the repo root after setting the same env vars that GitHub Actions supplies.
-- Use `--check` for dry-runs or limit hosts/tasks as needed.
-- pm2 processes run under the default OS user (typically `ubuntu`), and the application checkout resides at `/opt/ecom-os/repo`.
+> GitHub Secrets remain the single source of truth for runtime env values. Terraform consumes them at deploy time; nothing is duplicated in AWS Secrets Manager.
 
-## 8. Maintenance & Upgrades
-- Update system packages by adjusting the early `apt` task in `deploy-monorepo.yml`; every production deploy will then enforce the desired package versions.
-- Bump Node, pnpm, or pm2 versions in the playbook to roll forward runtimes consistently.
-- When adding new applications, extend the Ansible vars (ports, domains), add build steps in the workflow, and ensure secrets for the new app are configured.
-- Keep `group_vars/all.yml` aligned with real infrastructure values (domains, database credentials, S3 config).
+## 3. Build & Release Pipeline
 
-## 9. Preconditions Before a Production Deploy
-- `pnpm lint`, `pnpm typecheck`, and app-specific builds succeed locally.
-- Terraform state is up to date, and the EC2 host is reachable via SSH.
-- All target domains resolve to the EC2 public IP, or Cloudflare credentials are available for the workflow to update records.
-- Required secrets have been uploaded or rotated as needed.
-- Database migrations for WMS or portal auth have been validated on staging.
+Workflow file: `.github/workflows/deploy.yml`.
 
-Following this process keeps provisioning, configuration, and deployment deterministic, with GitHub Actions driving the same Ansible playbook that we can execute manually for troubleshooting.
+1. **verify job**
+   - Checkout repo, install dependencies via pnpm, run `pnpm lint` and `pnpm typecheck`.
+2. **build-and-deploy job**
+   - Configures AWS credentials and logs into ECR.
+   - Ensures the four ECR repositories exist (idempotent).
+   - Builds Docker images for portal, WMS, X-Plan, and website using the workspace Dockerfiles, tagging each with `:${GITHUB_SHA}` and `:latest`, then pushes to ECR.
+   - Converts the `.env` secrets into Terraform map variables, sets image URIs, domains, and RDS credentials as `TF_VAR_*`.
+   - Runs `terraform init`, `plan`, and `apply` from `infra/terraform/`, replacing task definitions, ECS services, ALB rules, and RDS parameters when changes are detected.
+
+The workflow can be triggered on pushes to `dev` or `main`, or manually via `workflow_dispatch`.
+
+## 4. Local Development & Parity
+
+- `docker-compose.yml` spins up Postgres plus the same four containers with production entrypoints. The compose stack uses the same Dockerfiles and entrypoint scripts, ensuring no divergence.
+- Non-container dev still works (`pnpm dev`), but the compose stack is the quickest way to test multi-app flows with the shared auth cookie.
+
+## 5. Initial Provisioning & Migration Checklist
+
+1. **Bootstrap AWS resources**
+   - Populate GitHub secrets/variables.
+   - Run the GitHub workflow once; Terraform will create the VPC, ECS cluster, ALB, RDS instance, and ECR repos. (First run may take ~10 minutes while RDS starts.)
+2. **Database migration**
+   - Dump existing EC2 Postgres (`pg_dump portal_db > portal.sql`).
+   - Restore into the new RDS instance (`psql -h <rds-endpoint> -U $RDS_MASTER_USERNAME portal_db < portal.sql`).
+   - Re-run the workflow to ensure Prisma migrations (executed at container boot) align with the restored data.
+3. **DNS cutover**
+   - Update Route53/Cloudflare records so portal + website domains point to the ALB.
+   - TLS stays at Cloudflare; the ALB only needs HTTP (port 80) listeners.
+4. **Decommission legacy EC2**
+   - After traffic stabilises on ECS/RDS, shut down the old instance and remove Ansible/Terraform EC2 resources.
+
+## 6. Ongoing Operations
+
+- **Scaling:** bump `ecs_desired_capacity` or task CPU/memory variables in Terraform. Desired count stays at one unless traffic grows.
+- **Logs:** view application logs in CloudWatch (`/ecs/ecom-os-prod/<service>`). Retention is seven days; adjust via Terraform if needed.
+- **Backups:** RDS automated snapshots retain the last three days. Increase `db_backup_retention` when we need longer history.
+- **Secrets rotation:** update GitHub secrets/variables and rerun the deploy workflow. Terraform will roll tasks with the new env values.
+- **Metrics & alerts:** add CloudWatch alarms or Grafana dashboards as follow-ups (not part of the minimal uplift).
+
+## 7. Troubleshooting
+
+- **Terraform apply fails** — check that all required `TF_VAR_*` values were exported (workflow step “Prepare Terraform variable environment”).
+- **ECS task cannot reach Postgres** — ensure RDS SG allows the ECS SG, and the container received the updated `DATABASE_URL`.
+- **ALB returns 5xx** — verify task health status in ECS console; container logs stream to CloudWatch.
+
+With this setup the same containers run locally, in staging, and in production, and the entire environment is reproducible from Terraform + GitHub Actions. Tailwind, SSO behaviour, and Prisma migrations remain unchanged—only the hosting surface moved from a snowflake EC2 box to a small ECS cluster.

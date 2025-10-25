@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: portal_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./docker/db-init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  ecomos:
+    build:
+      context: .
+      dockerfile: apps/ecomos/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - db
+    env_file:
+      - docker/env/ecomos.env
+    ports:
+      - "3000:3000"
+
+  wms:
+    build:
+      context: .
+      dockerfile: apps/wms/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - db
+      - ecomos
+    env_file:
+      - docker/env/wms.env
+    ports:
+      - "3001:3001"
+
+  xplan:
+    build:
+      context: .
+      dockerfile: apps/x-plan/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - db
+      - ecomos
+    env_file:
+      - docker/env/xplan.env
+    ports:
+      - "3009:3009"
+
+  website:
+    build:
+      context: .
+      dockerfile: apps/website/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - docker/env/website.env
+    ports:
+      - "3005:3005"
+
+volumes:
+  db-data:

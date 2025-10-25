@@ -1,49 +1,34 @@
-output "instance_id" {
-  description = "ID of the EC2 instance"
-  value       = aws_instance.wms.id
+output "alb_dns_name" {
+  description = "Public DNS name of the Application Load Balancer."
+  value       = aws_lb.main.dns_name
 }
 
-output "instance_public_ip" {
-  description = "Public IP address of the EC2 instance"
-  value       = aws_eip.wms.public_ip
+output "alb_arn" {
+  description = "ARN of the Application Load Balancer."
+  value       = aws_lb.main.arn
 }
 
-output "instance_private_ip" {
-  description = "Private IP address of the EC2 instance"
-  value       = aws_instance.wms.private_ip
+output "ecs_cluster_name" {
+  description = "Name of the ECS cluster."
+  value       = aws_ecs_cluster.this.name
 }
 
-output "instance_public_dns" {
-  description = "Public DNS name of the EC2 instance"
-  value       = aws_instance.wms.public_dns
+output "rds_endpoint" {
+  description = "Endpoint for the PostgreSQL instance."
+  value       = aws_db_instance.portal.address
 }
 
-output "security_group_id" {
-  description = "ID of the security group"
-  value       = aws_security_group.wms_sg.id
+output "rds_port" {
+  description = "Port for the PostgreSQL instance."
+  value       = aws_db_instance.portal.port
 }
 
-output "application_url" {
-  description = "URL to access the application"
-  value       = "http://${aws_eip.wms.public_ip}:3000"
-}
-
-output "s3_bucket_name" {
-  description = "Name of the S3 bucket for file storage"
-  value       = aws_s3_bucket.wms_files.id
-}
-
-output "s3_bucket_arn" {
-  description = "ARN of the S3 bucket"
-  value       = aws_s3_bucket.wms_files.arn
-}
-
-output "s3_bucket_region" {
-  description = "Region of the S3 bucket"
-  value       = aws_s3_bucket.wms_files.region
-}
-
-output "iam_role_arn" {
-  description = "ARN of the IAM role for the EC2 instance"
-  value       = aws_iam_role.wms_instance_role.arn
+output "ecr_repositories" {
+  description = "ECR repository URLs used for images."
+  value = {
+    ecomos  = aws_ecr_repository.ecomos.repository_url
+    wms     = aws_ecr_repository.wms.repository_url
+    xplan   = aws_ecr_repository.xplan.repository_url
+    website = aws_ecr_repository.website.repository_url
+  }
 }

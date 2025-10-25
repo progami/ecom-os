@@ -1,22 +1,42 @@
-# AWS Configuration
-aws_region = "us-east-1"
+aws_region  = "us-east-1"
+project     = "ecom-os"
+environment = "prod"
 
-# Instance Configuration
-instance_name    = "WMS-TEST-IaC"
-instance_type    = "t3.micro"
-key_name         = "wms-deploy-key"
-root_volume_size = 30
+portal_domain  = "ecomos.targonglobal.com"
+website_domain = "www.targonglobal.com"
+cookie_domain = ".targonglobal.com"
 
-# Environment
-environment = "production"
+# ECS capacity
+ecs_instance_type    = "t3.medium"
+ecs_min_size         = 1
+ecs_max_size         = 2
+ecs_desired_capacity = 1
 
-# S3 Configuration
-# Leave empty for auto-generated bucket name
-s3_bucket_name = ""
+# RDS configuration
+db_instance_class     = "db.t4g.small"
+db_allocated_storage  = 20
+db_engine_version     = "16.4"
+db_username           = "portal_admin"
+db_password           = "change-me"
+db_backup_retention   = 3
+db_skip_final_snapshot = true
 
-# CORS allowed origins (update with your domain)
-cors_allowed_origins = [
-  "http://localhost:3000",
-  "https://localhost:3000",
-  "https://yourdomain.com"
-]
+image_tag = "latest"
+
+# Runtime environment overrides (maps)
+ecomos_environment = {
+  NEXTAUTH_SECRET   = "set-me"
+  PORTAL_AUTH_SECRET = "set-me"
+}
+
+wms_environment = {
+  NEXTAUTH_SECRET   = "set-me"
+  PORTAL_AUTH_SECRET = "set-me"
+}
+
+xplan_environment = {
+  NEXTAUTH_SECRET   = "set-me"
+  PORTAL_AUTH_SECRET = "set-me"
+}
+
+website_environment = {}
