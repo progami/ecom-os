@@ -175,27 +175,34 @@ const baseAuthOptions: NextAuthOptions = {
       const allowCallbackExplicit = ['1', 'true', 'yes', 'on'].includes(allowValue)
       const allowCallbackDefault = process.env.NODE_ENV !== 'production' && allowValue === ''
       const allowCallback = allowCallbackExplicit || allowCallbackDefault
-    if (!allowCallback) {
-      return baseUrl
-    }
-    try {
-      const target = new URL(url, baseUrl)
-      const base = new URL(baseUrl)
-      if (target.origin === base.origin) return target.toString()
-      if (target.hostname.endsWith('.ecomos.targonglobal.com') && base.hostname.endsWith('.targonglobal.com')) {
-        const loginOrigin = `${target.protocol}//${target.hostname}`
-        const rewritten = new URL('/login', loginOrigin)
-        rewritten.searchParams.set('callbackUrl', target.toString())
-        return rewritten.toString()
+      if (!allowCallback) {
+        return baseUrl
       }
-      if (process.env.NODE_ENV !== 'production') {
-        if (target.hostname === 'localhost' || target.hostname === '127.0.0.1') {
-          const relay = new URL('/auth/relay', base)
-          relay.searchParams.set('to', target.toString())
-          return relay.toString()
-  }
-  return baseUrl
-}
+      try {
+        const target = new URL(url, baseUrl)
+        const base = new URL(baseUrl)
+        if (target.origin === base.origin) return target.toString()
+
+        const hostMismatch = target.hostname !== base.hostname
+        const bothPortalHosts =
+          target.hostname.endsWith('.ecomos.targonglobal.com') &&
+          base.hostname.endsWith('.targonglobal.com')
+        if (hostMismatch && bothPortalHosts) {
+          const loginOrigin = `${target.protocol}//${target.hostname}`
+          const rewritten = new URL('/login', loginOrigin)
+          rewritten.searchParams.set('callbackUrl', target.toString())
+          return rewritten.toString()
+        }
+
+        if (process.env.NODE_ENV !== 'production') {
+          if (target.hostname === 'localhost' || target.hostname === '127.0.0.1') {
+            const relay = new URL('/auth/relay', base)
+            relay.searchParams.set('to', target.toString())
+            return relay.toString()
+          }
+          return baseUrl
+        }
+
         const cookieDomain = resolvedCookieDomain.replace(/^\./, '')
         if (cookieDomain && target.hostname.endsWith(cookieDomain)) {
           const relay = new URL('/auth/relay', base)
