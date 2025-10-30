@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import './login.css'
@@ -19,6 +19,25 @@ function LoginPageInner() {
   const error = searchParams.get('error') || ''
 
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !callbackUrl) return
+    try {
+      const target = new URL(callbackUrl, window.location.origin)
+      const current = new URL(window.location.href)
+      const hostnameDiffers = target.hostname !== current.hostname
+      const bothPortalHosts =
+        target.hostname.endsWith('.ecomos.targonglobal.com') &&
+        current.hostname.endsWith('.ecomos.targonglobal.com')
+      if (hostnameDiffers && bothPortalHosts) {
+        const redirect = new URL('/login', `${target.protocol}//${target.hostname}`)
+        redirect.searchParams.set('callbackUrl', target.toString())
+        window.location.replace(redirect.toString())
+      }
+    } catch {
+      // ignore malformed URLs
+    }
+  }, [callbackUrl])
 
   const errorMessage = useMemo(() => {
     if (!error) return ''
