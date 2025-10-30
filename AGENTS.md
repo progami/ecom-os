@@ -5,7 +5,6 @@
 - Each product app lives in `apps/<name>` with its own Next.js config, Prisma schema, and `tests/` folder.
 - Shared libraries sit in `packages/*` (config, logger, soon auth/ui); put cross-cutting logic here instead of duplicating inside apps.
 - `docs/` holds canonical references (architecture, testing, workflows); consult it before adding patterns.
-- Infrastructure automation (`infra/ansible`, `infra/terraform`) and deployment scripts must be updated when environment variables change.
 
 ## Build, Test, and Development Commands
 - Install dependencies once with `pnpm install`.

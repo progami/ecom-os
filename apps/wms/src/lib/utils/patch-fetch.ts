@@ -10,12 +10,14 @@ function prefixPath(path: string): string {
   return `${normalizedBase}${path}`
 }
 
+type FetchWithBasePathMarker = typeof globalThis.fetch & { __withBasePath?: boolean }
+
 function patchGlobalFetch() {
   if (!BASE_PATH) return
   if (typeof globalThis.fetch !== 'function') return
-  const originalFetch = globalThis.fetch
+  const originalFetch = globalThis.fetch as FetchWithBasePathMarker
 
-  if ((originalFetch as any).__withBasePath) {
+  if (originalFetch.__withBasePath) {
     return
   }
 
@@ -28,7 +30,7 @@ function patchGlobalFetch() {
       }
     }
     return originalFetch.call(this, input, init)
-  } as typeof globalThis.fetch & { __withBasePath?: boolean }
+  } as FetchWithBasePathMarker
 
   patched.__withBasePath = true
   globalThis.fetch = patched
