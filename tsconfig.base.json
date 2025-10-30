@@ -13,11 +13,8 @@
     "paths": {
       "@ecom-os/ui": ["packages/ui/src"],
       "@ecom-os/theme": ["packages/theme/src"],
-      "@ecom-os/utils": ["packages/utils/src"],
       "@ecom-os/config": ["packages/config/src"],
       "@ecom-os/logger": ["packages/logger/src"],
-      "@ecom-os/api-client": ["packages/api-client/src"],
-      "@ecom-os/domain": ["packages/domain-models/src"],
       "@ecom-os/ledger": ["packages/ledger/src"]
     }
   }

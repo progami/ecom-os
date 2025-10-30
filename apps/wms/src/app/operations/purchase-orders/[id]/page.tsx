@@ -45,6 +45,7 @@ interface PurchaseOrderSummary {
 
 interface MovementNoteLineSummary {
   id: string
+  skuCode?: string | null
   batchLot: string | null
   quantity: number
   varianceQuantity: number
@@ -216,7 +217,8 @@ export default function PurchaseOrderDetailPage() {
       }
 
       note.lines.forEach((line, index) => {
-        const lineSource = `${sourceLabel} · Line ${index + 1}${(line as any)?.skuCode ? ` (${(line as any)?.skuCode})` : ''}`
+        const skuSuffix = line.skuCode ? ` (${line.skuCode})` : ''
+        const lineSource = `${sourceLabel} · Line ${index + 1}${skuSuffix}`
         if (line.attachments && typeof line.attachments === 'object' && !Array.isArray(line.attachments)) {
           Object.entries(line.attachments).forEach(([category, value]) => {
             toItems(category, value, lineSource).forEach(item => append(category, item))
@@ -302,30 +304,31 @@ export default function PurchaseOrderDetailPage() {
 
         if (notesRes.ok) {
           const data = await notesRes.json()
-          const normalizedNotes = Array.isArray(data?.data)
+          const normalizedNotes: MovementNoteSummary[] = Array.isArray(data?.data)
             ? data.data.map((note: MovementNoteSummary) => ({
                 ...note,
                 attachments: note.attachments ?? null,
                 lines: Array.isArray(note.lines)
                   ? note.lines.map(line => ({
                       ...line,
+                      skuCode: line.skuCode ?? null,
                       quantity: Number(line.quantity ?? 0),
                       varianceQuantity: Number(line.varianceQuantity ?? 0),
-                      attachments: (line as any)?.attachments ?? null,
+                      attachments: line.attachments ?? null,
                     }))
                   : [],
               }))
             : []
-          setMovementNotes(normalizedNotes as MovementNoteSummary[])
+          setMovementNotes(normalizedNotes)
         }
 
         if (invoicesRes.ok) {
           const data = await invoicesRes.json()
-          const normalizedInvoices = Array.isArray(data?.data)
+          const normalizedInvoices: WarehouseInvoiceSummary[] = Array.isArray(data?.data)
             ? data.data.map((invoice: WarehouseInvoiceSummary) => ({
                 ...invoice,
                 total: Number(invoice.total ?? 0),
-                subtotal: Number((invoice as any).subtotal ?? invoice.total ?? 0),
+                subtotal: Number(invoice.subtotal ?? invoice.total ?? 0),
                 lines: Array.isArray(invoice.lines)
                   ? invoice.lines.map(line => ({
                       ...line,
@@ -336,7 +339,7 @@ export default function PurchaseOrderDetailPage() {
                   : [],
               }))
             : []
-          setInvoices(normalizedInvoices as unknown as WarehouseInvoiceSummary[])
+          setInvoices(normalizedInvoices)
         }
       } catch (_error) {
         // ignore individual fetch errors; main order fetch already surfaced issues

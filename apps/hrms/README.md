@@ -70,9 +70,9 @@ Next.js 14 + Prisma + Postgres app.
 
 ## Production
 
-- Use managed Postgres (RDS) or native Postgres on EC2 (Ansible role).
+- We deploy manually on the EC2 host; provision Postgres yourself (managed RDS or native service).
 - Provide `DATABASE_URL` via environment (no files committed).
-- Deployment sequence (CI/CD or Ansible):
+- Deployment sequence:
   - Install deps
   - `pnpm -F @ecom-os/hrms db:generate`
   - `pnpm -F @ecom-os/hrms db:migrate:deploy` (never `db push` in prod)
