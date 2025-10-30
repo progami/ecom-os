@@ -1,12 +1,11 @@
 {
-  "host": "http://localhost",
+  "host": "https://dev.ecomos.targonglobal.com",
   "apps": {
-    "wms": 40254,
-    "hrms": 3400,
-    "fcc": 3600,
-    "website": 3005,
-    "x-plan": 3008,
-    "margin-master": 3007,
-    "legal-suite": 3015
+    "wms": "https://dev.ecomos.targonglobal.com/wms",
+    "hrms": "https://dev.ecomos.targonglobal.com/hrms",
+    "fcc": "https://dev.ecomos.targonglobal.com/fcc",
+    "website": "https://dev.targonglobal.com",
+    "x-plan": "https://dev.x-plan.targonglobal.com",
+    "margin-master": "https://dev.ecomos.targonglobal.com/margin-master"
   }
 }

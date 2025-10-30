@@ -8,12 +8,13 @@ import WarehouseConfigsClientPage, {
   type WarehouseConfig,
   type WarehouseConfigsClientPageProps
 } from './client-page'
+import { portalOrigin } from '@/lib/portal'
 
 export default async function WarehouseConfigsPage() {
   const session = await getServerSession(authOptions)
 
   if (!session || session.user.role !== 'admin') {
-    const portalAuth = process.env.PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+    const portalAuth = portalOrigin()
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
     redirect(`${portalAuth}/login?callbackUrl=${encodeURIComponent(appUrl + '/config/warehouse-configs')}`)
   }

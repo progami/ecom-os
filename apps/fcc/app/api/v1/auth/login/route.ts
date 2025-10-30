@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
+import { portalOrigin } from '@/lib/portal'
 
 export async function POST() {
   return NextResponse.json(
     {
-      error: 'Portal-managed authentication is enabled. Use the portal at ecomos.targonglobal.com',
-      redirect: (process.env.PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com') + '/login'
+      error: 'Portal-managed authentication is enabled. Use the portal login flow.',
+      redirect: portalOrigin() + '/login'
     },
     { status: 410 }
   )

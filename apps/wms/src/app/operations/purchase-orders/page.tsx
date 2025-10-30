@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { FileText, Plus } from '@/lib/lucide-icons'
 import { PurchaseOrdersPanel, PurchaseOrderFilter } from '../inventory/purchase-orders-panel'
 import { cn } from '@/lib/utils'
+import { redirectToPortal } from '@/lib/portal'
 
 type StatusConfig = {
   value: PurchaseOrderFilter
@@ -67,10 +68,7 @@ function PurchaseOrdersPage() {
     if (status === 'loading') return
 
     if (!session) {
-      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', portalAuth)
-      url.searchParams.set('callbackUrl', `${window.location.origin}/operations/purchase-orders`)
-      window.location.href = url.toString()
+      redirectToPortal('/login', `${window.location.origin}/operations/purchase-orders`)
       return
     }
 

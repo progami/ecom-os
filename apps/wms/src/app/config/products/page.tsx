@@ -10,6 +10,7 @@ import { PageContainer, PageHeaderSection, PageContent } from '@/components/layo
 import { Button } from '@/components/ui/button'
 import { Package, Plus } from '@/lib/lucide-icons'
 import ProductsPanel from './products-panel'
+import { redirectToPortal } from '@/lib/portal'
 
 const ALLOWED_ROLES = ['admin']
 
@@ -21,10 +22,7 @@ export default function ProductsPage() {
     if (status === 'loading') return
 
     if (!session) {
-      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', portalAuth)
-      url.searchParams.set('callbackUrl', `${window.location.origin}/config/products`)
-      window.location.href = url.toString()
+      redirectToPortal('/login', `${window.location.origin}/config/products`)
       return
     }
 

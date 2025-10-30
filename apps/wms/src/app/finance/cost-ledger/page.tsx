@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'react-hot-toast'
 import type { CostLedgerBucketTotals, CostLedgerGroupResult } from '@ecom-os/ledger'
+import { redirectToPortal } from '@/lib/portal'
 
 const baseFilterInputClass = 'w-full rounded-md border border-muted px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary'
 
@@ -77,10 +78,7 @@ function CostLedgerPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', portalAuth)
-      url.searchParams.set('callbackUrl', `${window.location.origin}/finance/cost-ledger`)
-      window.location.href = url.toString()
+      redirectToPortal('/login', `${window.location.origin}/finance/cost-ledger`)
       return
     }
     if (!['staff', 'admin'].includes(session.user.role)) {

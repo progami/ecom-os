@@ -7,6 +7,7 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { Building, Save, X } from '@/lib/lucide-icons'
 import { toast } from 'react-hot-toast'
+import { redirectToPortal } from '@/lib/portal'
 
 interface Warehouse {
   id: string
@@ -39,10 +40,7 @@ export default function NewWarehouseConfigPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session || session.user.role !== 'admin') {
-      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', portalAuth)
-      url.searchParams.set('callbackUrl', window.location.origin + '/config/warehouse-configs/new')
-      window.location.href = url.toString()
+      redirectToPortal('/login', `${window.location.origin}/config/warehouse-configs/new`)
       return
     }
     fetchData()

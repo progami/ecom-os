@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
 import { toast } from 'react-hot-toast'
 import { format } from 'date-fns'
+import { redirectToPortal } from '@/lib/portal'
 
 interface InventoryBalance {
   id: string
@@ -169,10 +170,7 @@ function InventoryPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', portalAuth)
-      url.searchParams.set('callbackUrl', `${window.location.origin}/operations/inventory`)
-      window.location.href = url.toString()
+      redirectToPortal('/login', `${window.location.origin}/operations/inventory`)
       return
     }
     if (!['staff', 'admin'].includes(session.user.role)) {

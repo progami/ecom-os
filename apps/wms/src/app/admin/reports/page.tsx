@@ -6,12 +6,13 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { StatsCard } from '@/components/ui/stats-card'
 import { AdminReportsClient } from './client-page'
 import { prisma } from '@/lib/prisma'
+import { portalOrigin } from '@/lib/portal'
 
 export default async function AdminReportsPage() {
   const session = await getServerSession(authOptions)
 
   if (!session || session.user.role !== 'admin') {
-    const portalAuth = process.env.PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+    const portalAuth = portalOrigin()
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
     redirect(`${portalAuth}/login?callbackUrl=${encodeURIComponent(appUrl + '/admin/reports')}`)
   }

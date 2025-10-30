@@ -1,4 +1,7 @@
+'use client'
+
 import type { ReactNode } from 'react'
+import { signOut } from 'next-auth/react'
 import type { Session } from 'next-auth'
 
 import type { AppDef } from '@/lib/apps'
@@ -206,11 +209,20 @@ export default function PortalClient({ session, apps, roles }: PortalClientProps
           <div className={styles.headerCenter}>Control Center</div>
           <div className={styles.actions}>
             <span>{session.user?.email}</span>
-            <form action="/api/auth/signout" method="POST">
-              <button type="submit" className={styles.signOut}>
-                Sign out
-              </button>
-            </form>
+            <button
+              type="button"
+              className={styles.signOut}
+              onClick={() => {
+                const origin = typeof window !== 'undefined'
+                  ? window.location.origin
+                  : process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || ''
+                const fallback = origin || '/'
+                const callbackUrl = `${fallback.replace(/\/$/, '')}/login`
+                void signOut({ callbackUrl })
+              }}
+            >
+              Sign out
+            </button>
           </div>
         </header>
       </div>

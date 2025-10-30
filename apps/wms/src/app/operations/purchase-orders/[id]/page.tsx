@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
 import { ATTACHMENT_CATEGORIES } from '@/components/operations/receive-attachments-tab'
 import { FileText, ArrowLeft, Loader2, Package2, DollarSign, Truck, Paperclip, Check, ChevronRight } from '@/lib/lucide-icons'
+import { redirectToPortal } from '@/lib/portal'
 
 interface PurchaseOrderLineSummary {
   id: string
@@ -259,10 +260,7 @@ export default function PurchaseOrderDetailPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', portalAuth)
-      url.searchParams.set('callbackUrl', `${window.location.origin}/operations/purchase-orders/${params.id}`)
-      window.location.href = url.toString()
+      redirectToPortal('/login', `${window.location.origin}/operations/purchase-orders/${params.id}`)
       return
     }
     if (!['staff', 'admin'].includes(session.user.role)) {
