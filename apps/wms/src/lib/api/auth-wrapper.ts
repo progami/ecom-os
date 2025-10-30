@@ -4,15 +4,6 @@ import { authOptions } from '@/lib/auth'
 import type { Session } from 'next-auth'
 import { ApiResponses } from './responses'
 
-function isPromise<T>(value: unknown): value is Promise<T> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'then' in value &&
-    typeof (value as { then?: unknown }).then === 'function'
-  )
-}
-
 type SessionRole = string | undefined
 
 const getUserRole = (session: Session): SessionRole => {
@@ -89,17 +80,15 @@ export function withAuthAndParams<T = unknown>(
   handler: AuthenticatedHandlerWithParams<T>
 ): (
   request: NextRequest,
-  context: { params: Promise<Record<string, string>> | Record<string, string> }
+  context?: { params: Promise<Record<string, string>> }
 ) => Promise<NextResponse<T | { error: string }>> {
   return async (
     request: NextRequest,
-    context: { params: Promise<Record<string, string>> | Record<string, string> }
+    context
   ) => {
-    const resolvedContext = context
-    const rawParams = resolvedContext?.params
-    const hydratedParams = rawParams
-      ? (isPromise<Record<string, string>>(rawParams) ? await rawParams : rawParams)
-      : {}
+    const hydratedParams = await Promise.resolve(
+      context?.params ?? Promise.resolve({} as Record<string, string>)
+    )
     const contextParams = hydratedParams as Record<string, unknown>
 
     if (process.env.BYPASS_AUTH === 'true') {

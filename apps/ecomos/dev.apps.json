@@ -4,8 +4,8 @@
     "wms": "https://dev.ecomos.targonglobal.com/wms",
     "hrms": "https://dev.ecomos.targonglobal.com/hrms",
     "fcc": "https://dev.ecomos.targonglobal.com/fcc",
-    "website": "https://dev.ecomos.targonglobal.com",
-    "x-plan": "https://dev.ecomos.targonglobal.com/x-plan",
+    "website": "https://dev.targonglobal.com",
+    "x-plan": "https://dev.x-plan.targonglobal.com",
     "margin-master": "https://dev.ecomos.targonglobal.com/margin-master"
   }
 }

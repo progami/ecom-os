@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Plus, Search, MoreVertical, Mail, Users } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
+import { redirectToPortal } from '@/lib/portal'
 
 export default function AdminUsersPage() {
   const { data: session, status } = useSession()
@@ -21,10 +22,7 @@ export default function AdminUsersPage() {
 
   if (!session || session.user.role !== 'admin') {
     if (typeof window !== 'undefined') {
-      const portalAuth = (process.env.NEXT_PUBLIC_PORTAL_AUTH_URL as string) || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', portalAuth)
-      url.searchParams.set('callbackUrl', window.location.origin + '/admin/users')
-      window.location.replace(url.toString())
+      redirectToPortal('/login', `${window.location.origin}/admin/users`)
     }
     return null
   }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { signOut as nextAuthSignOut } from 'next-auth/react'
 import { waitForServerReady } from '@/lib/server-ready'
+import { portalUrl } from '@/lib/portal'
 
 // Use console for client-side logging
 const logger = {
@@ -291,9 +292,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   
   const signOut = async () => {
     try {
-      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/api/auth/signout', portalAuth)
-      url.searchParams.set('callbackUrl', window.location.origin + '/login')
+      const url = portalUrl('/api/auth/signout')
+      url.searchParams.set('callbackUrl', `${window.location.origin}/login`)
       window.location.href = url.toString()
     } catch (error) {
       logger.error('Failed to sign out', error)

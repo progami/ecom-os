@@ -9,6 +9,7 @@ import { PageContainer, PageHeaderSection, PageContent } from '@/components/layo
 import { ShoppingCart, RefreshCw, Loader2, Search, TrendingUp, AlertTriangle, BarChart3, Construction, Hammer, Wrench, Package2 } from '@/lib/lucide-icons'
 import { toast } from 'react-hot-toast'
 import { PageHeader } from '@/components/ui/page-header'
+import { redirectToPortal } from '@/lib/portal'
 
 interface InventoryComparison {
   sku: string
@@ -245,12 +246,7 @@ export default function AmazonIntegrationPage() {
   }
 
   if (!session || session.user.role !== 'admin') {
-      {
-        const portalAuth = (process.env.NEXT_PUBLIC_PORTAL_AUTH_URL as string) || 'https://ecomos.targonglobal.com'
-        const url = new URL('/login', portalAuth)
-        url.searchParams.set('callbackUrl', window.location.origin + '/market/amazon')
-        window.location.href = url.toString()
-      }
+    redirectToPortal('/login', `${window.location.origin}/market/amazon`)
     return null
   }
 

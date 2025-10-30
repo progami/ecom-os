@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { toast } from 'react-hot-toast'
+import { redirectToPortal } from '@/lib/portal'
 
 export function DevLogin() {
   const [loading, setLoading] = useState(false)
@@ -9,10 +10,7 @@ export function DevLogin() {
   const handleDevLogin = async () => {
     setLoading(true)
     try {
-      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', portalAuth)
-      url.searchParams.set('callbackUrl', window.location.origin + '/operations/inventory')
-      window.location.href = url.toString()
+      redirectToPortal('/login', `${window.location.origin}/operations/inventory`)
     } catch (_error) {
       toast.error('Login error')
     } finally {

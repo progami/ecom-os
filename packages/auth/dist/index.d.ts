@@ -48,6 +48,14 @@ export declare function withSharedAuth(base: NextAuthOptions, optsOrDomain: Shar
  * In dev, returns both generic and app-prefixed variants for robustness.
  */
 export declare function getCandidateSessionCookieNames(appId?: string): string[];
+export type PortalUrlRequestLike = {
+    headers: Headers;
+    url: string;
+};
+export interface PortalUrlOptions {
+    request?: PortalUrlRequestLike;
+    fallbackOrigin?: string;
+}
 export interface PortalSessionProbeOptions {
     request: Request;
     appId?: string;
@@ -57,6 +65,8 @@ export interface PortalSessionProbeOptions {
     debug?: boolean;
     fetchImpl?: typeof fetch;
 }
+export declare function resolvePortalAuthOrigin(options?: PortalUrlOptions): string;
+export declare function buildPortalUrl(path: string, options?: PortalUrlOptions): URL;
 /**
  * Determine whether a request already carries a valid portal NextAuth session.
  * - Tries to decode the session cookie locally using the shared secret.

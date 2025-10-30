@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { portalOrigin } from '@/lib/portal'
 
 type SearchParamsInput =
   | { callbackUrl?: string }
@@ -17,7 +18,7 @@ export default async function LoginPage({ searchParams }: { searchParams?: Searc
   if (session) {
     redirect(desired)
   }
-  const portalAuth = process.env.PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+  const portalAuth = portalOrigin()
   const resolvedAppBase = resolveAppBase()
   if (!resolvedAppBase) {
     throw new Error('Unable to determine WMS application base URL. Configure BASE_PATH or NEXT_PUBLIC_APP_URL.')

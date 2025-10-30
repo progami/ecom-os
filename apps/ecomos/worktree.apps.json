@@ -2,6 +2,7 @@
   "host": "https://worktree.ecomos.targonglobal.com",
   "apps": {
     "wms": "https://worktree.ecomos.targonglobal.com/wms",
-    "x-plan": "https://worktree.ecomos.targonglobal.com/x-plan"
+    "website": "https://worktree.website.targonglobal.com",
+    "x-plan": "https://worktree.x-plan.targonglobal.com"
   }
 }

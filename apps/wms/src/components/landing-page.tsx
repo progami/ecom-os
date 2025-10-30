@@ -15,6 +15,7 @@ import {
   Zap,
   Users
 } from '@/lib/lucide-icons'
+import { portalUrl, redirectToPortal } from '@/lib/portal'
 
 export default function LandingPage() {
   const [isLoading, setIsLoading] = useState(false)
@@ -38,10 +39,7 @@ export default function LandingPage() {
       await new Promise(resolve => setTimeout(resolve, 1000))
 
       // Redirect to portalAuth login; after login, return to Dashboard
-      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', portalAuth)
-      url.searchParams.set('callbackUrl', window.location.origin + '/dashboard')
-      window.location.href = url.toString()
+      redirectToPortal('/login', `${window.location.origin}/dashboard`)
     } catch (_error) {
       // console.error('Error setting up demo:', error)
       toast.error(_error instanceof Error ? _error.message : 'Failed to set up demo')
@@ -135,15 +133,10 @@ export default function LandingPage() {
             </button>
             
             <a
-              href={(process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com') + '/login'}
+              href={portalUrl('/login').toString()}
               onClick={(e) => {
                 e.preventDefault()
-                const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-                const url = new URL('/login', portalAuth)
-                if (typeof window !== 'undefined') {
-                  url.searchParams.set('callbackUrl', `${window.location.origin}/dashboard`)
-                }
-                window.location.href = url.toString()
+                redirectToPortal('/login', `${window.location.origin}/dashboard`)
               }}
               className="inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-[#06182b] border border-slate-300 dark:border-[#0b3a52] rounded-lg hover:bg-slate-50 dark:hover:bg-[#06182b]/80 transition-colors"
             >

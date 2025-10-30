@@ -5,12 +5,13 @@ import { FileText, Download, DollarSign, TrendingUp, Package2, Calendar, FileBar
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
+import { portalOrigin } from '@/lib/portal'
 
 export default async function FinanceReportsPage() {
   const session = await getServerSession(authOptions)
 
   if (!session) {
-    const portalAuth = process.env.PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+    const portalAuth = portalOrigin()
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
     redirect(`${portalAuth}/login?callbackUrl=${encodeURIComponent(appUrl + '/finance/reports')}`)
   }
