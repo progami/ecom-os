@@ -1,10 +1,10 @@
 {
-  "host": "https://worktree.ecomos.targonglobal.com",
+  "host": "https://ecomos.targonglobal.com",
   "apps": {
     "wms": "/wms",
     "hrms": "/hrms",
     "fcc": "/fcc",
-    "website": "https://worktree.website.targonglobal.com",
+    "website": "https://www.targonglobal.com",
     "x-plan": "/x-plan",
     "margin-master": "/margin-master"
   }
