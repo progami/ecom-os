@@ -127,6 +127,7 @@ function tryLoadAppManifest(): AppManifest | null {
 
 const devOnlyEnv = process.env.APP_DEV_ONLY
 const portalOverrides = tryLoadPortalOverrides()
+const overrideAppIds = portalOverrides ? new Set(Object.keys(portalOverrides.apps ?? {})) : null
 const devOnlySet = new Set(
   devOnlyEnv
     ? devOnlyEnv
@@ -179,7 +180,9 @@ function resolveLifecycle(appId: string): AppLifecycle {
   return 'active'
 }
 
-export const ALL_APPS: AppDef[] = BASE_APPS.map((app) => ({
+const SOURCE_APPS = overrideAppIds ? BASE_APPS.filter((app) => overrideAppIds.has(app.id)) : BASE_APPS
+
+export const ALL_APPS: AppDef[] = SOURCE_APPS.map((app) => ({
   ...app,
   lifecycle: resolveLifecycle(app.id),
 }))
