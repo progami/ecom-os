@@ -1,0 +1,12 @@
+{
+  "host": "https://worktree.ecomos.targonglobal.com",
+  "apps": {
+    "wms": "https://worktree.ecomos.targonglobal.com/wms",
+    "x-plan": "https://worktree.ecomos.targonglobal.com/x-plan",
+    "hrms": "https://worktree.ecomos.targonglobal.com/hrms",
+    "fcc": "https://worktree.ecomos.targonglobal.com/fcc",
+    "margin-master": "https://worktree.ecomos.targonglobal.com/margin-master",
+    "legal-suite": "https://worktree.ecomos.targonglobal.com/legal-suite",
+    "website": "https://worktree.ecomos.targonglobal.com"
+  }
+}

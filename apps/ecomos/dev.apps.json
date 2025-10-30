@@ -1,0 +1,12 @@
+{
+  "host": "http://localhost",
+  "apps": {
+    "wms": 40254,
+    "hrms": 3400,
+    "fcc": 3600,
+    "website": 3005,
+    "x-plan": 3008,
+    "margin-master": 3007,
+    "legal-suite": 3015
+  }
+}

@@ -24,6 +24,11 @@ type AppManifest = {
   devOnly?: string[]
 }
 
+type AppOverrideConfig = {
+  host?: string
+  apps?: Record<string, string | number>
+}
+
 export type AppDef = AppBase & {
   lifecycle: AppLifecycle
 }
@@ -90,6 +95,7 @@ const BASE_APPS: AppBase[] = [
 ]
 
 let manifestCache: AppManifest | null | undefined
+let portalOverridesCache: AppOverrideConfig | null | undefined
 
 function tryLoadAppManifest(): AppManifest | null {
   if (manifestCache !== undefined) {
@@ -120,6 +126,7 @@ function tryLoadAppManifest(): AppManifest | null {
 }
 
 const devOnlyEnv = process.env.APP_DEV_ONLY
+const portalOverrides = tryLoadPortalOverrides()
 const devOnlySet = new Set(
   devOnlyEnv
     ? devOnlyEnv
@@ -221,6 +228,11 @@ function getEnvDevUrl(appId: string): string | undefined {
 }
 
 export function resolveAppUrl(app: AppDef): string {
+  const overrideUrl = resolveOverrideUrl(app)
+  if (overrideUrl) {
+    return overrideUrl
+  }
+
   if (process.env.NODE_ENV === 'production') {
     return app.url
   }
@@ -253,4 +265,86 @@ export function resolveAppUrl(app: AppDef): string {
   }
 
   return base
+}
+
+function tryLoadPortalOverrides(): AppOverrideConfig | null {
+  if (portalOverridesCache !== undefined) {
+    return portalOverridesCache
+  }
+
+  const configPath = process.env.PORTAL_APPS_CONFIG?.trim()
+  if (!configPath) {
+    portalOverridesCache = null
+    return portalOverridesCache
+  }
+
+  const resolvedPath = path.isAbsolute(configPath)
+    ? configPath
+    : path.resolve(process.cwd(), configPath)
+
+  try {
+    if (fs.existsSync(resolvedPath)) {
+      const raw = fs.readFileSync(resolvedPath, 'utf8')
+      portalOverridesCache = JSON.parse(raw) as AppOverrideConfig
+      return portalOverridesCache
+    }
+  } catch (_err) {
+    portalOverridesCache = null
+    return portalOverridesCache
+  }
+
+  portalOverridesCache = null
+  return portalOverridesCache
+}
+
+function resolveOverrideUrl(app: AppDef): string | undefined {
+  if (!portalOverrides) {
+    return undefined
+  }
+
+  const entry = portalOverrides.apps?.[app.id]
+  if (entry === undefined) {
+    return undefined
+  }
+
+  const host = normalizeHost(portalOverrides.host || process.env.PORTAL_APPS_HOST)
+
+  if (typeof entry === 'number') {
+    const base = host ? `${host.replace(/\/$/, '')}:${entry}` : `http://localhost:${entry}`
+    if (app.devPath) {
+      try {
+        const url = new URL(base)
+        url.pathname = app.devPath
+        return url.toString()
+      } catch {
+        return `${base}${app.devPath.startsWith('/') ? app.devPath : `/${app.devPath}`}`
+      }
+    }
+    return base
+  }
+
+  const trimmed = entry.trim()
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed
+  }
+
+  if (host) {
+    try {
+      const baseUrl = new URL(host)
+      baseUrl.pathname = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+      return baseUrl.toString()
+    } catch {}
+  }
+
+  return trimmed
+}
+
+function normalizeHost(rawHost?: string): string | undefined {
+  if (!rawHost) return undefined
+  const trimmed = rawHost.trim()
+  if (!trimmed) return undefined
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed.replace(/\/$/, '')
+  }
+  return `http://${trimmed.replace(/\/$/, '')}`
 }
