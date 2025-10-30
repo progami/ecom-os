@@ -14,6 +14,63 @@ applyDevAuthDefaults({
   publicPortalUrl: devBaseUrl,
 })
 
+function sanitizeBaseUrl(raw?: string | null): string | undefined {
+  if (!raw) return undefined
+  try {
+    const url = new URL(raw)
+    url.hash = ''
+    url.search = ''
+    if (/\/api\/auth\/?$/.test(url.pathname)) {
+      url.pathname = url.pathname.replace(/\/?api\/auth\/?$/, '') || '/'
+    }
+    if (url.pathname.length > 1 && url.pathname.endsWith('/')) {
+      url.pathname = url.pathname.slice(0, -1)
+    }
+    return url.origin + (url.pathname === '/' ? '' : url.pathname)
+  } catch {
+    return undefined
+  }
+}
+
+function resolveCookieDomain(explicit: string | undefined, baseUrl: string | undefined): string {
+  const trimmed = explicit?.trim()
+  if (baseUrl) {
+    try {
+      const { hostname } = new URL(baseUrl)
+      const normalizedHost = hostname.replace(/\.$/, '')
+      if (trimmed && trimmed !== '') {
+        const normalizedExplicit = trimmed.startsWith('.') ? trimmed.slice(1) : trimmed
+        if (trimmed === '.targonglobal.com' && normalizedHost && normalizedHost !== 'ecomos.targonglobal.com') {
+          return `.${normalizedHost}`
+        }
+        if (normalizedHost && !normalizedHost.endsWith(normalizedExplicit)) {
+          return `.${normalizedHost}`
+        }
+        return trimmed.startsWith('.') ? trimmed : `.${trimmed}`
+      }
+      if (normalizedHost) {
+        return `.${normalizedHost}`
+      }
+    } catch {
+      // fall back to default domain below
+    }
+  } else if (trimmed && trimmed !== '') {
+    return trimmed.startsWith('.') ? trimmed : `.${trimmed}`
+  }
+  return '.targonglobal.com'
+}
+
+const normalizedBaseUrl = sanitizeBaseUrl(process.env.NEXTAUTH_URL || process.env.PORTAL_AUTH_URL)
+if (normalizedBaseUrl) {
+  process.env.NEXTAUTH_URL = normalizedBaseUrl
+  if (!process.env.PORTAL_AUTH_URL) {
+    process.env.PORTAL_AUTH_URL = normalizedBaseUrl
+  }
+}
+
+const resolvedCookieDomain = resolveCookieDomain(process.env.COOKIE_DOMAIN, process.env.NEXTAUTH_URL)
+process.env.COOKIE_DOMAIN = resolvedCookieDomain
+
 const sharedSecret = process.env.PORTAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
 if (sharedSecret) {
   process.env.NEXTAUTH_SECRET = sharedSecret
@@ -133,7 +190,7 @@ const baseAuthOptions: NextAuthOptions = {
           }
           return baseUrl
         }
-        const cookieDomain = (process.env.COOKIE_DOMAIN || '').replace(/^\./, '')
+        const cookieDomain = resolvedCookieDomain.replace(/^\./, '')
         if (cookieDomain && target.hostname.endsWith(cookieDomain)) {
           const relay = new URL('/auth/relay', base)
           relay.searchParams.set('to', target.toString())
@@ -146,7 +203,7 @@ const baseAuthOptions: NextAuthOptions = {
 }
 
 export const authOptions: NextAuthOptions = withSharedAuth(baseAuthOptions, {
-  cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
+  cookieDomain: resolvedCookieDomain,
   appId: 'ecomos',
 })
 
