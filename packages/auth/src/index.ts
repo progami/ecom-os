@@ -206,6 +206,16 @@ export function getCandidateSessionCookieNames(appId?: string): string[] {
 }
 
 
+export type PortalUrlRequestLike = {
+  headers: Headers;
+  url: string;
+};
+
+export interface PortalUrlOptions {
+  request?: PortalUrlRequestLike;
+  fallbackOrigin?: string;
+}
+
 export interface PortalSessionProbeOptions {
   request: Request;
   appId?: string;
@@ -216,9 +226,95 @@ export interface PortalSessionProbeOptions {
   fetchImpl?: typeof fetch;
 }
 
-const DEFAULT_PORTAL_PROD = 'https://ecomos.targonglobal.com';
 const DEFAULT_PORTAL_DEV = 'http://localhost:3000';
 const missingSecretWarnings = new Set<string>();
+
+function normalizeOrigin(raw: string | undefined | null): string | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+
+  const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed);
+  const candidates = hasScheme ? [trimmed] : [`https://${trimmed}`, `http://${trimmed}`];
+
+  for (const candidate of candidates) {
+    try {
+      const url = new URL(candidate);
+      return url.origin;
+    } catch {
+      continue;
+    }
+  }
+
+  return undefined;
+}
+
+function originFromRequestLike(request: PortalUrlRequestLike | undefined): string | undefined {
+  if (!request) return undefined;
+  const headers = request.headers;
+  const forwardedProto = headers.get('x-forwarded-proto');
+  const forwardedHost = headers.get('x-forwarded-host');
+  const primaryHost = forwardedHost ? forwardedHost.split(',')[0]?.trim() : undefined;
+  const host = primaryHost || headers.get('host');
+  const url = request.url ? new URL(request.url) : null;
+
+  const fallbackProto = url?.protocol ? url.protocol.replace(/:$/, '') : undefined;
+  const protocol = forwardedProto?.split(',')[0]?.trim() || fallbackProto || 'http';
+  const candidate = host ? `${protocol}://${host}` : url?.origin;
+  return normalizeOrigin(candidate ?? undefined);
+}
+
+function originFromGlobalScope(): string | undefined {
+  if (typeof globalThis === 'undefined') {
+    return undefined;
+  }
+  const maybeLocation = (globalThis as any)?.location;
+  if (maybeLocation && typeof maybeLocation.origin === 'string') {
+    return normalizeOrigin(maybeLocation.origin);
+  }
+  return undefined;
+}
+
+export function resolvePortalAuthOrigin(options?: PortalUrlOptions): string {
+  const envCandidates = [
+    process.env.NEXT_PUBLIC_PORTAL_AUTH_URL,
+    process.env.PORTAL_AUTH_URL,
+    process.env.NEXTAUTH_URL,
+  ];
+
+  for (const candidate of envCandidates) {
+    const normalized = normalizeOrigin(candidate);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  const requestOrigin = originFromRequestLike(options?.request);
+  if (requestOrigin) {
+    return requestOrigin;
+  }
+
+  const fallbackOrigin = normalizeOrigin(options?.fallbackOrigin);
+  if (fallbackOrigin) {
+    return fallbackOrigin;
+  }
+
+  const globalOrigin = originFromGlobalScope();
+  if (globalOrigin) {
+    return globalOrigin;
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    return DEFAULT_PORTAL_DEV;
+  }
+
+  throw new Error('Portal auth origin is not configured. Set PORTAL_AUTH_URL or NEXT_PUBLIC_PORTAL_AUTH_URL.');
+}
+
+export function buildPortalUrl(path: string, options?: PortalUrlOptions): URL {
+  const origin = resolvePortalAuthOrigin(options);
+  return new URL(path, origin);
+}
 
 /**
  * Determine whether a request already carries a valid portal NextAuth session.
@@ -279,9 +375,18 @@ export async function hasPortalSession(options: PortalSessionProbeOptions): Prom
     return false;
   }
 
-  const portalBase = options.portalUrl
-    || process.env.PORTAL_AUTH_URL
-    || (process.env.NODE_ENV === 'production' ? DEFAULT_PORTAL_PROD : DEFAULT_PORTAL_DEV);
+  let portalBase: string | undefined = options.portalUrl ? normalizeOrigin(options.portalUrl) : undefined;
+  if (!portalBase) {
+    try {
+      portalBase = resolvePortalAuthOrigin({ request: options.request as unknown as PortalUrlRequestLike });
+    } catch (error) {
+      if (debug) {
+        const detail = error instanceof Error ? error.message : String(error);
+        console.warn('[auth] unable to resolve portal origin', detail);
+      }
+      portalBase = undefined;
+    }
+  }
 
   if (!portalBase) {
     return false;

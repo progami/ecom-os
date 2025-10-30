@@ -12,6 +12,7 @@ import { StorageLedgerStats } from '@/components/finance/storage-ledger/StorageL
 import { StorageLedgerTable, type StorageLedgerColumnFilters } from '@/components/finance/storage-ledger/StorageLedgerTable'
 import { useStorageLedger } from '@/hooks/useStorageLedger'
 import { format } from 'date-fns'
+import { redirectToPortal } from '@/lib/portal'
 
 export default function StorageLedgerPage() {
   const { data: session, status } = useSession()
@@ -19,10 +20,7 @@ export default function StorageLedgerPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', portalAuth)
-      url.searchParams.set('callbackUrl', window.location.origin + '/finance/storage-ledger')
-      window.location.href = url.toString()
+      redirectToPortal('/login', `${window.location.origin}/finance/storage-ledger`)
       return
     }
     if (!['staff', 'admin'].includes(session.user.role)) {

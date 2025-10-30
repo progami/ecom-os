@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { hasPortalSession } from '@ecom-os/auth'
 import { withBasePath, withoutBasePath } from '@/lib/utils/base-path'
+import { portalUrl } from '@/lib/portal'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -67,12 +68,6 @@ export async function middleware(request: NextRequest) {
 
   // If no token and trying to access protected route, redirect to portal login
   if (!hasSession && !normalizedPath.startsWith('/auth/')) {
-    const defaultPortal = process.env.NODE_ENV === 'production'
-      ? 'https://ecomos.targonglobal.com'
-      : 'http://localhost:3000'
-    const portal = process.env.PORTAL_AUTH_URL || defaultPortal
-    const redirect = new URL('/login', portal)
-
     // Build callback URL from forwarded headers (from Nginx proxy) instead of request.nextUrl
     // request.nextUrl gives us localhost:3001, but we need the public-facing URL
     const forwardedProto = request.headers.get('x-forwarded-proto') || 'http'
@@ -81,6 +76,7 @@ export async function middleware(request: NextRequest) {
     const basePath = process.env.BASE_PATH || ''
     const callbackUrl = `${forwardedProto}://${forwardedHost}${basePath}${pathname}${request.nextUrl.search}`
 
+    const redirect = portalUrl('/login', request, `${forwardedProto}://${forwardedHost}`)
     redirect.searchParams.set('callbackUrl', callbackUrl)
     return NextResponse.redirect(redirect)
   }

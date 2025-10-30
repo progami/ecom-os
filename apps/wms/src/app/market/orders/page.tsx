@@ -4,12 +4,13 @@ import { redirect } from 'next/navigation'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { Construction, Hammer, Wrench } from '@/lib/lucide-icons'
+import { portalOrigin } from '@/lib/portal'
 
 export default async function OrderManagementPage() {
   const session = await getServerSession(authOptions)
 
   if (!session) {
-    const portalAuth = process.env.PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
+    const portalAuth = portalOrigin()
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
     redirect(`${portalAuth}/login?callbackUrl=${encodeURIComponent(appUrl + '/market/orders')}`)
   }

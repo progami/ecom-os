@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { DollarSign, Save, X, AlertCircle } from '@/lib/lucide-icons'
 import { toast } from 'react-hot-toast'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
+import { redirectToPortal } from '@/lib/portal'
 
 interface Warehouse {
   id: string
@@ -80,10 +81,7 @@ function NewRatePageContent() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session || session.user.role !== 'admin') {
-      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', portalAuth)
-      url.searchParams.set('callbackUrl', window.location.origin + '/config/rates/new')
-      window.location.href = url.toString()
+      redirectToPortal('/login', `${window.location.origin}/config/rates/new`)
       return
     }
     fetchWarehouses()

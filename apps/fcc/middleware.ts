@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { hasPortalSession } from '@ecom-os/auth';
+import { portalUrl } from '@/lib/portal';
 
 // Content Security Policy
 const CSP_DIRECTIVES = [
@@ -134,11 +135,7 @@ export async function middleware(request: NextRequest) {
           { status: 401 }
         );
       }
-      const defaultPortal = process.env.NODE_ENV === 'production'
-        ? 'https://ecomos.targonglobal.com'
-        : 'http://localhost:3000'
-      const portal = process.env.PORTAL_AUTH_URL || defaultPortal
-      const login = new URL('/login', portal)
+      const login = portalUrl('/login', request)
       login.searchParams.set('callbackUrl', request.nextUrl.toString())
       return NextResponse.redirect(login);
     }

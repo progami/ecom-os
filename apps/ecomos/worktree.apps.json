@@ -1,0 +1,8 @@
+{
+  "host": "https://worktree.ecomos.targonglobal.com",
+  "apps": {
+    "wms": "https://worktree.ecomos.targonglobal.com/wms",
+    "website": "https://worktree.website.targonglobal.com",
+    "x-plan": "https://worktree.x-plan.targonglobal.com"
+  }
+}

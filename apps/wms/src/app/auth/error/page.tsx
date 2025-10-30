@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AlertCircle } from '@/lib/lucide-icons'
+import { redirectToPortal } from '@/lib/portal'
 
 const errorMessages: Record<string, string> = {
   Configuration: 'There is a problem with the server configuration.',
@@ -31,12 +32,7 @@ function AuthErrorContent() {
     : errorMessages.Default
 
   const handleRetry = () => {
-    {
-      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', portalAuth)
-      url.searchParams.set('callbackUrl', window.location.origin + '/auth/error')
-      window.location.href = url.toString()
-    }
+    redirectToPortal('/login', `${window.location.origin}/auth/error`)
   }
 
   return (

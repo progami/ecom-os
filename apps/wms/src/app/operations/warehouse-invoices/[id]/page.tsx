@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/ui/page-header'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { FileText, ArrowLeft, Loader2 } from '@/lib/lucide-icons'
+import { redirectToPortal } from '@/lib/portal'
 
 interface WarehouseInvoiceLineSummary {
   id: string
@@ -58,10 +59,7 @@ export default function WarehouseInvoiceDetailPage() {
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
-      const portalAuth = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'https://ecomos.targonglobal.com'
-      const url = new URL('/login', portalAuth)
-      url.searchParams.set('callbackUrl', `${window.location.origin}/operations/warehouse-invoices/${params.id}`)
-      window.location.href = url.toString()
+      redirectToPortal('/login', `${window.location.origin}/operations/warehouse-invoices/${params.id}`)
       return
     }
     if (!['staff', 'admin'].includes(session.user.role)) {
