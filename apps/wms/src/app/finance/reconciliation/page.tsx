@@ -425,7 +425,7 @@ function FinanceReconciliationPageContent() {
           <div className="space-y-2">
             {loading ? (
               <div className="flex items-center justify-center h-64">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent" />
             </div>
           ) : invoices.length === 0 ? (
             <div className="text-center py-12 bg-slate-50 rounded-lg">
@@ -461,9 +461,9 @@ function FinanceReconciliationPageContent() {
                           <AlertCircle className="h-5 w-5 text-amber-600" />
                         )}
                         <div>
-                          <h3 className="text-lg font-semibold">{invoice.warehouse.name}</h3>
+                          <h3 className="text-lg font-semibold text-slate-900">{invoice.warehouse.name}</h3>
                           <p className="text-sm text-slate-600">
-                            Invoice #{invoice.invoiceNumber} • 
+                            Invoice #{invoice.invoiceNumber} •
                             {formatDate(invoice.billingPeriodStart)} - {formatDate(invoice.billingPeriodEnd)}
                           </p>
                         </div>
@@ -471,7 +471,7 @@ function FinanceReconciliationPageContent() {
                       <div className="text-right">
                         <p className="text-sm text-slate-600">Total Variance</p>
                         <p className={`text-lg font-bold ${
-                          invoiceTotals.difference === 0 ? 'text-green-600' : 
+                          invoiceTotals.difference === 0 ? 'text-green-600' :
                           invoiceTotals.difference > 0 ? 'text-red-600' : 'text-amber-600'
                         }`}>
                           {formatCurrency(Math.abs(invoiceTotals.difference))}
@@ -479,8 +479,8 @@ function FinanceReconciliationPageContent() {
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="p-2 overflow-y-auto">
+
+                  <div className="p-2 overflow-y-auto bg-white">
                     {invoice.reconciliations.length === 0 ? (
                       <div className="text-center py-8">
                         <p className="text-slate-500">No reconciliation data available</p>
@@ -505,11 +505,11 @@ function FinanceReconciliationPageContent() {
                               <th className="pb-2">Notes</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y">
+                          <tbody className="divide-y divide-gray-200">
                             {invoice.reconciliations.map((item) => (
                               <React.Fragment key={item.id}>
                                 <tr className="hover:bg-slate-50">
-                                  <td className="py-2">
+                                  <td className="py-2 text-slate-900">
                                     <div className="flex items-center gap-2">
                                       {item.status !== 'match' && (
                                         <button
@@ -526,11 +526,11 @@ function FinanceReconciliationPageContent() {
                                       {item.costCategory}
                                     </div>
                                   </td>
-                                  <td className="py-2">{item.costName}</td>
-                                  <td className="py-2 text-right">{formatCurrency(item.expectedAmount)}</td>
-                                  <td className="py-2 text-right">{formatCurrency(item.invoicedAmount)}</td>
+                                  <td className="py-2 text-slate-900">{item.costName}</td>
+                                  <td className="py-2 text-right text-slate-900">{formatCurrency(item.expectedAmount)}</td>
+                                  <td className="py-2 text-right text-slate-900">{formatCurrency(item.invoicedAmount)}</td>
                                   <td className="py-2 text-right">
-                                    <span className={item.difference > 0 ? 'text-red-600' : item.difference < 0 ? 'text-green-600' : ''}>
+                                    <span className={item.difference > 0 ? 'text-red-600' : item.difference < 0 ? 'text-green-600' : 'text-slate-900'}>
                                       {formatCurrency(Math.abs(item.difference))}
                                     </span>
                                   </td>
@@ -575,7 +575,7 @@ function FinanceReconciliationPageContent() {
                                         </div>
                                       ) : item.reconciliationDetails && item.reconciliationDetails.length > 0 ? (
                                         <div className="space-y-2">
-                                          <h5 className="font-medium text-sm mb-2">Transaction Details</h5>
+                                          <h5 className="font-medium text-sm mb-2 text-slate-900">Transaction Details</h5>
                                           <table className="w-full text-sm">
                                             <thead>
                                               <tr className="text-xs text-slate-500">
@@ -590,7 +590,7 @@ function FinanceReconciliationPageContent() {
                                             <tbody className="divide-y divide-gray-200">
                                               {item.reconciliationDetails.map(detail => (
                                                 <tr key={detail.id} className="hover:bg-white">
-                                                  <td className="py-1 font-mono text-xs">
+                                                  <td className="py-1 font-mono text-xs text-slate-700">
                                                     {detail.calculatedCost.transactionReferenceId}
                                                   </td>
                                                   <td className="py-1">
@@ -603,19 +603,19 @@ function FinanceReconciliationPageContent() {
                                                       {detail.calculatedCost.transactionType}
                                                     </span>
                                                   </td>
-                                                  <td className="py-1">
+                                                  <td className="py-1 text-slate-700">
                                                     {formatDate(detail.calculatedCost.transactionDate)}
                                                   </td>
                                                   <td className="py-1">
                                                     <div>
-                                                      <div className="font-medium">{detail.calculatedCost.sku.skuCode}</div>
+                                                      <div className="font-medium text-slate-900">{detail.calculatedCost.sku.skuCode}</div>
                                                       <div className="text-xs text-slate-500">{detail.calculatedCost.sku.description}</div>
                                                     </div>
                                                   </td>
-                                                  <td className="py-1 text-right">
+                                                  <td className="py-1 text-right text-slate-700">
                                                     {detail.calculatedCost.quantityCharged}
                                                   </td>
-                                                  <td className="py-1 text-right">
+                                                  <td className="py-1 text-right text-slate-700">
                                                     {formatCurrency(detail.calculatedCost.calculatedCost)}
                                                   </td>
                                                 </tr>
@@ -633,7 +633,7 @@ function FinanceReconciliationPageContent() {
                             ))}
                           </tbody>
                           <tfoot className="border-t">
-                            <tr className="font-semibold">
+                            <tr className="font-semibold text-slate-900">
                               <td className="pt-2" colSpan={2}>Total</td>
                               <td className="pt-2 text-right">{formatCurrency(invoiceTotals.expected)}</td>
                               <td className="pt-2 text-right">{formatCurrency(invoiceTotals.invoiced)}</td>
@@ -671,13 +671,13 @@ function FinanceReconciliationPageContent() {
           {/* Note Modal */}
         {noteModalOpen && selectedItem && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-              <h3 className="text-lg font-semibold mb-4">Add Resolution Note</h3>
+            <div className="bg-white rounded-lg p-6 w-full max-w-lg border">
+              <h3 className="text-lg font-semibold mb-4 text-slate-900">Add Resolution Note</h3>
               <div className="mb-4">
                 <p className="text-sm text-slate-600 mb-2">
                   {selectedItem.costCategory} - {selectedItem.costName}
                 </p>
-                <p className="text-sm">
+                <p className="text-sm text-slate-900">
                   Difference: <span className={selectedItem.difference > 0 ? 'text-red-600' : 'text-green-600'}>
                     {formatCurrency(Math.abs(selectedItem.difference))}
                   </span>

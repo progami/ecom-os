@@ -342,9 +342,9 @@ export default function FinanceInvoicesPage() {
         />
         <PageContent>
         <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-soft dark:border-[#0b3a52] dark:bg-[#06182b]">
+        <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-soft">
           <div className="flex flex-col gap-2 sm:flex-row">
-            <select 
+            <select
               value={selectedWarehouse}
               onChange={(e) => setSelectedWarehouse(e.target.value)}
               className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
@@ -356,7 +356,7 @@ export default function FinanceInvoicesPage() {
                 </option>
               ))}
             </select>
-            <select 
+            <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
               className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
@@ -367,7 +367,7 @@ export default function FinanceInvoicesPage() {
               <option value="disputed">Disputed</option>
               <option value="paid">Paid</option>
             </select>
-            <select 
+            <select
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
               className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
@@ -379,7 +379,7 @@ export default function FinanceInvoicesPage() {
                 </option>
               ))}
             </select>
-            <select 
+            <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
               className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
@@ -412,9 +412,9 @@ export default function FinanceInvoicesPage() {
         </div>
 
         {/* Invoice Table */}
-        <div className="overflow-hidden rounded-xl border border-slate-200 shadow-soft dark:border-[#0b3a52]">
+        <div className="overflow-hidden rounded-xl border border-slate-200 shadow-soft">
           <div className="bg-slate-50 px-6 py-3 border-b">
-            <h3 className="text-lg font-semibold">Invoices</h3>
+            <h3 className="text-lg font-semibold text-slate-900">Invoices</h3>
             <p className="text-sm text-slate-600 mt-1">
               Showing {invoices.length} of {pagination.totalCount} invoices
             </p>
