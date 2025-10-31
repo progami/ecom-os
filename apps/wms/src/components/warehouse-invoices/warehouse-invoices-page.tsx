@@ -32,7 +32,7 @@ interface WarehouseInvoicesPageProps {
   description: string
   postLoginRedirectPath: string
   detailBasePath: string
-  filterInvoices?: (invoice: WarehouseInvoiceSummary) => boolean
+  filterStatuses?: string[]
   emptyStateMessage?: string
 }
 
@@ -52,7 +52,7 @@ export function WarehouseInvoicesPage({
   description,
   postLoginRedirectPath,
   detailBasePath,
-  filterInvoices,
+  filterStatuses,
   emptyStateMessage = 'No warehouse invoices recorded yet.'
 }: WarehouseInvoicesPageProps) {
   const { data: session, status } = useSession()
@@ -96,7 +96,7 @@ export function WarehouseInvoicesPage({
                   }))
                 : []
             }))
-            .filter(invoice => (filterInvoices ? filterInvoices(invoice) : true))
+            .filter(invoice => (filterStatuses ? filterStatuses.includes(invoice.status) : true))
           : []
 
         setInvoices(normalized)
@@ -108,7 +108,7 @@ export function WarehouseInvoicesPage({
     }
 
     loadInvoices()
-  }, [filterInvoices, postLoginRedirectPath, router, session, status])
+  }, [filterStatuses, postLoginRedirectPath, router, session, status])
 
   if (status === 'loading' || loading) {
     return (

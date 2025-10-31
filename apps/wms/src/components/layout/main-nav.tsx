@@ -44,16 +44,16 @@ const baseNavigation: NavSection[] = [
     items: [
       { name: 'Purchase Orders', href: '/operations/purchase-orders', icon: FileText },
       { name: 'Inventory Ledger', href: '/operations/inventory', icon: BookOpen },
+      { name: 'Warehouse Invoices', href: '/operations/warehouse-invoices', icon: FileText },
       { name: 'Pallet Variance', href: '/operations/pallet-variance', icon: AlertTriangle },
     ]
   },
   {
     title: 'Finance',
     items: [
+      { name: 'Invoices', href: '/finance/invoices', icon: FileText },
       { name: 'Storage Ledger', href: '/finance/storage-ledger', icon: Calendar },
       { name: 'Cost Ledger', href: '/finance/cost-ledger', icon: BarChart3 },
-      { name: 'Warehouse Invoices', href: '/operations/warehouse-invoices', icon: FileText },
-      { name: 'Invoices', href: '/finance/invoices', icon: FileText },
       { name: 'Reconciliation', href: '/finance/reconciliation', icon: Calculator },
     ]
   },
