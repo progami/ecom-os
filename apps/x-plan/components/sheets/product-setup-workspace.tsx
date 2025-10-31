@@ -54,7 +54,7 @@ const TAB_CONFIG: Array<{
 ]
 
 const panelAccent =
-  'rounded-3xl border border-slate-200 dark:border-[#0b3a52] bg-white dark:bg-[#041324] p-6 text-slate-900 dark:text-slate-100 shadow-lg dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] ring-1 ring-slate-200 dark:ring-[#0f2e45]/60 before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_8%_18%,rgba(0,194,185,0.16),transparent_60%),radial-gradient(circle_at_92%_22%,rgba(0,194,185,0.08),transparent_60%)] before:opacity-90 before:mix-blend-screen before:content-[""] backdrop-blur-xl'
+  'rounded-3xl border border-slate-200] bg-white] p-6 text-slate-900 shadow-lg)] ring-1 ring-slate-200]/60 before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_8%_18%,rgba(0,194,185,0.16),transparent_60%),radial-gradient(circle_at_92%_22%,rgba(0,194,185,0.08),transparent_60%)] before:opacity-90 before:mix-blend-screen before:content-[""] backdrop-blur-xl'
 
 export function ProductSetupWorkspace({
   products,
@@ -102,9 +102,9 @@ export function ProductSetupWorkspace({
       <header className={clsx('relative overflow-hidden', panelAccent)}>
         <div className="relative flex flex-col gap-4">
           <div className="space-y-2">
-            <p className="text-sm font-semibold uppercase tracking-[0.4em] text-cyan-700 dark:text-cyan-300/80">Product setup</p>
-            <h1 className="text-3xl font-semibold text-slate-900 dark:text-white">Configure your launchpad</h1>
-            <p className="max-w-2xl text-sm leading-relaxed text-slate-700 dark:text-slate-200/80">
+            <p className="text-sm font-semibold uppercase tracking-[0.4em] text-cyan-700">Product setup</p>
+            <h1 className="text-3xl font-semibold text-slate-900">Configure your launchpad</h1>
+            <p className="max-w-2xl text-sm leading-relaxed text-slate-700">
               Keep every workbook tab aligned by curating catalogue data and business parameters from a single place. Switch between tables without losing context.
             </p>
           </div>
@@ -123,21 +123,21 @@ export function ProductSetupWorkspace({
                   className={clsx(
                     'flex min-w-[160px] flex-1 items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 sm:flex-none',
                     isActive
-                      ? 'border-[#00c2b9] bg-cyan-600 text-white shadow-[0_18px_40px_rgba(0,194,185,0.2)] dark:bg-[#00c2b9]/15 dark:text-cyan-100'
-                      : 'border-slate-300 bg-white/5 text-slate-700 hover:border-cyan-300/50 hover:text-cyan-900 dark:border-white/12 dark:text-slate-200 dark:hover:text-cyan-100'
+                      ? 'border-[#00c2b9] bg-cyan-600 text-white shadow-[0_18px_40px_rgba(0,194,185,0.2)]]/15'
+                      : 'border-slate-300 bg-white/5 text-slate-700 hover:border-cyan-300/50 hover:text-cyan-900'
                   )}
                 >
                   <div className="space-y-0.5">
                     <span className={clsx(
                       'text-xs font-semibold uppercase tracking-[0.3em]',
                       isActive
-                        ? 'text-white/90 dark:text-cyan-200'
-                        : 'text-cyan-700 dark:text-cyan-300/80'
+                        ? 'text-white/90'
+                        : 'text-cyan-700'
                     )}>{tab.subtitle}</span>
                     <span className="block text-sm font-medium">{tab.label}</span>
                   </div>
                   <svg
-                    className={clsx('h-5 w-5 transition-transform', isActive ? 'text-white dark:text-cyan-100' : 'text-slate-400 dark:text-slate-500')}
+                    className={clsx('h-5 w-5 transition-transform', isActive ? 'text-white' : 'text-slate-400')}
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"

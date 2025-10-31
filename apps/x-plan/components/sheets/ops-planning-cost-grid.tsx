@@ -287,7 +287,7 @@ export function OpsPlanningCostGrid({
   if (!isClient) {
     return (
       <section className="space-y-3">
-        <div className="h-64 animate-pulse rounded-xl bg-slate-200 dark:bg-[#0c2537]" />
+        <div className="h-64 animate-pulse rounded-xl bg-slate-200]" />
       </section>
     )
   }
@@ -295,7 +295,7 @@ export function OpsPlanningCostGrid({
   return (
     <section className="space-y-3">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
+        <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700">
           Batch Table
         </h2>
         <div className="flex flex-wrap gap-2">
@@ -304,7 +304,7 @@ export function OpsPlanningCostGrid({
               type="button"
               onClick={onAddBatch}
               disabled={Boolean(disableAdd)}
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Add batch
             </button>
@@ -314,7 +314,7 @@ export function OpsPlanningCostGrid({
               type="button"
               onClick={onDeleteBatch}
               disabled={Boolean(disableDelete) || !activeBatchId}
-              className="rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-700 shadow-sm transition enabled:hover:border-rose-500 enabled:hover:bg-rose-100 enabled:hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/60 dark:bg-rose-500/10 dark:text-rose-300 dark:enabled:hover:border-rose-500/80 dark:enabled:hover:bg-rose-500/20"
+              className="rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-700 shadow-sm transition enabled:hover:border-rose-500 enabled:hover:bg-rose-100 enabled:hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Remove batch
             </button>

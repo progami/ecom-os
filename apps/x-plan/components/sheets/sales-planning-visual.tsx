@@ -192,16 +192,16 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
 
   if (productOptions.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-100 p-12 text-center dark:border-[#6F7B8B]/40 dark:bg-[#002C51]/20">
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-100 p-12 text-center]/40]/20">
         <div className="mx-auto max-w-md space-y-4">
           <div className="text-6xl">📦</div>
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-white">No Products Available</h3>
-          <p className="text-sm text-slate-600 dark:text-[#6F7B8B]">
+          <h3 className="text-xl font-semibold text-slate-900">No Products Available</h3>
+          <p className="text-sm text-slate-600]">
             Set up your first product in the Product Setup sheet to start tracking stock levels and sales planning.
           </p>
           <a
             href="/sheet/1-product-setup"
-            className="inline-flex items-center gap-2 rounded-lg border border-cyan-600 bg-cyan-600/20 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-cyan-600/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 dark:border-[#00C2B9] dark:bg-[#00C2B9]/20 dark:text-white dark:hover:bg-[#00C2B9]/30 dark:focus-visible:outline-[#00C2B9]"
+            className="inline-flex items-center gap-2 rounded-lg border border-cyan-600 bg-cyan-600/20 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-cyan-600/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600]]/20]/30]"
           >
             <span>→</span> Go to Product Setup
           </a>
@@ -236,8 +236,8 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
             className={clsx(
               'rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all',
               showStockLine
-                ? 'bg-cyan-100 text-cyan-800 shadow-sm dark:bg-cyan-900/30 dark:text-cyan-200'
-                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5'
+                ? 'bg-cyan-100 text-cyan-800 shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100'
             )}
           >
             Stock
@@ -248,8 +248,8 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
             className={clsx(
               'rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all',
               showShipments
-                ? 'bg-emerald-100 text-emerald-800 shadow-sm dark:bg-emerald-900/30 dark:text-emerald-200'
-                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5'
+                ? 'bg-emerald-100 text-emerald-800 shadow-sm'
+                : 'text-slate-600 hover:bg-slate-100'
             )}
           >
             Shipments
@@ -270,16 +270,16 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
             a.click()
             URL.revokeObjectURL(url)
           }}
-          className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
+          className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600]/50]"
         >
           <span>⬇</span> Export SVG
         </button>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 backdrop-blur-sm dark:border-[#0b3a52] dark:bg-[#06182b]/60">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 backdrop-blur-sm]]/60">
         <div className="mb-4">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Stock Level Over Time</h3>
-          <p className="text-sm text-slate-600 dark:text-[#6F7B8B]">
+          <h3 className="text-lg font-semibold text-slate-900">Stock Level Over Time</h3>
+          <p className="text-sm text-slate-600]">
             Tracking inventory levels with shipment arrival markers
           </p>
         </div>
@@ -288,7 +288,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
           <svg
             width="100%"
             height={chartHeight}
-            className="sales-chart-svg text-slate-900 dark:text-white"
+            className="sales-chart-svg text-slate-900"
             preserveAspectRatio="none"
             viewBox={`0 0 1400 ${chartHeight}`}
           >
@@ -437,7 +437,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                     y={yScale(tick)}
                     textAnchor="end"
                     alignmentBaseline="middle"
-                    className="text-xs font-mono fill-slate-600 dark:fill-[#6F7B8B]"
+                    className="text-xs font-mono fill-slate-600]"
                   >
                     {Math.round(tick)}
                   </text>
@@ -507,14 +507,14 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
         </div>
 
         {/* Legend */}
-        <div className="mt-6 flex items-center gap-6 border-t border-slate-200 pt-4 dark:border-[#0b3a52]">
+        <div className="mt-6 flex items-center gap-6 border-t border-slate-200 pt-4]">
           <div className="flex items-center gap-2">
-            <div className="h-3 w-8 rounded-sm bg-cyan-600 dark:bg-[#00C2B9]" />
-            <span className="text-xs text-slate-600 dark:text-[#6F7B8B]">Stock Level</span>
+            <div className="h-3 w-8 rounded-sm bg-cyan-600]" />
+            <span className="text-xs text-slate-600]">Stock Level</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="h-3 w-8 border-2 border-dashed border-emerald-600 rounded-sm dark:border-emerald-500" />
-            <span className="text-xs text-slate-600 dark:text-[#6F7B8B]">Shipment Arrival</span>
+            <div className="h-3 w-8 border-2 border-dashed border-emerald-600 rounded-sm" />
+            <span className="text-xs text-slate-600]">Shipment Arrival</span>
           </div>
         </div>
       </div>
@@ -523,20 +523,20 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
       <div className="flex flex-wrap gap-4">
         {/* Stock hover tooltip */}
         {hoveredStock && (
-          <div className="rounded-xl border border-cyan-600 bg-white/95 p-4 shadow-lg backdrop-blur-sm dark:border-[#00C2B9] dark:bg-[#002C51]/95">
+          <div className="rounded-xl border border-cyan-600 bg-white/95 p-4 shadow-lg backdrop-blur-sm]]/95">
             <div className="mb-2 flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-cyan-600 dark:bg-[#00C2B9]" />
-              <h4 className="font-semibold text-slate-900 dark:text-white">Stock Level</h4>
+              <div className="h-3 w-3 rounded-full bg-cyan-600]" />
+              <h4 className="font-semibold text-slate-900">Stock Level</h4>
             </div>
             <div className="space-y-1 text-sm">
-              <p className="text-slate-700 dark:text-[#6F7B8B]">
-                <span className="font-medium text-slate-900 dark:text-white">Week:</span> {hoveredStock.weekNumber}
+              <p className="text-slate-700]">
+                <span className="font-medium text-slate-900">Week:</span> {hoveredStock.weekNumber}
               </p>
-              <p className="text-slate-700 dark:text-[#6F7B8B]">
-                <span className="font-medium text-slate-900 dark:text-white">Date:</span> {hoveredStock.weekDate}
+              <p className="text-slate-700]">
+                <span className="font-medium text-slate-900">Date:</span> {hoveredStock.weekDate}
               </p>
-              <p className="text-slate-700 dark:text-[#6F7B8B]">
-                <span className="font-medium text-slate-900 dark:text-white">Stock:</span> <span className="font-bold text-cyan-700 dark:text-[#00C2B9]">{Math.round(hoveredStock.stockEnd)}</span> units
+              <p className="text-slate-700]">
+                <span className="font-medium text-slate-900">Stock:</span> <span className="font-bold text-cyan-700]">{Math.round(hoveredStock.stockEnd)}</span> units
               </p>
             </div>
           </div>
@@ -544,20 +544,20 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
 
         {/* Shipment hover tooltip */}
         {hoveredShipment && (
-          <div className="rounded-xl border border-emerald-600 bg-white/95 p-4 shadow-lg backdrop-blur-sm dark:border-emerald-500 dark:bg-[#002C51]/95">
+          <div className="rounded-xl border border-emerald-600 bg-white/95 p-4 shadow-lg backdrop-blur-sm]/95">
             <div className="mb-2 flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-emerald-600 dark:bg-emerald-500" />
-              <h4 className="font-semibold text-slate-900 dark:text-white">Shipment Arrival</h4>
+              <div className="h-3 w-3 rounded-full bg-emerald-600" />
+              <h4 className="font-semibold text-slate-900">Shipment Arrival</h4>
             </div>
             <div className="space-y-1 text-sm">
-              <p className="text-slate-700 dark:text-[#6F7B8B]">
-                <span className="font-medium text-slate-900 dark:text-white">Week:</span> {hoveredShipment.weekNumber}
+              <p className="text-slate-700]">
+                <span className="font-medium text-slate-900">Week:</span> {hoveredShipment.weekNumber}
               </p>
-              <p className="text-slate-700 dark:text-[#6F7B8B]">
-                <span className="font-medium text-slate-900 dark:text-white">Date:</span> {hoveredShipment.weekDate}
+              <p className="text-slate-700]">
+                <span className="font-medium text-slate-900">Date:</span> {hoveredShipment.weekDate}
               </p>
-              <div className="mt-2 rounded-lg bg-slate-100 p-2 dark:bg-[#041324]/60">
-                <p className="whitespace-pre-line text-xs text-slate-700 dark:text-emerald-100">
+              <div className="mt-2 rounded-lg bg-slate-100 p-2]/60">
+                <p className="whitespace-pre-line text-xs text-slate-700">
                   {hoveredShipment.arrivalDetail}
                 </p>
               </div>

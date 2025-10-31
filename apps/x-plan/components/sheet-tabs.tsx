@@ -46,8 +46,8 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
               className={clsx(
                 linkBase,
                 isActive
-                  ? 'border-cyan-600 bg-cyan-600/20 text-slate-900 shadow-md dark:border-[#00C2B9] dark:bg-[#00C2B9]/30 dark:text-white dark:shadow-[0_18px_40px_rgba(0,194,185,0.3)]'
-                  : 'border-slate-300 bg-white text-slate-700 hover:border-cyan-500 hover:bg-slate-50 hover:text-slate-900 dark:border-[#6F7B8B]/50 dark:bg-[#002C51]/70 dark:text-[#6F7B8B] dark:hover:border-[#00C2B9]/70 dark:hover:bg-[#002C51] dark:hover:text-white'
+                  ? 'border-cyan-600 bg-cyan-600/20 text-slate-900 shadow-md]]/30)]'
+                  : 'border-slate-300 bg-white text-slate-700 hover:border-cyan-500 hover:bg-slate-50 hover:text-slate-900]/50]/70]]/70]'
               )}
             >
               <span className="relative z-10 flex items-center gap-2">

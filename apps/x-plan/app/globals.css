@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
 body {
@@ -12,11 +12,6 @@ body {
   color: #0f172a;
   font-feature-settings: "cv11", "ss01";
   font-optical-sizing: auto;
-}
-
-body.dark {
-  background: #041324;
-  color: rgb(241, 245, 249);
 }
 
 /* Custom scrollbar */
@@ -38,25 +33,8 @@ body.dark {
   background: rgba(8, 145, 178, 0.6);
 }
 
-.dark ::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: rgba(0, 194, 185, 0.3);
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 194, 185, 0.5);
-}
-
 /* Selection */
 ::selection {
   background: rgba(8, 145, 178, 0.25);
   color: #0e7490;
-}
-
-.dark ::selection {
-  background: rgba(0, 194, 185, 0.3);
-  color: rgb(204, 251, 241);
 }

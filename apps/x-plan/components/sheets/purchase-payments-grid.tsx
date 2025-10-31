@@ -243,7 +243,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
   if (!isClient) {
     return (
       <div className="space-y-3">
-        <div className="h-40 animate-pulse rounded-xl bg-slate-100 dark:bg-slate-800" />
+        <div className="h-40 animate-pulse rounded-xl bg-slate-100" />
       </div>
     )
   }
@@ -251,17 +251,17 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
   return (
     <div className="space-y-3">
       <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-        <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
+        <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700">
           Payments
         </h2>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-700 dark:text-slate-200/80">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-700">
           {summaryText && <span>{summaryText}</span>}
           <button
             onClick={() => {
               if (onAddPayment) void onAddPayment()
             }}
             disabled={!activeOrderId || isLoading}
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60"
           >
             Add payment
           </button>
@@ -470,7 +470,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
         <div
           ref={pickerRef}
           style={{ position: 'fixed', left: picker.left, top: picker.top, zIndex: 9999 }}
-          className="xplan-date-overlay rounded-md border border-slate-200 bg-white p-2 shadow-md dark:border-[#0b3a52] dark:bg-[#0a1f35]"
+          className="xplan-date-overlay rounded-md border border-slate-200 bg-white p-2 shadow-md]]"
           onMouseDown={(e) => e.stopPropagation()}
         >
           <Flatpickr
@@ -510,7 +510,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
       {keyEditor ? (
         <div
           style={{ position: 'fixed', left: keyEditor.left, top: keyEditor.top, zIndex: 9999 }}
-          className="xplan-date-overlay rounded-md border border-slate-200 bg-white p-2 shadow-md dark:border-[#0b3a52] dark:bg-[#0a1f35]"
+          className="xplan-date-overlay rounded-md border border-slate-200 bg-white p-2 shadow-md]]"
           onMouseDown={(e) => e.stopPropagation()}
         >
           <input
@@ -518,7 +518,7 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
             type="text"
             placeholder="YYYY-MM-DD"
             defaultValue={keyEditor.value}
-            className="rounded border border-slate-300 px-2 py-1 text-sm dark:border-slate-700"
+            className="rounded border border-slate-300 px-2 py-1 text-sm"
             onKeyDown={(e) => {
               if (e.key === 'Escape') {
                 setKeyEditor(null)
