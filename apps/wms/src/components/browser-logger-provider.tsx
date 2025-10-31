@@ -4,9 +4,9 @@ import { useEffect } from 'react'
 import { initBrowserLogger } from '@/lib/browser-logger'
 
 export function BrowserLoggerProvider({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    initBrowserLogger()
-  }, [])
+ useEffect(() => {
+ initBrowserLogger()
+ }, [])
 
-  return <>{children}</>
+ return <>{children}</>
 }

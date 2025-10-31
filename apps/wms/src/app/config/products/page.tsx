@@ -15,60 +15,60 @@ import { redirectToPortal } from '@/lib/portal'
 const ALLOWED_ROLES = ['admin']
 
 export default function ProductsPage() {
-  const router = useRouter()
-  const { data: session, status } = useSession()
+ const router = useRouter()
+ const { data: session, status } = useSession()
 
-  useEffect(() => {
-    if (status === 'loading') return
+ useEffect(() => {
+ if (status === 'loading') return
 
-    if (!session) {
-      redirectToPortal('/login', `${window.location.origin}/config/products`)
-      return
-    }
+ if (!session) {
+ redirectToPortal('/login', `${window.location.origin}/config/products`)
+ return
+ }
 
-    if (!ALLOWED_ROLES.includes(session.user.role)) {
-      toast.error('You are not authorised to manage products')
-      router.push('/dashboard')
-    }
-  }, [router, session, status])
+ if (!ALLOWED_ROLES.includes(session.user.role)) {
+ toast.error('You are not authorised to manage products')
+ router.push('/dashboard')
+ }
+ }, [router, session, status])
 
-  if (status === 'loading') {
-    return (
-      <DashboardLayout>
-        <div className="flex h-full items-center justify-center">
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
-            <span>Loading…</span>
-          </div>
-        </div>
-      </DashboardLayout>
-    )
-  }
+ if (status === 'loading') {
+ return (
+ <DashboardLayout>
+ <div className="flex h-full items-center justify-center">
+ <div className="flex flex-col items-center gap-2 text-muted-foreground">
+ <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent " />
+ <span>Loading…</span>
+ </div>
+ </div>
+ </DashboardLayout>
+ )
+ }
 
-  if (!session || !ALLOWED_ROLES.includes(session.user.role)) {
-    return null
-  }
+ if (!session || !ALLOWED_ROLES.includes(session.user.role)) {
+ return null
+ }
 
-  return (
-    <DashboardLayout>
-      <PageContainer>
-        <PageHeaderSection
-          title="Products"
-          description="Configuration"
-          icon={Package}
-          actions={
-            <Button asChild className="gap-2">
-              <Link href="/config/products/new">
-                <Plus className="h-4 w-4" />
-                Create Product
-              </Link>
-            </Button>
-          }
-        />
-        <PageContent>
-          <ProductsPanel />
-        </PageContent>
-      </PageContainer>
-    </DashboardLayout>
-  )
+ return (
+ <DashboardLayout>
+ <PageContainer>
+ <PageHeaderSection
+ title="Products"
+ description="Configuration"
+ icon={Package}
+ actions={
+ <Button asChild className="gap-2">
+ <Link href="/config/products/new">
+ <Plus className="h-4 w-4" />
+ Create Product
+ </Link>
+ </Button>
+ }
+ />
+ <PageContent>
+ <ProductsPanel />
+ </PageContent>
+ </PageContainer>
+ </DashboardLayout>
+ )
 }

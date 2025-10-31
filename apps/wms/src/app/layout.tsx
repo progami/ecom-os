@@ -7,45 +7,45 @@ import '@/lib/utils/patch-fetch'
 import FetchPatch from '@/components/fetch-patch'
 
 const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-sans',
+ subsets: ['latin'],
+ variable: '--font-sans',
 })
 
 const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-mono',
+ subsets: ['latin'],
+ variable: '--font-mono',
 })
 
 export const metadata: Metadata = {
-  title: 'WMS',
-  description: 'Modern warehouse inventory and billing management',
-  keywords: ['warehouse', 'inventory', 'billing', 'management', '3PL'],
+ title: 'WMS',
+ description: 'Modern warehouse inventory and billing management',
+ keywords: ['warehouse', 'inventory', 'billing', 'management', '3PL'],
 }
 
 export default function RootLayout({
-  children,
+ children,
 }: {
-  children: React.ReactNode
+ children: React.ReactNode
 }) {
-  return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans`}>
-        <FetchPatch />
-        <Providers>
-          {children}
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: 'hsl(var(--background))',
-                color: 'hsl(var(--foreground))',
-                border: '1px solid hsl(var(--border))',
-              },
-            }}
-          />
-        </Providers>
-      </body>
-    </html>
-  )
+ return (
+ <html lang="en" suppressHydrationWarning>
+ <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans`}>
+ <FetchPatch />
+ <Providers>
+ {children}
+ <Toaster
+ position="top-right"
+ toastOptions={{
+ duration: 4000,
+ style: {
+ background: 'hsl(var(--background))',
+ color: 'hsl(var(--foreground))',
+ border: '1px solid hsl(var(--border))',
+ },
+ }}
+ />
+ </Providers>
+ </body>
+ </html>
+ )
 }

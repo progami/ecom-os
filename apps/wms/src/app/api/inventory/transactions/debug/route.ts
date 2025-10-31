@@ -4,48 +4,48 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export async function GET() {
-  try {
-    const session = await getServerSession(authOptions)
-    
-    if (!session) {
-      return NextResponse.json({ error: 'No session found' }, { status: 401 })
-    }
+ try {
+ const session = await getServerSession(authOptions)
+ 
+ if (!session) {
+ return NextResponse.json({ error: 'No session found' }, { status: 401 })
+ }
 
-    // Check if the user from session exists in database
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        role: true,
-        warehouseId: true,
-        warehouse: {
-          select: {
-            code: true,
-            name: true
-          }
-        }
-      }
-    })
+ // Check if the user from session exists in database
+ const user = await prisma.user.findUnique({
+ where: { id: session.user.id },
+ select: {
+ id: true,
+ email: true,
+ username: true,
+ role: true,
+ warehouseId: true,
+ warehouse: {
+ select: {
+ code: true,
+ name: true
+ }
+ }
+ }
+ })
 
-    return NextResponse.json({
-      session: {
-        userId: session.user.id,
-        email: session.user.email,
-        role: session.user.role,
-        warehouseId: session.user.warehouseId
-      },
-      userExists: !!user,
-      userData: user || null,
-      message: user 
-        ? 'User exists in database' 
-        : 'User from session does not exist in database!'
-    })
-  } catch (_error) {
-    return NextResponse.json({ 
-      error: 'Failed to check session',
-      details: _error instanceof Error ? _error.message : 'Unknown error'
-    }, { status: 500 })
-  }
+ return NextResponse.json({
+ session: {
+ userId: session.user.id,
+ email: session.user.email,
+ role: session.user.role,
+ warehouseId: session.user.warehouseId
+ },
+ userExists: !!user,
+ userData: user || null,
+ message: user 
+ ? 'User exists in database' 
+ : 'User from session does not exist in database!'
+ })
+ } catch (_error) {
+ return NextResponse.json({ 
+ error: 'Failed to check session',
+ details: _error instanceof Error ? _error.message : 'Unknown error'
+ }, { status: 500 })
+ }
 }

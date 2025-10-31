@@ -1,10 +1,10 @@
 import { prisma } from '@/lib/prisma'
 
 export interface StorageRateResult {
-  ratePerCarton: number
-  costRateId: string
-  effectiveDate: Date
-  rateName: string
+ ratePerCarton: number
+ costRateId: string
+ effectiveDate: Date
+ rateName: string
 }
 
 /**
@@ -14,35 +14,35 @@ export interface StorageRateResult {
  * @returns Storage rate information or null if not found
  */
 export async function getStorageRate(
-  warehouseCode: string, 
-  effectiveDate: Date = new Date()
+ warehouseCode: string, 
+ effectiveDate: Date = new Date()
 ): Promise<StorageRateResult | null> {
-  
-  // Get active storage rate for warehouse
-  const costRate = await prisma.costRate.findFirst({
-    where: {
-      warehouse: { code: warehouseCode },
-      costCategory: 'Storage',
-      effectiveDate: { lte: effectiveDate },
-      OR: [
-        { endDate: null },
-        { endDate: { gte: effectiveDate }}
-      ],
-      isActive: true
-    },
-    orderBy: { effectiveDate: 'desc' }
-  })
+ 
+ // Get active storage rate for warehouse
+ const costRate = await prisma.costRate.findFirst({
+ where: {
+ warehouse: { code: warehouseCode },
+ costCategory: 'Storage',
+ effectiveDate: { lte: effectiveDate },
+ OR: [
+ { endDate: null },
+ { endDate: { gte: effectiveDate }}
+ ],
+ isActive: true
+ },
+ orderBy: { effectiveDate: 'desc' }
+ })
 
-  if (!costRate) {
-    return null
-  }
+ if (!costRate) {
+ return null
+ }
 
-  return {
-    ratePerCarton: Number(costRate.costValue),
-    costRateId: costRate.id,
-    effectiveDate: costRate.effectiveDate,
-    rateName: costRate.costName
-  }
+ return {
+ ratePerCarton: Number(costRate.costValue),
+ costRateId: costRate.id,
+ effectiveDate: costRate.effectiveDate,
+ rateName: costRate.costName
+ }
 }
 
 /**
@@ -52,11 +52,11 @@ export async function getStorageRate(
  * @returns Total weekly storage cost
  */
 export async function calculateStorageCost(
-  cartonCount: number, 
-  ratePerCarton: number
+ cartonCount: number, 
+ ratePerCarton: number
 ): Promise<number> {
-  // Weekly storage cost = cartons × rate per carton per week
-  return cartonCount * ratePerCarton
+ // Weekly storage cost = cartons × rate per carton per week
+ return cartonCount * ratePerCarton
 }
 
 /**
@@ -66,19 +66,19 @@ export async function calculateStorageCost(
  * @returns Map of warehouse code to storage rate
  */
 export async function getStorageRatesForWarehouses(
-  warehouseCodes: string[],
-  effectiveDate: Date = new Date()
+ warehouseCodes: string[],
+ effectiveDate: Date = new Date()
 ): Promise<Map<string, StorageRateResult>> {
-  const rates = new Map<string, StorageRateResult>()
-  
-  for (const warehouseCode of warehouseCodes) {
-    const rate = await getStorageRate(warehouseCode, effectiveDate)
-    if (rate) {
-      rates.set(warehouseCode, rate)
-    }
-  }
-  
-  return rates
+ const rates = new Map<string, StorageRateResult>()
+ 
+ for (const warehouseCode of warehouseCodes) {
+ const rate = await getStorageRate(warehouseCode, effectiveDate)
+ if (rate) {
+ rates.set(warehouseCode, rate)
+ }
+ }
+ 
+ return rates
 }
 
 /**
@@ -88,9 +88,9 @@ export async function getStorageRatesForWarehouses(
  * @returns True if valid rate exists, false otherwise
  */
 export async function hasValidStorageRate(
-  warehouseCode: string,
-  effectiveDate: Date = new Date()
+ warehouseCode: string,
+ effectiveDate: Date = new Date()
 ): Promise<boolean> {
-  const rate = await getStorageRate(warehouseCode, effectiveDate)
-  return rate !== null
+ const rate = await getStorageRate(warehouseCode, effectiveDate)
+ return rate !== null
 }

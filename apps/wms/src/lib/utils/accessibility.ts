@@ -10,10 +10,10 @@
  * @returns A unique ID string
  */
 export function generateFieldId(prefix: string, rowIndex: number | null, fieldName: string): string {
-  if (rowIndex !== null) {
-    return `${prefix}-item-${rowIndex}-${fieldName}`
-  }
-  return `${prefix}-${fieldName}`
+ if (rowIndex !== null) {
+ return `${prefix}-item-${rowIndex}-${fieldName}`
+ }
+ return `${prefix}-${fieldName}`
 }
 
 /**
@@ -24,10 +24,10 @@ export function generateFieldId(prefix: string, rowIndex: number | null, fieldNa
  * @returns A properly formatted name attribute
  */
 export function generateFieldName(baseName: string, index: number | null, property: string): string {
-  if (index !== null) {
-    return `${baseName}[${index}].${property}`
-  }
-  return property
+ if (index !== null) {
+ return `${baseName}[${index}].${property}`
+ }
+ return property
 }
 
 /**
@@ -37,10 +37,10 @@ export function generateFieldName(baseName: string, index: number | null, proper
  * @returns A descriptive ARIA label
  */
 export function generateAriaLabel(itemNumber: number | null, fieldLabel: string): string {
-  if (itemNumber !== null) {
-    return `Item ${itemNumber} ${fieldLabel}`
-  }
-  return fieldLabel
+ if (itemNumber !== null) {
+ return `Item ${itemNumber} ${fieldLabel}`
+ }
+ return fieldLabel
 }
 
 /**
@@ -53,22 +53,22 @@ export function generateAriaLabel(itemNumber: number | null, fieldLabel: string)
  * @returns Object with all necessary accessibility props
  */
 export function generateDynamicFieldProps(
-  prefix: string,
-  index: number,
-  fieldName: string,
-  label: string,
-  required: boolean = false
+ prefix: string,
+ index: number,
+ fieldName: string,
+ label: string,
+ required: boolean = false
 ) {
-  const rowNumber = index + 1
-  const id = generateFieldId(prefix, rowNumber, fieldName)
-  
-  return {
-    id,
-    name: generateFieldName('items', index, fieldName),
-    'aria-label': generateAriaLabel(rowNumber, label),
-    'aria-describedby': `${id}-help ${id}-error`,
-    'aria-required': required,
-  }
+ const rowNumber = index + 1
+ const id = generateFieldId(prefix, rowNumber, fieldName)
+ 
+ return {
+ id,
+ name: generateFieldName('items', index, fieldName),
+ 'aria-label': generateAriaLabel(rowNumber, label),
+ 'aria-describedby': `${id}-help ${id}-error`,
+ 'aria-required': required,
+ }
 }
 
 /**
@@ -79,18 +79,18 @@ export function generateDynamicFieldProps(
  * @returns Object with accessibility props for file inputs
  */
 export function generateFileUploadProps(
-  documentType: string,
-  label: string,
-  acceptedFormats: string = '.pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx'
+ documentType: string,
+ label: string,
+ acceptedFormats: string = '.pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx'
 ) {
-  const id = `${documentType}-upload`
-  
-  return {
-    id,
-    name: `${documentType.replace(/-/g, '')}File`,
-    'aria-label': `Upload ${label} (Accepted formats: ${acceptedFormats.replace(/\./g, '').toUpperCase()}, Max 5MB)`,
-    'aria-describedby': `${id}-help ${id}-error`,
-  }
+ const id = `${documentType}-upload`
+ 
+ return {
+ id,
+ name: `${documentType.replace(/-/g, '')}File`,
+ 'aria-label': `Upload ${label} (Accepted formats: ${acceptedFormats.replace(/\./g, '').toUpperCase()}, Max 5MB)`,
+ 'aria-describedby': `${id}-help ${id}-error`,
+ }
 }
 
 /**
@@ -101,18 +101,18 @@ export function generateFileUploadProps(
  * @returns Object with accessibility props for search inputs
  */
 export function generateSearchInputProps(
-  pageName: string,
-  searchScope: string,
-  resultsId: string
+ pageName: string,
+ searchScope: string,
+ resultsId: string
 ) {
-  return {
-    id: `${pageName}-search`,
-    name: 'search',
-    type: 'search',
-    'aria-label': `Search ${searchScope}`,
-    'aria-describedby': `${pageName}-search-help`,
-    'aria-controls': resultsId,
-  }
+ return {
+ id: `${pageName}-search`,
+ name: 'search',
+ type: 'search',
+ 'aria-label': `Search ${searchScope}`,
+ 'aria-describedby': `${pageName}-search-help`,
+ 'aria-controls': resultsId,
+ }
 }
 
 /**
@@ -120,7 +120,7 @@ export function generateSearchInputProps(
  * @returns The sr-only class name
  */
 export function getSrOnlyClass(): string {
-  return 'sr-only'
+ return 'sr-only'
 }
 
 /**
@@ -130,12 +130,12 @@ export function getSrOnlyClass(): string {
  * @returns Props for error message span
  */
 export function generateErrorProps(fieldId: string, error?: string) {
-  return {
-    id: `${fieldId}-error`,
-    className: error ? 'text-red-600 text-sm mt-1' : 'sr-only',
-    'aria-live': 'polite' as const,
-    children: error || ''
-  }
+ return {
+ id: `${fieldId}-error`,
+ className: error ? 'text-red-600 text-sm mt-1' : 'sr-only',
+ 'aria-live': 'polite' as const,
+ children: error || ''
+ }
 }
 
 /**
@@ -146,11 +146,11 @@ export function generateErrorProps(fieldId: string, error?: string) {
  * @returns Props for help text span
  */
 export function generateHelpProps(fieldId: string, helpText: string, visuallyHidden: boolean = true) {
-  return {
-    id: `${fieldId}-help`,
-    className: visuallyHidden ? 'sr-only' : 'text-sm text-gray-600 mt-1',
-    children: helpText
-  }
+ return {
+ id: `${fieldId}-help`,
+ className: visuallyHidden ? 'sr-only' : 'text-sm text-gray-600 mt-1',
+ children: helpText
+ }
 }
 
 /**
@@ -161,7 +161,7 @@ export function generateHelpProps(fieldId: string, helpText: string, visuallyHid
  * @returns Whether field is invalid
  */
 export function isFieldInvalid(formSubmitted: boolean, value: unknown, required: boolean): boolean {
-  return formSubmitted && required && !value
+ return formSubmitted && required && !value
 }
 
 /**
@@ -173,30 +173,30 @@ export function isFieldInvalid(formSubmitted: boolean, value: unknown, required:
  * @returns Props for accessible table headers
  */
 export function generateTableHeaderProps(
-  columnName: string,
-  sortable: boolean = false,
-  currentSort?: string,
-  sortDirection?: 'asc' | 'desc'
+ columnName: string,
+ sortable: boolean = false,
+ currentSort?: string,
+ sortDirection?: 'asc' | 'desc'
 ) {
-  interface TableHeaderProps {
-    scope: string
-    'aria-label': string
-    'aria-sort'?: string
-    role?: string
-    tabIndex?: number
-  }
-  const props: TableHeaderProps = {
-    scope: 'col',
-    'aria-label': columnName,
-  }
-  
-  if (sortable) {
-    const isSorted = currentSort === columnName
-    props['aria-sort'] = isSorted ? sortDirection : 'none'
-    props.role = 'columnheader'
-    props.tabIndex = 0
-    props['aria-label'] = `${columnName}. ${isSorted ? `Sorted ${sortDirection}ending` : 'Click to sort'}`
-  }
-  
-  return props
+ interface TableHeaderProps {
+ scope: string
+ 'aria-label': string
+ 'aria-sort'?: string
+ role?: string
+ tabIndex?: number
+ }
+ const props: TableHeaderProps = {
+ scope: 'col',
+ 'aria-label': columnName,
+ }
+ 
+ if (sortable) {
+ const isSorted = currentSort === columnName
+ props['aria-sort'] = isSorted ? sortDirection : 'none'
+ props.role = 'columnheader'
+ props.tabIndex = 0
+ props['aria-label'] = `${columnName}. ${isSorted ? `Sorted ${sortDirection}ending` : 'Click to sort'}`
+ }
+ 
+ return props
 }

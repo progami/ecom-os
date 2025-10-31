@@ -7,25 +7,25 @@ import { useState } from 'react'
 // import { logErrorToService } from '@/lib/logger/client'
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(
-    () =>
-      new QueryClient({
-        defaultOptions: {
-          queries: {
-            staleTime: 60 * 1000, // 1 minute
-            refetchOnWindowFocus: false,
-          },
-        },
-      })
-  )
+ const [queryClient] = useState(
+ () =>
+ new QueryClient({
+ defaultOptions: {
+ queries: {
+ staleTime: 60 * 1000, // 1 minute
+ refetchOnWindowFocus: false,
+ },
+ },
+ })
+ )
 
-  return (
-    <SessionProvider>
-      <QueryClientProvider client={queryClient}>
-        {children}
-      </QueryClientProvider>
-    </SessionProvider>
-  )
+ return (
+ <SessionProvider>
+ <QueryClientProvider client={queryClient}>
+ {children}
+ </QueryClientProvider>
+ </SessionProvider>
+ )
 }
 
 export default Providers

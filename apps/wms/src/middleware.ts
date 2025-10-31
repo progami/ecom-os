@@ -5,87 +5,87 @@ import { withBasePath, withoutBasePath } from '@/lib/utils/base-path'
 import { portalUrl } from '@/lib/portal'
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-  const normalizedPath = withoutBasePath(pathname)
+ const { pathname } = request.nextUrl
+ const normalizedPath = withoutBasePath(pathname)
 
-  // Redirect /operations to /operations/inventory (base-path aware)
-  if (normalizedPath === '/operations') {
-    const url = request.nextUrl.clone()
-    url.pathname = withBasePath('/operations/inventory')
-    return NextResponse.redirect(url)
-  }
+ // Redirect /operations to /operations/inventory (base-path aware)
+ if (normalizedPath === '/operations') {
+ const url = request.nextUrl.clone()
+ url.pathname = withBasePath('/operations/inventory')
+ return NextResponse.redirect(url)
+ }
 
-  // Public routes that don't require authentication
-  // Use exact matches or proper prefix matching to prevent auth bypass
-  const publicRoutes = [
-    '/',
-    '/auth/login',
-    '/auth/error',
-    '/api/health',
-    '/api/logs',
-    '/api/demo/setup',
-  ]
+ // Public routes that don't require authentication
+ // Use exact matches or proper prefix matching to prevent auth bypass
+ const publicRoutes = [
+ '/',
+ '/auth/login',
+ '/auth/error',
+ '/api/health',
+ '/api/logs',
+ '/api/demo/setup',
+ ]
 
-  // Routes that should be prefix-matched
-  const publicPrefixes = [
-    '/api/auth/', // NextAuth internal routes
-  ]
+ // Routes that should be prefix-matched
+ const publicPrefixes = [
+ '/api/auth/', // NextAuth internal routes
+ ]
 
-  // Check if the route is public using exact match
-  const isExactPublicRoute = publicRoutes.includes(normalizedPath)
+ // Check if the route is public using exact match
+ const isExactPublicRoute = publicRoutes.includes(normalizedPath)
 
-  // Check if the route matches a public prefix
-  const isPublicPrefix = publicPrefixes.some(prefix => normalizedPath.startsWith(prefix))
+ // Check if the route matches a public prefix
+ const isPublicPrefix = publicPrefixes.some(prefix => normalizedPath.startsWith(prefix))
 
-  // Combine both checks
-  const isPublicRoute = isExactPublicRoute || isPublicPrefix
+ // Combine both checks
+ const isPublicRoute = isExactPublicRoute || isPublicPrefix
 
-  const bypassAuthEnv = process.env.BYPASS_AUTH === 'true'
-  const bypassAuthHeader = request.headers.get('x-bypass-auth') === 'true'
+ const bypassAuthEnv = process.env.BYPASS_AUTH === 'true'
+ const bypassAuthHeader = request.headers.get('x-bypass-auth') === 'true'
 
-  // Skip auth check for public routes, static assets, or when bypass flag is set
-  if (
-    isPublicRoute ||
-    normalizedPath.startsWith('/_next') ||
-    normalizedPath === '/favicon.ico' ||
-    bypassAuthEnv ||
-    bypassAuthHeader
-  ) {
-    return NextResponse.next()
-  }
+ // Skip auth check for public routes, static assets, or when bypass flag is set
+ if (
+ isPublicRoute ||
+ normalizedPath.startsWith('/_next') ||
+ normalizedPath === '/favicon.ico' ||
+ bypassAuthEnv ||
+ bypassAuthHeader
+ ) {
+ return NextResponse.next()
+ }
 
-  // Check for session
-  const cookieNames = process.env.NODE_ENV === 'production'
-    ? ['__Secure-next-auth.session-token', '__Secure-wms.next-auth.session-token']
-    : ['next-auth.session-token', 'ecomos.next-auth.session-token', 'wms.next-auth.session-token']
+ // Check for session
+ const cookieNames = process.env.NODE_ENV === 'production'
+ ? ['__Secure-next-auth.session-token', '__Secure-wms.next-auth.session-token']
+ : ['next-auth.session-token', 'ecomos.next-auth.session-token', 'wms.next-auth.session-token']
 
-  const hasSession = await hasPortalSession({
-    request,
-    cookieNames,
-    portalUrl: process.env.PORTAL_AUTH_URL,
-    debug: process.env.NODE_ENV !== 'production',
-  })
+ const hasSession = await hasPortalSession({
+ request,
+ cookieNames,
+ portalUrl: process.env.PORTAL_AUTH_URL,
+ debug: process.env.NODE_ENV !== 'production',
+ })
 
-  // If no token and trying to access protected route, redirect to portal login
-  if (!hasSession && !normalizedPath.startsWith('/auth/')) {
-    // Build callback URL from forwarded headers (from Nginx proxy) instead of request.nextUrl
-    // request.nextUrl gives us localhost:3001, but we need the public-facing URL
-    const forwardedProto = request.headers.get('x-forwarded-proto') || 'http'
-    const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host
-    // Next.js strips basePath before middleware runs, so manually prepend it
-    const basePath = process.env.BASE_PATH || ''
-    const callbackUrl = `${forwardedProto}://${forwardedHost}${basePath}${pathname}${request.nextUrl.search}`
+ // If no token and trying to access protected route, redirect to portal login
+ if (!hasSession && !normalizedPath.startsWith('/auth/')) {
+ // Build callback URL from forwarded headers (from Nginx proxy) instead of request.nextUrl
+ // request.nextUrl gives us localhost:3001, but we need the public-facing URL
+ const forwardedProto = request.headers.get('x-forwarded-proto') || 'http'
+ const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host
+ // Next.js strips basePath before middleware runs, so manually prepend it
+ const basePath = process.env.BASE_PATH || ''
+ const callbackUrl = `${forwardedProto}://${forwardedHost}${basePath}${pathname}${request.nextUrl.search}`
 
-    const redirect = portalUrl('/login', request, `${forwardedProto}://${forwardedHost}`)
-    redirect.searchParams.set('callbackUrl', callbackUrl)
-    return NextResponse.redirect(redirect)
-  }
+ const redirect = portalUrl('/login', request, `${forwardedProto}://${forwardedHost}`)
+ redirect.searchParams.set('callbackUrl', callbackUrl)
+ return NextResponse.redirect(redirect)
+ }
 
-  return NextResponse.next()
+ return NextResponse.next()
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico).*)',
-  ],
+ matcher: [
+ '/((?!_next/static|_next/image|favicon.ico).*)',
+ ],
 }

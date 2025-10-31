@@ -1,23 +1,23 @@
 import { buildPortalUrl, resolvePortalAuthOrigin } from '@ecom-os/auth'
 
 type RequestLike = {
-  headers: Headers
-  url: string
+ headers: Headers
+ url: string
 }
 
 export function portalOrigin(request?: RequestLike, fallbackOrigin?: string) {
-  return resolvePortalAuthOrigin({ request, fallbackOrigin })
+ return resolvePortalAuthOrigin({ request, fallbackOrigin })
 }
 
 export function portalUrl(path: string, request?: RequestLike, fallbackOrigin?: string) {
-  return buildPortalUrl(path, { request, fallbackOrigin })
+ return buildPortalUrl(path, { request, fallbackOrigin })
 }
 
 export function redirectToPortal(path: string, callbackUrl: string, request?: RequestLike, fallbackOrigin?: string) {
-  const target = portalUrl(path, request, fallbackOrigin)
-  target.searchParams.set('callbackUrl', callbackUrl)
-  if (typeof window !== 'undefined') {
-    window.location.href = target.toString()
-  }
-  return target.toString()
+ const target = portalUrl(path, request, fallbackOrigin)
+ target.searchParams.set('callbackUrl', callbackUrl)
+ if (typeof window !== 'undefined') {
+ window.location.href = target.toString()
+ }
+ return target.toString()
 }
