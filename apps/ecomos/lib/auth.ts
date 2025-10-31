@@ -182,6 +182,18 @@ const baseAuthOptions: NextAuthOptions = {
         const target = new URL(url, baseUrl)
         const base = new URL(baseUrl)
         if (target.origin === base.origin) return target.toString()
+
+        const hostMismatch = target.hostname !== base.hostname
+        const bothPortalHosts =
+          target.hostname.endsWith('.ecomos.targonglobal.com') &&
+          base.hostname.endsWith('.targonglobal.com')
+        if (hostMismatch && bothPortalHosts) {
+          const loginOrigin = `${target.protocol}//${target.hostname}`
+          const rewritten = new URL('/login', loginOrigin)
+          rewritten.searchParams.set('callbackUrl', target.toString())
+          return rewritten.toString()
+        }
+
         if (process.env.NODE_ENV !== 'production') {
           if (target.hostname === 'localhost' || target.hostname === '127.0.0.1') {
             const relay = new URL('/auth/relay', base)
@@ -190,6 +202,7 @@ const baseAuthOptions: NextAuthOptions = {
           }
           return baseUrl
         }
+
         const cookieDomain = resolvedCookieDomain.replace(/^\./, '')
         if (cookieDomain && target.hostname.endsWith(cookieDomain)) {
           const relay = new URL('/auth/relay', base)

@@ -33,6 +33,23 @@ function LoginPageInner() {
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true)
     try {
+      if (typeof window !== 'undefined') {
+        try {
+          const target = new URL(callbackUrl, window.location.origin)
+          const hostnameDiffers = target.hostname !== window.location.hostname
+          const bothPortalHosts =
+            target.hostname.endsWith('.ecomos.targonglobal.com') &&
+            window.location.hostname.endsWith('.ecomos.targonglobal.com')
+          if (hostnameDiffers && bothPortalHosts) {
+            const redirect = new URL('/login', `${target.protocol}//${target.hostname}`)
+            redirect.searchParams.set('callbackUrl', target.toString())
+            window.location.href = redirect.toString()
+            return
+          }
+        } catch {
+          // ignore malformed URLs; fall through to default signIn
+        }
+      }
       await signIn('google', { callbackUrl })
     } catch {
       setIsGoogleLoading(false)
