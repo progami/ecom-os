@@ -54,7 +54,8 @@ export default function EditRatePage() {
  useEffect(() => {
  if (status === 'loading') return
  if (!session || session.user.role !== 'admin') {
- redirectToPortal('/login', `${window.location.origin}/config/rates/${params.id}/edit`)
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
+    redirectToPortal('/login', `${window.location.origin}${basePath}/config/rates/${params.id}/edit`)
  return
  }
  fetchRate()
