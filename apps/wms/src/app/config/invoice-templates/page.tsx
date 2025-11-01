@@ -90,7 +90,8 @@ export default function InvoiceTemplatesPage() {
  useEffect(() => {
  if (status === 'loading') return
  if (!session) {
- redirectToPortal('/login', `${window.location.origin}/config/invoice-templates`)
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
+    redirectToPortal('/login', `${window.location.origin}${basePath}/config/invoice-templates`)
  return
  }
  if (session.user.role !== 'admin') {

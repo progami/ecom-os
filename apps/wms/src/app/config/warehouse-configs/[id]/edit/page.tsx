@@ -48,7 +48,8 @@ export default function EditWarehouseConfigPage() {
  useEffect(() => {
  if (status === 'loading') return
  if (!session || session.user.role !== 'admin') {
- redirectToPortal('/login', `${window.location.origin}/config/warehouse-configs/${params.id}/edit`)
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
+    redirectToPortal('/login', `${window.location.origin}${basePath}/config/warehouse-configs/${params.id}/edit`)
  return
  }
  fetchConfig()

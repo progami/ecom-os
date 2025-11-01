@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { TransactionType, CostCategory } from '@prisma/client'
 import { businessLogger, perfLogger } from '@/lib/logger/index'
-import { sanitizeForDisplay, validateNumeric } from '@/lib/security/input-sanitization'
+import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 // handleTransactionCosts removed - costs are handled via frontend pre-filling
 import { parseLocalDateTime } from '@/lib/utils/date-helpers'
 import { recordStorageCostEntry } from '@/services/storageCost.service'
@@ -253,11 +253,12 @@ export async function POST(request: NextRequest) {
  const rawItemsInput = Array.isArray(items) ? items : Array.isArray(lineItems) ? lineItems : []
  let itemsArray: MutableTransactionLine[] = rawItemsInput.map(normalizeTransactionLine)
 
- const attachmentList: AttachmentPayload[] = Array.isArray(attachments)
- ? attachments
- .map(normalizeAttachmentInput)
- .filter((item): item is AttachmentPayload => item !== null)
- : []
+const attachmentList: AttachmentPayload[] = Array.isArray(attachments)
+? attachments
+.map(normalizeAttachmentInput)
+.filter((item): item is AttachmentPayload => item !== null)
+: []
+const batchValidationCache = new Map<string, boolean>()
 
  if (['ADJUST_IN', 'ADJUST_OUT'].includes(txType)) {
  if (!skuId || !batchLot) {
@@ -445,19 +446,32 @@ export async function POST(request: NextRequest) {
  }, { status: 400 })
  }
 
- const sanitizedBatchLot = sanitizeForDisplay(item.batchLot)
- if (!sanitizedBatchLot || !validateNumeric(sanitizedBatchLot)) {
- const skuForMessage = item.skuCode || 'unknown'
- return NextResponse.json({ 
- error: `Batch/Lot must be numeric for SKU ${skuForMessage}`,
- value: sanitizedBatchLot ?? item.batchLot
- }, { status: 400 })
- }
+const sanitizedBatchLot = sanitizeForDisplay(item.batchLot)
+const sanitizedSkuCode = sanitizeForDisplay(item.skuCode)
+item.batchLot = sanitizedBatchLot || item.batchLot
+item.skuCode = sanitizedSkuCode || item.skuCode
 
- const sanitizedSkuCode = sanitizeForDisplay(item.skuCode)
- item.batchLot = sanitizedBatchLot
- item.skuCode = sanitizedSkuCode
+if (['RECEIVE', 'ADJUST_IN'].includes(txType)) {
+ const cacheKey = `${item.skuCode}::${item.batchLot}`
+ if (!batchValidationCache.has(cacheKey)) {
+  const batchExists = await prisma.skuBatch.findFirst({
+   where: {
+    batchCode: item.batchLot,
+    isActive: true,
+    sku: { skuCode: item.skuCode },
+   },
+  })
+
+  if (!batchExists) {
+   return NextResponse.json({
+    error: `Batch ${item.batchLot} is not registered for SKU ${item.skuCode}. Create it in Products before receiving.`,
+   }, { status: 400 })
+  }
+
+  batchValidationCache.set(cacheKey, true)
  }
+}
+}
 
  // Check for duplicate SKU/batch combinations in the request
  const itemKeys = new Set<string>()

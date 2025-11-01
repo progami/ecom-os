@@ -22,7 +22,8 @@ export default function ProductsPage() {
  if (status === 'loading') return
 
  if (!session) {
- redirectToPortal('/login', `${window.location.origin}/config/products`)
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
+    redirectToPortal('/login', `${window.location.origin}${basePath}/config/products`)
  return
  }
 
