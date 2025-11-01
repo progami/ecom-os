@@ -10,11 +10,6 @@
   position: relative;
 }
 
-.dark .x-plan-hot {
-  border: 1px solid #0b3a52;
-  background: #041324;
-  box-shadow: 0 20px 40px rgba(1, 12, 24, 0.4);
-}
 
 .x-plan-hot .ht_clone_master .wtHolder,
 .x-plan-hot .ht_clone_top .wtHolder,
@@ -39,11 +34,6 @@
   transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
-.dark .x-plan-hot .htCore th,
-.dark .x-plan-hot .htCore td {
-  color: #e2e8f0;
-  border-color: rgba(11, 58, 82, 0.4);
-}
 
 /* Header row - light mode with dark text */
 .x-plan-hot .htCore thead th {
@@ -59,12 +49,6 @@
   vertical-align: middle;
 }
 
-.dark .x-plan-hot .htCore thead th {
-  background-color: #0a1f35 !important;
-  color: #5eead4 !important;
-  border-bottom: 3px solid #00c2b9;
-  border-right: 1px solid rgba(11, 58, 82, 0.6);
-}
 
 /* Product name headers (first row of nested headers) - larger text */
 .x-plan-hot .ht_clone_top thead tr:first-child th,
@@ -96,11 +80,6 @@
   vertical-align: middle;
 }
 
-.dark .x-plan-hot .htCore tbody th {
-  background-color: #0a1f35 !important;
-  color: #5eead4 !important;
-  border-right: 2px solid #0b3a52;
-}
 
 /* Default data cells - light background */
 .x-plan-hot .htCore tbody td {
@@ -108,19 +87,12 @@
   color: #1e293b !important;
 }
 
-.dark .x-plan-hot .htCore tbody td {
-  background-color: #0c2537 !important;
-  color: #f1f5f9 !important;
-}
 
 /* Zebra striping - slightly different */
 .x-plan-hot .htCore tbody tr:nth-child(even) td:not(.cell-editable):not(.row-active):not(.row-inbound-sales):not(.row-inbound-cash):not(.row-negative-cash) {
   background-color: #f8fafc !important;
 }
 
-.dark .x-plan-hot .htCore tbody tr:nth-child(even) td:not(.cell-editable):not(.row-active):not(.row-inbound-sales):not(.row-inbound-cash):not(.row-negative-cash) {
-  background-color: #0f2942 !important;
-}
 
 /* Editable cells - light cyan background with dark text */
 .x-plan-hot .cell-editable {
@@ -136,17 +108,7 @@
   border-color: #0e7490 !important;
 }
 
-.dark .x-plan-hot .cell-editable {
-  background: #ccfbf1 !important;
-  color: #0a1f35 !important;
-  border: 1px solid #00c2b9 !important;
-}
 
-.dark .x-plan-hot .cell-editable:hover {
-  background: #99f6e4 !important;
-  color: #0a1f35 !important;
-  border-color: #00c2b9 !important;
-}
 
 /* Readonly cells */
 .x-plan-hot .cell-readonly {
@@ -155,10 +117,6 @@
   font-style: italic;
 }
 
-.dark .x-plan-hot .cell-readonly {
-  background-color: #0a1f35 !important;
-  color: #cbd5e1 !important;
-}
 
 /* Common/label column - matches headers */
 .x-plan-hot .cell-common {
@@ -171,11 +129,6 @@
   letter-spacing: 0.08em;
 }
 
-.dark .x-plan-hot .cell-common {
-  background: #0a1f35 !important;
-  color: #5eead4 !important;
-  border-right: 2px solid #0b3a52;
-}
 
 /* Note cells */
 .x-plan-hot .cell-note {
@@ -188,9 +141,6 @@
   color: #64748b !important;
 }
 
-.dark .x-plan-hot .cell-note {
-  color: #94a3b8 !important;
-}
 
 /* Row highlighting - inbound sales */
 .x-plan-hot .row-inbound-sales {
@@ -202,12 +152,6 @@
   font-weight: 700;
 }
 
-.dark .x-plan-hot .row-inbound-sales {
-  background-color: #0f766e !important;
-  color: #f0fdf4 !important;
-  border-left: 6px solid #34d399 !important;
-  outline: 1px solid rgba(20, 184, 166, 0.35);
-}
 
 /* Row highlighting - inbound cash */
 .x-plan-hot .row-inbound-cash {
@@ -219,12 +163,6 @@
   font-weight: 700;
 }
 
-.dark .x-plan-hot .row-inbound-cash {
-  background-color: #b91c1c !important;
-  color: #fef2f2 !important;
-  border-left: 6px solid #f87171 !important;
-  outline: 1px solid rgba(248, 113, 113, 0.35);
-}
 
 /* Row highlighting - negative cash */
 .x-plan-hot .row-negative-cash {
@@ -233,10 +171,6 @@
   border-left: 4px solid #dc2626 !important;
 }
 
-.dark .x-plan-hot .row-negative-cash {
-  background-color: #fecaca !important;
-  color: #991b1b !important;
-}
 
 /* Warning cells */
 .x-plan-hot .cell-warning {
@@ -252,9 +186,6 @@
   font-style: italic;
 }
 
-.dark .x-plan-hot .htDimmed {
-  color: #64748b !important;
-}
 
 /* Active row - cyan highlight */
 .x-plan-hot .row-active {
@@ -264,12 +195,6 @@
   box-shadow: inset 0 0 0 1px rgba(8, 145, 178, 0.3);
 }
 
-.dark .x-plan-hot .row-active {
-  background-color: #ccfbf1 !important;
-  color: #0a1f35 !important;
-  border-left: 4px solid #00c2b9 !important;
-  box-shadow: inset 0 0 0 1px rgba(0, 194, 185, 0.3);
-}
 
 /* Selection area */
 .x-plan-hot .area {
@@ -277,10 +202,6 @@
   border: 2px solid #0891b2;
 }
 
-.dark .x-plan-hot .area {
-  background: rgba(0, 194, 185, 0.2);
-  border: 2px solid #00c2b9;
-}
 
 /* Current cell border */
 .x-plan-hot .wtBorder.current {
@@ -288,10 +209,6 @@
   box-shadow: 0 0 0 1px rgba(8, 145, 178, 0.4);
 }
 
-.dark .x-plan-hot .wtBorder.current {
-  border: 2px solid #00c2b9;
-  box-shadow: 0 0 0 1px rgba(0, 194, 185, 0.5);
-}
 
 /* Fill handle */
 .x-plan-hot .fillBorder,
@@ -300,11 +217,6 @@
   border: 1px solid #0e7490;
 }
 
-.dark .x-plan-hot .fillBorder,
-.dark .x-plan-hot .wtBorder.corner {
-  background: #00c2b9;
-  border: 1px solid #00a39e;
-}
 
 /* Cell editor input */
 .handsontableInput {
@@ -324,17 +236,7 @@
   box-shadow: 0 6px 16px rgba(8, 145, 178, 0.25) !important;
 }
 
-.dark .handsontableInput {
-  border: 2px solid #00c2b9 !important;
-  box-shadow: 0 8px 16px rgba(0, 194, 185, 0.25) !important;
-  color: #f1f5f9 !important;
-  background: #0a1f35 !important;
-}
 
-.dark .handsontableInput:focus {
-  border-color: #00c2b9 !important;
-  box-shadow: 0 8px 20px rgba(0, 194, 185, 0.4) !important;
-}
 
 /* Inline calendar overlay */
 .xplan-date-overlay .flatpickr-input {
@@ -353,16 +255,7 @@
   border: 1px solid #cbd5e1;
 }
 
-.dark .xplan-date-overlay {
-  background-color: #0a1f35;
-  border: 2px solid #00c2b9;
-}
 
-.dark .xplan-date-overlay .flatpickr-calendar {
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6);
-  background: #0a1f35;
-  border: 1px solid #0b3a52;
-}
 
 /* Context menu */
 .htMenu {
@@ -383,20 +276,8 @@
   color: #164e63;
 }
 
-.dark .htMenu {
-  border: 1px solid #0b3a52;
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5);
-  background-color: #0a1f35;
-}
 
-.dark .htMenu .htCore td {
-  color: #e2e8f0;
-}
 
-.dark .htMenu .htCore tr:hover td {
-  background-color: rgba(0, 194, 185, 0.2);
-  color: #ccfbf1;
-}
 
 /* Header toggle button */
 .x-plan-header-toggle {
@@ -428,19 +309,7 @@
   color: #164e63;
 }
 
-.dark .x-plan-header-toggle {
-  border: 1.5px dashed rgba(0, 194, 185, 0.4);
-  background: rgba(255, 255, 255, 0.05);
-  color: #5eead4;
-}
 
-.dark .x-plan-header-toggle:hover {
-  background: rgba(0, 194, 185, 0.15);
-  border-color: rgba(0, 194, 185, 0.7);
-  border-style: solid;
-  outline-color: rgba(0, 194, 185, 0.2);
-  color: #ccfbf1;
-}
 
 /* Number alignment */
 .x-plan-hot .htCore td.htNumeric {
@@ -504,25 +373,9 @@
   color: #164e63;
 }
 
-.dark .x-plan-sku-nav-arrow {
-  background: rgba(96, 165, 250, 0.15);
-  color: #60a5fa;
-}
 
-.dark .x-plan-sku-nav-arrow:not(:disabled):hover {
-  background: rgba(96, 165, 250, 0.25);
-  color: #93c5fd;
-}
 
-.dark .x-plan-sku-nav-arrow-all {
-  background: rgba(0, 194, 185, 0.2);
-  color: #5eead4;
-}
 
-.dark .x-plan-sku-nav-arrow-all:not(:disabled):hover {
-  background: rgba(0, 194, 185, 0.3);
-  color: #ccfbf1;
-}
 
 .x-plan-sku-header-label {
   font-weight: 600;
@@ -532,6 +385,3 @@
   text-align: center;
 }
 
-.dark .x-plan-sku-header-label {
-  color: #e2e8f0;
-}

@@ -22,10 +22,23 @@ export async function middleware(request: NextRequest) {
 
     if (!hasSession) {
       const login = portalUrl('/login', request)
+
+      // Construct callback URL using forwarded headers if available
+      const forwardedProto = request.headers.get('x-forwarded-proto') || 'https'
+      const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host')
+
+      // Include basePath in callback URL
+      const basePath = process.env.BASE_PATH || ''
+      const fullPath = basePath + pathname
+      const callbackUrl = forwardedHost
+        ? `${forwardedProto}://${forwardedHost}${fullPath}`
+        : request.nextUrl.toString()
+
       if (debug) {
         console.log('[x-plan middleware] no session, redirecting to portal login', login.toString())
+        console.log('[x-plan middleware] callback URL:', callbackUrl)
       }
-      login.searchParams.set('callbackUrl', request.nextUrl.toString())
+      login.searchParams.set('callbackUrl', callbackUrl)
       return NextResponse.redirect(login)
     }
   }

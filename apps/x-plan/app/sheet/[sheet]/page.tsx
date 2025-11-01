@@ -242,8 +242,8 @@ function resolveViewMode(value: string | string[] | undefined): SheetViewMode {
 
 function VisualPlaceholder({ title, description }: { title: string; description: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500 shadow-sm dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-400">
-      <h3 className="text-base font-semibold text-slate-700 dark:text-slate-200">{title}</h3>
+    <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500 shadow-sm">
+      <h3 className="text-base font-semibold text-slate-700">{title}</h3>
       <p className="mt-2 text-sm">{description}</p>
     </div>
   )
@@ -1540,7 +1540,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     }
     default: {
       const placeholder = (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-500 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+        <div className="rounded-xl border border-slate-200 bg-white p-6 text-slate-500 shadow-sm">
           <p>Implementation in progress for {config.label}. Check back soon.</p>
         </div>
       )

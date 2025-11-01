@@ -28,7 +28,7 @@
       "lifecycle": "dev"
     },
     "x-plan": {
-      "lifecycle": "dev"
+      "lifecycle": "active"
     },
     "ye-2024": {
       "lifecycle": "dev"
