@@ -45,9 +45,26 @@ export declare function applyDevAuthDefaults(options?: DevAuthDefaultsOptions): 
 export declare function withSharedAuth(base: NextAuthOptions, optsOrDomain: SharedAuthOptions | string): NextAuthOptions;
 /**
  * Helper to derive the likely session cookie names to probe in middleware.
- * In dev, returns both generic and app-prefixed variants for robustness.
+ * Always include both secure (__Secure-) and non-secure variants because
+ * different environments flip between dev/prod cookie prefixes.
  */
 export declare function getCandidateSessionCookieNames(appId?: string): string[];
+export interface PortalJwtPayload extends Record<string, unknown> {
+    sub?: string;
+    email?: string;
+    name?: string;
+    roles?: RolesClaim;
+    apps?: string[];
+    exp?: number;
+}
+export interface DecodePortalSessionOptions {
+    cookieHeader?: string | null;
+    cookieNames?: string[];
+    appId?: string;
+    secret?: string;
+    debug?: boolean;
+}
+export declare function decodePortalSession(options?: DecodePortalSessionOptions): Promise<PortalJwtPayload | null>;
 export type PortalUrlRequestLike = {
     headers: Headers;
     url: string;

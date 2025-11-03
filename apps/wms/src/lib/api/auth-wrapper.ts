@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
 import type { Session } from 'next-auth'
 import { ApiResponses } from './responses'
+import { resolvePortalSession } from '@/lib/portal-session'
+import { getServerSession } from 'next-auth/next'
+import { authOptions } from '@/lib/auth'
 
 type SessionRole = string | undefined
 
@@ -59,7 +60,7 @@ export function withAuth<T = unknown>(
       }
     }
 
-    const session = await getServerSession(authOptions)
+    const session = await resolvePortalSession(request) ?? await getServerSession(authOptions)
 
     if (!session) {
       return ApiResponses.unauthorized()
@@ -99,7 +100,7 @@ export function withAuthAndParams<T = unknown>(
       }
     }
 
-    const session = await getServerSession(authOptions)
+    const session = await resolvePortalSession(request) ?? await getServerSession(authOptions)
 
     if (!session) {
       return ApiResponses.unauthorized()

@@ -5,7 +5,7 @@ import crypto from 'crypto'
  * @returns A unique idempotency key
  */
 export function generateIdempotencyKey(): string {
-  const timestamp = Date.now()
-  const random = crypto.randomBytes(16).toString('hex')
-  return `${timestamp}-${random}`
+ const timestamp = Date.now()
+ const random = crypto.randomBytes(16).toString('hex')
+ return `${timestamp}-${random}`
 }

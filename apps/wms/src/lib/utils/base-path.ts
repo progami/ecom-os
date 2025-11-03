@@ -6,7 +6,7 @@
  * Get the base path from environment or default to empty string
  */
 export function getBasePath(): string {
-  return process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || ''
+ return process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || ''
 }
 
 /**
@@ -15,14 +15,14 @@ export function getBasePath(): string {
  * @returns The path with base path prepended
  */
 export function withBasePath(path: string): string {
-  const basePath = getBasePath()
-  if (!basePath) return path
-  
-  // Ensure path starts with /
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`
-  
-  // Avoid double slashes
-  return `${basePath}${normalizedPath}`
+ const basePath = getBasePath()
+ if (!basePath) return path
+ 
+ // Ensure path starts with /
+ const normalizedPath = path.startsWith('/') ? path : `/${path}`
+ 
+ // Avoid double slashes
+ return `${basePath}${normalizedPath}`
 }
 
 /**
@@ -31,16 +31,16 @@ export function withBasePath(path: string): string {
  * @returns The path without base path
  */
 export function withoutBasePath(path: string): string {
-  const basePath = getBasePath()
-  if (!basePath || !path.startsWith(basePath)) return path
-  
-  const pathWithoutBase = path.slice(basePath.length)
-  return pathWithoutBase.startsWith('/') ? pathWithoutBase : `/${pathWithoutBase}`
+ const basePath = getBasePath()
+ if (!basePath || !path.startsWith(basePath)) return path
+ 
+ const pathWithoutBase = path.slice(basePath.length)
+ return pathWithoutBase.startsWith('/') ? pathWithoutBase : `/${pathWithoutBase}`
 }
 
 /**
  * Check if we're running with a base path
  */
 export function hasBasePath(): boolean {
-  return !!getBasePath()
+ return !!getBasePath()
 }

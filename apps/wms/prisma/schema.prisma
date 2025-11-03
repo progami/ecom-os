@@ -68,10 +68,27 @@ model Sku {
   updatedAt             DateTime               @updatedAt @map("updated_at")
   fbaStock              Int?                   @map("fba_stock")
   fbaStockLastUpdated   DateTime?              @map("fba_stock_last_updated")
+  batches               SkuBatch[]
 
   @@index([skuCode])
   @@index([asin])
   @@map("skus")
+}
+
+model SkuBatch {
+  id             String   @id @default(uuid())
+  skuId          String   @map("sku_id")
+  sku            Sku      @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  batchCode      String   @map("batch_code")
+  description    String?  @map("description")
+  productionDate DateTime? @map("production_date")
+  expiryDate     DateTime? @map("expiry_date")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([skuId, batchCode])
+  @@map("sku_batches")
 }
 
 model CostRate {

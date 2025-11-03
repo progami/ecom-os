@@ -7,17 +7,17 @@ import { Session } from 'next-auth';
  * @returns true if user has access, false otherwise
  */
 export function hasWarehouseAccess(session: Session | null, warehouseId: string): boolean {
-  if (!session) return false;
-  
-  // Admin users have access to all warehouses
-  if (session.user.role === 'admin') return true;
-  
-  // Staff users only have access to their assigned warehouse
-  if (session.user.role === 'staff') {
-    return session.user.warehouseId === warehouseId;
-  }
-  
-  return false;
+ if (!session) return false;
+ 
+ // Admin users have access to all warehouses
+ if (session.user.role === 'admin') return true;
+ 
+ // Staff users only have access to their assigned warehouse
+ if (session.user.role === 'staff') {
+ return session.user.warehouseId === warehouseId;
+ }
+ 
+ return false;
 }
 
 /**
@@ -27,24 +27,24 @@ export function hasWarehouseAccess(session: Session | null, warehouseId: string)
  * @returns Warehouse filter object for Prisma queries
  */
 export function getWarehouseFilter(
-  session: Session | null, 
-  requestedWarehouseId?: string
+ session: Session | null, 
+ requestedWarehouseId?: string
 ): { warehouseId?: string } | null {
-  if (!session) return null;
-  
-  // Staff users are restricted to their warehouse
-  if (session.user.role === 'staff') {
-    if (!session.user.warehouseId) return null;
-    return { warehouseId: session.user.warehouseId };
-  }
-  
-  // Admin users can access specific warehouse if requested
-  if (session.user.role === 'admin' && requestedWarehouseId) {
-    return { warehouseId: requestedWarehouseId };
-  }
-  
-  // Admin users without specific warehouse get all
-  return {};
+ if (!session) return null;
+ 
+ // Staff users are restricted to their warehouse
+ if (session.user.role === 'staff') {
+ if (!session.user.warehouseId) return null;
+ return { warehouseId: session.user.warehouseId };
+ }
+ 
+ // Admin users can access specific warehouse if requested
+ if (session.user.role === 'admin' && requestedWarehouseId) {
+ return { warehouseId: requestedWarehouseId };
+ }
+ 
+ // Admin users without specific warehouse get all
+ return {};
 }
 
 /**
@@ -54,8 +54,8 @@ export function getWarehouseFilter(
  * @returns true if user can access the invoice
  */
 export function canAccessInvoice(
-  session: Session | null, 
-  invoice: { warehouseId: string }
+ session: Session | null, 
+ invoice: { warehouseId: string }
 ): boolean {
-  return hasWarehouseAccess(session, invoice.warehouseId);
+ return hasWarehouseAccess(session, invoice.warehouseId);
 }

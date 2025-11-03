@@ -1,9 +1,11 @@
 import type { NextConfig } from "next";
 
+const appBasePath = process.env.BASE_PATH || ''
+
 const nextConfig: NextConfig = {
   // Base path configuration - set BASE_PATH env var if needed
-  basePath: process.env.BASE_PATH || '',
-  assetPrefix: process.env.BASE_PATH || '',
+  basePath: appBasePath,
+  assetPrefix: appBasePath,
 
   experimental: {
     turbo: {

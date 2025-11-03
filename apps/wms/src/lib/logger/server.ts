@@ -3,37 +3,37 @@
 type LogLevel = 'log' | 'info' | 'warn' | 'error' | 'debug'
 
 const normalizeMetadata = (metadata?: unknown): Record<string, unknown> | undefined => {
-  if (metadata === undefined || metadata === null) {
-    return undefined
-  }
+ if (metadata === undefined || metadata === null) {
+ return undefined
+ }
 
-  if (typeof metadata === 'object') {
-    return metadata as Record<string, unknown>
-  }
+ if (typeof metadata === 'object') {
+ return metadata as Record<string, unknown>
+ }
 
-  return { value: metadata }
+ return { value: metadata }
 }
 
 const log = (
-  level: LogLevel,
-  category: string,
-  message: string,
-  metadata?: unknown
+ level: LogLevel,
+ category: string,
+ message: string,
+ metadata?: unknown
 ) => {
-  const method = console[level] ?? console.log
-  const normalized = normalizeMetadata(metadata)
-  if (normalized) {
-    method(`[${category}] ${message}`, normalized)
-  } else {
-    method(`[${category}] ${message}`)
-  }
+ const method = console[level] ?? console.log
+ const normalized = normalizeMetadata(metadata)
+ if (normalized) {
+ method(`[${category}] ${message}`, normalized)
+ } else {
+ method(`[${category}] ${message}`)
+ }
 }
 
 const createLogger = (category: string) => ({
-  info: (message: string, metadata?: unknown) => log('info', category, message, metadata),
-  warn: (message: string, metadata?: unknown) => log('warn', category, message, metadata),
-  error: (message: string, metadata?: unknown) => log('error', category, message, metadata),
-  debug: (message: string, metadata?: unknown) => log('debug', category, message, metadata),
+ info: (message: string, metadata?: unknown) => log('info', category, message, metadata),
+ warn: (message: string, metadata?: unknown) => log('warn', category, message, metadata),
+ error: (message: string, metadata?: unknown) => log('error', category, message, metadata),
+ debug: (message: string, metadata?: unknown) => log('debug', category, message, metadata),
 })
 
 export const systemLogger = createLogger('system')
@@ -46,15 +46,15 @@ export const cacheLogger = createLogger('cache')
 export const serverLogger = createLogger('server')
 
 export const perfLogger = {
-  log: (message: string, metadata?: unknown) => log('info', 'performance', message, metadata),
-  slow: (operation: string, duration: number, threshold: number, metadata?: unknown) => {
-    if (duration > threshold) {
-      log('warn', 'performance', `Slow operation detected: ${operation} (${duration}ms)`, {
-        threshold,
-        duration,
-        operation,
-        ...(normalizeMetadata(metadata) ?? {}),
-      })
-    }
-  },
+ log: (message: string, metadata?: unknown) => log('info', 'performance', message, metadata),
+ slow: (operation: string, duration: number, threshold: number, metadata?: unknown) => {
+ if (duration > threshold) {
+ log('warn', 'performance', `Slow operation detected: ${operation} (${duration}ms)`, {
+ threshold,
+ duration,
+ operation,
+ ...(normalizeMetadata(metadata) ?? {}),
+ })
+ }
+ },
 }

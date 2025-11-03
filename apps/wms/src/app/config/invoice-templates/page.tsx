@@ -4,13 +4,13 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import {
-  FileType,
-  Plus,
-  Edit,
-  Trash2,
-  Save,
-  X,
-  Copy
+ FileType,
+ Plus,
+ Edit,
+ Trash2,
+ Save,
+ X,
+ Copy
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
@@ -20,533 +20,534 @@ import { toast } from 'react-hot-toast'
 import { redirectToPortal } from '@/lib/portal'
 
 interface CostMapping {
-  enabled: boolean
-  category: string
-  calculationType: 'PER_CARTON' | 'PER_PALLET' | 'PER_UNIT' | 'FLAT_RATE' | 'PERCENTAGE'
-  customRate?: number
-  description?: string
+ enabled: boolean
+ category: string
+ calculationType: 'PER_CARTON' | 'PER_PALLET' | 'PER_UNIT' | 'FLAT_RATE' | 'PERCENTAGE'
+ customRate?: number
+ description?: string
 }
 
 const createDefaultMapping = (category: {
-  name: string
-  defaultType: CostMapping['calculationType']
+ name: string
+ defaultType: CostMapping['calculationType']
 }): CostMapping => ({
-  enabled: false,
-  category: category.name,
-  calculationType: category.defaultType,
-  customRate: undefined,
-  description: '',
+ enabled: false,
+ category: category.name,
+ calculationType: category.defaultType,
+ customRate: undefined,
+ description: '',
 })
 
 interface InvoiceTemplate {
-  id: string
-  warehouseId: string
-  warehouse: { name: string; code: string }
-  name: string
-  description: string
-  transactionType: 'RECEIVE' | 'SHIP' | 'BOTH'
-  costMappings: Record<string, CostMapping>
-  isDefault: boolean
-  createdAt: string
-  updatedAt: string
+ id: string
+ warehouseId: string
+ warehouse: { name: string; code: string }
+ name: string
+ description: string
+ transactionType: 'RECEIVE' | 'SHIP' | 'BOTH'
+ costMappings: Record<string, CostMapping>
+ isDefault: boolean
+ createdAt: string
+ updatedAt: string
 }
 
 const defaultCostCategories: ReadonlyArray<{
-  key: string
-  name: string
-  defaultType: CostMapping['calculationType']
+ key: string
+ name: string
+ defaultType: CostMapping['calculationType']
 }> = [
-  { key: 'storage', name: 'Storage', defaultType: 'PER_PALLET' },
-  { key: 'container', name: 'Container Unloading', defaultType: 'FLAT_RATE' },
-  { key: 'pallet', name: 'Pallet Handling', defaultType: 'PER_PALLET' },
-  { key: 'carton', name: 'Carton Handling', defaultType: 'PER_CARTON' },
-  { key: 'unit', name: 'Pick & Pack', defaultType: 'PER_UNIT' },
-  { key: 'shipment', name: 'Shipping/Freight', defaultType: 'FLAT_RATE' },
-  { key: 'accessorial', name: 'Additional Services', defaultType: 'FLAT_RATE' },
-  { key: 'documentation', name: 'Documentation Fee', defaultType: 'FLAT_RATE' },
-  { key: 'labeling', name: 'Labeling Service', defaultType: 'PER_UNIT' },
-  { key: 'repackaging', name: 'Repackaging', defaultType: 'PER_CARTON' },
-  { key: 'inspection', name: 'Quality Inspection', defaultType: 'PERCENTAGE' },
-  { key: 'customs', name: 'Customs Clearance', defaultType: 'FLAT_RATE' }
+ { key: 'storage', name: 'Storage', defaultType: 'PER_PALLET' },
+ { key: 'container', name: 'Container Unloading', defaultType: 'FLAT_RATE' },
+ { key: 'pallet', name: 'Pallet Handling', defaultType: 'PER_PALLET' },
+ { key: 'carton', name: 'Carton Handling', defaultType: 'PER_CARTON' },
+ { key: 'unit', name: 'Pick & Pack', defaultType: 'PER_UNIT' },
+ { key: 'shipment', name: 'Shipping/Freight', defaultType: 'FLAT_RATE' },
+ { key: 'accessorial', name: 'Additional Services', defaultType: 'FLAT_RATE' },
+ { key: 'documentation', name: 'Documentation Fee', defaultType: 'FLAT_RATE' },
+ { key: 'labeling', name: 'Labeling Service', defaultType: 'PER_UNIT' },
+ { key: 'repackaging', name: 'Repackaging', defaultType: 'PER_CARTON' },
+ { key: 'inspection', name: 'Quality Inspection', defaultType: 'PERCENTAGE' },
+ { key: 'customs', name: 'Customs Clearance', defaultType: 'FLAT_RATE' }
 ]
 
 export default function InvoiceTemplatesPage() {
-  const { data: session, status } = useSession()
-  const router = useRouter()
-  const [loading, setLoading] = useState(true)
-  const [templates, setTemplates] = useState<InvoiceTemplate[]>([])
-  const [warehouses, setWarehouses] = useState<{id: string; name: string; code: string}[]>([])
-  const [showModal, setShowModal] = useState(false)
-  const [editingTemplate, setEditingTemplate] = useState<InvoiceTemplate | null>(null)
-  const [formData, setFormData] = useState({
-    warehouseId: '',
-    name: '',
-    description: '',
-    transactionType: 'BOTH' as 'RECEIVE' | 'SHIP' | 'BOTH',
-    costMappings: {} as Record<string, CostMapping>,
-    isDefault: false
-  })
+ const { data: session, status } = useSession()
+ const router = useRouter()
+ const [loading, setLoading] = useState(true)
+ const [templates, setTemplates] = useState<InvoiceTemplate[]>([])
+ const [warehouses, setWarehouses] = useState<{id: string; name: string; code: string}[]>([])
+ const [showModal, setShowModal] = useState(false)
+ const [editingTemplate, setEditingTemplate] = useState<InvoiceTemplate | null>(null)
+ const [formData, setFormData] = useState({
+ warehouseId: '',
+ name: '',
+ description: '',
+ transactionType: 'BOTH' as 'RECEIVE' | 'SHIP' | 'BOTH',
+ costMappings: {} as Record<string, CostMapping>,
+ isDefault: false
+ })
 
-  useEffect(() => {
-    if (status === 'loading') return
-    if (!session) {
-      redirectToPortal('/login', `${window.location.origin}/config/invoice-templates`)
-      return
-    }
-    if (session.user.role !== 'admin') {
-      router.push('/dashboard')
-      return
-    }
-  }, [session, status, router])
+ useEffect(() => {
+ if (status === 'loading') return
+ if (!session) {
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
+    redirectToPortal('/login', `${window.location.origin}${basePath}/config/invoice-templates`)
+ return
+ }
+ if (session.user.role !== 'admin') {
+ router.push('/dashboard')
+ return
+ }
+ }, [session, status, router])
 
-  useEffect(() => {
-    fetchData()
-  }, [])
+ useEffect(() => {
+ fetchData()
+ }, [])
 
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      
-      // Fetch warehouses
-      const warehouseRes = await fetch('/api/warehouses')
-      if (warehouseRes.ok) {
-        const warehouseData = await warehouseRes.json()
-        setWarehouses(warehouseData)
-      }
+ const fetchData = async () => {
+ try {
+ setLoading(true)
+ 
+ // Fetch warehouses
+ const warehouseRes = await fetch('/api/warehouses')
+ if (warehouseRes.ok) {
+ const warehouseData = await warehouseRes.json()
+ setWarehouses(warehouseData)
+ }
 
-      // API endpoint removed - set empty data
-      setTemplates([])
-    } catch (_error) {
-      toast.error('Failed to load data')
-    } finally {
-      setLoading(false)
-    }
-  }
+ // API endpoint removed - set empty data
+ setTemplates([])
+ } catch (_error) {
+ toast.error('Failed to load data')
+ } finally {
+ setLoading(false)
+ }
+ }
 
-  const handleOpenModal = (template?: InvoiceTemplate) => {
-    if (template) {
-      setEditingTemplate(template)
-      setFormData({
-        warehouseId: template.warehouseId,
-        name: template.name,
-        description: template.description,
-        transactionType: template.transactionType,
-        costMappings: template.costMappings,
-        isDefault: template.isDefault
-      })
-    } else {
-      setEditingTemplate(null)
-      const defaultMappings: Record<string, CostMapping> = {}
-      defaultCostCategories.forEach(cat => {
-        defaultMappings[cat.key] = createDefaultMapping(cat)
-      })
-      setFormData({
-        warehouseId: '',
-        name: '',
-        description: '',
-        transactionType: 'BOTH',
-        costMappings: defaultMappings,
-        isDefault: false
-      })
-    }
-    setShowModal(true)
-  }
+ const handleOpenModal = (template?: InvoiceTemplate) => {
+ if (template) {
+ setEditingTemplate(template)
+ setFormData({
+ warehouseId: template.warehouseId,
+ name: template.name,
+ description: template.description,
+ transactionType: template.transactionType,
+ costMappings: template.costMappings,
+ isDefault: template.isDefault
+ })
+ } else {
+ setEditingTemplate(null)
+ const defaultMappings: Record<string, CostMapping> = {}
+ defaultCostCategories.forEach(cat => {
+ defaultMappings[cat.key] = createDefaultMapping(cat)
+ })
+ setFormData({
+ warehouseId: '',
+ name: '',
+ description: '',
+ transactionType: 'BOTH',
+ costMappings: defaultMappings,
+ isDefault: false
+ })
+ }
+ setShowModal(true)
+ }
 
-  const handleSave = async () => {
-    if (!formData.warehouseId || !formData.name) {
-      toast.error('Please fill all required fields')
-      return
-    }
+ const handleSave = async () => {
+ if (!formData.warehouseId || !formData.name) {
+ toast.error('Please fill all required fields')
+ return
+ }
 
-    try {
-      const _url = editingTemplate 
-        ? `/api/warehouse-configs/invoice-templates/${editingTemplate.id}`
-        : '/api/warehouse-configs/invoice-templates'
-      
-      const _method = editingTemplate ? 'PUT' : 'POST'
+ try {
+ const _url = editingTemplate 
+ ? `/api/warehouse-configs/invoice-templates/${editingTemplate.id}`
+ : '/api/warehouse-configs/invoice-templates'
+ 
+ const _method = editingTemplate ? 'PUT' : 'POST'
 
-      // API endpoints removed
-      toast.error('Save feature not available')
-    } catch (_error) {
-      toast.error('Failed to save template')
-    }
-  }
+ // API endpoints removed
+ toast.error('Save feature not available')
+ } catch (_error) {
+ toast.error('Failed to save template')
+ }
+ }
 
-  const handleDelete = async (_id: string) => {
-    if (!confirm('Are you sure you want to delete this template?')) return
+ const handleDelete = async (_id: string) => {
+ if (!confirm('Are you sure you want to delete this template?')) return
 
-    try {
-      // API endpoint removed
-      toast.error('Delete feature not available')
-    } catch (_error) {
-      toast.error('Failed to delete template')
-    }
-  }
+ try {
+ // API endpoint removed
+ toast.error('Delete feature not available')
+ } catch (_error) {
+ toast.error('Failed to delete template')
+ }
+ }
 
-  const handleCopy = async (template: InvoiceTemplate) => {
-    const newTemplate = {
-      ...template,
-      name: `${template.name} (Copy)`,
-      isDefault: false
-    }
-    const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, warehouse: _warehouse, ...templateWithoutMeta } = newTemplate as Record<string, unknown> & {
-      id?: unknown
-      createdAt?: unknown
-      updatedAt?: unknown
-      warehouse?: unknown
-    }
-    Object.assign(newTemplate, templateWithoutMeta)
+ const handleCopy = async (template: InvoiceTemplate) => {
+ const newTemplate = {
+ ...template,
+ name: `${template.name} (Copy)`,
+ isDefault: false
+ }
+ const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, warehouse: _warehouse, ...templateWithoutMeta } = newTemplate as Record<string, unknown> & {
+ id?: unknown
+ createdAt?: unknown
+ updatedAt?: unknown
+ warehouse?: unknown
+ }
+ Object.assign(newTemplate, templateWithoutMeta)
 
-    try {
-      // API endpoint removed
-      toast.error('Copy feature not available')
-    } catch (_error) {
-      toast.error('Failed to copy template')
-    }
-  }
+ try {
+ // API endpoint removed
+ toast.error('Copy feature not available')
+ } catch (_error) {
+ toast.error('Failed to copy template')
+ }
+ }
 
-  if (loading || status === 'loading') {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-96">
-          <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent dark:border-[#00C2B9]" />
-        </div>
-      </DashboardLayout>
-    )
-  }
+ if (loading || status === 'loading') {
+ return (
+ <DashboardLayout>
+ <div className="flex items-center justify-center h-96">
+ <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent " />
+ </div>
+ </DashboardLayout>
+ )
+ }
 
-  return (
-    <DashboardLayout>
-      <PageContainer>
-        <PageHeaderSection
-          title="Invoice Templates"
-          description="Configuration"
-          icon={FileType}
-          actions={
-            <Button onClick={() => handleOpenModal()} className="gap-2">
-              <Plus className="h-4 w-4" />
-              New Template
-            </Button>
-          }
-        />
-        <PageContent>
+ return (
+ <DashboardLayout>
+ <PageContainer>
+ <PageHeaderSection
+ title="Invoice Templates"
+ description="Configuration"
+ icon={FileType}
+ actions={
+ <Button onClick={() => handleOpenModal()} className="gap-2">
+ <Plus className="h-4 w-4" />
+ New Template
+ </Button>
+ }
+ />
+ <PageContent>
 
-        {/* Templates Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {templates.map(template => (
-            <div key={template.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <h3 className="font-semibold text-lg">{template.name}</h3>
-                  <p className="text-sm text-slate-600">{template.warehouse.name}</p>
-                </div>
-                {template.isDefault && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    Default
-                  </span>
-                )}
-              </div>
-              
-              <p className="text-sm text-slate-500 mb-3">{template.description}</p>
-              
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <span className="text-slate-500">Transaction Type:</span>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                    template.transactionType === 'RECEIVE' ? 'bg-green-100 text-green-800' :
-                    template.transactionType === 'SHIP' ? 'bg-red-100 text-red-800' :
-                    'bg-cyan-100 text-cyan-800'
-                  }`}>
-                    {template.transactionType}
-                  </span>
-                </div>
-                
-                <div className="text-sm">
-                  <span className="text-slate-500">Active Cost Types:</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {Object.entries(template.costMappings)
-                      .filter(([_, mapping]) => mapping.enabled)
-                      .map(([key, mapping]) => (
-                        <span key={key} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                          {mapping.category}
-                        </span>
-                      ))
-                    }
-                  </div>
-                </div>
-              </div>
+ {/* Templates Grid */}
+ <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+ {templates.map(template => (
+ <div key={template.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+ <div className="flex items-start justify-between mb-2">
+ <div>
+ <h3 className="font-semibold text-lg">{template.name}</h3>
+ <p className="text-sm text-slate-600">{template.warehouse.name}</p>
+ </div>
+ {template.isDefault && (
+ <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+ Default
+ </span>
+ )}
+ </div>
+ 
+ <p className="text-sm text-slate-500 mb-3">{template.description}</p>
+ 
+ <div className="space-y-2">
+ <div className="flex items-center gap-2 text-sm">
+ <span className="text-slate-500">Transaction Type:</span>
+ <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+ template.transactionType === 'RECEIVE' ? 'bg-green-100 text-green-800' :
+ template.transactionType === 'SHIP' ? 'bg-red-100 text-red-800' :
+ 'bg-cyan-100 text-cyan-800'
+ }`}>
+ {template.transactionType}
+ </span>
+ </div>
+ 
+ <div className="text-sm">
+ <span className="text-slate-500">Active Cost Types:</span>
+ <div className="flex flex-wrap gap-1 mt-1">
+ {Object.entries(template.costMappings)
+ .filter(([_, mapping]) => mapping.enabled)
+ .map(([key, mapping]) => (
+ <span key={key} className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
+ {mapping.category}
+ </span>
+ ))
+ }
+ </div>
+ </div>
+ </div>
 
-              <div className="flex items-center gap-2 mt-4 pt-4 border-t">
-                <button
-                  onClick={() => handleOpenModal(template)}
-                  className="text-primary hover:text-primary-dark"
-                  title="Edit"
-                >
-                  <Edit className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleCopy(template)}
-                  className="text-slate-600 hover:text-slate-800"
-                  title="Copy"
-                >
-                  <Copy className="h-4 w-4" />
-                </button>
-                <button
-                  onClick={() => handleDelete(template.id)}
-                  className="text-red-600 hover:text-red-800 ml-auto"
-                  title="Delete"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+ <div className="flex items-center gap-2 mt-4 pt-4 border-t">
+ <button
+ onClick={() => handleOpenModal(template)}
+ className="text-primary hover:text-primary-dark"
+ title="Edit"
+ >
+ <Edit className="h-4 w-4" />
+ </button>
+ <button
+ onClick={() => handleCopy(template)}
+ className="text-slate-600 hover:text-slate-800"
+ title="Copy"
+ >
+ <Copy className="h-4 w-4" />
+ </button>
+ <button
+ onClick={() => handleDelete(template.id)}
+ className="text-red-600 hover:text-red-800 ml-auto"
+ title="Delete"
+ >
+ <Trash2 className="h-4 w-4" />
+ </button>
+ </div>
+ </div>
+ ))}
+ </div>
 
-          {templates.length === 0 && (
-            <EmptyState
-              icon={FileType}
-              title="No invoice templates"
-              description="Create your first invoice template to define warehouse-specific billing strategies."
-              action={{
-                label: 'Create Template',
-                onClick: () => handleOpenModal()
-              }}
-            />
-          )}
-        </PageContent>
-      </PageContainer>
+ {templates.length === 0 && (
+ <EmptyState
+ icon={FileType}
+ title="No invoice templates"
+ description="Create your first invoice template to define warehouse-specific billing strategies."
+ action={{
+ label: 'Create Template',
+ onClick: () => handleOpenModal()
+ }}
+ />
+ )}
+ </PageContent>
+ </PageContainer>
 
-      {/* Template Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">
-                  {editingTemplate ? 'Edit Invoice Template' : 'Create Invoice Template'}
-                </h3>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="text-slate-400 hover:text-slate-600"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+ {/* Template Modal */}
+ {showModal && (
+ <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+ <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+ <div className="p-6">
+ <div className="flex items-center justify-between mb-4">
+ <h3 className="text-lg font-semibold">
+ {editingTemplate ? 'Edit Invoice Template' : 'Create Invoice Template'}
+ </h3>
+ <button
+ onClick={() => setShowModal(false)}
+ className="text-slate-400 hover:text-slate-600"
+ >
+ <X className="h-5 w-5" />
+ </button>
+ </div>
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Warehouse *</label>
-                    <select
-                      value={formData.warehouseId}
-                      onChange={(e) => setFormData({...formData, warehouseId: e.target.value})}
-                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                      disabled={!!editingTemplate}
-                    >
-                      <option value="">Select warehouse</option>
-                      {warehouses.map(warehouse => (
-                        <option key={warehouse.id} value={warehouse.id}>
-                          {warehouse.name} ({warehouse.code})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+ <div className="space-y-4">
+ <div className="grid grid-cols-2 gap-4">
+ <div>
+ <label className="block text-sm font-medium mb-1">Warehouse *</label>
+ <select
+ value={formData.warehouseId}
+ onChange={(e) => setFormData({...formData, warehouseId: e.target.value})}
+ className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+ disabled={!!editingTemplate}
+ >
+ <option value="">Select warehouse</option>
+ {warehouses.map(warehouse => (
+ <option key={warehouse.id} value={warehouse.id}>
+ {warehouse.name} ({warehouse.code})
+ </option>
+ ))}
+ </select>
+ </div>
 
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Template Name *</label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                      placeholder="e.g., Standard FMC Billing"
-                    />
-                  </div>
-                </div>
+ <div>
+ <label className="block text-sm font-medium mb-1">Template Name *</label>
+ <input
+ type="text"
+ value={formData.name}
+ onChange={(e) => setFormData({...formData, name: e.target.value})}
+ className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+ placeholder="e.g., Standard FMC Billing"
+ />
+ </div>
+ </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-1">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    rows={2}
-                    placeholder="Describe this billing template..."
-                  />
-                </div>
+ <div>
+ <label className="block text-sm font-medium mb-1">Description</label>
+ <textarea
+ value={formData.description}
+ onChange={(e) => setFormData({...formData, description: e.target.value})}
+ className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+ rows={2}
+ placeholder="Describe this billing template..."
+ />
+ </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Transaction Type</label>
-                    <select
-                      value={formData.transactionType}
-                      onChange={(e) => setFormData({...formData, transactionType: e.target.value as 'RECEIVE' | 'SHIP' | 'BOTH'})}
-                      className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      <option value="BOTH">Both Receive & Ship</option>
-                      <option value="RECEIVE">Receive Only</option>
-                      <option value="SHIP">Ship Only</option>
-                    </select>
-                  </div>
+ <div className="grid grid-cols-2 gap-4">
+ <div>
+ <label className="block text-sm font-medium mb-1">Transaction Type</label>
+ <select
+ value={formData.transactionType}
+ onChange={(e) => setFormData({...formData, transactionType: e.target.value as 'RECEIVE' | 'SHIP' | 'BOTH'})}
+ className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+ >
+ <option value="BOTH">Both Receive & Ship</option>
+ <option value="RECEIVE">Receive Only</option>
+ <option value="SHIP">Ship Only</option>
+ </select>
+ </div>
 
-                  <div className="flex items-center">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={formData.isDefault}
-                        onChange={(e) => setFormData({...formData, isDefault: e.target.checked})}
-                        className="rounded border-slate-300"
-                      />
-                      <span className="text-sm font-medium">Set as default template</span>
-                    </label>
-                  </div>
-                </div>
+ <div className="flex items-center">
+ <label className="flex items-center gap-2">
+ <input
+ type="checkbox"
+ checked={formData.isDefault}
+ onChange={(e) => setFormData({...formData, isDefault: e.target.checked})}
+ className="rounded border-slate-300"
+ />
+ <span className="text-sm font-medium">Set as default template</span>
+ </label>
+ </div>
+ </div>
 
-                <div>
-                  <h4 className="font-medium mb-2">Cost Type Configuration</h4>
-                  <div className="border rounded-lg overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-slate-50">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
-                            Enabled
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
-                            Cost Type
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
-                            Calculation Type
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
-                            Custom Rate
-                          </th>
-                          <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
-                            Description
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {defaultCostCategories.map(category => {
-                          const mapping = formData.costMappings[category.key] || createDefaultMapping(category)
+ <div>
+ <h4 className="font-medium mb-2">Cost Type Configuration</h4>
+ <div className="border rounded-lg overflow-hidden">
+ <table className="min-w-full divide-y divide-gray-200">
+ <thead className="bg-slate-50">
+ <tr>
+ <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
+ Enabled
+ </th>
+ <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
+ Cost Type
+ </th>
+ <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
+ Calculation Type
+ </th>
+ <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
+ Custom Rate
+ </th>
+ <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase">
+ Description
+ </th>
+ </tr>
+ </thead>
+ <tbody className="bg-white divide-y divide-gray-200">
+ {defaultCostCategories.map(category => {
+ const mapping = formData.costMappings[category.key] || createDefaultMapping(category)
 
-                          return (
-                            <tr key={category.key}>
-                              <td className="px-4 py-2">
-                                <input
-                                  type="checkbox"
-                                  checked={mapping.enabled}
-                                  onChange={(e) => {
-                                    setFormData({
-                                      ...formData,
-                                      costMappings: {
-                                        ...formData.costMappings,
-                                        [category.key]: {
-                                          ...mapping,
-                                          enabled: e.target.checked
-                                        }
-                                      }
-                                    })
-                                  }}
-                                  className="rounded border-slate-300"
-                                />
-                              </td>
-                              <td className="px-4 py-2 text-sm font-medium">
-                                {category.name}
-                              </td>
-                              <td className="px-4 py-2">
-                                <select
-                                  value={mapping.calculationType}
-                                  onChange={(e) => {
-                                    setFormData({
-                                      ...formData,
-                                      costMappings: {
-                                        ...formData.costMappings,
-                                        [category.key]: {
-                                          ...mapping,
-                                          calculationType: e.target.value as CostMapping['calculationType']
-                                        }
-                                      }
-                                    })
-                                  }}
-                                  disabled={!mapping.enabled}
-                                  className="text-sm px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
-                                >
-                                  <option value="PER_CARTON">Per Carton</option>
-                                  <option value="PER_PALLET">Per Pallet</option>
-                                  <option value="PER_UNIT">Per Unit</option>
-                                  <option value="FLAT_RATE">Flat Rate</option>
-                                  <option value="PERCENTAGE">Percentage</option>
-                                </select>
-                              </td>
-                              <td className="px-4 py-2">
-                                <input
-                                  type="number"
-                                  value={mapping.customRate || ''}
-                                  onChange={(e) => {
-                                    setFormData({
-                                      ...formData,
-                                      costMappings: {
-                                        ...formData.costMappings,
-                                        [category.key]: {
-                                          ...mapping,
-                                          customRate: e.target.value ? parseFloat(e.target.value) : undefined
-                                        }
-                                      }
-                                    })
-                                  }}
-                                  disabled={!mapping.enabled}
-                                  className="text-sm px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-primary w-24"
-                                  placeholder="Optional"
-                                  step="0.01"
-                                />
-                              </td>
-                              <td className="px-4 py-2">
-                                <input
-                                  type="text"
-                                  value={mapping.description || ''}
-                                  onChange={(e) => {
-                                    setFormData({
-                                      ...formData,
-                                      costMappings: {
-                                        ...formData.costMappings,
-                                        [category.key]: {
-                                          ...mapping,
-                                          description: e.target.value
-                                        }
-                                      }
-                                    })
-                                  }}
-                                  disabled={!mapping.enabled}
-                                  className="text-sm px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-primary w-full"
-                                  placeholder="Optional note"
-                                />
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+ return (
+ <tr key={category.key}>
+ <td className="px-4 py-2">
+ <input
+ type="checkbox"
+ checked={mapping.enabled}
+ onChange={(e) => {
+ setFormData({
+ ...formData,
+ costMappings: {
+ ...formData.costMappings,
+ [category.key]: {
+ ...mapping,
+ enabled: e.target.checked
+ }
+ }
+ })
+ }}
+ className="rounded border-slate-300"
+ />
+ </td>
+ <td className="px-4 py-2 text-sm font-medium">
+ {category.name}
+ </td>
+ <td className="px-4 py-2">
+ <select
+ value={mapping.calculationType}
+ onChange={(e) => {
+ setFormData({
+ ...formData,
+ costMappings: {
+ ...formData.costMappings,
+ [category.key]: {
+ ...mapping,
+ calculationType: e.target.value as CostMapping['calculationType']
+ }
+ }
+ })
+ }}
+ disabled={!mapping.enabled}
+ className="text-sm px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+ >
+ <option value="PER_CARTON">Per Carton</option>
+ <option value="PER_PALLET">Per Pallet</option>
+ <option value="PER_UNIT">Per Unit</option>
+ <option value="FLAT_RATE">Flat Rate</option>
+ <option value="PERCENTAGE">Percentage</option>
+ </select>
+ </td>
+ <td className="px-4 py-2">
+ <input
+ type="number"
+ value={mapping.customRate || ''}
+ onChange={(e) => {
+ setFormData({
+ ...formData,
+ costMappings: {
+ ...formData.costMappings,
+ [category.key]: {
+ ...mapping,
+ customRate: e.target.value ? parseFloat(e.target.value) : undefined
+ }
+ }
+ })
+ }}
+ disabled={!mapping.enabled}
+ className="text-sm px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-primary w-24"
+ placeholder="Optional"
+ step="0.01"
+ />
+ </td>
+ <td className="px-4 py-2">
+ <input
+ type="text"
+ value={mapping.description || ''}
+ onChange={(e) => {
+ setFormData({
+ ...formData,
+ costMappings: {
+ ...formData.costMappings,
+ [category.key]: {
+ ...mapping,
+ description: e.target.value
+ }
+ }
+ })
+ }}
+ disabled={!mapping.enabled}
+ className="text-sm px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-primary w-full"
+ placeholder="Optional note"
+ />
+ </td>
+ </tr>
+ )
+ })}
+ </tbody>
+ </table>
+ </div>
+ </div>
 
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button
-                    onClick={() => setShowModal(false)}
-                    variant="ghost"
-                  >
-                    Cancel
-                  </Button>
-                  <Button onClick={handleSave} className="gap-2">
-                    <Save className="h-4 w-4" />
-                    {editingTemplate ? 'Update' : 'Create'} Template
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        )}
-      </DashboardLayout>
-    )
-  }
+ <div className="flex justify-end gap-2 pt-4">
+ <Button
+ onClick={() => setShowModal(false)}
+ variant="ghost"
+ >
+ Cancel
+ </Button>
+ <Button onClick={handleSave} className="gap-2">
+ <Save className="h-4 w-4" />
+ {editingTemplate ? 'Update' : 'Create'} Template
+ </Button>
+ </div>
+ </div>
+ </div>
+ </div>
+ </div>
+ )}
+ </DashboardLayout>
+ )
+ }

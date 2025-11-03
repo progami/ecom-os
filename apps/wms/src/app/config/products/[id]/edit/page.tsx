@@ -1,11 +1,31 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, Save, Package, Loader2 } from '@/lib/lucide-icons'
+import { ArrowLeft, Save, Loader2 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+
+interface SkuBatchSummary {
+  id: string
+  batchCode: string
+  description: string | null
+  productionDate: string | null
+  expiryDate: string | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+const formatBatchDate = (value: string | null) => {
+  if (!value) return '—'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return '—'
+  }
+  return parsed.toLocaleDateString()
+}
 
 export default function EditSkuPage() {
   const router = useRouter()
@@ -25,13 +45,15 @@ export default function EditSkuPage() {
     cartonDimensionsCm: '',
     cartonWeightKg: '',
     packagingType: '',
-    isActive: true
+    isActive: true,
   })
-  
+
   // Separate state for dimension inputs
   const [unitDimensions, setUnitDimensions] = useState({ length: '', width: '', height: '' })
   const [cartonDimensions, setCartonDimensions] = useState({ length: '', width: '', height: '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [batches, setBatches] = useState<SkuBatchSummary[]>([])
+  const [batchesLoading, setBatchesLoading] = useState(true)
 
   const fetchSku = async () => {
     try {
@@ -39,9 +61,9 @@ export default function EditSkuPage() {
       if (!response.ok) {
         throw new Error('Failed to fetch SKU')
       }
-      
+
       const data = await response.json()
-      
+
       // Parse dimensions from string format "L×W×H" or "LxWxH"
       const parseAndValidateDimensions = (dimString: string) => {
         if (!dimString) return { length: '', width: '', height: '' }
@@ -50,16 +72,16 @@ export default function EditSkuPage() {
         return {
           length: parts[0] || '',
           width: parts[1] || '',
-          height: parts[2] || ''
+          height: parts[2] || '',
         }
       }
-      
+
       const parsedUnitDims = parseAndValidateDimensions(data.unitDimensionsCm)
       const parsedCartonDims = parseAndValidateDimensions(data.cartonDimensionsCm)
-      
+
       setUnitDimensions(parsedUnitDims)
       setCartonDimensions(parsedCartonDims)
-      
+
       setFormData({
         skuCode: data.skuCode || '',
         asin: data.asin || '',
@@ -72,7 +94,7 @@ export default function EditSkuPage() {
         cartonDimensionsCm: data.cartonDimensionsCm || '',
         cartonWeightKg: data.cartonWeightKg || '',
         packagingType: data.packagingType || '',
-        isActive: data.isActive !== false
+        isActive: data.isActive !== false,
       })
     } catch (_error) {
       // console.error('Error fetching SKU:', error)
@@ -87,6 +109,29 @@ export default function EditSkuPage() {
     fetchSku()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [skuId])
+
+  const fetchBatches = useCallback(async () => {
+    if (!skuId) return
+    setBatchesLoading(true)
+    try {
+      const response = await fetch(`/api/skus/${skuId}/batches?includeInactive=true`, {
+        credentials: 'include',
+      })
+      if (!response.ok) {
+        throw new Error('Failed to fetch batches')
+      }
+      const data = await response.json()
+      setBatches(Array.isArray(data.batches) ? data.batches : [])
+    } catch (_error) {
+      setBatches([])
+    } finally {
+      setBatchesLoading(false)
+    }
+  }, [skuId])
+
+  useEffect(() => {
+    fetchBatches()
+  }, [fetchBatches])
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -123,17 +168,17 @@ export default function EditSkuPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) return
 
     setSaving(true)
     try {
       // Format dimensions back to string with × symbol
-      const formatDimensions = (dims: { length: string, width: string, height: string }) => {
+      const formatDimensions = (dims: { length: string; width: string; height: string }) => {
         if (!dims.length && !dims.width && !dims.height) return null
         return `${dims.length || 0}×${dims.width || 0}×${dims.height || 0}`
       }
-      
+
       const submitData = {
         ...formData,
         skuCode: formData.skuCode.toUpperCase(),
@@ -151,7 +196,7 @@ export default function EditSkuPage() {
       const response = await fetch(`/api/skus/${skuId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(submitData)
+        body: JSON.stringify(submitData),
       })
 
       if (!response.ok) {
@@ -209,22 +254,19 @@ export default function EditSkuPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  SKU Code *
-                  <span className="text-xs text-slate-500 ml-1">(Unique identifier)</span>
+                  SKU Code *<span className="text-xs text-slate-500 ml-1">(Unique identifier)</span>
                 </label>
                 <input
                   type="text"
                   value={formData.skuCode}
-                  onChange={(e) => setFormData({ ...formData, skuCode: e.target.value })}
+                  onChange={e => setFormData({ ...formData, skuCode: e.target.value })}
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${
                     errors.skuCode ? 'border-red-500' : ''
                   }`}
                   placeholder="e.g., PROD-001"
                   maxLength={50}
                 />
-                {errors.skuCode && (
-                  <p className="text-red-500 text-sm mt-1">{errors.skuCode}</p>
-                )}
+                {errors.skuCode && <p className="text-red-500 text-sm mt-1">{errors.skuCode}</p>}
               </div>
 
               <div>
@@ -235,7 +277,7 @@ export default function EditSkuPage() {
                 <input
                   type="text"
                   value={formData.asin}
-                  onChange={(e) => setFormData({ ...formData, asin: e.target.value })}
+                  onChange={e => setFormData({ ...formData, asin: e.target.value })}
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="Amazon ASIN"
                 />
@@ -249,7 +291,7 @@ export default function EditSkuPage() {
                 <input
                   type="text"
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  onChange={e => setFormData({ ...formData, description: e.target.value })}
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${
                     errors.description ? 'border-red-500' : ''
                   }`}
@@ -262,31 +304,28 @@ export default function EditSkuPage() {
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Pack Size *
-                  <span className="text-xs text-slate-500 ml-1">(Units per pack)</span>
+                  Pack Size *<span className="text-xs text-slate-500 ml-1">(Units per pack)</span>
                 </label>
                 <input
                   type="number"
                   min="1"
                   value={formData.packSize}
-                  onChange={(e) => setFormData({ ...formData, packSize: parseInt(e.target.value) || 1 })}
+                  onChange={e =>
+                    setFormData({ ...formData, packSize: parseInt(e.target.value) || 1 })
+                  }
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${
                     errors.packSize ? 'border-red-500' : ''
                   }`}
                 />
-                {errors.packSize && (
-                  <p className="text-red-500 text-sm mt-1">{errors.packSize}</p>
-                )}
+                {errors.packSize && <p className="text-red-500 text-sm mt-1">{errors.packSize}</p>}
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Material
-                </label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Material</label>
                 <input
                   type="text"
                   value={formData.material}
-                  onChange={(e) => setFormData({ ...formData, material: e.target.value })}
+                  onChange={e => setFormData({ ...formData, material: e.target.value })}
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="e.g., Plastic, Metal, Wood"
                 />
@@ -309,7 +348,7 @@ export default function EditSkuPage() {
                     step="0.1"
                     min="0"
                     value={unitDimensions.length}
-                    onChange={(e) => setUnitDimensions({ ...unitDimensions, length: e.target.value })}
+                    onChange={e => setUnitDimensions({ ...unitDimensions, length: e.target.value })}
                     className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Length"
                   />
@@ -318,7 +357,7 @@ export default function EditSkuPage() {
                     step="0.1"
                     min="0"
                     value={unitDimensions.width}
-                    onChange={(e) => setUnitDimensions({ ...unitDimensions, width: e.target.value })}
+                    onChange={e => setUnitDimensions({ ...unitDimensions, width: e.target.value })}
                     className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Width"
                   />
@@ -327,7 +366,7 @@ export default function EditSkuPage() {
                     step="0.1"
                     min="0"
                     value={unitDimensions.height}
-                    onChange={(e) => setUnitDimensions({ ...unitDimensions, height: e.target.value })}
+                    onChange={e => setUnitDimensions({ ...unitDimensions, height: e.target.value })}
                     className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Height"
                   />
@@ -343,7 +382,7 @@ export default function EditSkuPage() {
                   step="0.001"
                   min="0"
                   value={formData.unitWeightKg}
-                  onChange={(e) => setFormData({ ...formData, unitWeightKg: e.target.value })}
+                  onChange={e => setFormData({ ...formData, unitWeightKg: e.target.value })}
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${
                     errors.unitWeightKg ? 'border-red-500' : ''
                   }`}
@@ -368,7 +407,9 @@ export default function EditSkuPage() {
                   type="number"
                   min="1"
                   value={formData.unitsPerCarton}
-                  onChange={(e) => setFormData({ ...formData, unitsPerCarton: parseInt(e.target.value) || 1 })}
+                  onChange={e =>
+                    setFormData({ ...formData, unitsPerCarton: parseInt(e.target.value) || 1 })
+                  }
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${
                     errors.unitsPerCarton ? 'border-red-500' : ''
                   }`}
@@ -385,7 +426,7 @@ export default function EditSkuPage() {
                 <input
                   type="text"
                   value={formData.packagingType}
-                  onChange={(e) => setFormData({ ...formData, packagingType: e.target.value })}
+                  onChange={e => setFormData({ ...formData, packagingType: e.target.value })}
                   className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="e.g., Box, Bag, Pallet"
                 />
@@ -402,7 +443,9 @@ export default function EditSkuPage() {
                     step="0.1"
                     min="0"
                     value={cartonDimensions.length}
-                    onChange={(e) => setCartonDimensions({ ...cartonDimensions, length: e.target.value })}
+                    onChange={e =>
+                      setCartonDimensions({ ...cartonDimensions, length: e.target.value })
+                    }
                     className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Length"
                   />
@@ -411,7 +454,9 @@ export default function EditSkuPage() {
                     step="0.1"
                     min="0"
                     value={cartonDimensions.width}
-                    onChange={(e) => setCartonDimensions({ ...cartonDimensions, width: e.target.value })}
+                    onChange={e =>
+                      setCartonDimensions({ ...cartonDimensions, width: e.target.value })
+                    }
                     className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Width"
                   />
@@ -420,7 +465,9 @@ export default function EditSkuPage() {
                     step="0.1"
                     min="0"
                     value={cartonDimensions.height}
-                    onChange={(e) => setCartonDimensions({ ...cartonDimensions, height: e.target.value })}
+                    onChange={e =>
+                      setCartonDimensions({ ...cartonDimensions, height: e.target.value })
+                    }
                     className="px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
                     placeholder="Height"
                   />
@@ -436,7 +483,7 @@ export default function EditSkuPage() {
                   step="0.001"
                   min="0"
                   value={formData.cartonWeightKg}
-                  onChange={(e) => setFormData({ ...formData, cartonWeightKg: e.target.value })}
+                  onChange={e => setFormData({ ...formData, cartonWeightKg: e.target.value })}
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${
                     errors.cartonWeightKg ? 'border-red-500' : ''
                   }`}
@@ -452,13 +499,12 @@ export default function EditSkuPage() {
           <div className="bg-white border rounded-lg p-6">
             <h2 className="text-lg font-semibold mb-4">Additional Information</h2>
             <div className="space-y-4">
-
               <div className="flex items-center">
                 <input
                   type="checkbox"
                   id="isActive"
                   checked={formData.isActive}
-                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
                   className="h-4 w-4 text-primary focus:ring-primary border-slate-300 rounded"
                 />
                 <label htmlFor="isActive" className="ml-2 text-sm text-slate-700">
@@ -467,7 +513,6 @@ export default function EditSkuPage() {
               </div>
             </div>
           </div>
-
 
           {/* Actions */}
           <div className="flex items-center justify-end gap-4">
@@ -490,19 +535,59 @@ export default function EditSkuPage() {
           </div>
         </form>
 
-        <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
-          <div className="flex items-start">
-            <Package className="h-5 w-5 text-cyan-600 mt-0.5 mr-3 flex-shrink-0" />
-            <div className="text-sm text-cyan-800">
-              <p className="font-semibold mb-1">SKU Update Tips:</p>
-              <ul className="list-disc list-inside space-y-1">
-                <li>Changes will apply to future transactions only</li>
-                <li>Historical data will retain the values at the time of transaction</li>
-                <li>Update dimensions and weights for accurate shipping calculations</li>
-                <li>Deactivate SKUs instead of deleting to preserve historical data</li>
-              </ul>
-            </div>
+        <div className="bg-white border rounded-lg p-6 space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">Product Batches</h2>
+            <p className="text-sm text-slate-500">
+              Batches are defined when creating the SKU and cannot be modified.
+            </p>
           </div>
+
+          {batchesLoading ? (
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading batches…
+            </div>
+          ) : batches.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200 text-sm">
+                <thead className="bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-4 py-2">Batch Code</th>
+                    <th className="px-4 py-2">Description</th>
+                    <th className="px-4 py-2">Production</th>
+                    <th className="px-4 py-2">Expiry</th>
+                    <th className="px-4 py-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {batches.map(batch => (
+                    <tr key={batch.id}>
+                      <td className="px-4 py-2 font-medium text-slate-700">{batch.batchCode}</td>
+                      <td className="px-4 py-2 text-slate-600">{batch.description || '—'}</td>
+                      <td className="px-4 py-2 text-slate-600">
+                        {formatBatchDate(batch.productionDate)}
+                      </td>
+                      <td className="px-4 py-2 text-slate-600">
+                        {formatBatchDate(batch.expiryDate)}
+                      </td>
+                      <td className="px-4 py-2">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-medium ${batch.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}
+                        >
+                          {batch.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">
+              No batches defined for this SKU.
+            </p>
+          )}
         </div>
       </div>
     </DashboardLayout>

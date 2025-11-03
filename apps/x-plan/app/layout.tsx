@@ -4,12 +4,17 @@ import './globals.css'
 import { Providers } from '@/components/providers'
 import { clsx } from 'clsx'
 
+const appBasePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || ''
+
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
 
 export const metadata: Metadata = {
   title: 'X-Plan | Ecom OS',
   description:
     'Collaborative demand, supply, and finance planning that mirrors the X-Plan workbook experience while staying web-first.',
+  icons: {
+    icon: `${appBasePath || ''}/favicon.ico`,
+  },
 }
 
 export default function RootLayout({
