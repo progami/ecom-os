@@ -17,7 +17,7 @@
     "start:prod": "NODE_ENV=production node --max-old-space-size=2048 server.js",
     "lint": "eslint --max-warnings=0 --ext .js,.jsx,.ts,.tsx src tests",
     "lint:strict": "pnpm run lint",
-    "test": "cd tests && playwright test e2e/",
+    "test": "node ./scripts/playwright-test-runner.cjs",
     "test:headed": "cd tests && playwright test e2e/ --headed",
     "test:ui": "cd tests && playwright test --ui",
     "test:debug": "cd tests && playwright test --debug",
