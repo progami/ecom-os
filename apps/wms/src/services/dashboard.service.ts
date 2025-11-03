@@ -15,13 +15,10 @@ export interface DashboardStats {
  weekShipped: number
  monthReceived: number
  monthShipped: number
- }
- finance: {
- pendingInvoices: number
- disputedInvoices: number
- monthlyRevenue: number
- monthlyExpenses: number
- }
+  }
+  finance: {
+    monthlyExpenses: number
+  }
  warehouses: {
  activeCount: number
  totalCapacity: number
@@ -172,12 +169,9 @@ export class DashboardService extends BaseService {
  })
 
  return {
- pendingInvoices: 0,
- disputedInvoices: 0,
- monthlyRevenue: 0,
- monthlyExpenses: Number(monthlyExpenses._sum.totalCost || 0)
- }
- }
+    monthlyExpenses: Number(monthlyExpenses._sum.totalCost || 0)
+  }
+}
 
  /**
  * Get warehouse statistics

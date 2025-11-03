@@ -10,12 +10,10 @@ interface DashboardStatsResponse {
  costChange: string
  costTrend: 'up' | 'down' | 'neutral'
  activeSkus: number
- pendingInvoices: number
- overdueInvoices: number
  chartData: {
- inventoryTrend: Array<{ date: string; inventory: number }>
- costTrend: Array<{ date: string; cost: number }>
- warehouseDistribution: Array<{ name: string | null; value: number; percentage: number }>
+  inventoryTrend: Array<{ date: string; inventory: number }>
+  costTrend: Array<{ date: string; cost: number }>
+  warehouseDistribution: Array<{ name: string | null; value: number; percentage: number }>
  }
 }
 
@@ -48,104 +46,123 @@ export const GET = withAuth<DashboardStatsResponse>(async (request, session) => 
  }
  // No exclusions - show all warehouses
 
- // Calculate total inventory from transactions
- const inventoryStats = await prisma.inventoryTransaction.aggregate({
- where: warehouseFilter,
- _sum: {
- cartonsIn: true,
- cartonsOut: true,
- },
- })
- const currentInventory = (inventoryStats._sum.cartonsIn || 0) - (inventoryStats._sum.cartonsOut || 0)
+  // Pre-calc monthly ranges
+  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
+  lastMonthEnd.setHours(23, 59, 59, 999)
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
 
- // Calculate inventory change from last month
- const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
- lastMonthEnd.setHours(23, 59, 59, 999)
- 
- // Get transactions to calculate last month's ending balance
- const transactionsUpToLastMonth = await prisma.inventoryTransaction.aggregate({
- where: {
- transactionDate: {
- lte: lastMonthEnd,
- },
- ...warehouseFilter,
- },
- _sum: {
- cartonsIn: true,
- cartonsOut: true,
- },
- })
- 
- const lastMonthInventory = (transactionsUpToLastMonth._sum.cartonsIn || 0) - 
- (transactionsUpToLastMonth._sum.cartonsOut || 0)
- 
- const inventoryChange = lastMonthInventory > 0 
- ? ((currentInventory - lastMonthInventory) / lastMonthInventory) * 100 
- : 0
+  const weeksToGenerate = 12
+  const costWindowStart = new Date(now)
+  costWindowStart.setDate(costWindowStart.getDate() - (weeksToGenerate * 7))
+  const costWindowStartDay = costWindowStart.getDay()
+  costWindowStart.setDate(costWindowStart.getDate() - costWindowStartDay)
+  costWindowStart.setHours(0, 0, 0, 0)
 
- // Get storage costs from cost ledger (simplified calculation)
- // Sum all storage costs for the current month
- const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
- const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0)
- 
- const storageCosts = await prisma.costLedger.aggregate({
- where: {
- costCategory: 'Storage',
- createdAt: {
- gte: monthStart,
- lte: monthEnd,
- },
- ...warehouseFilter,
- },
- _sum: {
- totalCost: true,
- },
- })
- 
- const currentCost = Number(storageCosts._sum.totalCost || 0)
+  const [
+    inventoryStats,
+    transactionsUpToLastMonth,
+    storageCosts,
+    lastPeriodCosts,
+    activeSkusGroup,
+    warehouseInventoryGroups,
+    recentCostEntries,
+  ] = await Promise.all([
+    prisma.inventoryTransaction.aggregate({
+      where: warehouseFilter,
+      _sum: {
+        cartonsIn: true,
+        cartonsOut: true,
+      },
+    }),
+    prisma.inventoryTransaction.aggregate({
+      where: {
+        transactionDate: {
+          lte: lastMonthEnd,
+        },
+        ...warehouseFilter,
+      },
+      _sum: {
+        cartonsIn: true,
+        cartonsOut: true,
+      },
+    }),
+    prisma.costLedger.aggregate({
+      where: {
+        costCategory: 'Storage',
+        createdAt: {
+          gte: monthStart,
+          lte: monthEnd,
+        },
+        ...warehouseFilter,
+      },
+      _sum: {
+        totalCost: true,
+      },
+    }),
+    prisma.costLedger.aggregate({
+      where: {
+        costCategory: 'Storage',
+        createdAt: {
+          gte: prevMonthStart,
+          lte: prevMonthEnd,
+        },
+        ...warehouseFilter,
+      },
+      _sum: {
+        totalCost: true,
+      },
+    }),
+    prisma.inventoryTransaction.groupBy({
+      by: ['skuCode'],
+      where: warehouseFilter,
+      _sum: {
+        cartonsIn: true,
+        cartonsOut: true,
+      },
+    }),
+    prisma.inventoryTransaction.groupBy({
+      by: ['warehouseCode', 'warehouseName'],
+      where: warehouseFilter,
+      _sum: {
+        cartonsIn: true,
+        cartonsOut: true,
+      },
+    }),
+    prisma.costLedger.findMany({
+      where: {
+        costCategory: 'Storage',
+        createdAt: {
+          gte: costWindowStart,
+          lte: now,
+        },
+        ...warehouseFilter,
+      },
+      select: {
+        createdAt: true,
+        totalCost: true,
+      },
+    }),
+  ])
 
- // Get last month's costs
- const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
- const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0)
- 
- const lastPeriodCosts = await prisma.costLedger.aggregate({
- where: {
- costCategory: 'Storage',
- createdAt: {
- gte: prevMonthStart,
- lte: prevMonthEnd,
- },
- ...warehouseFilter,
- },
- _sum: {
- totalCost: true,
- },
- })
- 
- const lastCost = Number(lastPeriodCosts._sum.totalCost || 0)
- const costChange = lastCost > 0 
- ? ((currentCost - lastCost) / lastCost) * 100 
- : 0
+  const currentInventory = (inventoryStats._sum.cartonsIn || 0) - (inventoryStats._sum.cartonsOut || 0)
+  const lastMonthInventory = (transactionsUpToLastMonth._sum.cartonsIn || 0) -
+    (transactionsUpToLastMonth._sum.cartonsOut || 0)
+  const inventoryChange = lastMonthInventory > 0
+    ? ((currentInventory - lastMonthInventory) / lastMonthInventory) * 100
+    : 0
 
- // Active SKUs count - count unique SKUs with positive balance
- const activeSkusGroup = await prisma.inventoryTransaction.groupBy({
- by: ['skuCode'],
- where: warehouseFilter,
- _sum: {
- cartonsIn: true,
- cartonsOut: true
- }
- })
- const activeSkus = activeSkusGroup.filter(sku => 
- (sku._sum.cartonsIn || 0) - (sku._sum.cartonsOut || 0) > 0
- )
- const activeSkusCount = activeSkus.length
+  const currentCost = Number(storageCosts._sum.totalCost || 0)
+  const lastCost = Number(lastPeriodCosts._sum.totalCost || 0)
+  const costChange = lastCost > 0
+    ? ((currentCost - lastCost) / lastCost) * 100
+    : 0
 
- // Pending invoices count (set to 0 since Invoice model doesn't exist)
- const pendingInvoices = 0
-
- // Overdue invoices (set to 0 since Invoice model doesn't exist)
- const overdueInvoices = 0
+  const activeSkusCount = activeSkusGroup
+    .filter(sku => (sku._sum.cartonsIn || 0) - (sku._sum.cartonsOut || 0) > 0)
+    .length
 
  // Chart Data: Inventory Trend - use selected date range
  let trendStartDate: Date
@@ -255,60 +272,43 @@ export const GET = withAuth<DashboardStatsResponse>(async (request, session) => 
  currentDate.setTime(currentDate.getTime() + 24 * 60 * 60 * 1000)
  }
 
- // Chart Data: Cost Trend (simplified - last 12 weeks)
- const costTrend: Array<{ date: string; cost: number }> = []
- 
- // Generate weekly cost data
- for (let i = 11; i >= 0; i--) {
- const weekStart = new Date()
- weekStart.setDate(weekStart.getDate() - (i * 7))
- weekStart.setHours(0, 0, 0, 0)
- 
- const weekEnd = new Date(weekStart)
- weekEnd.setDate(weekEnd.getDate() + 6)
- weekEnd.setHours(23, 59, 59, 999)
- 
- const weekCosts = await prisma.costLedger.aggregate({
- where: {
- costCategory: 'Storage',
- createdAt: {
- gte: weekStart,
- lte: weekEnd,
- },
- ...warehouseFilter,
- },
- _sum: {
- totalCost: true,
- },
- })
- 
- costTrend.push({
- date: weekStart.toISOString().split('T')[0],
- cost: Number(weekCosts._sum?.totalCost || 0),
- })
- }
- 
- // If no cost data, create empty array with proper structure
- if (costTrend.length === 0) {
- for (let i = 1; i <= 12; i++) {
- costTrend.push({ date: `Week ${i}`, cost: 0 })
- }
- }
+  // Chart Data: Cost Trend (last 12 weeks aggregated locally)
+  const costTrendBuckets = new Map<string, number>()
+  for (const entry of recentCostEntries) {
+    const entryDate = new Date(entry.createdAt)
+    const bucketStart = new Date(Date.UTC(
+      entryDate.getUTCFullYear(),
+      entryDate.getUTCMonth(),
+      entryDate.getUTCDate()
+    ))
+    // Normalise to week start (Sunday baseline)
+    const dayOfWeek = bucketStart.getUTCDay()
+    bucketStart.setUTCDate(bucketStart.getUTCDate() - dayOfWeek)
+    const key = bucketStart.toISOString().split('T')[0]
+    costTrendBuckets.set(key, (costTrendBuckets.get(key) || 0) + Number(entry.totalCost || 0))
+  }
+
+  const costTrend: Array<{ date: string; cost: number }> = []
+  const baseWeekStart = new Date(Date.UTC(
+    costWindowStart.getUTCFullYear(),
+    costWindowStart.getUTCMonth(),
+    costWindowStart.getUTCDate()
+  ))
+  for (let i = 0; i < weeksToGenerate; i++) {
+    const weekStart = new Date(baseWeekStart)
+    weekStart.setUTCDate(baseWeekStart.getUTCDate() + (i * 7))
+    const key = weekStart.toISOString().split('T')[0]
+    costTrend.push({
+      date: key,
+      cost: Number(costTrendBuckets.get(key) || 0),
+    })
+  }
 
  // Chart Data: Warehouse Distribution
- const warehouseInventory = await prisma.inventoryTransaction.groupBy({
- by: ['warehouseCode', 'warehouseName'],
- where: warehouseFilter,
- _sum: {
- cartonsIn: true,
- cartonsOut: true,
- },
- })
+ const totalCartons = warehouseInventoryGroups.reduce((sum, w) =>
+  sum + ((w._sum.cartonsIn || 0) - (w._sum.cartonsOut || 0)), 0)
  
- const totalCartons = warehouseInventory.reduce((sum, w) => 
- sum + ((w._sum.cartonsIn || 0) - (w._sum.cartonsOut || 0)), 0)
- 
- const warehouseDistribution = warehouseInventory
+ const warehouseDistribution = warehouseInventoryGroups
  .map(w => {
  const balance = (w._sum.cartonsIn || 0) - (w._sum.cartonsOut || 0)
  return {
@@ -328,12 +328,10 @@ export const GET = withAuth<DashboardStatsResponse>(async (request, session) => 
  costChange: costChange.toFixed(1),
  costTrend: costChange > 0 ? 'up' : costChange < 0 ? 'down' : 'neutral',
  activeSkus: activeSkusCount,
- pendingInvoices,
- overdueInvoices,
  chartData: {
- inventoryTrend,
- costTrend,
- warehouseDistribution,
+  inventoryTrend,
+  costTrend,
+  warehouseDistribution,
  },
- })
+})
 })

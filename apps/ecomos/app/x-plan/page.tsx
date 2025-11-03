@@ -30,7 +30,7 @@ export default async function XPlanRedirect() {
     // fall through to fallback below
   }
 
-  let fallback = 'https://ecomos.targonglobal.com/x-plan'
+  let fallback = 'https://dev.ecomos.targonglobal.com/x-plan'
 
   try {
     const origin = resolvePortalAuthOrigin()

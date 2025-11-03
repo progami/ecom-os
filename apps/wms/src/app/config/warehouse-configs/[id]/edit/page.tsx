@@ -263,17 +263,6 @@ export default function EditWarehouseConfigPage() {
  </button>
  </div>
  </form>
-
- {/* Warning Section */}
- <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
- <h3 className="font-semibold text-yellow-900 mb-2">Important Notes</h3>
- <ul className="text-sm text-yellow-800 space-y-1 list-disc list-inside">
- <li>Changes will affect all future calculations from the effective date</li>
- <li>Historical calculations will not be affected</li>
- <li>To change warehouse or SKU, end this configuration and create a new one</li>
- <li>Setting an end date will deactivate this configuration after that date</li>
- </ul>
- </div>
  </div>
  </DashboardLayout>
  )

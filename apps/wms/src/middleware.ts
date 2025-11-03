@@ -1,8 +1,18 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { hasPortalSession } from '@ecom-os/auth'
+import { getCandidateSessionCookieNames, hasPortalSession } from '@ecom-os/auth'
 import { withBasePath, withoutBasePath } from '@/lib/utils/base-path'
 import { portalUrl } from '@/lib/portal'
+
+if (typeof process !== 'undefined' && process.env) {
+ const devSecret = 'dev_portal_auth_secret_2025'
+ if (!process.env.PORTAL_AUTH_SECRET) {
+ process.env.PORTAL_AUTH_SECRET = devSecret
+ }
+ if (!process.env.NEXTAUTH_SECRET) {
+ process.env.NEXTAUTH_SECRET = process.env.PORTAL_AUTH_SECRET ?? devSecret
+ }
+}
 
 export async function middleware(request: NextRequest) {
  const { pathname } = request.nextUrl
@@ -54,17 +64,23 @@ export async function middleware(request: NextRequest) {
  return NextResponse.next()
  }
 
- // Check for session
- const cookieNames = process.env.NODE_ENV === 'production'
- ? ['__Secure-next-auth.session-token', '__Secure-wms.next-auth.session-token']
- : ['next-auth.session-token', 'ecomos.next-auth.session-token', 'wms.next-auth.session-token']
-
- const hasSession = await hasPortalSession({
- request,
- cookieNames,
- portalUrl: process.env.PORTAL_AUTH_URL,
- debug: process.env.NODE_ENV !== 'production',
- })
+ // Check for session using shared cookie naming scheme
+const cookieNames = Array.from(new Set([
+  ...getCandidateSessionCookieNames('ecomos'),
+  ...getCandidateSessionCookieNames('wms'),
+]))
+const sharedSecret = process.env.PORTAL_AUTH_SECRET ?? 'dev_portal_auth_secret_2025'
+const authDebugFlag =
+  typeof process.env.NEXTAUTH_DEBUG === 'string' &&
+  ['1', 'true', 'yes', 'on'].includes(process.env.NEXTAUTH_DEBUG.toLowerCase())
+const hasSession = await hasPortalSession({
+  request,
+  appId: 'ecomos',
+  cookieNames,
+  secret: sharedSecret,
+  portalUrl: process.env.PORTAL_AUTH_URL,
+  debug: authDebugFlag,
+})
 
  // If no token and trying to access protected route, redirect to portal login
  if (!hasSession && !normalizedPath.startsWith('/auth/')) {

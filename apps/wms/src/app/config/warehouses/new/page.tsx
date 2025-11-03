@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save, Building2 } from '@/lib/lucide-icons'
+import { ArrowLeft, Save } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -264,21 +264,6 @@ export default function NewWarehousePage() {
  </Button>
  </div>
  </form>
-
- <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
- <div className="flex items-start">
- <Building2 className="h-5 w-5 text-cyan-600 mt-0.5 mr-3 flex-shrink-0" />
- <div className="text-sm text-cyan-800">
- <p className="font-semibold mb-1">Warehouse Setup Tips:</p>
- <ul className="list-disc list-inside space-y-1">
- <li>Use a unique, memorable code that's easy to reference</li>
- <li>Include complete contact information for billing inquiries</li>
- <li>You can deactivate warehouses later without deleting data</li>
- <li>After creation, configure SKU-specific settings for this warehouse</li>
- </ul>
- </div>
- </div>
- </div>
  </div>
  </DashboardLayout>
  )

@@ -61,7 +61,7 @@ export default function ProductsPage() {
  <Button asChild className="gap-2">
  <Link href="/config/products/new">
  <Plus className="h-4 w-4" />
- Create Product
+ Create SKU
  </Link>
  </Button>
  }

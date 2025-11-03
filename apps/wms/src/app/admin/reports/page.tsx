@@ -1,7 +1,7 @@
 import { getServerSession } from 'next-auth/next'
 import { authOptions } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { TrendingUp, DollarSign, FileText, Package } from '@/lib/lucide-icons'
+import { TrendingUp, DollarSign, Package } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { StatsCard } from '@/components/ui/stats-card'
 import { AdminReportsClient } from './client-page'
@@ -21,7 +21,7 @@ export default async function AdminReportsPage() {
  const currentMonth = new Date()
  const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
  
- const [storageCost, movements, invoices] = await Promise.all([
+  const [storageCost, movements] = await Promise.all([
  // Total storage cost this month
  prisma.storageLedger.aggregate({
  where: {
@@ -43,9 +43,7 @@ export default async function AdminReportsPage() {
  }
  }
  }),
- // Invoices this month - commented out as invoice model no longer exists
- Promise.resolve(0)
- ])
+])
 
  return (
  <DashboardLayout>
@@ -85,15 +83,6 @@ export default async function AdminReportsPage() {
  variant="info"
  size="sm"
  trend={{ value: 8, label: "vs last month" }}
- />
- <StatsCard
- title="Invoices Processed"
- value={invoices.toString()}
- subtitle="This Month"
- icon={FileText}
- variant="warning"
- size="sm"
- trend={{ value: 15, label: "vs last month" }}
  />
  </div>
 

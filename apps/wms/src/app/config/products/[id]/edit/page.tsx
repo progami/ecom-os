@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, Save, Package, Loader2 } from '@/lib/lucide-icons'
+import { ArrowLeft, Save, Loader2 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
@@ -54,14 +54,6 @@ export default function EditSkuPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [batches, setBatches] = useState<SkuBatchSummary[]>([])
   const [batchesLoading, setBatchesLoading] = useState(true)
-  const [batchFormOpen, setBatchFormOpen] = useState(false)
-  const [batchSaving, setBatchSaving] = useState(false)
-  const [batchForm, setBatchForm] = useState({
-    batchCode: '',
-    description: '',
-    productionDate: '',
-    expiryDate: '',
-  })
 
   const fetchSku = async () => {
     try {
@@ -219,66 +211,6 @@ export default function EditSkuPage() {
       alert(error instanceof Error ? error.message : 'Failed to update SKU')
     } finally {
       setSaving(false)
-    }
-  }
-
-  const handleCreateBatch = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!batchForm.batchCode.trim()) {
-      alert('Batch code is required')
-      return
-    }
-
-    setBatchSaving(true)
-    try {
-      const response = await fetch(`/api/skus/${skuId}/batches`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          batchCode: batchForm.batchCode.toUpperCase(),
-          description: batchForm.description || undefined,
-          productionDate: batchForm.productionDate || undefined,
-          expiryDate: batchForm.expiryDate || undefined,
-        }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(error.error || 'Failed to create batch')
-      }
-
-      alert('Batch created successfully')
-      setBatchForm({ batchCode: '', description: '', productionDate: '', expiryDate: '' })
-      setBatchFormOpen(false)
-      fetchBatches()
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to create batch')
-    } finally {
-      setBatchSaving(false)
-    }
-  }
-
-  const toggleBatchStatus = async (batch: SkuBatchSummary) => {
-    setBatchSaving(true)
-    try {
-      const response = await fetch(`/api/skus/${skuId}/batches/${batch.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ isActive: !batch.isActive }),
-      })
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        throw new Error(error.error || 'Failed to update batch status')
-      }
-
-      fetchBatches()
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to update batch')
-    } finally {
-      setBatchSaving(false)
     }
   }
 
@@ -603,105 +535,13 @@ export default function EditSkuPage() {
           </div>
         </form>
 
-        <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
-          <div className="flex items-start">
-            <Package className="h-5 w-5 text-cyan-600 mt-0.5 mr-3 flex-shrink-0" />
-            <div className="text-sm text-cyan-800">
-              <p className="font-semibold mb-1">SKU Update Tips:</p>
-              <ul className="list-disc list-inside space-y-1">
-                <li>Changes will apply to future transactions only</li>
-                <li>Historical data will retain the values at the time of transaction</li>
-                <li>Update dimensions and weights for accurate shipping calculations</li>
-                <li>Deactivate SKUs instead of deleting to preserve historical data</li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
         <div className="bg-white border rounded-lg p-6 space-y-4">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">Product Batches</h2>
-              <p className="text-sm text-slate-500">
-                Only these batches can be used when receiving inventory.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant={batchFormOpen ? 'secondary' : 'outline'}
-              onClick={() => setBatchFormOpen(prev => !prev)}
-              disabled={batchSaving}
-            >
-              {batchFormOpen ? 'Cancel' : 'Add Batch'}
-            </Button>
+          <div>
+            <h2 className="text-lg font-semibold">Product Batches</h2>
+            <p className="text-sm text-slate-500">
+              Batches are defined when creating the SKU and cannot be modified.
+            </p>
           </div>
-
-          {batchFormOpen && (
-            <form onSubmit={handleCreateBatch} className="grid grid-cols-1 gap-4 md:grid-cols-5">
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Batch Code *
-                </label>
-                <input
-                  type="text"
-                  value={batchForm.batchCode}
-                  onChange={e => setBatchForm(prev => ({ ...prev, batchCode: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="e.g., LOT-2025-01"
-                  maxLength={64}
-                  disabled={batchSaving}
-                  required
-                />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-                <input
-                  type="text"
-                  value={batchForm.description}
-                  onChange={e => setBatchForm(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="Optional description"
-                  disabled={batchSaving}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                  Production Date
-                </label>
-                <input
-                  type="date"
-                  value={batchForm.productionDate}
-                  onChange={e =>
-                    setBatchForm(prev => ({ ...prev, productionDate: e.target.value }))
-                  }
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  disabled={batchSaving}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Expiry Date</label>
-                <input
-                  type="date"
-                  value={batchForm.expiryDate}
-                  onChange={e => setBatchForm(prev => ({ ...prev, expiryDate: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                  disabled={batchSaving}
-                />
-              </div>
-              <div className="md:col-span-5 flex items-center justify-end">
-                <Button type="submit" disabled={batchSaving} className="gap-2">
-                  {batchSaving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Creating…
-                    </>
-                  ) : (
-                    'Create Batch'
-                  )}
-                </Button>
-              </div>
-            </form>
-          )}
 
           {batchesLoading ? (
             <div className="flex items-center gap-2 text-sm text-slate-500">
@@ -718,7 +558,6 @@ export default function EditSkuPage() {
                     <th className="px-4 py-2">Production</th>
                     <th className="px-4 py-2">Expiry</th>
                     <th className="px-4 py-2">Status</th>
-                    <th className="px-4 py-2 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -739,17 +578,6 @@ export default function EditSkuPage() {
                           {batch.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
-                      <td className="px-4 py-2 text-right">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => toggleBatchStatus(batch)}
-                          disabled={batchSaving}
-                        >
-                          {batch.isActive ? 'Deactivate' : 'Activate'}
-                        </Button>
-                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -757,7 +585,7 @@ export default function EditSkuPage() {
             </div>
           ) : (
             <p className="text-sm text-slate-500">
-              No batches defined yet. Add the first batch to enable receiving.
+              No batches defined for this SKU.
             </p>
           )}
         </div>

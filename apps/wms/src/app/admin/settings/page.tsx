@@ -13,12 +13,10 @@ import {
  Shield,
  ArrowRight,
  Download,
- Info,
  FileText,
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
-import { HelpfulTips } from '@/components/ui/page-header'
 import { toast } from 'react-hot-toast'
 
 export default function AdminSettingsPage() {
@@ -199,17 +197,6 @@ export default function AdminSettingsPage() {
  <InfoItem label="Total Transactions" value="208" />
  </div>
  </div>
-
- {/* Helpful Tips */}
- <HelpfulTips
- icon={Info}
- tips={[
- "Regularly back up your data using the Export function to prevent data loss.",
- "Configure cost rates before importing transactions to ensure accurate calculations.",
- "Set up email notifications to stay informed about important system events.",
- "Review user permissions periodically to maintain proper access control."
- ]}
- />
  </PageContent>
  </PageContainer>
  </DashboardLayout>

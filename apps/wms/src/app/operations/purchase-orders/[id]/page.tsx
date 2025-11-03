@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
 import { ATTACHMENT_CATEGORIES } from '@/components/operations/receive-attachments-tab'
-import { FileText, ArrowLeft, Loader2, Package2, DollarSign, Truck, Paperclip, Check, ChevronRight } from '@/lib/lucide-icons'
+import { FileText, ArrowLeft, Loader2, Package2, Truck, Paperclip, Check, ChevronRight } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 
 interface PurchaseOrderLineSummary {
@@ -62,26 +62,6 @@ interface MovementNoteSummary {
  warehouseName: string
  lines: MovementNoteLineSummary[]
  attachments?: Record<string, unknown> | null
-}
-
-interface WarehouseInvoiceLineSummary {
- id: string
- chargeCode: string
- description: string | null
- quantity: number
- unitRate: number
- total: number
-}
-
-interface WarehouseInvoiceSummary {
- id: string
- invoiceNumber: string
- status: 'DRAFT' | 'IMPORTED' | 'MATCHED' | 'DISPUTED' | 'CLOSED'
- issuedAt: string | null
- currency: string
- subtotal: number
- total: number
- lines: WarehouseInvoiceLineSummary[]
 }
 
 function statusBadgeClasses(status: PurchaseOrderSummary['status']) {
@@ -148,7 +128,6 @@ export default function PurchaseOrderDetailPage() {
  const [actionLoading, setActionLoading] = useState(false)
  const [order, setOrder] = useState<PurchaseOrderSummary | null>(null)
  const [movementNotes, setMovementNotes] = useState<MovementNoteSummary[]>([])
- const [invoices, setInvoices] = useState<WarehouseInvoiceSummary[]>([])
  const [linkedLoading, setLinkedLoading] = useState(false)
  const [statusUpdating, setStatusUpdating] = useState(false)
  const [detailsSaving, setDetailsSaving] = useState(false)
@@ -295,50 +274,27 @@ export default function PurchaseOrderDetailPage() {
  try {
  setLinkedLoading(true)
 
- const [notesRes, invoicesRes] = await Promise.all([
- fetch(`/api/movement-notes?purchaseOrderId=${order.id}`),
- fetch(`/api/warehouse-invoices?purchaseOrderId=${order.id}`),
- ])
+    const notesRes = await fetch(`/api/movement-notes?purchaseOrderId=${order.id}`)
 
- if (notesRes.ok) {
- const data = await notesRes.json()
- const normalizedNotes: MovementNoteSummary[] = Array.isArray(data?.data)
- ? data.data.map((note: MovementNoteSummary) => ({
- ...note,
- attachments: note.attachments ?? null,
- lines: Array.isArray(note.lines)
- ? note.lines.map(line => ({
- ...line,
- skuCode: line.skuCode ?? null,
- quantity: Number(line.quantity ?? 0),
- varianceQuantity: Number(line.varianceQuantity ?? 0),
- attachments: line.attachments ?? null,
- }))
- : [],
- }))
- : []
- setMovementNotes(normalizedNotes)
- }
-
- if (invoicesRes.ok) {
- const data = await invoicesRes.json()
- const normalizedInvoices: WarehouseInvoiceSummary[] = Array.isArray(data?.data)
- ? data.data.map((invoice: WarehouseInvoiceSummary) => ({
- ...invoice,
- total: Number(invoice.total ?? 0),
- subtotal: Number(invoice.subtotal ?? invoice.total ?? 0),
- lines: Array.isArray(invoice.lines)
- ? invoice.lines.map(line => ({
- ...line,
- quantity: Number(line.quantity ?? 0),
- unitRate: Number(line.unitRate ?? 0),
- total: Number(line.total ?? 0),
- }))
- : [],
- }))
- : []
- setInvoices(normalizedInvoices)
- }
+    if (notesRes.ok) {
+      const data = await notesRes.json()
+      const normalizedNotes: MovementNoteSummary[] = Array.isArray(data?.data)
+        ? data.data.map((note: MovementNoteSummary) => ({
+            ...note,
+            attachments: note.attachments ?? null,
+            lines: Array.isArray(note.lines)
+              ? note.lines.map(line => ({
+                  ...line,
+                  skuCode: line.skuCode ?? null,
+                  quantity: Number(line.quantity ?? 0),
+                  varianceQuantity: Number(line.varianceQuantity ?? 0),
+                  attachments: line.attachments ?? null,
+                }))
+              : [],
+          }))
+        : []
+      setMovementNotes(normalizedNotes)
+    }
  } catch (_error) {
  // ignore individual fetch errors; main order fetch already surfaced issues
  } finally {
@@ -497,8 +453,6 @@ export default function PurchaseOrderDetailPage() {
  }
 
  const totalQuantity = order.lines.reduce((sum, line) => sum + line.quantity, 0)
- const formatCurrency = (value: number, currency: string) =>
- value.toLocaleString(undefined, { style: 'currency', currency })
  const isInbound = order.type === 'PURCHASE'
  const workflowLabel = isInbound ? 'Receive' : order.type === 'FULFILLMENT' ? 'Ship' : 'Adjustment'
  const statusHelper = statusUpdating
@@ -533,10 +487,9 @@ export default function PurchaseOrderDetailPage() {
  { id: 'details', label: isInbound ? 'Receipt Details' : 'Shipment Details', icon: <FileText className="h-4 w-4" /> },
  { id: 'cargo', label: `Cargo (${order.lines.length})`, icon: <Package2 className="h-4 w-4" /> },
  { id: 'attachments', label: `Attachments (${totalAttachments})`, icon: <Paperclip className="h-4 w-4" /> },
- ...(showMovementTab
- ? [{ id: 'movement', label: `Movement Notes (${movementNotes.length})`, icon: <FileText className="h-4 w-4" /> }]
- : []),
- { id: 'invoices', label: `Warehouse Invoices (${invoices.length})`, icon: <DollarSign className="h-4 w-4" /> },
+    ...(showMovementTab
+      ? [{ id: 'movement', label: `Movement Notes (${movementNotes.length})`, icon: <FileText className="h-4 w-4" /> }]
+      : []),
  ]
 
  const formatFileSize = (bytes: number) => {
@@ -961,56 +914,6 @@ export default function PurchaseOrderDetailPage() {
  </TabPanel>
  )}
 
- <TabPanel>
- <div className="space-y-4">
- <div className="flex items-center justify-between text-sm text-muted-foreground">
- <span>Warehouse invoices linked to this order</span>
- <span>{linkedLoading ? 'Refreshing…' : `${invoices.length} invoice${invoices.length === 1 ? '' : 's'}`}</span>
- </div>
- <div className="overflow-x-auto rounded-xl border">
- <table className="min-w-full table-auto text-sm">
- <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
- <tr>
- <th className="px-3 py-2 text-left font-semibold">Invoice</th>
- <th className="px-3 py-2 text-left font-semibold">Status</th>
- <th className="px-3 py-2 text-left font-semibold">Issued</th>
- <th className="px-3 py-2 text-right font-semibold">Total</th>
- <th className="px-3 py-2 text-left font-semibold">Actions</th>
- </tr>
- </thead>
- <tbody>
- {invoices.length === 0 ? (
- <tr>
- <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
- No warehouse invoices linked yet.
- </td>
- </tr>
- ) : (
- invoices.map(invoice => (
- <tr key={invoice.id} className="odd:bg-muted/20">
- <td className="px-3 py-2 whitespace-nowrap">
- <Link href={`/operations/warehouse-invoices/${invoice.id}`} prefetch={false} className="text-primary hover:underline">
- {invoice.invoiceNumber}
- </Link>
- </td>
- <td className="px-3 py-2 whitespace-nowrap">
- <Badge variant="outline">{invoice.status}</Badge>
- </td>
- <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{invoice.issuedAt ? formatDate(invoice.issuedAt) : '—'}</td>
- <td className="px-3 py-2 text-right font-semibold whitespace-nowrap">{formatCurrency(invoice.total, invoice.currency)}</td>
- <td className="px-3 py-2 text-xs text-primary whitespace-nowrap">
- <Link href={`/operations/warehouse-invoices/${invoice.id}`} prefetch={false} className="hover:underline">
- View invoice
- </Link>
- </td>
- </tr>
- ))
- )}
- </tbody>
- </table>
- </div>
- </div>
- </TabPanel>
  </TabbedContainer>
  </div>
  </DashboardLayout>

@@ -2,10 +2,17 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save, Package } from '@/lib/lucide-icons'
+import { ArrowLeft, Save, Plus, Trash2 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+
+interface Batch {
+ batchCode: string
+ description: string
+ productionDate: string
+ expiryDate: string
+}
 
 export default function NewSkuPage() {
  const router = useRouter()
@@ -24,11 +31,28 @@ export default function NewSkuPage() {
  packagingType: '',
  isActive: true
  })
- 
+
  // Separate state for dimension inputs
  const [unitDimensions, setUnitDimensions] = useState({ length: '', width: '', height: '' })
  const [cartonDimensions, setCartonDimensions] = useState({ length: '', width: '', height: '' })
  const [errors, setErrors] = useState<Record<string, string>>({})
+ const [batches, setBatches] = useState<Batch[]>([{ batchCode: '', description: '', productionDate: '', expiryDate: '' }])
+
+ const addBatch = () => {
+ setBatches([...batches, { batchCode: '', description: '', productionDate: '', expiryDate: '' }])
+ }
+
+ const removeBatch = (index: number) => {
+ if (batches.length > 1) {
+ setBatches(batches.filter((_, i) => i !== index))
+ }
+ }
+
+ const updateBatch = (index: number, field: keyof Batch, value: string) => {
+ const newBatches = [...batches]
+ newBatches[index][field] = value
+ setBatches(newBatches)
+ }
 
  const validateForm = () => {
  const newErrors: Record<string, string> = {}
@@ -59,13 +83,26 @@ export default function NewSkuPage() {
  newErrors.cartonWeightKg = 'Weight must be positive'
  }
 
+ // Validate batches - at least one batch with a batch code is required
+ const validBatches = batches.filter(b => b.batchCode.trim())
+ if (validBatches.length === 0) {
+ newErrors.batches = 'At least one batch with a batch code is required'
+ }
+
+ // Check for duplicate batch codes
+ const batchCodes = validBatches.map(b => b.batchCode.trim().toUpperCase())
+ const duplicates = batchCodes.filter((code, index) => batchCodes.indexOf(code) !== index)
+ if (duplicates.length > 0) {
+ newErrors.batches = 'Duplicate batch codes are not allowed'
+ }
+
  setErrors(newErrors)
  return Object.keys(newErrors).length === 0
  }
 
  const handleSubmit = async (e: React.FormEvent) => {
  e.preventDefault()
- 
+
  if (!validateForm()) return
 
  setLoading(true)
@@ -75,7 +112,7 @@ export default function NewSkuPage() {
  if (!dims.length && !dims.width && !dims.height) return undefined
  return `${dims.length || 0}x${dims.width || 0}x${dims.height || 0}`
  }
- 
+
  const submitData = {
  ...formData,
  skuCode: formData.skuCode.toUpperCase(),
@@ -90,6 +127,7 @@ export default function NewSkuPage() {
  packagingType: formData.packagingType || undefined
  }
 
+ // Create SKU
  const response = await fetch('/api/skus', {
  method: 'POST',
  headers: { 'Content-Type': 'application/json' },
@@ -101,7 +139,30 @@ export default function NewSkuPage() {
  throw new Error(error.error || 'Failed to create SKU')
  }
 
- alert('SKU created successfully!')
+ const createdSku = await response.json()
+ const skuId = createdSku.id
+
+ // Create batches
+ const validBatches = batches.filter(b => b.batchCode.trim())
+ for (const batch of validBatches) {
+ const batchResponse = await fetch(`/api/skus/${skuId}/batches`, {
+ method: 'POST',
+ headers: { 'Content-Type': 'application/json' },
+ body: JSON.stringify({
+ batchCode: batch.batchCode.toUpperCase(),
+ description: batch.description || undefined,
+ productionDate: batch.productionDate || undefined,
+ expiryDate: batch.expiryDate || undefined
+ })
+ })
+
+ if (!batchResponse.ok) {
+ const error = await batchResponse.json().catch(() => ({}))
+ throw new Error(error.error || `Failed to create batch ${batch.batchCode}`)
+ }
+ }
+
+ alert('SKU and batches created successfully!')
  router.push('/config/products')
  } catch (error: unknown) {
  // console.error('Error creating SKU:', error)
@@ -387,6 +448,105 @@ export default function NewSkuPage() {
  </div>
  </div>
 
+ {/* Product Batches */}
+ <div className="bg-white border rounded-lg p-6">
+ <div className="flex items-center justify-between mb-4">
+ <div>
+ <h2 className="text-lg font-semibold">Product Batches *</h2>
+ <p className="text-sm text-slate-500">
+ Define batch codes for inventory tracking. At least one batch is required.
+ </p>
+ </div>
+ <Button
+ type="button"
+ variant="outline"
+ onClick={addBatch}
+ className="gap-2"
+ >
+ <Plus className="h-4 w-4" />
+ Add Batch
+ </Button>
+ </div>
+
+ {errors.batches && (
+ <p className="text-red-500 text-sm mb-4">{errors.batches}</p>
+ )}
+
+ <div className="space-y-4">
+ {batches.map((batch, index) => (
+ <div key={index} className="border rounded-lg p-4">
+ <div className="flex items-center justify-between mb-3">
+ <h3 className="text-sm font-medium text-slate-700">Batch {index + 1}</h3>
+ {batches.length > 1 && (
+ <Button
+ type="button"
+ variant="ghost"
+ size="sm"
+ onClick={() => removeBatch(index)}
+ className="text-red-600 hover:text-red-700 hover:bg-red-50"
+ >
+ <Trash2 className="h-4 w-4" />
+ </Button>
+ )}
+ </div>
+
+ <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+ <div>
+ <label className="block text-sm font-medium text-slate-700 mb-1">
+ Batch Code *
+ </label>
+ <input
+ type="text"
+ value={batch.batchCode}
+ onChange={(e) => updateBatch(index, 'batchCode', e.target.value)}
+ className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+ placeholder="e.g., LOT-2025-01"
+ maxLength={64}
+ />
+ </div>
+
+ <div>
+ <label className="block text-sm font-medium text-slate-700 mb-1">
+ Description
+ </label>
+ <input
+ type="text"
+ value={batch.description}
+ onChange={(e) => updateBatch(index, 'description', e.target.value)}
+ className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+ placeholder="Optional description"
+ />
+ </div>
+
+ <div>
+ <label className="block text-sm font-medium text-slate-700 mb-1">
+ Production Date
+ </label>
+ <input
+ type="date"
+ value={batch.productionDate}
+ onChange={(e) => updateBatch(index, 'productionDate', e.target.value)}
+ className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+ />
+ </div>
+
+ <div>
+ <label className="block text-sm font-medium text-slate-700 mb-1">
+ Expiry Date
+ </label>
+ <input
+ type="date"
+ value={batch.expiryDate}
+ onChange={(e) => updateBatch(index, 'expiryDate', e.target.value)}
+ className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+ />
+ </div>
+ </div>
+ </div>
+ ))}
+ </div>
+ </div>
+
  {/* Actions */}
  <div className="flex items-center justify-end gap-4">
  <Button asChild variant="ghost">
@@ -407,22 +567,6 @@ export default function NewSkuPage() {
  </Button>
  </div>
  </form>
-
- <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4">
- <div className="flex items-start">
- <Package className="h-5 w-5 text-cyan-600 mt-0.5 mr-3 flex-shrink-0" />
- <div className="text-sm text-cyan-800">
- <p className="font-semibold mb-1">SKU Setup Tips:</p>
- <ul className="list-disc list-inside space-y-1">
- <li>Use a consistent naming convention for SKU codes</li>
- <li>Include accurate dimensions and weights for shipping calculations</li>
- <li>Pack size refers to the selling unit quantity</li>
- <li>Units per carton is used for warehouse operations</li>
- <li>You can update these details later as needed</li>
- </ul>
- </div>
- </div>
- </div>
  </div>
  </DashboardLayout>
  )

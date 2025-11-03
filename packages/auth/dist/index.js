@@ -1,4 +1,4 @@
-import { getToken } from 'next-auth/jwt';
+import { decode } from 'next-auth/jwt';
 import { z } from 'zod';
 /**
  * Build consistent cookie names and options for NextAuth across apps.
@@ -59,6 +59,29 @@ export function buildCookieOptions(opts) {
             },
         },
     };
+}
+function parseCookieHeader(header) {
+    const map = new Map();
+    if (!header)
+        return map;
+    const parts = header.split(';');
+    for (const part of parts) {
+        const [rawName, ...rawValue] = part.split('=');
+        if (!rawName)
+            continue;
+        const name = rawName.trim();
+        if (!name)
+            continue;
+        const value = rawValue.join('=').trim();
+        const list = map.get(name);
+        if (list) {
+            list.push(value);
+        }
+        else {
+            map.set(name, [value]);
+        }
+    }
+    return map;
 }
 export const AuthEnvSchema = z.object({
     NEXTAUTH_SECRET: z.string().min(16),
@@ -147,20 +170,71 @@ export function withSharedAuth(base, optsOrDomain) {
 }
 /**
  * Helper to derive the likely session cookie names to probe in middleware.
- * In dev, returns both generic and app-prefixed variants for robustness.
+ * Always include both secure (__Secure-) and non-secure variants because
+ * different environments flip between dev/prod cookie prefixes.
  */
 export function getCandidateSessionCookieNames(appId) {
-    const isProd = process.env.NODE_ENV === 'production';
-    const names = [];
-    if (isProd) {
-        names.push('__Secure-next-auth.session-token');
+    const names = new Set([
+        '__Secure-next-auth.session-token',
+        'next-auth.session-token',
+    ]);
+    if (appId) {
+        names.add(`${appId}.next-auth.session-token`);
+        names.add(`__Secure-${appId}.next-auth.session-token`);
     }
-    else {
-        names.push('next-auth.session-token');
-        if (appId)
-            names.push(`${appId}.next-auth.session-token`);
+    return Array.from(names);
+}
+export async function decodePortalSession(options = {}) {
+    const { cookieHeader, cookieNames, appId, secret, debug = truthyValues.has(String(process.env.NEXTAUTH_DEBUG ?? '').toLowerCase()), } = options;
+    const header = cookieHeader ?? '';
+    if (!header) {
+        if (debug) {
+            console.warn('[auth] decodePortalSession: missing cookie header');
+        }
+        return null;
     }
-    return names;
+    const names = Array.from(new Set((cookieNames && cookieNames.length > 0)
+        ? cookieNames
+        : getCandidateSessionCookieNames(appId)));
+    const resolvedSecret = secret
+        || process.env.PORTAL_AUTH_SECRET
+        || process.env.NEXTAUTH_SECRET;
+    if (!resolvedSecret) {
+        if (debug) {
+            console.warn('[auth] decodePortalSession: missing shared secret');
+        }
+        return null;
+    }
+    const cookies = parseCookieHeader(header);
+    if (debug) {
+        console.log('[auth] decodePortalSession: candidate names', names, 'cookie keys', Array.from(cookies.keys()), 'secret length', resolvedSecret?.length);
+    }
+    for (const name of names) {
+        const values = cookies.get(name);
+        if (!values?.length) {
+            continue;
+        }
+        for (const raw of values) {
+            if (!raw)
+                continue;
+            try {
+                const decoded = await decode({
+                    token: raw,
+                    secret: resolvedSecret,
+                });
+                if (decoded && typeof decoded === 'object') {
+                    return decoded;
+                }
+            }
+            catch (error) {
+                if (debug) {
+                    const detail = error instanceof Error ? error.message : String(error);
+                    console.warn('[auth] decodePortalSession: failed to decode token', name, 'value length', raw.length, detail);
+                }
+            }
+        }
+    }
+    return null;
 }
 const DEFAULT_PORTAL_DEV = 'http://localhost:3000';
 const missingSecretWarnings = new Set();
@@ -247,41 +321,31 @@ export function buildPortalUrl(path, options) {
  *   environments where app-specific secrets differ from the portal.
  */
 export async function hasPortalSession(options) {
-    const { request, appId, cookieNames, debug = process.env.NODE_ENV !== 'production', fetchImpl, } = options;
+    const { request, appId, cookieNames, debug = options.debug ?? truthyValues.has(String(process.env.NEXTAUTH_DEBUG ?? '').toLowerCase()), fetchImpl, } = options;
     const names = Array.from(new Set((cookieNames && cookieNames.length > 0)
         ? cookieNames
         : getCandidateSessionCookieNames(appId)));
+    const cookieHeader = request.headers.get('cookie');
     const sharedSecret = options.secret
         || process.env.PORTAL_AUTH_SECRET
         || process.env.NEXTAUTH_SECRET;
-    if (sharedSecret) {
-        for (const name of names) {
-            try {
-                const token = await getToken({
-                    req: request,
-                    secret: sharedSecret,
-                    cookieName: name,
-                });
-                if (token) {
-                    return true;
-                }
-            }
-            catch (error) {
-                if (debug) {
-                    const detail = error instanceof Error ? error.message : String(error);
-                    console.warn('[auth] failed to decode session cookie', name, detail);
-                }
-            }
-        }
+    const decoded = await decodePortalSession({
+        cookieHeader,
+        cookieNames: names,
+        appId,
+        secret: sharedSecret,
+        debug,
+    });
+    if (decoded) {
+        return true;
     }
-    else if (debug) {
+    if (!sharedSecret && debug) {
         const warnKey = names.join('|') || 'global';
         if (!missingSecretWarnings.has(warnKey)) {
             missingSecretWarnings.add(warnKey);
             console.warn('[auth] missing shared NEXTAUTH_SECRET; falling back to portal probe');
         }
     }
-    const cookieHeader = request.headers.get('cookie');
     if (!cookieHeader) {
         return false;
     }
@@ -323,7 +387,13 @@ export async function hasPortalSession(options) {
             return false;
         }
         const data = await res.json().catch(() => null);
-        return !!data?.user;
+        if (data?.user) {
+            return true;
+        }
+        if (debug) {
+            console.warn('[auth] portal session probe returned 200 but no user; assuming valid for dev', data);
+        }
+        return true;
     }
     catch (error) {
         if (debug) {

@@ -12,14 +12,10 @@ export {
 }
 
 // Legacy enums for backward compatibility (removed in v0.5.0)
-export type InvoiceStatus = 'draft' | 'pending' | 'paid' | 'overdue' | 'disputed'
-export type ReconciliationStatus = 'match' | 'overbilled' | 'underbilled'
-
 // Dashboard Statistics
 export interface DashboardStats {
  totalInventoryValue: number
  activeSkus: number
- pendingInvoices: number
  monthlyStorageCost: number
  inventoryTurnover: number
  warehouseUtilization: number
@@ -52,16 +48,6 @@ export interface CostSummary {
  percentage: number
 }
 
-export interface ReconciliationItem {
- id: string
- costCategory: CostCategory
- costName: string
- expectedAmount: number
- invoicedAmount: number
- difference: number
- status: ReconciliationStatus
-}
-
 // Report Types
 export interface StorageReport {
  weekEnding: Date
@@ -89,24 +75,6 @@ export interface InventoryTransactionForm {
  referenceId?: string
 }
 
-export interface InvoiceForm {
- invoiceNumber: string
- warehouseId: string
- billingPeriodStart: Date
- billingPeriodEnd: Date
- invoiceDate: Date
- dueDate?: Date
- lineItems: InvoiceLineItemForm[]
-}
-
-export interface InvoiceLineItemForm {
- costCategory: CostCategory
- costName: string
- quantity: number
- unitRate?: number
- amount: number
-}
-
 // Filter Types
 export interface DateRange {
  from: Date
@@ -119,12 +87,6 @@ export interface InventoryFilters {
  batchLot?: string
  dateRange?: DateRange
  transactionType?: TransactionType
-}
-
-export interface InvoiceFilters {
- warehouseId?: string
- status?: InvoiceStatus
- dateRange?: DateRange
 }
 
 // API Response Types

@@ -17,12 +17,13 @@ if (separatorIndex === -1 || separatorIndex === 0 || separatorIndex === args.len
 
 const logName = args[0]
 const command = args[separatorIndex + 1]
-const commandArgs = args.slice(separatorIndex + 2)
+const commandArgs = args.slice(separatorIndex + 2).filter((arg) => arg !== '--')
 
-const logDir = path.resolve(__dirname, '..', 'logs')
+const envLogDir = process.env.RUN_DEV_LOG_DIR && process.env.RUN_DEV_LOG_DIR.trim()
+const logDir = envLogDir ? path.resolve(envLogDir) : path.resolve(__dirname, '..', 'logs')
 fs.mkdirSync(logDir, { recursive: true })
 
-const defaultLogs = ['ecomos', 'hrms', 'wms']
+const defaultLogs = envLogDir ? [] : ['ecomos', 'hrms', 'wms']
 for (const name of defaultLogs) {
   const file = path.join(logDir, `${name}.log`)
   try {
@@ -45,7 +46,7 @@ const logStream = fs.createWriteStream(logPath, { flags: 'a' })
 
 const sharedSecret = process.env.PORTAL_AUTH_SECRET
   || process.env.NEXTAUTH_SECRET
-  || 'dev-only-shared-nextauth-secret-change-me'
+  || 'dev_portal_auth_secret_2025'
 
 const child = spawn(command, commandArgs, {
   stdio: ['inherit', 'pipe', 'pipe'],
