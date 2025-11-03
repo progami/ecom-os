@@ -45,7 +45,7 @@ const logStream = fs.createWriteStream(logPath, { flags: 'a' })
 
 const sharedSecret = process.env.PORTAL_AUTH_SECRET
   || process.env.NEXTAUTH_SECRET
-  || 'dev-only-shared-nextauth-secret-change-me'
+  || 'dev_portal_auth_secret_2025'
 
 const child = spawn(command, commandArgs, {
   stdio: ['inherit', 'pipe', 'pipe'],

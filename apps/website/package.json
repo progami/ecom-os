@@ -4,7 +4,7 @@
   "private": true,
   "description": "Targon Global – Company site and Ecom OS hub",
   "scripts": {
-    "dev": "node ../../scripts/run-dev-with-logs.js website -- next dev -p 3001",
+    "dev": "node ../../scripts/run-dev-with-logs.js website -- next dev -p 3105",
     "dev:port": "PORT=3001 next dev",
     "build": "next build",
     "start": "next start",

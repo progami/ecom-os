@@ -18,6 +18,7 @@ packages/**/prisma/generated/
 
 # Logs
 logs/
+**/logs-dev/
 *.log
 
 # Env

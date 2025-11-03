@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
  forwardRef,
  useCallback,
@@ -56,6 +57,7 @@ const STATUS_FILTERS: { label: string; value: StatusFilter }[] = [
 ]
 
 const ProductsPanel = forwardRef<ProductsPanelHandle>((_, ref) => {
+ const router = useRouter()
  const [skus, setSkus] = useState<Sku[]>([])
  const [loading, setLoading] = useState(false)
  const [searchTerm, setSearchTerm] = useState('')
@@ -248,7 +250,7 @@ const ProductsPanel = forwardRef<ProductsPanelHandle>((_, ref) => {
  !searchTerm && statusFilter === 'ALL'
  ? {
  label: 'Create SKU',
- onClick: () => window.location.assign('/config/products/new'),
+ onClick: () => router.push('/config/products/new'),
  }
  : undefined
  }

@@ -40,9 +40,6 @@ function resolveCookieDomain(explicit: string | undefined, baseUrl: string | und
       const normalizedHost = hostname.replace(/\.$/, '')
       if (trimmed && trimmed !== '') {
         const normalizedExplicit = trimmed.startsWith('.') ? trimmed.slice(1) : trimmed
-        if (trimmed === '.targonglobal.com' && normalizedHost && normalizedHost !== 'ecomos.targonglobal.com') {
-          return `.${normalizedHost}`
-        }
         if (normalizedHost && !normalizedHost.endsWith(normalizedExplicit)) {
           return `.${normalizedHost}`
         }

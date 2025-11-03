@@ -1,21 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@prisma/client'
 import {
- getPaginationParams,
- getPaginationSkipTake,
- createPaginatedResponse
+  getPaginationParams,
+  getPaginationSkipTake,
+  createPaginatedResponse
 } from '@/lib/database/pagination'
 import { sanitizeSearchQuery } from '@/lib/security/input-sanitization'
 import { aggregateInventoryTransactions } from '@ecom-os/ledger'
+import { resolvePortalSession } from '@/lib/portal-session'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
  try {
- const session = await getServerSession(authOptions)
+ const session = await resolvePortalSession(req) ?? await getServerSession(authOptions)
  if (!session) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }

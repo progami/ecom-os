@@ -84,11 +84,13 @@ export default function DashboardPage() {
  const [showTimeRangeDropdown, setShowTimeRangeDropdown] = useState(false)
  const [hasError, setHasError] = useState(false)
  
- // Redirect to login if not authenticated
+ // Trust middleware auth check - don't redirect on client
+ // The middleware already validates the portal session
  useEffect(() => {
- if (status === 'unauthenticated') {
- router.push('/auth/login?callbackUrl=/dashboard')
- }
+ // Commented out to trust middleware auth
+ // if (status === 'unauthenticated') {
+ // router.push('/auth/login?callbackUrl=/dashboard')
+ // }
  }, [status, router])
  
  // Always use real data, never demo data
