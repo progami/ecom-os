@@ -26,14 +26,14 @@ We use pnpm workspaces and Turborepo. All apps live under `apps/` and shared cod
 
 - Active (production/CI deploy wired)
   - @ecom-os/website (`apps/website`) – www.targonglobal.com
-  - @ecom-os/wms (`apps/wms`) – wms.targonglobal.com
+  - @ecom-os/wms (`apps/wms`) – ecomos.targonglobal.com/wms
 - Pre-release (wiring CI + envs)
-  - @ecom-os/hrms (`apps/hrms`) – hrms.targonglobal.com
-  - @ecom-os/fcc (`apps/fcc`) – fcc.targonglobal.com
+  - @ecom-os/hrms (`apps/hrms`) – ecomos.targonglobal.com/hrms
+  - @ecom-os/fcc (`apps/fcc`) – ecomos.targonglobal.com/fcc
 - In development (not released)
-  - @ecom-os/central-db (`apps/central-db`) – portaldb.targonglobal.com
-  - @ecom-os/margin-master (`apps/margin-master`) – mm.targonglobal.com
-  - @ecom-os/jason (`apps/jason`) – jason.targonglobal.com
+  - @ecom-os/central-db (`apps/central-db`) – ecomos.targonglobal.com/central-db
+  - @ecom-os/margin-master (`apps/margin-master`) – ecomos.targonglobal.com/margin-master
+  - @ecom-os/jason (`apps/jason`) – ecomos.targonglobal.com/jason
 - Experimental (non-production)
   - E2 (`apps/e2`)
   - YE 2024 (`apps/ye-2024`)
