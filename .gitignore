@@ -24,12 +24,9 @@ logs/
 # Env
 .env*
 *.mcp.json
-!apps/ecomos/.env.dev
-!apps/ecomos/.env.local
-!apps/wms/.env.dev
-!apps/wms/.env.local
-!apps/x-plan/.env.dev
-!apps/x-plan/.env.local
+!apps/ecomos/.env.dev.ci
+!apps/wms/.env.dev.ci
+!apps/x-plan/.env.dev.ci
 
 # Editor
 .DS_Store

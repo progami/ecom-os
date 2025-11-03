@@ -24,6 +24,14 @@ jobs:
         run: corepack enable && corepack prepare pnpm@9.0.0 --activate
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Populate dev env files
+        run: |
+          cp apps/ecomos/.env.dev.ci apps/ecomos/.env.dev
+          cp apps/ecomos/.env.dev.ci apps/ecomos/.env.local
+          cp apps/wms/.env.dev.ci apps/wms/.env.dev
+          cp apps/wms/.env.dev.ci apps/wms/.env.local
+          cp apps/x-plan/.env.dev.ci apps/x-plan/.env.dev
+          cp apps/x-plan/.env.dev.ci apps/x-plan/.env.local
       - name: Verify dev environment configuration
         run: bash scripts/verify-dev-env.sh
       - name: Generate Prisma client
