@@ -143,7 +143,7 @@ const nextConfig = {
     
     return config
   },
-  
+
   
   // Enable experimental features for production optimization
   experimental: {

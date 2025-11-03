@@ -251,7 +251,7 @@ export async function decodePortalSession(options: DecodePortalSessionOptions = 
     cookieNames,
     appId,
     secret,
-    debug = process.env.NODE_ENV !== 'production',
+    debug = truthyValues.has(String(process.env.NEXTAUTH_DEBUG ?? '').toLowerCase()),
   } = options;
 
   const header = cookieHeader ?? '';
@@ -430,7 +430,7 @@ export async function hasPortalSession(options: PortalSessionProbeOptions): Prom
     request,
     appId,
     cookieNames,
-    debug = process.env.NODE_ENV !== 'production',
+    debug = options.debug ?? truthyValues.has(String(process.env.NEXTAUTH_DEBUG ?? '').toLowerCase()),
     fetchImpl,
   } = options;
 

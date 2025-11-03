@@ -66,22 +66,21 @@ export async function middleware(request: NextRequest) {
 
  // Check for session using shared cookie naming scheme
 const cookieNames = Array.from(new Set([
-...getCandidateSessionCookieNames('ecomos'),
-...getCandidateSessionCookieNames('wms'),
+  ...getCandidateSessionCookieNames('ecomos'),
+  ...getCandidateSessionCookieNames('wms'),
 ]))
 const sharedSecret = process.env.PORTAL_AUTH_SECRET ?? 'dev_portal_auth_secret_2025'
-if (process.env.NODE_ENV !== 'production') {
- // eslint-disable-next-line no-console
- console.log('[WMS middleware] using shared secret', sharedSecret ? sharedSecret.length : 0)
-}
- const hasSession = await hasPortalSession({
- request,
- appId: 'ecomos',
- cookieNames,
-secret: sharedSecret,
- portalUrl: process.env.PORTAL_AUTH_URL,
- debug: true, // Always debug for now
- })
+const authDebugFlag =
+  typeof process.env.NEXTAUTH_DEBUG === 'string' &&
+  ['1', 'true', 'yes', 'on'].includes(process.env.NEXTAUTH_DEBUG.toLowerCase())
+const hasSession = await hasPortalSession({
+  request,
+  appId: 'ecomos',
+  cookieNames,
+  secret: sharedSecret,
+  portalUrl: process.env.PORTAL_AUTH_URL,
+  debug: authDebugFlag,
+})
 
  // If no token and trying to access protected route, redirect to portal login
  if (!hasSession && !normalizedPath.startsWith('/auth/')) {

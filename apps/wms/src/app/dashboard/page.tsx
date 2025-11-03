@@ -25,8 +25,6 @@ interface DashboardStats {
  costChange: string
  costTrend: 'up' | 'down' | 'neutral'
  activeSkus: number
- pendingInvoices: number
- overdueInvoices: number
 }
 
 
@@ -58,19 +56,6 @@ interface ChartData {
  }
  reorderAlerts?: number
  plannedShipments?: number
- // Finance data
- reconciliationStatus?: {
- matched: number
- mismatched: number
- pending: number
- }
- recentInvoices?: Array<{
- id: string
- clientName: string
- amount: string
- status: 'pending' | 'paid' | 'overdue'
- date: string
- }>
 }
 
 export default function DashboardPage() {
@@ -279,19 +264,6 @@ export default function DashboardPage() {
  }
  }
 
- const _finData = {
- data: {
- storageCost: stats?.storageCost,
- costChange: stats?.costChange,
- costTrend: stats?.costTrend,
- pendingInvoices: stats?.pendingInvoices,
- overdueInvoices: stats?.overdueInvoices,
- reconciliationStatus: chartData?.reconciliationStatus,
- recentInvoices: chartData?.recentInvoices,
- costTrendData: chartData?.costTrend
- }
- }
-
  return (
  <DashboardLayout>
  <PageContainer>
@@ -351,4 +323,3 @@ export default function DashboardPage() {
  </DashboardLayout>
  )
 }
-

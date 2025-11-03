@@ -129,7 +129,6 @@ export async function resolvePortalSession(request: NextRequest): Promise<Sessio
     cookieNames: candidates,
     appId: APP_ID,
     secret: portalSecret,
-    debug: process.env.NODE_ENV !== 'production',
   })
 
   const directSession = buildSessionFromPayload(decoded as unknown as PortalSessionPayload | null)

@@ -11,9 +11,6 @@ export async function DELETE(_request: NextRequest) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }
 
- // Delete demo invoices - removed as invoice model no longer exists
- const deletedInvoices = { count: 0 }
-
  // Delete demo transactions
  // Note: We no longer have a createdBy relation, need to find demo user IDs first
  const demoUsers = await prisma.user.findMany({
@@ -49,12 +46,11 @@ export async function DELETE(_request: NextRequest) {
  return NextResponse.json({
  success: true,
  message: 'Demo data cleaned up successfully',
- deleted: {
- invoices: deletedInvoices.count,
- transactions: deletedTransactions.count,
- users: deletedUsers.count,
- warehouses: deletedWarehouses.count
- }
+      deleted: {
+        transactions: deletedTransactions.count,
+        users: deletedUsers.count,
+        warehouses: deletedWarehouses.count
+      }
  })
  } catch (_error) {
  // console.error('Error cleaning up demo data:', _error)

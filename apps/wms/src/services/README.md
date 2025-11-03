@@ -8,7 +8,6 @@ This directory contains the service layer implementation following Domain-Driven
 src/
 ├── services/
 │   ├── base.service.ts      # Base service class with common functionality
-│   ├── invoice.service.ts   # Invoice management business logic
 │   ├── warehouse.service.ts # Warehouse operations
 │   ├── user.service.ts      # User management
 │   ├── finance.service.ts   # Financial operations
@@ -32,25 +31,22 @@ The `BaseService` class provides common functionality for all services:
 ### Example Usage:
 
 ```typescript
-export class InvoiceService extends BaseService {
-  async createInvoice(data: CreateInvoiceDto) {
-    // Permission check
-    await this.requirePermission('invoice:create')
-    
-    // Execute in transaction
-    const invoice = await this.executeInTransaction(async (tx) => {
-      // Business logic here
-      const invoice = await tx.invoice.create({ data })
-      
-      // Audit logging
-      await this.logAudit('INVOICE_CREATED', 'Invoice', invoice.id, {
-        invoiceNumber: invoice.invoiceNumber
+export class WarehouseService extends BaseService {
+  async createWarehouse(data: Prisma.WarehouseCreateInput) {
+    await this.requirePermission('warehouse:create')
+
+    const warehouse = await this.executeInTransaction(async (tx) => {
+      const created = await tx.warehouse.create({ data })
+
+      await this.logAudit('WAREHOUSE_CREATED', 'Warehouse', created.id, {
+        code: created.code,
+        name: created.name,
       })
-      
-      return invoice
+
+      return created
     })
-    
-    return invoice
+
+    return warehouse
   }
 }
 ```
@@ -83,10 +79,10 @@ Services enforce permissions:
 
 ```typescript
 // Check permission (returns boolean)
-const hasPermission = await this.checkPermission('invoice:read')
+const hasPermission = await this.checkPermission('warehouse:read')
 
 // Require permission (throws if denied)
-await this.requirePermission('invoice:create')
+await this.requirePermission('warehouse:create')
 ```
 
 ### 4. Transaction Management
@@ -96,9 +92,9 @@ Complex operations use transactions:
 ```typescript
 const result = await this.executeInTransaction(async (tx) => {
   // All database operations use tx instead of this.prisma
-  const invoice = await tx.invoice.create({ data })
-  const lineItems = await tx.invoiceLineItem.createMany({ data })
-  return { invoice, lineItems }
+  const warehouse = await tx.warehouse.create({ data })
+  const locations = await tx.warehouseLocation.createMany({ data: locationPayload })
+  return { warehouse, locations }
 })
 ```
 
@@ -113,7 +109,7 @@ API routes become thin layers that:
 ### Example API Route:
 
 ```typescript
-// src/app/api/invoices/route.ts
+// src/app/api/warehouses/route.ts
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -122,20 +118,17 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    
-    // Use service layer
-    const invoiceService = createInvoiceService(session)
-    const result = await invoiceService.createInvoice(body)
-    
-    return NextResponse.json(result, { status: 201 })
+    const warehouseService = createWarehouseService(session)
+    const warehouse = await warehouseService.createWarehouse(body)
+
+    return NextResponse.json(warehouse, { status: 201 })
   } catch (error) {
-    // Handle errors based on type
     if (error instanceof Error && error.message.includes('Permission denied')) {
       return NextResponse.json({ error: error.message }, { status: 403 })
     }
-    
+
     return NextResponse.json(
-      { error: 'Failed to create invoice' },
+      { error: 'Failed to create warehouse' },
       { status: 500 }
     )
   }
@@ -147,10 +140,10 @@ export async function POST(req: NextRequest) {
 Use factory functions to create service instances with proper dependencies:
 
 ```typescript
-import { createInvoiceService } from '@/services'
+import { createWarehouseService } from '@/services'
 
 // In API route
-const invoiceService = createInvoiceService(session)
+const warehouseService = createWarehouseService(session)
 ```
 
 ## Benefits

@@ -185,7 +185,7 @@ export function getCandidateSessionCookieNames(appId) {
     return Array.from(names);
 }
 export async function decodePortalSession(options = {}) {
-    const { cookieHeader, cookieNames, appId, secret, debug = process.env.NODE_ENV !== 'production', } = options;
+    const { cookieHeader, cookieNames, appId, secret, debug = truthyValues.has(String(process.env.NEXTAUTH_DEBUG ?? '').toLowerCase()), } = options;
     const header = cookieHeader ?? '';
     if (!header) {
         if (debug) {
@@ -321,7 +321,7 @@ export function buildPortalUrl(path, options) {
  *   environments where app-specific secrets differ from the portal.
  */
 export async function hasPortalSession(options) {
-    const { request, appId, cookieNames, debug = process.env.NODE_ENV !== 'production', fetchImpl, } = options;
+    const { request, appId, cookieNames, debug = options.debug ?? truthyValues.has(String(process.env.NEXTAUTH_DEBUG ?? '').toLowerCase()), fetchImpl, } = options;
     const names = Array.from(new Set((cookieNames && cookieNames.length > 0)
         ? cookieNames
         : getCandidateSessionCookieNames(appId)));

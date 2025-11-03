@@ -73,11 +73,9 @@ export interface DashboardStats {
  weekReceived: number
  weekShipped: number
  }
- finance: {
- pendingInvoices: number
- monthlyRevenue: number
- monthlyExpenses: number
- }
+  finance: {
+    monthlyExpenses: number
+  }
  warehouses: {
  activeCount: number
  utilizationRate: number

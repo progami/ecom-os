@@ -5,12 +5,10 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
- Package2,
- TrendingUp,
- DollarSign,
- AlertCircle,
+  Package2,
+  TrendingUp,
+  DollarSign,
  Package,
- FileText,
  Users,
  Warehouse,
  BarChart3,
@@ -70,8 +68,6 @@ interface DashboardStats {
  costChange: string
  costTrend: 'up' | 'down' | 'neutral'
  activeSkus: number
- pendingInvoices: number
- overdueInvoices: number
 }
 
 interface SystemInfo {
@@ -532,7 +528,7 @@ export default function AdminDashboardPage() {
  <PageContent>
 
  {/* Enhanced Stats Cards with Sparklines */}
- <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
  {loadingStats ? (
  <>
  {[...Array(4)].map((_, i) => (
@@ -565,26 +561,16 @@ export default function AdminDashboardPage() {
  sparklineData={useDemoData ? dummyData.costTrend.slice(-7).map(d => d.cost) : (chartData?.costTrend?.slice(-7).map(d => d.cost) || [])}
  color="green"
  />
- <EnhancedDashboardCard
- title="Active SKUs"
- value={stats.activeSkus.toString()}
- description="Products in stock"
- icon={TrendingUp}
- trend="Products with inventory"
- trendUp={null}
- sparklineData={[]}
- color="purple"
- />
- <EnhancedDashboardCard
- title="Pending Invoices"
- value={stats.pendingInvoices.toString()}
- description="Awaiting reconciliation"
- icon={AlertCircle}
- trend={stats.overdueInvoices > 0 ? `${stats.overdueInvoices} overdue` : 'All current'}
- trendUp={stats.overdueInvoices === 0}
- sparklineData={[]}
- color="orange"
- />
+        <EnhancedDashboardCard
+          title="Active SKUs"
+          value={stats.activeSkus.toString()}
+          description="Products in stock"
+          icon={TrendingUp}
+          trend="Products with inventory"
+          trendUp={null}
+          sparklineData={[]}
+          color="purple"
+        />
  </>
  ) : (
  <>
@@ -608,26 +594,16 @@ export default function AdminDashboardPage() {
  sparklineData={[]}
  color="green"
  />
- <EnhancedDashboardCard
- title="Active SKUs"
- value="--"
- description="Products in stock"
- icon={TrendingUp}
- trend="No data"
- trendUp={null}
- sparklineData={[]}
- color="purple"
- />
- <EnhancedDashboardCard
- title="Pending Invoices"
- value="--"
- description="Awaiting reconciliation"
- icon={AlertCircle}
- trend="No data"
- trendUp={null}
- sparklineData={[]}
- color="orange"
- />
+        <EnhancedDashboardCard
+          title="Active SKUs"
+          value="--"
+          description="Products in stock"
+          icon={TrendingUp}
+          trend="No data"
+          trendUp={null}
+          sparklineData={[]}
+          color="purple"
+        />
  </>
  )}
  </div>
@@ -1123,13 +1099,6 @@ export default function AdminDashboardPage() {
  icon={Package}
  href="/admin/inventory"
  color="bg-cyan-500"
- />
- <QuickActionCard
- title="Invoice Management"
- description="Process and reconcile 3PL invoices"
- icon={FileText}
- href="/admin/invoices"
- color="bg-green-500"
  />
  <QuickActionCard
  title="Reports & Analytics"

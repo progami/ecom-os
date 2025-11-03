@@ -72,12 +72,6 @@ export function QuickStartGuide({ userRole }: QuickStartGuideProps) {
  link: '/operations/receive'
  },
  {
- title: 'Process Invoices',
- description: 'Upload and reconcile warehouse invoices',
- icon: FileText,
- link: '/finance/invoices'
- },
- {
  title: 'Generate Reports',
  description: 'Create custom reports for business insights',
  icon: FileText,
