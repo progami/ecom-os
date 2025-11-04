@@ -32,8 +32,12 @@ jobs:
           cp apps/wms/.env.dev.ci apps/wms/.env.local
           cp apps/x-plan/.env.dev.ci apps/x-plan/.env.dev
           cp apps/x-plan/.env.dev.ci apps/x-plan/.env.local
-      - name: Reset WMS build cache
-        run: pnpm --filter @ecom-os/wms clean
+      - name: Reset app build caches
+        run: |
+          bash scripts/refresh-dev-app.sh wms
+          bash scripts/refresh-dev-app.sh ecomos
+          bash scripts/refresh-dev-app.sh website
+          bash scripts/refresh-dev-app.sh xplan
       - name: Verify dev environment configuration
         run: bash scripts/verify-dev-env.sh
       - name: Generate Prisma client
