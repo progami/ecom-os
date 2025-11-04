@@ -21,7 +21,7 @@ interface PageContentProps {
 
 export function PageContainer({ children, className }: PageContainerProps) {
  return (
- <div className={cn('flex min-h-0 flex-1 flex-col bg-slate-50 ', className)}>
+ <div className={cn('flex flex-1 min-h-0 flex-col bg-slate-50', className)}>
  {children}
  </div>
  )
