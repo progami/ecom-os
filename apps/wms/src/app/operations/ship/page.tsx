@@ -133,6 +133,7 @@ const initialValidationErrors: ValidationErrors = {
 
 export default function ShipTabbedPage() {
  const router = useRouter()
+ const PURCHASE_ORDERS_PATH = '/operations/purchase-orders'
  const { data: session } = useSession()
  const costsTabRef = useRef<CostsTabRef>(null)
  
@@ -355,7 +356,7 @@ export default function ShipTabbedPage() {
  if (result.transactionIds && result.transactionIds.length > 0) {
  router.push(`/operations/transactions/${result.transactionIds[0]}`)
  } else {
- router.push('/operations/inventory')
+ router.push(PURCHASE_ORDERS_PATH)
  }
  } catch (_error) {
  toast.error(_error instanceof Error ? _error.message : 'Failed to create transaction')
@@ -367,10 +368,10 @@ export default function ShipTabbedPage() {
  const handleCancel = () => {
  if (lineItems.length > 0 || attachments.length > 0 || formData.referenceNumber) {
  if (confirm('Are you sure you want to cancel? All entered data will be lost.')) {
- router.push('/operations/inventory')
+ router.push(PURCHASE_ORDERS_PATH)
  }
  } else {
- router.push('/operations/inventory')
+ router.push(PURCHASE_ORDERS_PATH)
  }
  }
 
