@@ -10,7 +10,8 @@
     "test": "node scripts/run-turbo-task.js test",
     "lint": "node scripts/run-turbo-task.js lint",
     "typecheck": "node scripts/run-turbo-task.js type-check",
-    "format": "node scripts/run-turbo-task.js format"
+    "format": "node scripts/run-turbo-task.js format",
+    "refresh:wms-dev": "bash scripts/refresh-wms-dev.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.1",
