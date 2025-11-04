@@ -72,7 +72,12 @@ pnpm --filter @ecom-os/website dev
 
 ### Dev Utilities
 
-- `pnpm refresh:wms-dev` – stops the local `wms-dev` PM2 process, purges `.next` caches, and restarts it with a clean build. Use this when Turbopack/HMR gets stuck serving stale bundles.
+- `pnpm refresh:wms-dev`
+- `pnpm refresh:ecomos-dev`
+- `pnpm refresh:website-dev`
+- `pnpm refresh:xplan-dev`
+
+Each command stops the corresponding PM2 dev process, clears Next/Turbopack caches, and restarts the app with a clean build to avoid serving stale bundles.
 
 ## Next steps (routing & auth unification)
 

@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { signOut } from 'next-auth/react'
 import type { Session } from 'next-auth'
 
@@ -21,6 +21,26 @@ const CATEGORY_ORDER = [
 ]
 
 const OTHER_CATEGORY = 'Other'
+
+const envAllowDevFlag = (process.env.NEXT_PUBLIC_ALLOW_DEV_APPS ?? process.env.ALLOW_DEV_APPS ?? '').trim().toLowerCase() === 'true'
+
+function hostIndicatesDev(raw: string | undefined | null): boolean {
+  if (!raw) return false
+  try {
+    const url = new URL(raw)
+    const host = url.hostname.toLowerCase()
+    return host === 'localhost' || host.startsWith('dev.')
+  } catch {
+    const normalized = raw.replace(/^https?:\/\//i, '').toLowerCase()
+    const host = normalized.split('/')[0]
+    return host === 'localhost' || host.startsWith('dev.')
+  }
+}
+
+const ENV_ALLOW_DEV_APPS =
+  envAllowDevFlag ||
+  hostIndicatesDev(process.env.NEXT_PUBLIC_PORTAL_AUTH_URL) ||
+  hostIndicatesDev(process.env.PORTAL_AUTH_URL)
 
 const FALLBACK_ICON = (
   <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
@@ -150,6 +170,16 @@ type PortalClientProps = {
 export default function PortalClient({ session, apps, roles }: PortalClientProps) {
   const roleMap = roles ?? {}
   const hasApps = apps.length > 0
+  const [allowDevApps, setAllowDevApps] = useState(ENV_ALLOW_DEV_APPS)
+
+  useEffect(() => {
+    if (allowDevApps) return
+    if (typeof window === 'undefined') return
+    const host = window.location.hostname.toLowerCase()
+    if (host === 'localhost' || host.startsWith('dev.')) {
+      setAllowDevApps(true)
+    }
+  }, [allowDevApps])
 
   const normalizeCategory = (value?: string | null) => {
     const trimmed = value?.trim()
@@ -243,7 +273,7 @@ export default function PortalClient({ session, apps, roles }: PortalClientProps
                 </div>
                 <div className={styles.grid}>
                   {appsByCategory[category]?.map((app) => {
-                    const isDisabled = app.lifecycle === 'dev'
+                    const isDisabled = app.lifecycle === 'dev' && !allowDevApps
                     const cardClassName = isDisabled
                       ? `${styles.card} ${styles.cardDisabled}`
                       : styles.card

@@ -11,7 +11,10 @@
     "lint": "node scripts/run-turbo-task.js lint",
     "typecheck": "node scripts/run-turbo-task.js type-check",
     "format": "node scripts/run-turbo-task.js format",
-    "refresh:wms-dev": "bash scripts/refresh-wms-dev.sh"
+    "refresh:wms-dev": "bash scripts/refresh-dev-app.sh wms",
+    "refresh:ecomos-dev": "bash scripts/refresh-dev-app.sh ecomos",
+    "refresh:website-dev": "bash scripts/refresh-dev-app.sh website",
+    "refresh:xplan-dev": "bash scripts/refresh-dev-app.sh xplan"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.1",
