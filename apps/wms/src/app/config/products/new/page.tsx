@@ -2,10 +2,11 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save, Plus, Trash2 } from '@/lib/lucide-icons'
+import { ArrowLeft, Save, Plus, Trash2, Package } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
+import { PageContainer, PageContent, PageHeaderSection } from '@/components/layout/page-container'
 
 interface Batch {
  batchCode: string
@@ -174,22 +175,21 @@ export default function NewSkuPage() {
 
  return (
  <DashboardLayout>
- <div className="max-w-4xl mx-auto space-y-6">
- <div className="flex items-center gap-4">
+ <PageContainer>
+ <PageHeaderSection
+ title="Create New SKU"
+ description="Add a new product SKU to the system"
+ icon={Package}
+ actions={
  <Button asChild variant="ghost" size="icon">
  <Link href="/config/products">
  <ArrowLeft className="h-5 w-5" />
  </Link>
  </Button>
- <div>
- <h1 className="text-3xl font-bold">Create New SKU</h1>
- <p className="text-muted-foreground">
- Add a new product SKU to the system
- </p>
- </div>
- </div>
-
- <form onSubmit={handleSubmit} className="space-y-6">
+ }
+ />
+ <PageContent>
+ <form onSubmit={handleSubmit} className="space-y-6 max-w-4xl mx-auto">
  {/* Basic Information */}
  <div className="bg-white border rounded-lg p-6">
  <h2 className="text-lg font-semibold mb-4">Basic Information</h2>
@@ -567,7 +567,8 @@ export default function NewSkuPage() {
  </Button>
  </div>
  </form>
- </div>
+ </PageContent>
+ </PageContainer>
  </DashboardLayout>
  )
 }
