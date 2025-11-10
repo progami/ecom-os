@@ -278,6 +278,13 @@ export default function PortalClient({ session, apps, roles }: PortalClientProps
                       ? `${styles.card} ${styles.cardDisabled}`
                       : styles.card
 
+                    const linkProps = isDisabled
+                      ? {}
+                      : {
+                          target: '_blank' as const,
+                          rel: 'noreferrer noopener',
+                        }
+
                     return (
                       <a
                         key={app.id}
@@ -285,6 +292,7 @@ export default function PortalClient({ session, apps, roles }: PortalClientProps
                         className={cardClassName}
                         aria-disabled={isDisabled}
                         tabIndex={isDisabled ? -1 : undefined}
+                        {...linkProps}
                       >
                         <div className={styles.iconWrap}>
                           <div className={styles.iconBox}>{getAppIcon(app.id)}</div>
