@@ -48,6 +48,8 @@ jobs:
         run: pnpm --filter @ecom-os/website type-check
       - name: Build website
         run: pnpm --filter @ecom-os/website build
+        env:
+          WMS_BASE_URL: https://example.com/wms
       - name: Lint WMS
         run: pnpm --filter @ecom-os/wms lint
       - name: Type-check WMS

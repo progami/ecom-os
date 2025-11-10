@@ -26,7 +26,6 @@ export async function GET(
  },
  orderBy: [
  { costCategory: 'asc' },
- { costName: 'asc' }
  ]
  })
 
@@ -41,7 +40,6 @@ export async function GET(
  return {
  id: rate.id,
  costCategory: category,
- costName: rate.costName,
  defaultRate: Number(rate.costValue),
  costValue: Number(rate.costValue),
  unitOfMeasure: rate.unitOfMeasure,
@@ -81,49 +79,58 @@ export async function PUT(
 
  // Create new cost rates
  if (costRates && costRates.length > 0) {
- const rateData = costRates.map((rate: {
- costCategory: string;
- costName: string;
- defaultRate?: number;
- unitOfMeasure?: string;
- isActive?: boolean;
- }) => {
- // Keep transportation as is, capitalize other categories
- let category = rate.costCategory
- if (category !== 'transportation') {
- category = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()
- }
- 
- return {
- warehouseId,
- costCategory: category,
- costName: rate.costName,
- costValue: rate.defaultRate || 0,
- unitOfMeasure: rate.unitOfMeasure || 'unit',
- effectiveDate: new Date(),
- isActive: rate.isActive !== false,
- createdById: session.user.id
- }
- })
+   const rateMap = costRates.reduce((map, rate: {
+     costCategory: string;
+     defaultRate?: number;
+     unitOfMeasure?: string;
+     isActive?: boolean;
+   }) => {
+     let category = rate.costCategory
+     if (category !== 'transportation') {
+       category = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()
+     }
+     if (!map.has(category)) {
+       map.set(category, {
+         warehouseId,
+         costCategory: category,
+         costValue: rate.defaultRate || 0,
+         unitOfMeasure: rate.unitOfMeasure || 'unit',
+         effectiveDate: new Date(),
+         isActive: rate.isActive !== false,
+         createdById: session.user.id
+       })
+     }
+     return map
+   }, new Map<string, {
+     warehouseId: string;
+     costCategory: string;
+     costValue: number;
+     unitOfMeasure: string;
+     effectiveDate: Date;
+     isActive: boolean;
+     createdById: string;
+   }>())
 
- await prisma.costRate.createMany({
- data: rateData
- })
+   const uniqueRates = Array.from(rateMap.values())
+
+   if (uniqueRates.length > 0) {
+     await prisma.costRate.createMany({
+       data: uniqueRates
+     })
+   }
  }
 
  // Fetch the updated rates
  const updatedRates = await prisma.costRate.findMany({
  where: { warehouseId },
  orderBy: [
- { costCategory: 'asc' },
- { costName: 'asc' }
+ { costCategory: 'asc' }
  ]
  })
 
  const transformedRates = updatedRates.map(rate => ({
  id: rate.id,
  costCategory: rate.costCategory.toLowerCase(),
- costName: rate.costName,
  defaultRate: Number(rate.costValue),
  unitOfMeasure: rate.unitOfMeasure,
  isActive: rate.isActive

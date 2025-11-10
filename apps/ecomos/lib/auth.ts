@@ -3,15 +3,20 @@ import GoogleProvider from 'next-auth/providers/google'
 import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 import { getUserByEmail } from '@ecom-os/auth/server'
 
-const devPort = process.env.PORT || 3000
-const devBaseUrl = `http://localhost:${devPort}`
+if (!process.env.NEXTAUTH_URL) {
+  throw new Error('NEXTAUTH_URL must be defined for portal authentication.')
+}
+if (!process.env.PORTAL_AUTH_URL) {
+  throw new Error('PORTAL_AUTH_URL must be defined for portal authentication.')
+}
+if (!process.env.NEXT_PUBLIC_PORTAL_AUTH_URL) {
+  throw new Error('NEXT_PUBLIC_PORTAL_AUTH_URL must be defined for portal authentication.')
+}
+if (!process.env.COOKIE_DOMAIN) {
+  throw new Error('COOKIE_DOMAIN must be defined for portal authentication.')
+}
 applyDevAuthDefaults({
   appId: 'ecomos',
-  port: devPort,
-  baseUrl: devBaseUrl,
-  cookieDomain: 'localhost',
-  portalUrl: devBaseUrl,
-  publicPortalUrl: devBaseUrl,
 })
 
 function sanitizeBaseUrl(raw?: string | null): string | undefined {

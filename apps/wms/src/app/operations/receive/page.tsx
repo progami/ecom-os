@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation'
 
 // Third-party libraries
 import { toast } from 'react-hot-toast'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/hooks/usePortalSession'
 
 // Internal components
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
@@ -261,7 +261,6 @@ export default function ReceiveTabbedPage() {
  })),
  costs: (costs || []).map(cost => ({
  costType: cost.costType,
- costName: cost.costName,
  quantity: cost.quantity,
  unitRate: cost.unitRate,
  totalCost: cost.totalCost
@@ -390,7 +389,15 @@ export default function ReceiveTabbedPage() {
  storagePalletsIn: item.storagePalletsIn,
  storageCartonsPerPallet: item.storageCartonsPerPallet,
  shippingCartonsPerPallet: item.shippingCartonsPerPallet,
- unitsPerCarton: item.unitsPerCarton
+ unitsPerCarton: item.unitsPerCarton,
+ // New SKU+Batch creation fields
+ isNewSku: item.isNewSku || false,
+ skuData: item.isNewSku ? item.skuData : undefined,
+    batchData: item.isNewSku ? {
+      batchCode: item.batchLot,
+      description: item.skuData?.batchDescription,
+      isActive: true
+    } : undefined
  })),
  attachments,
  costs: Array.isArray(costsResult) ? costsResult : []

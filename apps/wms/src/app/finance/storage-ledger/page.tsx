@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/hooks/usePortalSession'
 import { useRouter } from 'next/navigation'
 import { Package, Calendar } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'

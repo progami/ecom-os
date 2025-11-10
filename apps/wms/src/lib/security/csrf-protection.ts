@@ -3,6 +3,19 @@ import { NextRequest } from 'next/server';
 const CSRF_HEADER = 'x-csrf-token';
 const CSRF_COOKIE = 'csrf-token';
 
+const ALLOWED_CSRF_ORIGINS = [
+ process.env.NEXTAUTH_URL,
+ process.env.NEXT_PUBLIC_APP_URL,
+ process.env.NEXT_PUBLIC_PORTAL_AUTH_URL,
+ process.env.PORTAL_AUTH_URL,
+].filter((value): value is string => Boolean(value));
+
+if (ALLOWED_CSRF_ORIGINS.length === 0) {
+ throw new Error(
+  'CSRF protection requires NEXTAUTH_URL, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_PORTAL_AUTH_URL, or PORTAL_AUTH_URL to be configured.'
+ );
+}
+
 export function generateCSRFToken(): string {
  // Generate random bytes using Web Crypto API (Edge Runtime compatible)
  const buffer = new Uint8Array(32);
@@ -62,15 +75,8 @@ export function validateOrigin(req: NextRequest): boolean {
  return true;
  }
 
- const allowedOrigins = [
- process.env.NEXTAUTH_URL || 'http://localhost:3000',
- process.env.NEXT_PUBLIC_APP_URL,
- 'http://localhost:3002',
- 'http://localhost:3000'
- ].filter(Boolean);
-
  const requestOrigin = origin || new URL(referer!).origin;
- return allowedOrigins.includes(requestOrigin);
+ return ALLOWED_CSRF_ORIGINS.includes(requestOrigin);
 }
 
 export function csrfProtection(req: NextRequest): Response | null {

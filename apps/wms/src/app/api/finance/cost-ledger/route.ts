@@ -53,7 +53,6 @@ export const GET = withAuth(async (request, _session) => {
  id: entry.id,
  transactionId: entry.transactionId,
  costCategory: entry.costCategory,
- costName: entry.costName,
  quantity: entry.quantity as unknown as number | string | null,
  unitRate: entry.unitRate as unknown as number | string | null,
  totalCost: entry.totalCost as unknown as number | string | null,

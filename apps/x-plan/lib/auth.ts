@@ -1,18 +1,19 @@
 import type { NextAuthOptions } from 'next-auth'
 import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 
-// Only set dev defaults in development - production uses NEXTAUTH_URL at runtime
-const devPort = process.env.PORT || process.env.CROSS_PLAN_PORT || 3008
-const portalDev = process.env.PORTAL_AUTH_URL || 'http://localhost:3000'
+// Only validate configuration in development - production uses runtime env vars
+if (!process.env.NEXT_PUBLIC_APP_URL) {
+  throw new Error('NEXT_PUBLIC_APP_URL must be defined for X-Plan auth configuration.')
+}
+if (!process.env.PORTAL_AUTH_URL) {
+  throw new Error('PORTAL_AUTH_URL must be defined for X-Plan auth configuration.')
+}
+if (!process.env.NEXT_PUBLIC_PORTAL_AUTH_URL) {
+  throw new Error('NEXT_PUBLIC_PORTAL_AUTH_URL must be defined for X-Plan auth configuration.')
+}
 
-// Don't override NEXTAUTH_URL if it's already set (production uses runtime env vars)
 applyDevAuthDefaults({
   appId: 'x-plan',
-  port: devPort,
-  // Don't pass baseUrl - let applyDevAuthDefaults compute it only if NEXTAUTH_URL is not set
-  cookieDomain: 'localhost',
-  portalUrl: portalDev,
-  publicPortalUrl: process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'http://localhost:3000',
 })
 
 if (!process.env.NEXTAUTH_SECRET) {

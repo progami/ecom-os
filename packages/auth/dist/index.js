@@ -100,26 +100,55 @@ export function applyDevAuthDefaults(options = {}) {
     const isDevLike = env === 'development' || env === 'test';
     if (!isDevLike)
         return;
-    if (!process.env.NEXTAUTH_SECRET) {
-        const suffix = options.appId ? `-${options.appId}` : '';
-        // 32+ chars keeps jose happy for local JWT encryption/decryption.
-        process.env.NEXTAUTH_SECRET = `dev-only-nextauth-secret${suffix}-change-me`;
+    const allowDefaultsEnv = truthyValues.has(String(process.env.ALLOW_DEV_AUTH_DEFAULTS ?? '').toLowerCase());
+    const allowDefaults = options.allowDefaults ?? allowDefaultsEnv;
+    const missing = [];
+    const resolveSecret = () => {
+        const existingSecret = process.env.PORTAL_AUTH_SECRET ?? process.env.NEXTAUTH_SECRET;
+        if (existingSecret) {
+            if (!process.env.NEXTAUTH_SECRET) {
+                process.env.NEXTAUTH_SECRET = existingSecret;
+            }
+            return;
+        }
+        if (allowDefaults) {
+            const suffix = options.appId ? `-${options.appId}` : '';
+            process.env.NEXTAUTH_SECRET = `dev-only-nextauth-secret${suffix}-change-me`;
+            return;
+        }
+        missing.push('PORTAL_AUTH_SECRET or NEXTAUTH_SECRET');
+    };
+    const ensureValue = (current, label, fallback) => {
+        if (current && current.trim() !== '') {
+            return current;
+        }
+        if (allowDefaults && fallback) {
+            return fallback;
+        }
+        missing.push(label);
+        return undefined;
+    };
+    resolveSecret();
+    const port = options.port ?? process.env.PORT ?? 3000;
+    const computedBaseUrl = options.baseUrl ?? `http://localhost:${port}`;
+    const nextAuthUrl = ensureValue(process.env.NEXTAUTH_URL, 'NEXTAUTH_URL', allowDefaults ? String(computedBaseUrl) : undefined);
+    if (nextAuthUrl && !process.env.NEXTAUTH_URL) {
+        process.env.NEXTAUTH_URL = nextAuthUrl;
     }
-    if (!process.env.NEXTAUTH_URL) {
-        const port = options.port ?? process.env.PORT ?? 3000;
-        const baseUrl = options.baseUrl ?? `http://localhost:${port}`;
-        process.env.NEXTAUTH_URL = String(baseUrl);
-    }
-    if (!process.env.COOKIE_DOMAIN && options.cookieDomain) {
-        process.env.COOKIE_DOMAIN = options.cookieDomain;
-    }
-    const portalUrl = options.portalUrl;
-    if (!process.env.PORTAL_AUTH_URL && portalUrl) {
+    const portalUrl = ensureValue(process.env.PORTAL_AUTH_URL, 'PORTAL_AUTH_URL', allowDefaults ? options.portalUrl ?? nextAuthUrl : undefined);
+    if (portalUrl && !process.env.PORTAL_AUTH_URL) {
         process.env.PORTAL_AUTH_URL = portalUrl;
     }
-    const publicPortalUrl = options.publicPortalUrl;
-    if (!process.env.NEXT_PUBLIC_PORTAL_AUTH_URL && publicPortalUrl) {
+    const publicPortalUrl = ensureValue(process.env.NEXT_PUBLIC_PORTAL_AUTH_URL, 'NEXT_PUBLIC_PORTAL_AUTH_URL', allowDefaults ? options.publicPortalUrl ?? portalUrl ?? nextAuthUrl : undefined);
+    if (publicPortalUrl && !process.env.NEXT_PUBLIC_PORTAL_AUTH_URL) {
         process.env.NEXT_PUBLIC_PORTAL_AUTH_URL = publicPortalUrl;
+    }
+    const cookieDomain = ensureValue(process.env.COOKIE_DOMAIN, 'COOKIE_DOMAIN', allowDefaults ? options.cookieDomain : undefined);
+    if (cookieDomain && !process.env.COOKIE_DOMAIN) {
+        process.env.COOKIE_DOMAIN = cookieDomain;
+    }
+    if (missing.length > 0) {
+        throw new Error(`[auth] Missing required auth environment variables: ${missing.join(', ')}`);
     }
     if (process.env.NEXTAUTH_DEBUG === undefined) {
         // Default to off; callers can opt-in with NEXTAUTH_DEBUG=1 if needed.
@@ -305,7 +334,8 @@ export function resolvePortalAuthOrigin(options) {
     if (globalOrigin) {
         return globalOrigin;
     }
-    if (process.env.NODE_ENV !== 'production') {
+    const allowDefaults = truthyValues.has(String(process.env.ALLOW_DEV_AUTH_DEFAULTS ?? '').toLowerCase());
+    if (allowDefaults && process.env.NODE_ENV !== 'production') {
         return DEFAULT_PORTAL_DEV;
     }
     throw new Error('Portal auth origin is not configured. Set PORTAL_AUTH_URL or NEXT_PUBLIC_PORTAL_AUTH_URL.');

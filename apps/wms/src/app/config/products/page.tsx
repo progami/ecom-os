@@ -1,18 +1,16 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/hooks/usePortalSession'
 import { toast } from 'react-hot-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
-import { Button } from '@/components/ui/button'
-import { Package, Plus } from '@/lib/lucide-icons'
-import ProductsPanel from './products-panel'
+import { Package } from '@/lib/lucide-icons'
+import InventoryPanel from './inventory-panel'
 import { redirectToPortal } from '@/lib/portal'
 
-const ALLOWED_ROLES = ['admin']
+const ALLOWED_ROLES = ['admin', 'staff', 'finance']
 
 export default function ProductsPage() {
  const router = useRouter()
@@ -28,7 +26,7 @@ export default function ProductsPage() {
  }
 
  if (!ALLOWED_ROLES.includes(session.user.role)) {
- toast.error('You are not authorised to manage products')
+ toast.error('You are not authorised to view inventory')
  router.push('/dashboard')
  }
  }, [router, session, status])
@@ -55,19 +53,11 @@ export default function ProductsPage() {
  <PageContainer>
  <PageHeaderSection
  title="Products"
- description="Configuration"
+ description="Inventory by SKU and Batch"
  icon={Package}
- actions={
- <Button asChild className="gap-2">
- <Link href="/config/products/new">
- <Plus className="h-4 w-4" />
- Create SKU
- </Link>
- </Button>
- }
  />
  <PageContent>
- <ProductsPanel />
+ <InventoryPanel />
  </PageContent>
  </PageContainer>
  </DashboardLayout>

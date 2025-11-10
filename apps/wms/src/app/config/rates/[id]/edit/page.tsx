@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/hooks/usePortalSession'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { DollarSign, Save, X, Calendar, AlertCircle } from '@/lib/lucide-icons'
@@ -18,7 +18,6 @@ interface CostRate {
  code: string
  }
  costCategory: string
- costName: string
  costValue: number
  unitOfMeasure: string
  effectiveDate: string
@@ -45,7 +44,6 @@ export default function EditRatePage() {
  const [checkingOverlap, setCheckingOverlap] = useState(false)
  
  const [formData, setFormData] = useState({
- costName: '',
  costValue: '',
  unitOfMeasure: '',
  endDate: ''
@@ -69,7 +67,6 @@ export default function EditRatePage() {
  const data = await response.json()
  setRate(data)
  setFormData({
- costName: data.costName,
  costValue: data.costValue.toString(),
  unitOfMeasure: data.unitOfMeasure,
  endDate: data.endDate ? data.endDate.split('T')[0] : ''
@@ -97,10 +94,7 @@ export default function EditRatePage() {
  body: JSON.stringify({
  rateId: rate.id,
  warehouseId: rate.warehouseId,
- costCategory: rate.costCategory,
- costName: formData.costName,
- effectiveDate: rate.effectiveDate,
- endDate: formData.endDate || null
+ costCategory: rate.costCategory
  })
  })
 
@@ -123,7 +117,7 @@ export default function EditRatePage() {
  const handleSubmit = async (e: React.FormEvent) => {
  e.preventDefault()
  
- if (!formData.costName || !formData.costValue || !formData.unitOfMeasure) {
+ if (!formData.costValue || !formData.unitOfMeasure) {
  toast.error('Please fill in all required fields')
  return
  }
@@ -139,11 +133,10 @@ export default function EditRatePage() {
  const response = await fetch(`/api/settings/rates/${params.id}`, {
  method: 'PUT',
  headers: { 'Content-Type': 'application/json' },
- body: JSON.stringify({
- costName: formData.costName,
- costValue: parseFloat(formData.costValue),
- unitOfMeasure: formData.unitOfMeasure,
- endDate: formData.endDate || null
+    body: JSON.stringify({
+      costValue: parseFloat(formData.costValue),
+      unitOfMeasure: formData.unitOfMeasure,
+      endDate: formData.endDate || null
  })
  })
 
@@ -212,26 +205,6 @@ export default function EditRatePage() {
  </div>
 
  <div className="grid gap-6 md:grid-cols-2">
- {/* Cost Name */}
- <div>
- <label className="block text-sm font-medium text-slate-700 mb-2">
- Cost Name <span className="text-red-500">*</span>
- </label>
- <input
- type="text"
- value={formData.costName}
- onChange={(e) => setFormData({ ...formData, costName: e.target.value })}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
- required
- disabled={rate.costCategory === 'Storage'}
- />
- {rate.costCategory === 'Storage' && (
- <p className="text-xs text-slate-500 mt-1">
- Storage category name cannot be changed
- </p>
- )}
- </div>
-
  {/* Unit of Measure */}
  <div>
  <label className="block text-sm font-medium text-slate-700 mb-2">

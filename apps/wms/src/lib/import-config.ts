@@ -264,7 +264,7 @@ export const importConfigs: Record<string, ImportEntityConfig> = {
  entityName: 'costRate',
  tableName: 'cost_rates',
  displayName: 'Cost Rates',
- uniqueFields: ['warehouseId', 'costName', 'effectiveDate'],
+  uniqueFields: ['warehouseId', 'costCategory'],
  fieldMappings: [
  {
  dbField: 'warehouse',
@@ -290,12 +290,6 @@ export const importConfigs: Record<string, ImportEntityConfig> = {
  const strValue = String(value).toLowerCase()
  return categoryMap[strValue] || 'ACCESSORIAL'
  },
- },
- {
- dbField: 'costName',
- excelColumns: ['cost_name', 'Cost Name', 'Name'],
- type: 'string',
- required: true,
  },
  {
  dbField: 'costValue',

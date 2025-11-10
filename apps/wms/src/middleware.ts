@@ -17,6 +17,15 @@ if (typeof process !== 'undefined' && process.env) {
 export async function middleware(request: NextRequest) {
  const { pathname } = request.nextUrl
  const normalizedPath = withoutBasePath(pathname)
+ if (process.env.NODE_ENV !== 'production') {
+   const cookieHeader = request.headers.get('cookie')
+   if (cookieHeader) {
+     const names = cookieHeader.split(';').map((part) => part.split('=')[0]?.trim()).filter(Boolean)
+     console.warn('[wms middleware] incoming cookies', names)
+   } else {
+     console.warn('[wms middleware] no cookies on request', normalizedPath)
+   }
+ }
 
  // Redirect /operations to /operations/inventory (base-path aware)
  if (normalizedPath === '/operations') {
@@ -85,7 +94,7 @@ const hasSession = await hasPortalSession({
  // If no token and trying to access protected route, redirect to portal login
  if (!hasSession && !normalizedPath.startsWith('/auth/')) {
  // Build callback URL from forwarded headers (from Nginx proxy) instead of request.nextUrl
- // request.nextUrl gives us localhost:3001, but we need the public-facing URL
+ // request.nextUrl gives us the internal host (for example localhost:3001), but we need the public-facing URL
  const forwardedProto = request.headers.get('x-forwarded-proto') || 'http'
  const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host
  // Next.js strips basePath before middleware runs, so manually prepend it

@@ -9,7 +9,11 @@
  * This script tests the dev bypass authentication endpoint
  */
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001';
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+
+if (!baseUrl) {
+  throw new Error('NEXT_PUBLIC_APP_URL must be defined before running the FCC dev bypass test script.');
+}
 
 async function testDevBypass() {
   console.log('Testing development authentication bypass...\n');

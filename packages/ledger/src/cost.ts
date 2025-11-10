@@ -80,7 +80,6 @@ export function aggregateCostLedger(
       sku: entry.context?.skuCode || 'Unknown SKU',
       batchLot: entry.context?.batchLot || '',
       costCategory: entry.costCategory,
-      costName: entry.costName,
       quantity: parseNumeric(entry.quantity),
       unitRate: parseNumeric(entry.unitRate),
       totalCost: parseNumeric(entry.totalCost)

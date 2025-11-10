@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession } from '@/hooks/usePortalSession';
 
 interface FeatureFlagCheck {
  enabled: boolean;

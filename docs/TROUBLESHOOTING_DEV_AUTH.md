@@ -28,6 +28,20 @@ That pushed the NextAuth client and the shared portal session code to call the p
 - After editing env files, `rm -rf apps/<app>/.next` (or `pnpm build`) and restart the pm2 process to avoid stale bundles referencing the old host.
 - If login suddenly redirects to the prod error page or CORS errors mention `ecomos.targonglobal.com`, inspect `/proc/<pid>/environ` or the relevant `.env.*` file for prod URLs.
 
+**Fail-fast auth configuration (Jan 2026):**
+
+- Auth modules now throw during startup when required env vars are missing. Set `NEXTAUTH_SECRET` (or `PORTAL_AUTH_SECRET`), `COOKIE_DOMAIN`, `PORTAL_AUTH_URL`, `NEXT_PUBLIC_PORTAL_AUTH_URL`, and each app’s `NEXT_PUBLIC_APP_URL` before running `pnpm dev`.
+- For quick experiments you can opt in to localhost defaults with `ALLOW_DEV_AUTH_DEFAULTS=true`, but leave it unset in shared environments so misconfigured hosts fail fast.
+- Sample `.env.local` files are checked in for ecomOS, WMS, HRMS, FCC, and X-Plan; copy them or export the vars explicitly when spinning up additional apps.
+- For **local** work, `apps/ecomos/dev.apps.json` maps the portal tiles to the localhost ports (`3000` portal, `3001` WMS, etc.). Make sure this file (or your `PORTAL_APPS_CONFIG`) points at the hosts you actually have running; otherwise the launcher falls back to the remote dev URLs.
+- Dev machines now talk directly to the shared RDS instance (`ecomos-prod`) instead of a local Postgres. Open a tunnel before launching any app:
+  ```bash
+  ssh -f -N \
+    -L 6543:ecomos-prod.cyx0i8s6srto.us-east-1.rds.amazonaws.com:5432 \
+    -i ~/.ssh/wms-deploy-key.pem ec2-user@100.77.97.60
+  ```
+  Point `PORTAL_DB_URL` (and `DATABASE_URL` for WMS) at `postgresql://<user>:<password>@localhost:6543/portal_db?schema=<schema>`. Use `auth_dev` for the portal and `wms_dev` for WMS; the shared credentials live in the `/prod` repo on the bastion host.
+
 **Validation checklist for dev auth:**
 
 1. `curl -I https://dev.ecomos.targonglobal.com/api/auth/session` from the box returns 200.

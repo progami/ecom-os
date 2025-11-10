@@ -37,6 +37,7 @@ export interface DevAuthDefaultsOptions {
     cookieDomain?: string;
     portalUrl?: string;
     publicPortalUrl?: string;
+    allowDefaults?: boolean;
 }
 /**
  * Provide sane defaults for local development so NextAuth stops warning about missing env vars.

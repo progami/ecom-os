@@ -130,7 +130,7 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
  address: formData.address || null,
  latitude: formData.latitude ? parseFloat(formData.latitude) : null,
  longitude: formData.longitude ? parseFloat(formData.longitude) : null,
- contactEmail: formData.contactEmail || null,
+    contactEmail: formData.contactEmail.trim() || null,
  contactPhone: formData.contactPhone || null,
  isActive: formData.isActive
  }

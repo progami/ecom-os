@@ -1,15 +1,9 @@
 import type { Session } from 'next-auth'
 import type { NextRequest } from 'next/server'
-import {
-  decodePortalSession,
-  getCandidateSessionCookieNames,
-  getAppEntitlement,
-} from '@ecom-os/auth'
+import { getAppEntitlement } from '@ecom-os/auth'
 import { UserRole } from '@prisma/client'
 
-const DEFAULT_DEV_SECRET = 'dev_portal_auth_secret_2025'
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
-const APP_ID = 'ecomos'
 const ALLOWED_ROLES: readonly UserRole[] = ['admin', 'staff']
 
 type PortalSessionPayload = {
@@ -24,15 +18,18 @@ type PortalSessionPayload = {
   roles?: Record<string, { role?: string; departments?: string[] }>
 }
 
-const getPortalSecrets = () => ({
-  portalSecret: process.env.PORTAL_AUTH_SECRET ?? process.env.NEXTAUTH_SECRET ?? DEFAULT_DEV_SECRET,
-})
+const resolvePortalBaseUrl = () => {
+  const candidate =
+    process.env.PORTAL_AUTH_URL ??
+    process.env.NEXT_PUBLIC_PORTAL_AUTH_URL ??
+    process.env.NEXTAUTH_URL
 
-const resolvePortalBaseUrl = () =>
-  process.env.PORTAL_AUTH_URL
-  ?? process.env.NEXT_PUBLIC_PORTAL_AUTH_URL
-  ?? process.env.NEXTAUTH_URL
-  ?? 'https://dev.ecomos.targonglobal.com'
+  if (!candidate) {
+    throw new Error('PORTAL_AUTH_URL, NEXT_PUBLIC_PORTAL_AUTH_URL, or NEXTAUTH_URL must be configured for portal session resolution.')
+  }
+
+  return candidate
+}
 
 const coerceExpiry = (expires?: string) =>
   expires && !Number.isNaN(new Date(expires).getTime())
@@ -42,16 +39,7 @@ const coerceExpiry = (expires?: string) =>
 const buildSessionFromPayload = (payload: PortalSessionPayload | null): Session | null => {
   if (!payload?.user?.id) {
     if (process.env.NODE_ENV !== 'production') {
-      return {
-        user: {
-          id: 'dev-portal-user',
-          email: payload?.user?.email ?? 'dev@local.test',
-          name: payload?.user?.name ?? 'Dev Portal User',
-          role: 'admin',
-          departments: [],
-        } as Session['user'],
-        expires: coerceExpiry(payload?.expires),
-      }
+      console.warn('[wms portal-session] portal payload missing user id')
     }
     return null
   }
@@ -59,22 +47,12 @@ const buildSessionFromPayload = (payload: PortalSessionPayload | null): Session 
   const entitlement = getAppEntitlement(payload.roles, 'wms')
   const allowedRole = entitlement?.role && ALLOWED_ROLES.includes(entitlement.role as UserRole)
     ? entitlement.role as UserRole
-    : process.env.NODE_ENV !== 'production'
-      ? 'admin'
-      : undefined
+    : undefined
   if (!allowedRole) {
-    return process.env.NODE_ENV !== 'production'
-      ? {
-          user: {
-            id: payload.user.id,
-            email: payload.user.email ?? undefined,
-            name: payload.user.name ?? undefined,
-            role: 'admin',
-            departments: [],
-          } as Session['user'],
-          expires: coerceExpiry(payload.expires),
-        }
-      : null
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[wms portal-session] portal payload missing allowed role', entitlement)
+    }
+    return null
   }
   const departments = entitlement?.depts?.filter((dept): dept is string => typeof dept === 'string')
 
@@ -120,22 +98,19 @@ const fetchPortalSession = async (cookieHeader: string): Promise<PortalSessionPa
 
 export async function resolvePortalSession(request: NextRequest): Promise<Session | null> {
   const cookieHeader = request.headers.get('cookie')
-  if (!cookieHeader) return null
-
-  const { portalSecret } = getPortalSecrets()
-  const candidates = getCandidateSessionCookieNames(APP_ID)
-  const decoded = await decodePortalSession({
-    cookieHeader,
-    cookieNames: candidates,
-    appId: APP_ID,
-    secret: portalSecret,
-  })
-
-  const directSession = buildSessionFromPayload(decoded as unknown as PortalSessionPayload | null)
-  if (directSession) {
-    return directSession
+  if (!cookieHeader) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[wms portal-session] no cookies on request')
+    }
+    return null
   }
 
   const portalPayload = await fetchPortalSession(cookieHeader)
+  if (!portalPayload) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn('[wms portal-session] portal session fetch returned null')
+    }
+    return null
+  }
   return buildSessionFromPayload(portalPayload)
 }

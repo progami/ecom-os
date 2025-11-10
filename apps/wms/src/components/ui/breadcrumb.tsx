@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ChevronRight, Home } from '@/lib/lucide-icons'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/hooks/usePortalSession'
 
 export function Breadcrumb() {
  const pathname = usePathname()
