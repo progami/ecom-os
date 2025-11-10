@@ -12,6 +12,10 @@ const { version } = require('./package.json')
 const basePath = process.env.BASE_PATH || ''
 const assetPrefix = basePath || ''
 
+if (!process.env.NEXT_PUBLIC_APP_URL) {
+  throw new Error('NEXT_PUBLIC_APP_URL must be defined before loading the WMS Next.js config.')
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Note: This config supports both Webpack (for production builds) and Turbopack (for development).
@@ -97,12 +101,17 @@ const nextConfig = {
   // Rewrites removed - Next.js basePath handles routing automatically
   // The previous rewrite was causing double basePath prefixing (/wms/wms/api/...)
   async rewrites() {
-    return []
+    return [
+      {
+        source: '/wms/:path*',
+        destination: '/:path*',
+      },
+    ]
   },
   
   // Environment variables validation
   env: {
-    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_BUILD_TIME: process.env.BUILD_TIME || new Date().toISOString(),
     NEXT_PUBLIC_VERSION: version,
     NEXT_PUBLIC_BASE_PATH: process.env.NEXT_PUBLIC_BASE_PATH || basePath,

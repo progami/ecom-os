@@ -5,7 +5,6 @@ export interface AggregatedCost {
  warehouseCode: string;
  warehouseName: string;
  costCategory: CostCategory;
- costName: string;
  quantity: number;
  unitRate: number;
  unit: string;
@@ -57,11 +56,11 @@ export async function aggregateCostsForBillingPeriod(
  },
  });
 
- // Group costs by category and name
+ // Group costs by category
  const costMap = new Map<string, AggregatedCost>();
  
  for (const entry of costLedgerEntries) {
- const key = `${entry.costCategory}-${entry.costName}`;
+ const key = entry.costCategory;
  const existing = costMap.get(key);
  
  if (existing) {
@@ -72,7 +71,6 @@ export async function aggregateCostsForBillingPeriod(
  warehouseCode: entry.warehouseCode,
  warehouseName: warehouse.name,
  costCategory: entry.costCategory,
- costName: entry.costName,
  quantity: Number(entry.quantity),
  unitRate: Number(entry.unitRate),
  unit: 'unit',
@@ -106,7 +104,6 @@ export async function aggregateCostsForBillingPeriod(
  warehouseCode,
  warehouseName: warehouse.name,
  costCategory: CostCategory.Storage,
- costName: 'Weekly Pallet Storage',
  quantity: totalStoragePalletWeeks,
  unitRate: 0, // Rate would need to be fetched from CostRate
  unit: 'pallet-week',

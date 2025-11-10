@@ -1,5 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const baseUrl = process.env.BASE_URL;
+
+if (!baseUrl) {
+  throw new Error('BASE_URL must be defined before running WMS performance tests.');
+}
+
 export default defineConfig({
   testDir: './performance',
   testMatch: '**/*.spec.ts',
@@ -14,7 +20,7 @@ export default defineConfig({
   ],
   
   use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    baseURL: baseUrl,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
@@ -77,7 +83,7 @@ export default defineConfig({
   // Web server configuration
   webServer: {
     command: process.env.CI ? 'npm run start' : 'npm run dev',
-    url: 'http://localhost:3000',
+    url: baseUrl,
     reuseExistingServer: !process.env.CI,
     timeout: 180 * 1000, // 3 minutes to start
     stdout: 'pipe',

@@ -38,7 +38,6 @@ export async function GET(
  warehouseId: rate.warehouseId,
  warehouse: rate.warehouse,
  costCategory: rate.costCategory,
- costName: rate.costName,
  costValue: parseFloat(rate.costValue.toString()),
  unitOfMeasure: rate.unitOfMeasure,
  effectiveDate: rate.effectiveDate.toISOString(),
@@ -68,10 +67,10 @@ export async function PUT(
  }
 
  const body = await request.json()
- const { costName, costValue, unitOfMeasure, endDate } = body
+ const { costValue, unitOfMeasure, endDate } = body
 
- // Validate required fields
- if (!costName || costValue === undefined || !unitOfMeasure) {
+// Validate required fields
+ if (costValue === undefined || !unitOfMeasure) {
  return NextResponse.json(
  { error: 'Missing required fields' },
  { status: 400 }
@@ -98,9 +97,8 @@ export async function PUT(
  const updatedRate = await prisma.costRate.update({
  where: { id },
  data: {
- costName,
- unitOfMeasure,
- costValue,
+  unitOfMeasure,
+  costValue,
  endDate: endDate ? new Date(endDate) : null,
  updatedAt: new Date()
  },
@@ -120,7 +118,6 @@ export async function PUT(
  warehouseId: updatedRate.warehouseId,
  warehouse: updatedRate.warehouse,
  costCategory: updatedRate.costCategory,
- costName: updatedRate.costName,
  costValue: parseFloat(updatedRate.costValue.toString()),
  unitOfMeasure: updatedRate.unitOfMeasure,
  effectiveDate: updatedRate.effectiveDate.toISOString(),

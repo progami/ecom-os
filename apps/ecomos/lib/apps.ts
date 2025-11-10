@@ -38,10 +38,6 @@ function resolvePortalBaseUrl(): string {
     }
   }
 
-  if (process.env.NODE_ENV !== 'production') {
-    return 'http://localhost:3000'
-  }
-
   throw new Error('Portal base URL is not configured. Set PORTAL_APPS_BASE_URL or NEXT_PUBLIC_PORTAL_AUTH_URL.')
 }
 

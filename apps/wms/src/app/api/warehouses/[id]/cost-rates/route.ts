@@ -1,9 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { CostCategory, Prisma } from '@prisma/client'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
+
+const normalizeCostCategory = (value: string): CostCategory => {
+  const normalized = (value || '').toLowerCase()
+
+  switch (normalized) {
+    case 'container':
+      return CostCategory.Container
+    case 'carton':
+      return CostCategory.Carton
+    case 'storage':
+      return CostCategory.Storage
+    case 'pallet':
+      return CostCategory.Pallet
+    case 'transportation':
+      return CostCategory.transportation
+    case 'unit':
+      return CostCategory.Unit
+    case 'accessorial':
+      return CostCategory.Accessorial
+    default:
+      return CostCategory.Unit
+  }
+}
+
+type IncomingCostRate = {
+ costCategory: string
+ defaultRate?: number
+ unitOfMeasure?: string
+ isActive?: boolean
+}
 
 export async function GET(
  request: NextRequest,
@@ -26,7 +57,6 @@ export async function GET(
  },
  orderBy: [
  { costCategory: 'asc' },
- { costName: 'asc' }
  ]
  })
 
@@ -41,7 +71,6 @@ export async function GET(
  return {
  id: rate.id,
  costCategory: category,
- costName: rate.costName,
  defaultRate: Number(rate.costValue),
  costValue: Number(rate.costValue),
  unitOfMeasure: rate.unitOfMeasure,
@@ -80,50 +109,48 @@ export async function PUT(
  })
 
  // Create new cost rates
- if (costRates && costRates.length > 0) {
- const rateData = costRates.map((rate: {
- costCategory: string;
- costName: string;
- defaultRate?: number;
- unitOfMeasure?: string;
- isActive?: boolean;
- }) => {
- // Keep transportation as is, capitalize other categories
- let category = rate.costCategory
- if (category !== 'transportation') {
- category = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()
- }
- 
- return {
- warehouseId,
- costCategory: category,
- costName: rate.costName,
- costValue: rate.defaultRate || 0,
- unitOfMeasure: rate.unitOfMeasure || 'unit',
- effectiveDate: new Date(),
- isActive: rate.isActive !== false,
- createdById: session.user.id
- }
- })
+ const incomingRates: IncomingCostRate[] = Array.isArray(costRates) ? costRates : []
 
- await prisma.costRate.createMany({
- data: rateData
- })
+ if (incomingRates.length > 0) {
+   const rateMap = incomingRates.reduce<Map<CostCategory, Prisma.CostRateCreateManyInput>>(
+     (map, rate) => {
+       const category = normalizeCostCategory(rate.costCategory)
+       if (!map.has(category)) {
+         map.set(category, {
+           warehouseId,
+           costCategory: category,
+           costValue: rate.defaultRate || 0,
+           unitOfMeasure: rate.unitOfMeasure || 'unit',
+           effectiveDate: new Date(),
+           isActive: rate.isActive !== false,
+           createdById: session.user.id
+         })
+       }
+       return map
+     },
+     new Map<CostCategory, Prisma.CostRateCreateManyInput>()
+   )
+
+   const uniqueRates: Prisma.CostRateCreateManyInput[] = Array.from(rateMap.values())
+
+   if (uniqueRates.length > 0) {
+     await prisma.costRate.createMany({
+       data: uniqueRates
+     })
+   }
  }
 
  // Fetch the updated rates
  const updatedRates = await prisma.costRate.findMany({
  where: { warehouseId },
  orderBy: [
- { costCategory: 'asc' },
- { costName: 'asc' }
+ { costCategory: 'asc' }
  ]
  })
 
  const transformedRates = updatedRates.map(rate => ({
  id: rate.id,
  costCategory: rate.costCategory.toLowerCase(),
- costName: rate.costName,
  defaultRate: Number(rate.costValue),
  unitOfMeasure: rate.unitOfMeasure,
  isActive: rate.isActive

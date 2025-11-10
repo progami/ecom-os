@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
  // Detailed transactions sheet
  const detailHeaders = [
  'Date', 'Transaction ID', 'Type', 'Warehouse', 'SKU', 'Batch/Lot', 
- 'Category', 'Description', 'Quantity', 'Rate', 'Cost'
+  'Category', 'Quantity', 'Rate', 'Cost'
  ]
  const detailData: (string | number | null)[][] = [detailHeaders]
 
@@ -139,9 +139,8 @@ export async function GET(request: NextRequest) {
  detail.warehouse,
  detail.sku,
  detail.batchLot,
- detail.costCategory,
- detail.costName,
- detail.quantity,
+   detail.costCategory,
+   detail.quantity,
  detail.unitRate,
  detail.totalCost
  ])

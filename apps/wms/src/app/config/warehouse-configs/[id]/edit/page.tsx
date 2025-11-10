@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/hooks/usePortalSession'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
 import { Building, Save, X, Calendar } from '@/lib/lucide-icons'

@@ -37,7 +37,6 @@ export async function GET(_request: NextRequest) {
  warehouseId: rate.warehouseId,
  warehouse: rate.warehouse,
  costCategory: rate.costCategory,
- costName: rate.costName,
  costValue: parseFloat(rate.costValue.toString()),
  unitOfMeasure: rate.unitOfMeasure,
  effectiveDate: rate.effectiveDate.toISOString(),
@@ -63,52 +62,42 @@ export async function POST(request: NextRequest) {
  }
 
  const body = await request.json()
- const { warehouseId, costCategory, costName, costValue, unitOfMeasure, effectiveDate, endDate } = body
+ const { warehouseId, costCategory, costValue, unitOfMeasure, effectiveDate, endDate } = body
 
- // Validate required fields
- if (!warehouseId || !costCategory || !costName || costValue === undefined || !unitOfMeasure || !effectiveDate) {
+// Validate required fields
+ if (!warehouseId || !costCategory || costValue === undefined || !unitOfMeasure || !effectiveDate) {
  return NextResponse.json(
  { error: 'Missing required fields' },
  { status: 400 }
  )
  }
 
- // Special validation for Storage category
- if (costCategory === 'Storage') {
- // Check for existing active storage rate
- const existingStorageRate = await prisma.costRate.findFirst({
+ // Enforce a single rate per category per warehouse
+ const duplicateRate = await prisma.costRate.findFirst({
  where: {
  warehouseId,
- costCategory: 'Storage',
- effectiveDate: { lte: new Date(effectiveDate) },
- OR: [
- { endDate: null },
- { endDate: { gte: new Date(effectiveDate) } }
- ]
+ costCategory
  }
  })
 
- if (existingStorageRate) {
+ if (duplicateRate) {
  return NextResponse.json(
- { error: 'An active storage rate already exists for this warehouse. Please end the existing rate first.' },
+ { error: `A ${costCategory} rate already exists for this warehouse. Update the existing rate instead of creating a new one.` },
  { status: 400 }
  )
  }
 
- // Ensure correct unit for storage
- if (unitOfMeasure !== 'pallet/week') {
+ if (costCategory === 'Storage' && unitOfMeasure !== 'pallet/week') {
  return NextResponse.json(
  { error: 'Storage rates must use "pallet/week" as the unit of measure' },
  { status: 400 }
  )
- }
  }
 
  const newRate = await prisma.costRate.create({
  data: {
  warehouseId,
  costCategory,
- costName,
  costValue,
  unitOfMeasure,
  effectiveDate: new Date(effectiveDate),
@@ -131,7 +120,6 @@ export async function POST(request: NextRequest) {
  warehouseId: newRate.warehouseId,
  warehouse: newRate.warehouse,
  costCategory: newRate.costCategory,
- costName: newRate.costName,
  costValue: parseFloat(newRate.costValue.toString()),
  unitOfMeasure: newRate.unitOfMeasure,
  effectiveDate: newRate.effectiveDate.toISOString(),

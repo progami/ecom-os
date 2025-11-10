@@ -30,7 +30,7 @@ export default async function XPlanRedirect() {
     // fall through to fallback below
   }
 
-  let fallback = 'https://dev.ecomos.targonglobal.com/x-plan'
+  let fallback: string | null = null
 
   try {
     const origin = resolvePortalAuthOrigin()
@@ -44,6 +44,10 @@ export default async function XPlanRedirect() {
         // retain previous fallback
       }
     }
+  }
+
+  if (!fallback) {
+    throw new Error('Unable to resolve X-Plan redirect URL. Set NEXTAUTH_URL, PORTAL_AUTH_URL, or NEXT_PUBLIC_PORTAL_AUTH_URL.')
   }
 
   redirect(fallback)

@@ -2,10 +2,10 @@
 
 import { Suspense, useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/hooks/usePortalSession'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
-import { DollarSign, Save, X, AlertCircle } from '@/lib/lucide-icons'
+import { DollarSign, Save, X } from '@/lib/lucide-icons'
 import { toast } from 'react-hot-toast'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { redirectToPortal } from '@/lib/portal'
@@ -50,16 +50,6 @@ const unitsByCategory: { [key: string]: string[] } = {
  Accessorial: ['hour', 'service', 'fee', 'charge']
 }
 
-const commonRateNames: { [key: string]: string[] } = {
- Storage: ['Storage cost per pallet / week', 'Amazon storage per cubic foot / month'],
- Container: ['20 feet container unloading', '40 feet container unloading', 'Container Unloading', 'Container devanning'],
- Carton: ['Carton handling', 'Case handling', 'Unloading/Scanning'],
- Pallet: ['Pallet handling', 'Pallets wooden platform/Wrapping/Labor', 'Pallet in', 'Pallet out'],
- Unit: ['Unit handling', 'Pick and pack per unit', 'Individual item handling'],
- Shipment: ['Shipment processing', 'Order fulfillment', 'Delivery charge'],
- Accessorial: ['Hourly labor', 'Special handling', 'Additional service', 'Custom charge']
-}
-
 function NewRatePageContent() {
  const router = useRouter()
  const searchParams = useSearchParams()
@@ -69,12 +59,11 @@ function NewRatePageContent() {
  const [checkingOverlap, setCheckingOverlap] = useState(false)
  
  const [formData, setFormData] = useState({
- warehouseId: '',
- costCategory: '',
- costName: '',
- costValue: '',
- unitOfMeasure: '',
- effectiveDate: new Date().toISOString().split('T')[0],
+   warehouseId: '',
+   costCategory: '',
+   costValue: '',
+   unitOfMeasure: '',
+   effectiveDate: new Date().toISOString().split('T')[0],
  endDate: ''
  })
 
@@ -111,22 +100,19 @@ function NewRatePageContent() {
  }
 
  const checkForOverlap = async () => {
- if (!formData.warehouseId || !formData.costCategory || !formData.costName || !formData.effectiveDate) {
- return true // Allow submission to show validation errors
- }
+  if (!formData.warehouseId || !formData.costCategory || !formData.effectiveDate) {
+    return true // Allow submission to show validation errors
+  }
 
  setCheckingOverlap(true)
  try {
  const response = await fetchWithCSRF('/api/settings/rates/check-overlap', {
  method: 'POST',
- body: JSON.stringify({
- warehouseId: formData.warehouseId,
- costCategory: formData.costCategory,
- costName: formData.costName,
- effectiveDate: formData.effectiveDate,
- endDate: formData.endDate || null
- })
- })
+  body: JSON.stringify({
+    warehouseId: formData.warehouseId,
+    costCategory: formData.costCategory
+  })
+})
 
  if (response.ok) {
  const { hasOverlap, message } = await response.json()
@@ -148,7 +134,7 @@ function NewRatePageContent() {
  e.preventDefault()
  
  // Validate required fields
- if (!formData.warehouseId || !formData.costCategory || !formData.costName || 
+ if (!formData.warehouseId || !formData.costCategory || 
  !formData.costValue || !formData.unitOfMeasure || !formData.effectiveDate) {
  toast.error('Please fill in all required fields')
  return
@@ -191,13 +177,12 @@ function NewRatePageContent() {
  }
 
  const handleCategoryChange = (category: string) => {
- setFormData({
- ...formData,
- costCategory: category,
- unitOfMeasure: '',
- costName: ''
- })
- }
+  setFormData({
+    ...formData,
+    costCategory: category,
+    unitOfMeasure: ''
+  })
+}
 
  return (
  <DashboardLayout>
@@ -252,29 +237,9 @@ function NewRatePageContent() {
  </option>
  ))}
  </select>
- </div>
-
- {/* Cost Name */}
- <div>
- <label className="block text-sm font-medium text-slate-700 mb-2">
- Cost Name <span className="text-red-500">*</span>
- </label>
- <input
- type="text"
- value={formData.costName}
- onChange={(e) => setFormData({ ...formData, costName: e.target.value })}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
- placeholder="e.g., Container Unloading"
- required
- list="cost-names"
- />
- {formData.costCategory && commonRateNames[formData.costCategory] && (
- <datalist id="cost-names">
- {commonRateNames[formData.costCategory].map(name => (
- <option key={name} value={name} />
- ))}
- </datalist>
- )}
+ <p className="text-xs text-slate-500 mt-1">
+ Each cost category can only have one active rate per warehouse.
+ </p>
  </div>
 
  {/* Unit of Measure */}
@@ -346,24 +311,6 @@ function NewRatePageContent() {
  </div>
  </div>
 
-
- {/* Warning for Storage Category */}
- {formData.costCategory === 'Storage' && (
- <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
- <div className="flex items-start gap-3">
- <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
- <div className="text-sm text-yellow-800">
- <p className="font-semibold">Storage Rate Requirements</p>
- <ul className="list-disc list-inside mt-1 space-y-1">
- <li>Only one active storage rate per warehouse per unit type</li>
- <li>Standard warehouses: Use "pallet/week" for weekly storage</li>
- <li>Amazon warehouses: Use "cubic foot/month" for monthly storage</li>
- <li>Name must clearly indicate the storage type and billing period</li>
- </ul>
- </div>
- </div>
- </div>
- )}
 
  {/* Action Buttons */}
  <div className="flex justify-end gap-3 pt-4 border-t">

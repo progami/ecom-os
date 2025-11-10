@@ -79,36 +79,39 @@ export async function POST() {
  }
  ]
  
- let ratesCreated = 0
- for (const rate of amazonRates) {
- const existingRate = await prisma.costRate.findFirst({
- where: {
- warehouseId: amazonWarehouse.id,
- costName: rate.name,
- effectiveDate: { lte: rate.effectiveDate },
- OR: [
- { endDate: null },
- { endDate: { gte: rate.effectiveDate } }
- ]
- }
- })
- 
- if (!existingRate) {
- await prisma.costRate.create({
- data: {
- warehouseId: amazonWarehouse.id,
- costCategory: rate.category,
- costName: rate.name,
- costValue: rate.value,
- unitOfMeasure: rate.unit,
- effectiveDate: rate.effectiveDate,
- endDate: rate.endDate,
- createdById: session.user.id
- }
- })
- ratesCreated++
- }
- }
+  let ratesCreated = 0
+  const uniqueRates = Array.from(
+    amazonRates.reduce((map, rate) => {
+      if (!map.has(rate.category)) {
+        map.set(rate.category, rate)
+      }
+      return map
+    }, new Map<string, typeof amazonRates[number]>()).values()
+  )
+
+  for (const rate of uniqueRates) {
+    const existingRate = await prisma.costRate.findFirst({
+      where: {
+        warehouseId: amazonWarehouse.id,
+        costCategory: rate.category
+      }
+    })
+
+    if (!existingRate) {
+      await prisma.costRate.create({
+        data: {
+          warehouseId: amazonWarehouse.id,
+          costCategory: rate.category,
+          costValue: rate.value,
+          unitOfMeasure: rate.unit,
+          effectiveDate: rate.effectiveDate,
+          endDate: rate.endDate,
+          createdById: session.user.id
+        }
+      })
+      ratesCreated++
+    }
+  }
  
  return NextResponse.json({
  warehouse: amazonWarehouse,

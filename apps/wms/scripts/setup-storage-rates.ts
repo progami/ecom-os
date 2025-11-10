@@ -55,7 +55,6 @@ async function setupStorageRates() {
         data: {
           warehouseId: warehouse.id,
           costCategory: 'Storage',
-          costName: 'Weekly Storage Fee',
           costValue: 0.5000, // $0.50 per carton per week
           unitOfMeasure: 'carton/week',
           effectiveDate: new Date('2024-01-01'),

@@ -58,16 +58,17 @@ export default function NewWarehousePage() {
 
  setLoading(true)
  try {
- const response = await fetch('/api/warehouses', {
- method: 'POST',
- headers: { 'Content-Type': 'application/json' },
- body: JSON.stringify({
- ...formData,
- code: formData.code.toUpperCase(),
- latitude: formData.latitude ? parseFloat(formData.latitude) : null,
- longitude: formData.longitude ? parseFloat(formData.longitude) : null
- })
- })
+    const response = await fetch('/api/warehouses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...formData,
+        code: formData.code.toUpperCase(),
+        latitude: formData.latitude ? parseFloat(formData.latitude) : null,
+        longitude: formData.longitude ? parseFloat(formData.longitude) : null,
+        contactEmail: formData.contactEmail.trim() || undefined
+      })
+    })
 
  if (!response.ok) {
  const error = await response.json()

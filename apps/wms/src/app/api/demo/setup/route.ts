@@ -277,49 +277,35 @@ async function generateBasicDemoData(tx: Prisma.TransactionClient, adminUserId: 
  }
 
  // Create demo cost rates only if they don't exist
- const costRates = await Promise.all([
- tx.costRate.create({
- data: {
- warehouseId: warehouses[0].id,
- costCategory: 'Storage',
- costName: 'Standard Storage - Per Pallet',
- costValue: 25.00,
- unitOfMeasure: 'pallet/week',
- effectiveDate: new Date('2024-01-01'),
- createdById: adminUserId,
- }
- }),
- tx.costRate.create({
- data: {
- warehouseId: warehouses[0].id,
- costCategory: 'Carton',
- costName: 'Inbound Processing',
- costValue: 1.50,
- unitOfMeasure: 'carton',
- effectiveDate: new Date('2024-01-01'),
- createdById: adminUserId,
- }
- }),
- tx.costRate.create({
- data: {
- warehouseId: warehouses[0].id,
- costCategory: 'Carton',
- costName: 'Outbound Processing',
- costValue: 1.75,
- unitOfMeasure: 'carton',
- effectiveDate: new Date('2024-01-01'),
- createdById: adminUserId,
- }
- }),
- tx.costRate.create({
- data: {
- warehouseId: warehouses[1].id,
- costCategory: 'Storage',
- costName: 'Standard Storage - Per Pallet',
- costValue: 20.00,
- unitOfMeasure: 'pallet/week',
- effectiveDate: new Date('2024-01-01'),
- createdById: adminUserId,
+  const costRates = await Promise.all([
+    tx.costRate.create({
+      data: {
+        warehouseId: warehouses[0].id,
+        costCategory: 'Storage',
+        costValue: 25.00,
+        unitOfMeasure: 'pallet/week',
+        effectiveDate: new Date('2024-01-01'),
+        createdById: adminUserId,
+      }
+    }),
+    tx.costRate.create({
+      data: {
+        warehouseId: warehouses[0].id,
+        costCategory: 'Carton',
+        costValue: 1.50,
+        unitOfMeasure: 'carton',
+        effectiveDate: new Date('2024-01-01'),
+        createdById: adminUserId,
+      }
+    }),
+    tx.costRate.create({
+      data: {
+        warehouseId: warehouses[1].id,
+        costCategory: 'Storage',
+        costValue: 20.00,
+        unitOfMeasure: 'pallet/week',
+        effectiveDate: new Date('2024-01-01'),
+        createdById: adminUserId,
  }
  }),
  ])

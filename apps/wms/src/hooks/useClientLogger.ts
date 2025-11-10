@@ -3,7 +3,7 @@
 import { useEffect, useCallback } from 'react'
 import { clientLogger } from '@/lib/logger/client'
 import { usePathname } from 'next/navigation'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/hooks/usePortalSession'
 
 const toMetadata = (metadata?: unknown): Record<string, unknown> => {
  if (metadata === undefined || metadata === null) {

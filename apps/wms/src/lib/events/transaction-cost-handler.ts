@@ -1,7 +1,7 @@
 // Transaction cost handler - automatically creates cost ledger entries when transactions include costs
 import { prisma } from '@/lib/prisma'
 import { TransactionType } from '@prisma/client'
-import { getValidCostCategories, getCostRate } from '@/lib/cost-validation'
+import { getValidCostCategories } from '@/lib/cost-validation'
 
 interface TransactionWithCosts {
  transactionId: string
@@ -96,14 +96,10 @@ export async function handleTransactionCosts(transaction: TransactionWithCosts) 
  if (!validCategories.includes('Carton')) {
  // console.warn(`Carton costs not configured for warehouse ${transaction.warehouseCode}`)
  } else {
- const costName = transaction.transactionType === 'RECEIVE' ? 'Inbound Handling' : 'Outbound Handling'
  // Try to get the actual rate
- const rate = await getCostRate(transaction.warehouseCode, 'Carton', costName)
- 
  costEntries.push({
  transactionId: transaction.transactionId,
  costCategory: 'Carton' as const,
- costName: rate?.costName || costName,
  quantity: safeQuantity,
  unitRate: transaction.costs.handling / safeQuantity,
  totalCost: transaction.costs.handling,
@@ -121,12 +117,9 @@ export async function handleTransactionCosts(transaction: TransactionWithCosts) 
  if (!validCategories.includes('Storage')) {
  // console.warn(`Storage costs not configured for warehouse ${transaction.warehouseCode}`)
  } else {
- const rate = await getCostRate(transaction.warehouseCode, 'Storage', 'Monthly Storage')
- 
  costEntries.push({
  transactionId: transaction.transactionId,
  costCategory: 'Storage' as const,
- costName: rate?.costName || 'Storage Fee',
  quantity: safeQuantity,
  unitRate: transaction.costs.storage / safeQuantity,
  totalCost: transaction.costs.storage,
@@ -148,7 +141,6 @@ export async function handleTransactionCosts(transaction: TransactionWithCosts) 
  costEntries.push({
  transactionId: transaction.transactionId,
  costCategory: 'Accessorial' as const,
- costName: customCost.name || 'Custom Cost',
  quantity: safeQuantity,
  unitRate: customCost.amount / safeQuantity,
  totalCost: customCost.amount,

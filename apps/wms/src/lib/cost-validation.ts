@@ -6,8 +6,7 @@ import { CostCategory } from '@prisma/client'
  */
 export async function validateCostAgainstRates(
  warehouseCode: string,
- costCategory: CostCategory,
- costName: string
+ costCategory: CostCategory
 ): Promise<{ valid: boolean; message?: string }> {
  // Get warehouse
  const warehouse = await prisma.warehouse.findUnique({
@@ -25,30 +24,14 @@ export async function validateCostAgainstRates(
  const costRate = await prisma.costRate.findFirst({
  where: {
  warehouseId: warehouse.id,
- costCategory: costCategory,
- costName: costName
+ costCategory
  }
  })
- 
+
  if (!costRate) {
- // Check if ANY rate exists for this category
- const categoryRate = await prisma.costRate.findFirst({
- where: {
- warehouseId: warehouse.id,
- costCategory: costCategory
- }
- })
- 
- if (!categoryRate) {
  return {
  valid: false,
  message: `No ${costCategory} cost rates defined for warehouse ${warehouseCode}`
- }
- }
- 
- return {
- valid: false,
- message: `Cost rate "${costName}" not found for ${costCategory} in warehouse ${warehouseCode}`
  }
  }
  
@@ -81,8 +64,7 @@ export async function getValidCostCategories(warehouseCode: string): Promise<Cos
  */
 export async function getCostRate(
  warehouseCode: string,
- costCategory: CostCategory,
- costName?: string
+ costCategory: CostCategory
 ) {
  const warehouse = await prisma.warehouse.findUnique({
  where: { code: warehouseCode }
@@ -93,8 +75,7 @@ export async function getCostRate(
  return await prisma.costRate.findFirst({
  where: {
  warehouseId: warehouse.id,
- costCategory: costCategory,
- ...(costName && { costName })
+ costCategory
  }
  })
 }

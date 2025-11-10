@@ -16,7 +16,6 @@ import { AlertCircle, Lock, Unlock, Calculator, Truck } from '@/lib/lucide-icons
 export interface CostEntry {
  id: string
  costType: 'container' | 'carton' | 'pallet'
- costName: string
  quantity: number
  unitRate: number
  totalCost: number
@@ -24,6 +23,14 @@ export interface CostEntry {
  isLocked: boolean
  description?: string
 }
+
+const COST_LABELS: Record<CostEntry['costType'], string> = {
+ container: 'Container Cost',
+ carton: 'Carton Handling',
+ pallet: 'Pallet Handling'
+}
+
+const getCostLabel = (type: CostEntry['costType']) => COST_LABELS[type] ?? type
 
 interface CostsTabProps {
  warehouseId: string
@@ -163,7 +170,6 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  initialCosts.push({
  id: rate.id,
  costType: 'container',
- costName: rate.costName,
  quantity: 1,
  unitRate: Number(rate.costValue || 0),
  totalCost: Number(rate.costValue || 0),
@@ -191,7 +197,6 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  initialCosts.push({
  id: rate.id,
  costType: costType as 'carton' | 'pallet',
- costName: rate.costName,
  quantity: quantity,
  unitRate: Number(rate.costValue || 0),
  totalCost: quantity * Number(rate.costValue || 0),
@@ -320,7 +325,7 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  <div key={cost.id} className="grid grid-cols-4 gap-4 items-center">
  <div>
  <label className="block text-sm font-medium text-slate-700 mb-1">
- {cost.costName}
+ {getCostLabel(cost.costType)}
  </label>
  {cost.id === 'other' && (
  <input
@@ -381,7 +386,7 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  <div key={cost.id} className="grid grid-cols-5 gap-4 items-center">
  <div className="col-span-2">
  <label className="block text-sm font-medium text-slate-700 mb-1">
- {cost.costName}
+ {getCostLabel(cost.costType)}
  </label>
  </div>
  
