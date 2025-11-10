@@ -33,7 +33,7 @@ That pushed the NextAuth client and the shared portal session code to call the p
 - Auth modules now throw during startup when required env vars are missing. Set `NEXTAUTH_SECRET` (or `PORTAL_AUTH_SECRET`), `COOKIE_DOMAIN`, `PORTAL_AUTH_URL`, `NEXT_PUBLIC_PORTAL_AUTH_URL`, and each app’s `NEXT_PUBLIC_APP_URL` before running `pnpm dev`.
 - For quick experiments you can opt in to localhost defaults with `ALLOW_DEV_AUTH_DEFAULTS=true`, but leave it unset in shared environments so misconfigured hosts fail fast.
 - Sample `.env.local` files are checked in for ecomOS, WMS, HRMS, FCC, and X-Plan; copy them or export the vars explicitly when spinning up additional apps.
-- For **local** work, `apps/ecomos/dev.apps.json` maps the portal tiles to the localhost ports (`3000` portal, `3001` WMS, etc.). Make sure this file (or your `PORTAL_APPS_CONFIG`) points at the hosts you actually have running; otherwise the launcher falls back to the remote dev URLs.
+- For **local** work, point `PORTAL_APPS_CONFIG` at `apps/ecomos/dev.local.apps.json` (or the root `dev.local.apps.json`) so launcher links hit your localhost ports. The default `dev.apps.json` now targets the shared `https://dev.ecomos.targonglobal.com` host so the remote dev environment stays accurate.
 - Dev machines now talk directly to the shared RDS instance (`ecomos-prod`) instead of a local Postgres. Open a tunnel before launching any app:
   ```bash
   ssh -f -N \
