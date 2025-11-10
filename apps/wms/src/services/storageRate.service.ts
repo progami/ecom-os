@@ -4,7 +4,6 @@ export interface StorageRateResult {
  ratePerCarton: number
  costRateId: string
  effectiveDate: Date
- rateName: string
 }
 
 /**
@@ -40,8 +39,7 @@ export async function getStorageRate(
  return {
  ratePerCarton: Number(costRate.costValue),
  costRateId: costRate.id,
- effectiveDate: costRate.effectiveDate,
- rateName: costRate.costName
+ effectiveDate: costRate.effectiveDate
  }
 }
 

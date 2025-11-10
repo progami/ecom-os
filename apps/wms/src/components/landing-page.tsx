@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-// import { signIn } from 'next-auth/react'
+// import { signIn } from '@/hooks/usePortalSession'
 import { toast } from 'react-hot-toast'
 import { 
  Package2, 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/hooks/usePortalSession'
 import Link from 'next/link'
 import { Plus, Search, MoreVertical, Mail, Users } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'

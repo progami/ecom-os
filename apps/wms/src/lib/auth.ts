@@ -4,17 +4,18 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { applyDevAuthDefaults, withSharedAuth, getAppEntitlement } from '@ecom-os/auth'
 import { UserRole } from '@prisma/client'
 
-const devPort = process.env.PORT || process.env.WMS_PORT || 3001
-const devBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${devPort}`
-const portalDev = process.env.PORTAL_AUTH_URL || 'http://localhost:3000'
+if (!process.env.NEXT_PUBLIC_APP_URL) {
+ throw new Error('NEXT_PUBLIC_APP_URL must be defined for WMS auth configuration.')
+}
+if (!process.env.PORTAL_AUTH_URL) {
+ throw new Error('PORTAL_AUTH_URL must be defined for WMS auth configuration.')
+}
+if (!process.env.NEXT_PUBLIC_PORTAL_AUTH_URL) {
+ throw new Error('NEXT_PUBLIC_PORTAL_AUTH_URL must be defined for WMS auth configuration.')
+}
 
 applyDevAuthDefaults({
  appId: 'ecomos',
- port: devPort,
- baseUrl: devBaseUrl,
- cookieDomain: 'localhost',
- portalUrl: portalDev,
- publicPortalUrl: process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'http://localhost:3000',
 })
 
 const defaultDevSecret = 'dev_portal_auth_secret_2025'

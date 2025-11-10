@@ -75,7 +75,6 @@ export interface CostLedgerEntryRecord {
   id?: string
   transactionId: string
   costCategory: string
-  costName: string
   quantity?: number | string | null
   unitRate?: number | string | null
   totalCost?: number | string | null
@@ -92,7 +91,6 @@ export interface CostLedgerDetail {
   sku: string
   batchLot: string
   costCategory: string
-  costName: string
   quantity: number
   unitRate: number
   totalCost: number

@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation'
 
 // Third-party libraries
 import { toast } from 'react-hot-toast'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/hooks/usePortalSession'
 
 // Internal components
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
@@ -251,13 +251,12 @@ export default function ShipTabbedPage() {
  unitsPerCarton: item.unitsPerCarton,
  shippingCartonsPerPallet: item.shippingCartonsPerPallet
  })),
- costs: costs.map(cost => ({
- costType: cost.costType,
- costName: cost.costName,
- quantity: cost.quantity,
- unitRate: cost.unitRate,
- totalCost: cost.totalCost
- }))
+  costs: costs.map(cost => ({
+  costType: cost.costType,
+  quantity: cost.quantity,
+  unitRate: cost.unitRate,
+  totalCost: cost.totalCost
+  }))
  }
 
  // Run validation

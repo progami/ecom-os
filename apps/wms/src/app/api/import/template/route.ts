@@ -177,7 +177,6 @@ function getFieldDescription(dbField: string, entityName: string): string {
  costRates: {
  warehouse: 'Warehouse name (must match existing warehouse)',
  costCategory: 'Category: storage, container, pallet, carton, unit, shipment, accessorial',
- costName: 'Descriptive name for the cost',
  costValue: 'Cost amount',
  unitOfMeasure: 'Unit of measure (e.g., pallet/week, shipment, carton)',
  effectiveDate: 'Date when this rate becomes effective',

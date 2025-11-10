@@ -320,19 +320,17 @@ async function createCostRates() {
       const existing = await prisma.costRate.findFirst({
         where: {
           warehouseId: warehouse.id,
-          costName: cost.name,
           costCategory: cost.category as any
         }
       })
       
       if (existing) {
-        log(`Cost rate already exists: ${cost.name} for ${warehouse.code}`)
+        log(`Cost rate already exists for ${cost.category} in ${warehouse.code}`)
       } else {
         await prisma.costRate.create({
           data: {
             warehouseId: warehouse.id,
             costCategory: cost.category as any,
-            costName: cost.name,
             costValue: cost.costValue,
             unitOfMeasure: cost.unitOfMeasure,
             effectiveDate: today,

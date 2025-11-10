@@ -12,7 +12,6 @@ const COST_CATEGORY_OPTIONS = ['Container', 'Carton', 'Pallet', 'Storage', 'Unit
 const createRateSchema = z.object({
  warehouseId: z.string().uuid(),
  costCategory: z.enum(COST_CATEGORY_OPTIONS),
- costName: z.string().min(1),
  costValue: z.number().positive(),
  unitOfMeasure: z.string().min(1),
  effectiveDate: z.string().datetime(),
@@ -79,7 +78,6 @@ export async function GET(req: NextRequest) {
  orderBy: [
  { warehouse: { name: 'asc' } },
  { costCategory: 'asc' },
- { costName: 'asc' },
  { effectiveDate: 'desc' }
  ]
  })
@@ -105,22 +103,17 @@ export async function POST(req: NextRequest) {
  const body = await req.json()
  const validatedData = createRateSchema.parse(body)
 
- // Check for overlapping rates
- const overlapping = await prisma.costRate.findFirst({
+ // Enforce one rate per category per warehouse
+ const duplicateRate = await prisma.costRate.findFirst({
  where: {
  warehouseId: validatedData.warehouseId,
- costName: validatedData.costName,
- effectiveDate: { lte: new Date(validatedData.effectiveDate) },
- OR: [
- { endDate: null },
- { endDate: { gte: new Date(validatedData.effectiveDate) } }
- ]
+ costCategory: validatedData.costCategory
  }
  })
 
- if (overlapping) {
+ if (duplicateRate) {
  return NextResponse.json(
- { error: 'An active rate already exists for this cost name and period' },
+ { error: `A ${validatedData.costCategory} rate already exists for this warehouse.` },
  { status: 400 }
  )
  }
@@ -129,7 +122,6 @@ export async function POST(req: NextRequest) {
  data: {
  warehouseId: validatedData.warehouseId,
  costCategory: validatedData.costCategory,
- costName: validatedData.costName,
  costValue: validatedData.costValue,
  unitOfMeasure: validatedData.unitOfMeasure,
  effectiveDate: new Date(validatedData.effectiveDate),

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Bell, Mail, MessageSquare, Smartphone, Save } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { toast } from 'react-hot-toast'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/hooks/usePortalSession'
 import { useRouter } from 'next/navigation'
 
 interface NotificationSettings {

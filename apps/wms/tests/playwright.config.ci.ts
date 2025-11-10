@@ -1,5 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const baseUrl = process.env.BASE_URL;
+
+if (!baseUrl) {
+  throw new Error('BASE_URL must be defined before running the WMS Playwright CI tests.');
+}
+
 export default defineConfig({
   testDir: './e2e',
   timeout: 90000, // Increased from 60s to 90s for CI
@@ -14,7 +20,7 @@ export default defineConfig({
     ['line'], // Better for CI logs
   ],
   use: {
-    baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    baseURL: baseUrl,
     trace: 'on', // Always capture traces in CI
     screenshot: 'on', // Always capture screenshots
     video: 'on', // Always capture video

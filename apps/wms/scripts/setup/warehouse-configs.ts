@@ -90,7 +90,6 @@ async function seedCostRates() {
     {
       warehouseId: warehouse.id,
       costCategory: CostCategory.Storage,
-      costName: 'Storage per pallet (monthly)',
       costValue: new Prisma.Decimal(18),
       unitOfMeasure: 'PALLET_MONTH',
       effectiveDate,
@@ -100,7 +99,6 @@ async function seedCostRates() {
     {
       warehouseId: warehouse.id,
       costCategory: CostCategory.Accessorial,
-      costName: 'Inbound handling per pallet',
       costValue: new Prisma.Decimal(8),
       unitOfMeasure: 'PALLET',
       effectiveDate,

@@ -1,16 +1,17 @@
 import type { NextAuthOptions } from 'next-auth'
 import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 
-const devPort = process.env.PORT || process.env.FCC_PORT || 3003
-const devBaseUrl = process.env.NEXT_PUBLIC_APP_URL || `http://localhost:${devPort}`
-const portalDev = process.env.PORTAL_AUTH_URL || 'http://localhost:3000'
+if (!process.env.NEXT_PUBLIC_APP_URL) {
+  throw new Error('NEXT_PUBLIC_APP_URL must be defined for FCC auth configuration.')
+}
+if (!process.env.PORTAL_AUTH_URL) {
+  throw new Error('PORTAL_AUTH_URL must be defined for FCC auth configuration.')
+}
+if (!process.env.NEXT_PUBLIC_PORTAL_AUTH_URL) {
+  throw new Error('NEXT_PUBLIC_PORTAL_AUTH_URL must be defined for FCC auth configuration.')
+}
 applyDevAuthDefaults({
   appId: 'ecomos',
-  port: devPort,
-  baseUrl: devBaseUrl,
-  cookieDomain: 'localhost',
-  portalUrl: portalDev,
-  publicPortalUrl: process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || 'http://localhost:3000',
 })
 
 const sharedSecret = process.env.PORTAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET

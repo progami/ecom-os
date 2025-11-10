@@ -69,8 +69,10 @@ function resolveAppBase(): { baseUrl: string; basePath: string; originHostname: 
  normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH) ||
  normalizeBasePath(appUrlFromEnv?.pathname ?? '')
 
- const originUrl = appUrlFromEnv ?? portalUrl ?? parseUrl('http://localhost:3001')
- if (!originUrl) return null
+ const originUrl = appUrlFromEnv ?? portalUrl
+ if (!originUrl) {
+  throw new Error('NEXT_PUBLIC_APP_URL or PORTAL_AUTH_URL must be configured for WMS login redirect.')
+ }
 
  const baseUrl = `${originUrl.origin}${basePath}`
  return { baseUrl, basePath, originHostname: originUrl.hostname }

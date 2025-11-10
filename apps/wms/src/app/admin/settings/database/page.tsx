@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Database, HardDrive, Clock, AlertTriangle, Save, Download, Upload, RefreshCw, Trash2 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { toast } from 'react-hot-toast'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/hooks/usePortalSession'
 import { useRouter } from 'next/navigation'
 import { DemoDataManager } from '@/components/demo-data-manager'
 

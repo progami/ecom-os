@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import React from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession } from '@/hooks/usePortalSession'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {

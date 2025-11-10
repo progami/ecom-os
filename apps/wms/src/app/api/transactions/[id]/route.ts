@@ -101,7 +101,6 @@ export async function GET(
  },
  select: {
  costCategory: true,
- costName: true,
  quantity: true,
  unitRate: true,
  totalCost: true
@@ -245,8 +244,13 @@ export async function DELETE(
  }
 
  // First validate if this transaction can be deleted
+ const nextAuthBaseUrl = process.env.NEXTAUTH_URL
+ if (!nextAuthBaseUrl) {
+ return NextResponse.json({ error: 'Server misconfiguration: NEXTAUTH_URL is not defined.' }, { status: 500 })
+ }
+
  const validationResponse = await fetch(
- `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/transactions/${id}/validate-edit`,
+ `${nextAuthBaseUrl}/api/transactions/${id}/validate-edit`,
  {
  method: 'GET',
  headers: {

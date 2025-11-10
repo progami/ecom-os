@@ -7,7 +7,10 @@
  */
 
 const args = process.argv.slice(2)
-const baseUrl = process.env.BASE_URL || process.env.WMS_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3001'
+const baseUrl = process.env.BASE_URL || process.env.WMS_BASE_URL || process.env.NEXT_PUBLIC_APP_URL
+if (!baseUrl) {
+  throw new Error('Set BASE_URL, WMS_BASE_URL, or NEXT_PUBLIC_APP_URL before running the WMS demo script.')
+}
 const force = !args.includes('--no-force')
 const verbose = args.includes('--verbose')
 

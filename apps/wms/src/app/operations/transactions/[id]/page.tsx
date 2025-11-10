@@ -42,12 +42,11 @@ interface TransactionData {
  cartonsOut: number
  attachments?: Record<string, ApiAttachment | null>
  calculatedCosts?: Array<{
- id: string
- costCategory?: string
- costName?: string
- quantity?: number
- unitRate?: number
- totalCost?: number
+  id: string
+  costCategory?: string
+  quantity?: number
+  unitRate?: number
+  totalCost?: number
  category?: string
  description?: string
  rate?: number
@@ -663,7 +662,6 @@ export default function TransactionDetailPage() {
  <thead className="bg-slate-50">
  <tr>
  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Cost Category</th>
- <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Cost Name</th>
  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Quantity</th>
  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Unit Rate</th>
  <th className="px-4 py-2 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Total Cost</th>
@@ -676,14 +674,6 @@ export default function TransactionDetailPage() {
  <input
  type="text"
  value={cost.costCategory ?? cost.category ?? ''}
- className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
- readOnly
- />
- </td>
- <td className="px-4 py-3 whitespace-nowrap">
- <input
- type="text"
- value={cost.costName ?? cost.description ?? ''}
  className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
  readOnly
  />

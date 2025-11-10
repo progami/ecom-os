@@ -7,6 +7,28 @@ import {
 import { businessLogger } from '@/lib/logger/server'
 import { Prisma } from '@prisma/client'
 
+const optionalEmailSchema = z.preprocess(
+ (val) => {
+ if (typeof val === 'string') {
+ const trimmed = val.trim()
+ return trimmed === '' ? undefined : trimmed
+ }
+ return val
+ },
+ z.string().email().optional()
+)
+
+const optionalNullableEmailSchema = z.preprocess(
+ (val) => {
+ if (typeof val === 'string') {
+ const trimmed = val.trim()
+ return trimmed === '' ? null : trimmed
+ }
+ return val ?? null
+ },
+ z.string().email().optional().nullable()
+)
+
 // Validation schemas
 const createWarehouseSchema = z.object({
  code: z.string().min(1).max(10).refine(validateAlphanumeric, {
@@ -16,7 +38,7 @@ const createWarehouseSchema = z.object({
  address: z.string().optional().transform(val => val ? sanitizeForDisplay(val) : val),
  latitude: z.number().min(-90).max(90).optional().nullable(),
  longitude: z.number().min(-180).max(180).optional().nullable(),
- contactEmail: z.string().email().optional(),
+ contactEmail: optionalEmailSchema,
  contactPhone: z.string().optional().transform(val => val ? sanitizeForDisplay(val) : val),
  isActive: z.boolean().default(true)
 })
@@ -29,7 +51,7 @@ const updateWarehouseSchema = z.object({
  address: z.string().optional().transform(val => val ? sanitizeForDisplay(val) : val),
  latitude: z.number().min(-90).max(90).optional().nullable(),
  longitude: z.number().min(-180).max(180).optional().nullable(),
- contactEmail: z.string().email().optional().nullable(),
+ contactEmail: optionalNullableEmailSchema,
  contactPhone: z.string().optional().nullable().transform(val => val ? sanitizeForDisplay(val) : val),
  isActive: z.boolean().optional()
 })
