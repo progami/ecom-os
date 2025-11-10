@@ -1,9 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { CostCategory, Prisma } from '@prisma/client'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
+
+const normalizeCostCategory = (value: string): CostCategory => {
+  const normalized = (value || '').toLowerCase()
+
+  switch (normalized) {
+    case 'container':
+      return CostCategory.Container
+    case 'carton':
+      return CostCategory.Carton
+    case 'storage':
+      return CostCategory.Storage
+    case 'pallet':
+      return CostCategory.Pallet
+    case 'transportation':
+      return CostCategory.transportation
+    case 'unit':
+      return CostCategory.Unit
+    case 'accessorial':
+      return CostCategory.Accessorial
+    default:
+      return CostCategory.Unit
+  }
+}
+
+type IncomingCostRate = {
+ costCategory: string
+ defaultRate?: number
+ unitOfMeasure?: string
+ isActive?: boolean
+}
 
 export async function GET(
  request: NextRequest,
@@ -78,40 +109,29 @@ export async function PUT(
  })
 
  // Create new cost rates
- if (costRates && costRates.length > 0) {
-   const rateMap = costRates.reduce((map, rate: {
-     costCategory: string;
-     defaultRate?: number;
-     unitOfMeasure?: string;
-     isActive?: boolean;
-   }) => {
-     let category = rate.costCategory
-     if (category !== 'transportation') {
-       category = category.charAt(0).toUpperCase() + category.slice(1).toLowerCase()
-     }
-     if (!map.has(category)) {
-       map.set(category, {
-         warehouseId,
-         costCategory: category,
-         costValue: rate.defaultRate || 0,
-         unitOfMeasure: rate.unitOfMeasure || 'unit',
-         effectiveDate: new Date(),
-         isActive: rate.isActive !== false,
-         createdById: session.user.id
-       })
-     }
-     return map
-   }, new Map<string, {
-     warehouseId: string;
-     costCategory: string;
-     costValue: number;
-     unitOfMeasure: string;
-     effectiveDate: Date;
-     isActive: boolean;
-     createdById: string;
-   }>())
+ const incomingRates: IncomingCostRate[] = Array.isArray(costRates) ? costRates : []
 
-   const uniqueRates = Array.from(rateMap.values())
+ if (incomingRates.length > 0) {
+   const rateMap = incomingRates.reduce<Map<CostCategory, Prisma.CostRateCreateManyInput>>(
+     (map, rate) => {
+       const category = normalizeCostCategory(rate.costCategory)
+       if (!map.has(category)) {
+         map.set(category, {
+           warehouseId,
+           costCategory: category,
+           costValue: rate.defaultRate || 0,
+           unitOfMeasure: rate.unitOfMeasure || 'unit',
+           effectiveDate: new Date(),
+           isActive: rate.isActive !== false,
+           createdById: session.user.id
+         })
+       }
+       return map
+     },
+     new Map<CostCategory, Prisma.CostRateCreateManyInput>()
+   )
+
+   const uniqueRates: Prisma.CostRateCreateManyInput[] = Array.from(rateMap.values())
 
    if (uniqueRates.length > 0) {
      await prisma.costRate.createMany({

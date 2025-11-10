@@ -61,6 +61,22 @@ interface Sku {
  unitsPerCarton: number
 }
 
+interface NewSkuBatchData {
+ skuCode: string
+ description: string
+ asin?: string
+ packSize: number
+ material?: string
+ unitDimensionsCm?: string
+ unitWeightKg?: number
+ unitsPerCarton: number
+ cartonDimensionsCm?: string
+ cartonWeightKg?: number
+ packagingType?: string
+ batchCode: string
+ batchDescription?: string
+}
+
 interface ReceiveLineItem {
  id: string
  skuCode: string
@@ -74,6 +90,8 @@ interface ReceiveLineItem {
  shippingCartonsPerPallet: number
  configLoaded: boolean
  loadingBatch: boolean
+ isNewSku?: boolean
+ skuData?: NewSkuBatchData
 }
 
 interface FileAttachment {
