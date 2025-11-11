@@ -287,11 +287,9 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
  }
 
  return (
- <div className="space-y-6">
- {/* Transaction Documents Section */}
- <div className="bg-white rounded-xl border">
- <div className="px-6 py-4 border-b bg-slate-50">
- <h3 className="text-lg font-semibold flex items-center gap-2">
+ <div className="bg-white rounded-lg border border-slate-200">
+ <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+ <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
  <FileText className="h-5 w-5" />
  Transaction Documents
  </h3>
@@ -299,7 +297,7 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
  {transactionId ? 'Upload or replace supporting documents' : 'Upload supporting documents'} (Max 5MB per file)
  </p>
  </div>
- 
+
  <div className="p-6">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
  {ATTACHMENT_CATEGORIES.map(category => {
@@ -391,13 +389,11 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
  )
  })}
  </div>
- </div>
- </div>
- 
+
  {Object.keys(uploading).some(key => uploading[key]) && progress.percentage > 0 && (
- <div className="mt-4">
+ <div className="mt-6">
  <div className="bg-slate-200 rounded-full h-2">
- <div 
+ <div
  className="bg-primary h-2 rounded-full transition-all duration-300"
  style={{ width: `${progress.percentage}%` }}
  />
@@ -407,6 +403,7 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
  </p>
  </div>
  )}
+ </div>
  </div>
  )
 }

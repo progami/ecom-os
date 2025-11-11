@@ -258,10 +258,9 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
 
  if (!warehouseId) {
  return (
- <div className="space-y-6">
- <div className="bg-white rounded-xl border">
- <div className="px-6 py-4 border-b bg-slate-50">
- <h3 className="text-lg font-semibold flex items-center gap-2">
+ <div className="bg-white rounded-lg border border-slate-200">
+ <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+ <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
  <Truck className="h-5 w-5" />
  Container Costs
  </h3>
@@ -269,11 +268,10 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  <div className="p-6">
  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
  <div className="flex items-center gap-2">
- <AlertCircle className="h-5 w-5 text-amber-600" />
+ <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
  <p className="text-sm text-amber-800">
  Please select a warehouse in the Details tab first to configure receiving costs.
  </p>
- </div>
  </div>
  </div>
  </div>
@@ -309,9 +307,9 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  return (
  <div className="space-y-6">
  {/* Container Costs Section */}
- <div className="bg-white rounded-xl border">
- <div className="px-6 py-4 border-b bg-slate-50">
- <h3 className="text-lg font-semibold flex items-center gap-2">
+ <div className="bg-white rounded-lg border border-slate-200">
+ <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+ <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
  <Truck className="h-5 w-5" />
  Container Costs
  </h3>
@@ -319,12 +317,12 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  Enter actual container and freight costs
  </p>
  </div>
- 
+
  <div className="p-6 space-y-4">
  {costs.filter(c => c.costType === 'container').map(cost => (
  <div key={cost.id} className="grid grid-cols-4 gap-4 items-center">
  <div>
- <label className="block text-sm font-medium text-slate-700 mb-1">
+ <label className="block text-sm font-medium text-slate-700 mb-2">
  {getCostLabel(cost.costType)}
  </label>
  {cost.id === 'other' && (
@@ -333,11 +331,11 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  placeholder="Specify..."
  value={cost.description || ''}
  onChange={(e) => updateCost(cost.id, 'description', e.target.value)}
- className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary"
+ className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
  />
  )}
  </div>
- 
+
  <div>
  <input
  type="number"
@@ -345,7 +343,7 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  placeholder="0.00"
  value={cost.unitRate || ''}
  onChange={(e) => updateCost(cost.id, 'unitRate', parseFloat(e.target.value) || 0)}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary"
+ className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
  />
  </div>
  
@@ -360,44 +358,36 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  </div>
  ))}
  
- <div className="pt-4 border-t">
- <div className="flex justify-between items-center text-lg font-semibold">
- <span>Container Total:</span>
- <span>{formatCurrency(totals.container)}</span>
- </div>
- </div>
  </div>
  </div>
 
  {/* Handling Costs Section */}
- <div className="bg-white rounded-xl border">
- <div className="px-6 py-4 border-b bg-slate-50">
- <h3 className="text-lg font-semibold flex items-center gap-2">
+ <div className="bg-white rounded-lg border border-slate-200">
+ <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+ <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
  <Calculator className="h-5 w-5" />
  Handling Costs
- <span className="text-sm font-normal text-slate-600">
- (Auto-calculated from rates)
- </span>
  </h3>
+ <p className="text-sm text-slate-600 mt-1">Auto-calculated from warehouse rates</p>
  </div>
- 
+
  <div className="p-6 space-y-4">
  {costs.filter(c => c.costType === 'carton' || c.costType === 'pallet').map(cost => (
  <div key={cost.id} className="grid grid-cols-5 gap-4 items-center">
  <div className="col-span-2">
- <label className="block text-sm font-medium text-slate-700 mb-1">
+ <label className="block text-sm font-medium text-slate-700">
  {getCostLabel(cost.costType)}
  </label>
  </div>
- 
+
  <div className="text-center">
  <span className="text-sm text-slate-600">{cost.quantity} × {formatCurrency(cost.unitRate)}</span>
  </div>
- 
+
  <div className="text-right font-medium">
  {formatCurrency(cost.totalCost)}
  </div>
- 
+
  <div className="text-center">
  <button
  type="button"
@@ -410,35 +400,39 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  </div>
  </div>
  ))}
- 
- <div className="pt-4 border-t">
- <div className="flex justify-between items-center text-lg font-semibold">
- <span>Handling Total:</span>
- <span>{formatCurrency(totals.handling)}</span>
- </div>
- </div>
  </div>
  </div>
 
- {/* Summary Section */}
- <div className="bg-cyan-50 rounded-xl border border-cyan-200 p-6">
- <div className="grid grid-cols-2 gap-4">
+ {/* Compact Summary Bar */}
+ <div className="bg-white rounded-xl border-2 border-slate-300 shadow-sm">
+ <div className="px-6 py-4 grid grid-cols-1 md:grid-cols-4 gap-6 items-center">
+ <div className="flex items-center gap-3">
+ <Truck className="h-5 w-5 text-blue-600 flex-shrink-0" />
  <div>
- <p className="text-sm text-cyan-700">Total Transaction Costs</p>
- <p className="text-2xl font-bold text-cyan-900">{formatCurrency(totals.total)}</p>
+ <p className="text-xs text-slate-500 uppercase tracking-wide">Container</p>
+ <p className="text-lg font-bold text-slate-900">{formatCurrency(totals.container)}</p>
  </div>
+ </div>
+
+ <div className="flex items-center gap-3">
+ <Calculator className="h-5 w-5 text-purple-600 flex-shrink-0" />
  <div>
- <p className="text-sm text-cyan-700">Cost per Carton</p>
- <p className="text-2xl font-bold text-cyan-900">{formatCurrency(totals.perCarton)}</p>
+ <p className="text-xs text-slate-500 uppercase tracking-wide">Handling</p>
+ <p className="text-lg font-bold text-slate-900">{formatCurrency(totals.handling)}</p>
  </div>
  </div>
- 
- {totalCartons === 0 && (
- <div className="mt-4 flex items-center gap-2 text-amber-600">
- <AlertCircle className="h-5 w-5" />
- <p className="text-sm">Add line items to calculate cost per carton</p>
+
+ <div className="flex items-center gap-3 md:col-span-2 bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-lg px-4 py-3 text-white">
+ <div className="flex-1">
+ <p className="text-xs uppercase tracking-wide opacity-90">Total Transaction Cost</p>
+ <p className="text-2xl font-bold">{formatCurrency(totals.total)}</p>
  </div>
- )}
+ <div className="border-l border-cyan-400/30 pl-4">
+ <p className="text-xs opacity-90">Per Carton</p>
+ <p className="text-xl font-bold">{formatCurrency(totals.perCarton)}</p>
+ </div>
+ </div>
+ </div>
  </div>
  </div>
  )

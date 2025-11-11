@@ -274,22 +274,21 @@ export const ShipCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
 
  if (!warehouseId) {
  return (
- <div className="space-y-6">
- <div className="bg-white rounded-xl border">
- <div className="px-6 py-4 border-b bg-slate-50">
- <h3 className="text-lg font-semibold flex items-center gap-2">
+ <div className="bg-white rounded-lg border border-slate-200">
+ <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+ <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
  <Truck className="h-5 w-5" />
  Transportation Costs
  </h3>
+ <p className="text-sm text-slate-600 mt-1">Enter transportation costs for this shipment</p>
  </div>
  <div className="p-6">
  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
  <div className="flex items-center gap-2">
- <AlertCircle className="h-5 w-5 text-amber-600" />
+ <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
  <p className="text-sm text-amber-800">
  Please select a warehouse in the Details tab first to configure shipping costs.
  </p>
- </div>
  </div>
  </div>
  </div>
@@ -325,14 +324,14 @@ export const ShipCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  return (
  <div className="space-y-6">
  {/* Shipping Costs Section */}
- <div className="bg-white rounded-xl border">
- <div className="px-6 py-4 border-b bg-slate-50">
- <h3 className="text-lg font-semibold flex items-center gap-2">
+ <div className="bg-white rounded-lg border border-slate-200">
+ <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+ <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
  <Truck className="h-5 w-5" />
  Transportation Costs
  </h3>
  <p className="text-sm text-slate-600 mt-1">
- Enter the transportation cost for this shipment.
+ Enter the transportation cost for this shipment
  </p>
  </div>
  
@@ -340,7 +339,7 @@ export const ShipCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  {costs.filter(c => c.costType === 'transportation').map(cost => (
  <div key={cost.id} className="grid grid-cols-4 gap-4 items-center">
  <div>
- <label className="block text-sm font-medium text-slate-700 mb-1">
+ <label className="block text-sm font-medium text-slate-700 mb-2">
  {getCostLabel(cost.costType)}
  </label>
  {cost.id === 'other' && (
@@ -349,11 +348,11 @@ export const ShipCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  placeholder="Specify..."
  value={cost.description ?? ''}
  onChange={(e) => updateCost(cost.id, 'description', e.target.value)}
- className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary"
+ className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
  />
  )}
  </div>
- 
+
  <div>
  <input
  type="number"
@@ -361,7 +360,7 @@ export const ShipCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  placeholder="0.00"
  value={cost.unitRate === 0 ? '' : cost.unitRate}
  onChange={(e) => updateCost(cost.id, 'unitRate', e.target.value === '' ? 0 : parseFloat(e.target.value) || 0)}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary"
+ className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
  />
  </div>
  
@@ -386,22 +385,20 @@ export const ShipCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  </div>
 
  {/* Handling Costs Section */}
- <div className="bg-white rounded-xl border">
- <div className="px-6 py-4 border-b bg-slate-50">
- <h3 className="text-lg font-semibold flex items-center gap-2">
+ <div className="bg-white rounded-lg border border-slate-200">
+ <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+ <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
  <Calculator className="h-5 w-5" />
  Handling Costs
- <span className="text-sm font-normal text-slate-600">
- (Auto-calculated from rates)
- </span>
  </h3>
+ <p className="text-sm text-slate-600 mt-1">Auto-calculated from rates</p>
  </div>
  
  <div className="p-6 space-y-4">
  {costs.filter(c => c.costType === 'carton' || c.costType === 'pallet').map(cost => (
  <div key={cost.id} className="grid grid-cols-5 gap-4 items-center">
  <div className="col-span-2">
- <label className="block text-sm font-medium text-slate-700 mb-1">
+ <label className="block text-sm font-medium text-slate-700 mb-2">
  {getCostLabel(cost.costType)}
  </label>
  </div>
@@ -437,7 +434,7 @@ export const ShipCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  </div>
 
  {/* Summary Section */}
- <div className="bg-cyan-50 rounded-xl border border-cyan-200 p-6">
+ <div className="bg-cyan-50 rounded-lg border border-cyan-200 p-6">
  <div className="grid grid-cols-2 gap-4">
  <div>
  <p className="text-sm text-cyan-700">Total Transaction Costs</p>
@@ -448,10 +445,10 @@ export const ShipCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  <p className="text-2xl font-bold text-cyan-900">{formatCurrency(totals.perCarton)}</p>
  </div>
  </div>
- 
+
  {totalCartons === 0 && (
  <div className="mt-4 flex items-center gap-2 text-amber-600">
- <AlertCircle className="h-5 w-5" />
+ <AlertCircle className="h-5 w-5 flex-shrink-0" />
  <p className="text-sm">Add line items to calculate cost per carton</p>
  </div>
  )}

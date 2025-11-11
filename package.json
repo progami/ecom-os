@@ -14,7 +14,8 @@
     "refresh:wms-dev": "bash scripts/refresh-dev-app.sh wms",
     "refresh:ecomos-dev": "bash scripts/refresh-dev-app.sh ecomos",
     "refresh:website-dev": "bash scripts/refresh-dev-app.sh website",
-    "refresh:xplan-dev": "bash scripts/refresh-dev-app.sh xplan"
+    "refresh:xplan-dev": "bash scripts/refresh-dev-app.sh xplan",
+    "deploy:metadata": "bash scripts/update-deploy-metadata.sh"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.1",

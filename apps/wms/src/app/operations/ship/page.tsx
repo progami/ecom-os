@@ -421,10 +421,16 @@ export default function ShipTabbedPage() {
  >
  {/* Transaction Details Tab */}
  <TabPanel>
- <div className="space-y-6">
+ <div className="bg-white rounded-lg border border-slate-200">
+ <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+ <h3 className="text-base font-semibold text-slate-900">Transaction Information</h3>
+ <p className="text-sm text-slate-600 mt-1">Enter the basic details for this shipment transaction</p>
+ </div>
+
+ <div className="p-6">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
  <div>
- <label className="block text-sm font-medium text-slate-700 mb-1">
+ <label className="block text-sm font-medium text-slate-700 mb-2">
  Transaction Date & Time *
  </label>
  <input
@@ -433,22 +439,21 @@ export default function ShipTabbedPage() {
  onChange={(e) => updateFormField('transactionDate', e.target.value)}
  max={(() => {
  const maxDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
- // Use UTC time directly - no timezone adjustment
  return maxDate.toISOString().slice(0, 16)
  })()}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary"
+ className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
  required
  />
  </div>
 
  <div>
- <label className="block text-sm font-medium text-slate-700 mb-1">
+ <label className="block text-sm font-medium text-slate-700 mb-2">
  Warehouse *
  </label>
  <select
  value={formData.warehouseId}
  onChange={(e) => updateFormField('warehouseId', e.target.value)}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary"
+ className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
  required
  >
  <option value="">Select warehouse</option>
@@ -461,59 +466,57 @@ export default function ShipTabbedPage() {
  </div>
 
  <div>
- <label className="block text-sm font-medium text-slate-700 mb-1">
- PO # * <span className="text-xs text-slate-500">(Reference Number / FBA Shipment ID)</span>
+ <label className="block text-sm font-medium text-slate-700 mb-2">
+ PO # * <span className="text-xs text-slate-500 font-normal">(Reference Number / FBA Shipment ID)</span>
  </label>
  <input
  type="text"
  value={formData.referenceNumber}
  onChange={(e) => updateFormField('referenceNumber', e.target.value)}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary"
+ className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
  placeholder="e.g., FBA15B2GWV8"
- title="Enter FBA Shipment ID or similar tracking reference"
  required
  />
  </div>
 
-
  <div>
- <label className="block text-sm font-medium text-slate-700 mb-1">
- Destination <span className="text-xs text-slate-500">(Warehouse Code)</span>
+ <label className="block text-sm font-medium text-slate-700 mb-2">
+ Destination <span className="text-xs text-slate-500 font-normal">(Warehouse Code)</span>
  </label>
  <input
  type="text"
  value={formData.destination}
  onChange={(e) => updateFormField('destination', e.target.value)}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary"
+ className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
  placeholder="e.g., BHX4"
- title="Enter destination warehouse code"
  />
  </div>
 
  <div>
- <label className="block text-sm font-medium text-slate-700 mb-1">
+ <label className="block text-sm font-medium text-slate-700 mb-2">
  Tracking Number
  </label>
  <input
  type="text"
  value={formData.trackingNumber}
  onChange={(e) => updateFormField('trackingNumber', e.target.value)}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary"
+ className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
  placeholder="Carrier tracking number"
  />
  </div>
 
  <div className="col-span-1 md:col-span-2">
- <label className="block text-sm font-medium text-slate-700 mb-1">
+ <label className="block text-sm font-medium text-slate-700 mb-2">
  Notes
  </label>
  <textarea
  value={formData.notes}
  onChange={(e) => updateFormField('notes', e.target.value)}
  rows={3}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:ring-2 focus:ring-primary"
+ className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary resize-none"
  placeholder="Additional notes or instructions"
  />
+ </div>
  </div>
  </div>
  </div>

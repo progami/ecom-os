@@ -10,7 +10,7 @@ import { toast } from 'react-hot-toast'
 import { CreateSkuBatchModal } from './create-sku-batch-modal'
 
 // Icons
-import { Plus, Package2, X, Loader2, AlertCircle } from '@/lib/lucide-icons'
+import { Package2, Loader2, AlertCircle } from '@/lib/lucide-icons'
 
 interface Sku {
   id: string
@@ -105,31 +105,6 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
     onItemsChange(items)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items])
-
-  const addItem = () => {
-    const newItem: LineItem = {
-      id: `item-${++itemIdCounterRef.current}`,
-      skuCode: '',
-      batchLot: '',
-      cartons: 0,
-      units: 0,
-      unitsPerCarton: 0, // Empty by default
-      storagePalletsIn: 0,
-      storageCartonsPerPallet: 0,
-      shippingCartonsPerPallet: 0,
-      configLoaded: false,
-      loadingBatch: false,
-    }
-    setItems(prev => [...prev, newItem])
-  }
-
-  const removeItem = (id: string) => {
-    if (items.length === 1) {
-      toast.error('Please add at least one item')
-      return
-    }
-    setItems(prev => prev.filter(item => item.id !== id))
-  }
 
   const fetchBatchesForSku = async (sku: Sku): Promise<BatchOption[]> => {
     if (!sku?.id) return []
@@ -383,61 +358,32 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
   }
 
   return (
-    <div className="space-y-6">
-      {/* Cargo Details Section */}
-      <div className="bg-white rounded-xl border">
-        <div className="px-6 py-4 border-b bg-slate-50 flex justify-between items-center">
-          <h3 className="text-lg font-semibold flex items-center gap-2">
+    <>
+      <div className="bg-white rounded-lg border border-slate-200">
+        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+          <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
             <Package2 className="h-5 w-5" />
             Cargo Details
           </h3>
-          {warehouseId && (
-            <button
-              type="button"
-              onClick={addItem}
-              className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-primary hover:bg-primary/90"
-            >
-              <Plus className="h-4 w-4 mr-1" />
-              Add Item
-            </button>
-          )}
+          <p className="text-sm text-slate-600 mt-1">Add SKUs and batch information for receiving</p>
         </div>
 
-        <div className="p-6">
-          {!warehouseId ? (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-amber-600" />
-                <p className="text-sm text-amber-800">
-                  Please select a warehouse in the Details tab first to add inventory items.
-                </p>
-              </div>
+      <div className="p-6">
+        {!warehouseId ? (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+              <p className="text-sm text-amber-800">
+                Please select a warehouse in the Details tab first to add inventory items.
+              </p>
             </div>
-          ) : skusLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <span className="ml-3 text-slate-600">Loading data...</span>
-            </div>
-          ) : skus.length === 0 ? (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-blue-600" />
-                  <p className="text-sm text-blue-800">
-                    No existing SKUs found. You can create a new SKU+Batch when adding items.
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : items.length === 0 ? (
-            <div className="text-center py-12 bg-slate-50 rounded-lg">
-              <Package2 className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-              <p className="text-slate-500">No items added yet</p>
-              <button type="button" onClick={addItem} className="mt-4 text-primary hover:underline">
-                Add your first item
-              </button>
-            </div>
-          ) : (
+          </div>
+        ) : skusLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <span className="ml-3 text-sm text-slate-600">Loading data...</span>
+          </div>
+        ) : (
             <>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -467,7 +413,6 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                       <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
                         Total Units
                       </th>
-                      <th className="px-4 py-3"></th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -495,10 +440,13 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                                 name={`sku-${item.id}`}
                                 value={item.skuCode}
                                 onChange={e => updateItem(item.id, 'skuCode', e.target.value)}
-                                className="flex-1 px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary"
+                                className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                                 required
+                                disabled={skus.length === 0}
                               >
-                                <option value="">Select SKU...</option>
+                                <option value="">
+                                  {skus.length === 0 ? 'No SKUs available' : 'Select SKU...'}
+                                </option>
                                 {(skus || []).map(sku => (
                                   <option key={sku.id} value={sku.skuCode}>
                                     {sku.skuCode}
@@ -548,7 +496,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                                 name={`batch-${item.id}`}
                                 value={item.batchLot}
                                 onChange={e => updateItem(item.id, 'batchLot', e.target.value)}
-                                className="w-full px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                                 required
                               >
                                 <option value="">Select batch…</option>
@@ -570,7 +518,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             onChange={e =>
                               updateItem(item.id, 'cartons', parseInt(e.target.value) || 0)
                             }
-                            className="w-full px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary text-right"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary text-right"
                             required
                           />
                         </td>
@@ -583,7 +531,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             onChange={e =>
                               updateItem(item.id, 'unitsPerCarton', parseInt(e.target.value) || 1)
                             }
-                            className="w-full px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary text-right"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary text-right"
                             placeholder="1"
                             required
                           />
@@ -601,7 +549,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                                   parseInt(e.target.value) || 0
                                 )
                               }
-                              className={`w-20 px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary text-right ${
+                              className={`w-20 px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary text-right ${
                                 item.configLoaded && item.storageCartonsPerPallet > 0
                                   ? 'bg-yellow-50'
                                   : ''
@@ -632,7 +580,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                                   parseInt(e.target.value) || 0
                                 )
                               }
-                              className={`w-20 px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary text-right ${
+                              className={`w-20 px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary text-right ${
                                 item.configLoaded && item.shippingCartonsPerPallet > 0
                                   ? 'bg-yellow-50'
                                   : ''
@@ -658,7 +606,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             onChange={e =>
                               updateItem(item.id, 'storagePalletsIn', parseInt(e.target.value) || 0)
                             }
-                            className="w-full px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary text-right"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary text-right"
                             placeholder={
                               item.cartons > 0 && item.storageCartonsPerPallet > 0
                                 ? `${Math.ceil(item.cartons / item.storageCartonsPerPallet)}`
@@ -671,20 +619,10 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                           <input
                             type="number"
                             value={item.units}
-                            className="w-full px-2 py-1 border border-slate-300 rounded bg-slate-100 text-right"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-slate-100 text-right"
                             readOnly
                             title="Units are calculated based on cartons × units per carton"
                           />
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            type="button"
-                            onClick={() => removeItem(item.id)}
-                            className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
-                            disabled={items.length === 1}
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
                         </td>
                       </tr>
                     ))}
@@ -704,7 +642,6 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                       <td className="px-4 py-3 text-right font-semibold">
                         {totals.units.toLocaleString()}
                       </td>
-                      <td className="px-4 py-3"></td>
                     </tr>
                   </tfoot>
                 </table>
@@ -723,7 +660,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
         }}
         onSave={handleSkuBatchSave}
       />
-    </div>
+    </>
   )
 }
 

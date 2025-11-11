@@ -76,8 +76,12 @@ pnpm --filter @ecom-os/website dev
 - `pnpm refresh:ecomos-dev`
 - `pnpm refresh:website-dev`
 - `pnpm refresh:xplan-dev`
+- `pnpm deploy:metadata`
+- `scripts/open-db-tunnel.sh` – opens `localhost:6543` → Postgres tunnel via the `ecomos` SSH host (kills any stale listener first). Use before running Prisma/psql locally.
 
 Each command stops the corresponding PM2 dev process, clears Next/Turbopack caches, and restarts the app with a clean build to avoid serving stale bundles.
+
+`pnpm deploy:metadata` runs `scripts/update-deploy-metadata.sh`, which rewrites the shared nginx deploy headers with the latest dev/prod commits, reloads nginx, and purges the Cloudflare zone (token required on the box). Use it right after pulling to EC2 so browsers see fresh bundles immediately.
 
 ## Next steps (routing & auth unification)
 
