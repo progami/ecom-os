@@ -1,28 +1,36 @@
 {
   "apps": {
     "website": {
-      "lifecycle": "production"
+      "lifecycle": "production",
+      "status": "production"
     },
     "wms": {
-      "lifecycle": "production"
+      "lifecycle": "production",
+      "status": "production"
     },
     "hrms": {
-      "lifecycle": "dev"
+      "lifecycle": "dev",
+      "status": "development"
     },
     "fcc": {
-      "lifecycle": "dev"
+      "lifecycle": "dev",
+      "status": "development"
     },
     "ecomos": {
-      "lifecycle": "dev"
+      "lifecycle": "dev",
+      "status": "production"
     },
     "margin-master": {
-      "lifecycle": "dev"
+      "lifecycle": "dev",
+      "status": "archive"
     },
     "jason": {
-      "lifecycle": "dev"
+      "lifecycle": "dev",
+      "status": "archive"
     },
     "x-plan": {
-      "lifecycle": "production"
+      "lifecycle": "production",
+      "status": "production"
     }
   }
 }

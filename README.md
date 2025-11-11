@@ -8,12 +8,20 @@ Ecom OS is a single pnpm + Turborepo workspace that hosts every customer-facing 
 | --- | --- | --- | --- | --- |
 | Portal / Navigation Hub | `apps/ecomos` (`@ecom-os/ecomos`) | 3000 | Production | `https://ecomos.targonglobal.com` |
 | Warehouse Management | `apps/wms` (`@ecom-os/wms`) | 3001 | Production | `https://ecomos.targonglobal.com/wms` |
-| Finance Console (Bookkeeping) | `apps/fcc` (`@ecom-os/fcc`) | 3003 | Pre-release | `https://ecomos.targonglobal.com/fcc` |
-| HRMS | `apps/hrms` (`@ecom-os/hrms`) | 3006 | Pre-release | `https://ecomos.targonglobal.com/hrms` |
+| Finance Console (Bookkeeping) | `apps/fcc` (`@ecom-os/fcc`) | 3003 | Development | `https://ecomos.targonglobal.com/fcc` |
+| HRMS | `apps/hrms` (`@ecom-os/hrms`) | 3006 | Development | `https://ecomos.targonglobal.com/hrms` |
 | Marketing Website | `apps/website` (`@ecom-os/website`) | 3005 | Production | `https://www.targonglobal.com` |
-| Margin Master | `apps/margin-master` (`@ecom-os/margin-master`) | 3400 | In development | `https://ecomos.targonglobal.com/margin-master` |
-| Jason (AI assistant) | `apps/jason` (`@ecom-os/jason`) | 3001 when run alone | In development | `https://ecomos.targonglobal.com/jason` |
-| X‑Plan | `apps/x-plan` (`@ecom-os/x-plan`) | 3008 | In development | `https://ecomos.targonglobal.com/x-plan` |
+| Margin Master | `apps/margin-master` (`@ecom-os/margin-master`) | 3400 | Archive | `https://ecomos.targonglobal.com/margin-master` |
+| Jason (AI assistant) | `apps/jason` (`@ecom-os/jason`) | 3001 when run alone | Archive | `https://ecomos.targonglobal.com/jason` |
+| X‑Plan | `apps/x-plan` (`@ecom-os/x-plan`) | 3008 | Production | `https://ecomos.targonglobal.com/x-plan` |
+
+### App Categories
+
+- **Production** (actively deployed): Portal (`apps/ecomos`), WMS (`apps/wms`), Website (`apps/website`), X‑Plan (`apps/x-plan`).
+- **Development** (work in progress): HRMS (`apps/hrms`), Finance Console (`apps/fcc`).
+- **Archive** (kept for reference only): Margin Master (`apps/margin-master`), Jason assistant (`apps/jason`).
+
+Only the Production + Development apps participate in CI/builds; archived apps stay in the repo for historical context but are excluded from day-to-day work.
 
 We reserve ports in 20-port blocks so that future services slot in without conflicts (3000‑3019 for core apps, 3020‑3039 for finance, etc.). Margin Master keeps its historic 3400 assignment.
 
