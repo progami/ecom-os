@@ -265,27 +265,8 @@ function CostLedgerPage() {
  if (!totals) return []
 
  const totalAmount = totals.total || 0
- const safePercent = (value: number) =>
- totalAmount > 0 ? `${((value / totalAmount) * 100).toFixed(1)}%` : '0.0%'
-
- const categoryMap: Array<{ key: keyof Omit<CostLedgerBucketTotals, 'total'>; title: string; icon: LucideIcon }> = [
- { key: 'storage', title: 'Storage', icon: Box },
- { key: 'container', title: 'Container', icon: Truck },
- { key: 'pallet', title: 'Pallet', icon: BarChart3 },
- { key: 'carton', title: 'Carton', icon: Package },
- { key: 'unit', title: 'Unit', icon: Package },
- { key: 'transportation', title: 'Transportation', icon: Truck },
- { key: 'accessorial', title: 'Accessorial', icon: Filter },
- { key: 'other', title: 'Other', icon: BarChart3 },
- ]
-
- const cards = categoryMap.map(({ key, title, icon }) => ({
- title,
- value: formatCurrency(totals[key] ?? 0),
- subtitle: safePercent(totals[key] ?? 0),
- icon,
- variant: 'default' as const,
- }))
+ const handlingCosts = (totals.pallet ?? 0) + (totals.carton ?? 0) + (totals.unit ?? 0)
+ const logisticsCosts = (totals.container ?? 0) + (totals.transportation ?? 0) + (totals.accessorial ?? 0) + (totals.other ?? 0)
 
  return [
  {
@@ -295,7 +276,27 @@ function CostLedgerPage() {
  icon: DollarSign,
  variant: 'info' as const,
  },
- ...cards,
+ {
+ title: 'Storage',
+ value: formatCurrency(totals.storage ?? 0),
+ subtitle: 'Weekly storage fees',
+ icon: Box,
+ variant: 'default' as const,
+ },
+ {
+ title: 'Handling',
+ value: formatCurrency(handlingCosts),
+ subtitle: 'Pallet + carton + unit',
+ icon: Package,
+ variant: 'default' as const,
+ },
+ {
+ title: 'Logistics',
+ value: formatCurrency(logisticsCosts),
+ subtitle: 'Container + transport + other',
+ icon: Truck,
+ variant: 'default' as const,
+ },
  ]
  }, [totals])
 
@@ -334,7 +335,7 @@ function CostLedgerPage() {
  <PageContent>
  <div className="flex flex-col gap-6">
 
- <StatsCardGrid cols={6}>
+ <StatsCardGrid cols={4}>
  {summaryCards.map((card) => (
  <StatsCard key={card.title} {...card} />
  ))}
