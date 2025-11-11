@@ -18,17 +18,11 @@
     "margin-master": {
       "lifecycle": "dev"
     },
-    "case-hunter": {
-      "lifecycle": "dev"
-    },
     "jason": {
       "lifecycle": "dev"
     },
     "x-plan": {
       "lifecycle": "production"
-    },
-    "ye-2024": {
-      "lifecycle": "dev"
     }
   }
 }

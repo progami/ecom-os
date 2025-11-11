@@ -8,7 +8,6 @@ This repository hosts the Ecom Operating System monorepo with these apps:
 - Website (`apps/website`, package `@ecom-os/website`)
 - Margin Master (`apps/margin-master`, package `@ecom-os/margin-master`)
 - Jason (`apps/jason`, package `@ecom-os/jason`)
-- YE 2024 (`apps/ye-2024`, package `@ecom-os/ye-2024`) – experimental/non-production data and dashboards
 
 We use pnpm workspaces and Turborepo. All apps live under `apps/` and shared code under `packages/`.
 
@@ -34,7 +33,6 @@ We use pnpm workspaces and Turborepo. All apps live under `apps/` and shared cod
   - @ecom-os/jason (`apps/jason`) – ecomos.targonglobal.com/jason
 - Experimental (non-production)
   - E2 (`apps/e2`)
-  - YE 2024 (`apps/ye-2024`)
 
 Notes
 - Production deploys run on push to `main` via `.github/workflows/deploy-prod.yml`.
