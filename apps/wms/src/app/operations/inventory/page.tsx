@@ -568,7 +568,7 @@ function InventoryPage() {
  icon={BookOpen}
  actions={headerActions}
  />
- <PageContent>
+ <PageContent className="flex-1 overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
  <div className="flex flex-col gap-6">
  <StatsCardGrid cols={3}>
  <StatsCard
