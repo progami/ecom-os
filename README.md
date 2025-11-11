@@ -6,7 +6,6 @@ This repository hosts the Ecom Operating System monorepo with these apps:
 - WMS (`apps/wms`, package `@ecom-os/wms`)
 - FCC (`apps/fcc`, package `@ecom-os/fcc`)
 - Website (`apps/website`, package `@ecom-os/website`)
-- Portal DB (`apps/central-db`, package `@ecom-os/central-db`)
 - Margin Master (`apps/margin-master`, package `@ecom-os/margin-master`)
 - Jason (`apps/jason`, package `@ecom-os/jason`)
 - YE 2024 (`apps/ye-2024`, package `@ecom-os/ye-2024`) – experimental/non-production data and dashboards
@@ -31,7 +30,6 @@ We use pnpm workspaces and Turborepo. All apps live under `apps/` and shared cod
   - @ecom-os/hrms (`apps/hrms`) – ecomos.targonglobal.com/hrms
   - @ecom-os/fcc (`apps/fcc`) – ecomos.targonglobal.com/fcc
 - In development (not released)
-  - @ecom-os/central-db (`apps/central-db`) – ecomos.targonglobal.com/central-db
   - @ecom-os/margin-master (`apps/margin-master`) – ecomos.targonglobal.com/margin-master
   - @ecom-os/jason (`apps/jason`) – ecomos.targonglobal.com/jason
 - Experimental (non-production)

@@ -15,9 +15,6 @@
     "ecomos": {
       "lifecycle": "dev"
     },
-    "central-db": {
-      "lifecycle": "dev"
-    },
     "margin-master": {
       "lifecycle": "dev"
     },
