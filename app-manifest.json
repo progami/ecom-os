@@ -13,8 +13,8 @@
       "status": "development"
     },
     "fcc": {
-      "lifecycle": "dev",
-      "status": "development"
+      "lifecycle": "archive",
+      "status": "archive"
     },
     "ecomos": {
       "lifecycle": "production",
@@ -25,11 +25,11 @@
       "status": "development"
     },
     "margin-master": {
-      "lifecycle": "dev",
+      "lifecycle": "archive",
       "status": "archive"
     },
     "jason": {
-      "lifecycle": "dev",
+      "lifecycle": "archive",
       "status": "archive"
     },
     "x-plan": {

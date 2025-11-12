@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 
-export type AppLifecycle = 'active' | 'dev'
+export type AppLifecycle = 'active' | 'dev' | 'archive'
 
 function normalizeOrigin(raw: string | undefined | null): string | undefined {
   if (!raw) return undefined
@@ -201,6 +201,9 @@ function getEnvLifecycle(appId: string): AppLifecycle | undefined {
   if (normalizedValue === 'active' || normalizedValue === 'stable' || normalizedValue === 'prod' || normalizedValue === 'production') {
     return 'active'
   }
+  if (normalizedValue === 'archive' || normalizedValue === 'archived') {
+    return 'archive'
+  }
   return undefined
 }
 
@@ -218,6 +221,9 @@ function resolveLifecycle(appId: string): AppLifecycle {
   const manifestEntry = manifest?.apps?.[appId]
   if (manifestEntry?.lifecycle === 'dev') {
     return 'dev'
+  }
+  if (manifestEntry?.lifecycle === 'archive') {
+    return 'archive'
   }
   if (manifestEntry?.lifecycle === 'active') {
     return 'active'
@@ -239,6 +245,9 @@ export const ALL_APPS: AppDef[] = SOURCE_APPS.map((app) => ({
 export function filterAppsForUser(role: string | undefined, allowedAppIds?: string[]) {
   const set = new Set(allowedAppIds ?? [])
   return ALL_APPS.filter(app => {
+    if (app.lifecycle === 'archive') {
+      return false
+    }
     const roleOk = !app.roles || (role ? app.roles.includes(role) : true)
     const allowedOk = set.size === 0 || set.has(app.id)
     return roleOk && allowedOk
