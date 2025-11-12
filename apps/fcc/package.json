@@ -24,7 +24,6 @@
     "db:init": "tsx scripts/init-database.ts",
     "workers": "tsx start-workers.ts",
     "workers:dev": "tsx watch --ignore 'logs/**' --ignore 'prisma/dev.db*' start-workers.ts",
-    "postinstall": "prisma generate",
     "type-check": "tsc --noEmit",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
