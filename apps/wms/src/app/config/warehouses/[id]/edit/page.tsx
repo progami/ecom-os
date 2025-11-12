@@ -12,11 +12,80 @@ interface Warehouse {
  code: string
  name: string
  address?: string
- latitude?: number | null
- longitude?: number | null
  contactEmail?: string
  contactPhone?: string
  isActive: boolean
+}
+
+const formatAddress = (address: {
+  addressLine1: string
+  addressLine2: string
+  city: string
+  state: string
+  postalCode: string
+}) => {
+  const lines = []
+  if (address.addressLine1.trim()) lines.push(address.addressLine1.trim())
+  if (address.addressLine2.trim()) lines.push(address.addressLine2.trim())
+
+  const cityValue = address.city.trim()
+  const stateValue = address.state.trim().toUpperCase()
+  const postalValue = address.postalCode.trim()
+
+  let cityStateZip = ''
+  if (cityValue) {
+    cityStateZip += cityValue
+  }
+  if (stateValue) {
+    cityStateZip += cityStateZip ? `, ${stateValue}` : stateValue
+  }
+  if (postalValue) {
+    cityStateZip += cityStateZip ? ` ${postalValue}` : postalValue
+  }
+
+  if (cityStateZip) {
+    lines.push(cityStateZip)
+  }
+
+  return lines.join('\n')
+}
+
+const parseAddress = (address?: string) => {
+  const parsed = {
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    postalCode: '',
+  }
+
+  if (!address) return parsed
+
+  const lines = address
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+
+  if (lines.length > 0) {
+    parsed.addressLine1 = lines[0]
+  }
+
+  if (lines.length > 1) {
+    const lastLine = lines[lines.length - 1]
+    const cityStateZipMatch = lastLine.match(/^([^,]+),\s*([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$/)
+    if (cityStateZipMatch) {
+      parsed.city = cityStateZipMatch[1].trim()
+      parsed.state = cityStateZipMatch[2].trim().toUpperCase()
+      parsed.postalCode = cityStateZipMatch[3].trim()
+      if (lines.length > 2) {
+        parsed.addressLine2 = lines.slice(1, lines.length - 1).join(' ')
+      }
+    } else {
+      parsed.addressLine2 = lines[1]
+    }
+  }
+
+  return parsed
 }
 
 export default function EditWarehousePage({ params }: { params: Promise<{ id: string }> }) {
@@ -27,9 +96,11 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
  const [formData, setFormData] = useState({
  code: '',
  name: '',
- address: '',
- latitude: '',
- longitude: '',
+ addressLine1: '',
+ addressLine2: '',
+ city: '',
+ state: '',
+ postalCode: '',
  contactEmail: '',
  contactPhone: '',
  isActive: true
@@ -58,12 +129,15 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
  
  if (warehouse) {
  setWarehouse(warehouse)
+ const parsedAddress = parseAddress(warehouse.address || '')
  setFormData({
  code: warehouse.code,
  name: warehouse.name,
- address: warehouse.address || '',
- latitude: warehouse.latitude?.toString() || '',
- longitude: warehouse.longitude?.toString() || '',
+ addressLine1: parsedAddress.addressLine1,
+ addressLine2: parsedAddress.addressLine2,
+ city: parsedAddress.city,
+ state: parsedAddress.state,
+ postalCode: parsedAddress.postalCode,
  contactEmail: warehouse.contactEmail || '',
  contactPhone: warehouse.contactPhone || '',
  isActive: warehouse.isActive
@@ -94,16 +168,24 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
  newErrors.name = 'Warehouse name is required'
  }
 
+ if (!formData.addressLine1.trim()) {
+ newErrors.addressLine1 = 'Address line 1 is required'
+ }
+
+ if (!formData.city.trim()) {
+ newErrors.city = 'City is required'
+ }
+
+ if (!/^[A-Za-z]{2}$/.test(formData.state.trim().toUpperCase())) {
+ newErrors.state = 'State must be a 2-letter code'
+ }
+
+ if (!/^\d{5}(?:-\d{4})?$/.test(formData.postalCode.trim())) {
+ newErrors.postalCode = 'ZIP code must be 5 digits (optional +4)'
+ }
+
  if (formData.contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contactEmail)) {
  newErrors.contactEmail = 'Invalid email format'
- }
-
- if (formData.latitude && (isNaN(Number(formData.latitude)) || Number(formData.latitude) < -90 || Number(formData.latitude) > 90)) {
- newErrors.latitude = 'Latitude must be between -90 and 90'
- }
-
- if (formData.longitude && (isNaN(Number(formData.longitude)) || Number(formData.longitude) < -180 || Number(formData.longitude) > 180)) {
- newErrors.longitude = 'Longitude must be between -180 and 180'
  }
 
  setErrors(newErrors)
@@ -117,23 +199,27 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
 
  setSaving(true)
  try {
+ const formattedAddress = formatAddress({
+ addressLine1: formData.addressLine1,
+ addressLine2: formData.addressLine2,
+ city: formData.city,
+ state: formData.state,
+ postalCode: formData.postalCode,
+ })
+
  const updateData: {
  name: string;
  address: string | null;
- latitude: number | null;
- longitude: number | null;
  contactEmail: string | null;
  contactPhone: string | null;
  isActive: boolean;
  } = {
- name: formData.name,
- address: formData.address || null,
- latitude: formData.latitude ? parseFloat(formData.latitude) : null,
- longitude: formData.longitude ? parseFloat(formData.longitude) : null,
-    contactEmail: formData.contactEmail.trim() || null,
- contactPhone: formData.contactPhone || null,
- isActive: formData.isActive
- }
+name: formData.name,
+ address: formattedAddress || null,
+ contactEmail: formData.contactEmail.trim() || null,
+contactPhone: formData.contactPhone || null,
+isActive: formData.isActive
+}
 
  // Only update code if it changed
  if (formData.code !== warehouse?.code) {
@@ -233,17 +319,86 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
  </div>
  </div>
 
+ <div className="grid grid-cols-1 gap-6">
  <div>
  <label className="block text-sm font-medium text-slate-700 mb-1">
- Address
+ Address Line 1 *
  </label>
- <textarea
- value={formData.address}
- onChange={(e) => setFormData({ ...formData, address: e.target.value })}
- className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
- rows={3}
- placeholder="Full warehouse address"
+ <input
+ type="text"
+ value={formData.addressLine1}
+ onChange={(e) => setFormData({ ...formData, addressLine1: e.target.value })}
+ className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${errors.addressLine1 ? 'border-red-500' : ''}`}
+ placeholder="Street address"
  />
+ {errors.addressLine1 && (
+ <p className="text-red-500 text-sm mt-1">{errors.addressLine1}</p>
+ )}
+ </div>
+
+ <div>
+ <label className="block text-sm font-medium text-slate-700 mb-1">
+ Address Line 2
+ </label>
+ <input
+ type="text"
+ value={formData.addressLine2}
+ onChange={(e) => setFormData({ ...formData, addressLine2: e.target.value })}
+ className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+ placeholder="Apartment, suite, etc. (optional)"
+ />
+ </div>
+
+ <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+ <div>
+ <label className="block text-sm font-medium text-slate-700 mb-1">
+ City *
+ </label>
+ <input
+ type="text"
+ value={formData.city}
+ onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+ className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${errors.city ? 'border-red-500' : ''}`}
+ placeholder="City"
+ />
+ {errors.city && (
+ <p className="text-red-500 text-sm mt-1">{errors.city}</p>
+ )}
+ </div>
+
+ <div>
+ <label className="block text-sm font-medium text-slate-700 mb-1">
+ State *
+ </label>
+ <input
+ type="text"
+ value={formData.state}
+ onChange={(e) => setFormData({ ...formData, state: e.target.value.toUpperCase() })}
+ className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${errors.state ? 'border-red-500' : ''}`}
+ placeholder="e.g., NY"
+ maxLength={2}
+ />
+ {errors.state && (
+ <p className="text-red-500 text-sm mt-1">{errors.state}</p>
+ )}
+ </div>
+
+ <div>
+ <label className="block text-sm font-medium text-slate-700 mb-1">
+ ZIP code *
+ </label>
+ <input
+ type="text"
+ value={formData.postalCode}
+ onChange={(e) => setFormData({ ...formData, postalCode: e.target.value })}
+ className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${errors.postalCode ? 'border-red-500' : ''}`}
+ placeholder="e.g., 10001"
+ />
+ {errors.postalCode && (
+ <p className="text-red-500 text-sm mt-1">{errors.postalCode}</p>
+ )}
+ </div>
+ </div>
  </div>
 
  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -282,40 +437,33 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
  <div>
  <label className="block text-sm font-medium text-slate-700 mb-1">
- Latitude
+ Contact Email
  </label>
  <input
- type="text"
- value={formData.latitude}
- onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
+ type="email"
+ value={formData.contactEmail}
+ onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${
- errors.latitude ? 'border-red-500' : ''
+ errors.contactEmail ? 'border-red-500' : ''
  }`}
- placeholder="e.g., 51.5074"
+ placeholder="warehouse@example.com"
  />
- {errors.latitude && (
- <p className="text-red-500 text-sm mt-1">{errors.latitude}</p>
+ {errors.contactEmail && (
+ <p className="text-red-500 text-sm mt-1">{errors.contactEmail}</p>
  )}
- <p className="text-slate-500 text-xs mt-1">Optional: For map display</p>
  </div>
 
  <div>
  <label className="block text-sm font-medium text-slate-700 mb-1">
- Longitude
+ Contact Phone
  </label>
  <input
- type="text"
- value={formData.longitude}
- onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
- className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${
- errors.longitude ? 'border-red-500' : ''
- }`}
- placeholder="e.g., -0.1278"
+ type="tel"
+ value={formData.contactPhone}
+ onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
+ className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+ placeholder="+1 (555) 123-4567"
  />
- {errors.longitude && (
- <p className="text-red-500 text-sm mt-1">{errors.longitude}</p>
- )}
- <p className="text-slate-500 text-xs mt-1">Optional: For map display</p>
  </div>
  </div>
 
