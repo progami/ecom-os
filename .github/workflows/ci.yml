@@ -2,10 +2,6 @@ name: CI
 
 on:
   pull_request:
-  push:
-    branches-ignore:
-      - main
-      - dev
   workflow_dispatch:
 
 concurrency:
@@ -17,11 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - name: Enable pnpm via corepack
-        run: corepack enable && corepack prepare pnpm@9.0.0 --activate
+        run: corepack enable && corepack prepare pnpm@10.21.0 --activate
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Populate dev env files
@@ -42,79 +40,23 @@ jobs:
         run: bash scripts/verify-dev-env.sh
       - name: Generate Prisma client
         run: pnpm --filter @ecom-os/wms db:generate
-      - name: Lint website
-        run: pnpm --filter @ecom-os/website lint
-      - name: Type-check website
-        run: pnpm --filter @ecom-os/website type-check
-      - name: Build website
-        run: pnpm --filter @ecom-os/website build
+      - name: Determine base ref
+        id: changes
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
+            echo "sha=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "sha=$(git rev-parse HEAD^)" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Lint changed workspaces
+        run: pnpm lint
         env:
-          WMS_BASE_URL: https://example.com/wms
-      - name: Lint WMS
-        run: pnpm --filter @ecom-os/wms lint
-      - name: Type-check WMS
-        run: pnpm --filter @ecom-os/wms type-check
-      - name: Build WMS
-        run: pnpm --filter @ecom-os/wms build
+          APP_CHANGED_SINCE: ${{ steps.changes.outputs.sha }}
+      - name: Type-check changed workspaces
+        run: pnpm typecheck
         env:
-          NEXTAUTH_SECRET: test-nextauth-secret
-          PORTAL_AUTH_SECRET: test-portal-secret
-          NEXTAUTH_URL: https://example.com/wms/api/auth
-          PORTAL_AUTH_URL: https://example.com
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
-          BASE_PATH: /wms
-          NEXT_PUBLIC_BASE_PATH: /wms
-          NEXT_PUBLIC_APP_URL: https://example.com/wms
-          NEXT_PUBLIC_PORTAL_AUTH_URL: https://example.com
-          CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/wms
-
-      - name: Type-check EcomOS portal
-        run: pnpm --filter @ecom-os/ecomos type-check
-
-      - name: Build EcomOS portal
-        run: pnpm --filter @ecom-os/ecomos build
+          APP_CHANGED_SINCE: ${{ steps.changes.outputs.sha }}
+      - name: Build changed workspaces
+        run: pnpm build
         env:
-          NEXTAUTH_SECRET: test-nextauth-secret
-          PORTAL_AUTH_SECRET: test-portal-secret
-          NEXTAUTH_URL: https://example.com/api/auth
-          PORTAL_AUTH_URL: https://example.com
-          COOKIE_DOMAIN: .example.com
-          GOOGLE_CLIENT_ID: test-google-client-id
-          GOOGLE_CLIENT_SECRET: test-google-client-secret
-          GOOGLE_ALLOWED_EMAILS: ci-tester@example.com
-
-      - name: Generate Prisma client for X-Plan
-        run: pnpm --filter @ecom-os/x-plan prisma:generate
-
-      - name: Lint X-Plan
-        run: pnpm --filter @ecom-os/x-plan lint
-
-      - name: Type-check X-Plan
-        run: pnpm --filter @ecom-os/x-plan type-check
-
-      - name: Build X-Plan
-        run: pnpm --filter @ecom-os/x-plan build
-        env:
-          BASE_PATH: /xplan
-          NEXT_PUBLIC_BASE_PATH: /xplan
-          NEXTAUTH_URL: https://example.com/xplan/api/auth
-          NEXT_PUBLIC_APP_URL: https://example.com/xplan
-          NEXT_PUBLIC_PORTAL_AUTH_URL: https://example.com
-          PORTAL_AUTH_URL: https://example.com
-          PORTAL_AUTH_SECRET: test-portal-secret
-          NEXTAUTH_SECRET: test-nextauth-secret
-          CSRF_ALLOWED_ORIGINS: https://example.com,https://example.com/xplan
-          COOKIE_DOMAIN: .example.com
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
-
-      - name: Upload build artifacts
-        if: github.ref == 'refs/heads/main' || (github.event_name == 'pull_request' && github.event.pull_request.base.ref == 'main') || github.event_name == 'workflow_dispatch'
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-artifacts-${{ github.event.pull_request.head.sha || github.sha }}
-          path: |
-            apps/website/.next
-            apps/ecomos/.next
-            apps/wms/.next
-            apps/x-plan/.next
-          retention-days: 1
+          APP_CHANGED_SINCE: ${{ steps.changes.outputs.sha }}

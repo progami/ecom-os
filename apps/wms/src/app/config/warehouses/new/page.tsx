@@ -24,11 +24,12 @@ export default function NewWarehousePage() {
 
  const validateForm = () => {
  const newErrors: Record<string, string> = {}
+ const normalizedCode = formData.code.trim()
 
- if (!formData.code.trim()) {
+ if (!normalizedCode) {
  newErrors.code = 'Warehouse code is required'
- } else if (formData.code.length > 10) {
- newErrors.code = 'Code must be 10 characters or less'
+ } else if (normalizedCode.replace(/\s+/g, '-').length > 10) {
+ newErrors.code = 'Code must be 10 characters or less (spaces become dashes)'
  }
 
  if (!formData.name.trim()) {
@@ -58,12 +59,13 @@ export default function NewWarehousePage() {
 
  setLoading(true)
  try {
+    const normalizedCode = formData.code.trim().toUpperCase().replace(/\s+/g, '-')
     const response = await fetch('/api/warehouses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...formData,
-        code: formData.code.toUpperCase(),
+        code: normalizedCode,
         latitude: formData.latitude ? parseFloat(formData.latitude) : null,
         longitude: formData.longitude ? parseFloat(formData.longitude) : null,
         contactEmail: formData.contactEmail.trim() || undefined

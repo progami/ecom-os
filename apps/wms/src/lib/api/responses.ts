@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { apiLogger } from '@/lib/logger'
+import { ZodError } from 'zod'
 
 /**
  * Standardized API response utilities
@@ -59,6 +60,10 @@ export class ApiResponses {
  * Handle errors consistently
  */
  static handleError(error: unknown): NextResponse<{ error: string }> {
+    if (error instanceof ZodError) {
+      const firstIssue = error.issues[0]
+      return this.badRequest(firstIssue?.message ?? 'Validation failed')
+    }
  if (error instanceof ValidationError) {
  return this.badRequest(error.message)
  }
