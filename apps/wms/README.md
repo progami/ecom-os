@@ -21,3 +21,4 @@ The auth bootstrap fails fast when a required variable is missing. Make sure eve
 - `NEXTAUTH_URL`, `PORTAL_AUTH_URL`, and `NEXT_PUBLIC_PORTAL_AUTH_URL`
 - `NEXT_PUBLIC_APP_URL`
 - `COOKIE_DOMAIN` (use `localhost` for local dev, `.targonglobal.com` for shared environments)
+- `PRISMA_SCHEMA` (per-environment Postgres schema, e.g. `wms_dev` or `wms`)

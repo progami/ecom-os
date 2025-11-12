@@ -44,22 +44,24 @@ Everything under `packages/` is built so apps never re‑implement the same glue
 
 ## Database & Migrations
 
-One RDS Postgres cluster (`portal_db`) backs every environment. Each app gets its own schema per environment:
+One RDS Postgres cluster (`portal_db`) backs every environment. Each app owns its own schema per environment:
 
 | App | Prod Schema | Dev Schema | Notes |
 | --- | --- | --- | --- |
 | Portal / Auth | `auth_prod` | `auth_dev` | NextAuth tables + directory |
 | WMS | `wms_prod` | `wms_dev` | Immutable inventory + cost ledgers |
-| X‑Plan | `xplan_prod` | `xplan_dev` | Big-table planning data |
-| Website / FCC / others | `website_prod` | `website_dev` | Create on demand |
+| X‑Plan | `xplan_prod` | `xplan_dev` | Planning tables + workbook metadata |
+| Website / FCC / others | `website_prod` | `website_dev` | Create per feature |
 
-Key rules:
-- `DATABASE_URL` **must** include `?schema=<schema>` (example: `postgresql://portal_wms:***@localhost:6543/portal_db?schema=wms_dev`).
+Rules of the road:
+- Every `DATABASE_URL` must pair with `PRISMA_SCHEMA` (the Prisma client now merges them so NextAuth, `pg` pools, etc. stay aligned).
 - Dev migrations: `pnpm --filter <app> prisma migrate dev`.
 - Prod migrations: `pnpm --filter <app> prisma migrate deploy`.
-- Never drop prod schemas; in dev feel free to `DROP SCHEMA ... CASCADE` to reset.
+- Never drop prod schemas; in dev you can `DROP SCHEMA <name> CASCADE` to reset safely.
 
-`./scripts/open-db-tunnel.sh` opens the SSH tunnel (`localhost:6543 → ecomos-prod…:5432`) so local Prisma/psql sessions hit the shared DB.
+CI and DB tunnels:
+- `.github/workflows/ci.yml` copies `.env.dev.ci` for each app; keep those templates current so CI and Codespaces have the same schema names you expect locally.
+- `./scripts/open-db-tunnel.sh` opens `localhost:6543 → ecomos-prod…:5432` so Prisma/psql connect to the shared DB without exposing RDS publicly.
 
 ## Auth & Local Dev
 

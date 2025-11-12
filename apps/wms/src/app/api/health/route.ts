@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 
 // Health check endpoint for monitoring and CI
 export async function GET() {
@@ -16,14 +16,12 @@ export async function GET() {
  };
 
  // Check database connection
- if (process.env.DATABASE_URL) {
+ if (process.env.DATABASE_URL && prisma) {
  try {
- const prisma = new PrismaClient();
  await prisma.$queryRaw`SELECT 1`;
- await prisma.$disconnect();
  health.checks.database = true;
- } catch (_error) {
- // console.error('Database health check failed:', _error);
+ } catch (error) {
+ console.error('[health] database check failed', error);
  health.checks.database = false;
  }
  }
