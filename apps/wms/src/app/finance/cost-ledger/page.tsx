@@ -12,7 +12,6 @@ import {
  Truck,
  Box,
  Package,
- type LucideIcon,
 } from '@/lib/lucide-icons'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
