@@ -15,3 +15,9 @@ Warehouse Management System powering inventory, billing, and operations for Ecom
 
 ## Environment
 Configuration is supplied through `.env` files stored on the host. Update env values before rebuilding when secrets or service endpoints change.
+
+The auth bootstrap fails fast when a required variable is missing. Make sure every WMS environment defines:
+- `NEXTAUTH_SECRET` (or `PORTAL_AUTH_SECRET`)
+- `NEXTAUTH_URL`, `PORTAL_AUTH_URL`, and `NEXT_PUBLIC_PORTAL_AUTH_URL`
+- `NEXT_PUBLIC_APP_URL`
+- `COOKIE_DOMAIN` (use `localhost` for local dev, `.targonglobal.com` for shared environments)
