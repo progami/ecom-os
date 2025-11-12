@@ -27,7 +27,6 @@ const APPS_TO_SYNC = [
   'apps/x-plan',
   'apps/fcc',
   'apps/hrms',
-  'apps/central-db',
   'apps/margin-master',
   'apps/jason',
 ]

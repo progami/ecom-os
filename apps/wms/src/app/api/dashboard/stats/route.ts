@@ -3,25 +3,40 @@ import { prisma } from '@/lib/prisma'
 export const dynamic = 'force-dynamic'
 
 interface DashboardStatsResponse {
- totalInventory: number
- inventoryChange: string
- inventoryTrend: 'up' | 'down' | 'neutral'
- storageCost: string
- costChange: string
- costTrend: 'up' | 'down' | 'neutral'
- activeSkus: number
- chartData: {
-  inventoryTrend: Array<{ date: string; inventory: number }>
-  costTrend: Array<{ date: string; cost: number }>
-  warehouseDistribution: Array<{ name: string | null; value: number; percentage: number }>
- }
+  totalInventory: number
+  inventoryChange: string
+  inventoryTrend: 'up' | 'down' | 'neutral'
+  storageCost: string
+  costChange: string
+  costTrend: 'up' | 'down' | 'neutral'
+  activeSkus: number
+  chartData: {
+    inventoryTrend: Array<{ date: string; inventory: number }>
+    costTrend: Array<{ date: string; cost: number }>
+    warehouseDistribution: Array<{ name: string | null; value: number; percentage: number }>
+  }
+}
+
+const emptyDashboardStats: DashboardStatsResponse = {
+  totalInventory: 0,
+  inventoryChange: '0.0',
+  inventoryTrend: 'neutral',
+  storageCost: '0.00',
+  costChange: '0.0',
+  costTrend: 'neutral',
+  activeSkus: 0,
+  chartData: {
+    inventoryTrend: [],
+    costTrend: [],
+    warehouseDistribution: [],
+  },
 }
 
 export const GET = withAuth<DashboardStatsResponse>(async (request, session) => {
- if (!prisma) {
- // console.error('Prisma client is undefined!')
- return ApiResponses.serverError('Database connection error')
- }
+  if (!prisma) {
+    console.warn('[dashboard/stats] Prisma client unavailable; returning empty stats response')
+    return ApiResponses.success(emptyDashboardStats)
+  }
 
  // Get query parameters
  const searchParams = request.nextUrl.searchParams

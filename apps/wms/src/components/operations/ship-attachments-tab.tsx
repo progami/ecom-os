@@ -302,35 +302,33 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
  const isUploadingAny = Object.values(uploading).some(v => v)
 
  return (
- <div className="space-y-6">
- {/* Transaction Documents Section */}
- <div className="bg-white rounded-xl border">
- <div className="px-6 py-4 border-b bg-slate-50">
- <h3 className="text-lg font-semibold flex items-center gap-2">
+ <div className="bg-white rounded-lg border border-slate-200">
+ <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+ <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
  <FileText className="h-5 w-5" />
  Transaction Documents
  </h3>
  <p className="text-sm text-slate-600 mt-1">Upload supporting documents (Max 5MB per file)</p>
  </div>
- 
+
  <div className="p-6">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
  {/* Proof of Pickup */}
- <div className="border rounded-lg p-4 bg-slate-50 hover:shadow-soft transition-shadow">
+ <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
  <div className="flex items-start justify-between mb-3">
  <div className="flex-1">
- <h4 className="font-medium text-sm flex items-center gap-2">
+ <h4 className="text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
  Proof of Pickup
  {proofOfPickup && (
  <Check className="h-4 w-4 text-green-600" />
  )}
  </h4>
- <p className="text-xs text-slate-600 mt-0.5">BOL, pickup receipt</p>
+ <p className="text-xs text-slate-600">BOL, pickup receipt</p>
  </div>
  </div>
  
  {proofOfPickup ? (
- <div className="bg-white p-3 rounded border border-slate-200">
+ <div className="bg-white p-3 rounded-lg border border-slate-200">
  <div className="flex items-center justify-between">
  <div className="flex items-center gap-2 flex-1 min-w-0">
  <FileText className="h-4 w-4 text-slate-500 flex-shrink-0" />
@@ -340,7 +338,7 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
  </div>
  </div>
  <div className="flex items-center gap-1 ml-2">
- <label 
+ <label
  htmlFor="proof-of-pickup-replace"
  className="text-cyan-600 hover:text-cyan-800 cursor-pointer p-1"
  title="Replace file"
@@ -368,8 +366,8 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
  ) : (
  <div className="upload-container">
  <label htmlFor="proof-of-pickup-upload" className="cursor-pointer block">
- <div 
- className={`border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors ${
+ <div
+ className={`border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-slate-400 transition-colors ${
  uploading['proof_of_pickup'] ? 'opacity-50 cursor-wait' : ''
  }`}
  >
@@ -399,17 +397,17 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
  </div>
 
  {/* Other Attachments */}
- <div className="border rounded-lg p-4 bg-slate-50 hover:shadow-soft transition-shadow">
+ <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
  <div className="flex items-start justify-between mb-3">
  <div className="flex-1">
- <h4 className="font-medium text-sm">Other Documents</h4>
- <p className="text-xs text-slate-600 mt-0.5">Additional supporting documents</p>
+ <h4 className="text-sm font-medium text-slate-700 mb-2">Other Documents</h4>
+ <p className="text-xs text-slate-600">Additional supporting documents</p>
  </div>
  </div>
- 
+
  <div className="space-y-2">
  {otherAttachments.map((attachment, index) => (
- <div key={index} className="bg-white p-3 rounded border border-slate-200">
+ <div key={index} className="bg-white p-3 rounded-lg border border-slate-200">
  <div className="flex items-center justify-between">
  <div className="flex items-center gap-2 flex-1 min-w-0">
  <FileText className="h-4 w-4 text-slate-500 flex-shrink-0" />
@@ -419,7 +417,7 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
  </div>
  </div>
  <div className="flex items-center gap-1 ml-2">
- <label 
+ <label
  htmlFor={`other-replace-${index}`}
  className="text-cyan-600 hover:text-cyan-800 cursor-pointer p-1"
  title="Replace file"
@@ -450,11 +448,11 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
  />
  </div>
  ))}
- 
+
  <div className="upload-container">
  <label htmlFor="other-documents-upload" className="cursor-pointer block">
- <div 
- className={`border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors ${
+ <div
+ className={`border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-slate-400 transition-colors ${
  isUploadingAny ? 'opacity-50 cursor-wait' : ''
  }`}
  >
@@ -476,12 +474,11 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
  </div>
  </div>
  </div>
- </div>
- 
+
  {isUploadingAny && progress.percentage > 0 && (
  <div className="mt-4">
  <div className="bg-slate-200 rounded-full h-2">
- <div 
+ <div
  className="bg-primary h-2 rounded-full transition-all duration-300"
  style={{ width: `${progress.percentage}%` }}
  />

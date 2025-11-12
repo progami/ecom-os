@@ -44,7 +44,17 @@ try {
 
 const logStream = fs.createWriteStream(logPath, { flags: 'a' })
 
-const child = spawn(command, commandArgs, {
+const resolveCommand = (cmd) => {
+  if (cmd === 'next') {
+    const binPath = path.resolve(__dirname, '..', 'node_modules', '.bin', 'next')
+    if (fs.existsSync(binPath)) {
+      return binPath
+    }
+  }
+  return cmd
+}
+
+const child = spawn(resolveCommand(command), commandArgs, {
   stdio: ['inherit', 'pipe', 'pipe'],
   shell: false,
   env: {

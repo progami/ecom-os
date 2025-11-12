@@ -83,7 +83,7 @@ function StorageLedgerContent() {
  icon={Calendar}
  actions={headerActions}
  />
- <PageContent>
+ <PageContent className="flex-1 overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
  {loading ? (
  <div className="flex items-center justify-center h-64">
  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
@@ -93,12 +93,6 @@ function StorageLedgerContent() {
  icon={Package}
  title="Error Loading Data"
  description={error}
- />
- ) : filteredEntries.length === 0 ? (
- <EmptyState
- icon={Package}
- title="No Storage Data Found"
- description="No storage entries available for the selected criteria."
  />
  ) : (
  <div className="space-y-6">

@@ -1,37 +1,40 @@
 {
   "apps": {
     "website": {
-      "lifecycle": "production"
+      "lifecycle": "production",
+      "status": "production"
     },
     "wms": {
-      "lifecycle": "production"
+      "lifecycle": "production",
+      "status": "production"
     },
     "hrms": {
-      "lifecycle": "dev"
+      "lifecycle": "dev",
+      "status": "development"
     },
     "fcc": {
-      "lifecycle": "dev"
+      "lifecycle": "dev",
+      "status": "development"
     },
     "ecomos": {
-      "lifecycle": "dev"
+      "lifecycle": "production",
+      "status": "production"
     },
-    "central-db": {
-      "lifecycle": "dev"
+    "legal-suite": {
+      "lifecycle": "dev",
+      "status": "development"
     },
     "margin-master": {
-      "lifecycle": "dev"
-    },
-    "case-hunter": {
-      "lifecycle": "dev"
+      "lifecycle": "dev",
+      "status": "archive"
     },
     "jason": {
-      "lifecycle": "dev"
+      "lifecycle": "dev",
+      "status": "archive"
     },
     "x-plan": {
-      "lifecycle": "production"
-    },
-    "ye-2024": {
-      "lifecycle": "dev"
+      "lifecycle": "production",
+      "status": "production"
     }
   }
 }
