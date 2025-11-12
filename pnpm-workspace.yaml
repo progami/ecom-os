@@ -1,3 +1,15 @@
 packages:
-  - "apps/*"
-  - "packages/*"
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - '@scarf/scarf'
+  - '@tree-sitter-grammars/tree-sitter-yaml'
+  - core-js
+  - core-js-pure
+  - esbuild
+  - msgpackr-extract
+  - puppeteer
+  - tree-sitter
+  - tree-sitter-json
+  - unrs-resolver

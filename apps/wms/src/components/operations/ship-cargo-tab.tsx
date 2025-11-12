@@ -197,14 +197,15 @@ export function CargoTab({ warehouseId, inventory, inventoryLoading, onItemsChan
  }
 
  return (
- <div className="space-y-6">
- {/* Cargo Details Section */}
- <div className="bg-white rounded-xl border">
- <div className="px-6 py-4 border-b bg-slate-50 flex justify-between items-center">
- <h3 className="text-lg font-semibold flex items-center gap-2">
+ <div className="bg-white rounded-lg border border-slate-200">
+ <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+ <div>
+ <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
  <Package2 className="h-5 w-5" />
  Cargo Details
  </h3>
+ <p className="text-sm text-slate-600 mt-1">Select items to ship from available inventory</p>
+ </div>
  {warehouseId && (
  <button
  type="button"
@@ -216,14 +217,12 @@ export function CargoTab({ warehouseId, inventory, inventoryLoading, onItemsChan
  </button>
  )}
  </div>
- 
- 
+
  <div className="p-6">
- 
  {!warehouseId ? (
  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
  <div className="flex items-center gap-2">
- <AlertCircle className="h-5 w-5 text-amber-600" />
+ <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
  <p className="text-sm text-amber-800">
  Please select a warehouse in the Details tab first to view available inventory.
  </p>
@@ -232,13 +231,13 @@ export function CargoTab({ warehouseId, inventory, inventoryLoading, onItemsChan
  ) : inventoryLoading ? (
  <div className="flex items-center justify-center py-12">
  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
- <span className="ml-3 text-slate-600">Loading data...</span>
+ <span className="ml-3 text-sm text-slate-600">Loading data...</span>
  </div>
  ) : availableInventory.length === 0 ? (
- <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+ <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
  <div className="flex items-center gap-2">
- <AlertCircle className="h-5 w-5 text-yellow-600" />
- <p className="text-sm text-yellow-800">
+ <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+ <p className="text-sm text-amber-800">
  No items available. Please check your selection.
  </p>
  </div>
@@ -283,7 +282,7 @@ export function CargoTab({ warehouseId, inventory, inventoryLoading, onItemsChan
  name={`sku-batch-${item.id}`}
  value={item.skuId && item.batchLot ? `${item.skuId}_${item.batchLot}` : ''}
  onChange={(e) => updateItem(item.id, 'skuCode', e.target.value)}
- className="w-full px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary"
+ className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
  required
  >
  <option value="">Select SKU/Batch...</option>
@@ -298,7 +297,7 @@ export function CargoTab({ warehouseId, inventory, inventoryLoading, onItemsChan
  <input
  type="number"
  value={item.available}
- className="w-full px-2 py-1 border border-slate-300 rounded bg-slate-100 text-right"
+ className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-slate-100 text-right"
  readOnly
  />
  </td>
@@ -311,7 +310,7 @@ export function CargoTab({ warehouseId, inventory, inventoryLoading, onItemsChan
  max={item.available}
  value={item.cartons || ''}
  onChange={(e) => updateItem(item.id, 'cartons', parseInt(e.target.value) || 0)}
- className={`w-full px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary text-right ${
+ className={`w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary text-right ${
  hasError ? 'border-red-500' : ''
  }`}
  required
@@ -327,7 +326,7 @@ export function CargoTab({ warehouseId, inventory, inventoryLoading, onItemsChan
  <input
  type="number"
  value={item.unitsPerCarton}
- className="w-full px-2 py-1 border border-slate-300 rounded bg-slate-100 text-right"
+ className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-slate-100 text-right"
  readOnly
  />
  </td>
@@ -338,11 +337,11 @@ export function CargoTab({ warehouseId, inventory, inventoryLoading, onItemsChan
  min="1"
  value={item.storageCartonsPerPallet || ''}
  onChange={(e) => updateItem(item.id, 'storageCartonsPerPallet', parseInt(e.target.value) || 0)}
- className={`w-20 px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary text-right ${
+ className={`w-20 px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary text-right ${
  item.storageCartonsPerPallet > 0 ? 'bg-yellow-50' : ''
  }`}
  placeholder="0"
- title={item.storageCartonsPerPallet > 0 ? 
+ title={item.storageCartonsPerPallet > 0 ?
  'Loaded from original receive (editable)' : 'Enter value'}
  />
  <span className="text-xs text-slate-500">c/p</span>
@@ -355,11 +354,11 @@ export function CargoTab({ warehouseId, inventory, inventoryLoading, onItemsChan
  min="1"
  value={item.shippingCartonsPerPallet || ''}
  onChange={(e) => updateItem(item.id, 'shippingCartonsPerPallet', parseInt(e.target.value) || 0)}
- className={`w-20 px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary text-right ${
+ className={`w-20 px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary text-right ${
  item.shippingCartonsPerPallet > 0 ? 'bg-yellow-50' : ''
  }`}
  placeholder="0"
- title={item.shippingCartonsPerPallet > 0 ? 
+ title={item.shippingCartonsPerPallet > 0 ?
  'Loaded from original receive (editable)' : 'Enter value'}
  />
  <span className="text-xs text-slate-500">c/p</span>
@@ -371,10 +370,10 @@ export function CargoTab({ warehouseId, inventory, inventoryLoading, onItemsChan
  min="0"
  value={item.pallets || ''}
  onChange={(e) => updateItem(item.id, 'pallets', parseInt(e.target.value) || 0)}
- className="w-full px-2 py-1 border border-slate-300 rounded focus:ring-2 focus:ring-primary text-right"
+ className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary text-right"
  placeholder={
- item.cartons > 0 && item.shippingCartonsPerPallet > 0 
- ? `${Math.ceil(item.cartons / item.shippingCartonsPerPallet)}` 
+ item.cartons > 0 && item.shippingCartonsPerPallet > 0
+ ? `${Math.ceil(item.cartons / item.shippingCartonsPerPallet)}`
  : ''
  }
  title="Shipping pallets (auto-calculated, but can be overridden)"
@@ -384,7 +383,7 @@ export function CargoTab({ warehouseId, inventory, inventoryLoading, onItemsChan
  <input
  type="number"
  value={item.units}
- className="w-full px-2 py-1 border border-slate-300 rounded bg-slate-100 text-right"
+ className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm bg-slate-100 text-right"
  readOnly
  />
  </td>
@@ -426,7 +425,6 @@ export function CargoTab({ warehouseId, inventory, inventoryLoading, onItemsChan
  </div>
  </>
  )}
- </div>
  </div>
  </div>
  )
