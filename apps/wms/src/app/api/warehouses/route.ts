@@ -26,11 +26,21 @@ const optionalNullableEmailSchema = z.preprocess(
  z.string().email().optional().nullable()
 )
 
+const normalizeWarehouseCode = (value: string) =>
+ sanitizeForDisplay(value.trim().replace(/\s+/g, '-').toUpperCase())
+
+const warehouseCodeSchema = z
+ .string()
+ .min(1)
+ .max(10)
+ .transform(normalizeWarehouseCode)
+ .refine(validateAlphanumeric, {
+  message: 'Warehouse code must be alphanumeric'
+ })
+
 // Validation schemas with sanitization
 const createWarehouseSchema = z.object({
- code: z.string().min(1).max(10).refine((val) => validateAlphanumeric(val.trim()), {
- message: "Warehouse code must be alphanumeric"
- }).transform(val => sanitizeForDisplay(val.trim())),
+ code: warehouseCodeSchema,
  name: z.string().min(1).transform(val => sanitizeForDisplay(val)),
  address: z.string().optional().transform(val => val ? sanitizeForDisplay(val) : val),
  latitude: z.number().min(-90).max(90).optional().nullable(),
@@ -41,9 +51,7 @@ const createWarehouseSchema = z.object({
 })
 
 const updateWarehouseSchema = z.object({
- code: z.string().min(1).max(10).optional().refine(val => !val || validateAlphanumeric(val.trim()), {
- message: "Warehouse code must be alphanumeric"
- }).transform(val => val ? sanitizeForDisplay(val.trim()) : val),
+ code: warehouseCodeSchema.optional(),
  name: z.string().min(1).optional().transform(val => val ? sanitizeForDisplay(val) : val),
  address: z.string().optional().transform(val => val ? sanitizeForDisplay(val) : val),
  latitude: z.number().min(-90).max(90).optional().nullable(),
