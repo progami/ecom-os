@@ -42,7 +42,7 @@ Everything under `packages/` is built so apps never re‑implement the same glue
 - pnpm workspaces + Turborepo for builds (`turbo.json` describes build/test/lint/type-check tasks).
 - TypeScript everywhere (`tsconfig.base.json` holds shared paths).
 - Prisma ORM + PostgreSQL (single cluster, multi-schema) for data; Tailwind CSS + Radix UI for design.
-- PM2 + nginx on the EC2 host; GitHub Actions handles CI (`.github/workflows/ci.yml`).
+- PM2 + nginx on the EC2 host; GitHub Actions handles CI (`.github/workflows/ci.yml`). CI runs only on pull requests and passes `APP_CHANGED_SINCE=<base-sha>` so lint/type-check/build tasks are scoped to the app workspaces touched by a PR instead of rebuilding everything.
 
 ## Database & Migrations
 
@@ -96,7 +96,7 @@ For prod-style builds use `pnpm --filter <app> build` followed by `pnpm --filter
 2. Branch as `app-name/feature-name` (e.g. `wms/inline-sku-modal`).
 3. Build locally (`pnpm lint && pnpm typecheck && pnpm format`) before pushing.
 4. Open a PR into `dev`. CI (lint, type-check, build) must stay green; the PR auto-squashes into `dev` and deletes the remote branch when checks pass.
-5. Release to `main` only via a deliberate PR after testing.
+5. Release to `main` only via a deliberate PR after testing. Direct pushes to `dev`/`main` are blocked—open a PR so the guard workflow and branch protections can run.
 6. Keep your local branch list clean (`git branch -d <branch>` after merge).
 
 Versioning stays centralized: bump root `package.json` and, if needed, run `node scripts/sync-versions.js` to propagate the version to app packages. `--check` mode verifies nothing drifted.

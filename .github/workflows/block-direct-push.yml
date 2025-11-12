@@ -10,11 +10,16 @@ jobs:
   prevent-direct-push:
     runs-on: ubuntu-latest
     steps:
-      - name: Check actor
+      - name: Check actor or merge commit
         env:
           ALLOWED_ACTORS: "web-flow,github-actions[bot]"
         run: |
           actor="${GITHUB_ACTOR}"
+          message="$(jq -r '.head_commit.message // ""' "$GITHUB_EVENT_PATH")"
+          if [[ "$message" == Merge\ pull\ request* ]]; then
+            echo "Detected merge commit ($message); exiting successfully."
+            exit 0
+          fi
           IFS=',' read -ra allowed <<< "$ALLOWED_ACTORS"
           for entry in "${allowed[@]}"; do
             if [[ "$actor" == "$entry" ]]; then
