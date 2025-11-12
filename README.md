@@ -8,7 +8,7 @@ Ecom OS is a single pnpm + Turborepo workspace that hosts every customer-facing 
 | --- | --- | --- | --- | --- |
 | Portal / Navigation Hub | `apps/ecomos` (`@ecom-os/ecomos`) | 3000 | Production | `https://ecomos.targonglobal.com` |
 | Warehouse Management | `apps/wms` (`@ecom-os/wms`) | 3001 | Production | `https://ecomos.targonglobal.com/wms` |
-| Finance Console (Bookkeeping) | `apps/fcc` (`@ecom-os/fcc`) | 3003 | Development | `https://ecomos.targonglobal.com/fcc` |
+| Finance Console (Bookkeeping) | `apps/fcc` (`@ecom-os/fcc`) | 3003 | Archive | `https://ecomos.targonglobal.com/fcc` |
 | HRMS | `apps/hrms` (`@ecom-os/hrms`) | 3006 | Development | `https://ecomos.targonglobal.com/hrms` |
 | Legal Suite | Portal route (`/legal`) | 3015 | Development | — |
 | Marketing Website | `apps/website` (`@ecom-os/website`) | 3005 | Production | `https://www.targonglobal.com` |
@@ -18,9 +18,11 @@ Ecom OS is a single pnpm + Turborepo workspace that hosts every customer-facing 
 
 ### App Categories
 
-- **Production** (actively deployed): Portal (`apps/ecomos`), WMS (`apps/wms`), Website (`apps/website`), X‑Plan (`apps/x-plan`).
-- **Development** (work in progress): HRMS (`apps/hrms`), Finance Console (`apps/fcc`), Legal Suite (portal module).
-- **Archive** (kept for reference only): Margin Master (`apps/margin-master`), Jason assistant (`apps/jason`).
+- **Production** (deployed + fully validated): Portal (`apps/ecomos`), WMS (`apps/wms`), Website (`apps/website`), X‑Plan (`apps/x-plan`).
+- **Development** (actively iterated, but still participate in CI): HRMS (`apps/hrms`), Legal Suite (portal module).
+- **Archive** (kept for reference, excluded from CI/builds): Finance Console (`apps/fcc`), Margin Master (`apps/margin-master`), Jason assistant (`apps/jason`).
+
+`app-manifest.json` is the source of truth for these lifecycles. Production and development apps run through every `pnpm lint|typecheck|build|test` invocation, while archived apps are automatically filtered out by `scripts/run-turbo-task.js` so CI and local workflows skip unnecessary work.
 
 Only the Production + Development apps participate in CI/builds; archived apps stay in the repo for historical context but are excluded from day-to-day work.
 

@@ -17,14 +17,14 @@ const task = args[TASK_ARG_INDEX]
 const additionalArgs = args.slice(1)
 const repoRoot = path.resolve(__dirname, '..')
 
-const devAppIds = Array.from(collectDevApps(repoRoot))
+const devAppIds = Array.from(collectSkippedApps(repoRoot))
 const turboArgs = ['run', task, ...additionalArgs]
 
 const { filters: filterArgs, appliedAppIds } = buildFilterArgs(devAppIds, repoRoot)
 
 if (filterArgs.length > 0) {
   // Provide visibility when tasks skip dev-only apps.
-  console.log(`[run-turbo-task] Skipping dev-only apps: ${appliedAppIds.join(', ')}`)
+  console.log(`[run-turbo-task] Skipping excluded apps: ${appliedAppIds.join(', ')}`)
   const separatorIndex = turboArgs.indexOf('--')
   if (separatorIndex >= 0) {
     turboArgs.splice(separatorIndex, 0, ...filterArgs)
@@ -46,7 +46,7 @@ if (result.error) {
 
 process.exit(result.status ?? 0)
 
-function collectDevApps(rootDir) {
+function collectSkippedApps(rootDir) {
   const ids = new Set()
 
   const manifest = loadAppManifest(rootDir)
@@ -54,12 +54,21 @@ function collectDevApps(rootDir) {
     for (const [rawId, entry] of Object.entries(manifest.apps)) {
       if (entry && typeof entry === 'object') {
         const normalizedLifecycle = typeof entry.lifecycle === 'string' ? entry.lifecycle.trim().toLowerCase() : undefined
-        if (normalizedLifecycle === 'dev' || normalizedLifecycle === 'development') {
+        if (normalizedLifecycle === 'archive' || normalizedLifecycle === 'archived') {
           const canonicalId = canonicalizeAppId(rawId)
           if (canonicalId) {
             ids.add(canonicalId)
           }
         }
+      }
+    }
+  }
+
+  if (Array.isArray(manifest?.archive)) {
+    for (const rawId of manifest.archive) {
+      const canonicalId = canonicalizeAppId(rawId)
+      if (canonicalId) {
+        ids.add(canonicalId)
       }
     }
   }
@@ -88,7 +97,13 @@ function collectDevApps(rootDir) {
       continue
     }
     const normalizedValue = value.trim().toLowerCase()
-    if (normalizedValue !== 'dev' && normalizedValue !== 'development') {
+    const shouldSkip =
+      normalizedValue === 'archive' ||
+      normalizedValue === 'archived' ||
+      normalizedValue === 'skip' ||
+      normalizedValue === 'skipped' ||
+      normalizedValue === 'disabled'
+    if (!shouldSkip) {
       continue
     }
     const rawId = key.slice(LIFECYCLE_ENV_PREFIX.length)

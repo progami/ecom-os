@@ -26,7 +26,7 @@ export default async function PortalHome() {
     }
   }
 
-  const apps = normalizedRoles ? ALL_APPS.filter((a) => normalizedRoles[a.id]) : []
+  const apps = normalizedRoles ? ALL_APPS.filter((a) => normalizedRoles[a.id] && a.lifecycle !== 'archive') : []
 
   // Resolve URLs on the server side so the client never sees placeholder slugs or stale hosts
   const appsWithUrls = apps.map(app => ({
