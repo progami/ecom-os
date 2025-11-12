@@ -1,0 +1,26 @@
+name: Block Direct Pushes
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  prevent-direct-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check actor
+        env:
+          ALLOWED_ACTORS: "web-flow,github-actions[bot]"
+        run: |
+          actor="${GITHUB_ACTOR}"
+          IFS=',' read -ra allowed <<< "$ALLOWED_ACTORS"
+          for entry in "${allowed[@]}"; do
+            if [[ "$actor" == "$entry" ]]; then
+              echo "Push from $actor (allowed); exiting successfully."
+              exit 0
+            fi
+          done
+          echo "::error::Direct pushes to protected branches are not allowed. Open a pull request instead."
+          exit 1
