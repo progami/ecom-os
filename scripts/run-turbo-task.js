@@ -17,19 +17,29 @@ const task = args[TASK_ARG_INDEX]
 const additionalArgs = args.slice(1)
 const repoRoot = path.resolve(__dirname, '..')
 
-const devAppIds = Array.from(collectSkippedApps(repoRoot))
+const skippedAppIds = Array.from(collectSkippedApps(repoRoot))
 const turboArgs = ['run', task, ...additionalArgs]
 
-const { filters: filterArgs, appliedAppIds } = buildFilterArgs(devAppIds, repoRoot)
+const changedSinceRef = process.env.APP_CHANGED_SINCE?.trim()
+const dynamicFilters = []
+if (changedSinceRef) {
+  dynamicFilters.push(`--filter=...[${changedSinceRef}]`)
+  console.log(`[run-turbo-task] Limiting scope to workspaces changed since ${changedSinceRef}`)
+}
 
-if (filterArgs.length > 0) {
-  // Provide visibility when tasks skip dev-only apps.
+const { filters: exclusionFilters, appliedAppIds } = buildFilterArgs(skippedAppIds, repoRoot)
+const allFilters = [...dynamicFilters, ...exclusionFilters]
+
+if (appliedAppIds.length > 0) {
   console.log(`[run-turbo-task] Skipping excluded apps: ${appliedAppIds.join(', ')}`)
+}
+
+if (allFilters.length > 0) {
   const separatorIndex = turboArgs.indexOf('--')
   if (separatorIndex >= 0) {
-    turboArgs.splice(separatorIndex, 0, ...filterArgs)
+    turboArgs.splice(separatorIndex, 0, ...allFilters)
   } else {
-    turboArgs.push(...filterArgs)
+    turboArgs.push(...allFilters)
   }
 }
 
