@@ -88,7 +88,7 @@ if (!hasGoogleOAuth) {
 }
 
 const allowedEmails = parseAllowedEmails(process.env.GOOGLE_ALLOWED_EMAILS || process.env.ALLOWED_GOOGLE_EMAILS)
-if (isProd && allowedEmails.size === 0) {
+if (isProd && allowedEmails.addresses.size === 0 && allowedEmails.domains.size === 0) {
   throw new Error('GOOGLE_ALLOWED_EMAILS must include at least one permitted account in production.')
 }
 
@@ -123,7 +123,7 @@ const baseAuthOptions: NextAuthOptions = {
           return false
         }
 
-        if (allowedEmails.size > 0 && !allowedEmails.has(email)) {
+        if (!isEmailAllowed(email, allowedEmails)) {
           if (!isProd) {
             console.warn(`[auth] Blocked Google login for ${email} (not in GOOGLE_ALLOWED_EMAILS)`)
           }
@@ -250,11 +250,50 @@ function buildDevPortalUser(email: string) {
   }
 }
 
-function parseAllowedEmails(raw: string | undefined): Set<string> {
-  if (!raw) return new Set()
+type AllowedEmailConfig = {
+  addresses: Set<string>
+  domains: Set<string>
+}
+
+function parseAllowedEmails(raw: string | undefined): AllowedEmailConfig {
+  const config: AllowedEmailConfig = {
+    addresses: new Set(),
+    domains: new Set(),
+  }
+  if (!raw) return config
   const candidates = raw
     .split(/[,\s]+/)
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean)
-  return new Set(candidates)
+
+  for (const candidate of candidates) {
+    if (candidate === '*') {
+      config.domains.add('*')
+      continue
+    }
+    if (candidate.startsWith('@')) {
+      const domain = candidate.slice(1)
+      if (domain) config.domains.add(domain)
+      continue
+    }
+    if (!candidate.includes('@')) {
+      config.domains.add(candidate)
+      continue
+    }
+    config.addresses.add(candidate)
+  }
+  return config
+}
+
+function isEmailAllowed(email: string, config: AllowedEmailConfig): boolean {
+  if (config.addresses.size === 0 && config.domains.size === 0) {
+    return true
+  }
+  const normalized = email.trim().toLowerCase()
+  if (config.addresses.has(normalized)) {
+    return true
+  }
+  const [, domain = ''] = normalized.split('@')
+  if (!domain) return false
+  return config.domains.has('*') || config.domains.has(domain)
 }
