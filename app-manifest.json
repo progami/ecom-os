@@ -17,8 +17,12 @@
       "status": "development"
     },
     "ecomos": {
-      "lifecycle": "dev",
+      "lifecycle": "production",
       "status": "production"
+    },
+    "legal-suite": {
+      "lifecycle": "dev",
+      "status": "development"
     },
     "margin-master": {
       "lifecycle": "dev",

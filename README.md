@@ -10,6 +10,7 @@ Ecom OS is a single pnpm + Turborepo workspace that hosts every customer-facing 
 | Warehouse Management | `apps/wms` (`@ecom-os/wms`) | 3001 | Production | `https://ecomos.targonglobal.com/wms` |
 | Finance Console (Bookkeeping) | `apps/fcc` (`@ecom-os/fcc`) | 3003 | Development | `https://ecomos.targonglobal.com/fcc` |
 | HRMS | `apps/hrms` (`@ecom-os/hrms`) | 3006 | Development | `https://ecomos.targonglobal.com/hrms` |
+| Legal Suite | Portal route (`/legal`) | 3015 | Development | — |
 | Marketing Website | `apps/website` (`@ecom-os/website`) | 3005 | Production | `https://www.targonglobal.com` |
 | Margin Master | `apps/margin-master` (`@ecom-os/margin-master`) | 3400 | Archive | `https://ecomos.targonglobal.com/margin-master` |
 | Jason (AI assistant) | `apps/jason` (`@ecom-os/jason`) | 3001 when run alone | Archive | `https://ecomos.targonglobal.com/jason` |
@@ -18,7 +19,7 @@ Ecom OS is a single pnpm + Turborepo workspace that hosts every customer-facing 
 ### App Categories
 
 - **Production** (actively deployed): Portal (`apps/ecomos`), WMS (`apps/wms`), Website (`apps/website`), X‑Plan (`apps/x-plan`).
-- **Development** (work in progress): HRMS (`apps/hrms`), Finance Console (`apps/fcc`).
+- **Development** (work in progress): HRMS (`apps/hrms`), Finance Console (`apps/fcc`), Legal Suite (portal module).
 - **Archive** (kept for reference only): Margin Master (`apps/margin-master`), Jason assistant (`apps/jason`).
 
 Only the Production + Development apps participate in CI/builds; archived apps stay in the repo for historical context but are excluded from day-to-day work.
