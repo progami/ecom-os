@@ -1,7 +1,7 @@
 {
   "name": "ecom-os",
   "private": true,
-  "version": "0.9.0",
+  "version": "1.0.0",
   "packageManager": "pnpm@10.21.0",
   "scripts": {
     "predev": "node scripts/prepare-dev-logs.js",
