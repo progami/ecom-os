@@ -44,6 +44,7 @@ export type PurchaseOrderFilter = PurchaseOrderStatusOption
 interface PurchaseOrdersPanelProps {
  onPosted: () => void
  statusFilter?: PurchaseOrderFilter
+ typeFilter?: PurchaseOrderTypeOption
 }
 
 function formatStatusLabel(status: PurchaseOrderStatusOption) {
@@ -108,7 +109,7 @@ function sumLineQuantities(lines: PurchaseOrderLineSummary[]) {
  return lines.reduce((sum, line) => sum + line.quantity, 0)
 }
 
-export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT' }: PurchaseOrdersPanelProps) {
+export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT', typeFilter }: PurchaseOrdersPanelProps) {
  const [orders, setOrders] = useState<PurchaseOrderSummary[]>([])
  const [loading, setLoading] = useState(true)
  const [voidingId, setVoidingId] = useState<string | null>(null)
@@ -175,8 +176,12 @@ export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT' }: Purcha
  }, [orders])
 
  const visibleOrders = useMemo(
- () => orders.filter(order => order.status === statusFilter),
- [orders, statusFilter]
+ () => orders.filter(order => {
+ const matchesStatus = order.status === statusFilter
+ const matchesType = !typeFilter || order.type === typeFilter
+ return matchesStatus && matchesType
+ }),
+ [orders, statusFilter, typeFilter]
  )
 
  return (
@@ -184,7 +189,7 @@ export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT' }: Purcha
  <div className="flex flex-col gap-1">
  <div className="flex flex-wrap items-center justify-between gap-2">
  <div>
- <h2 className="text-lg font-semibold text-foreground">Purchase Orders</h2>
+      <h2 className="text-lg font-semibold text-foreground">Orders</h2>
  <p className="text-sm text-muted-foreground">
  Use movement notes to record receipts or shipments against these orders before they post to the ledger.
  </p>
@@ -246,7 +251,7 @@ export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT' }: Purcha
  <tr key={order.id} className="odd:bg-muted/20">
  <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">
  <Link
- href={`/operations/purchase-orders/${order.id}`}
+                href={`/operations/orders/${order.id}`}
  className="text-primary hover:underline"
  prefetch={false}
  >
@@ -274,7 +279,7 @@ export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT' }: Purcha
  <td className="px-3 py-2 whitespace-nowrap">
  <div className="flex flex-wrap items-center gap-2">
  <Button size="sm" variant="secondary" asChild>
- <Link href={`/operations/purchase-orders/${order.id}`} prefetch={false}>
+                <Link href={`/operations/orders/${order.id}`} prefetch={false}>
  {order.status === 'POSTED' ? 'View' : 'Open'}
  </Link>
  </Button>
