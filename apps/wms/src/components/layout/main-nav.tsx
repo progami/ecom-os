@@ -41,7 +41,7 @@ const baseNavigation: NavSection[] = [
  {
  title: 'Operations',
  items: [
- { name: 'Purchase Orders', href: '/operations/purchase-orders', icon: FileText },
+ { name: 'Orders', href: '/operations/orders', icon: FileText },
  { name: 'Inventory Ledger', href: '/operations/inventory', icon: BookOpen },
       { name: 'Pallet Variance', href: '/operations/pallet-variance', icon: AlertTriangle },
  ]
@@ -57,7 +57,7 @@ const baseNavigation: NavSection[] = [
  title: 'Configuration',
  items: [
  { name: 'Products', href: '/config/products', icon: Package },
- { name: 'Warehouse Configs', href: '/config/warehouses', icon: Building },
+      { name: 'Warehouses', href: '/config/warehouses', icon: Building },
  ]
  },
 ]

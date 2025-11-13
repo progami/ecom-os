@@ -238,8 +238,8 @@ export default function PurchaseOrderDetailPage() {
 
  useEffect(() => {
  if (status === 'loading') return
- if (!session) {
- redirectToPortal('/login', `${window.location.origin}/operations/purchase-orders/${params.id}`)
+  if (!session) {
+    redirectToPortal('/login', `${window.location.origin}/operations/orders/${params.id}`)
  return
  }
  if (!['staff', 'admin'].includes(session.user.role)) {
@@ -257,8 +257,8 @@ export default function PurchaseOrderDetailPage() {
  const data = await response.json()
  setOrder(data)
  } catch (_error) {
- toast.error('Failed to load purchase order')
- router.push('/operations/purchase-orders')
+    toast.error('Failed to load purchase order')
+    router.push('/operations/orders')
  } finally {
  setLoading(false)
  }
@@ -503,7 +503,7 @@ export default function PurchaseOrderDetailPage() {
 
  const breadcrumbItems = [
  { label: 'Operations', href: '/operations' },
- { label: 'Purchase Orders', href: '/operations/purchase-orders' },
+ { label: 'Orders', href: '/operations/orders' },
  { label: `PO ${order.orderNumber}` },
  ]
 

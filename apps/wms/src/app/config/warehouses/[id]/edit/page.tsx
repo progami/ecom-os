@@ -434,39 +434,6 @@ isActive: formData.isActive
  </div>
  </div>
 
- <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
- <div>
- <label className="block text-sm font-medium text-slate-700 mb-1">
- Contact Email
- </label>
- <input
- type="email"
- value={formData.contactEmail}
- onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
- className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary ${
- errors.contactEmail ? 'border-red-500' : ''
- }`}
- placeholder="warehouse@example.com"
- />
- {errors.contactEmail && (
- <p className="text-red-500 text-sm mt-1">{errors.contactEmail}</p>
- )}
- </div>
-
- <div>
- <label className="block text-sm font-medium text-slate-700 mb-1">
- Contact Phone
- </label>
- <input
- type="tel"
- value={formData.contactPhone}
- onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
- className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
- placeholder="+1 (555) 123-4567"
- />
- </div>
- </div>
-
  <div className="flex items-center">
  <input
  type="checkbox"

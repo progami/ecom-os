@@ -21,6 +21,8 @@ import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
 import { EditAttachmentsTab, type ApiAttachment, type EditAttachment } from '@/components/operations/edit-attachments-tab'
 import { DeleteTransactionDialog } from '@/components/operations/delete-transaction-dialog'
 
+const ORDERS_INDEX_PATH = '/operations/orders'
+
 interface TransactionData {
  id: string
  transactionId: string
@@ -238,8 +240,7 @@ export default function TransactionDetailPage() {
  }
 
  toast.success('Transaction updated successfully')
- setIsEditMode(false)
- loadTransaction() // Reload to get fresh data
+ router.push(ORDERS_INDEX_PATH)
  } catch (_error) {
  toast.error(_error instanceof Error ? _error.message : 'Failed to update transaction')
  } finally {
@@ -261,7 +262,7 @@ export default function TransactionDetailPage() {
  }
 
  toast.success('Transaction deleted successfully')
- router.push('/operations/inventory')
+ router.push(ORDERS_INDEX_PATH)
  } catch (_error) {
  toast.error(_error instanceof Error ? _error.message : 'Failed to delete transaction')
  } finally {
@@ -286,7 +287,7 @@ export default function TransactionDetailPage() {
  <div className="text-center py-12">
  <p className="text-slate-500">Transaction not found</p>
  <button
- onClick={() => router.push('/operations/inventory')}
+ onClick={() => router.push(ORDERS_INDEX_PATH)}
  className="mt-4 text-primary hover:underline"
  >
  Return to Inventory
@@ -332,7 +333,7 @@ export default function TransactionDetailPage() {
  <div className="flex items-center justify-between">
  <div className="flex items-center gap-2">
  <button
- onClick={() => router.push('/operations/inventory')}
+ onClick={() => router.push(ORDERS_INDEX_PATH)}
  className="p-2 hover:bg-slate-100 rounded-lg"
  >
  <ArrowLeft className="h-5 w-5" />

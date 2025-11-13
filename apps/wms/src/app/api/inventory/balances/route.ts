@@ -6,6 +6,7 @@ import {
   getPaginationSkipTake,
   createPaginatedResponse
 } from '@/lib/database/pagination'
+import { toPublicOrderNumber } from '@/lib/services/purchase-order-service'
 import { sanitizeSearchQuery } from '@/lib/security/input-sanitization'
 import { aggregateInventoryTransactions } from '@ecom-os/ledger'
 import { resolvePortalSession } from '@/lib/portal-session'
@@ -83,7 +84,7 @@ export async function GET(req: NextRequest) {
 
  const ledgerTransactions = transactions.map(({ purchaseOrder, ...transaction }) => ({
  ...transaction,
- purchaseOrderNumber: purchaseOrder?.orderNumber ?? null
+ purchaseOrderNumber: purchaseOrder?.orderNumber ? toPublicOrderNumber(purchaseOrder.orderNumber) : null
  }))
 
  const aggregated = aggregateInventoryTransactions(ledgerTransactions, {
@@ -139,7 +140,7 @@ export async function GET(req: NextRequest) {
  lastTransactionType: balance.lastTransactionType ?? undefined,
  lastTransactionReference: balance.lastTransactionReference ?? undefined,
  purchaseOrderId: balance.purchaseOrderId ?? null,
- purchaseOrderNumber: balance.purchaseOrderNumber ?? null,
+ purchaseOrderNumber: balance.purchaseOrderNumber ? toPublicOrderNumber(balance.purchaseOrderNumber) : null,
  receiveTransaction
  }
  })

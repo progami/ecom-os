@@ -15,7 +15,7 @@ import { AlertCircle, Lock, Unlock, Calculator, Truck } from '@/lib/lucide-icons
 
 export interface CostEntry {
   id: string
-  costType: 'container' | 'carton' | 'pallet'
+  costType: 'container_receiving' | 'container_freight' | 'carton' | 'pallet'
   quantity: number
   unitRate: number
   totalCost: number
@@ -25,7 +25,8 @@ export interface CostEntry {
 }
 
 const COST_LABELS: Record<CostEntry['costType'], string> = {
-  container: 'Container Cost',
+  container_receiving: 'Receiving Cost',
+  container_freight: 'Freight Cost',
   carton: 'Carton Handling',
   pallet: 'Pallet Handling'
 }
@@ -125,15 +126,12 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
 
   // Expose method to get validated costs
   const getValidatedCosts = (): CostEntry[] | { error: string } => {
-    // Filter out costs with zero or empty values (allow deletion from UI)
     const nonZeroCosts = costs.filter(cost => cost.totalCost > 0)
 
-    // Validate that at least one cost remains after filtering
     if (nonZeroCosts.length === 0) {
       return { error: 'At least one cost entry with a value is required' }
     }
 
-    // Validate manual costs have proper values
     const invalidCosts = nonZeroCosts.filter(cost =>
       cost.isManual && (cost.unitRate <= 0 || cost.quantity <= 0)
     )
@@ -141,13 +139,24 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
       return { error: 'Please ensure all costs have valid quantities and rates' }
     }
 
-    // Validate container costs - REQUIRED for receive transactions
-    const containerCosts = nonZeroCosts.filter(cost =>
-      cost.costType === 'container'
-    )
+    const receivingCost = costs.find(cost => cost.costType === 'container_receiving')
+    if (!receivingCost) {
+      return { error: 'Receiving cost configuration is missing for this warehouse.' }
+    }
+    if (receivingCost.totalCost <= 0) {
+      return { error: 'Receiving cost must be greater than zero.' }
+    }
 
-    if (containerCosts.length === 0) {
-      return { error: 'At least one container cost is required for receive transactions.' }
+    const freightCost = costs.find(cost => cost.costType === 'container_freight')
+    if (!freightCost || freightCost.totalCost <= 0) {
+      return { error: 'Freight cost is required for receive transactions.' }
+    }
+
+    if (!nonZeroCosts.some(cost => cost.id === receivingCost.id)) {
+      nonZeroCosts.push(receivingCost)
+    }
+    if (!nonZeroCosts.some(cost => cost.id === freightCost.id)) {
+      nonZeroCosts.push(freightCost)
     }
 
     return nonZeroCosts
@@ -161,15 +170,11 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
   const initializeCosts = (rates: CostRate[]) => {
     const initialCosts: CostEntry[] = []
 
-    // Initialize container costs from rates (manual entry)
-    const containerRates = rates.filter(rate =>
-      rate.costCategory === 'container'
-    )
-
+    const containerRates = rates.filter(rate => rate.costCategory === 'container')
     containerRates.forEach(rate => {
       initialCosts.push({
         id: rate.id,
-        costType: 'container',
+        costType: 'container_receiving',
         quantity: 1,
         unitRate: Number(rate.costValue || 0),
         totalCost: Number(rate.costValue || 0),
@@ -177,6 +182,18 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
         isLocked: false
       })
     })
+
+    if (!initialCosts.some(cost => cost.costType === 'container_freight')) {
+      initialCosts.push({
+        id: 'freight',
+        costType: 'container_freight',
+        quantity: 1,
+        unitRate: 0,
+        totalCost: 0,
+        isManual: true,
+        isLocked: false
+      })
+    }
 
     // Initialize handling costs from rates (Carton and Pallet categories)
     const handlingRates = rates.filter(rate =>
@@ -235,7 +252,9 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
 
   // Calculate totals
   const totals = useMemo(() => {
-    const containerCosts = costs.filter(c => c.costType === 'container')
+    const containerCosts = costs.filter(
+      c => c.costType === 'container_receiving' || c.costType === 'container_freight'
+    )
     const cartonCosts = costs.filter(c => c.costType === 'carton')
     const palletCosts = costs.filter(c => c.costType === 'pallet')
 
@@ -287,16 +306,17 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
     )
   }
 
-  // Check if we have any costs configured
-  if (!loading && costs.length === 0) {
+  const hasReceivingCost = costs.some(cost => cost.costType === 'container_receiving')
+
+  if (!loading && !hasReceivingCost) {
     return (
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
         <div className="flex items-center gap-3">
           <AlertCircle className="h-6 w-6 text-amber-600 flex-shrink-0" />
           <div>
-            <p className="text-amber-800 font-medium">No cost rates configured for this warehouse</p>
+            <p className="text-amber-800 font-medium">Receiving cost missing</p>
             <p className="text-amber-700 text-sm mt-1">
-              Please contact your administrator to set up receiving and handling cost rates for this warehouse.
+              Please contact your administrator to configure the receiving cost rate for this warehouse before recording freight charges.
             </p>
           </div>
         </div>
@@ -310,7 +330,9 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
       <div className="bg-white rounded-lg border border-slate-200">
         <div className="p-6 space-y-6">
           {/* Container costs */}
-          {costs.filter(c => c.costType === 'container').map(cost => (
+          {costs
+            .filter(c => c.costType === 'container_receiving' || c.costType === 'container_freight')
+            .map(cost => (
             <div key={cost.id} className="grid grid-cols-4 gap-4 items-center">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -350,7 +372,7 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
           ))}
 
           {/* Divider between container and handling costs */}
-          {costs.filter(c => c.costType === 'container').length > 0 &&
+          {costs.filter(c => c.costType === 'container_receiving' || c.costType === 'container_freight').length > 0 &&
            costs.filter(c => c.costType === 'carton' || c.costType === 'pallet').length > 0 && (
             <div className="border-t border-slate-200" />
           )}

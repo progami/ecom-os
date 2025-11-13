@@ -703,6 +703,8 @@ const validatedItems: ValidatedTransactionLine[] = itemsArray.map((item) => ({
  return NextResponse.json({ error: 'Warehouse not found' }, { status: 404 })
  }
 
+ const purchaseOrderCache = new Map<string, string>()
+
  for (const item of validatedItems) {
  item.batchLot = resolveBatchLot({
  rawBatchLot: item.batchLot,
@@ -868,6 +870,9 @@ for (const item of validatedItems) {
  ? sanitizedSupplier ?? null
  : sanitizedShipName ?? sanitizedSupplier ?? null
 
+ const cacheKey = `${warehouse.code}:${refNumber}`
+ const cachedPurchaseOrderId = purchaseOrderCache.get(cacheKey)
+
  const { purchaseOrderId, purchaseOrderLineId, batchLot: normalizedBatchLot } = await ensurePurchaseOrderForTransaction(tx, {
  orderNumber: refNumber,
  transactionType: txType as TransactionType,
@@ -884,7 +889,12 @@ for (const item of validatedItems) {
  createdById: session.user.id,
  createdByName,
  notes: sanitizedNotes,
+ purchaseOrderId: cachedPurchaseOrderId,
  })
+
+ if (!cachedPurchaseOrderId) {
+ purchaseOrderCache.set(cacheKey, purchaseOrderId)
+ }
 
  const transaction = await tx.inventoryTransaction.create({
  data: {
