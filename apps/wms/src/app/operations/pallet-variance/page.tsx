@@ -19,7 +19,7 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
-import { StatsCard } from '@/components/ui/stats-card'
+import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
 import { toast } from 'react-hot-toast'
 import { redirectToPortal } from '@/lib/portal'
 
@@ -184,38 +184,36 @@ export default function PalletVariancePage() {
  <div className="flex flex-col gap-6">
 
  {/* Summary Cards */}
- <div className="grid gap-4 md:grid-cols-4">
+ <StatsCardGrid cols={4}>
  <StatsCard
  title="Total Variance"
- value={`${totalVariance > 0 ? '+' : ''}${totalVariance} pallets`}
+ value={`${totalVariance > 0 ? '+' : ''}${totalVariance}`}
+ subtitle="pallets"
  icon={Package}
  variant={totalVariance > 0 ? 'success' : totalVariance < 0 ? 'danger' : 'default'}
- size="sm"
  />
  <StatsCard
  title="Overages"
  value={positiveCount}
- subtitle="Physical > System"
+ subtitle="items"
  icon={TrendingUp}
  variant="success"
- size="sm"
  />
  <StatsCard
  title="Shortages"
  value={negativeCount}
- subtitle="Physical < System"
+ subtitle="items"
  icon={TrendingDown}
  variant="danger"
- size="sm"
  />
  <StatsCard
  title="Pending Review"
  value={pendingCount}
+ subtitle="items"
  icon={AlertTriangle}
  variant="warning"
- size="sm"
  />
- </div>
+ </StatsCardGrid>
 
  {/* Filter Tabs */}
  <div className="border-b">
