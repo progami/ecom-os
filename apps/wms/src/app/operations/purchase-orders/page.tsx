@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { FileText, Plus } from '@/lib/lucide-icons'
 import { PurchaseOrdersPanel, PurchaseOrderFilter } from '../inventory/purchase-orders-panel'
-import { cn } from '@/lib/utils'
 import { redirectToPortal } from '@/lib/portal'
 
 type StatusConfig = {
@@ -95,8 +94,6 @@ function PurchaseOrdersPage() {
  </DashboardLayout>
  )
  }
-
- const currentTab = STATUS_TABS.find(tab => tab.value === statusFilter)
 
  return (
  <DashboardLayout>
