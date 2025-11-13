@@ -133,7 +133,7 @@ const initialValidationErrors: ValidationErrors = {
 
 export default function ShipTabbedPage() {
  const router = useRouter()
- const PURCHASE_ORDERS_PATH = '/operations/purchase-orders'
+const PURCHASE_ORDERS_PATH = '/operations/orders'
  const { data: session } = useSession()
  const costsTabRef = useRef<CostsTabRef>(null)
  

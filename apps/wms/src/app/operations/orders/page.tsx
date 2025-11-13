@@ -8,15 +8,17 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { FileText, Plus } from '@/lib/lucide-icons'
+import { FileText, Plus, Construction, Ship, Warehouse, CheckCircle, XCircle, Archive } from '@/lib/lucide-icons'
 import { PurchaseOrdersPanel, PurchaseOrderFilter } from '../inventory/purchase-orders-panel'
 import { redirectToPortal } from '@/lib/portal'
+import type { LucideIcon } from 'lucide-react'
 
 type StatusConfig = {
  value: PurchaseOrderFilter
  label: string
  description: string
  hint: string
+ icon: LucideIcon
 }
 
 // Main pipeline statuses
@@ -26,24 +28,28 @@ const PIPELINE_STATUSES: StatusConfig[] = [
  label: 'Draft',
  description: 'Orders being prepared before proof submission',
  hint: 'Complete details before moving forward',
+ icon: Construction,
  },
  {
  value: 'AWAITING_PROOF',
  label: 'Awaiting Proof',
  description: 'Waiting on delivery proof or supporting documents',
  hint: 'Upload delivery note or supporting docs',
+ icon: Ship,
  },
  {
  value: 'REVIEW',
  label: 'Review',
  description: 'Proof received – ready for final approval',
  hint: 'Validate documents and approve',
+ icon: Warehouse,
  },
  {
  value: 'POSTED',
  label: 'Posted',
  description: 'Orders posted to the ledger',
  hint: 'Locked for edits',
+ icon: CheckCircle,
  },
 ]
 
@@ -54,27 +60,32 @@ const TERMINAL_STATUSES: StatusConfig[] = [
  label: 'Cancelled',
  description: 'Orders cancelled before completion',
  hint: 'For historical reference only',
+ icon: XCircle,
  },
  {
  value: 'CLOSED',
  label: 'Closed',
  description: 'Orders fully reconciled and closed',
  hint: 'Archived records',
+ icon: Archive,
  },
 ]
 
 const STATUS_TABS = [...PIPELINE_STATUSES, ...TERMINAL_STATUSES]
 
-function PurchaseOrdersPage() {
+type OrderType = 'PURCHASE' | 'SALES'
+
+function OrdersPage() {
  const { data: session, status } = useSession()
  const router = useRouter()
+ const [orderType, setOrderType] = useState<OrderType>('PURCHASE')
  const [statusFilter, setStatusFilter] = useState<PurchaseOrderFilter>('DRAFT')
 
  useEffect(() => {
  if (status === 'loading') return
 
- if (!session) {
- redirectToPortal('/login', `${window.location.origin}/operations/purchase-orders`)
+  if (!session) {
+    redirectToPortal('/login', `${window.location.origin}/operations/orders`)
  return
  }
 
@@ -99,7 +110,7 @@ function PurchaseOrdersPage() {
  <DashboardLayout>
  <PageContainer>
  <PageHeaderSection
- title="Purchase Orders"
+ title="Orders"
  description="Operations"
  icon={FileText}
  actions={
@@ -127,22 +138,52 @@ function PurchaseOrdersPage() {
  />
  <PageContent>
  <div className="flex flex-col gap-6">
+ {/* Order Type Tabs */}
+ <div className="border-b border-slate-300">
+ <nav className="-mb-px flex space-x-1">
+ <button
+ type="button"
+ onClick={() => setOrderType('PURCHASE')}
+ className={`py-3 px-6 border-b-4 font-semibold text-base transition-all ${
+ orderType === 'PURCHASE'
+ ? 'border-cyan-600 text-cyan-600'
+ : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-300'
+ }`}
+ >
+ Purchase Order
+ </button>
+ <button
+ type="button"
+ onClick={() => setOrderType('SALES')}
+ className={`py-3 px-6 border-b-4 font-semibold text-base transition-all ${
+ orderType === 'SALES'
+ ? 'border-cyan-600 text-cyan-600'
+ : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-300'
+ }`}
+ >
+ Sales Order
+ </button>
+ </nav>
+ </div>
+
  {/* Status Tabs */}
  <div className="border-b">
  <nav className="-mb-px flex space-x-8">
  {STATUS_TABS.map(tab => {
  const isActive = statusFilter === tab.value
+ const Icon = tab.icon
  return (
  <button
  key={tab.value}
  type="button"
  onClick={() => setStatusFilter(tab.value)}
- className={`py-2 px-1 border-b-2 font-medium text-sm ${
+ className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
  isActive
  ? 'border-primary text-primary'
  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
  }`}
  >
+ <Icon className="h-4 w-4" />
  {tab.label}
  </button>
  )
@@ -150,7 +191,11 @@ function PurchaseOrdersPage() {
  </nav>
  </div>
 
- <PurchaseOrdersPanel onPosted={() => {}} statusFilter={statusFilter} />
+ <PurchaseOrdersPanel
+ onPosted={() => {}}
+ statusFilter={statusFilter}
+ typeFilter={orderType === 'PURCHASE' ? 'PURCHASE' : 'FULFILLMENT'}
+ />
  </div>
  </PageContent>
  </PageContainer>
@@ -158,4 +203,4 @@ function PurchaseOrdersPage() {
  )
 }
 
-export default PurchaseOrdersPage
+export default OrdersPage

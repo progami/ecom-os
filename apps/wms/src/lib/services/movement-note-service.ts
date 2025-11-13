@@ -8,7 +8,7 @@ import {
  TransactionType,
 } from '@prisma/client'
 import { ValidationError, ConflictError, NotFoundError } from '@/lib/api'
-import { resolveBatchLot } from '@/lib/services/purchase-order-service'
+import { resolveBatchLot, toPublicOrderNumber } from '@/lib/services/purchase-order-service'
 
 export interface UserContext {
  id?: string | null
@@ -33,7 +33,7 @@ export interface CreateMovementNoteInput {
 }
 
 export async function listMovementNotes(filter?: { purchaseOrderId?: string | null }) {
- return prisma.movementNote.findMany({
+ const notes = await prisma.movementNote.findMany({
  where: filter?.purchaseOrderId ? { purchaseOrderId: filter.purchaseOrderId } : undefined,
  orderBy: { createdAt: 'desc' },
  include: {
@@ -50,6 +50,8 @@ export async function listMovementNotes(filter?: { purchaseOrderId?: string | nu
  },
  },
  })
+
+ return notes.map((note) => formatNoteOrderNumber(note))
 }
 
 export async function getMovementNoteById(id: string) {
@@ -74,7 +76,7 @@ export async function getMovementNoteById(id: string) {
  throw new NotFoundError('Delivery note not found')
  }
 
- return note
+ return formatNoteOrderNumber(note)
 }
 
 export async function createMovementNote(input: CreateMovementNoteInput, user: UserContext) {
@@ -97,11 +99,11 @@ export async function createMovementNote(input: CreateMovementNoteInput, user: U
 
  const receivedAt = input.receivedAt ?? new Date()
 
- const note = await tx.movementNote.create({
- data: {
- purchaseOrderId: input.purchaseOrderId,
- status: MovementNoteStatus.DRAFT,
- referenceNumber: input.referenceNumber ?? null,
+  const note = await tx.movementNote.create({
+    data: {
+      purchaseOrderId: input.purchaseOrderId,
+      status: MovementNoteStatus.DRAFT,
+      referenceNumber: input.referenceNumber ?? null,
  receivedAt,
  receivedById: user.id ?? null,
  receivedByName: user.name ?? null,
@@ -132,9 +134,21 @@ export async function createMovementNote(input: CreateMovementNoteInput, user: U
  })
  ),
  },
- },
- include: { lines: true },
- })
+    },
+    include: {
+      lines: true,
+      purchaseOrder: {
+        select: {
+          id: true,
+          orderNumber: true,
+          type: true,
+          status: true,
+          warehouseCode: true,
+          warehouseName: true,
+        },
+      },
+    },
+  })
 
  if (purchaseOrder.status === PurchaseOrderStatus.DRAFT) {
  await tx.purchaseOrder.update({
@@ -143,7 +157,7 @@ export async function createMovementNote(input: CreateMovementNoteInput, user: U
  })
  }
 
- return note
+ return formatNoteOrderNumber(note)
  })
 }
 
@@ -167,7 +181,7 @@ export async function cancelMovementNote(id: string) {
  status: MovementNoteStatus.CANCELLED,
  },
  })
- })
+  })
 }
 
 function determineTransactionType(poType: PurchaseOrderType): TransactionType {
@@ -179,6 +193,18 @@ function determineTransactionType(poType: PurchaseOrderType): TransactionType {
  default:
  return TransactionType.ADJUST_IN
  }
+}
+
+function formatNoteOrderNumber<T extends { purchaseOrder: { orderNumber: string } | null }>(note: T): T {
+ const purchaseOrder = note.purchaseOrder
+ if (!purchaseOrder) return note
+ return {
+   ...note,
+   purchaseOrder: {
+     ...purchaseOrder,
+     orderNumber: toPublicOrderNumber(purchaseOrder.orderNumber),
+   },
+ } as T
 }
 
 export async function postMovementNote(id: string, user: UserContext) {
@@ -205,6 +231,7 @@ export async function postMovementNote(id: string, user: UserContext) {
  if (!po) {
  throw new NotFoundError('Purchase order missing for delivery note')
  }
+ const displayOrderNumber = toPublicOrderNumber(po.orderNumber)
 
  if (po.status === PurchaseOrderStatus.CANCELLED || po.status === PurchaseOrderStatus.CLOSED) {
  throw new ConflictError('Cannot post a note for a closed or cancelled purchase order')
@@ -252,7 +279,7 @@ export async function postMovementNote(id: string, user: UserContext) {
  transactionDate: transactionDate,
  }),
  transactionType,
- referenceId: note.referenceNumber ?? po.orderNumber,
+ referenceId: note.referenceNumber ?? displayOrderNumber,
  cartonsIn: isInbound ? line.quantity : 0,
  cartonsOut: isInbound ? 0 : line.quantity,
  storagePalletsIn: isInbound ? Math.ceil(line.quantity / Math.max(1, line.storageCartonsPerPallet ?? unitsPerCarton)) : 0,
@@ -337,6 +364,6 @@ export async function postMovementNote(id: string, user: UserContext) {
  throw new NotFoundError('Movement note not found after posting')
  }
 
- return updated
+ return formatNoteOrderNumber(updated)
  })
 }

@@ -266,14 +266,15 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
  try {
  const receivePlans = buildReceivePlans()
 
- for (const plan of receivePlans) {
- const orderTransactions: { transactionId: string; cartons: number }[] = []
+  for (const plan of receivePlans) {
+    const orderTransactions: { transactionId: string; cartons: number }[] = []
+    let cachedPurchaseOrderId: string | undefined
 
  for (const line of plan.lines) {
  const { sku, cartons, batchLot, storageCartonsPerPallet, shippingCartonsPerPallet } = line
 
- const poDetails = await ensurePurchaseOrderForTransaction(tx, {
- orderNumber: plan.orderNumber,
+    const poDetails = await ensurePurchaseOrderForTransaction(tx, {
+      orderNumber: plan.orderNumber,
  transactionType: 'RECEIVE',
  warehouseCode: plan.warehouse.code,
  warehouseName: plan.warehouse.name,
@@ -287,8 +288,13 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
  unitsPerCarton: sku.unitsPerCarton || 1,
  createdById: staffUserId,
  createdByName: 'Demo Staff',
- notes: null,
- })
+      notes: null,
+      purchaseOrderId: cachedPurchaseOrderId,
+    })
+
+    if (!cachedPurchaseOrderId) {
+      cachedPurchaseOrderId = poDetails.purchaseOrderId
+    }
 
  const normalizedBatchLot = poDetails.batchLot
 
@@ -407,8 +413,9 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
 
  const shipPlans = buildShipPlans()
 
- for (const plan of shipPlans) {
- for (const line of plan.lines) {
+  for (const plan of shipPlans) {
+    let cachedPurchaseOrderId: string | undefined
+    for (const line of plan.lines) {
  const available = inventoryMap.get(`${plan.warehouse.code}-${line.sku.skuCode}-${line.batchLot}`)
  if (!available || available.cartons <= 0) {
  continue
@@ -429,8 +436,13 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
  unitsPerCarton: line.sku.unitsPerCarton || 1,
  createdById: staffUserId,
  createdByName: 'Demo Staff',
- notes: null,
- })
+      notes: null,
+      purchaseOrderId: cachedPurchaseOrderId,
+    })
+
+    if (!cachedPurchaseOrderId) {
+      cachedPurchaseOrderId = poDetails.purchaseOrderId
+    }
 
  const normalizedBatchLot = poDetails.batchLot
 
@@ -476,8 +488,9 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
 
  const restockPlans = buildRestockPlans(warehouses, skus)
 
- for (const plan of restockPlans) {
- for (const line of plan.lines) {
+  for (const plan of restockPlans) {
+    let cachedPurchaseOrderId: string | undefined
+    for (const line of plan.lines) {
  const poDetails = await ensurePurchaseOrderForTransaction(tx, {
  orderNumber: plan.orderNumber,
  transactionType: 'RECEIVE',
@@ -493,8 +506,13 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
  unitsPerCarton: line.sku.unitsPerCarton || 1,
  createdById: staffUserId,
  createdByName: 'Demo Staff',
- notes: null,
- })
+      notes: null,
+      purchaseOrderId: cachedPurchaseOrderId,
+    })
+
+    if (!cachedPurchaseOrderId) {
+      cachedPurchaseOrderId = poDetails.purchaseOrderId
+    }
 
  const normalizedBatchLot = poDetails.batchLot
 

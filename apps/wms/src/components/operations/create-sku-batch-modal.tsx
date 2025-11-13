@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { X, Save } from '@/lib/lucide-icons'
 import { toast } from 'react-hot-toast'
 
+const MATERIAL_OPTIONS = ['Plastic', 'Cotton'] as const
+const PACKAGING_OPTIONS = ['Box', 'Polybag'] as const
+
 interface SkuBatchData {
   // SKU Master Data
   skuCode: string
@@ -166,26 +169,46 @@ export function CreateSkuBatchModal({
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     Material
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.material || ''}
-                    onChange={(e) => setFormData({ ...formData, material: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="e.g., Plastic, Metal"
-                  />
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        material: e.target.value || undefined
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                  >
+                    <option value="">Select material</option>
+                    {MATERIAL_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">
                     Packaging Type
                   </label>
-                  <input
-                    type="text"
+                  <select
                     value={formData.packagingType || ''}
-                    onChange={(e) => setFormData({ ...formData, packagingType: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="e.g., Box, Poly bag"
-                  />
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        packagingType: e.target.value || undefined
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+                  >
+                    <option value="">Select packaging</option>
+                    {PACKAGING_OPTIONS.map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
