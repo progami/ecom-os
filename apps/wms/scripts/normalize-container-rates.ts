@@ -2,8 +2,9 @@
 
 /**
  * Normalizes container cost rates for the dev schema by forcing the unit of measure
- * to the new `receiving` label. This script is intentionally blocked from running
- * against production-like database URLs unless ALLOW_NON_DEV=true is supplied.
+ * to one of the supported container sizes: 20ft, 40ft, or lcl. This script is
+ * intentionally blocked from running against production-like database URLs unless
+ * ALLOW_NON_DEV=true is supplied.
  */
 
 import { prisma } from '../src/lib/prisma'
@@ -24,6 +25,9 @@ async function normalizeContainerRates() {
   assertDevSchema()
 
   console.log('🔧 Normalizing container cost rates (dev schema only)...')
+
+  const supportedUnits = ['20ft', '40ft', 'lcl'] as const
+  const defaultUnit = supportedUnits[0]
 
   const containerRates = await prisma.costRate.findMany({
     where: { costCategory: 'Container' },
@@ -47,17 +51,20 @@ async function normalizeContainerRates() {
 
   let updated = 0
   for (const rate of containerRates) {
-    const currentUnit = rate.unitOfMeasure?.toLowerCase?.() ?? ''
-    if (currentUnit === 'receiving') {
+    const currentUnit = rate.unitOfMeasure?.trim?.().toLowerCase?.() ?? ''
+    const normalizedUnit = supportedUnits.find((unit) => unit === currentUnit)
+    const nextUnit = normalizedUnit ?? defaultUnit
+
+    if (rate.unitOfMeasure === nextUnit) {
       continue
     }
 
     await prisma.costRate.update({
       where: { id: rate.id },
-      data: { unitOfMeasure: 'receiving' }
+      data: { unitOfMeasure: nextUnit }
     })
     updated += 1
-    console.log(`✅ ${rate.warehouse.name} (${rate.warehouse.code}) → receiving`)
+    console.log(`✅ ${rate.warehouse.name} (${rate.warehouse.code}) → ${nextUnit}`)
   }
 
   console.log(`\n🎯 Completed. Updated ${updated} of ${containerRates.length} container rates.`)

@@ -314,7 +314,7 @@ export default function WarehousesPanel() {
                           <tr key={rate.id} className="hover:bg-slate-50">
                             <td className="px-4 py-3">
                               <span className={`inline-block px-2 py-1 text-xs font-medium rounded ${getCategoryColor(rate.costCategory)}`}>
-                                {rate.costCategory}
+                                {formatCostCategory(rate.costCategory)}
                               </span>
                             </td>
                             <td className="px-4 py-3 text-right font-semibold text-slate-900">
@@ -380,4 +380,11 @@ function getCategoryColor(category: string) {
     Accessorial: 'bg-slate-100 text-slate-700'
   }
   return colors[category] || 'bg-slate-100 text-slate-700'
+}
+
+function formatCostCategory(category: string) {
+  if (category === 'Container') {
+    return 'Container - Handling Charges'
+  }
+  return category
 }

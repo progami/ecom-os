@@ -32,7 +32,7 @@ export default function NewRatePage() {
 
 const costCategories = [
  { value: 'Storage', label: 'Storage', description: 'Storage charges (pallet/week)' },
- { value: 'Container', label: 'Container', description: 'Container handling charges' },
+ { value: 'Container', label: 'Container - Handling Charges', description: 'Per container handling charges' },
  { value: 'Carton', label: 'Carton', description: 'Per carton handling' },
  { value: 'Pallet', label: 'Pallet', description: 'Pallet movement charges' },
  { value: 'Unit', label: 'Unit', description: 'Individual unit handling' },
@@ -42,7 +42,7 @@ const costCategories = [
 
 const unitsByCategory: { [key: string]: string[] } = {
  Storage: ['pallet/week'],
- Container: ['receiving'],
+ Container: ['20ft', '40ft', 'lcl'],
  Carton: ['carton', 'case'],
  Pallet: ['pallet', 'pallet/in', 'pallet/out'],
  Unit: ['unit', 'piece', 'item'],
