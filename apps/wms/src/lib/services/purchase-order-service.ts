@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { NotFoundError, ConflictError, ValidationError } from '@/lib/api'
 import {
  Prisma,
+ PurchaseOrder,
  PurchaseOrderLineStatus,
  PurchaseOrderStatus,
  PurchaseOrderType,
@@ -16,27 +17,28 @@ export interface UserContext {
 }
 
 export interface EnsurePurchaseOrderForTransactionInput {
- orderNumber?: string | null
- transactionType: TransactionType
- warehouseCode: string
- warehouseName: string
- counterpartyName?: string | null
- transactionDate: Date
- expectedDate?: Date | null
- skuCode: string
- skuDescription?: string | null
- batchLot?: string | null
- quantity: number
- unitsPerCarton: number
- createdById?: string | null
- createdByName?: string | null
- notes?: string | null
+  orderNumber?: string | null
+  transactionType: TransactionType
+  warehouseCode: string
+  warehouseName: string
+  counterpartyName?: string | null
+  transactionDate: Date
+  expectedDate?: Date | null
+  skuCode: string
+  skuDescription?: string | null
+  batchLot?: string | null
+  quantity: number
+  unitsPerCarton: number
+  createdById?: string | null
+  createdByName?: string | null
+  notes?: string | null
+  purchaseOrderId?: string | null
 }
 
 export interface EnsurePurchaseOrderResult {
- purchaseOrderId: string
- purchaseOrderLineId: string
- batchLot: string
+  purchaseOrderId: string
+  purchaseOrderLineId: string
+  batchLot: string
 }
 
 export type PurchaseOrderWithLines = Prisma.PurchaseOrderGetPayload<{
@@ -44,15 +46,16 @@ export type PurchaseOrderWithLines = Prisma.PurchaseOrderGetPayload<{
 }>
 
 export function serializePurchaseOrder(order: PurchaseOrderWithLines) {
- return {
- ...order,
- expectedDate: order.expectedDate?.toISOString() ?? null,
- postedAt: order.postedAt?.toISOString() ?? null,
- createdAt: order.createdAt.toISOString(),
- updatedAt: order.updatedAt.toISOString(),
- lines: order.lines.map(line => ({
- ...line,
- unitCost: line.unitCost ? Number(line.unitCost) : null,
+  return {
+    ...order,
+    expectedDate: order.expectedDate?.toISOString() ?? null,
+    postedAt: order.postedAt?.toISOString() ?? null,
+    createdAt: order.createdAt.toISOString(),
+    updatedAt: order.updatedAt.toISOString(),
+    orderNumber: toPublicOrderNumber(order.orderNumber),
+    lines: order.lines.map(line => ({
+      ...line,
+      unitCost: line.unitCost ? Number(line.unitCost) : null,
  createdAt: line.createdAt.toISOString(),
  updatedAt: line.updatedAt.toISOString(),
  })),
@@ -67,6 +70,16 @@ export interface UpdatePurchaseOrderInput {
 
 const SYSTEM_FALLBACK_ID = 'system'
 const SYSTEM_FALLBACK_NAME = 'System'
+const ORDER_NUMBER_SEPARATOR = '::'
+
+export function toPublicOrderNumber(orderNumber: string): string {
+ const [publicValue] = orderNumber.split(ORDER_NUMBER_SEPARATOR)
+ return publicValue
+}
+
+function withOrderNumberSuffix(base: string, suffix: string) {
+ return `${base}${ORDER_NUMBER_SEPARATOR}${suffix}`
+}
 
 function normalizeNullable(value?: string | null): string | null {
  const trimmed = value?.trim()
@@ -278,11 +291,11 @@ export async function postPurchaseOrder(id: string, user: UserContext): Promise<
 }
 
 export async function ensurePurchaseOrderForTransaction(
- client: Prisma.TransactionClient,
- input: EnsurePurchaseOrderForTransactionInput
+  client: Prisma.TransactionClient,
+  input: EnsurePurchaseOrderForTransactionInput
 ): Promise<EnsurePurchaseOrderResult> {
- const orderType = mapTransactionToOrderType(input.transactionType)
- const orderNumber = normalizeOrderNumber(input.orderNumber)
+  const orderType = mapTransactionToOrderType(input.transactionType)
+  const orderNumber = normalizeOrderNumber(input.orderNumber)
  const transactionDate = input.transactionDate
  const hasExpectedDateUpdate = Object.prototype.hasOwnProperty.call(input, 'expectedDate')
  const providedExpectedDate = hasExpectedDateUpdate ? input.expectedDate ?? null : undefined
@@ -303,84 +316,29 @@ export async function ensurePurchaseOrderForTransaction(
  const isOutbound = input.transactionType === 'SHIP' || input.transactionType === 'ADJUST_OUT'
  const signedQuantity = isOutbound ? -absoluteQuantity : absoluteQuantity
 
- const orderKey = {
- warehouseCode_orderNumber: {
- warehouseCode: input.warehouseCode,
- orderNumber,
- },
- }
+  let order: Prisma.PurchaseOrder | null = null
+  if (input.purchaseOrderId) {
+    order = await client.purchaseOrder.findUnique({
+      where: { id: input.purchaseOrderId },
+    })
+    if (order && (order.status === PurchaseOrderStatus.CANCELLED || order.status === PurchaseOrderStatus.CLOSED)) {
+      throw new ConflictError('Transactions cannot be linked to a closed or cancelled purchase order')
+    }
+  }
 
- const existingOrder = await client.purchaseOrder.findUnique({ where: orderKey })
-
- if (existingOrder && existingOrder.status === PurchaseOrderStatus.CANCELLED) {
- throw new ConflictError('Transactions cannot be linked to a cancelled purchase order')
- }
-
- if (existingOrder && existingOrder.status === PurchaseOrderStatus.CLOSED) {
- throw new ConflictError('Transactions cannot be linked to a closed purchase order')
- }
-
- let order = existingOrder
-
- if (!order) {
- order = await client.purchaseOrder.create({
- data: {
- orderNumber,
- type: orderType,
- status: PurchaseOrderStatus.AWAITING_PROOF,
- warehouseCode: input.warehouseCode,
- warehouseName: input.warehouseName,
- counterpartyName: counterparty ?? null,
- expectedDate: defaultExpectedDate,
- notes: notes ?? null,
- createdById: normalizeNullable(input.createdById) ?? undefined,
- createdByName: normalizeNullable(input.createdByName) ?? undefined,
- },
- })
- } else {
- const updateData: Prisma.PurchaseOrderUpdateInput = {}
-
- const existingOrderType = order.type
-
- if (existingOrderType !== orderType && existingOrderType !== PurchaseOrderType.PURCHASE) {
- updateData.type = orderType
- }
-
- if (order.warehouseName !== input.warehouseName) {
- updateData.warehouseName = input.warehouseName
- }
-
- if (hasCounterpartyUpdate && counterparty !== order.counterpartyName) {
- updateData.counterpartyName = counterparty ?? null
- }
-
- if (hasExpectedDateUpdate) {
- const normalizedExpectedDate = providedExpectedDate ?? null
- const existingExpectedDate = order.expectedDate ?? null
-
- const hasChanged =
- (normalizedExpectedDate === null && existingExpectedDate !== null) ||
- (normalizedExpectedDate !== null &&
- (existingExpectedDate === null || existingExpectedDate.getTime() !== normalizedExpectedDate.getTime()))
-
- if (hasChanged) {
- updateData.expectedDate = normalizedExpectedDate
- }
- } else if (!order.expectedDate && defaultExpectedDate) {
- updateData.expectedDate = defaultExpectedDate
- }
-
- if (hasNotesUpdate && notes !== order.notes) {
- updateData.notes = notes ?? null
- }
-
- if (Object.keys(updateData).length > 0) {
- order = await client.purchaseOrder.update({
- where: orderKey,
- data: updateData,
- })
- }
- }
+  if (!order) {
+    order = await createPurchaseOrderRecord(client, {
+      orderNumber,
+      orderType,
+      warehouseCode: input.warehouseCode,
+      warehouseName: input.warehouseName,
+      counterparty,
+      expectedDate: defaultExpectedDate,
+      notes,
+      createdById: normalizeNullable(input.createdById),
+      createdByName: normalizeNullable(input.createdByName),
+    })
+  }
 
  const lineKey = {
  purchaseOrderId_skuCode_batchLot: {
@@ -519,6 +477,59 @@ export async function ensurePurchaseOrderForTransactionStandalone(
  input: EnsurePurchaseOrderForTransactionInput
 ): Promise<EnsurePurchaseOrderResult> {
  return prisma.$transaction(tx => ensurePurchaseOrderForTransaction(tx, input))
+}
+
+async function createPurchaseOrderRecord(
+ client: Prisma.TransactionClient,
+ params: {
+   orderNumber: string
+   orderType: PurchaseOrderType
+   warehouseCode: string
+   warehouseName: string
+   counterparty: string | null
+   expectedDate: Date | null
+   notes: string | null
+   createdById?: string | null
+   createdByName?: string | null
+ }
+): Promise<PurchaseOrder> {
+ let attempt = 0
+
+ while (attempt < 5) {
+   const candidateNumber =
+     attempt === 0
+       ? params.orderNumber
+       : withOrderNumberSuffix(params.orderNumber, `${Date.now()}-${attempt}`)
+
+   try {
+     const created = await client.purchaseOrder.create({
+       data: {
+         orderNumber: candidateNumber,
+         type: params.orderType,
+         status: PurchaseOrderStatus.AWAITING_PROOF,
+         warehouseCode: params.warehouseCode,
+         warehouseName: params.warehouseName,
+         counterpartyName: params.counterparty,
+         expectedDate: params.expectedDate ?? undefined,
+         notes: params.notes,
+         createdById: params.createdById ?? undefined,
+         createdByName: params.createdByName ?? undefined,
+       },
+     })
+     return created
+   } catch (error) {
+     if (
+       error instanceof Prisma.PrismaClientKnownRequestError &&
+       error.code === 'P2002'
+     ) {
+       attempt += 1
+       continue
+     }
+     throw error
+   }
+ }
+
+ throw new ConflictError('Unable to create purchase order with a unique reference')
 }
 
 export async function voidPurchaseOrder(id: string): Promise<PurchaseOrderWithLines> {
