@@ -1,9 +1,10 @@
 /* eslint-disable no-console */
-import { PrismaClient, EmploymentType, EmployeeStatus } from '@prisma/client'
+import { PrismaClient } from '@prisma/client'
+import { EmploymentType, EmployeeStatus, HRMSPrismaClient } from '@/lib/hrms-prisma-types'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const prisma = new PrismaClient()
+const prisma = new PrismaClient() as HRMSPrismaClient
 
 type EmployeeInput = {
   employeeId: string

@@ -9,7 +9,7 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children, hideBreadcrumb = false, customBreadcrumb }: DashboardLayoutProps) {
  // Use Next.js injected version from package.json
- const version = process.env.NEXT_PUBLIC_VERSION || '1.0.0'
+ const version = process.env.NEXT_PUBLIC_VERSION || '1.1.0'
  const releaseTag = `wms-${version}`
  const releaseUrl = `https://github.com/progami/ecom-os/releases/tag/${releaseTag}`
  
