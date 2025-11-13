@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 
-type Params = { params: { id: string } }
-
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const e = await prisma.employee.findFirst({ where: { OR: [{ id: params.id }, { employeeId: params.id }] }, include: { roles: true, dept: true } })
   if (!e) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json(e)
 }
 
-export async function PATCH(req: Request, { params }: Params) {
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   const body = await req.json()
   const departmentName: string | null = body.department || body.departmentName || null
   const roles: string[] = Array.isArray(body.roles) ? body.roles.map((r: any) => String(r)) : []
@@ -30,7 +28,7 @@ export async function PATCH(req: Request, { params }: Params) {
   return NextResponse.json(e)
 }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   await prisma.employee.delete({ where: { id: params.id } })
   return NextResponse.json({ ok: true })
 }

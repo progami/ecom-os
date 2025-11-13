@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 
-type Params = { params: { id: string } }
-
-export async function GET(_req: Request, { params }: Params) {
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const r = await prisma.resource.findUnique({ where: { id: params.id } })
   if (!r) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json(r)
 }
 
-export async function PATCH(req: Request, { params }: Params) {
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
   try {
     const body = await req.json()
     const updates: any = {}
@@ -29,7 +27,7 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   try {
     await prisma.resource.delete({ where: { id: params.id } })
     return NextResponse.json({ ok: true })
