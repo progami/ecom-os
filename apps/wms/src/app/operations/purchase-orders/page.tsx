@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { FileText, Plus } from '@/lib/lucide-icons'
 import { PurchaseOrdersPanel, PurchaseOrderFilter } from '../inventory/purchase-orders-panel'
-import { cn } from '@/lib/utils'
 import { redirectToPortal } from '@/lib/portal'
 
 type StatusConfig = {
@@ -20,7 +19,8 @@ type StatusConfig = {
  hint: string
 }
 
-const STATUS_TABS: StatusConfig[] = [
+// Main pipeline statuses
+const PIPELINE_STATUSES: StatusConfig[] = [
  {
  value: 'DRAFT',
  label: 'Draft',
@@ -45,6 +45,10 @@ const STATUS_TABS: StatusConfig[] = [
  description: 'Orders posted to the ledger',
  hint: 'Locked for edits',
  },
+]
+
+// Terminal statuses (separate from main pipeline)
+const TERMINAL_STATUSES: StatusConfig[] = [
  {
  value: 'CANCELLED',
  label: 'Cancelled',
@@ -58,6 +62,8 @@ const STATUS_TABS: StatusConfig[] = [
  hint: 'Archived records',
  },
 ]
+
+const STATUS_TABS = [...PIPELINE_STATUSES, ...TERMINAL_STATUSES]
 
 function PurchaseOrdersPage() {
  const { data: session, status } = useSession()
@@ -89,8 +95,6 @@ function PurchaseOrdersPage() {
  )
  }
 
- const currentTab = STATUS_TABS.find(tab => tab.value === statusFilter)
-
  return (
  <DashboardLayout>
  <PageContainer>
@@ -120,8 +124,12 @@ function PurchaseOrdersPage() {
  </PopoverContent>
  </Popover>
  }
- metadata={
- <div className="flex flex-wrap items-center gap-2">
+ />
+ <PageContent>
+ <div className="flex flex-col gap-6">
+ {/* Status Tabs */}
+ <div className="border-b">
+ <nav className="-mb-px flex space-x-8">
  {STATUS_TABS.map(tab => {
  const isActive = statusFilter === tab.value
  return (
@@ -129,30 +137,19 @@ function PurchaseOrdersPage() {
  key={tab.value}
  type="button"
  onClick={() => setStatusFilter(tab.value)}
- className={cn(
- 'rounded-lg px-3 py-1.5 text-sm font-medium transition-all',
+ className={`py-2 px-1 border-b-2 font-medium text-sm ${
  isActive
- ? 'bg-cyan-600 text-white shadow-md '
- : 'bg-slate-100 text-slate-700 hover:bg-slate-200 '
- )}
- aria-pressed={isActive}
+ ? 'border-primary text-primary'
+ : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+ }`}
  >
  {tab.label}
  </button>
  )
  })}
+ </nav>
  </div>
- }
- />
- <PageContent>
- <div className="flex flex-col gap-4">
- {currentTab && (
- <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-soft ">
- <div className="text-sm font-semibold text-slate-900 ">{currentTab.label}</div>
- <div className="mt-1 text-sm text-slate-600 ">{currentTab.description}</div>
- <div className="mt-2 text-xs text-slate-500 ">{currentTab.hint}</div>
- </div>
- )}
+
  <PurchaseOrdersPanel onPosted={() => {}} statusFilter={statusFilter} />
  </div>
  </PageContent>
