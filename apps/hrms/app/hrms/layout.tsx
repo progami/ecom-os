@@ -56,7 +56,7 @@ function Sidebar() {
       </nav>
       <div className="p-4 border-t border-navy-700">
         <div className="text-xs text-gray-400">
-          <span className="sr-only">Application </span>Version 1.0.0
+          <span className="sr-only">Application </span>Version 1.1.0
         </div>
       </div>
     </aside>

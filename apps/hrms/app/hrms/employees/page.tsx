@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { EmployeesApi, type Employee } from '@/lib/api-client'
 
@@ -8,7 +8,7 @@ export default function EmployeesPage() {
   const [items, setItems] = useState<Employee[]>([])
   const [q, setQ] = useState('')
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const data = await EmployeesApi.list({ q })
       setItems(data.items || [])
@@ -16,9 +16,11 @@ export default function EmployeesPage() {
       console.error('Error fetching employees:', err)
       setItems([])
     }
-  }
+  }, [q])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+  }, [load])
 
   return (
     <div className="space-y-4">

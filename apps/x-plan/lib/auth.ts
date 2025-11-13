@@ -1,16 +1,20 @@
 import type { NextAuthOptions } from 'next-auth'
 import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 
-// Only validate configuration in development - production uses runtime env vars
-if (!process.env.NEXT_PUBLIC_APP_URL) {
-  throw new Error('NEXT_PUBLIC_APP_URL must be defined for X-Plan auth configuration.')
+const isProductionBuild = process.env.NODE_ENV === 'production'
+
+const ensureEnv = (key: string, fallback?: string) => {
+  if (!process.env[key] && fallback) {
+    process.env[key] = fallback
+  }
+  if (!process.env[key] && !isProductionBuild) {
+    throw new Error(`${key} must be defined for X-Plan auth configuration.`)
+  }
 }
-if (!process.env.PORTAL_AUTH_URL) {
-  throw new Error('PORTAL_AUTH_URL must be defined for X-Plan auth configuration.')
-}
-if (!process.env.NEXT_PUBLIC_PORTAL_AUTH_URL) {
-  throw new Error('NEXT_PUBLIC_PORTAL_AUTH_URL must be defined for X-Plan auth configuration.')
-}
+
+ensureEnv('NEXT_PUBLIC_APP_URL', 'https://ecomos.targonglobal.com/x-plan')
+ensureEnv('PORTAL_AUTH_URL', 'https://ecomos.targonglobal.com/api/auth')
+ensureEnv('NEXT_PUBLIC_PORTAL_AUTH_URL', process.env.PORTAL_AUTH_URL)
 
 applyDevAuthDefaults({
   appId: 'x-plan',

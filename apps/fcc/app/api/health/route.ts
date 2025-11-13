@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
   const healthChecks: HealthCheckResult = {
     status: 'healthy',
     timestamp: new Date().toISOString(),
-    version: process.env.npm_package_version || '1.0.0',
+    version: process.env.npm_package_version || '1.1.0',
     uptime: Math.floor((Date.now() - startTime) / 1000),
     checks: {
       database: { status: 'pass' },

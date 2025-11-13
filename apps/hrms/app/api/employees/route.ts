@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
-import { EmploymentType, EmployeeStatus } from '@prisma/client'
+import { EmploymentType, EmployeeStatus } from '@/lib/hrms-prisma-types'
 
 export async function GET(req: Request) {
   try {
