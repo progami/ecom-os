@@ -114,7 +114,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-navy">HR Dashboard</h1>
           <p className="text-slate mt-1">
-            Welcome back! Here's what's happening in your organization.
+            Welcome back! Here&rsquo;s what&rsquo;s happening in your organization.
           </p>
         </div>
         {/* Actions intentionally removed: Reports not in scope */}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ResourcesApi, type Resource } from '@/lib/api-client'
 
@@ -8,7 +8,7 @@ export default function ResourcesPage() {
   const [items, setItems] = useState<Resource[]>([])
   const [q, setQ] = useState('')
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const data = await ResourcesApi.list({ q })
       setItems(data.items || [])
@@ -16,9 +16,11 @@ export default function ResourcesPage() {
       console.error('Failed to load resources', e)
       setItems([])
     }
-  }
+  }, [q])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+  }, [load])
 
   return (
     <div className="space-y-4">

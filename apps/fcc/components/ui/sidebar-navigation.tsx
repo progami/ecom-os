@@ -254,7 +254,7 @@ export function SidebarNavigation() {
             {!isCollapsed ? (
               <div className="text-xs text-gray-500 text-center">
                 <div>© 2025 Bookkeeping</div>
-                <div>Version 1.0.0</div>
+                <div>Version 1.1.0</div>
               </div>
             ) : (
               <div className="flex justify-center">

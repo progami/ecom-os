@@ -1,15 +1,21 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 
-type Params = { params: { id: string } }
+type PolicyRouteContext = { params: { id: string } }
 
-export async function GET(_req: Request, { params }: Params) {
+function extractParams(context: unknown): PolicyRouteContext['params'] {
+  return (context as PolicyRouteContext).params
+}
+
+export async function GET(_req: Request, context: unknown) {
+  const params = extractParams(context)
   const p = await prisma.policy.findUnique({ where: { id: params.id } })
   if (!p) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   return NextResponse.json(p)
 }
 
-export async function PATCH(req: Request, { params }: Params) {
+export async function PATCH(req: Request, context: unknown) {
+  const params = extractParams(context)
   try {
     const body = await req.json()
     const updates: any = {}
@@ -29,7 +35,8 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(_req: Request, context: unknown) {
+  const params = extractParams(context)
   try {
     await prisma.policy.delete({ where: { id: params.id } })
     return NextResponse.json({ ok: true })

@@ -2,7 +2,7 @@ export const openAPISpec = {
   openapi: '3.0.0',
   info: {
     title: 'Bookkeeping API',
-    version: '1.0.0',
+    version: '1.1.0',
     description: 'Comprehensive API for bookkeeping application with Xero integration',
     contact: {
       name: 'API Support',
