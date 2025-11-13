@@ -99,11 +99,11 @@ export async function createMovementNote(input: CreateMovementNoteInput, user: U
 
  const receivedAt = input.receivedAt ?? new Date()
 
- const note = await tx.movementNote.create({
- data: {
- purchaseOrderId: input.purchaseOrderId,
- status: MovementNoteStatus.DRAFT,
- referenceNumber: input.referenceNumber ?? null,
+  const note = await tx.movementNote.create({
+    data: {
+      purchaseOrderId: input.purchaseOrderId,
+      status: MovementNoteStatus.DRAFT,
+      referenceNumber: input.referenceNumber ?? null,
  receivedAt,
  receivedById: user.id ?? null,
  receivedByName: user.name ?? null,
@@ -134,9 +134,21 @@ export async function createMovementNote(input: CreateMovementNoteInput, user: U
  })
  ),
  },
- },
- include: { lines: true },
- })
+    },
+    include: {
+      lines: true,
+      purchaseOrder: {
+        select: {
+          id: true,
+          orderNumber: true,
+          type: true,
+          status: true,
+          warehouseCode: true,
+          warehouseName: true,
+        },
+      },
+    },
+  })
 
  if (purchaseOrder.status === PurchaseOrderStatus.DRAFT) {
  await tx.purchaseOrder.update({

@@ -316,7 +316,7 @@ export async function ensurePurchaseOrderForTransaction(
  const isOutbound = input.transactionType === 'SHIP' || input.transactionType === 'ADJUST_OUT'
  const signedQuantity = isOutbound ? -absoluteQuantity : absoluteQuantity
 
-  let order: Prisma.PurchaseOrder | null = null
+  let order: PurchaseOrder | null = null
   if (input.purchaseOrderId) {
     order = await client.purchaseOrder.findUnique({
       where: { id: input.purchaseOrderId },
