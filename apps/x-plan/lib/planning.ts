@@ -1,8 +1,8 @@
 import { addWeeks } from 'date-fns'
+import type { PrismaClient, SalesWeek } from '@prisma/client'
 import { mapSalesWeeks } from '@/lib/calculations/adapters'
 import { buildWeekCalendar, buildYearSegments, type YearSegment } from '@/lib/calculations/calendar'
 import type { SalesWeekInput } from '@/lib/calculations/types'
-import prisma from '@/lib/prisma'
 
 const DEFAULT_PLANNING_ANCHOR = new Date('2025-01-06T00:00:00.000Z')
 const DEFAULT_PLANNING_WEEK_COUNT = 156 // 2025–2027 inclusive
@@ -59,12 +59,34 @@ export interface PlanningCalendar {
   calendar: ReturnType<typeof buildWeekCalendar>
 }
 
-export async function loadPlanningCalendar(): Promise<PlanningCalendar> {
-  let salesWeekRecords: Awaited<ReturnType<typeof prisma.salesWeek.findMany>> = []
+let cachedPrisma: PrismaClient | null = null
+let prismaLoadFailed = false
+
+async function resolvePrismaClient(): Promise<PrismaClient | null> {
+  if (cachedPrisma) return cachedPrisma
+  if (prismaLoadFailed) return null
+
   try {
-    salesWeekRecords = await prisma.salesWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+    const prismaModule = await import('@/lib/prisma')
+    cachedPrisma = prismaModule.default as PrismaClient
+    return cachedPrisma
   } catch (error) {
-    console.warn('[x-plan] using fallback planning calendar (salesWeek delegate unavailable)', error)
+    prismaLoadFailed = true
+    console.warn('[x-plan] Prisma client unavailable for planning calendar, using fallbacks', error)
+    return null
+  }
+}
+
+export async function loadPlanningCalendar(): Promise<PlanningCalendar> {
+  let salesWeekRecords: SalesWeek[] = []
+  const prisma = await resolvePrismaClient()
+
+  if (prisma) {
+    try {
+      salesWeekRecords = await prisma.salesWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+    } catch (error) {
+      console.warn('[x-plan] salesWeek delegate unavailable, using fallback planning calendar', error)
+    }
   }
   const mappedWeeks = mapSalesWeeks(salesWeekRecords)
   const salesWeeks = ensurePlanningCalendarCoverage(mappedWeeks)
