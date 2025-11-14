@@ -121,13 +121,24 @@ function parseDate(value: string | null | undefined) {
 
 type StageDefaultsMap = Record<string, number>
 
-function buildStageDefaultsMap(
-  rows: Array<{ label: string; valueNumeric: Prisma.Decimal | null }>
-): StageDefaultsMap {
+type StageParameterRow = {
+  label: string | null
+  valueNumeric: Prisma.Decimal | number | null | undefined
+}
+
+function buildStageDefaultsMap(rows: StageParameterRow[]): StageDefaultsMap {
   return rows.reduce((map, row) => {
     const key = row.label?.trim().toLowerCase()
     if (!key) return map
-    const numeric = row.valueNumeric != null ? Number(row.valueNumeric) : NaN
+    const numericValue = row.valueNumeric
+    let numeric: number
+    if (numericValue == null) {
+      numeric = NaN
+    } else if (typeof numericValue === 'number') {
+      numeric = numericValue
+    } else {
+      numeric = Number(numericValue)
+    }
     if (Number.isFinite(numeric) && numeric > 0) {
       map[key] = numeric
     }
