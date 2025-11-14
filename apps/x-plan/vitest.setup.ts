@@ -2,6 +2,20 @@ import '@testing-library/jest-dom/vitest'
 import React from 'react'
 import { vi } from 'vitest'
 
+vi.mock('@/lib/prisma', () => {
+  const fallback = {
+    salesWeek: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+  }
+
+  return {
+    __esModule: true,
+    default: fallback,
+    prisma: fallback,
+  }
+})
+
 vi.mock('@handsontable/react', () => ({
   HotTable: ({ data }: { data: unknown[] }) =>
     React.createElement('div', {

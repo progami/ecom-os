@@ -1,6 +1,5 @@
 import { getServerSession } from 'next-auth'
-import type { NextAuthOptions } from 'next-auth'
-import type { Session } from 'next-auth'
+import type { NextAuthOptions, Session } from 'next-auth'
 
 function isDecryptError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
