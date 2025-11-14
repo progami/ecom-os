@@ -1,4 +1,5 @@
 import { parseNumber, parsePercent } from '@/lib/utils/numbers'
+import { OPS_STAGE_DEFAULT_LABELS } from '@/lib/business-parameter-labels'
 import { BusinessParameterInput, BusinessParameterMap } from './types'
 
 const DEFAULT_BUSINESS_PARAMETERS: BusinessParameterMap = {
@@ -8,7 +9,15 @@ const DEFAULT_BUSINESS_PARAMETERS: BusinessParameterMap = {
   supplierPaymentTermsWeeks: 0,
   supplierPaymentSplit: [0.5, 0.3, 0.2],
   stockWarningWeeks: 4,
+  defaultProductionWeeks: 1,
+  defaultSourceWeeks: 1,
+  defaultOceanWeeks: 1,
+  defaultFinalWeeks: 1,
 }
+
+const STAGE_DEFAULT_LABELS = Object.fromEntries(
+  Object.entries(OPS_STAGE_DEFAULT_LABELS).map(([key, label]) => [key, label.toLowerCase()])
+) as Record<keyof typeof OPS_STAGE_DEFAULT_LABELS, string>
 
 type MutableBusinessParameters = {
   -readonly [K in keyof BusinessParameterMap]: BusinessParameterMap[K]
@@ -53,8 +62,25 @@ export function normalizeBusinessParameters(
         if (numeric != null) splits[2] = parsePercent(numeric) ?? splits[2]
         break
       }
-      case 'weeks of stock warning threshold': {
+      case 'weeks of stock warning threshold':
+      case 'stockout warning (weeks)': {
         normalized.stockWarningWeeks = numeric ?? normalized.stockWarningWeeks
+        break
+      }
+      case STAGE_DEFAULT_LABELS.production: {
+        normalized.defaultProductionWeeks = numeric ?? normalized.defaultProductionWeeks
+        break
+      }
+      case STAGE_DEFAULT_LABELS.source: {
+        normalized.defaultSourceWeeks = numeric ?? normalized.defaultSourceWeeks
+        break
+      }
+      case STAGE_DEFAULT_LABELS.ocean: {
+        normalized.defaultOceanWeeks = numeric ?? normalized.defaultOceanWeeks
+        break
+      }
+      case STAGE_DEFAULT_LABELS.final: {
+        normalized.defaultFinalWeeks = numeric ?? normalized.defaultFinalWeeks
         break
       }
       default:
