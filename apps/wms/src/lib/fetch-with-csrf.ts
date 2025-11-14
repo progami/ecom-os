@@ -10,10 +10,21 @@ function getCookie(name: string): string | null {
 // Utility function to make fetch requests with CSRF token
 export async function fetchWithCSRF(url: string, options: RequestInit = {}): Promise<Response> {
  const csrfToken = getCookie('csrf-token');
- 
+
  const headers = new Headers(options.headers);
+
+ const body = options.body;
+ const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+ const isUrlEncoded = typeof URLSearchParams !== 'undefined' && body instanceof URLSearchParams;
+ const isBinaryBody =
+ (typeof Blob !== 'undefined' && body instanceof Blob) ||
+ ArrayBuffer.isView(body) ||
+ body instanceof ArrayBuffer;
+
+ if (!headers.has('content-type') && !isFormData && !isUrlEncoded && !isBinaryBody) {
  headers.set('Content-Type', 'application/json');
- 
+ }
+
  if (csrfToken) {
  headers.set('x-csrf-token', csrfToken);
  }
