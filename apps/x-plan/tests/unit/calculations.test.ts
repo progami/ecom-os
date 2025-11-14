@@ -55,6 +55,10 @@ const parameters: BusinessParameterMap = {
   supplierPaymentTermsWeeks: 1,
   supplierPaymentSplit: [0.3, 0.3, 0.4],
   stockWarningWeeks: 4,
+  defaultProductionWeeks: 1,
+  defaultSourceWeeks: 1,
+  defaultOceanWeeks: 1,
+  defaultFinalWeeks: 1,
 }
 
 const productionStart = new Date('2024-01-01T00:00:00.000Z')

@@ -1,4 +1,5 @@
 import { Prisma, PrismaClient } from '@prisma/client'
+import { OPS_STAGE_DEFAULT_LABELS } from '../lib/business-parameter-labels'
 
 const prisma = new PrismaClient()
 
@@ -7,18 +8,16 @@ async function main() {
   const parameters = [
     // Operations parameters
     { label: 'Default Lead Time (weeks)', valueNumeric: new Prisma.Decimal(4) },
-    { label: 'Default MOQ (units)', valueNumeric: new Prisma.Decimal(100) },
-    { label: 'Production Buffer (%)', valueNumeric: new Prisma.Decimal(10) },
+    { label: OPS_STAGE_DEFAULT_LABELS.production, valueNumeric: new Prisma.Decimal(1) },
+    { label: OPS_STAGE_DEFAULT_LABELS.source, valueNumeric: new Prisma.Decimal(1) },
+    { label: OPS_STAGE_DEFAULT_LABELS.ocean, valueNumeric: new Prisma.Decimal(1) },
+    { label: OPS_STAGE_DEFAULT_LABELS.final, valueNumeric: new Prisma.Decimal(1) },
 
     // Sales parameters
-    { label: 'Low Stock Threshold (%)', valueNumeric: new Prisma.Decimal(20) },
-    { label: 'Forecast Smoothing Factor', valueNumeric: new Prisma.Decimal(0.3) },
     { label: 'Stockout Warning (weeks)', valueNumeric: new Prisma.Decimal(2) },
 
     // Finance parameters
-    { label: 'Inventory Carrying Cost (%/year)', valueNumeric: new Prisma.Decimal(15) },
     { label: 'Payment Terms (days)', valueNumeric: new Prisma.Decimal(30) },
-    { label: 'Target Gross Margin (%)', valueNumeric: new Prisma.Decimal(40) },
     { label: 'Weekly Fixed Costs', valueNumeric: new Prisma.Decimal(5000) },
   ]
 
