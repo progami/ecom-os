@@ -122,8 +122,8 @@ function parseDate(value: string | null | undefined) {
 type StageDefaultsMap = Record<string, number>
 
 type StageParameterRow = {
-  label: string | null
-  valueNumeric: Prisma.Decimal | number | null | undefined
+  label?: string | null
+  valueNumeric?: Prisma.Decimal | number | null
 }
 
 function buildStageDefaultsMap(rows: StageParameterRow[]): StageDefaultsMap {
