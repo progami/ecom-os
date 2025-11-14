@@ -561,10 +561,26 @@ export async function hasPortalSession(options: PortalSessionProbeOptions): Prom
     if (data?.user) {
       return true;
     }
-    if (debug) {
-      console.warn('[auth] portal session probe returned 200 but no user; assuming valid for dev', data);
+
+    const allowDevProbeBypass =
+      process.env.NODE_ENV !== 'production' &&
+      (truthyValues.has(String(process.env.ALLOW_DEV_AUTH_SESSION_BYPASS ?? '').toLowerCase()) ||
+        truthyValues.has(String(process.env.ALLOW_DEV_AUTH_DEFAULTS ?? '').toLowerCase()));
+
+    if (allowDevProbeBypass) {
+      if (debug) {
+        console.warn(
+          '[auth] portal session probe returned 200 but no user; allowing due to dev override',
+          data
+        );
+      }
+      return true;
     }
-    return true;
+
+    if (debug) {
+      console.warn('[auth] portal session probe returned 200 but no user payload; treating as unauthenticated', data);
+    }
+    return false;
  } catch (error) {
    if (debug) {
      const detail = error instanceof Error ? error.message : String(error);
