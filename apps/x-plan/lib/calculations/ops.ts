@@ -82,6 +82,43 @@ const PAY_PERCENT_FIELDS = ['pay1Percent', 'pay2Percent', 'pay3Percent'] as cons
 const PAY_AMOUNT_FIELDS = ['pay1Amount', 'pay2Amount', 'pay3Amount'] as const
 const PAY_DATE_FIELDS = ['pay1Date', 'pay2Date', 'pay3Date'] as const
 
+const DEFAULT_MANUFACTURING_SPLIT: [number, number, number] = [0.25, 0.25, 0.5]
+
+function normalizeSupplierPaymentSplit(
+  split: readonly number[] | undefined,
+  fallback: [number, number, number]
+): [number, number, number] {
+  if (!split || split.length === 0) {
+    return fallback
+  }
+
+  const sanitized = split.slice(0, 3).map((value) => {
+    const numeric = Number(value)
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : 0
+  })
+
+  while (sanitized.length < 3) {
+    sanitized.push(0)
+  }
+
+  const total = sanitized.reduce((sum, value) => sum + value, 0)
+  if (total <= 0) {
+    return fallback
+  }
+
+  return sanitized.map((value) => (value > 0 ? value / total : 0)) as [number, number, number]
+}
+
+function formatSplitPercent(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) {
+    return '0%'
+  }
+
+  const percent = value * 100
+  const rounded = Number.isInteger(percent) ? percent.toFixed(0) : percent.toFixed(1)
+  return `${rounded}%`
+}
+
 function resolveOverride(base: number, override?: number | null): number {
   const numeric = parseNumber(override)
   return numeric ?? base
@@ -335,8 +372,16 @@ export function computePurchaseOrderDerived(
   const freightDate = sourceDeparture ?? (productionDate ? addStageDuration(productionDate, schedule.sourceWeeks) : productionDate)
   const portDate = portEta ?? (freightDate ? addStageDuration(freightDate, schedule.oceanWeeks) : freightDate)
 
-  const manufacturingFractions: [number, number, number] = [0.25, 0.25, 0.5]
+  const manufacturingFractions = normalizeSupplierPaymentSplit(
+    params.supplierPaymentSplit,
+    DEFAULT_MANUFACTURING_SPLIT
+  )
   const manufacturingAmounts = manufacturingFractions.map((fraction) => manufacturingTotal * fraction)
+  const manufacturingLabels = [
+    `MFG Deposit (${formatSplitPercent(manufacturingFractions[0])})`,
+    `MFG Production (${formatSplitPercent(manufacturingFractions[1])})`,
+    `MFG Final (${formatSplitPercent(manufacturingFractions[2])})`,
+  ]
 
   const paymentDefinitions: Array<{
     index: number
@@ -352,7 +397,7 @@ export function computePurchaseOrderDerived(
     {
       index: 1,
       category: 'MANUFACTURING',
-      label: 'MFG Deposit (25%)',
+      label: manufacturingLabels[0],
       baseAmount: manufacturingAmounts[0] ?? 0,
       defaultPercent: supplierDenominator > 0 ? (manufacturingAmounts[0] ?? 0) / supplierDenominator : 0,
       defaultDate: depositDate ?? createdAt,
@@ -363,7 +408,7 @@ export function computePurchaseOrderDerived(
     {
       index: 2,
       category: 'MANUFACTURING',
-      label: 'MFG Production (25%)',
+      label: manufacturingLabels[1],
       baseAmount: manufacturingAmounts[1] ?? 0,
       defaultPercent: supplierDenominator > 0 ? (manufacturingAmounts[1] ?? 0) / supplierDenominator : 0,
       defaultDate: productionDate ?? depositDate ?? createdAt,
@@ -382,7 +427,7 @@ export function computePurchaseOrderDerived(
     {
       index: 4,
       category: 'MANUFACTURING',
-      label: 'MFG Final (50%)',
+      label: manufacturingLabels[2],
       baseAmount: manufacturingAmounts[2] ?? 0,
       defaultPercent: supplierDenominator > 0 ? (manufacturingAmounts[2] ?? 0) / supplierDenominator : 0,
       defaultDate: portDate ?? inboundEta ?? availableDate ?? freightDate ?? productionDate ?? depositDate ?? createdAt,
