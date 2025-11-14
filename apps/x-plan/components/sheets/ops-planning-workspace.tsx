@@ -124,6 +124,33 @@ export type PurchaseOrderSerialized = {
   }>
 }
 
+type StageWeeksField = 'productionWeeks' | 'sourceWeeks' | 'oceanWeeks' | 'finalWeeks'
+
+type StageDefaults = Record<StageWeeksField, number>
+
+const FALLBACK_STAGE_DEFAULTS: StageDefaults = {
+  productionWeeks: 1,
+  sourceWeeks: 1,
+  oceanWeeks: 1,
+  finalWeeks: 1,
+}
+
+function sanitizeStageDefault(value: number | null | undefined, fallback: number): number {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric) || numeric <= 0) return fallback
+  return numeric
+}
+
+function resolveStageDefaults(parameters?: BusinessParameterMap): StageDefaults {
+  if (!parameters) return FALLBACK_STAGE_DEFAULTS
+  return {
+    productionWeeks: sanitizeStageDefault(parameters.defaultProductionWeeks, FALLBACK_STAGE_DEFAULTS.productionWeeks),
+    sourceWeeks: sanitizeStageDefault(parameters.defaultSourceWeeks, FALLBACK_STAGE_DEFAULTS.sourceWeeks),
+    oceanWeeks: sanitizeStageDefault(parameters.defaultOceanWeeks, FALLBACK_STAGE_DEFAULTS.oceanWeeks),
+    finalWeeks: sanitizeStageDefault(parameters.defaultFinalWeeks, FALLBACK_STAGE_DEFAULTS.finalWeeks),
+  }
+}
+
 export type OpsPlanningCalculatorPayload = {
   parameters: BusinessParameterMap
   products: ProductInput[]
@@ -262,24 +289,32 @@ function parsePercent(value: string | number | null | undefined): number | null 
   return numeric > 1 ? numeric / 100 : numeric
 }
 
-function normalizeStageWeeks(value: number | null | undefined): number {
-  if (value == null) return 1
+function normalizeStageWeeks(
+  stage: StageWeeksField,
+  value: number | null | undefined,
+  defaults: StageDefaults
+): number {
+  const fallback = defaults[stage] ?? FALLBACK_STAGE_DEFAULTS[stage]
+  if (value == null) return fallback
   const numeric = Number(value)
-  if (!Number.isFinite(numeric) || numeric <= 0) return 1
+  if (!Number.isFinite(numeric) || numeric <= 0) return fallback
   return numeric
 }
 
-function deserializeOrders(purchaseOrders: PurchaseOrderSerialized[]): PurchaseOrderInput[] {
+function deserializeOrders(
+  purchaseOrders: PurchaseOrderSerialized[],
+  defaults: StageDefaults
+): PurchaseOrderInput[] {
   return purchaseOrders.map((order) => ({
     id: order.id,
     orderCode: order.orderCode,
     productId: order.productId,
     quantity: order.quantity,
     poDate: parseDateValue(order.poDate),
-    productionWeeks: normalizeStageWeeks(order.productionWeeks ?? null),
-    sourceWeeks: normalizeStageWeeks(order.sourceWeeks ?? null),
-    oceanWeeks: normalizeStageWeeks(order.oceanWeeks ?? null),
-    finalWeeks: normalizeStageWeeks(order.finalWeeks ?? null),
+    productionWeeks: normalizeStageWeeks('productionWeeks', order.productionWeeks ?? null, defaults),
+    sourceWeeks: normalizeStageWeeks('sourceWeeks', order.sourceWeeks ?? null, defaults),
+    oceanWeeks: normalizeStageWeeks('oceanWeeks', order.oceanWeeks ?? null, defaults),
+    finalWeeks: normalizeStageWeeks('finalWeeks', order.finalWeeks ?? null, defaults),
     pay1Percent: order.pay1Percent ?? null,
     pay2Percent: order.pay2Percent ?? null,
     pay3Percent: order.pay3Percent ?? null,
@@ -340,7 +375,11 @@ function deserializeOrders(purchaseOrders: PurchaseOrderSerialized[]): PurchaseO
   }))
 }
 
-function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): PurchaseOrderInput[] {
+function mergeOrders(
+  existing: PurchaseOrderInput[],
+  rows: OpsInputRow[],
+  stageDefaults: StageDefaults
+): PurchaseOrderInput[] {
   const existingMap = new Map(existing.map((order) => [order.id, order]))
   return rows.map((row) => {
     const base = existingMap.get(row.id)
@@ -350,10 +389,10 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       productId: row.productId,
       quantity: parseInteger(row.quantity, 0),
       poDate: parseDateValue(row.poDate),
-      productionWeeks: normalizeStageWeeks(parseNumber(row.productionWeeks)),
-      sourceWeeks: normalizeStageWeeks(parseNumber(row.sourceWeeks)),
-      oceanWeeks: normalizeStageWeeks(parseNumber(row.oceanWeeks)),
-      finalWeeks: normalizeStageWeeks(parseNumber(row.finalWeeks)),
+      productionWeeks: normalizeStageWeeks('productionWeeks', parseNumber(row.productionWeeks), stageDefaults),
+      sourceWeeks: normalizeStageWeeks('sourceWeeks', parseNumber(row.sourceWeeks), stageDefaults),
+      oceanWeeks: normalizeStageWeeks('oceanWeeks', parseNumber(row.oceanWeeks), stageDefaults),
+      finalWeeks: normalizeStageWeeks('finalWeeks', parseNumber(row.finalWeeks), stageDefaults),
       pay1Percent: null,
       pay2Percent: null,
       pay3Percent: null,
@@ -394,10 +433,10 @@ function mergeOrders(existing: PurchaseOrderInput[], rows: OpsInputRow[]): Purch
       productId: row.productId,
       quantity: parseInteger(row.quantity, base.quantity ?? 0),
       pay1Date: parseDateValue(row.pay1Date),
-      productionWeeks: normalizeStageWeeks(parseNumber(row.productionWeeks)),
-      sourceWeeks: normalizeStageWeeks(parseNumber(row.sourceWeeks)),
-      oceanWeeks: normalizeStageWeeks(parseNumber(row.oceanWeeks)),
-      finalWeeks: normalizeStageWeeks(parseNumber(row.finalWeeks)),
+      productionWeeks: normalizeStageWeeks('productionWeeks', parseNumber(row.productionWeeks), stageDefaults),
+      sourceWeeks: normalizeStageWeeks('sourceWeeks', parseNumber(row.sourceWeeks), stageDefaults),
+      oceanWeeks: normalizeStageWeeks('oceanWeeks', parseNumber(row.oceanWeeks), stageDefaults),
+      finalWeeks: normalizeStageWeeks('finalWeeks', parseNumber(row.finalWeeks), stageDefaults),
       poDate: parseDateValue(row.poDate),
       transportReference: row.containerNumber
         ? row.containerNumber
@@ -617,7 +656,15 @@ export function OpsPlanningWorkspace({
     return map
   }, [calculator.leadProfiles])
 
-  const initialOrders = useMemo(() => deserializeOrders(calculator.purchaseOrders), [calculator.purchaseOrders])
+  const stageDefaults = useMemo(
+    () => resolveStageDefaults(calculator.parameters),
+    [calculator.parameters]
+  )
+
+  const initialOrders = useMemo(
+    () => deserializeOrders(calculator.purchaseOrders, stageDefaults),
+    [calculator.purchaseOrders, stageDefaults]
+  )
 
   const buildBatchRow = useCallback(
     (order: PurchaseOrderInput, batch: BatchTableRowInput): OpsBatchRow => ({
@@ -846,11 +893,11 @@ useEffect(() => {
   }, [poTableRows, applyTimelineUpdate])
 
   useEffect(() => {
-    const ordersFromServer = deserializeOrders(calculator.purchaseOrders)
+    const ordersFromServer = deserializeOrders(calculator.purchaseOrders, stageDefaults)
     setOrders(ordersFromServer)
     ordersRef.current = ordersFromServer
     applyTimelineUpdate(ordersFromServer, inputRowsRef.current, paymentRowsRef.current)
-  }, [calculator.purchaseOrders, applyTimelineUpdate])
+  }, [calculator.purchaseOrders, stageDefaults, applyTimelineUpdate])
 
   useEffect(() => {
     const normalized = normalizePaymentRows(payments)
@@ -881,13 +928,13 @@ useEffect(() => {
   const handleInputRowsChange = useCallback(
     (updatedRows: OpsInputRow[]) => {
       setInputRows(updatedRows)
-      const mergedOrders = mergeOrders(ordersRef.current, updatedRows)
+      const mergedOrders = mergeOrders(ordersRef.current, updatedRows, stageDefaults)
       setOrders(mergedOrders)
       ordersRef.current = mergedOrders
       inputRowsRef.current = updatedRows
       applyTimelineUpdate(mergedOrders, updatedRows, paymentRowsRef.current)
     },
-    [applyTimelineUpdate]
+    [applyTimelineUpdate, stageDefaults]
   )
 
   const handlePaymentRowsChange = useCallback(
