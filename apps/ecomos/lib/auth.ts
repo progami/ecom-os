@@ -37,6 +37,27 @@ function sanitizeBaseUrl(raw?: string | null): string | undefined {
   }
 }
 
+function shouldAddLeadingDot(hostname: string): boolean {
+  if (!hostname) return false
+  const normalized = hostname.replace(/^[.]+/, '')
+  if (!normalized) return false
+  if (normalized === 'localhost') return false
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(normalized)) return false
+  if (normalized.includes(':')) return false
+  return normalized.includes('.')
+}
+
+function formatCookieDomainCandidate(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) return trimmed
+  const normalized = trimmed.replace(/^[.]+/, '')
+  if (!normalized) return normalized
+  if (shouldAddLeadingDot(normalized)) {
+    return `.${normalized}`
+  }
+  return normalized
+}
+
 function resolveCookieDomain(explicit: string | undefined, baseUrl: string | undefined): string {
   const trimmed = explicit?.trim()
   if (baseUrl) {
@@ -44,20 +65,20 @@ function resolveCookieDomain(explicit: string | undefined, baseUrl: string | und
       const { hostname } = new URL(baseUrl)
       const normalizedHost = hostname.replace(/\.$/, '')
       if (trimmed && trimmed !== '') {
-        const normalizedExplicit = trimmed.startsWith('.') ? trimmed.slice(1) : trimmed
+        const normalizedExplicit = trimmed.replace(/^[.]+/, '')
         if (normalizedHost && !normalizedHost.endsWith(normalizedExplicit)) {
-          return `.${normalizedHost}`
+          return formatCookieDomainCandidate(normalizedHost)
         }
-        return trimmed.startsWith('.') ? trimmed : `.${trimmed}`
+        return formatCookieDomainCandidate(trimmed)
       }
       if (normalizedHost) {
-        return `.${normalizedHost}`
+        return formatCookieDomainCandidate(normalizedHost)
       }
     } catch {
       // fall back to default domain below
     }
   } else if (trimmed && trimmed !== '') {
-    return trimmed.startsWith('.') ? trimmed : `.${trimmed}`
+    return formatCookieDomainCandidate(trimmed)
   }
   return '.targonglobal.com'
 }
