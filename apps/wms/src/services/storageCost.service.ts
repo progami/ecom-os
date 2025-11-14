@@ -207,12 +207,21 @@ export async function ensureWeeklyStorageEntries(date: Date = new Date()) {
  let skipped = 0
  const errors: string[] = []
 
- for (const agg of aggregates) {
- try {
- // Check if entry already exists
- const exists = await prisma.storageLedger.findUnique({
- where: {
- warehouseCode_skuCode_batchLot_weekEndingDate: {
+  for (const agg of aggregates) {
+    try {
+      const totalIn = Number(agg._sum?.cartonsIn ?? 0)
+      const totalOut = Number(agg._sum?.cartonsOut ?? 0)
+      const netBalance = totalIn - totalOut
+
+      if (netBalance <= 0) {
+        skipped++
+        continue
+      }
+
+      // Check if entry already exists
+      const exists = await prisma.storageLedger.findUnique({
+        where: {
+          warehouseCode_skuCode_batchLot_weekEndingDate: {
  warehouseCode: agg.warehouseCode,
  skuCode: agg.skuCode,
  batchLot: agg.batchLot,

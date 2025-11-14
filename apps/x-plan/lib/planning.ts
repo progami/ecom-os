@@ -2,7 +2,8 @@ import { addWeeks } from 'date-fns'
 import { mapSalesWeeks } from '@/lib/calculations/adapters'
 import { buildWeekCalendar, buildYearSegments, type YearSegment } from '@/lib/calculations/calendar'
 import type { SalesWeekInput } from '@/lib/calculations/types'
-import prisma from '@/lib/prisma'
+
+type SalesWeekRecords = Awaited<ReturnType<import('@prisma/client').PrismaClient['salesWeek']['findMany']>>
 
 const DEFAULT_PLANNING_ANCHOR = new Date('2025-01-06T00:00:00.000Z')
 const DEFAULT_PLANNING_WEEK_COUNT = 156 // 2025–2027 inclusive
@@ -59,13 +60,28 @@ export interface PlanningCalendar {
   calendar: ReturnType<typeof buildWeekCalendar>
 }
 
-export async function loadPlanningCalendar(): Promise<PlanningCalendar> {
-  let salesWeekRecords: Awaited<ReturnType<typeof prisma.salesWeek.findMany>> = []
+async function fetchSalesWeeks(): Promise<SalesWeekRecords> {
+  const prismaClient = await import('@/lib/prisma')
+    .then((module) => module.default)
+    .catch((error) => {
+      console.warn('[x-plan] using fallback planning calendar (salesWeek delegate unavailable)', error)
+      return null
+    })
+
+  if (!prismaClient) {
+    return []
+  }
+
   try {
-    salesWeekRecords = await prisma.salesWeek.findMany({ orderBy: { weekNumber: 'asc' } })
+    return await prismaClient.salesWeek.findMany({ orderBy: { weekNumber: 'asc' } })
   } catch (error) {
     console.warn('[x-plan] using fallback planning calendar (salesWeek delegate unavailable)', error)
+    return []
   }
+}
+
+export async function loadPlanningCalendar(): Promise<PlanningCalendar> {
+  const salesWeekRecords = await fetchSalesWeeks()
   const mappedWeeks = mapSalesWeeks(salesWeekRecords)
   const salesWeeks = ensurePlanningCalendarCoverage(mappedWeeks)
   const calendar = buildWeekCalendar(salesWeeks)

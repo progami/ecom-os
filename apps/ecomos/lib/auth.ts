@@ -37,6 +37,27 @@ function sanitizeBaseUrl(raw?: string | null): string | undefined {
   }
 }
 
+function formatCookieDomain(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  const trimmedValue = value.trim()
+  if (trimmedValue === '') return undefined
+
+  const withoutTrailingDot = trimmedValue.replace(/\.$/, '')
+  const bareDomain = withoutTrailingDot.startsWith('.') ? withoutTrailingDot.slice(1) : withoutTrailingDot
+  if (bareDomain === '') return undefined
+
+  const lowerBare = bareDomain.toLowerCase()
+  const isIPv4 = /^\d+\.\d+\.\d+\.\d+$/.test(lowerBare)
+  const isLocalhost = lowerBare === 'localhost'
+  const isIPv6Loopback = lowerBare === '::1' || lowerBare === '[::1]'
+
+  if (isIPv4 || isLocalhost || isIPv6Loopback) {
+    return bareDomain
+  }
+
+  return trimmedValue.startsWith('.') ? trimmedValue : `.${bareDomain}`
+}
+
 function resolveCookieDomain(explicit: string | undefined, baseUrl: string | undefined): string {
   const trimmed = explicit?.trim()
   if (baseUrl) {
@@ -46,18 +67,18 @@ function resolveCookieDomain(explicit: string | undefined, baseUrl: string | und
       if (trimmed && trimmed !== '') {
         const normalizedExplicit = trimmed.startsWith('.') ? trimmed.slice(1) : trimmed
         if (normalizedHost && !normalizedHost.endsWith(normalizedExplicit)) {
-          return `.${normalizedHost}`
+          return formatCookieDomain(normalizedHost) ?? '.targonglobal.com'
         }
-        return trimmed.startsWith('.') ? trimmed : `.${trimmed}`
+        return formatCookieDomain(trimmed) ?? '.targonglobal.com'
       }
       if (normalizedHost) {
-        return `.${normalizedHost}`
+        return formatCookieDomain(normalizedHost) ?? '.targonglobal.com'
       }
     } catch {
       // fall back to default domain below
     }
   } else if (trimmed && trimmed !== '') {
-    return trimmed.startsWith('.') ? trimmed : `.${trimmed}`
+    return formatCookieDomain(trimmed) ?? '.targonglobal.com'
   }
   return '.targonglobal.com'
 }
