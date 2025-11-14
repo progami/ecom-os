@@ -46,6 +46,10 @@ export type BusinessParameterMap = {
   supplierPaymentTermsWeeks: number
   supplierPaymentSplit: [number, number, number]
   stockWarningWeeks: number
+  defaultProductionWeeks: number
+  defaultSourceWeeks: number
+  defaultOceanWeeks: number
+  defaultFinalWeeks: number
 }
 
 export interface PurchaseOrderPaymentInput {

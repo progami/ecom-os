@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { z } from 'zod'
 import prisma from '@/lib/prisma'
+import { OPS_STAGE_DEFAULT_LABELS } from '@/lib/business-parameter-labels'
 
 const allowedFields = [
   'productId',
@@ -99,6 +100,8 @@ const deleteSchema = z.object({
   id: z.string().min(1),
 })
 
+const STAGE_DEFAULT_LABEL_SET = Object.values(OPS_STAGE_DEFAULT_LABELS)
+
 function parseNumber(value: string | null | undefined) {
   if (!value) return null
   const trimmed = value.trim()
@@ -114,6 +117,31 @@ function parseDate(value: string | null | undefined) {
   if (!trimmed) return null
   const date = new Date(trimmed)
   return Number.isNaN(date.getTime()) ? null : date
+}
+
+type StageDefaultsMap = Record<string, number>
+
+function buildStageDefaultsMap(
+  rows: Array<{ label: string; valueNumeric: Prisma.Decimal | null }>
+): StageDefaultsMap {
+  return rows.reduce((map, row) => {
+    const key = row.label?.trim().toLowerCase()
+    if (!key) return map
+    const numeric = row.valueNumeric != null ? Number(row.valueNumeric) : NaN
+    if (Number.isFinite(numeric) && numeric > 0) {
+      map[key] = numeric
+    }
+    return map
+  }, {} as StageDefaultsMap)
+}
+
+function resolveStageDefaultWeeks(map: StageDefaultsMap, label: string): number {
+  const key = label.trim().toLowerCase()
+  const value = map[key]
+  if (Number.isFinite(value) && value && value > 0) {
+    return value
+  }
+  return 1
 }
 
 export async function PUT(request: Request) {
@@ -211,16 +239,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: orderCodeResult.error }, { status: orderCodeResult.status })
   }
 
+  const stageDefaultsRows = await prisma.businessParameter.findMany({
+    where: { label: { in: STAGE_DEFAULT_LABEL_SET } },
+    select: { label: true, valueNumeric: true },
+  })
+  const stageDefaults = buildStageDefaultsMap(stageDefaultsRows)
+
   const safeQuantity = quantity ?? 0
   const data = {
     productId,
     orderCode: orderCodeResult.orderCode,
     quantity: safeQuantity,
     poDate: poDate ? parseDate(poDate) : null,
-    productionWeeks: new Prisma.Decimal(0),
-    sourceWeeks: new Prisma.Decimal(0),
-    oceanWeeks: new Prisma.Decimal(0),
-    finalWeeks: new Prisma.Decimal(0),
+    productionWeeks: new Prisma.Decimal(
+      resolveStageDefaultWeeks(stageDefaults, OPS_STAGE_DEFAULT_LABELS.production)
+    ),
+    sourceWeeks: new Prisma.Decimal(
+      resolveStageDefaultWeeks(stageDefaults, OPS_STAGE_DEFAULT_LABELS.source)
+    ),
+    oceanWeeks: new Prisma.Decimal(
+      resolveStageDefaultWeeks(stageDefaults, OPS_STAGE_DEFAULT_LABELS.ocean)
+    ),
+    finalWeeks: new Prisma.Decimal(
+      resolveStageDefaultWeeks(stageDefaults, OPS_STAGE_DEFAULT_LABELS.final)
+    ),
     status: 'PLANNED' as const,
   }
 

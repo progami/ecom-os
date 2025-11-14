@@ -329,7 +329,19 @@ type NestedHeaderCell =
 const FINANCE_PARAMETER_LABELS = new Set(
   ['amazon payout delay (weeks)', 'starting cash', 'weekly fixed costs'].map((label) => label.toLowerCase())
 )
-const SALES_PARAMETER_LABELS = new Set(['weeks of stock warning threshold'].map((label) => label.toLowerCase()))
+const SALES_PARAMETER_LABELS = new Set(
+  ['weeks of stock warning threshold', 'stockout warning (weeks)'].map((label) => label.toLowerCase())
+)
+const HIDDEN_PARAMETER_LABELS = new Set(
+  [
+    'forecast smoothing factor',
+    'low stock threshold (%)',
+    'inventory carrying cost (%/year)',
+    'target gross margin (%)',
+    'default moq (units)',
+    'production buffer (%)',
+  ].map((label) => label.toLowerCase())
+)
 const OPERATIONS_PARAMETER_EXCLUDES = new Set([
   'product ordering',
   'supplier payment split 1 (%)',
@@ -344,6 +356,10 @@ function isFinanceParameterLabel(label: string) {
 
 function isSalesParameterLabel(label: string) {
   return SALES_PARAMETER_LABELS.has(label.trim().toLowerCase())
+}
+
+function isHiddenParameterLabel(label: string) {
+  return HIDDEN_PARAMETER_LABELS.has(label.trim().toLowerCase())
 }
 
 function columnKey(productIndex: number, metric: SalesMetric) {
@@ -401,8 +417,9 @@ async function getProductSetupView() {
   })
 
   const parameterInputs = mapBusinessParameters(businessParameters)
+  const visibleParameterInputs = parameterInputs.filter((parameter) => !isHiddenParameterLabel(parameter.label))
 
-  const operationsParameters = parameterInputs
+  const operationsParameters = visibleParameterInputs
     .filter((parameter) => {
       const normalized = parameter.label.trim().toLowerCase()
       return (
@@ -421,7 +438,7 @@ async function getProductSetupView() {
       type: parameter.valueNumeric != null ? 'numeric' : 'text',
     }))
 
-  const salesParameters = parameterInputs
+  const salesParameters = visibleParameterInputs
     .filter((parameter) => isSalesParameterLabel(parameter.label))
     .map<BusinessParameterView>((parameter) => ({
       id: parameter.id,
@@ -433,7 +450,7 @@ async function getProductSetupView() {
       type: parameter.valueNumeric != null ? 'numeric' : 'text',
     }))
 
-  const financeParameters = parameterInputs
+  const financeParameters = visibleParameterInputs
     .filter((parameter) => isFinanceParameterLabel(parameter.label))
     .map<BusinessParameterView>((parameter) => ({
       id: parameter.id,
