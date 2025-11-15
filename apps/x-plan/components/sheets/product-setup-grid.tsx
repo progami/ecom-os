@@ -43,6 +43,7 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
   const [editDraftName, setEditDraftName] = useState('')
   const [savingId, setSavingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   useEffect(() => {
     setRows(normalizeProducts(products))
@@ -149,9 +150,9 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
     }
   }
 
-  const handleDelete = async (row: ProductRow) => {
-    if (!window.confirm(`Remove ${row.name}?`)) return
+  const handleConfirmDelete = async (row: ProductRow) => {
     setDeletingId(row.id)
+    setConfirmDeleteId(null)
     try {
       const response = await fetch(withAppBasePath('/api/v1/x-plan/products'), {
         method: 'DELETE',
@@ -170,22 +171,9 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
   }
 
   return (
-    <section
-      className={clsx(
-        'relative space-y-6 rounded-3xl border border-slate-200 dark:border-[#0b3a52] bg-white dark:bg-[#041324] p-6 text-slate-900 dark:text-slate-100 shadow-lg dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] ring-1 ring-slate-200 dark:ring-[#0f2e45]/60',
-        'before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_15%_20%,rgba(0,194,185,0.18),transparent_55%),radial-gradient(circle_at_85%_30%,rgba(0,194,185,0.08),transparent_60%)] before:opacity-90 before:mix-blend-screen before:content-[""]',
-        'backdrop-blur-xl',
-        className
-      )}
-    >
-      <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Catalogue</p>
-          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white">Product roster</h2>
-          <p className="max-w-xl text-sm leading-relaxed text-slate-700 dark:text-slate-200/80">
-            Maintain the SKUs that fuel Ops, Sales, and Finance planning. Add products once and reuse the data everywhere—no year-specific copies required.
-          </p>
-        </div>
+    <div className={clsx('space-y-4', className)}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Products</h2>
         <div className="flex flex-col items-start gap-3 lg:items-end">
           {isAdding ? (
             <form
@@ -266,6 +254,7 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
                 const isEditing = editingId === row.id
                 const isSaving = savingId === row.id
                 const isDeletingRow = deletingId === row.id
+                const isConfirmingDelete = confirmDeleteId === row.id
                 return (
                   <tr key={row.id} className="bg-white/5 transition hover:bg-white/10">
                     <td className="px-4 py-3 align-top">
@@ -291,45 +280,65 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
                       )}
                     </td>
                     <td className="px-4 py-3 align-top text-right">
-                      <div className="inline-flex items-center gap-2">
-                        {isEditing ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleSaveEdit(row)}
-                              disabled={isSaving}
-                              className="rounded-lg bg-cyan-600 dark:bg-[#00c2b9] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-white dark:text-[#002430] transition enabled:hover:bg-cyan-700 dark:bg-[#00a39e] disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {isSaving ? 'Saving…' : 'Save'}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleCancelEdit}
-                              className="rounded-lg border border-slate-300 dark:border-white/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-slate-700 dark:text-slate-200 transition hover:border-cyan-500 hover:text-cyan-700 dark:hover:border-cyan-300/60 dark:hover:text-white"
-                            >
-                              Cancel
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleStartEdit(row)}
-                              className="rounded-lg border border-slate-300 dark:border-white/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-slate-700 dark:text-slate-200 transition hover:border-cyan-500 hover:text-cyan-700 dark:hover:border-cyan-300/60 dark:hover:text-white"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(row)}
-                              disabled={isDeletingRow}
-                              className="rounded-lg border border-rose-400/50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-rose-600 transition enabled:hover:border-rose-500 enabled:hover:bg-rose-50 enabled:hover:text-rose-700 dark:text-rose-400 dark:enabled:hover:bg-rose-950/30 dark:enabled:hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              {isDeletingRow ? 'Removing…' : 'Delete'}
-                            </button>
-                          </>
-                        )}
-                      </div>
+                      {isConfirmingDelete ? (
+                        <div className="inline-flex items-center gap-2">
+                          <span className="text-xs text-slate-600 dark:text-slate-400">Remove {row.name}?</span>
+                          <button
+                            type="button"
+                            onClick={() => handleConfirmDelete(row)}
+                            disabled={isDeletingRow}
+                            className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-white transition enabled:hover:bg-rose-700 dark:bg-rose-600 dark:enabled:hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {isDeletingRow ? 'Removing…' : 'Confirm'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="rounded-lg border border-slate-300 dark:border-white/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-slate-700 dark:text-slate-200 transition hover:border-slate-500 hover:text-slate-900 dark:hover:border-white/40 dark:hover:text-white"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-2">
+                          {isEditing ? (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEdit(row)}
+                                disabled={isSaving}
+                                className="rounded-lg bg-cyan-600 dark:bg-[#00c2b9] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-white dark:text-[#002430] transition enabled:hover:bg-cyan-700 dark:enabled:hover:bg-[#00a39e] disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {isSaving ? 'Saving…' : 'Save'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={handleCancelEdit}
+                                className="rounded-lg border border-slate-300 dark:border-white/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-slate-700 dark:text-slate-200 transition hover:border-cyan-500 hover:text-cyan-700 dark:hover:border-cyan-300/60 dark:hover:text-white"
+                              >
+                                Cancel
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => handleStartEdit(row)}
+                                className="rounded-lg border border-slate-300 dark:border-white/20 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-slate-700 dark:text-slate-200 transition hover:border-cyan-500 hover:text-cyan-700 dark:hover:border-cyan-300/60 dark:hover:text-white"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteId(row.id)}
+                                className="rounded-lg border border-rose-400/50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.24em] text-rose-600 transition enabled:hover:border-rose-500 enabled:hover:bg-rose-50 enabled:hover:text-rose-700 dark:text-rose-400 dark:enabled:hover:bg-rose-950/30 dark:enabled:hover:text-rose-300"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 )
@@ -338,6 +347,6 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
           </tbody>
         </table>
       </div>
-    </section>
+    </div>
   )
 }

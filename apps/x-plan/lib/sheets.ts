@@ -18,32 +18,32 @@ export interface SheetConfig {
 export const SHEETS: SheetConfig[] = [
   {
     slug: '1-product-setup',
-    label: '1. Product Setup',
-    description: 'SKU pricing, cost inputs, and lead-time defaults.',
+    label: 'Product Setup',
+    description: '',
     icon: Package,
   },
   {
     slug: '2-ops-planning',
-    label: '2. Ops Planning',
-    description: 'Purchase orders, supplier payments, and logistics tracking.',
+    label: 'Ops Planning',
+    description: '',
     icon: ClipboardList,
   },
   {
     slug: '3-sales-planning',
-    label: '3. Sales Planning',
-    description: 'Weekly sales forecast and inventory coverage by SKU.',
+    label: 'Sales Planning',
+    description: '',
     icon: FileSpreadsheet,
   },
   {
     slug: '4-fin-planning-pl',
-    label: '4. Fin Planning P&L',
-    description: 'Weekly profitability and monthly rollups.',
+    label: 'Fin P&L',
+    description: '',
     icon: LineChart,
   },
   {
     slug: '5-fin-planning-cash-flow',
-    label: '5. Fin Planning Cash Flow',
-    description: 'Cash movement, payouts, and runway visibility.',
+    label: 'Cash Flow',
+    description: '',
     icon: Wallet2,
   },
 ]

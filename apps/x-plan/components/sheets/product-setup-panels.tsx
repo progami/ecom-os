@@ -16,7 +16,6 @@ type BusinessParameterUpdate = { id: string; valueNumeric?: string; valueText?: 
 
 export interface ProductSetupParametersPanelProps {
   title: string
-  description: string
   parameters: BusinessParameter[]
   className?: string
 }
@@ -45,7 +44,6 @@ function formatNumericForDisplay(value: string): string {
 
 export function ProductSetupParametersPanel({
   title,
-  description,
   parameters,
   className,
 }: ProductSetupParametersPanelProps) {
@@ -210,43 +208,25 @@ export function ProductSetupParametersPanel({
     void flushUpdates()
   }, [flushUpdates])
 
-  const parameterCards = useMemo(() => {
+  const parameterRows = useMemo(() => {
     return items.map((item) => {
       const isError = item.status === 'error'
       const isSaving = item.status === 'saving'
       const isDirty = item.status === 'dirty'
-      const statusLabel = isSaving ? 'Saving…' : isError ? 'Save failed' : isDirty ? 'Pending save' : 'Saved'
-
-      const statusTone = clsx(
-        'inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em]',
-        isSaving
-          ? 'border-amber-500 bg-amber-100 text-amber-800 dark:border-amber-400/40 dark:bg-amber-300/20 dark:text-amber-100'
-          : isError
-          ? 'border-rose-500 bg-rose-100 text-rose-800 dark:border-rose-400/40 dark:bg-rose-400/15 dark:text-rose-100'
-          : isDirty
-          ? 'border-cyan-500 bg-cyan-100 text-cyan-800 dark:border-cyan-400/40 dark:bg-cyan-400/15 dark:text-cyan-100'
-          : 'border-emerald-500 bg-emerald-100 text-emerald-800 dark:border-emerald-400/40 dark:bg-emerald-400/10 dark:text-emerald-100'
-      )
+      const isIdle = item.status === 'idle'
 
       return (
-        <div
-          key={item.id}
-          className={clsx(
-            'group relative flex flex-col gap-3 rounded-2xl border border-slate-300 dark:border-white/12 bg-slate-50 dark:bg-[#06182b]/85 p-4 text-slate-900 dark:text-slate-100 shadow-md dark:shadow-[0_16px_40px_rgba(1,12,24,0.45)] transition',
-            'ring-1 ring-transparent hover:ring-cyan-400/40'
-          )}
-        >
-          <div className="flex items-start justify-between gap-3">
+        <tr key={item.id} className="bg-white transition hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5">
+          <td className="px-4 py-3 align-top">
             <div className="space-y-1">
-              <p className="text-sm font-semibold leading-snug text-slate-900 dark:text-white/90">{item.label}</p>
-              <span className="inline-flex rounded-full border border-cyan-600/30 bg-cyan-50 px-2 py-0.5 text-xs font-semibold uppercase tracking-[0.34em] text-cyan-800 dark:border-white/20 dark:bg-transparent dark:text-cyan-200/80">
+              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{item.label}</p>
+              <span className="inline-flex items-center rounded-full border border-slate-200 px-2 py-0.5 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:border-white/20 dark:text-slate-300">
                 {item.type === 'numeric' ? 'Numeric' : 'Text'}
               </span>
             </div>
-            <span className={statusTone}>{statusLabel}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
+          </td>
+          <td className="px-4 py-3">
+            <div className="relative">
               <input
                 value={item.value}
                 onChange={(event) => handleValueChange(item.id, event.target.value)}
@@ -256,62 +236,64 @@ export function ProductSetupParametersPanel({
                 aria-describedby={isError ? `${item.id}-error` : undefined}
                 disabled={isSaving}
                 className={clsx(
-                  'w-full rounded-xl border px-3 py-2.5 text-base font-semibold tracking-wide transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70',
+                  'w-full rounded-lg border px-3 py-2 pr-10 text-sm font-medium transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70',
                   isError
-                    ? 'border-rose-400/60 bg-rose-500/10 text-rose-50 focus:border-rose-300 focus:ring-rose-300/60'
-                    : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-cyan-500 focus:ring-cyan-500/60 dark:border-white/15 dark:bg-[#031222]/80 dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-cyan-300 dark:focus:ring-cyan-300/60'
+                    ? 'border-rose-400 bg-rose-50 text-rose-900 focus:border-rose-400 focus:ring-rose-400/30 dark:border-rose-400/60 dark:bg-rose-900/30 dark:text-rose-100'
+                    : isDirty
+                      ? 'border-amber-400 bg-amber-50 text-slate-900 focus:border-amber-500 focus:ring-amber-500/30 dark:border-amber-400/60 dark:bg-amber-900/20 dark:text-slate-100'
+                      : isSaving
+                        ? 'border-cyan-400 bg-cyan-50 text-slate-900 focus:border-cyan-500 focus:ring-cyan-500/30 dark:border-cyan-400/60 dark:bg-cyan-900/20 dark:text-slate-100'
+                        : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-cyan-500 focus:ring-cyan-500/30 dark:border-white/15 dark:bg-[#071d31] dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400/30'
                 )}
               />
-              {isError ? (
-                <p id={`${item.id}-error`} className="mt-1 text-xs font-medium text-rose-200">
-                  Check the value and try saving again.
-                </p>
-              ) : null}
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                {isSaving ? (
+                  <svg className="h-4 w-4 animate-spin text-cyan-600 dark:text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : isDirty ? (
+                  <svg className="h-4 w-4 text-amber-600 dark:text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                ) : isError ? (
+                  <svg className="h-4 w-4 text-rose-600 dark:text-rose-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                  </svg>
+                ) : isIdle ? (
+                  <svg className="h-4 w-4 text-emerald-600 dark:text-emerald-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                ) : null}
+              </div>
             </div>
-            {isSaving ? (
-              <svg
-                className="h-5 w-5 animate-spin text-cyan-700 dark:text-cyan-200/80"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  d="M4 12a8 8 0 018-8"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                />
-              </svg>
+            {isError ? (
+              <p id={`${item.id}-error`} className="mt-1 text-xs text-rose-600 dark:text-rose-400">
+                Enter a valid numeric value
+              </p>
             ) : null}
-          </div>
-        </div>
+          </td>
+        </tr>
       )
     })
   }, [handleBlur, handleValueChange, items])
 
   return (
-    <section
-      className={clsx(
-        'relative space-y-4 rounded-3xl border border-slate-200 dark:border-[#0b3a52] bg-white dark:bg-[#041324] p-6 text-slate-900 dark:text-slate-100 shadow-lg dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] ring-1 ring-slate-200 dark:ring-[#0f2e45]/60',
-        'before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_10%_18%,rgba(0,194,185,0.16),transparent_60%),radial-gradient(circle_at_90%_25%,rgba(0,194,185,0.1),transparent_65%)] before:opacity-90 before:mix-blend-screen before:content-[""]',
-        'backdrop-blur-xl',
-        className
-      )}
-    >
-      <div className="relative space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">{title}</p>
-        <p className="max-w-xl text-sm leading-relaxed text-slate-700 dark:text-slate-200/80">{description}</p>
+    <div className={clsx('space-y-4', className)}>
+      <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h2>
+      <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-white/12">
+        <table className="min-w-full divide-y divide-slate-200 dark:divide-white/10">
+          <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:bg-white/5 dark:text-slate-300">
+            <tr>
+              <th className="px-4 py-3 text-left">Parameter</th>
+              <th className="px-4 py-3 text-left">Value</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200 bg-white dark:divide-white/10 dark:bg-transparent">
+            {parameterRows}
+          </tbody>
+        </table>
       </div>
-      <div className="relative grid gap-3 md:grid-cols-2 xl:grid-cols-3">{parameterCards}</div>
-    </section>
+    </div>
   )
 }
