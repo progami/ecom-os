@@ -1471,8 +1471,8 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         {
           key: 'revenue',
           title: 'Revenue',
-          description: 'Booked revenue by period',
-          helper: 'Track topline momentum using the same data that powers the P&L grid.',
+          description: '',
+          helper: '',
           series: {
             weekly: buildTrendSeries(pnlWeekly, 'revenue'),
             monthly: buildTrendSeries(pnlMonthly, 'revenue'),
@@ -1484,8 +1484,8 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         {
           key: 'netProfit',
           title: 'Net profit',
-          description: 'Profit after COGS and OpEx',
-          helper: 'Compare profitability cadence across weeks, months and quarters.',
+          description: '',
+          helper: '',
           series: {
             weekly: buildTrendSeries(pnlWeekly, 'netProfit'),
             monthly: buildTrendSeries(pnlMonthly, 'netProfit'),
@@ -1499,7 +1499,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       visualContent = (
         <FinancialTrendsSection
           title="Performance graphs"
-          description="Visualize revenue and profitability using the grid’s underlying assumptions."
+          description=""
           metrics={metrics}
           storageKey="xplan:visual:pnl"
         />
@@ -1520,8 +1520,8 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         {
           key: 'closingCash',
           title: 'Ending cash',
-          description: 'Projected balance after inflows and outflows',
-          helper: 'Monitor liquidity runway alongside the detailed cash flow schedule.',
+          description: '',
+          helper: '',
           series: {
             weekly: buildTrendSeries(cashWeekly, 'cashBalance'),
             monthly: buildTrendSeries(cashMonthly, 'closingCash'),
@@ -1533,8 +1533,8 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         {
           key: 'netCash',
           title: 'Net cash flow',
-          description: 'Net movement across the period',
-          helper: 'Understand how payouts, inventory, and fixed costs combine each period.',
+          description: '',
+          helper: '',
           series: {
             weekly: buildTrendSeries(cashWeekly, 'netCash'),
             monthly: buildTrendSeries(cashMonthly, 'netCash'),
@@ -1548,7 +1548,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       visualContent = (
         <FinancialTrendsSection
           title="Cash flow charts"
-          description="See how cash balances and net movement evolve over time."
+          description=""
           metrics={metrics}
           storageKey="xplan:visual:cashflow"
         />
