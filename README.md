@@ -55,6 +55,16 @@ One RDS Postgres cluster (`portal_db`) backs every environment. Each app owns it
 | X‑Plan | `xplan_prod` | `xplan_dev` | Planning tables + workbook metadata |
 | Website / FCC / others | `website_prod` | `website_dev` | Create per feature |
 
+### Shared tunnel + service accounts
+
+Local Prisma failures almost always trace back to pointing at `postgres:postgres@localhost`. Don’t use placeholders. Every dev should follow the same steps before touching WMS or X‑Plan:
+
+1. Run `./scripts/open-db-tunnel.sh` (it binds `localhost:6543` to the shared RDS and keeps the tunnel alive in the background).
+2. Copy the real `DATABASE_URL` entries from `apps/wms/.env.dev.ci` and `apps/x-plan/.env.dev.ci` into the corresponding `.env.local` files. They must reference the service accounts (`portal_wms`, `portal_xplan`) plus the correct schema query string (`…?schema=wms_dev`, `…?schema=xplan_dev`). Fetch the actual passwords from 1Password (`WMS Dev DB`, `X-Plan Dev DB`)—never swap back to `postgres:postgres`.
+3. Keep `PRISMA_SCHEMA` in sync with the schema segment of your URL so the generated client matches.
+4. After changing either env file, run both `pnpm --filter @ecom-os/wms prisma:generate` and `pnpm --filter @ecom-os/x-plan prisma:generate` (the apps share `@prisma/client`).
+5. Start the apps with the standard ports: portal `pnpm --filter @ecom-os/ecomos dev` (3000), WMS `pnpm --filter @ecom-os/wms dev` (3001), and X‑Plan `pnpm --filter @ecom-os/x-plan exec -- next dev -p 3008`. Avoid hard-coded 3108 scripts so the DevTools and portal links continue to work.
+
 Rules of the road:
 - Every `DATABASE_URL` must pair with `PRISMA_SCHEMA` (the Prisma client now merges them so NextAuth, `pg` pools, etc. stay aligned).
 - Dev migrations: `pnpm --filter <app> prisma migrate dev`.
