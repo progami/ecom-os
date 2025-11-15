@@ -104,8 +104,8 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
                     className={clsx(
                       'mx-1 h-4 w-4 flex-shrink-0',
                       isCompleted
-                        ? 'text-cyan-400 dark:text-cyan-500'
-                        : 'text-slate-300 dark:text-slate-600'
+                        ? 'text-cyan-600 dark:text-cyan-400'
+                        : 'text-slate-400 dark:text-slate-500'
                     )}
                     aria-hidden
                   />

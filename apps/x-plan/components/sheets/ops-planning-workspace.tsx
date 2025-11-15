@@ -1431,14 +1431,14 @@ useEffect(() => {
                     value={newOrderCode}
                     onChange={(event) => setNewOrderCode(event.target.value)}
                     placeholder="Auto-generate if blank"
-                    className="rounded-lg border border-slate-300 dark:border-white/15 bg-white/5 px-3 py-2 text-sm text-slate-200 transition focus:outline-none focus:ring-2 focus:ring-cyan-400/60 hover:border-cyan-300/50"
+                    className="rounded-lg border border-slate-300 dark:border-white/15 bg-white dark:bg-white/5 px-3 py-2 text-sm text-slate-900 dark:text-slate-200 transition focus:outline-none focus:ring-2 focus:ring-cyan-400/60 hover:border-cyan-300/50"
                   />
                 </label>
                 <div className="flex items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setIsCreateOrderOpen(false)}
-                    className="rounded-lg border border-slate-300 dark:border-white/15 bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-200 transition hover:border-cyan-300/50 hover:text-cyan-900 dark:text-cyan-100"
+                    className="rounded-lg border border-slate-300 dark:border-white/15 bg-white dark:bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-700 dark:text-slate-200 transition hover:border-cyan-500 hover:text-cyan-700 dark:hover:border-cyan-300/50 dark:hover:text-cyan-100"
                   >
                     Cancel
                   </button>
