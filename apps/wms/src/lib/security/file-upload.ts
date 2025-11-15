@@ -156,11 +156,11 @@ export async function scanFileContent(
  mimeType: string
 ): Promise<ValidationResult> {
  // Check for common malware signatures (basic implementation)
- const malwareSignatures = [
- Buffer.from('4D5A'), // PE executable
- Buffer.from('7F454C46'), // ELF executable
- Buffer.from('CAFEBABE'), // Java class file
- Buffer.from('504B0304'), // ZIP (could be disguised executable)
+  const malwareSignatures = [
+    Buffer.from('4D5A', 'hex'), // PE executable
+    Buffer.from('7F454C46', 'hex'), // ELF executable
+    Buffer.from('CAFEBABE', 'hex'), // Java class file
+    Buffer.from('504B0304', 'hex'), // ZIP (could be disguised executable)
  ];
 
  // Only check if not expected to be ZIP-based format
