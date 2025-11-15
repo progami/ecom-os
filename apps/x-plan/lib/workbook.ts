@@ -76,8 +76,8 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
     const sheetStatus: Record<SheetSlug, WorkbookSheetStatus> = {
       '1-product-setup': {
         slug: '1-product-setup',
-        label: '1. Product Setup',
-        description: 'SKU pricing, cost inputs, and lead-time defaults.',
+        label: 'Product Setup',
+        description: '',
         recordCount: productAgg._count.id,
         lastUpdated: formatIso(productUpdatedAt ?? productAgg._max.updatedAt),
         relativeUpdatedAt: formatRelative(productUpdatedAt ?? productAgg._max.updatedAt),
@@ -85,8 +85,8 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
       },
       '2-ops-planning': {
         slug: '2-ops-planning',
-        label: '2. Ops Planning',
-        description: 'Purchase orders, supplier payments, and logistics tracking.',
+        label: 'Ops Planning',
+        description: '',
         recordCount: purchaseOrderAgg._count.id,
         lastUpdated: formatIso(purchaseOrderAgg._max.updatedAt),
         relativeUpdatedAt: formatRelative(purchaseOrderAgg._max.updatedAt),
@@ -94,8 +94,8 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
       },
       '3-sales-planning': {
         slug: '3-sales-planning',
-        label: '3. Sales Planning',
-        description: 'Weekly sales forecast and inventory coverage by SKU.',
+        label: 'Sales Planning',
+        description: '',
         recordCount: salesAgg._count.id,
         lastUpdated: formatIso(salesAgg._max.updatedAt),
         relativeUpdatedAt: formatRelative(salesAgg._max.updatedAt),
@@ -103,8 +103,8 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
       },
       '4-fin-planning-pl': {
         slug: '4-fin-planning-pl',
-        label: '4. Fin Planning P&L',
-        description: 'Weekly profitability and monthly rollups.',
+        label: 'Fin P&L',
+        description: '',
         recordCount: profitAgg._count.id,
         lastUpdated: formatIso(profitUpdatedAt ?? profitAgg._max.updatedAt),
         relativeUpdatedAt: formatRelative(profitUpdatedAt ?? profitAgg._max.updatedAt),
@@ -112,8 +112,8 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
       },
       '5-fin-planning-cash-flow': {
         slug: '5-fin-planning-cash-flow',
-        label: '5. Fin Planning Cash Flow',
-        description: 'Cash movement, payouts, and runway visibility.',
+        label: 'Cash Flow',
+        description: '',
         recordCount: cashAgg._count.id,
         lastUpdated: formatIso(cashUpdatedAt ?? cashAgg._max.updatedAt),
         relativeUpdatedAt: formatRelative(cashUpdatedAt ?? cashAgg._max.updatedAt),
