@@ -354,22 +354,6 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
                   </div>
                 </div>
 
-                {(activeSheet?.description || metaSummary) && (
-                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    {activeSheet?.description && (
-                      <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-200/80">{activeSheet.description}</p>
-                    )}
-                    {metaSummary && (
-                      <span
-                        className="rounded-full border border-slate-300 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-600 dark:border-white/20 dark:text-cyan-200/80"
-                        title={metaSummary.tooltip}
-                      >
-                        {metaSummary.display}
-                      </span>
-                    )}
-                  </div>
-                )}
-
                 <div className="hidden lg:block">
                   <SheetTabs
                     sheets={sheetTabs}

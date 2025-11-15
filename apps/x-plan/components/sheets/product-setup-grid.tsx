@@ -172,13 +172,8 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
 
   return (
     <div className={clsx('space-y-4', className)}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-2">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Product roster</h2>
-          <p className="max-w-xl text-sm text-slate-600 dark:text-slate-300">
-            Maintain the SKUs that fuel Ops, Sales, and Finance planning. Add products once and reuse the data everywhere.
-          </p>
-        </div>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Products</h2>
         <div className="flex flex-col items-start gap-3 lg:items-end">
           {isAdding ? (
             <form

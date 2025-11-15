@@ -24,27 +24,22 @@ type TabKey = 'catalogue' | 'operations' | 'sales' | 'finance'
 const TAB_CONFIG: Array<{
   key: TabKey
   label: string
-  description: string
 }> = [
   {
     key: 'catalogue',
     label: 'Product catalogue',
-    description: 'Create, edit, or retire SKUs that power every downstream table.',
   },
   {
     key: 'operations',
     label: 'Supply defaults',
-    description: 'Set sourcing assumptions like production timelines and payment cadence.',
   },
   {
     key: 'sales',
     label: 'Demand guardrails',
-    description: 'Tune warning thresholds and forecast fallbacks for planners.',
   },
   {
     key: 'finance',
     label: 'Cash levers',
-    description: 'Manage carrying costs, payment cadences, and target margins.',
   },
 ]
 
@@ -56,7 +51,6 @@ export function ProductSetupWorkspace({
 }: ProductSetupWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<TabKey>('catalogue')
   const tablistId = useId()
-  const activeConfig = TAB_CONFIG.find((tab) => tab.key === activeTab)
 
   const tabPanels = useMemo(() => {
     return {
@@ -65,22 +59,19 @@ export function ProductSetupWorkspace({
       ),
       operations: (
         <ProductSetupParametersPanel
-          title="Operations parameters"
-          description="Supply chain defaults applied to new products, POs, and lead calculations."
+          title="Operations"
           parameters={operationsParameters}
         />
       ),
       sales: (
         <ProductSetupParametersPanel
-          title="Sales parameters"
-          description="Demand heuristics that shape forecast smoothing and stock warnings."
+          title="Sales"
           parameters={salesParameters}
         />
       ),
       finance: (
         <ProductSetupParametersPanel
-          title="Finance parameters"
-          description="Cash flow assumptions used to project working capital and profitability."
+          title="Finance"
           parameters={financeParameters}
         />
       ),
@@ -90,15 +81,7 @@ export function ProductSetupWorkspace({
   return (
     <section className="space-y-5">
       <div className="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-[#041324]">
-        <div className="space-y-1.5">
-          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Product setup</p>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Catalogue & parameters</h1>
-          <p className="text-sm text-slate-600 dark:text-slate-300">
-            Maintain SKUs and the shared defaults that feed ops, sales, and finance planning.
-          </p>
-        </div>
-
-        <nav role="tablist" aria-label="Product setup sections" className="flex flex-wrap gap-2 border-b border-slate-200 pb-4 dark:border-white/10">
+        <nav role="tablist" aria-label="Product setup sections" className="flex flex-wrap gap-2">
           {TAB_CONFIG.map((tab) => {
             const isActive = tab.key === activeTab
             return (
@@ -122,12 +105,6 @@ export function ProductSetupWorkspace({
             )
           })}
         </nav>
-
-        {activeConfig ? (
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/5">
-            <p className="text-sm text-slate-600 dark:text-slate-300">{activeConfig.description}</p>
-          </div>
-        ) : null}
 
         {TAB_CONFIG.map((tab) => {
           const isActive = tab.key === activeTab

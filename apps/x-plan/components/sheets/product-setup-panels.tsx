@@ -16,7 +16,6 @@ type BusinessParameterUpdate = { id: string; valueNumeric?: string; valueText?: 
 
 export interface ProductSetupParametersPanelProps {
   title: string
-  description: string
   parameters: BusinessParameter[]
   className?: string
 }
@@ -45,7 +44,6 @@ function formatNumericForDisplay(value: string): string {
 
 export function ProductSetupParametersPanel({
   title,
-  description,
   parameters,
   className,
 }: ProductSetupParametersPanelProps) {
@@ -282,10 +280,7 @@ export function ProductSetupParametersPanel({
 
   return (
     <div className={clsx('space-y-4', className)}>
-      <div className="space-y-2">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h2>
-        <p className="max-w-xl text-sm text-slate-600 dark:text-slate-300">{description}</p>
-      </div>
+      <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h2>
       <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-white/12">
         <table className="min-w-full divide-y divide-slate-200 dark:divide-white/10">
           <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:bg-white/5 dark:text-slate-300">
