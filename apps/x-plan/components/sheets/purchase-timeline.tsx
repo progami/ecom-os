@@ -244,8 +244,8 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
           <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${weekColumns.length}, minmax(12px, 1fr))` }}>
             {weekColumns.map((week) => (
               <div key={week.key} className="text-center">
-                <span className="block text-xs font-semibold text-slate-300">{format(week.start, 'MMM d')}</span>
-                <span className="text-xs uppercase tracking-wide text-slate-500">W{week.weekNumber}</span>
+                <span className="block text-xs font-semibold text-slate-600 dark:text-slate-300">{format(week.start, 'MMM d')}</span>
+                <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">W{week.weekNumber}</span>
               </div>
             ))}
           </div>
