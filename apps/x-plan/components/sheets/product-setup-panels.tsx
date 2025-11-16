@@ -3,6 +3,7 @@
 import clsx from 'clsx'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { OPS_STAGE_DEFAULT_LABELS } from '@/lib/business-parameter-labels'
 import { withAppBasePath } from '@/lib/base-path'
 
 interface BusinessParameter {
@@ -14,8 +15,36 @@ interface BusinessParameter {
 
 type BusinessParameterUpdate = { id: string; valueNumeric?: string; valueText?: string }
 
+const OPS_DEFAULTS = [
+  { label: OPS_STAGE_DEFAULT_LABELS.production, defaultValue: '1' },
+  { label: OPS_STAGE_DEFAULT_LABELS.source, defaultValue: '1' },
+  { label: OPS_STAGE_DEFAULT_LABELS.ocean, defaultValue: '1' },
+  { label: OPS_STAGE_DEFAULT_LABELS.final, defaultValue: '1' },
+]
+
+const SALES_DEFAULTS = [
+  { label: 'Stockout Warning (weeks)', defaultValue: '2' },
+]
+
+const FINANCE_DEFAULTS = [
+  { label: 'Starting Cash', defaultValue: '0' },
+  { label: 'Amazon Payout Delay (weeks)', defaultValue: '2' },
+  { label: 'Weekly Fixed Costs', defaultValue: '0' },
+  { label: 'Supplier Payment Terms (weeks)', defaultValue: '0' },
+  { label: 'Supplier Payment Split 1 (%)', defaultValue: '50' },
+  { label: 'Supplier Payment Split 2 (%)', defaultValue: '30' },
+  { label: 'Supplier Payment Split 3 (%)', defaultValue: '20' },
+]
+
+function getDefaults(type: 'ops' | 'sales' | 'finance') {
+  if (type === 'ops') return OPS_DEFAULTS
+  if (type === 'sales') return SALES_DEFAULTS
+  return FINANCE_DEFAULTS
+}
+
 export interface ProductSetupParametersPanelProps {
   title: string
+  parameterType: 'ops' | 'sales' | 'finance'
   parameters: BusinessParameter[]
   className?: string
 }
@@ -26,12 +55,21 @@ interface ParameterRecord extends BusinessParameter {
   status: ParameterStatus
 }
 
-function initializeRecords(parameters: BusinessParameter[]): ParameterRecord[] {
-  return parameters.map((parameter) => ({
-    ...parameter,
-    value: parameter.value ?? '',
-    status: 'idle' as ParameterStatus,
-  }))
+function initializeRecords(parameters: BusinessParameter[], type: 'ops' | 'sales' | 'finance'): ParameterRecord[] {
+  const defaults = getDefaults(type)
+  return defaults.map((def) => {
+    const existing = parameters.find((p) => p.label.toLowerCase() === def.label.toLowerCase())
+    if (existing) {
+      return { ...existing, status: 'idle' as ParameterStatus }
+    }
+    return {
+      id: '',
+      label: def.label,
+      value: def.defaultValue,
+      type: 'numeric' as const,
+      status: 'idle' as ParameterStatus,
+    }
+  })
 }
 
 function formatNumericForDisplay(value: string): string {
@@ -44,24 +82,25 @@ function formatNumericForDisplay(value: string): string {
 
 export function ProductSetupParametersPanel({
   title,
+  parameterType,
   parameters,
   className,
 }: ProductSetupParametersPanelProps) {
   const flushTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const isFlushingRef = useRef(false)
   const pendingFlushRef = useRef(false)
-  const [items, setItems] = useState<ParameterRecord[]>(() => initializeRecords(parameters))
+  const [items, setItems] = useState<ParameterRecord[]>(() => initializeRecords(parameters, parameterType))
   const itemsRef = useRef(items)
 
   useEffect(() => {
-    const nextRecords = initializeRecords(parameters)
+    const nextRecords = initializeRecords(parameters, parameterType)
     if (flushTimeoutRef.current) {
       clearTimeout(flushTimeoutRef.current)
       flushTimeoutRef.current = null
     }
     setItems(nextRecords)
     itemsRef.current = nextRecords
-  }, [parameters])
+  }, [parameters, parameterType])
 
   useEffect(() => {
     itemsRef.current = items
@@ -84,29 +123,28 @@ export function ProductSetupParametersPanel({
 
     const sanitizedValues = new Map<string, string>()
     const validItems: ParameterRecord[] = []
-    const invalidIds = new Set<string>()
+    const invalidKeys = new Set<string>()
 
     dirtyItems.forEach((item) => {
+      const key = item.id || item.label
       const trimmed = item.value.trim()
-      if (item.type === 'numeric') {
-        const cleaned = trimmed.replace(/,/g, '')
-        if (cleaned !== '' && Number.isNaN(Number(cleaned))) {
-          invalidIds.add(item.id)
-          return
-        }
-        sanitizedValues.set(item.id, cleaned)
-        validItems.push(item)
-      } else {
-        sanitizedValues.set(item.id, trimmed)
-        validItems.push(item)
+      const cleaned = trimmed.replace(/,/g, '')
+      if (cleaned !== '' && Number.isNaN(Number(cleaned))) {
+        invalidKeys.add(key)
+        return
       }
+      sanitizedValues.set(key, cleaned)
+      validItems.push(item)
     })
 
-    if (invalidIds.size > 0) {
+    if (invalidKeys.size > 0) {
       setItems((previous) =>
-        previous.map((item) => (invalidIds.has(item.id) ? { ...item, status: 'error' } : item))
+        previous.map((item) => (invalidKeys.has(item.id || item.label) ? { ...item, status: 'error' } : item))
       )
-      toast.error('Enter a valid numeric value to continue')
+      toast.error('Enter valid numbers')
+      flushTimeoutRef.current = null
+      isFlushingRef.current = false
+      return
     }
 
     if (validItems.length === 0) {
@@ -115,39 +153,49 @@ export function ProductSetupParametersPanel({
       return
     }
 
-    const dirtyIds = new Set(validItems.map((item) => item.id))
+    const dirtyKeys = new Set(validItems.map((item) => item.id || item.label))
 
     setItems((previous) =>
-      previous.map((item) => (dirtyIds.has(item.id) ? { ...item, status: 'saving' } : item))
+      previous.map((item) => (dirtyKeys.has(item.id || item.label) ? { ...item, status: 'saving' } : item))
     )
 
-    const payload: BusinessParameterUpdate[] = validItems.map((item) => {
-      const sanitized = sanitizedValues.get(item.id) ?? ''
-      if (item.type === 'numeric') {
-        return { id: item.id, valueNumeric: sanitized }
-      }
-      return { id: item.id, valueText: sanitized }
-    })
-
     try {
-      const response = await fetch(withAppBasePath('/api/v1/x-plan/business-parameters'), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates: payload }),
-      })
-      if (!response.ok) throw new Error('Failed to update parameters')
+      const toCreate = validItems.filter((item) => !item.id)
+      const toUpdate = validItems.filter((item) => item.id)
+
+      for (const item of toCreate) {
+        const key = item.label
+        const value = sanitizedValues.get(key) ?? ''
+        const response = await fetch(withAppBasePath('/api/v1/x-plan/business-parameters'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            label: item.label,
+            valueNumeric: value ? Number(value) : 0,
+          }),
+        })
+        if (!response.ok) throw new Error('Failed to create parameter')
+      }
+
+      if (toUpdate.length > 0) {
+        const updates: BusinessParameterUpdate[] = toUpdate.map((item) => ({
+          id: item.id,
+          valueNumeric: sanitizedValues.get(item.id) ?? '',
+        }))
+
+        const response = await fetch(withAppBasePath('/api/v1/x-plan/business-parameters'), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updates }),
+        })
+        if (!response.ok) throw new Error('Failed to update parameters')
+      }
 
       setItems((previous) =>
         previous.map((item) => {
-          if (!dirtyIds.has(item.id)) return item
-          const sanitized = sanitizedValues.get(item.id) ?? ''
-          if (item.type === 'numeric') {
-            return {
-              ...item,
-              value: formatNumericForDisplay(sanitized),
-              status: 'idle',
-            }
-          }
+          const key = item.id || item.label
+          if (!dirtyKeys.has(key)) return item
+          const sanitized = sanitizedValues.get(key) ?? ''
           return {
             ...item,
             value: sanitized,
@@ -156,13 +204,13 @@ export function ProductSetupParametersPanel({
         })
       )
 
-      toast.success('Parameters updated')
+      toast.success('Saved')
     } catch (error) {
       console.error(error)
       setItems((previous) =>
-        previous.map((item) => (dirtyIds.has(item.id) ? { ...item, status: 'error' } : item))
+        previous.map((item) => (dirtyKeys.has(item.id || item.label) ? { ...item, status: 'error' } : item))
       )
-      toast.error('Unable to update parameters')
+      toast.error('Unable to save')
     } finally {
       flushTimeoutRef.current = null
       isFlushingRef.current = false
@@ -191,9 +239,9 @@ export function ProductSetupParametersPanel({
   }, [flushUpdates])
 
   const handleValueChange = useCallback(
-    (id: string, value: string) => {
+    (key: string, value: string) => {
       setItems((previous) =>
-        previous.map((item) => (item.id === id ? { ...item, value, status: 'dirty' } : item))
+        previous.map((item) => ((item.id || item.label) === key ? { ...item, value, status: 'dirty' } : item))
       )
       scheduleFlush()
     },
@@ -214,14 +262,15 @@ export function ProductSetupParametersPanel({
       const isSaving = item.status === 'saving'
       const isDirty = item.status === 'dirty'
       const isIdle = item.status === 'idle'
+      const key = item.id || item.label
 
       return (
-        <tr key={item.id} className="bg-white transition hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5">
+        <tr key={key} className="bg-white transition hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5">
           <td className="px-4 py-3 align-top">
             <div className="space-y-1">
               <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{item.label}</p>
               <span className="inline-flex items-center rounded-full border border-slate-200 px-2 py-0.5 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:border-white/20 dark:text-slate-300">
-                {item.type === 'numeric' ? 'Numeric' : 'Text'}
+                Numeric
               </span>
             </div>
           </td>
@@ -229,9 +278,9 @@ export function ProductSetupParametersPanel({
             <div className="relative">
               <input
                 value={item.value}
-                onChange={(event) => handleValueChange(item.id, event.target.value)}
+                onChange={(event) => handleValueChange(key, event.target.value)}
                 onBlur={handleBlur}
-                inputMode={item.type === 'numeric' ? 'decimal' : 'text'}
+                inputMode="decimal"
                 aria-invalid={isError}
                 aria-describedby={isError ? `${item.id}-error` : undefined}
                 disabled={isSaving}

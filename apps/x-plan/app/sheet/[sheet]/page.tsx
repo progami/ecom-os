@@ -327,7 +327,7 @@ type NestedHeaderCell =
   | { label: string; colspan?: number; rowspan?: number; title?: string }
 
 const FINANCE_PARAMETER_LABELS = new Set(
-  ['amazon payout delay (weeks)', 'starting cash', 'weekly fixed costs'].map((label) => label.toLowerCase())
+  ['amazon payout delay (weeks)', 'starting cash', 'weekly fixed costs', 'fixed costs'].map((label) => label.toLowerCase())
 )
 const SALES_PARAMETER_LABELS = new Set(
   ['weeks of stock warning threshold', 'stockout warning (weeks)'].map((label) => label.toLowerCase())

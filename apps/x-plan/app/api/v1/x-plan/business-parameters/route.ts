@@ -8,6 +8,48 @@ type UpdatePayload = {
   valueText?: string
 }
 
+type CreatePayload = {
+  label: string
+  valueNumeric?: number
+  valueText?: string
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    const payload = body as CreatePayload
+
+    if (!payload?.label) {
+      return NextResponse.json({ error: 'Label is required' }, { status: 400 })
+    }
+
+    const numericValue =
+      'valueNumeric' in payload && payload.valueNumeric != null
+        ? new Prisma.Decimal(payload.valueNumeric)
+        : undefined
+
+    const textValue = 'valueText' in payload && payload.valueText != null ? payload.valueText : undefined
+
+    const parameter = await prisma.businessParameter.upsert({
+      where: { label: payload.label },
+      update: {
+        ...(numericValue !== undefined ? { valueNumeric: numericValue } : {}),
+        ...(textValue !== undefined ? { valueText: textValue } : {}),
+      },
+      create: {
+        label: payload.label,
+        ...(numericValue !== undefined ? { valueNumeric: numericValue } : {}),
+        ...(textValue !== undefined ? { valueText: textValue } : {}),
+      },
+    })
+
+    return NextResponse.json({ parameter })
+  } catch (error) {
+    console.error('[business-parameters][POST]', error)
+    return NextResponse.json({ error: 'Unable to create business parameter' }, { status: 500 })
+  }
+}
+
 export async function PUT(request: Request) {
   try {
     const body = await request.json()
@@ -52,4 +94,3 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Unable to update business parameters' }, { status: 500 })
   }
 }
-
