@@ -27,19 +27,19 @@ const TAB_CONFIG: Array<{
 }> = [
   {
     key: 'catalogue',
-    label: 'Product catalogue',
+    label: 'Product',
   },
   {
     key: 'operations',
-    label: 'Supply defaults',
+    label: 'Ops',
   },
   {
     key: 'sales',
-    label: 'Demand guardrails',
+    label: 'Sales',
   },
   {
     key: 'finance',
-    label: 'Cash levers',
+    label: 'Fin',
   },
 ]
 
@@ -59,19 +59,19 @@ export function ProductSetupWorkspace({
       ),
       operations: (
         <ProductSetupParametersPanel
-          title="Operations"
+          title="Defaults"
           parameters={operationsParameters}
         />
       ),
       sales: (
         <ProductSetupParametersPanel
-          title="Sales"
+          title="Defaults"
           parameters={salesParameters}
         />
       ),
       finance: (
         <ProductSetupParametersPanel
-          title="Finance"
+          title="Defaults"
           parameters={financeParameters}
         />
       ),
