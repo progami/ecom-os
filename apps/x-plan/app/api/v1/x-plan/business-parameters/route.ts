@@ -8,6 +8,42 @@ type UpdatePayload = {
   valueText?: string
 }
 
+type CreatePayload = {
+  label: string
+  valueNumeric?: number
+  valueText?: string
+}
+
+export async function POST(request: Request) {
+  try {
+    const body = await request.json()
+    const payload = body as CreatePayload
+
+    if (!payload?.label) {
+      return NextResponse.json({ error: 'Label is required' }, { status: 400 })
+    }
+
+    const data: Record<string, unknown> = { label: payload.label }
+
+    if ('valueNumeric' in payload && payload.valueNumeric != null) {
+      data.valueNumeric = new Prisma.Decimal(payload.valueNumeric)
+    }
+
+    if ('valueText' in payload && payload.valueText != null) {
+      data.valueText = payload.valueText
+    }
+
+    const parameter = await prisma.businessParameter.create({
+      data,
+    })
+
+    return NextResponse.json({ parameter })
+  } catch (error) {
+    console.error('[business-parameters][POST]', error)
+    return NextResponse.json({ error: 'Unable to create business parameter' }, { status: 500 })
+  }
+}
+
 export async function PUT(request: Request) {
   try {
     const body = await request.json()

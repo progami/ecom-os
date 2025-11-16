@@ -60,18 +60,21 @@ export function ProductSetupWorkspace({
       operations: (
         <ProductSetupParametersPanel
           title="Defaults"
+          parameterType="ops"
           parameters={operationsParameters}
         />
       ),
       sales: (
         <ProductSetupParametersPanel
           title="Defaults"
+          parameterType="sales"
           parameters={salesParameters}
         />
       ),
       finance: (
         <ProductSetupParametersPanel
           title="Defaults"
+          parameterType="finance"
           parameters={financeParameters}
         />
       ),
