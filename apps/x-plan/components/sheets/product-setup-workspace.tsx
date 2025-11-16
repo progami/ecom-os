@@ -2,13 +2,14 @@
 
 import clsx from 'clsx'
 import type { ReactNode } from 'react'
-import { useId, useMemo, useState } from 'react'
+import { useId, useMemo } from 'react'
 
 import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
 import {
   ProductSetupParametersPanel,
   type ProductSetupParametersPanelProps,
 } from '@/components/sheets/product-setup-panels'
+import { usePersistentState } from '@/hooks/usePersistentState'
 
 type ParameterList = ProductSetupParametersPanelProps['parameters']
 
@@ -49,7 +50,7 @@ export function ProductSetupWorkspace({
   salesParameters,
   financeParameters,
 }: ProductSetupWorkspaceProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>('catalogue')
+  const [activeTab, setActiveTab] = usePersistentState<TabKey>('xplan:product-setup:tab', 'catalogue')
   const tablistId = useId()
 
   const tabPanels = useMemo(() => {
