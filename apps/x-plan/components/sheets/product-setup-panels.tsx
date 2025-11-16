@@ -3,6 +3,7 @@
 import clsx from 'clsx'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
+import { OPS_STAGE_DEFAULT_LABELS } from '@/lib/business-parameter-labels'
 import { withAppBasePath } from '@/lib/base-path'
 
 interface BusinessParameter {
@@ -15,11 +16,10 @@ interface BusinessParameter {
 type BusinessParameterUpdate = { id: string; valueNumeric?: string; valueText?: string }
 
 const OPS_DEFAULTS = [
-  { label: 'Default Lead Time (weeks)', defaultValue: '4' },
-  { label: 'Production', defaultValue: '1' },
-  { label: 'Source', defaultValue: '1' },
-  { label: 'Ocean', defaultValue: '1' },
-  { label: 'Final', defaultValue: '1' },
+  { label: OPS_STAGE_DEFAULT_LABELS.production, defaultValue: '1' },
+  { label: OPS_STAGE_DEFAULT_LABELS.source, defaultValue: '1' },
+  { label: OPS_STAGE_DEFAULT_LABELS.ocean, defaultValue: '1' },
+  { label: OPS_STAGE_DEFAULT_LABELS.final, defaultValue: '1' },
 ]
 
 const SALES_DEFAULTS = [
@@ -30,6 +30,10 @@ const FINANCE_DEFAULTS = [
   { label: 'Starting Cash', defaultValue: '0' },
   { label: 'Amazon Payout Delay (weeks)', defaultValue: '2' },
   { label: 'Weekly Fixed Costs', defaultValue: '0' },
+  { label: 'Supplier Payment Terms (weeks)', defaultValue: '0' },
+  { label: 'Supplier Payment Split 1 (%)', defaultValue: '50' },
+  { label: 'Supplier Payment Split 2 (%)', defaultValue: '30' },
+  { label: 'Supplier Payment Split 3 (%)', defaultValue: '20' },
 ]
 
 function getDefaults(type: 'ops' | 'sales' | 'finance') {
