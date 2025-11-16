@@ -23,18 +23,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Label is required' }, { status: 400 })
     }
 
-    const data: Record<string, unknown> = { label: payload.label }
+    const createData: Prisma.BusinessParameterCreateInput = { label: payload.label }
+    const updateData: Prisma.BusinessParameterUpdateInput = { label: payload.label }
 
     if ('valueNumeric' in payload && payload.valueNumeric != null) {
-      data.valueNumeric = new Prisma.Decimal(payload.valueNumeric)
+      const numeric = new Prisma.Decimal(payload.valueNumeric)
+      createData.valueNumeric = numeric
+      updateData.valueNumeric = numeric
     }
 
     if ('valueText' in payload && payload.valueText != null) {
-      data.valueText = payload.valueText
+      createData.valueText = payload.valueText
+      updateData.valueText = payload.valueText
     }
 
-    const parameter = await prisma.businessParameter.create({
-      data,
+    const parameter = await prisma.businessParameter.upsert({
+      where: { label: payload.label },
+      update: updateData,
+      create: createData,
     })
 
     return NextResponse.json({ parameter })
@@ -88,4 +94,3 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Unable to update business parameters' }, { status: 500 })
   }
 }
-
