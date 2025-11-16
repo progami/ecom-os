@@ -23,8 +23,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Label is required' }, { status: 400 })
     }
 
-    const createData: Prisma.BusinessParameterCreateInput = { label: payload.label }
-    const updateData: Prisma.BusinessParameterUpdateInput = { label: payload.label }
+    type UpsertArgs = Parameters<typeof prisma.businessParameter.upsert>[0]
+    const createData: UpsertArgs['create'] = { label: payload.label }
+    const updateData: UpsertArgs['update'] = { label: payload.label }
 
     if ('valueNumeric' in payload && payload.valueNumeric != null) {
       const numeric = new Prisma.Decimal(payload.valueNumeric)
