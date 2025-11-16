@@ -2,13 +2,14 @@
 
 import clsx from 'clsx'
 import type { ReactNode } from 'react'
-import { useId, useMemo, useState } from 'react'
+import { useId, useMemo } from 'react'
 
 import { ProductSetupGrid } from '@/components/sheets/product-setup-grid'
 import {
   ProductSetupParametersPanel,
   type ProductSetupParametersPanelProps,
 } from '@/components/sheets/product-setup-panels'
+import { usePersistentState } from '@/hooks/usePersistentState'
 
 type ParameterList = ProductSetupParametersPanelProps['parameters']
 
@@ -27,19 +28,19 @@ const TAB_CONFIG: Array<{
 }> = [
   {
     key: 'catalogue',
-    label: 'Product catalogue',
+    label: 'Product',
   },
   {
     key: 'operations',
-    label: 'Supply defaults',
+    label: 'Ops',
   },
   {
     key: 'sales',
-    label: 'Demand guardrails',
+    label: 'Sales',
   },
   {
     key: 'finance',
-    label: 'Cash levers',
+    label: 'Fin',
   },
 ]
 
@@ -49,7 +50,7 @@ export function ProductSetupWorkspace({
   salesParameters,
   financeParameters,
 }: ProductSetupWorkspaceProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>('catalogue')
+  const [activeTab, setActiveTab] = usePersistentState<TabKey>('xplan:product-setup:tab', 'catalogue')
   const tablistId = useId()
 
   const tabPanels = useMemo(() => {
@@ -59,19 +60,22 @@ export function ProductSetupWorkspace({
       ),
       operations: (
         <ProductSetupParametersPanel
-          title="Operations"
+          title="Defaults"
+          parameterType="ops"
           parameters={operationsParameters}
         />
       ),
       sales: (
         <ProductSetupParametersPanel
-          title="Sales"
+          title="Defaults"
+          parameterType="sales"
           parameters={salesParameters}
         />
       ),
       finance: (
         <ProductSetupParametersPanel
-          title="Finance"
+          title="Defaults"
+          parameterType="finance"
           parameters={financeParameters}
         />
       ),
