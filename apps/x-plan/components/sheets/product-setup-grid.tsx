@@ -246,7 +246,7 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={3} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-300/80">
-                  No products yet. Use "New product" to add the first SKU to the planning catalogue.
+                  No products yet. Use &ldquo;New product&rdquo; to add the first SKU to the planning catalogue.
                 </td>
               </tr>
             ) : (
