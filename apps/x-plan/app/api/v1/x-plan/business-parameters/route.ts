@@ -23,25 +23,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Label is required' }, { status: 400 })
     }
 
-    type UpsertArgs = Parameters<typeof prisma.businessParameter.upsert>[0]
-    const createData: UpsertArgs['create'] = { label: payload.label }
-    const updateData: UpsertArgs['update'] = { label: payload.label }
+    const numericValue =
+      'valueNumeric' in payload && payload.valueNumeric != null
+        ? new Prisma.Decimal(payload.valueNumeric)
+        : undefined
 
-    if ('valueNumeric' in payload && payload.valueNumeric != null) {
-      const numeric = new Prisma.Decimal(payload.valueNumeric)
-      createData.valueNumeric = numeric
-      updateData.valueNumeric = numeric
-    }
-
-    if ('valueText' in payload && payload.valueText != null) {
-      createData.valueText = payload.valueText
-      updateData.valueText = payload.valueText
-    }
+    const textValue = 'valueText' in payload && payload.valueText != null ? payload.valueText : undefined
 
     const parameter = await prisma.businessParameter.upsert({
       where: { label: payload.label },
-      update: updateData,
-      create: createData,
+      update: {
+        ...(numericValue !== undefined ? { valueNumeric: numericValue } : {}),
+        ...(textValue !== undefined ? { valueText: textValue } : {}),
+      },
+      create: {
+        label: payload.label,
+        ...(numericValue !== undefined ? { valueNumeric: numericValue } : {}),
+        ...(textValue !== undefined ? { valueText: textValue } : {}),
+      },
     })
 
     return NextResponse.json({ parameter })
