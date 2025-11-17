@@ -1178,7 +1178,7 @@ useEffect(() => {
       }
     }
 
-    for (const summary of summaries.values()) {
+    for (const summary of drafts.values()) {
       if (summary.plannedAmount <= 0 && summary.fallbackAmount > 0) {
         summary.plannedAmount = summary.fallbackAmount
         summary.plannedPercent = summary.plannedPercent > 0 ? summary.plannedPercent : 1
