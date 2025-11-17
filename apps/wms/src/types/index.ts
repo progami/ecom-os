@@ -2,7 +2,7 @@ import {
  UserRole, 
  TransactionType, 
  CostCategory
-} from '@prisma/client'
+} from '@ecom-os/prisma-wms'
 
 // Re-export Prisma enums for convenience
 export { 

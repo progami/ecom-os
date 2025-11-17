@@ -4,7 +4,7 @@
  * Creates cost ledger entries like the API trigger would
  */
 
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-wms'
 import { ensurePurchaseOrderForTransaction } from '@/lib/services/purchase-order-service'
 
 interface Warehouse {

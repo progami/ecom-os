@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef, ChangeEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Edit, Trash2, RefreshCw, DollarSign } from '@/lib/lucide-icons'
+import { Plus, Edit, Trash2, RefreshCw, DollarSign, Upload, Download } from '@/lib/lucide-icons'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { toast } from 'react-hot-toast'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +19,13 @@ interface Warehouse {
   contactEmail?: string | null
   contactPhone?: string | null
   isActive: boolean
+  rateListAttachment?: {
+    fileName: string
+    size: number
+    contentType: string
+    uploadedAt: string
+    uploadedBy?: string | null
+  } | null
   _count: {
     users: number
     costRates: number
@@ -30,6 +37,7 @@ interface CostRate {
   id: string
   warehouseId: string
   costCategory: string
+  costName: string
   costValue: number
   unitOfMeasure: string
   effectiveDate: string
@@ -44,6 +52,10 @@ export default function WarehousesPanel() {
   const [showInactive, setShowInactive] = useState(false)
   const [selectedWarehouseId, setSelectedWarehouseId] = useState<string | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [uploadingRateList, setUploadingRateList] = useState(false)
+  const [downloadingRateList, setDownloadingRateList] = useState(false)
+  const [removingRateList, setRemovingRateList] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -82,6 +94,85 @@ export default function WarehousesPanel() {
     setIsRefreshing(true)
     await loadData()
     setIsRefreshing(false)
+  }
+
+  const handleRateListFileChange = async (
+    event: ChangeEvent<HTMLInputElement>,
+    warehouseId: string
+  ) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setUploadingRateList(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetchWithCSRF(`/api/warehouses/${warehouseId}/rate-list`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || 'Failed to upload rate list')
+      }
+
+      toast.success('Rate list uploaded')
+      await loadData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to upload rate list')
+    } finally {
+      setUploadingRateList(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  const handleDownloadRateList = async (warehouseId: string) => {
+    setDownloadingRateList(true)
+    try {
+      const response = await fetchWithCSRF(`/api/warehouses/${warehouseId}/rate-list`)
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || 'Download unavailable')
+      }
+
+      const data = await response.json()
+      const downloadUrl: string | undefined = data?.attachment?.downloadUrl
+      if (downloadUrl) {
+        window.open(downloadUrl, '_blank', 'noopener')
+      } else {
+        toast.error('Download link unavailable')
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to prepare download')
+    } finally {
+      setDownloadingRateList(false)
+    }
+  }
+
+  const handleRemoveRateList = async (warehouseId: string) => {
+    if (!confirm('Remove the current rate list attachment?')) return
+    setRemovingRateList(true)
+    try {
+      const response = await fetchWithCSRF(`/api/warehouses/${warehouseId}/rate-list`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || 'Failed to delete rate list')
+      }
+
+      toast.success('Rate list removed')
+      await loadData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete rate list')
+    } finally {
+      setRemovingRateList(false)
+    }
   }
 
   const handleDelete = async (warehouse: Warehouse) => {
@@ -123,7 +214,7 @@ export default function WarehousesPanel() {
   }
 
   const handleDeleteRate = async (rate: CostRate) => {
-    if (!confirm(`Delete ${rate.costCategory} rate (£${rate.costValue.toFixed(2)}/${rate.unitOfMeasure})? This cannot be undone.`)) return
+    if (!confirm(`Delete "${rate.costName}" (${formatCostCategory(rate.costCategory)}) rate (£${rate.costValue.toFixed(2)}/${rate.unitOfMeasure})? This cannot be undone.`)) return
 
     try {
       const response = await fetchWithCSRF(`/api/settings/rates?id=${rate.id}`, {
@@ -264,6 +355,94 @@ export default function WarehousesPanel() {
       <div className="lg:col-span-2">
         {selectedWarehouse ? (
           <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+              className="hidden"
+              onChange={(event) => handleRateListFileChange(event, selectedWarehouse.id)}
+            />
+            <div className="rounded-xl border bg-white shadow-soft mb-6">
+              <div className="border-b px-6 py-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Rate List Attachment</h3>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Store the latest warehouse-specific rate sheet for reference.
+                  </p>
+                </div>
+                {selectedWarehouse.rateListAttachment && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => handleDownloadRateList(selectedWarehouse.id)}
+                    disabled={downloadingRateList}
+                  >
+                    <Download className="h-4 w-4" />
+                    {downloadingRateList ? 'Preparing…' : 'Download'}
+                  </Button>
+                )}
+              </div>
+              <div className="px-6 py-4 space-y-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingRateList}
+                  >
+                    <Upload className="h-4 w-4" />
+                    {uploadingRateList ? 'Uploading…' : 'Upload document'}
+                  </Button>
+                  <p className="text-xs text-slate-500">
+                    PDF, Office docs or images up to 10MB.
+                  </p>
+                </div>
+                {selectedWarehouse.rateListAttachment ? (
+                  <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
+                    <div>
+                      <p className="font-medium text-slate-900">
+                        {selectedWarehouse.rateListAttachment.fileName}
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Uploaded{' '}
+                        {selectedWarehouse.rateListAttachment.uploadedAt
+                          ? new Date(selectedWarehouse.rateListAttachment.uploadedAt).toLocaleString()
+                          : 'recently'}
+                        {selectedWarehouse.rateListAttachment.uploadedBy
+                          ? ` · ${selectedWarehouse.rateListAttachment.uploadedBy}`
+                          : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => handleDownloadRateList(selectedWarehouse.id)}
+                        disabled={downloadingRateList}
+                      >
+                        <Download className="h-4 w-4" />
+                        {downloadingRateList ? 'Preparing…' : 'Download'}
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => handleRemoveRateList(selectedWarehouse.id)}
+                        disabled={removingRateList}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {removingRateList ? 'Removing…' : 'Remove'}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-500">No rate list uploaded yet.</p>
+                )}
+              </div>
+            </div>
             {/* Cost Rates Card */}
             <div className="rounded-xl border bg-white shadow-soft">
               <div className="border-b px-6 py-4">
@@ -294,7 +473,7 @@ export default function WarehousesPanel() {
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                       <tr>
-                        <th className="px-4 py-3 text-left font-semibold">Category</th>
+                        <th className="px-4 py-3 text-left font-semibold">Rate</th>
                         <th className="px-4 py-3 text-right font-semibold">Rate</th>
                         <th className="px-4 py-3 text-left font-semibold">Unit</th>
                         <th className="px-4 py-3 text-left font-semibold">Effective</th>
@@ -313,12 +492,18 @@ export default function WarehousesPanel() {
                         return (
                           <tr key={rate.id} className="hover:bg-slate-50">
                             <td className="px-4 py-3">
-                              <span className={`inline-block px-2 py-1 text-xs font-medium rounded ${getCategoryColor(rate.costCategory)}`}>
-                                {formatCostCategory(rate.costCategory)}
-                              </span>
+                              <div className="flex flex-col gap-1">
+                                <span className="font-medium text-slate-900">{rate.costName}</span>
+                                <span className={`inline-flex w-fit px-2 py-0.5 text-[11px] font-medium rounded ${getCategoryColor(rate.costCategory)}`}>
+                                  {formatCostCategory(rate.costCategory)}
+                                </span>
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-right font-semibold text-slate-900">
-                              £{rate.costValue.toFixed(2)}
+                              <div className="flex items-center justify-end gap-2">
+                                <span className="text-xs font-semibold text-slate-500">£ / $</span>
+                                <span>{rate.costValue.toFixed(2)}</span>
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-slate-600">{rate.unitOfMeasure}</td>
                             <td className="px-4 py-3 text-slate-600">

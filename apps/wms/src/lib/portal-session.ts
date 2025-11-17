@@ -1,7 +1,7 @@
 import type { Session } from 'next-auth'
 import type { NextRequest } from 'next/server'
 import { getAppEntitlement } from '@ecom-os/auth'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@ecom-os/prisma-wms'
 
 const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000
 const ALLOWED_ROLES: readonly UserRole[] = ['admin', 'staff']

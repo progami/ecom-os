@@ -36,11 +36,12 @@ async function setupStorageRates() {
 
     // Add storage rates for each warehouse
     for (const warehouse of warehouses) {
+      const rateName = 'Storage - Carton/Week'
       // Check if storage rate already exists
       const existingRate = await prisma.costRate.findFirst({
         where: {
           warehouseId: warehouse.id,
-          costCategory: 'Storage',
+          costName: rateName,
           isActive: true
         }
       })
@@ -55,6 +56,7 @@ async function setupStorageRates() {
         data: {
           warehouseId: warehouse.id,
           costCategory: 'Storage',
+          costName: rateName,
           costValue: 0.5000, // $0.50 per carton per week
           unitOfMeasure: 'carton/week',
           effectiveDate: new Date('2024-01-01'),

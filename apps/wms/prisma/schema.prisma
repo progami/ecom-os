@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../../../packages/prisma-wms/generated"
 }
 
 datasource db {
@@ -41,6 +42,7 @@ model Warehouse {
   contactEmail          String?                @map("contact_email")
   contactPhone          String?                @map("contact_phone")
   isActive              Boolean                @default(true) @map("is_active")
+  rateListAttachment    Json?                  @map("rate_list_attachment")
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
   costRates             CostRate[]
@@ -95,6 +97,7 @@ model CostRate {
   id            String       @id @default(uuid())
   warehouseId   String       @map("warehouse_id")
   costCategory  CostCategory @map("cost_category")
+  costName      String       @map("cost_name")
   costValue     Decimal      @map("cost_value") @db.Decimal(12, 2)
   unitOfMeasure String       @map("unit_of_measure")
   effectiveDate DateTime     @map("effective_date") @db.Date
@@ -106,8 +109,8 @@ model CostRate {
   createdBy     User         @relation(fields: [createdById], references: [id])
   warehouse     Warehouse    @relation(fields: [warehouseId], references: [id])
 
-  @@unique([warehouseId, costCategory])
-  @@index([warehouseId, costCategory, effectiveDate])
+  @@unique([warehouseId, costName, effectiveDate])
+  @@index([warehouseId, costName, effectiveDate])
   @@map("cost_rates")
 }
 

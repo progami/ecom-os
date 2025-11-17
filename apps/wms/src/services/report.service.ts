@@ -4,7 +4,7 @@ import { startOfMonth, endOfMonth, subMonths, format } from 'date-fns'
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
 import { perfLogger } from '@/lib/logger/server'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-wms'
 import type { ExportFieldValue } from '@/lib/dynamic-export'
 
 type ReportRow = Record<string, ExportFieldValue>

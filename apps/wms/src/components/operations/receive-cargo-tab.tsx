@@ -10,7 +10,7 @@ import { toast } from 'react-hot-toast'
 import { CreateSkuBatchModal } from './create-sku-batch-modal'
 
 // Icons
-import { Package2, Loader2, AlertCircle } from '@/lib/lucide-icons'
+import { Package2, Loader2, AlertCircle, Plus, Trash2 } from '@/lib/lucide-icons'
 
 interface Sku {
   id: string
@@ -77,28 +77,39 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
   // Use a ref to maintain counter across renders but reset on mount
   const itemIdCounterRef = useRef(0)
 
-  const [items, setItems] = useState<LineItem[]>(() => {
-    // Initialize with one empty item on first render
-    const initialItem: LineItem = {
-      id: `item-${++itemIdCounterRef.current}`,
-      skuCode: '',
-      batchLot: '',
-      cartons: 0,
-      units: 0,
-      unitsPerCarton: 0, // Empty by default
-      storagePalletsIn: 0,
-      storageCartonsPerPallet: 0,
-      shippingCartonsPerPallet: 0,
-      configLoaded: false,
-      loadingBatch: false,
-    }
-    return [initialItem]
+  const createEmptyItem = (id?: string): LineItem => ({
+    id: id ?? `item-${++itemIdCounterRef.current}`,
+    skuCode: '',
+    batchLot: '',
+    cartons: 0,
+    units: 0,
+    unitsPerCarton: 0,
+    storagePalletsIn: 0,
+    storageCartonsPerPallet: 0,
+    shippingCartonsPerPallet: 0,
+    configLoaded: false,
+    loadingBatch: false,
   })
+
+  const [items, setItems] = useState<LineItem[]>(() => [createEmptyItem()])
   const [batchesBySku, setBatchesBySku] = useState<Record<string, BatchOption[]>>({})
 
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentEditingItemId, setCurrentEditingItemId] = useState<string | null>(null)
+
+  const addNewItem = () => {
+    setItems(prev => [...prev, createEmptyItem()])
+  }
+
+  const removeItem = (id: string) => {
+    setItems(prev => {
+      if (prev.length === 1) {
+        return prev.map(item => (item.id === id ? createEmptyItem(item.id) : item))
+      }
+      return prev.filter(item => item.id !== id)
+    })
+  }
 
   // Notify parent when items change
   useEffect(() => {
@@ -385,8 +396,8 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
           </div>
         ) : (
             <>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+              <div>
+                <table className="w-full divide-y divide-gray-200">
                   <thead className="bg-slate-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
@@ -412,6 +423,9 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
                         Total Units
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                        Actions
                       </th>
                     </tr>
                   </thead>
@@ -624,6 +638,17 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             title="Units are calculated based on cartons × units per carton"
                           />
                         </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => removeItem(item.id)}
+                            className="inline-flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                            title="Remove line item"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Remove
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -642,9 +667,23 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                       <td className="px-4 py-3 text-right font-semibold">
                         {totals.units.toLocaleString()}
                       </td>
+                      <td></td>
                     </tr>
                   </tfoot>
                 </table>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={addNewItem}
+                    className="inline-flex items-center gap-2 rounded-md border border-dashed border-primary px-4 py-2 text-sm font-medium text-primary hover:bg-primary/5"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add another SKU
+                  </button>
+                  <p className="text-xs text-slate-500">
+                    Capture multiple SKUs or batches in a single receiving transaction.
+                  </p>
+                </div>
               </div>
             </>
           )}

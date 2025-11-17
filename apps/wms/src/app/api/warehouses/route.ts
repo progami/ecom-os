@@ -1,6 +1,6 @@
 import { withAuth, withRole, ApiResponses, z } from '@/lib/api'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay, validateAlphanumeric } from '@/lib/security/input-sanitization'
 export const dynamic = 'force-dynamic'
 
@@ -37,6 +37,36 @@ const warehouseCodeSchema = z
  .refine(validateAlphanumeric, {
   message: 'Warehouse code must be alphanumeric'
  })
+
+type RateListAttachmentResponse = {
+  fileName: string
+  size: number
+  contentType: string
+  uploadedAt: string
+  uploadedBy?: string | null
+} | null
+
+const parseRateListAttachment = (value: Prisma.JsonValue | null): RateListAttachmentResponse => {
+ if (!value || typeof value !== 'object' || Array.isArray(value)) {
+  return null
+ }
+
+ const record = value as Record<string, unknown>
+
+ if (typeof record.fileName !== 'string' || typeof record.s3Key !== 'string') {
+  return null
+ }
+
+ return {
+  fileName: record.fileName,
+  size: typeof record.size === 'number' ? record.size : 0,
+  contentType:
+   typeof record.contentType === 'string' ? record.contentType : 'application/octet-stream',
+  uploadedAt:
+   typeof record.uploadedAt === 'string' ? record.uploadedAt : new Date().toISOString(),
+  uploadedBy: typeof record.uploadedBy === 'string' ? record.uploadedBy : null,
+ }
+}
 
 // Validation schemas with sanitization
 const createWarehouseSchema = z.object({
@@ -110,11 +140,14 @@ export const GET = withAuth(async (req, _session) => {
 
  const warehousesWithCounts = warehouses.map(warehouse => ({
  ...warehouse,
+ rateListAttachment: parseRateListAttachment(
+ warehouse.rateListAttachment as Prisma.JsonValue | null
+ ),
  _count: {
  ...warehouse._count,
  inventoryTransactions: countMap.get(warehouse.code) || 0
  }
- }))
+}))
 
  return ApiResponses.success(warehousesWithCounts)
 })

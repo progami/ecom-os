@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 export const dynamic = 'force-dynamic'
 
 export async function GET(
@@ -9,7 +10,7 @@ export async function GET(
  { params }: { params: Promise<{ id: string }> }
 ) {
  try {
- const { id } = await params
+ const { id: rateId } = await params
  const session = await getServerSession(authOptions)
  
  if (!session) {
@@ -17,7 +18,7 @@ export async function GET(
  }
 
  const rate = await prisma.costRate.findUnique({
- where: { id },
+ where: { id: rateId },
  include: {
  warehouse: {
  select: {
@@ -38,6 +39,7 @@ export async function GET(
  warehouseId: rate.warehouseId,
  warehouse: rate.warehouse,
  costCategory: rate.costCategory,
+ costName: rate.costName,
  costValue: parseFloat(rate.costValue.toString()),
  unitOfMeasure: rate.unitOfMeasure,
  effectiveDate: rate.effectiveDate.toISOString(),
@@ -59,7 +61,7 @@ export async function PUT(
  { params }: { params: Promise<{ id: string }> }
 ) {
  try {
- const { id } = await params
+ const { id: rateId } = await params
  const session = await getServerSession(authOptions)
  
  if (!session || session.user.role !== 'admin') {
@@ -67,7 +69,7 @@ export async function PUT(
  }
 
  const body = await request.json()
- const { costValue, unitOfMeasure, endDate } = body
+ const { costValue, unitOfMeasure, endDate, costName: rawCostName } = body
 
 // Validate required fields
  if (costValue === undefined || !unitOfMeasure) {
@@ -79,8 +81,8 @@ export async function PUT(
 
  // Get existing rate to check category
  const existingRate = await prisma.costRate.findUnique({
- where: { id }
- })
+ where: { id: rateId }
+})
 
  if (!existingRate) {
  return NextResponse.json({ error: 'Rate not found' }, { status: 404 })
@@ -94,9 +96,35 @@ export async function PUT(
  )
  }
 
+ const sanitizedCostName =
+ typeof rawCostName === 'string' && rawCostName.trim().length > 0
+  ? sanitizeForDisplay(rawCostName.trim())
+  : existingRate.costName
+
+ if (sanitizedCostName !== existingRate.costName) {
+  const existingName = await prisma.costRate.findFirst({
+   where: {
+    warehouseId: existingRate.warehouseId,
+    costName: sanitizedCostName,
+    effectiveDate: existingRate.effectiveDate,
+    id: { not: rateId }
+   }
+  })
+
+  if (existingName) {
+   return NextResponse.json(
+    {
+     error: `Another rate named "${sanitizedCostName}" already exists for this warehouse on ${existingRate.effectiveDate.toISOString().slice(0, 10)}.`
+    },
+    { status: 400 }
+   )
+  }
+ }
+
  const updatedRate = await prisma.costRate.update({
- where: { id },
+ where: { id: rateId },
  data: {
+  costName: sanitizedCostName,
   unitOfMeasure,
   costValue,
  endDate: endDate ? new Date(endDate) : null,
@@ -118,6 +146,7 @@ export async function PUT(
  warehouseId: updatedRate.warehouseId,
  warehouse: updatedRate.warehouse,
  costCategory: updatedRate.costCategory,
+ costName: updatedRate.costName,
  costValue: parseFloat(updatedRate.costValue.toString()),
  unitOfMeasure: updatedRate.unitOfMeasure,
  effectiveDate: updatedRate.effectiveDate.toISOString(),
@@ -139,7 +168,7 @@ export async function DELETE(
  { params }: { params: Promise<{ id: string }> }
 ) {
  try {
- const { id } = await params
+ const { id: rateId } = await params
  const session = await getServerSession(authOptions)
  
  if (!session) {
@@ -152,7 +181,7 @@ export async function DELETE(
  }
 
  await prisma.costRate.delete({
- where: { id }
+ where: { id: rateId }
  })
 
  return NextResponse.json({ success: true })

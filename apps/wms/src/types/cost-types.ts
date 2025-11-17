@@ -5,6 +5,7 @@ export interface CostRate {
  warehouseId: string
  warehouse: { name: string; code: string }
  costCategory: string
+ costName: string
  costValue: number
  unitOfMeasure: string
  effectiveDate: string

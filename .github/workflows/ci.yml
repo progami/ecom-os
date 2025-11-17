@@ -40,6 +40,8 @@ jobs:
         run: bash scripts/verify-dev-env.sh
       - name: Generate Prisma client
         run: pnpm --filter @ecom-os/wms db:generate
+      - name: Generate X-Plan Prisma client
+        run: pnpm --filter @ecom-os/x-plan prisma:generate
       - name: Determine base ref
         id: changes
         run: |

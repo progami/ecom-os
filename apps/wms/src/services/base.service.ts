@@ -1,4 +1,4 @@
-import { PrismaClient, Prisma } from '@prisma/client'
+import { PrismaClient, Prisma } from '@ecom-os/prisma-wms'
 import { Session } from 'next-auth'
 import DOMPurify from 'isomorphic-dompurify'
 import { businessLogger, perfLogger, securityLogger } from '@/lib/logger/server'

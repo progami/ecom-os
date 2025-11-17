@@ -1,6 +1,6 @@
 import { withAuth, withRole, ApiResponses, z } from '@/lib/api'
 import { prisma } from '@/lib/prisma'
-import { Prisma, type Sku } from '@prisma/client'
+import { Prisma, type Sku } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay, sanitizeSearchQuery, escapeRegex } from '@/lib/security/input-sanitization'
 export const dynamic = 'force-dynamic'
 

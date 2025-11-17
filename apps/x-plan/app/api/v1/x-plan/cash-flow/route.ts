@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-x-plan'
 import { z } from 'zod'
 import prisma from '@/lib/prisma'
 import { getCalendarDateForWeek } from '@/lib/calculations/calendar'

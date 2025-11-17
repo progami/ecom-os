@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { getWarehouseFilter } from '@/lib/auth-utils'
 import { getStorageCostSummary } from '@/services/storageCost.service'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-wms'
 
 export const dynamic = 'force-dynamic'
 

@@ -5,7 +5,7 @@
  */
 
 import { prisma } from '@/lib/prisma'
-import { Prisma, TransactionType } from '@prisma/client'
+import { Prisma, TransactionType } from '@ecom-os/prisma-wms'
 import { addMinutes } from 'date-fns'
 import { handleTransactionCosts } from '@/lib/events/transaction-cost-handler'
 import {

@@ -7,7 +7,7 @@
  *   pnpm --filter @ecom-os/wms exec tsx scripts/setup/products.ts [--skip-clean] [--verbose]
  */
 
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@ecom-os/prisma-wms'
 
 const prisma = new PrismaClient()
 

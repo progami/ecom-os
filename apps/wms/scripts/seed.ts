@@ -5,7 +5,7 @@
  * For transactions, use the demo.ts script with Playwright
  */
 
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@ecom-os/prisma-wms'
 import * as bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
@@ -320,7 +320,7 @@ async function createCostRates() {
       const existing = await prisma.costRate.findFirst({
         where: {
           warehouseId: warehouse.id,
-          costCategory: cost.category as any
+          costName: cost.name
         }
       })
       
@@ -331,6 +331,7 @@ async function createCostRates() {
           data: {
             warehouseId: warehouse.id,
             costCategory: cost.category as any,
+            costName: cost.name,
             costValue: cost.costValue,
             unitOfMeasure: cost.unitOfMeasure,
             effectiveDate: today,

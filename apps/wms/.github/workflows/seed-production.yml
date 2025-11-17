@@ -52,7 +52,7 @@ jobs:
             # Check existing warehouses
             echo "Existing warehouses:"
             npx tsx -e "
-              const { PrismaClient } = require('@prisma/client');
+              const { PrismaClient } = require('@ecom-os/prisma-wms');
               const prisma = new PrismaClient();
               prisma.warehouse.findMany().then(w => {
                 console.log('Found', w.length, 'warehouses');
@@ -65,7 +65,7 @@ jobs:
             echo ""
             echo "Existing SKUs:"
             npx tsx -e "
-              const { PrismaClient } = require('@prisma/client');
+              const { PrismaClient } = require('@ecom-os/prisma-wms');
               const prisma = new PrismaClient();
               prisma.sku.findMany().then(s => {
                 console.log('Found', s.length, 'SKUs');
@@ -100,7 +100,7 @@ jobs:
             # Verify warehouses after seeding
             echo "Warehouses after seeding:"
             npx tsx -e "
-              const { PrismaClient } = require('@prisma/client');
+              const { PrismaClient } = require('@ecom-os/prisma-wms');
               const prisma = new PrismaClient();
               prisma.warehouse.findMany().then(w => {
                 console.log('Total warehouses:', w.length);
@@ -112,7 +112,7 @@ jobs:
             echo ""
             echo "Cost rates after seeding:"
             npx tsx -e "
-              const { PrismaClient } = require('@prisma/client');
+              const { PrismaClient } = require('@ecom-os/prisma-wms');
               const prisma = new PrismaClient();
               prisma.costRate.findMany().then(c => {
                 console.log('Total cost rates:', c.length);

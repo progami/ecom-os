@@ -1,4 +1,4 @@
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@ecom-os/prisma-wms'
 import { DefaultSession } from 'next-auth'
 
 declare module 'next-auth' {

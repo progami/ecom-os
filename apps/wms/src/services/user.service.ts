@@ -7,7 +7,7 @@ import {
 } from '@/lib/security/input-sanitization'
 import { invalidateAllUserSessions } from '@/lib/security/session-manager'
 import { businessLogger, securityLogger } from '@/lib/logger/server'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-wms'
 
 // Validation schemas
 const createUserSchema = z.object({
