@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 export const dynamic = 'force-dynamic'
 
 export async function POST() {
@@ -90,10 +91,15 @@ export async function POST() {
   )
 
   for (const rate of uniqueRates) {
+    const fallbackName =
+      typeof rate.name === 'string' && rate.name.trim().length > 0
+        ? rate.name.trim()
+        : `${rate.category} Rate`
+    const safeName = sanitizeForDisplay(fallbackName)
     const existingRate = await prisma.costRate.findFirst({
       where: {
         warehouseId: amazonWarehouse.id,
-        costCategory: rate.category
+        costName: safeName
       }
     })
 
@@ -102,6 +108,7 @@ export async function POST() {
         data: {
           warehouseId: amazonWarehouse.id,
           costCategory: rate.category,
+          costName: safeName,
           costValue: rate.value,
           unitOfMeasure: rate.unit,
           effectiveDate: rate.effectiveDate,

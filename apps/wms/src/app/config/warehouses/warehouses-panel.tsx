@@ -37,6 +37,7 @@ interface CostRate {
   id: string
   warehouseId: string
   costCategory: string
+  costName: string
   costValue: number
   unitOfMeasure: string
   effectiveDate: string
@@ -213,7 +214,7 @@ export default function WarehousesPanel() {
   }
 
   const handleDeleteRate = async (rate: CostRate) => {
-    if (!confirm(`Delete ${rate.costCategory} rate (£${rate.costValue.toFixed(2)}/${rate.unitOfMeasure})? This cannot be undone.`)) return
+    if (!confirm(`Delete "${rate.costName}" (${formatCostCategory(rate.costCategory)}) rate (£${rate.costValue.toFixed(2)}/${rate.unitOfMeasure})? This cannot be undone.`)) return
 
     try {
       const response = await fetchWithCSRF(`/api/settings/rates?id=${rate.id}`, {
@@ -472,7 +473,7 @@ export default function WarehousesPanel() {
                   <table className="min-w-full text-sm">
                     <thead className="bg-slate-50 text-xs uppercase text-slate-500">
                       <tr>
-                        <th className="px-4 py-3 text-left font-semibold">Category</th>
+                        <th className="px-4 py-3 text-left font-semibold">Rate</th>
                         <th className="px-4 py-3 text-right font-semibold">Rate</th>
                         <th className="px-4 py-3 text-left font-semibold">Unit</th>
                         <th className="px-4 py-3 text-left font-semibold">Effective</th>
@@ -491,9 +492,12 @@ export default function WarehousesPanel() {
                         return (
                           <tr key={rate.id} className="hover:bg-slate-50">
                             <td className="px-4 py-3">
-                              <span className={`inline-block px-2 py-1 text-xs font-medium rounded ${getCategoryColor(rate.costCategory)}`}>
-                                {formatCostCategory(rate.costCategory)}
-                              </span>
+                              <div className="flex flex-col gap-1">
+                                <span className="font-medium text-slate-900">{rate.costName}</span>
+                                <span className={`inline-flex w-fit px-2 py-0.5 text-[11px] font-medium rounded ${getCategoryColor(rate.costCategory)}`}>
+                                  {formatCostCategory(rate.costCategory)}
+                                </span>
+                              </div>
                             </td>
                             <td className="px-4 py-3 text-right font-semibold text-slate-900">
                               <div className="flex items-center justify-end gap-2">

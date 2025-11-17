@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { CostCategory, Prisma } from '@ecom-os/prisma-wms'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,6 +32,7 @@ const normalizeCostCategory = (value: string): CostCategory => {
 
 type IncomingCostRate = {
  costCategory: string
+ costName?: string
  defaultRate?: number
  unitOfMeasure?: string
  isActive?: boolean
@@ -68,14 +70,15 @@ export async function GET(
  category = category.toLowerCase()
  }
  
- return {
+  return {
  id: rate.id,
  costCategory: category,
+ costName: rate.costName,
  defaultRate: Number(rate.costValue),
  costValue: Number(rate.costValue),
  unitOfMeasure: rate.unitOfMeasure,
  isActive: rate.isActive
- }
+  }
  })
 
  return NextResponse.json({
@@ -116,9 +119,14 @@ export async function PUT(
      (map, rate) => {
        const category = normalizeCostCategory(rate.costCategory)
        if (!map.has(category)) {
+         const resolvedName =
+           rate.costName && rate.costName.trim().length > 0
+             ? sanitizeForDisplay(rate.costName.trim())
+             : sanitizeForDisplay(rate.costCategory)
          map.set(category, {
            warehouseId,
            costCategory: category,
+           costName: resolvedName,
            costValue: rate.defaultRate || 0,
            unitOfMeasure: rate.unitOfMeasure || 'unit',
            effectiveDate: new Date(),
@@ -148,13 +156,15 @@ export async function PUT(
  ]
  })
 
- const transformedRates = updatedRates.map(rate => ({
+const transformedRates = updatedRates.map(rate => ({
  id: rate.id,
  costCategory: rate.costCategory.toLowerCase(),
+ costName: rate.costName,
  defaultRate: Number(rate.costValue),
+ costValue: Number(rate.costValue),
  unitOfMeasure: rate.unitOfMeasure,
  isActive: rate.isActive
- }))
+}))
 
  return NextResponse.json({
  warehouseId,

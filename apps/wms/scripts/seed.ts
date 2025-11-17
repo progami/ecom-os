@@ -320,7 +320,7 @@ async function createCostRates() {
       const existing = await prisma.costRate.findFirst({
         where: {
           warehouseId: warehouse.id,
-          costCategory: cost.category as any
+          costName: cost.name
         }
       })
       
@@ -331,6 +331,7 @@ async function createCostRates() {
           data: {
             warehouseId: warehouse.id,
             costCategory: cost.category as any,
+            costName: cost.name,
             costValue: cost.costValue,
             unitOfMeasure: cost.unitOfMeasure,
             effectiveDate: today,

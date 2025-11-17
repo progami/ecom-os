@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { UserRole } from '@ecom-os/prisma-wms'
+import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 export const dynamic = 'force-dynamic'
 
 const PLACEHOLDER_PASSWORD =
@@ -87,6 +88,7 @@ export async function GET(_request: NextRequest) {
  warehouseId: rate.warehouseId,
  warehouse: rate.warehouse,
  costCategory: rate.costCategory,
+ costName: rate.costName,
  costValue: parseFloat(rate.costValue.toString()),
  unitOfMeasure: rate.unitOfMeasure,
  effectiveDate: rate.effectiveDate.toISOString(),
@@ -112,7 +114,15 @@ export async function POST(request: NextRequest) {
  }
 
  const body = await request.json()
- const { warehouseId, costCategory, costValue, unitOfMeasure, effectiveDate, endDate } = body
+ const {
+  warehouseId,
+  costCategory,
+  costValue,
+  unitOfMeasure,
+  effectiveDate,
+  endDate,
+ costName: rawCostName
+ } = body
 
 // Validate required fields
  if (!warehouseId || !costCategory || costValue === undefined || !unitOfMeasure || !effectiveDate) {
@@ -120,22 +130,32 @@ export async function POST(request: NextRequest) {
  { error: 'Missing required fields' },
  { status: 400 }
  )
- }
+}
+
+ const costName = sanitizeForDisplay(
+  typeof rawCostName === 'string' && rawCostName.trim().length > 0
+   ? rawCostName.trim()
+   : costCategory
+ )
+ const effectiveOn = new Date(effectiveDate)
 
  // Enforce a single rate per category per warehouse
- const duplicateRate = await prisma.costRate.findFirst({
+const duplicateRate = await prisma.costRate.findFirst({
  where: {
- warehouseId,
- costCategory
+  warehouseId,
+  costName,
+  effectiveDate: effectiveOn
  }
- })
+})
 
- if (duplicateRate) {
- return NextResponse.json(
- { error: `A ${costCategory} rate already exists for this warehouse. Update the existing rate instead of creating a new one.` },
- { status: 400 }
- )
- }
+if (duplicateRate) {
+return NextResponse.json(
+ {
+  error: `A rate named "${costName}" already exists for this warehouse on ${effectiveOn.toISOString().slice(0, 10)}. Update the existing rate instead of creating a duplicate.`
+ },
+{ status: 400 }
+)
+}
 
  if (costCategory === 'Storage' && unitOfMeasure !== 'pallet/week') {
  return NextResponse.json(
@@ -149,10 +169,11 @@ export async function POST(request: NextRequest) {
  const newRate = await prisma.costRate.create({
  data: {
   warehouseId,
-  costCategory,
-  costValue,
-  unitOfMeasure,
-  effectiveDate: new Date(effectiveDate),
+ costCategory,
+ costName,
+ costValue,
+ unitOfMeasure,
+  effectiveDate: effectiveOn,
   endDate: endDate ? new Date(endDate) : null,
   createdById: wmsUser.id
  },
@@ -172,6 +193,7 @@ export async function POST(request: NextRequest) {
  warehouseId: newRate.warehouseId,
  warehouse: newRate.warehouse,
  costCategory: newRate.costCategory,
+ costName: newRate.costName,
  costValue: parseFloat(newRate.costValue.toString()),
  unitOfMeasure: newRate.unitOfMeasure,
  effectiveDate: newRate.effectiveDate.toISOString(),
