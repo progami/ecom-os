@@ -1,8 +1,58 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import type { Session } from 'next-auth'
+import bcrypt from 'bcryptjs'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { UserRole } from '@ecom-os/prisma-wms'
 export const dynamic = 'force-dynamic'
+
+const PLACEHOLDER_PASSWORD =
+ process.env.WMS_SSO_PLACEHOLDER_PASSWORD || 'sso-only-password'
+const PLACEHOLDER_PASSWORD_HASH = bcrypt.hashSync(PLACEHOLDER_PASSWORD, 10)
+
+const normalizeRole = (role?: unknown): UserRole => {
+ const allowed: UserRole[] = ['admin', 'staff']
+ if (typeof role === 'string' && allowed.includes(role as UserRole)) {
+  return role as UserRole
+ }
+ return 'staff'
+}
+
+const ensureWmsUser = async (session: Session) => {
+ const id = session.user?.id
+ const email = session.user?.email
+
+ if (!id || !email) {
+  throw new Error('Missing session user identifier')
+ }
+
+ const usernameSource = email || id
+ const fullName = session.user?.name || email
+ const role = normalizeRole((session.user as { role?: string })?.role)
+
+ const user = await prisma.user.upsert({
+  where: { id },
+  update: {
+   email,
+   fullName,
+   role,
+   isActive: true,
+  },
+  create: {
+   id,
+   email,
+   username: usernameSource,
+   passwordHash: PLACEHOLDER_PASSWORD_HASH,
+   fullName,
+   role,
+   isActive: true,
+  },
+  select: { id: true },
+ })
+
+ return user
+}
 
 export async function GET(_request: NextRequest) {
  try {
@@ -94,15 +144,17 @@ export async function POST(request: NextRequest) {
  )
  }
 
+ const wmsUser = await ensureWmsUser(session)
+
  const newRate = await prisma.costRate.create({
  data: {
- warehouseId,
- costCategory,
- costValue,
- unitOfMeasure,
- effectiveDate: new Date(effectiveDate),
- endDate: endDate ? new Date(endDate) : null,
- createdById: session.user.id
+  warehouseId,
+  costCategory,
+  costValue,
+  unitOfMeasure,
+  effectiveDate: new Date(effectiveDate),
+  endDate: endDate ? new Date(endDate) : null,
+  createdById: wmsUser.id
  },
  include: {
  warehouse: {
@@ -127,11 +179,11 @@ export async function POST(request: NextRequest) {
  }
 
  return NextResponse.json(formattedRate)
- } catch (_error) {
- // console.error('Error creating rate:', error)
+ } catch (error) {
+ console.error('Error creating rate:', error)
  return NextResponse.json(
- { error: 'Failed to create rate' },
+ { error: error instanceof Error ? error.message : 'Failed to create rate' },
  { status: 500 }
  )
- }
+}
 }
