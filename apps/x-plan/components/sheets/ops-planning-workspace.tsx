@@ -736,6 +736,7 @@ export function OpsPlanningWorkspace({
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false)
   const [newOrderCode, setNewOrderCode] = useState('')
   const [isAddingPayment, setIsAddingPayment] = useState(false)
+  const [isRemovingPayment, setIsRemovingPayment] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const inputRowsRef = useRef(inputRows)
@@ -1235,6 +1236,35 @@ useEffect(() => {
     }
   }, [activeOrderId, applyTimelineUpdate, orderSummaries])
 
+  const handleRemovePayment = useCallback(
+    async (paymentId: string) => {
+      if (!paymentId) return
+      setIsRemovingPayment(true)
+      try {
+        const response = await fetch(withAppBasePath('/api/v1/x-plan/purchase-order-payments'), {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: [paymentId] }),
+        })
+        if (!response.ok) throw new Error('Failed to remove payment')
+
+        setPaymentRows((previous) => {
+          const next = previous.filter((row) => row.id !== paymentId)
+          paymentRowsRef.current = next
+          applyTimelineUpdate(ordersRef.current, inputRowsRef.current, next)
+          return next
+        })
+        toast.success('Payment removed')
+      } catch (error) {
+        console.error(error)
+        toast.error('Unable to remove payment')
+      } finally {
+        setIsRemovingPayment(false)
+      }
+    },
+    [applyTimelineUpdate]
+  )
+
   const visiblePayments = !activeOrderId
     ? ([] as PurchasePaymentRow[])
     : paymentRows
@@ -1473,8 +1503,9 @@ useEffect(() => {
             activeOrderId={activeOrderId}
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}
             onAddPayment={handleAddPayment}
+            onRemovePayment={handleRemovePayment}
             onRowsChange={handlePaymentRowsChange}
-            isLoading={isPending || isAddingPayment}
+            isLoading={isPending || isAddingPayment || isRemovingPayment}
             orderSummaries={orderSummaries}
             summaryLine={summaryLine ?? undefined}
           />

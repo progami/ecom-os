@@ -82,7 +82,8 @@ const PAY_PERCENT_FIELDS = ['pay1Percent', 'pay2Percent', 'pay3Percent'] as cons
 const PAY_AMOUNT_FIELDS = ['pay1Amount', 'pay2Amount', 'pay3Amount'] as const
 const PAY_DATE_FIELDS = ['pay1Date', 'pay2Date', 'pay3Date'] as const
 
-const DEFAULT_MANUFACTURING_SPLIT: [number, number, number] = [0.25, 0.25, 0.5]
+const DEFAULT_MANUFACTURING_SPLIT: [number, number, number] = [0.5, 0.3, 0.2]
+const DEFAULT_MANUFACTURING_LABELS = ['MFG Deposit (50%)', 'MFG Production (30%)', 'MFG Final (20%)'] as const
 
 function normalizeSupplierPaymentSplit(
   split: readonly number[] | undefined,
@@ -107,16 +108,6 @@ function normalizeSupplierPaymentSplit(
   }
 
   return sanitized.map((value) => (value > 0 ? value / total : 0)) as [number, number, number]
-}
-
-function formatSplitPercent(value: number): string {
-  if (!Number.isFinite(value) || value <= 0) {
-    return '0%'
-  }
-
-  const percent = value * 100
-  const rounded = Number.isInteger(percent) ? percent.toFixed(0) : percent.toFixed(1)
-  return `${rounded}%`
 }
 
 function resolveOverride(base: number, override?: number | null): number {
@@ -377,11 +368,7 @@ export function computePurchaseOrderDerived(
     DEFAULT_MANUFACTURING_SPLIT
   )
   const manufacturingAmounts = manufacturingFractions.map((fraction) => manufacturingTotal * fraction)
-  const manufacturingLabels = [
-    `MFG Deposit (${formatSplitPercent(manufacturingFractions[0])})`,
-    `MFG Production (${formatSplitPercent(manufacturingFractions[1])})`,
-    `MFG Final (${formatSplitPercent(manufacturingFractions[2])})`,
-  ]
+  const manufacturingLabels: readonly string[] = DEFAULT_MANUFACTURING_LABELS
 
   const paymentDefinitions: Array<{
     index: number

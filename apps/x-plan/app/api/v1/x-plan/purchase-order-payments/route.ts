@@ -100,6 +100,8 @@ export async function POST(request: Request) {
   const dueDate = parseDate(body.dueDate ?? null)
   const dueDateSource = String(body.dueDateSource ?? 'SYSTEM').trim().toUpperCase()
   const normalizedSource = dueDateSource === 'USER' ? 'USER' : 'SYSTEM'
+  const label = typeof body.label === 'string' && body.label.trim().length > 0 ? body.label.trim() : undefined
+  const category = typeof body.category === 'string' && body.category.trim().length > 0 ? body.category.trim() : undefined
 
   try {
     const nextIndex = Number.isNaN(paymentIndex) ? 1 : paymentIndex
@@ -113,6 +115,8 @@ export async function POST(request: Request) {
         dueDate,
         dueDateDefault: dueDate,
         dueDateSource: normalizedSource,
+        label: label ?? `Payment ${nextIndex}`,
+        category: category ?? 'OTHER',
       },
       include: { purchaseOrder: true },
     })
