@@ -1143,45 +1143,57 @@ useEffect(() => {
   }, [activeBatchId, applyTimelineUpdate, startTransition])
 
   const orderSummaries = useMemo(() => {
-    const summaries = new Map<string, PaymentSummary>()
+    type DraftSummary = PaymentSummary & { fallbackAmount: number }
+    const summaries = new Map<string, DraftSummary>()
 
     for (const row of timelineRows) {
       const derived = derivedMapRef.current.get(row.id)
-      const plannedAmount = derived?.supplierCostTotal ?? derived?.plannedPoValue ?? 0
-      const plannedPercent = plannedAmount > 0 ? 1 : 0
+      const fallbackAmount = derived?.supplierCostTotal ?? derived?.plannedPoValue ?? 0
       summaries.set(row.id, {
-        plannedAmount,
-        plannedPercent,
+        plannedAmount: 0,
+        plannedPercent: 0,
         actualAmount: 0,
         actualPercent: 0,
-        remainingAmount: plannedAmount,
-        remainingPercent: plannedPercent,
+        remainingAmount: 0,
+        remainingPercent: 0,
+        fallbackAmount,
       })
     }
 
     for (const payment of paymentRows) {
       const summary = summaries.get(payment.purchaseOrderId)
       if (!summary) continue
-      const amountPaid = parseNumericInput(payment.amountPaid)
-      if (!Number.isFinite(amountPaid) || amountPaid == null || amountPaid <= 0) {
-        continue
+      const expectedAmount = parseNumericInput(payment.amountExpected)
+      if (Number.isFinite(expectedAmount) && expectedAmount != null && expectedAmount > 0) {
+        summary.plannedAmount += expectedAmount
+        const plannedPercent = parsePercent(payment.percentage)
+        if (plannedPercent != null && plannedPercent > 0) {
+          summary.plannedPercent += plannedPercent
+        }
       }
-      summary.actualAmount += amountPaid
 
-      const percentFromPayment = Number(payment.percentage ?? 0)
-      if (Number.isFinite(percentFromPayment) && percentFromPayment > 0) {
-        summary.actualPercent += percentFromPayment
-      } else if (summary.plannedAmount > 0) {
-        summary.actualPercent += amountPaid / summary.plannedAmount
+      const amountPaid = parseNumericInput(payment.amountPaid)
+      if (Number.isFinite(amountPaid) && amountPaid != null && amountPaid > 0) {
+        summary.actualAmount += amountPaid
       }
     }
 
     for (const summary of summaries.values()) {
+      if (summary.plannedAmount <= 0 && summary.fallbackAmount > 0) {
+        summary.plannedAmount = summary.fallbackAmount
+        summary.plannedPercent = summary.plannedPercent > 0 ? summary.plannedPercent : 1
+      }
+      const denominator = summary.plannedAmount > 0 ? summary.plannedAmount : 1
+      summary.actualPercent = summary.plannedAmount > 0 ? summary.actualAmount / denominator : 0
+      if (summary.plannedPercent <= 0 && summary.plannedAmount > 0) {
+        summary.plannedPercent = 1
+      }
       summary.remainingAmount = Math.max(summary.plannedAmount - summary.actualAmount, 0)
       summary.remainingPercent = Math.max(summary.plannedPercent - summary.actualPercent, 0)
+      delete (summary as DraftSummary).fallbackAmount
     }
 
-    return summaries
+    return summaries as Map<string, PaymentSummary>
   }, [timelineRows, paymentRows])
 
   const handleAddPayment = useCallback(async () => {
