@@ -5,7 +5,7 @@
 
 import { importConfigs } from './import-config'
 import { INVENTORY_TRANSACTION_COLUMNS, INVENTORY_BALANCE_COLUMNS } from './column-ordering'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-wms'
 
 export interface FieldMappingValidationResult {
  isValid: boolean

@@ -1,6 +1,6 @@
 import { withAuthAndParams, ApiResponses, requireRole, z } from '@/lib/api'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 
 const createBatchSchema = z.object({

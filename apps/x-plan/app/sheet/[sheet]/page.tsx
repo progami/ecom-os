@@ -24,7 +24,7 @@ import {
   type ProfitAndLossWeek,
   type PurchaseOrder,
   type PurchaseOrderPayment,
-} from '@prisma/client'
+} from '@ecom-os/prisma-x-plan'
 import { getSheetConfig } from '@/lib/sheets'
 import { getWorkbookStatus } from '@/lib/workbook'
 import { WorkbookLayout } from '@/components/workbook-layout'

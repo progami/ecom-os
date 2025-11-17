@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { Prisma, TransactionType } from '@prisma/client'
+import { Prisma, TransactionType } from '@ecom-os/prisma-wms'
 import { endOfWeek, startOfWeek } from 'date-fns'
 import { randomUUID } from 'crypto'
 import { getStorageRate, calculateStorageCost, type StorageRateResult } from './storageRate.service'

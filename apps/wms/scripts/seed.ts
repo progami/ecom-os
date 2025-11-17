@@ -5,7 +5,7 @@
  * For transactions, use the demo.ts script with Playwright
  */
 
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@ecom-os/prisma-wms'
 import * as bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()

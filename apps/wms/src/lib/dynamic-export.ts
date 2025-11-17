@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-wms'
 
 export type ExportFieldValue = string | number | boolean | Date | null
 

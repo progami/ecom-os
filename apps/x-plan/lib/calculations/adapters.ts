@@ -12,7 +12,7 @@ import type {
   MonthlySummary,
   QuarterlySummary,
   PurchaseOrderStatus,
-} from '@prisma/client'
+} from '@ecom-os/prisma-x-plan'
 import { coerceNumber } from '@/lib/utils/numbers'
 import {
   BusinessParameterInput,

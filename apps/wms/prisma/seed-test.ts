@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@ecom-os/prisma-wms'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()

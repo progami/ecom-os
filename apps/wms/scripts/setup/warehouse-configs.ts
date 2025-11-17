@@ -10,7 +10,7 @@
  *   pnpm --filter @ecom-os/wms exec tsx scripts/setup/warehouse-configs.ts [--skip-clean] [--verbose]
  */
 
-import { PrismaClient, UserRole, CostCategory, Prisma } from '@prisma/client'
+import { PrismaClient, UserRole, CostCategory, Prisma } from '@ecom-os/prisma-wms'
 import * as bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()

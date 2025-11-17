@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-wms'
 import { sanitizeForAudit } from './input-sanitization'
 
 export interface AuditLogEntry {

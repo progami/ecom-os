@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { CostCategory, Prisma } from '@prisma/client'
+import { CostCategory, Prisma } from '@ecom-os/prisma-wms'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 

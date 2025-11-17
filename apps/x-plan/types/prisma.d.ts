@@ -1,4 +1,4 @@
-declare module '@prisma/client' {
+declare module '@ecom-os/prisma-x-plan' {
   namespace Prisma {
     class Decimal {
       constructor(value: number | string)

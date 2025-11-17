@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { CostCategory } from '@prisma/client';
+import { CostCategory } from '@ecom-os/prisma-wms';
 
 export interface AggregatedCost {
  warehouseCode: string;

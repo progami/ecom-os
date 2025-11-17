@@ -1,5 +1,5 @@
 import { NextAuthOptions } from 'next-auth'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@ecom-os/prisma-wms'
 import { authOptions as productionAuthOptions } from './auth'
 
 // Test user that will be used for all authenticated requests in test mode

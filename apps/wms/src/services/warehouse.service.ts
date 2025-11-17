@@ -5,7 +5,7 @@ import {
  validateAlphanumeric
 } from '@/lib/security/input-sanitization'
 import { businessLogger } from '@/lib/logger/server'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-wms'
 
 const optionalEmailSchema = z.preprocess(
  (val) => {

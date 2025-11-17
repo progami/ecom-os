@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { getWarehouseFilter } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
-import type { Prisma } from '@prisma/client'
+import type { Prisma } from '@ecom-os/prisma-wms'
 
 interface StorageLedgerEntryRow {
  warehouseCode: string

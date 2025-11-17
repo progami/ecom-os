@@ -7,7 +7,7 @@
  *   pnpm --filter @ecom-os/wms exec tsx scripts/setup/purchase-orders.ts [--skip-clean] [--verbose]
  */
 
-import { PrismaClient, PurchaseOrderType, PurchaseOrderStatus, Prisma } from '@prisma/client'
+import { PrismaClient, PurchaseOrderType, PurchaseOrderStatus, Prisma } from '@ecom-os/prisma-wms'
 
 const prisma = new PrismaClient()
 
