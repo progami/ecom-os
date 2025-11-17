@@ -100,6 +100,8 @@ export async function POST(request: Request) {
   const dueDate = parseDate(body.dueDate ?? null)
   const dueDateSource = String(body.dueDateSource ?? 'SYSTEM').trim().toUpperCase()
   const normalizedSource = dueDateSource === 'USER' ? 'USER' : 'SYSTEM'
+  const label = typeof body.label === 'string' && body.label.trim().length > 0 ? body.label.trim() : undefined
+  const category = typeof body.category === 'string' && body.category.trim().length > 0 ? body.category.trim() : undefined
 
   try {
     const nextIndex = Number.isNaN(paymentIndex) ? 1 : paymentIndex
@@ -113,6 +115,8 @@ export async function POST(request: Request) {
         dueDate,
         dueDateDefault: dueDate,
         dueDateSource: normalizedSource,
+        label: label ?? `Payment ${nextIndex}`,
+        category: category ?? 'OTHER',
       },
       include: { purchaseOrder: true },
     })
@@ -141,5 +145,24 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('[purchase-order-payments][POST]', error)
     return NextResponse.json({ error: 'Unable to create payment' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: Request) {
+  const body = await request.json().catch(() => null)
+  if (!body || !Array.isArray(body.ids)) {
+    return NextResponse.json({ error: 'ids array is required' }, { status: 400 })
+  }
+
+  const ids = body.ids as string[]
+
+  try {
+    await prisma.purchaseOrderPayment.deleteMany({
+      where: { id: { in: ids } },
+    })
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    console.error('[purchase-order-payments][DELETE]', error)
+    return NextResponse.json({ error: 'Unable to delete payments' }, { status: 500 })
   }
 }

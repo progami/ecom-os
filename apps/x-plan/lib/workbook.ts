@@ -103,7 +103,7 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
       },
       '4-fin-planning-pl': {
         slug: '4-fin-planning-pl',
-        label: 'Fin P&L',
+        label: 'P&L',
         description: '',
         recordCount: profitAgg._count.id,
         lastUpdated: formatIso(profitUpdatedAt ?? profitAgg._max.updatedAt),

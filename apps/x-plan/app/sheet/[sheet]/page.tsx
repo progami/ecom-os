@@ -635,8 +635,8 @@ async function ensureDefaultSupplierInvoices({
     const updates: Promise<PurchaseOrderPayment | null>[] = []
 
     for (const planned of derived.plannedPayments) {
-      const amountValue = Number.isFinite(planned.plannedAmount) ? Number(planned.plannedAmount) : 0
-      if (amountValue <= 0) continue
+      const amountNumber = Number(planned.plannedAmount)
+      const amountValue = Number.isFinite(amountNumber) ? amountNumber : 0
       const percentValue =
         planned.plannedPercent != null && Number.isFinite(planned.plannedPercent)
           ? Number(planned.plannedPercent)
@@ -646,7 +646,7 @@ async function ensureDefaultSupplierInvoices({
       const dueDate = dueDateDefault
 
       const percentageDecimal = percentValue != null ? new Prisma.Decimal(percentValue.toFixed(4)) : null
-      const amountExpectedDecimal = new Prisma.Decimal(amountValue.toFixed(2))
+      const amountExpectedDecimal = new Prisma.Decimal(Math.max(amountValue, 0).toFixed(2))
 
       const existing = existingByIndex.get(planned.paymentIndex)
 
