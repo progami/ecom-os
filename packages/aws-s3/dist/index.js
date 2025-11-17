@@ -59,6 +59,9 @@ export class S3Service {
                 const month = String(date.getMonth() + 1).padStart(2, '0');
                 return `generated-invoices/${year}/${month}/${context.invoiceId}/invoice_${context.invoiceNumber}_${timestamp}.pdf`;
             }
+            case 'warehouse-rate-list': {
+                return `warehouses/${context.warehouseId}/rate-lists/${timestamp}_${hash}_${sanitizedFilename}`;
+            }
             default:
                 throw new Error('Unknown file context type');
         }

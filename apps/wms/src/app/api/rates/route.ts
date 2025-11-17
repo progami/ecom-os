@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-wms'
+import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 import { z } from 'zod'
 export const dynamic = 'force-dynamic'
 
@@ -15,13 +16,15 @@ const createRateSchema = z.object({
  costValue: z.number().positive(),
  unitOfMeasure: z.string().min(1),
  effectiveDate: z.string().datetime(),
- endDate: z.string().datetime().optional()
+ endDate: z.string().datetime().optional(),
+ costName: z.string().min(1).max(100).optional()
 })
 
 const updateRateSchema = z.object({
  costValue: z.number().positive().optional(),
  unitOfMeasure: z.string().min(1).optional(),
- endDate: z.string().datetime().optional().nullable()
+ endDate: z.string().datetime().optional().nullable(),
+ costName: z.string().min(1).max(100).optional()
 })
 
 // GET /api/rates - List cost rates
@@ -102,31 +105,41 @@ export async function POST(req: NextRequest) {
 
  const body = await req.json()
  const validatedData = createRateSchema.parse(body)
+ const rawCostName =
+  typeof validatedData.costName === 'string' ? validatedData.costName.trim() : ''
+ const sanitizedCostName = sanitizeForDisplay(
+  rawCostName.length > 0 ? rawCostName : validatedData.costCategory
+ )
+ const effectiveDate = new Date(validatedData.effectiveDate)
 
- // Enforce one rate per category per warehouse
+ // Enforce a single rate per name/effective date combination
  const duplicateRate = await prisma.costRate.findFirst({
  where: {
- warehouseId: validatedData.warehouseId,
- costCategory: validatedData.costCategory
+  warehouseId: validatedData.warehouseId,
+  costName: sanitizedCostName,
+  effectiveDate
  }
  })
 
  if (duplicateRate) {
  return NextResponse.json(
- { error: `A ${validatedData.costCategory} rate already exists for this warehouse.` },
+  {
+   error: `A rate named "${sanitizedCostName}" already exists for this warehouse on ${effectiveDate.toISOString().slice(0, 10)}.`
+  },
  { status: 400 }
  )
  }
 
  const rate = await prisma.costRate.create({
  data: {
- warehouseId: validatedData.warehouseId,
- costCategory: validatedData.costCategory,
- costValue: validatedData.costValue,
- unitOfMeasure: validatedData.unitOfMeasure,
- effectiveDate: new Date(validatedData.effectiveDate),
- endDate: validatedData.endDate ? new Date(validatedData.endDate) : null,
- createdById: session.user.id
+  warehouseId: validatedData.warehouseId,
+  costCategory: validatedData.costCategory,
+  costName: sanitizedCostName,
+  costValue: validatedData.costValue,
+  unitOfMeasure: validatedData.unitOfMeasure,
+  effectiveDate,
+  endDate: validatedData.endDate ? new Date(validatedData.endDate) : null,
+  createdById: session.user.id
  },
  include: {
  warehouse: true,
@@ -189,15 +202,58 @@ export async function PATCH(req: NextRequest) {
  )
  }
 
+ const sanitizedCostNameInput =
+  typeof validatedData.costName === 'string'
+   ? sanitizeForDisplay(validatedData.costName.trim())
+   : undefined
+ const sanitizedCostName =
+  sanitizedCostNameInput && sanitizedCostNameInput.length > 0
+   ? sanitizedCostNameInput
+   : undefined
+
+ if (sanitizedCostName && sanitizedCostName !== rate.costName) {
+ const duplicateRate = await prisma.costRate.findFirst({
+ where: {
+  warehouseId: rate.warehouseId,
+  costName: sanitizedCostName,
+  effectiveDate: rate.effectiveDate,
+  id: { not: rateId }
+ }
+ })
+
+ if (duplicateRate) {
+  return NextResponse.json(
+   { error: `Another rate named "${sanitizedCostName}" already exists for this warehouse on ${rate.effectiveDate.toISOString().slice(0, 10)}.` },
+   { status: 400 }
+  )
+ }
+ }
+
+ const updateData: Prisma.CostRateUpdateInput = {
+ updatedAt: new Date()
+ }
+
+ if (validatedData.costValue !== undefined) {
+ updateData.costValue = validatedData.costValue
+ }
+
+ if (validatedData.unitOfMeasure !== undefined) {
+ updateData.unitOfMeasure = validatedData.unitOfMeasure
+ }
+
+ if (validatedData.endDate !== undefined) {
+ updateData.endDate = validatedData.endDate
+  ? new Date(validatedData.endDate)
+  : null
+ }
+
+ if (sanitizedCostName) {
+ updateData.costName = sanitizedCostName
+ }
+
  const updatedRate = await prisma.costRate.update({
  where: { id: rateId },
- data: {
- ...validatedData,
- endDate: validatedData.endDate !== undefined 
- ? validatedData.endDate ? new Date(validatedData.endDate) : null
- : undefined,
- updatedAt: new Date()
- },
+ data: updateData,
  include: {
  warehouse: true,
  createdBy: {

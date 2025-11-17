@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@ecom-os/prisma-x-plan'
 
 type GlobalWithPrisma = typeof globalThis & {
   __crossPlanPrisma?: PrismaClient

@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@ecom-os/prisma-wms'
 
 const globalForPrisma = global as unknown as {
  prisma: PrismaClient | undefined

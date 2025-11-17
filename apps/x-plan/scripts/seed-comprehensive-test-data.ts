@@ -12,8 +12,8 @@
  * Expected outcomes are documented for validation
  */
 
-import { Prisma } from '@prisma/client'
-import type { LogisticsEventType } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-x-plan'
+import type { LogisticsEventType } from '@ecom-os/prisma-x-plan'
 import prisma from '@/lib/prisma'
 
 const LogisticsEventType = {

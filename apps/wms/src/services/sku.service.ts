@@ -1,5 +1,5 @@
 import { BaseService, ServiceContext } from './base.service'
-import { Sku, Prisma } from '@prisma/client'
+import { Sku, Prisma } from '@ecom-os/prisma-wms'
 import { businessLogger } from '@/lib/logger/server'
 import { ValidationError, NotFoundError, ConflictError } from '@/lib/api/responses'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'

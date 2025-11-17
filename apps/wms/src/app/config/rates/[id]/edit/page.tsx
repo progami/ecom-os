@@ -18,6 +18,7 @@ interface CostRate {
  code: string
  }
  costCategory: string
+ costName: string
  costValue: number
  unitOfMeasure: string
  effectiveDate: string
@@ -44,6 +45,7 @@ export default function EditRatePage() {
  const [checkingOverlap, setCheckingOverlap] = useState(false)
  
  const [formData, setFormData] = useState({
+ costName: '',
  costValue: '',
  unitOfMeasure: '',
  endDate: ''
@@ -67,6 +69,7 @@ export default function EditRatePage() {
  const data = await response.json()
  setRate(data)
  setFormData({
+ costName: data.costName || '',
  costValue: data.costValue.toString(),
  unitOfMeasure: data.unitOfMeasure,
  endDate: data.endDate ? data.endDate.split('T')[0] : ''
@@ -84,7 +87,7 @@ export default function EditRatePage() {
  }
 
  const checkForOverlap = async () => {
- if (!rate) return true
+  if (!rate || !formData.costName) return true
 
  setCheckingOverlap(true)
  try {
@@ -94,7 +97,8 @@ export default function EditRatePage() {
  body: JSON.stringify({
  rateId: rate.id,
  warehouseId: rate.warehouseId,
- costCategory: rate.costCategory
+ costName: formData.costName,
+ effectiveDate: rate.effectiveDate
  })
  })
 
@@ -117,7 +121,7 @@ export default function EditRatePage() {
  const handleSubmit = async (e: React.FormEvent) => {
  e.preventDefault()
  
- if (!formData.costValue || !formData.unitOfMeasure) {
+ if (!formData.costValue || !formData.unitOfMeasure || !formData.costName) {
  toast.error('Please fill in all required fields')
  return
  }
@@ -134,6 +138,7 @@ export default function EditRatePage() {
  method: 'PUT',
  headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
+      costName: formData.costName,
       costValue: parseFloat(formData.costValue),
       unitOfMeasure: formData.unitOfMeasure,
       endDate: formData.endDate || null
@@ -173,7 +178,7 @@ export default function EditRatePage() {
  <div className="space-y-6">
  <PageHeader
  title="Edit Cost Rate"
- subtitle={`${rate.warehouse.name} - ${rate.costCategory}`}
+ subtitle={`${rate.warehouse.name} - ${rate.costName}`}
  icon={DollarSign}
  iconColor="text-green-600"
  bgColor="bg-green-50"
@@ -191,6 +196,10 @@ export default function EditRatePage() {
  <p className="font-medium">{rate.warehouse.name} ({rate.warehouse.code})</p>
  </div>
  <div>
+ <span className="text-slate-600">Rate Name:</span>
+ <p className="font-medium">{rate.costName}</p>
+ </div>
+ <div>
  <span className="text-slate-600">Category:</span>
  <p className="font-medium">{rate.costCategory}</p>
  </div>
@@ -205,6 +214,20 @@ export default function EditRatePage() {
  </div>
 
  <div className="grid gap-6 md:grid-cols-2">
+ {/* Rate Name */}
+ <div>
+ <label className="block text-sm font-medium text-slate-700 mb-2">
+ Rate Name <span className="text-red-500">*</span>
+ </label>
+ <input
+ value={formData.costName}
+ onChange={(e) => setFormData({ ...formData, costName: e.target.value })}
+ className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+ required
+ />
+ <p className="text-xs text-slate-500 mt-1">Update the display label for this rate.</p>
+ </div>
+
  {/* Unit of Measure */}
  <div>
  <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -232,20 +255,26 @@ export default function EditRatePage() {
  </div>
 
  {/* Cost Value */}
- <div>
- <label className="block text-sm font-medium text-slate-700 mb-2">
- Rate (£) <span className="text-red-500">*</span>
- </label>
- <input
- type="number"
- step="0.01"
- min="0"
- value={formData.costValue}
- onChange={(e) => setFormData({ ...formData, costValue: e.target.value })}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
- required
- />
- </div>
+      <div>
+        <label className="block text-sm font-medium text-slate-700 mb-2">
+          Rate (£ / $) <span className="text-red-500">*</span>
+        </label>
+        <div className="relative">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500">
+            £ / $
+          </span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={formData.costValue}
+            onChange={(e) => setFormData({ ...formData, costValue: e.target.value })}
+            className="w-full pl-16 pr-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+            required
+          />
+        </div>
+        <p className="text-xs text-slate-500 mt-1">Enter the value in GBP or USD as needed.</p>
+      </div>
 
  {/* End Date */}
  <div>

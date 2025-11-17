@@ -1,3 +1,5 @@
+import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
+
 export type FieldType = 'string' | 'number' | 'date' | 'boolean' | 'decimal'
 export type FieldValue = string | number | Date | boolean | null
 
@@ -264,13 +266,24 @@ export const importConfigs: Record<string, ImportEntityConfig> = {
  entityName: 'costRate',
  tableName: 'cost_rates',
  displayName: 'Cost Rates',
-  uniqueFields: ['warehouseId', 'costCategory'],
+  uniqueFields: ['warehouseId', 'costName', 'effectiveDate'],
  fieldMappings: [
  {
  dbField: 'warehouse',
  excelColumns: ['warehouse', 'Warehouse', 'Warehouse Name'],
  type: 'string',
  required: true,
+ },
+ {
+ dbField: 'costName',
+ excelColumns: ['cost_name', 'Cost Name', 'Rate Name', 'Name'],
+ type: 'string',
+ required: true,
+ transform: (value: unknown) => {
+ if (typeof value !== 'string') return null
+ const trimmed = value.trim()
+ return trimmed.length > 0 ? sanitizeForDisplay(trimmed) : null
+ },
  },
  {
  dbField: 'costCategory',

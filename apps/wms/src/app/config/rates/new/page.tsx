@@ -60,6 +60,7 @@ function NewRatePageContent() {
  
  const [formData, setFormData] = useState({
    warehouseId: '',
+   costName: '',
    costCategory: '',
    costValue: '',
    unitOfMeasure: '',
@@ -100,7 +101,7 @@ function NewRatePageContent() {
  }
 
  const checkForOverlap = async () => {
-  if (!formData.warehouseId || !formData.costCategory || !formData.effectiveDate) {
+  if (!formData.warehouseId || !formData.costCategory || !formData.costName || !formData.effectiveDate) {
     return true // Allow submission to show validation errors
   }
 
@@ -110,7 +111,8 @@ function NewRatePageContent() {
  method: 'POST',
   body: JSON.stringify({
     warehouseId: formData.warehouseId,
-    costCategory: formData.costCategory
+    costName: formData.costName,
+    effectiveDate: formData.effectiveDate
   })
 })
 
@@ -134,7 +136,7 @@ function NewRatePageContent() {
  e.preventDefault()
  
  // Validate required fields
- if (!formData.warehouseId || !formData.costCategory || 
+ if (!formData.warehouseId || !formData.costCategory || !formData.costName ||
  !formData.costValue || !formData.unitOfMeasure || !formData.effectiveDate) {
  toast.error('Please fill in all required fields')
  return
@@ -152,6 +154,7 @@ function NewRatePageContent() {
  method: 'POST',
  body: JSON.stringify({
  ...formData,
+ costName: formData.costName,
  costValue: parseFloat(formData.costValue),
  effectiveDate: new Date(formData.effectiveDate),
  endDate: formData.endDate ? new Date(formData.endDate) : null
@@ -177,10 +180,17 @@ function NewRatePageContent() {
  }
 
  const handleCategoryChange = (category: string) => {
-  setFormData({
-    ...formData,
-    costCategory: category,
-    unitOfMeasure: ''
+  setFormData(current => {
+    const selectedCategory = costCategories.find(cat => cat.value === category)
+    return {
+      ...current,
+      costCategory: category,
+      unitOfMeasure: '',
+      costName:
+        current.costName && current.costName.length > 0
+          ? current.costName
+          : selectedCategory?.label ?? category,
+    }
   })
 }
 
@@ -219,6 +229,23 @@ function NewRatePageContent() {
  </select>
  </div>
 
+ {/* Rate Name */}
+ <div>
+ <label className="block text-sm font-medium text-slate-700 mb-2">
+ Rate Name <span className="text-red-500">*</span>
+ </label>
+ <input
+ value={formData.costName}
+ onChange={(e) => setFormData({ ...formData, costName: e.target.value })}
+ className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+ placeholder="e.g., Storage - Standard pallets"
+ required
+ />
+ <p className="text-xs text-slate-500 mt-1">
+ This label appears anywhere the rate is referenced.
+ </p>
+ </div>
+
  {/* Category */}
  <div>
  <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -232,11 +259,16 @@ function NewRatePageContent() {
  >
  <option value="">Select category</option>
  {costCategories.map(cat => (
- <option key={cat.value} value={cat.value}>
- {cat.label} - {cat.description}
+ <option key={cat.value} value={cat.value} title={cat.description}>
+ {cat.label}
  </option>
  ))}
  </select>
+ {formData.costCategory && (
+ <p className="text-xs text-slate-500 mt-1">
+ {costCategories.find(cat => cat.value === formData.costCategory)?.description}
+ </p>
+ )}
  <p className="text-xs text-slate-500 mt-1">
  Each cost category can only have one active rate per warehouse.
  </p>
@@ -263,21 +295,27 @@ function NewRatePageContent() {
  </div>
 
  {/* Cost Value */}
- <div>
- <label className="block text-sm font-medium text-slate-700 mb-2">
- Rate (£) <span className="text-red-500">*</span>
- </label>
- <input
- type="number"
- step="0.01"
- min="0"
- value={formData.costValue}
- onChange={(e) => setFormData({ ...formData, costValue: e.target.value })}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
- placeholder="0.00"
- required
- />
- </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-2">
+            Rate (£ / $) <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-500">
+              £ / $
+            </span>
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              value={formData.costValue}
+              onChange={(e) => setFormData({ ...formData, costValue: e.target.value })}
+              className="w-full pl-16 pr-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              placeholder="0.00"
+              required
+            />
+          </div>
+          <p className="text-xs text-slate-500 mt-1">Enter the value in GBP or USD as needed.</p>
+        </div>
 
  {/* Effective Date */}
  <div>

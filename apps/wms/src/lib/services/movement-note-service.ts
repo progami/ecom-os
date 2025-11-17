@@ -6,7 +6,7 @@ import {
  PurchaseOrderStatus,
  PurchaseOrderType,
  TransactionType,
-} from '@prisma/client'
+} from '@ecom-os/prisma-wms'
 import { ValidationError, ConflictError, NotFoundError } from '@/lib/api'
 import { resolveBatchLot, toPublicOrderNumber } from '@/lib/services/purchase-order-service'
 

@@ -9,7 +9,7 @@ import {
  PurchaseOrderStatus,
  PurchaseOrderType,
  TransactionType,
-} from '@prisma/client'
+} from '@ecom-os/prisma-wms'
 
 export interface UserContext {
  id?: string | null

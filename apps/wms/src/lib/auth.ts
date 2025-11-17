@@ -2,7 +2,7 @@ import { NextAuthOptions } from 'next-auth'
 import type { Session } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import { applyDevAuthDefaults, withSharedAuth, getAppEntitlement } from '@ecom-os/auth'
-import { UserRole } from '@prisma/client'
+import { UserRole } from '@ecom-os/prisma-wms'
 
 if (!process.env.NEXT_PUBLIC_APP_URL) {
  throw new Error('NEXT_PUBLIC_APP_URL must be defined for WMS auth configuration.')

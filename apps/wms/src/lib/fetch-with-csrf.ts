@@ -12,7 +12,10 @@ export async function fetchWithCSRF(url: string, options: RequestInit = {}): Pro
  const csrfToken = getCookie('csrf-token');
  
  const headers = new Headers(options.headers);
- headers.set('Content-Type', 'application/json');
+ const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+ if (!isFormData && !headers.has('Content-Type')) {
+   headers.set('Content-Type', 'application/json');
+ }
  
  if (csrfToken) {
  headers.set('x-csrf-token', csrfToken);

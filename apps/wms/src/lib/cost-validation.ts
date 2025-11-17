@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { CostCategory } from '@prisma/client'
+import { CostCategory } from '@ecom-os/prisma-wms'
 
 /**
  * Validates that cost entries match defined cost rates for a warehouse

@@ -1,7 +1,7 @@
 'use client'
 
 // React imports
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 // Third-party libraries
 import { toast } from 'react-hot-toast'
@@ -127,6 +127,13 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
  const [uploading, setUploading] = useState<Record<string, boolean>>({})
  const [_loadingExisting, setLoadingExisting] = useState(false)
  const { uploadToS3: _uploadToS3, progress } = useS3Upload()
+  const attachmentCategories = useMemo(
+    () =>
+      transactionId
+        ? ATTACHMENT_CATEGORIES
+        : ATTACHMENT_CATEGORIES.filter(category => category.id !== 'movement_note'),
+    [transactionId]
+  )
 
  // Load existing attachments when we have a transactionId
  useEffect(() => {
@@ -300,7 +307,7 @@ export function AttachmentsTab({ transactionId, onAttachmentsChange }: Attachmen
 
  <div className="p-6">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
- {ATTACHMENT_CATEGORIES.map(category => {
+ {attachmentCategories.map(category => {
  const attachment = attachments[category.id]
  const isUploading = uploading[category.id]
  

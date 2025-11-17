@@ -1,6 +1,6 @@
 import { withAuth, ApiResponses } from '@/lib/api'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-wms'
 import { aggregateInventoryTransactions } from '@ecom-os/ledger'
 
 export const dynamic = 'force-dynamic'

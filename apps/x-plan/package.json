@@ -21,6 +21,7 @@
     "fix:weekly-costs": "tsx scripts/fix-weekly-fixed-costs.ts"
   },
   "dependencies": {
+    "@ecom-os/prisma-x-plan": "workspace:*",
     "@ecom-os/auth": "workspace:*",
     "@ecom-os/config": "workspace:*",
     "@ecom-os/logger": "workspace:*",

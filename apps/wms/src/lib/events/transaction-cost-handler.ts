@@ -1,6 +1,6 @@
 // Transaction cost handler - automatically creates cost ledger entries when transactions include costs
 import { prisma } from '@/lib/prisma'
-import { TransactionType } from '@prisma/client'
+import { TransactionType } from '@ecom-os/prisma-wms'
 import { getValidCostCategories } from '@/lib/cost-validation'
 
 interface TransactionWithCosts {

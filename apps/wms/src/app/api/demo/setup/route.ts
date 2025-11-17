@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-wms'
 import bcrypt from 'bcryptjs'
 import { createDemoTransactions } from '@/lib/demo-transactions'
 
@@ -282,6 +282,7 @@ async function generateBasicDemoData(tx: Prisma.TransactionClient, adminUserId: 
       data: {
         warehouseId: warehouses[0].id,
         costCategory: 'Storage',
+        costName: 'Demo Storage Rate',
         costValue: 25.00,
         unitOfMeasure: 'pallet/week',
         effectiveDate: new Date('2024-01-01'),
@@ -292,6 +293,7 @@ async function generateBasicDemoData(tx: Prisma.TransactionClient, adminUserId: 
       data: {
         warehouseId: warehouses[0].id,
         costCategory: 'Carton',
+        costName: 'Demo Carton Handling',
         costValue: 1.50,
         unitOfMeasure: 'carton',
         effectiveDate: new Date('2024-01-01'),
@@ -302,6 +304,7 @@ async function generateBasicDemoData(tx: Prisma.TransactionClient, adminUserId: 
       data: {
         warehouseId: warehouses[1].id,
         costCategory: 'Storage',
+        costName: 'Secondary Storage Rate',
         costValue: 20.00,
         unitOfMeasure: 'pallet/week',
         effectiveDate: new Date('2024-01-01'),

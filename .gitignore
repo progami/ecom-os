@@ -12,6 +12,8 @@ out/
 # Turbo
 .turbo/
 packages/**/prisma/generated/
+packages/prisma-wms/generated/
+packages/prisma-x-plan/generated/
 
 # TypeScript
 *.tsbuildinfo

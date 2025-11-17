@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
 
-  serverExternalPackages: ['@prisma/client', 'handsontable'],
+  serverExternalPackages: ['@ecom-os/prisma-x-plan', 'handsontable'],
 };
 
 export default nextConfig;

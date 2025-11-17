@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-wms'
 import { startOfDay, endOfDay, subDays } from 'date-fns'
 
 export async function GET(request: NextRequest) {

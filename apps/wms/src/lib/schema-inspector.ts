@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client'
+import { Prisma } from '@ecom-os/prisma-wms'
 
 // Utility to inspect and document all fields in a Prisma model
 export function inspectModel(modelName: string): void {
