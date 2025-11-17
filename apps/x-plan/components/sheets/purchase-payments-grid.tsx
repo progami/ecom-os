@@ -282,6 +282,38 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
         className="x-plan-hot"
         dropdownMenu
         filters
+        contextMenu={{
+          items: {
+            delete_payment: {
+              name: 'Delete payment',
+              callback: async function(_, selection) {
+                const hot = hotRef.current
+                if (!hot || !selection || selection.length === 0) return
+
+                const rowIndex = selection[0].start.row
+                const record = hot.getSourceDataAtRow(rowIndex) as PurchasePaymentRow | null
+                if (!record || !record.id) return
+
+                try {
+                  const response = await fetch(withAppBasePath('/api/v1/x-plan/purchase-order-payments'), {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ids: [record.id] }),
+                  })
+                  if (!response.ok) throw new Error('Failed to delete payment')
+
+                  toast.success('Payment deleted')
+                  onSynced?.()
+                } catch (error) {
+                  console.error(error)
+                  toast.error('Unable to delete payment')
+                }
+              },
+            },
+            sep1: '---------',
+            ...Handsontable.plugins.ContextMenu.DEFAULT_ITEMS,
+          },
+        }}
         cells={(row) => {
           const meta = {} as Handsontable.CellMeta
           const record = data[row]
