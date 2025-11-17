@@ -42,6 +42,7 @@ export interface S3DownloadOptions {
 
 export type FileContext =
   | { type: 'transaction'; transactionId: string; documentType: string }
+  | { type: 'warehouse-rate-list'; warehouseId: string }
   | { type: 'export-temp'; userId: string; exportType: string }
   | { type: 'export-scheduled'; frequency: 'daily' | 'weekly' | 'monthly'; date: Date; reportType: string }
   | { type: 'template'; templateType: string }
@@ -110,6 +111,9 @@ export class S3Service {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         return `generated-invoices/${year}/${month}/${context.invoiceId}/invoice_${context.invoiceNumber}_${timestamp}.pdf`;
+      }
+      case 'warehouse-rate-list': {
+        return `warehouses/${context.warehouseId}/rate-lists/${timestamp}_${hash}_${sanitizedFilename}`;
       }
       default:
         throw new Error('Unknown file context type');

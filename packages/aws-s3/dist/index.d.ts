@@ -26,6 +26,9 @@ export type FileContext = {
     transactionId: string;
     documentType: string;
 } | {
+    type: 'warehouse-rate-list';
+    warehouseId: string;
+} | {
     type: 'export-temp';
     userId: string;
     exportType: string;
