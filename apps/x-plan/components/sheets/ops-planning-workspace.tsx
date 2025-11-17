@@ -1144,12 +1144,12 @@ useEffect(() => {
 
   const orderSummaries = useMemo(() => {
     type DraftSummary = PaymentSummary & { fallbackAmount: number }
-    const summaries = new Map<string, DraftSummary>()
+    const drafts = new Map<string, DraftSummary>()
 
     for (const row of timelineRows) {
       const derived = derivedMapRef.current.get(row.id)
       const fallbackAmount = derived?.supplierCostTotal ?? derived?.plannedPoValue ?? 0
-      summaries.set(row.id, {
+      drafts.set(row.id, {
         plannedAmount: 0,
         plannedPercent: 0,
         actualAmount: 0,
@@ -1161,7 +1161,7 @@ useEffect(() => {
     }
 
     for (const payment of paymentRows) {
-      const summary = summaries.get(payment.purchaseOrderId)
+      const summary = drafts.get(payment.purchaseOrderId)
       if (!summary) continue
       const expectedAmount = parseNumericInput(payment.amountExpected)
       if (Number.isFinite(expectedAmount) && expectedAmount != null && expectedAmount > 0) {
@@ -1190,10 +1190,15 @@ useEffect(() => {
       }
       summary.remainingAmount = Math.max(summary.plannedAmount - summary.actualAmount, 0)
       summary.remainingPercent = Math.max(summary.plannedPercent - summary.actualPercent, 0)
-      delete (summary as DraftSummary).fallbackAmount
     }
 
-    return summaries as Map<string, PaymentSummary>
+    const finalSummaries = new Map<string, PaymentSummary>()
+    for (const [orderId, summary] of drafts.entries()) {
+      const { fallbackAmount, ...rest } = summary
+      finalSummaries.set(orderId, rest)
+    }
+
+    return finalSummaries
   }, [timelineRows, paymentRows])
 
   const handleAddPayment = useCallback(async () => {
