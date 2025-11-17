@@ -1,11 +1,539 @@
-/* X-Plan Handsontable Theme - Clean & Simple */
+/* X-Plan Handsontable Theme - Compact & Clean */
 
 .x-plan-hot {
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
+  --x-plan-header-row-height: 34px;
+  border-radius: 0.75rem;
+  border: 1px solid #cbd5e1;
   overflow: hidden;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+  position: relative;
+}
+
+.dark .x-plan-hot {
+  border: 1px solid #0b3a52;
+  background: #041324;
+  box-shadow: 0 20px 40px rgba(1, 12, 24, 0.4);
+}
+
+.x-plan-hot .ht_clone_master .wtHolder,
+.x-plan-hot .ht_clone_top .wtHolder,
+.x-plan-hot .ht_clone_left .wtHolder,
+.x-plan-hot .ht_clone_top_left_corner .wtHolder {
+  background-color: transparent;
+}
+
+.x-plan-hot .htCore {
+  background-color: transparent;
+}
+
+/* Base cell styling */
+.x-plan-hot .htCore th,
+.x-plan-hot .htCore td {
+  font-size: 12px;
+  color: #0f172a;
+  border-color: rgba(203, 213, 225, 0.5);
+  padding: 5px 8px;
+  font-weight: 500;
+  line-height: 1.4;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.dark .x-plan-hot .htCore th,
+.dark .x-plan-hot .htCore td {
+  color: #e2e8f0;
+  border-color: rgba(11, 58, 82, 0.4);
+}
+
+/* Header row - light mode with dark text */
+.x-plan-hot .htCore thead th {
+  background-color: #f1f5f9 !important;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #0e7490 !important;
+  font-size: 11px;
+  padding: 8px 8px;
+  border-bottom: 3px solid #0891b2;
+  border-right: 1px solid rgba(203, 213, 225, 0.6);
+  vertical-align: middle;
+}
+
+.dark .x-plan-hot .htCore thead th {
+  background-color: #0a1f35 !important;
+  color: #5eead4 !important;
+  border-bottom: 3px solid #00c2b9;
+  border-right: 1px solid rgba(11, 58, 82, 0.6);
+}
+
+/* Product name headers (first row of nested headers) - larger text */
+.x-plan-hot .ht_clone_top thead tr:first-child th,
+.x-plan-hot .htCore thead tr:first-child th {
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Second row of nested headers - match single header font size exactly */
+.x-plan-hot .ht_clone_top thead tr:nth-child(2) th,
+.x-plan-hot .htCore thead tr:nth-child(2) th,
+.x-plan-hot thead tr:nth-child(2) th {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.1em !important;
+  text-transform: uppercase !important;
+}
+
+/* Row header / first column */
+.x-plan-hot .htCore tbody th {
+  background-color: #f1f5f9 !important;
+  font-weight: 700;
+  color: #0e7490 !important;
+  border-right: 2px solid #cbd5e1;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  vertical-align: middle;
+}
+
+.dark .x-plan-hot .htCore tbody th {
+  background-color: #0a1f35 !important;
+  color: #5eead4 !important;
+  border-right: 2px solid #0b3a52;
+}
+
+/* Default data cells - light background */
+.x-plan-hot .htCore tbody td {
+  background-color: #ffffff !important;
+  color: #1e293b !important;
+}
+
+.dark .x-plan-hot .htCore tbody td {
+  background-color: #0c2537 !important;
+  color: #f1f5f9 !important;
+}
+
+/* Zebra striping - slightly different */
+.x-plan-hot .htCore tbody tr:nth-child(even) td:not(.cell-editable):not(.row-active):not(.row-inbound-sales):not(.row-inbound-cash):not(.row-negative-cash) {
+  background-color: #f8fafc !important;
+}
+
+.dark .x-plan-hot .htCore tbody tr:nth-child(even) td:not(.cell-editable):not(.row-active):not(.row-inbound-sales):not(.row-inbound-cash):not(.row-negative-cash) {
+  background-color: #0f2942 !important;
+}
+
+/* Editable cells - light cyan background with dark text */
+.x-plan-hot .cell-editable {
+  background: #ecfeff !important;
+  color: #164e63 !important;
+  font-weight: 600;
+  border: 1.5px solid #0891b2 !important;
+}
+
+.x-plan-hot .cell-editable:hover {
+  background: #cffafe !important;
+  color: #164e63 !important;
+  border-color: #0e7490 !important;
+}
+
+.dark .x-plan-hot .cell-editable {
+  background: #ccfbf1 !important;
+  color: #0a1f35 !important;
+  border: 1px solid #00c2b9 !important;
+}
+
+.dark .x-plan-hot .cell-editable:hover {
+  background: #99f6e4 !important;
+  color: #0a1f35 !important;
+  border-color: #00c2b9 !important;
+}
+
+/* Readonly cells */
+.x-plan-hot .cell-readonly {
+  background-color: #f1f5f9 !important;
+  color: #64748b !important;
+  font-style: italic;
+}
+
+.dark .x-plan-hot .cell-readonly {
+  background-color: #0a1f35 !important;
+  color: #cbd5e1 !important;
+}
+
+/* Common/label column - matches headers */
+.x-plan-hot .cell-common {
+  background: #f1f5f9 !important;
+  font-weight: 700;
+  color: #0e7490 !important;
+  border-right: 2px solid #cbd5e1;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.dark .x-plan-hot .cell-common {
+  background: #0a1f35 !important;
+  color: #5eead4 !important;
+  border-right: 2px solid #0b3a52;
+}
+
+/* Note cells */
+.x-plan-hot .cell-note {
+  white-space: pre-line;
+  line-height: 1.4;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  max-width: 160px;
+  font-size: 12px;
+  color: #64748b !important;
+}
+
+.dark .x-plan-hot .cell-note {
+  color: #94a3b8 !important;
+}
+
+/* Row highlighting - inbound sales */
+.x-plan-hot .row-inbound-sales {
+  background-color: #d1fae5 !important;
+  color: #065f46 !important;
+  border-left: 6px solid #10b981 !important;
+  outline: 1px solid rgba(16, 185, 129, 0.4);
+  outline-offset: -1px;
+  font-weight: 700;
+}
+
+.dark .x-plan-hot .row-inbound-sales {
+  background-color: #0f766e !important;
+  color: #f0fdf4 !important;
+  border-left: 6px solid #34d399 !important;
+  outline: 1px solid rgba(20, 184, 166, 0.35);
+}
+
+/* Row highlighting - inbound cash */
+.x-plan-hot .row-inbound-cash {
+  background-color: #fef2f2 !important;
+  color: #7f1d1d !important;
+  border-left: 6px solid #ef4444 !important;
+  outline: 1px solid rgba(239, 68, 68, 0.4);
+  outline-offset: -1px;
+  font-weight: 700;
+}
+
+.dark .x-plan-hot .row-inbound-cash {
+  background-color: #b91c1c !important;
+  color: #fef2f2 !important;
+  border-left: 6px solid #f87171 !important;
+  outline: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+/* Row highlighting - negative cash */
+.x-plan-hot .row-negative-cash {
+  background-color: #fee2e2 !important;
+  color: #7f1d1d !important;
+  border-left: 4px solid #dc2626 !important;
+}
+
+.dark .x-plan-hot .row-negative-cash {
+  background-color: #fecaca !important;
+  color: #991b1b !important;
+}
+
+/* Warning cells */
+.x-plan-hot .cell-warning {
+  background: #fee2e2 !important;
+  color: #7f1d1d !important;
+  border: 1.5px solid #ef4444 !important;
+  font-weight: 700 !important;
+}
+
+/* Dimmed text */
+.x-plan-hot .htDimmed {
+  color: #94a3b8 !important;
+  font-style: italic;
+}
+
+.dark .x-plan-hot .htDimmed {
+  color: #64748b !important;
+}
+
+/* Active row - cyan highlight */
+.x-plan-hot .row-active {
+  background-color: #ecfeff !important;
+  color: #164e63 !important;
+  border-left: 4px solid #0891b2 !important;
+  box-shadow: inset 0 0 0 1px rgba(8, 145, 178, 0.3);
+}
+
+.dark .x-plan-hot .row-active {
+  background-color: #ccfbf1 !important;
+  color: #0a1f35 !important;
+  border-left: 4px solid #00c2b9 !important;
+  box-shadow: inset 0 0 0 1px rgba(0, 194, 185, 0.3);
+}
+
+/* Selection area */
+.x-plan-hot .area {
+  background: rgba(8, 145, 178, 0.15);
+  border: 2px solid #0891b2;
+}
+
+.dark .x-plan-hot .area {
+  background: rgba(0, 194, 185, 0.2);
+  border: 2px solid #00c2b9;
+}
+
+/* Current cell border */
+.x-plan-hot .wtBorder.current {
+  border: 2px solid #0891b2;
+  box-shadow: 0 0 0 1px rgba(8, 145, 178, 0.4);
+}
+
+.dark .x-plan-hot .wtBorder.current {
+  border: 2px solid #00c2b9;
+  box-shadow: 0 0 0 1px rgba(0, 194, 185, 0.5);
+}
+
+/* Fill handle */
+.x-plan-hot .fillBorder,
+.x-plan-hot .wtBorder.corner {
+  background: #0891b2;
+  border: 1px solid #0e7490;
+}
+
+.dark .x-plan-hot .fillBorder,
+.dark .x-plan-hot .wtBorder.corner {
+  background: #00c2b9;
+  border: 1px solid #00a39e;
+}
+
+/* Cell editor input */
+.handsontableInput {
+  border-radius: 0.5rem !important;
+  border: 2px solid #0891b2 !important;
+  padding: 6px 10px !important;
+  box-shadow: 0 4px 12px rgba(8, 145, 178, 0.15) !important;
+  font-size: 13px !important;
+  color: #0f172a !important;
+  background: #ffffff !important;
+  font-weight: 500;
+}
+
+.handsontableInput:focus {
+  outline: none !important;
+  border-color: #0891b2 !important;
+  box-shadow: 0 6px 16px rgba(8, 145, 178, 0.25) !important;
+}
+
+.dark .handsontableInput {
+  border: 2px solid #00c2b9 !important;
+  box-shadow: 0 8px 16px rgba(0, 194, 185, 0.25) !important;
+  color: #f1f5f9 !important;
+  background: #0a1f35 !important;
+}
+
+.dark .handsontableInput:focus {
+  border-color: #00c2b9 !important;
+  box-shadow: 0 8px 20px rgba(0, 194, 185, 0.4) !important;
+}
+
+/* Inline calendar overlay */
+.xplan-date-overlay .flatpickr-input {
+  display: none !important;
+}
+
+.xplan-date-overlay {
+  background-color: #ffffff;
+  border-radius: 0.5rem;
+  border: 2px solid #0891b2;
+}
+
+.xplan-date-overlay .flatpickr-calendar {
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.15);
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+}
+
+.dark .xplan-date-overlay {
+  background-color: #0a1f35;
+  border: 2px solid #00c2b9;
+}
+
+.dark .xplan-date-overlay .flatpickr-calendar {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.6);
+  background: #0a1f35;
+  border: 1px solid #0b3a52;
+}
+
+/* Context menu */
+.htMenu {
+  border-radius: 0.75rem;
+  border: 1px solid #cbd5e1;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+  background-color: #ffffff;
+}
+
+.htMenu .htCore td {
+  font-size: 13px;
+  color: #0f172a;
+  padding: 6px 12px;
+}
+
+.htMenu .htCore tr:hover td {
+  background-color: rgba(8, 145, 178, 0.15);
+  color: #164e63;
+}
+
+.dark .htMenu {
+  border: 1px solid #0b3a52;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5);
+  background-color: #0a1f35;
+}
+
+.dark .htMenu .htCore td {
+  color: #e2e8f0;
+}
+
+.dark .htMenu .htCore tr:hover td {
+  background-color: rgba(0, 194, 185, 0.2);
+  color: #ccfbf1;
+}
+
+/* Header toggle button */
+.x-plan-header-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 0.5rem;
+  border: 1.5px dashed rgba(8, 145, 178, 0.4);
+  background: rgba(241, 245, 249, 0.5);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #0e7490;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+}
+
+.x-plan-header-toggle:hover {
+  background: rgba(8, 145, 178, 0.1);
+  border-color: rgba(8, 145, 178, 0.7);
+  border-style: solid;
+  outline-color: rgba(8, 145, 178, 0.2);
+  transform: translateY(-1px);
+  color: #164e63;
+}
+
+.dark .x-plan-header-toggle {
+  border: 1.5px dashed rgba(0, 194, 185, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  color: #5eead4;
+}
+
+.dark .x-plan-header-toggle:hover {
+  background: rgba(0, 194, 185, 0.15);
+  border-color: rgba(0, 194, 185, 0.7);
+  border-style: solid;
+  outline-color: rgba(0, 194, 185, 0.2);
+  color: #ccfbf1;
+}
+
+/* Number alignment */
+.x-plan-hot .htCore td.htNumeric {
+  text-align: right;
+}
+
+/* Center alignment for certain cells */
+.x-plan-hot .htCore td.htCenter {
+  text-align: center;
+}
+
+/* SKU Header Navigation */
+.x-plan-sku-header-nav {
+  display: grid;
+  grid-template-columns: 32px 1fr 32px;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.x-plan-sku-nav-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  flex-shrink: 0;
+  pointer-events: auto;
+}
+
+.x-plan-sku-nav-arrow:disabled {
+  cursor: default;
+  opacity: 0;
+}
+
+.x-plan-sku-nav-arrow:not(:disabled):hover {
+  background: rgba(59, 130, 246, 0.2);
+  color: #2563eb;
+  transform: scale(1.05);
+}
+
+.x-plan-sku-nav-arrow:not(:disabled):active {
+  transform: scale(0.95);
+}
+
+.x-plan-sku-nav-arrow-all {
+  background: rgba(8, 145, 178, 0.15);
+  color: #0e7490;
+}
+
+.x-plan-sku-nav-arrow-all:not(:disabled):hover {
+  background: rgba(8, 145, 178, 0.25);
+  color: #164e63;
+}
+
+.dark .x-plan-sku-nav-arrow {
+  background: rgba(96, 165, 250, 0.15);
+  color: #60a5fa;
+}
+
+.dark .x-plan-sku-nav-arrow:not(:disabled):hover {
+  background: rgba(96, 165, 250, 0.25);
+  color: #93c5fd;
+}
+
+.dark .x-plan-sku-nav-arrow-all {
+  background: rgba(0, 194, 185, 0.2);
+  color: #5eead4;
+}
+
+.dark .x-plan-sku-nav-arrow-all:not(:disabled):hover {
+  background: rgba(0, 194, 185, 0.3);
+  color: #ccfbf1;
+}
+
+.x-plan-sku-header-label {
+  font-weight: 600;
+  font-size: 13px;
+  color: #0f172a;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.dark .x-plan-sku-header-label {
+  color: #e2e8f0;
 }
 
 /* Hide all scrollbars in handsontable */
@@ -30,264 +558,4 @@
   display: none !important;
   width: 0 !important;
   height: 0 !important;
-}
-
-.dark .x-plan-hot {
-  border: 1px solid #1e293b;
-  background: #0f172a;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-}
-
-.x-plan-hot .ht_clone_master .wtHolder,
-.x-plan-hot .ht_clone_top .wtHolder,
-.x-plan-hot .ht_clone_left .wtHolder,
-.x-plan-hot .ht_clone_top_left_corner .wtHolder,
-.x-plan-hot .htCore {
-  background-color: transparent;
-}
-
-/* Base cell styling */
-.x-plan-hot .htCore th,
-.x-plan-hot .htCore td {
-  font-size: 13px;
-  color: #0f172a;
-  border-color: #f1f5f9;
-  padding: 8px 12px;
-  font-weight: 400;
-  line-height: 1.5;
-}
-
-.dark .x-plan-hot .htCore th,
-.dark .x-plan-hot .htCore td {
-  color: #e2e8f0;
-  border-color: #1e293b;
-}
-
-/* Header row */
-.x-plan-hot .htCore thead th {
-  background-color: #f8fafc !important;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #64748b !important;
-  font-size: 11px;
-  padding: 10px 12px;
-  border-bottom: 2px solid #e2e8f0;
-}
-
-.dark .x-plan-hot .htCore thead th {
-  background-color: #1e293b !important;
-  color: #94a3b8 !important;
-  border-bottom: 2px solid #334155;
-}
-
-/* Nested headers - product names */
-.x-plan-hot .ht_clone_top thead tr:first-child th,
-.x-plan-hot .htCore thead tr:first-child th {
-  font-size: 13px !important;
-  font-weight: 700 !important;
-}
-
-/* Row headers */
-.x-plan-hot .htCore tbody th {
-  background-color: #f8fafc !important;
-  font-weight: 600;
-  color: #64748b !important;
-  font-size: 12px;
-}
-
-.dark .x-plan-hot .htCore tbody th {
-  background-color: #1e293b !important;
-  color: #94a3b8 !important;
-}
-
-/* Data cells */
-.x-plan-hot .htCore tbody td {
-  background-color: #fff !important;
-  color: #1e293b !important;
-}
-
-.dark .x-plan-hot .htCore tbody td {
-  background-color: #0f172a !important;
-  color: #e2e8f0 !important;
-}
-
-/* Zebra striping */
-.x-plan-hot .htCore tbody tr:nth-child(even) td:not(.cell-editable):not(.row-active) {
-  background-color: #fafafa !important;
-}
-
-.dark .x-plan-hot .htCore tbody tr:nth-child(even) td:not(.cell-editable):not(.row-active) {
-  background-color: #1a1f2e !important;
-}
-
-/* Editable cells */
-.x-plan-hot .cell-editable {
-  background: #f0fdfa !important;
-  color: #0f172a !important;
-  font-weight: 500;
-  border: 1px solid #5eead4 !important;
-}
-
-.x-plan-hot .cell-editable:hover {
-  background: #ccfbf1 !important;
-}
-
-.dark .x-plan-hot .cell-editable {
-  background: #134e4a !important;
-  color: #f0fdfa !important;
-  border: 1px solid #14b8a6 !important;
-}
-
-.dark .x-plan-hot .cell-editable:hover {
-  background: #115e59 !important;
-}
-
-/* Readonly cells */
-.x-plan-hot .cell-readonly {
-  background-color: #f8fafc !important;
-  color: #94a3b8 !important;
-}
-
-.dark .x-plan-hot .cell-readonly {
-  background-color: #1e293b !important;
-  color: #64748b !important;
-}
-
-/* Active row */
-.x-plan-hot .row-active {
-  background-color: #f0f9ff !important;
-  color: #0c4a6e !important;
-  border-left: 3px solid #0ea5e9 !important;
-}
-
-.dark .x-plan-hot .row-active {
-  background-color: #0c4a6e !important;
-  color: #e0f2fe !important;
-  border-left: 3px solid #38bdf8 !important;
-}
-
-/* Selection */
-.x-plan-hot .area {
-  background: rgba(14, 165, 233, 0.1);
-  border: 2px solid #0ea5e9;
-}
-
-.dark .x-plan-hot .area {
-  background: rgba(56, 189, 248, 0.1);
-  border: 2px solid #38bdf8;
-}
-
-/* Current cell border */
-.x-plan-hot .wtBorder.current {
-  border: 2px solid #0ea5e9;
-}
-
-.dark .x-plan-hot .wtBorder.current {
-  border: 2px solid #38bdf8;
-}
-
-/* Fill handle */
-.x-plan-hot .fillBorder,
-.x-plan-hot .wtBorder.corner {
-  background: #0ea5e9;
-}
-
-.dark .x-plan-hot .fillBorder,
-.dark .x-plan-hot .wtBorder.corner {
-  background: #38bdf8;
-}
-
-/* Cell editor */
-.handsontableInput {
-  border-radius: 6px !important;
-  border: 2px solid #0ea5e9 !important;
-  padding: 8px 12px !important;
-  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.1) !important;
-  font-size: 13px !important;
-  color: #0f172a !important;
-  background: #fff !important;
-}
-
-.handsontableInput:focus {
-  outline: none !important;
-  border-color: #0ea5e9 !important;
-}
-
-.dark .handsontableInput {
-  border: 2px solid #38bdf8 !important;
-  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.1) !important;
-  color: #e2e8f0 !important;
-  background: #1e293b !important;
-}
-
-/* Date picker overlay */
-.xplan-date-overlay .flatpickr-input {
-  display: none !important;
-}
-
-.xplan-date-overlay {
-  background-color: #fff;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-}
-
-.xplan-date-overlay .flatpickr-calendar {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  background: #fff;
-  border: 1px solid #e2e8f0;
-}
-
-.dark .xplan-date-overlay {
-  background-color: #1e293b;
-  border: 1px solid #334155;
-}
-
-.dark .xplan-date-overlay .flatpickr-calendar {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  background: #1e293b;
-  border: 1px solid #334155;
-}
-
-/* Context menu */
-.htMenu {
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  background-color: #fff;
-}
-
-.htMenu .htCore td {
-  font-size: 13px;
-  color: #0f172a;
-  padding: 8px 12px;
-}
-
-.htMenu .htCore tr:hover td {
-  background-color: #f0f9ff;
-  color: #0c4a6e;
-}
-
-.dark .htMenu {
-  border: 1px solid #334155;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  background-color: #1e293b;
-}
-
-.dark .htMenu .htCore td {
-  color: #e2e8f0;
-}
-
-.dark .htMenu .htCore tr:hover td {
-  background-color: #0c4a6e;
-  color: #e0f2fe;
-}
-
-/* Number alignment */
-.x-plan-hot .htCore td.htNumeric {
-  text-align: right;
-}
-
-.x-plan-hot .htCore td.htCenter {
-  text-align: center;
 }
