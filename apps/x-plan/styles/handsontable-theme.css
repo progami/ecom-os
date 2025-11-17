@@ -273,37 +273,37 @@
 
 /* Selection area */
 .x-plan-hot .area {
-  background: rgba(8, 145, 178, 0.15);
-  border: 2px solid #0891b2;
+  background: rgba(8, 145, 178, 0.1);
+  border: 1px solid #0891b2 !important;
 }
 
 .dark .x-plan-hot .area {
-  background: rgba(0, 194, 185, 0.2);
-  border: 2px solid #00c2b9;
+  background: rgba(0, 194, 185, 0.15);
+  border: 1px solid #00c2b9 !important;
 }
 
 /* Current cell border */
 .x-plan-hot .wtBorder.current {
-  border: 2px solid #0891b2;
-  box-shadow: 0 0 0 1px rgba(8, 145, 178, 0.4);
+  border: 1px solid #0891b2 !important;
+  box-shadow: none !important;
 }
 
 .dark .x-plan-hot .wtBorder.current {
-  border: 2px solid #00c2b9;
-  box-shadow: 0 0 0 1px rgba(0, 194, 185, 0.5);
+  border: 1px solid #00c2b9 !important;
+  box-shadow: none !important;
 }
 
 /* Fill handle */
 .x-plan-hot .fillBorder,
 .x-plan-hot .wtBorder.corner {
-  background: #0891b2;
-  border: 1px solid #0e7490;
+  background: #0891b2 !important;
+  border: none !important;
 }
 
 .dark .x-plan-hot .fillBorder,
 .dark .x-plan-hot .wtBorder.corner {
-  background: #00c2b9;
-  border: 1px solid #00a39e;
+  background: #00c2b9 !important;
+  border: none !important;
 }
 
 /* Cell editor input */
