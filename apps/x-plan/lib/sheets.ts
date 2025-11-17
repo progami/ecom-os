@@ -36,7 +36,7 @@ export const SHEETS: SheetConfig[] = [
   },
   {
     slug: '4-fin-planning-pl',
-    label: 'Fin P&L',
+    label: 'P&L',
     description: '',
     icon: LineChart,
   },

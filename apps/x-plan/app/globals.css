@@ -60,3 +60,34 @@ body.dark {
   background: rgba(0, 194, 185, 0.3);
   color: rgb(204, 251, 241);
 }
+
+/* Typography - Consistent across the app */
+h1, .text-h1 {
+  @apply text-2xl font-semibold text-slate-900 dark:text-white;
+}
+
+h2, .text-h2 {
+  @apply text-xl font-semibold text-slate-900 dark:text-white;
+}
+
+h3, .text-h3 {
+  @apply text-lg font-semibold text-slate-900 dark:text-white;
+}
+
+h4, .text-h4 {
+  @apply text-base font-semibold text-slate-900 dark:text-white;
+}
+
+/* Section headers - small caps style */
+.text-section-header {
+  @apply text-xs font-bold uppercase tracking-[0.1em] text-slate-600 dark:text-slate-400;
+}
+
+/* Body text */
+.text-body {
+  @apply text-sm text-slate-700 dark:text-slate-300;
+}
+
+.text-body-sm {
+  @apply text-xs text-slate-600 dark:text-slate-400;
+}

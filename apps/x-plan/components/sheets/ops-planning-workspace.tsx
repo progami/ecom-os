@@ -736,6 +736,7 @@ export function OpsPlanningWorkspace({
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false)
   const [newOrderCode, setNewOrderCode] = useState('')
   const [isAddingPayment, setIsAddingPayment] = useState(false)
+  const [isRemovingPayment, setIsRemovingPayment] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const inputRowsRef = useRef(inputRows)
@@ -1142,45 +1143,62 @@ useEffect(() => {
   }, [activeBatchId, applyTimelineUpdate, startTransition])
 
   const orderSummaries = useMemo(() => {
-    const summaries = new Map<string, PaymentSummary>()
+    type DraftSummary = PaymentSummary & { fallbackAmount: number }
+    const drafts = new Map<string, DraftSummary>()
 
     for (const row of timelineRows) {
       const derived = derivedMapRef.current.get(row.id)
-      const plannedAmount = derived?.supplierCostTotal ?? derived?.plannedPoValue ?? 0
-      const plannedPercent = plannedAmount > 0 ? 1 : 0
-      summaries.set(row.id, {
-        plannedAmount,
-        plannedPercent,
+      const fallbackAmount = derived?.supplierCostTotal ?? derived?.plannedPoValue ?? 0
+      drafts.set(row.id, {
+        plannedAmount: 0,
+        plannedPercent: 0,
         actualAmount: 0,
         actualPercent: 0,
-        remainingAmount: plannedAmount,
-        remainingPercent: plannedPercent,
+        remainingAmount: 0,
+        remainingPercent: 0,
+        fallbackAmount,
       })
     }
 
     for (const payment of paymentRows) {
-      const summary = summaries.get(payment.purchaseOrderId)
+      const summary = drafts.get(payment.purchaseOrderId)
       if (!summary) continue
-      const amountPaid = parseNumericInput(payment.amountPaid)
-      if (!Number.isFinite(amountPaid) || amountPaid == null || amountPaid <= 0) {
-        continue
+      const expectedAmount = parseNumericInput(payment.amountExpected)
+      if (Number.isFinite(expectedAmount) && expectedAmount != null && expectedAmount > 0) {
+        summary.plannedAmount += expectedAmount
+        const plannedPercent = parsePercent(payment.percentage)
+        if (plannedPercent != null && plannedPercent > 0) {
+          summary.plannedPercent += plannedPercent
+        }
       }
-      summary.actualAmount += amountPaid
 
-      const percentFromPayment = Number(payment.percentage ?? 0)
-      if (Number.isFinite(percentFromPayment) && percentFromPayment > 0) {
-        summary.actualPercent += percentFromPayment
-      } else if (summary.plannedAmount > 0) {
-        summary.actualPercent += amountPaid / summary.plannedAmount
+      const amountPaid = parseNumericInput(payment.amountPaid)
+      if (Number.isFinite(amountPaid) && amountPaid != null && amountPaid > 0) {
+        summary.actualAmount += amountPaid
       }
     }
 
-    for (const summary of summaries.values()) {
+    for (const summary of drafts.values()) {
+      if (summary.plannedAmount <= 0 && summary.fallbackAmount > 0) {
+        summary.plannedAmount = summary.fallbackAmount
+        summary.plannedPercent = summary.plannedPercent > 0 ? summary.plannedPercent : 1
+      }
+      const denominator = summary.plannedAmount > 0 ? summary.plannedAmount : 1
+      summary.actualPercent = summary.plannedAmount > 0 ? summary.actualAmount / denominator : 0
+      if (summary.plannedPercent <= 0 && summary.plannedAmount > 0) {
+        summary.plannedPercent = 1
+      }
       summary.remainingAmount = Math.max(summary.plannedAmount - summary.actualAmount, 0)
       summary.remainingPercent = Math.max(summary.plannedPercent - summary.actualPercent, 0)
     }
 
-    return summaries
+    const finalSummaries = new Map<string, PaymentSummary>()
+    for (const [orderId, summary] of drafts.entries()) {
+      const { fallbackAmount, ...rest } = summary
+      finalSummaries.set(orderId, rest)
+    }
+
+    return finalSummaries
   }, [timelineRows, paymentRows])
 
   const handleAddPayment = useCallback(async () => {
@@ -1234,6 +1252,35 @@ useEffect(() => {
       setIsAddingPayment(false)
     }
   }, [activeOrderId, applyTimelineUpdate, orderSummaries])
+
+  const handleRemovePayment = useCallback(
+    async (paymentId: string) => {
+      if (!paymentId) return
+      setIsRemovingPayment(true)
+      try {
+        const response = await fetch(withAppBasePath('/api/v1/x-plan/purchase-order-payments'), {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ids: [paymentId] }),
+        })
+        if (!response.ok) throw new Error('Failed to remove payment')
+
+        setPaymentRows((previous) => {
+          const next = previous.filter((row) => row.id !== paymentId)
+          paymentRowsRef.current = next
+          applyTimelineUpdate(ordersRef.current, inputRowsRef.current, next)
+          return next
+        })
+        toast.success('Payment removed')
+      } catch (error) {
+        console.error(error)
+        toast.error('Unable to remove payment')
+      } finally {
+        setIsRemovingPayment(false)
+      }
+    },
+    [applyTimelineUpdate]
+  )
 
   const visiblePayments = !activeOrderId
     ? ([] as PurchasePaymentRow[])
@@ -1473,8 +1520,9 @@ useEffect(() => {
             activeOrderId={activeOrderId}
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}
             onAddPayment={handleAddPayment}
+            onRemovePayment={handleRemovePayment}
             onRowsChange={handlePaymentRowsChange}
-            isLoading={isPending || isAddingPayment}
+            isLoading={isPending || isAddingPayment || isRemovingPayment}
             orderSummaries={orderSummaries}
             summaryLine={summaryLine ?? undefined}
           />

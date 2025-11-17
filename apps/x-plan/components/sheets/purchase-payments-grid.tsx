@@ -68,6 +68,7 @@ interface PurchasePaymentsGridProps {
   activeOrderId?: string | null
   onSelectOrder?: (orderId: string) => void
   onAddPayment?: () => void
+  onRemovePayment?: (paymentId: string) => Promise<void> | void
   onRowsChange?: (rows: PurchasePaymentRow[]) => void
   onSynced?: () => void
   isLoading?: boolean
@@ -120,9 +121,22 @@ function normalizePercent(value: unknown) {
   return formatPercentInput(value, 4)
 }
 
-export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, onAddPayment, onRowsChange, onSynced, isLoading, orderSummaries, summaryLine }: PurchasePaymentsGridProps) {
+export function PurchasePaymentsGrid({
+  payments,
+  activeOrderId,
+  onSelectOrder,
+  onAddPayment,
+  onRemovePayment,
+  onRowsChange,
+  onSynced,
+  isLoading,
+  orderSummaries,
+  summaryLine,
+}: PurchasePaymentsGridProps) {
   const [isClient, setIsClient] = useState(false)
   const hotRef = useRef<Handsontable | null>(null)
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
+  const [isRemoving, setIsRemoving] = useState(false)
   const handleFlush = useCallback(
     async (payload: PaymentUpdate[]) => {
       if (payload.length === 0) return
@@ -209,6 +223,16 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
 
   const summary = activeOrderId ? orderSummaries?.get(activeOrderId) : undefined
 
+  useEffect(() => {
+    setSelectedPaymentId(null)
+  }, [activeOrderId])
+
+  useEffect(() => {
+    if (!selectedPaymentId) return
+    const stillExists = payments.some((payment) => payment.id === selectedPaymentId)
+    if (!stillExists) setSelectedPaymentId(null)
+  }, [payments, selectedPaymentId])
+
   const isFullyAllocated = useMemo(() => {
     if (!summary) return false
     const amountTolerance = Math.max(summary.plannedAmount * 0.001, 0.01)
@@ -256,15 +280,36 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
         </h2>
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-700 dark:text-slate-200/80">
           {summaryText && <span>{summaryText}</span>}
-          <button
-            onClick={() => {
-              if (onAddPayment) void onAddPayment()
-            }}
-            disabled={!activeOrderId || isLoading}
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
-          >
-            Add payment
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (!selectedPaymentId || !onRemovePayment) return
+                setIsRemoving(true)
+                Promise.resolve(onRemovePayment(selectedPaymentId))
+                  .then(() => setSelectedPaymentId(null))
+                  .catch((error) => {
+                    console.error(error)
+                    toast.error('Unable to delete payment')
+                  })
+                  .finally(() => setIsRemoving(false))
+              }}
+              disabled={!selectedPaymentId || isLoading || isRemoving}
+              className="rounded-md border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-red-600 shadow-sm transition enabled:hover:border-red-400 enabled:hover:bg-red-50 enabled:hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-400/40 dark:bg-transparent dark:text-red-200 dark:enabled:hover:border-red-300/70 dark:enabled:hover:bg-red-500/10"
+            >
+              Remove payment
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (onAddPayment) void onAddPayment()
+              }}
+              disabled={!activeOrderId || isLoading}
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
+            >
+              Add payment
+            </button>
+          </div>
         </div>
       </div>
       <HotTable
@@ -282,6 +327,33 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
         className="x-plan-hot"
         dropdownMenu
         filters
+        contextMenu={{
+          items: {
+            delete_payment: {
+              name: 'Delete payment',
+              callback: (_, selection) => {
+                if (!onRemovePayment || !selection || selection.length === 0) return
+                const hot = hotRef.current
+                if (!hot) return
+                const rowIndex = selection[0].start.row
+                const record = hot.getSourceDataAtRow(rowIndex) as PurchasePaymentRow | null
+                if (!record?.id) return
+                setIsRemoving(true)
+                Promise.resolve(onRemovePayment(record.id))
+                  .then(() => {
+                    setSelectedPaymentId((previous) => (previous === record.id ? null : previous))
+                  })
+                  .catch((error) => {
+                    console.error(error)
+                    toast.error('Unable to delete payment')
+                  })
+                  .finally(() => setIsRemoving(false))
+              },
+            },
+            sep1: '---------',
+            ...Handsontable.plugins.ContextMenu.DEFAULT_ITEMS,
+          },
+        }}
         cells={(row) => {
           const meta = {} as Handsontable.CellMeta
           const record = data[row]
@@ -291,9 +363,13 @@ export function PurchasePaymentsGrid({ payments, activeOrderId, onSelectOrder, o
           return meta
         }}
         afterSelectionEnd={(row) => {
-          if (!onSelectOrder) return
           const record = data[row]
-          if (record) onSelectOrder(record.purchaseOrderId)
+          if (record) {
+            onSelectOrder?.(record.purchaseOrderId)
+            setSelectedPaymentId(record.id)
+          } else {
+            setSelectedPaymentId(null)
+          }
         }}
         afterOnCellMouseDown={(_, coords) => {
           const hot = hotRef.current
