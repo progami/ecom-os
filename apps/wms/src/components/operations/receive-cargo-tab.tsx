@@ -396,7 +396,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
           </div>
         ) : (
             <>
-              <div>
+              <div className="overflow-auto">
                 <table className="w-full divide-y divide-gray-200">
                   <thead className="bg-slate-50">
                     <tr>
