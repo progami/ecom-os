@@ -8,22 +8,28 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-/* Hide scrollbars that appear on cell selection */
-.x-plan-hot .wtHolder {
-  overflow: hidden !important;
-}
-
-.x-plan-hot .ht_master .wtHolder {
-  overflow: auto !important;
-  scrollbar-width: thin;
-}
-
+/* Hide all scrollbars in handsontable */
+.x-plan-hot .wtHolder,
+.x-plan-hot .ht_master .wtHolder,
 .x-plan-hot .ht_clone_top .wtHolder,
 .x-plan-hot .ht_clone_left .wtHolder,
 .x-plan-hot .ht_clone_bottom .wtHolder,
 .x-plan-hot .ht_clone_top_left_corner .wtHolder,
 .x-plan-hot .ht_clone_bottom_left_corner .wtHolder {
-  overflow: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.x-plan-hot .wtHolder::-webkit-scrollbar,
+.x-plan-hot .ht_master .wtHolder::-webkit-scrollbar,
+.x-plan-hot .ht_clone_top .wtHolder::-webkit-scrollbar,
+.x-plan-hot .ht_clone_left .wtHolder::-webkit-scrollbar,
+.x-plan-hot .ht_clone_bottom .wtHolder::-webkit-scrollbar,
+.x-plan-hot .ht_clone_top_left_corner .wtHolder::-webkit-scrollbar,
+.x-plan-hot .ht_clone_bottom_left_corner .wtHolder::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
 
 .dark .x-plan-hot {
