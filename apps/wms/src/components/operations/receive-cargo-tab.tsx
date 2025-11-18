@@ -509,9 +509,9 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             return (
                               <select
                                 name={`batch-${item.id}`}
-                                value={item.batchLot}
+                                value={item.batchLot || ''}
                                 onChange={e => updateItem(item.id, 'batchLot', e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary bg-white"
                                 required
                               >
                                 <option value="">Select batch…</option>
