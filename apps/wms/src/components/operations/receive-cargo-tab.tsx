@@ -487,6 +487,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             <div className="text-sm font-medium text-slate-900">{item.batchLot || '—'}</div>
                           ) : (() => {
                             const options = item.skuId ? (batchesBySku[item.skuId] ?? []) : []
+                            console.log('Batch dropdown render:', { itemId: item.id, skuId: item.skuId, optionsCount: options.length, batchLot: item.batchLot, options })
 
                             if (item.loadingBatch) {
                               return (
@@ -517,7 +518,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                                   console.log('Batch selected:', e.target.value)
                                   updateItem(item.id, 'batchLot', e.target.value)
                                 }}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary bg-white"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary bg-white text-slate-900"
                                 required
                               >
                                 <option value="">Select batch…</option>
