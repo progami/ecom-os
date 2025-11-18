@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast'
 
 // Components
 import { CreateSkuBatchModal } from './create-sku-batch-modal'
+import { CreateBatchModal } from './create-batch-modal'
 
 // Icons
 import { Package2, Loader2, AlertCircle, Plus, Trash2 } from '@/lib/lucide-icons'
@@ -97,6 +98,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentEditingItemId, setCurrentEditingItemId] = useState<string | null>(null)
+  const [batchModalContext, setBatchModalContext] = useState<{ itemId: string; skuId: string; skuCode: string } | null>(null)
 
   const addNewItem = () => {
     setItems(prev => [...prev, createEmptyItem()])
@@ -194,6 +196,18 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
     setIsModalOpen(true)
   }
 
+  const handleOpenBatchModal = (item: LineItem) => {
+    if (!item.skuId || !item.skuCode) {
+      toast.error('Select a SKU before creating a batch')
+      return
+    }
+    setBatchModalContext({
+      itemId: item.id,
+      skuId: item.skuId,
+      skuCode: item.skuCode
+    })
+  }
+
   const handleSkuBatchSave = (data: SkuBatchData) => {
     if (!currentEditingItemId) return
 
@@ -216,6 +230,77 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
 
     toast.success('SKU + Batch will be created with this receive transaction')
   }
+
+  const handleBatchOnlySave = async (data: { batchCode: string; description?: string; productionDate?: string; expiryDate?: string }) => {
+    if (!batchModalContext) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/skus/${batchModalContext.skuId}/batches`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          batchCode: data.batchCode,
+          description: data.description,
+          productionDate: data.productionDate || null,
+          expiryDate: data.expiryDate || null,
+          isActive: true
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || 'Failed to create batch')
+      }
+
+      const payload = await response.json()
+      const createdBatch = payload.batch as BatchOption
+
+      setBatchesBySku(prev => {
+        const existing = prev[batchModalContext.skuId] ?? []
+        return {
+          ...prev,
+          [batchModalContext.skuId]: [...existing, createdBatch]
+        }
+      })
+
+      setItems(prev =>
+        prev.map(item =>
+          item.id === batchModalContext.itemId
+            ? { ...item, batchLot: createdBatch.batchCode }
+            : item
+        )
+      )
+
+      toast.success('Batch created successfully')
+      setBatchModalContext(null)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to create batch')
+    }
+  }
+
+  useEffect(() => {
+    setItems(prev =>
+      prev.map(item => {
+        if (!item.skuId) {
+          return item
+        }
+
+        const available = batchesBySku[item.skuId] ?? []
+        if (available.length === 0) {
+          return item
+        }
+
+        if (!item.batchLot || !available.some(batch => batch.batchCode === item.batchLot)) {
+          return { ...item, batchLot: available[0].batchCode }
+        }
+
+        return item
+      })
+    )
+  }, [batchesBySku])
 
   const updateItem = async (id: string, field: keyof LineItem, value: string | number | null) => {
     setItems(prevItems =>
@@ -490,22 +575,40 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                               <span>Loading batches…</span>
                             </div>
                           ) : (batchesBySku[item.skuId] ?? []).length === 0 ? (
-                            <span className="text-sm text-amber-600">No batches defined</span>
+                            <div className="flex flex-col gap-2">
+                              <span className="text-sm text-amber-600">No batches defined</span>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenBatchModal(item)}
+                                className="text-xs font-medium text-primary hover:underline"
+                              >
+                                + Create Batch
+                              </button>
+                            </div>
                           ) : (
-                            <select
-                              name={`batch-${item.id}`}
-                              value={item.batchLot}
-                              onChange={e => updateItem(item.id, 'batchLot', e.target.value)}
-                              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
-                              required
-                            >
-                              <option value="">Select batch…</option>
-                              {(batchesBySku[item.skuId] ?? []).map(batch => (
-                                <option key={batch.id} value={batch.batchCode}>
-                                  {batch.batchCode}
-                                </option>
-                              ))}
-                            </select>
+                            <div className="flex items-center gap-2">
+                              <select
+                                name={`batch-${item.id}`}
+                                value={item.batchLot}
+                                onChange={e => updateItem(item.id, 'batchLot', e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                                required
+                              >
+                                <option value="">Select batch…</option>
+                                {(batchesBySku[item.skuId] ?? []).map(batch => (
+                                  <option key={batch.id} value={batch.batchCode}>
+                                    {batch.batchCode}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenBatchModal(item)}
+                                className="text-xs font-medium text-primary hover:underline"
+                              >
+                                + Batch
+                              </button>
+                            </div>
                           )}
                         </td>
                         <td className="px-6 py-4">
@@ -683,6 +786,14 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
           setCurrentEditingItemId(null)
         }}
         onSave={handleSkuBatchSave}
+      />
+
+      {/* Batch creation modal for existing SKUs */}
+      <CreateBatchModal
+        isOpen={!!batchModalContext}
+        skuCode={batchModalContext?.skuCode ?? ''}
+        onClose={() => setBatchModalContext(null)}
+        onSave={handleBatchOnlySave}
       />
     </>
   )
