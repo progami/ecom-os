@@ -21,7 +21,7 @@ import { DeleteTransactionDialog } from '@/components/operations/delete-transact
 const ORDERS_INDEX_PATH = '/operations/orders'
 
 interface TransactionData {
- id: string
+  id: string
  transactionId: string
  transactionType: 'RECEIVE' | 'SHIP' | 'ADJUST_IN' | 'ADJUST_OUT'
  transactionDate: string
@@ -84,6 +84,27 @@ interface TransactionData {
  }>
 }
 
+type TransactionValidation = {
+  canEdit: boolean
+  canDelete: boolean
+  reason: string | null
+  details?: {
+    dependentTransactions?: Array<{
+      id: string
+      transactionType: string
+      transactionDate: string
+      quantity: number
+    }>
+    currentInventory?: {
+      skuCode: string
+      batchLot: string
+      quantity: number
+      allocated: number
+      available: number
+    }
+  }
+}
+
 export default function TransactionDetailPage() {
  const params = useParams()
  const router = useRouter()
@@ -93,15 +114,12 @@ export default function TransactionDetailPage() {
  const [_skus, setSkus] = useState<Array<{ id: string; skuCode: string; description: string }>>([])
  const [isDeleting, setIsDeleting] = useState(false)
  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
- const [validation, setValidation] = useState<{
-  canDelete: boolean
-  reason: string | null
-  details: Record<string, unknown>
- }>({
-  canDelete: true,
-  reason: null,
-  details: {}
- })
+  const [validation, setValidation] = useState<TransactionValidation>({
+    canEdit: false,
+    canDelete: true,
+    reason: null,
+    details: {},
+  })
 
  useEffect(() => {
  loadTransaction()
@@ -178,10 +196,15 @@ const transformedData: TransactionData = {
  const response = await fetch(`/api/transactions/${params.id}/validate-edit`, {
  credentials: 'include'
  })
- if (response.ok) {
- const data = await response.json()
- setValidation(data)
- }
+  if (response.ok) {
+    const data = await response.json()
+    setValidation({
+      canEdit: Boolean(data.canEdit),
+      canDelete: Boolean(data.canDelete),
+      reason: data.reason ?? null,
+      details: data.details,
+    })
+  }
  } catch (_error) {
  // Failed to check validation
  }
