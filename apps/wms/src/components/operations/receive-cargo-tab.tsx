@@ -396,35 +396,35 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
           </div>
         ) : (
             <>
-              <div>
-                <table className="w-full divide-y divide-gray-200">
+              <div className="overflow-x-auto">
+                <table className="min-w-[1100px] w-full divide-y divide-gray-200">
                   <thead className="bg-slate-50">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase whitespace-nowrap">
                         SKU / Batch
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase whitespace-nowrap">
                         New Batch
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase whitespace-nowrap">
                         Cartons
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase whitespace-nowrap">
                         Units/Carton
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase whitespace-nowrap">
                         Storage Config
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase whitespace-nowrap">
                         Shipping Config
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase whitespace-nowrap">
                         Pallets
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase whitespace-nowrap">
                         Total Units
                       </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase whitespace-nowrap">
                         Actions
                       </th>
                     </tr>
@@ -432,7 +432,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                   <tbody className="bg-white divide-y divide-gray-200">
                     {items.map(item => (
                       <tr key={item.id}>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           {item.isNewSku ? (
                             <div className="flex items-center gap-2">
                               <div className="flex-1">
@@ -478,7 +478,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           {item.isNewSku ? (
                             <div className="text-sm font-medium text-slate-900">{item.batchLot || '—'}</div>
                           ) : (() => {
@@ -523,7 +523,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             )
                           })()}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <input
                             name={`cartons-${item.id}`}
                             type="number"
@@ -536,7 +536,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             required
                           />
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <input
                             name={`units-per-carton-${item.id}`}
                             type="number"
@@ -550,7 +550,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             required
                           />
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-1">
                             <input
                               type="number"
@@ -581,7 +581,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             <span className="text-xs text-slate-500">c/p</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <div className="flex items-center gap-1">
                             <input
                               type="number"
@@ -612,7 +612,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             <span className="text-xs text-slate-500">c/p</span>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <input
                             type="number"
                             min="0"
@@ -629,7 +629,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             title="Storage pallets (auto-calculated, but can be overridden)"
                           />
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <input
                             type="number"
                             value={item.units}
@@ -638,7 +638,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                             title="Units are calculated based on cartons × units per carton"
                           />
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <button
                             type="button"
                             onClick={() => removeItem(item.id)}
@@ -654,20 +654,22 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                   </tbody>
                   <tfoot className="bg-slate-50">
                     <tr>
-                      <td className="px-4 py-3 text-right font-semibold" colSpan={2}>
+                      <td className="px-4 py-3 text-right font-semibold whitespace-nowrap" colSpan={2}>
                         Totals:
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold">
+                      <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">
                         {totals.cartons.toLocaleString()}
                       </td>
-                      <td className="px-4 py-3"></td>
-                      <td className="px-4 py-3"></td>
-                      <td className="px-4 py-3"></td>
-                      <td className="px-4 py-3 text-right font-semibold">{totals.pallets}</td>
-                      <td className="px-4 py-3 text-right font-semibold">
+                      <td className="px-4 py-3 whitespace-nowrap"></td>
+                      <td className="px-4 py-3 whitespace-nowrap"></td>
+                      <td className="px-4 py-3 whitespace-nowrap"></td>
+                      <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">
+                        {totals.pallets}
+                      </td>
+                      <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">
                         {totals.units.toLocaleString()}
                       </td>
-                      <td></td>
+                      <td className="px-4 py-3 whitespace-nowrap"></td>
                     </tr>
                   </tfoot>
                 </table>
