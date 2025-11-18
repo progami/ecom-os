@@ -347,6 +347,7 @@ model CostLedger {
   id            String               @id @default(uuid())
   transactionId String               @map("transaction_id")
   costCategory  CostCategory         @map("cost_category")
+  costName      String               @map("cost_name")
   quantity      Decimal              @map("quantity") @db.Decimal(12, 2)
   unitRate      Decimal              @map("unit_rate") @db.Decimal(10, 2)
   totalCost     Decimal              @map("total_cost") @db.Decimal(12, 2)
