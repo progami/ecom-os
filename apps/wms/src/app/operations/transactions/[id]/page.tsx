@@ -82,21 +82,16 @@ export default function TransactionDetailPage() {
  const [transaction, setTransaction] = useState<TransactionData | null>(null)
  const [activeTab, setActiveTab] = useState('details')
  const [_skus, setSkus] = useState<Array<{ id: string; skuCode: string; description: string }>>([])
- const [isEditMode, setIsEditMode] = useState(false)
- const [isSaving, setIsSaving] = useState(false)
  const [isDeleting, setIsDeleting] = useState(false)
  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
- const [editedData, setEditedData] = useState<Partial<TransactionData>>({})
  const [validation, setValidation] = useState<{
- canEdit: boolean
- canDelete: boolean
- reason: string | null
- details: Record<string, unknown>
+  canDelete: boolean
+  reason: string | null
+  details: Record<string, unknown>
  }>({
- canEdit: true,
- canDelete: true,
- reason: null,
- details: {}
+  canDelete: true,
+  reason: null,
+  details: {}
  })
 
  useEffect(() => {
@@ -126,41 +121,27 @@ export default function TransactionDetailPage() {
  ? (data.attachments as Record<string, ApiAttachment | null>)
  : {}
 
- const transformedData: TransactionData = {
+const transformedData: TransactionData = {
  ...data,
  transactionId: data.transactionId || data.referenceId || data.id,
  warehouseId: data.warehouse?.id || data.warehouseId,
  skuCode: data.skuCode || data.sku?.skuCode || '',
  cartonsIn: data.cartonsIn ?? 0,
  cartonsOut: data.cartonsOut ?? 0,
- lineItems: [
- {
- id: data.id,
- skuId: data.sku?.id || data.skuId,
- sku: data.sku,
- batchLot: data.batchLot || '',
- cartonsIn: data.cartonsIn || 0,
- cartonsOut: data.cartonsOut || 0,
- storagePalletsIn: data.storagePalletsIn || 0,
- shippingPalletsOut: data.shippingPalletsOut || 0,
- storageCartonsPerPallet: data.storageCartonsPerPallet || 0,
- shippingCartonsPerPallet: data.shippingCartonsPerPallet || 0,
- unitsPerCarton: data.unitsPerCarton || data.sku?.unitsPerCarton || 0
- }
- ],
- attachments: attachmentsRecord
- }
- 
- 
- setTransaction(transformedData)
- 
- // Initialize edited data with editable fields
- setEditedData({
+ lineItems: data.lineItems || data.transactionLines || [],
+ costs: data.costs || [],
+ attachments: attachmentsRecord,
+ createdBy: data.createdBy || { fullName: 'System User', email: 'system@warehouse.com' },
+ history: data.history || [],
  referenceId: data.referenceId || '',
  shipName: data.shipName || '',
  trackingNumber: data.trackingNumber || '',
  supplier: data.supplier || ''
- })
+}
+ 
+ 
+ setTransaction(transformedData)
+ 
  } catch (_error) {
  // Error loading transaction
  toast.error('Failed to load transaction')
@@ -194,57 +175,6 @@ export default function TransactionDetailPage() {
  }
  } catch (_error) {
  // Failed to check validation
- }
- }
-
- const handleSave = async () => {
- setIsSaving(true)
- try {
- // First, save the basic transaction data
- const { stagedAttachments, ...basicData } = editedData
- const response = await fetch(`/api/transactions/${params.id}`, {
- method: 'PUT',
- headers: { 'Content-Type': 'application/json' },
- body: JSON.stringify(basicData),
- credentials: 'include'
- })
-
- if (!response.ok) {
- const error = await response.json()
- throw new Error(error.error || 'Failed to update transaction')
- }
-
- // Handle staged attachment changes if any
- if (stagedAttachments) {
- const entries = Object.entries(stagedAttachments) as Array<[string, EditAttachment | null]>
- for (const [category, attachment] of entries) {
- if (!attachment) continue
-
- if (attachment.deleted && attachment.s3Key) {
- await fetch(`/api/transactions/${params.id}/attachments?category=${category}`, {
- method: 'DELETE',
- credentials: 'include'
- })
- } else if (attachment.isNew && attachment.file) {
- const formData = new FormData()
- formData.append('file', attachment.file)
- formData.append('documentType', category)
-
- await fetch(`/api/transactions/${params.id}/attachments`, {
- method: 'POST',
- body: formData,
- credentials: 'include'
- })
- }
- }
- }
-
- toast.success('Transaction updated successfully')
- router.push(ORDERS_INDEX_PATH)
- } catch (_error) {
- toast.error(_error instanceof Error ? _error.message : 'Failed to update transaction')
- } finally {
- setIsSaving(false)
  }
  }
 
@@ -360,30 +290,12 @@ export default function TransactionDetailPage() {
  <div className="flex gap-2">
  {isEditMode ? (
  <>
- <button
- onClick={() => {
- setIsEditMode(false)
- setEditedData({
- referenceId: transaction.referenceId || '',
- shipName: transaction.shipName || '',
- trackingNumber: transaction.trackingNumber || '',
- supplier: transaction.supplier || '',
- stagedAttachments: undefined
- })
- }}
- className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
- >
- <X className="w-4 h-4 mr-2 inline" />
- Cancel
- </button>
- <button
- onClick={handleSave}
- disabled={isSaving}
- className="px-4 py-2 text-sm font-medium text-white bg-cyan-600 rounded-md hover:bg-cyan-700 disabled:opacity-50"
- >
- <Save className="w-4 h-4 mr-2 inline" />
- {isSaving ? 'Saving...' : 'Save'}
- </button>
+          <button
+            onClick={() => router.push(ORDERS_INDEX_PATH)}
+            className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
+          >
+            Close
+          </button>
  </>
  ) : (
  <>
