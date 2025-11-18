@@ -178,7 +178,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
         return {
           ...item,
           skuId: sku.id,
-          batchLot: defaultBatch,
+          batchLot: item.batchLot && item.batchLot.length > 0 ? item.batchLot : defaultBatch,
           unitsPerCarton,
           units: cartons * unitsPerCarton,
           loadingBatch: false,
