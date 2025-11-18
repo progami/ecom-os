@@ -218,12 +218,9 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
   }
 
   const updateItem = async (id: string, field: keyof LineItem, value: string | number | null) => {
-    console.log('updateItem called:', { id, field, value })
-    setItems(prevItems => {
-      const updated = prevItems.map(item => (item.id === id ? { ...item, [field]: value } : item))
-      console.log('Items updated:', updated)
-      return updated
-    })
+    setItems(prevItems =>
+      prevItems.map(item => (item.id === id ? { ...item, [field]: value } : item))
+    )
 
     // If SKU code changed, load batches and defaults
     if (field === 'skuCode') {
@@ -485,51 +482,31 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                         <td className="px-6 py-4">
                           {item.isNewSku ? (
                             <div className="text-sm font-medium text-slate-900">{item.batchLot || '—'}</div>
-                          ) : (() => {
-                            const options = item.skuId ? (batchesBySku[item.skuId] ?? []) : []
-                            console.log('Batch dropdown render:', { itemId: item.id, skuId: item.skuId, optionsCount: options.length, batchLot: item.batchLot, options })
-
-                            if (item.loadingBatch) {
-                              return (
-                                <div className="flex items-center gap-2 text-sm text-slate-500">
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                  <span>Loading batches…</span>
-                                </div>
-                              )
-                            }
-
-                            if (!item.skuId) {
-                              return (
-                                <span className="text-sm text-slate-500">Select a SKU first</span>
-                              )
-                            }
-
-                            if (options.length === 0) {
-                              return (
-                                <span className="text-sm text-amber-600">No batches defined</span>
-                              )
-                            }
-
-                            return (
-                              <select
-                                name={`batch-${item.id}`}
-                                value={item.batchLot || ''}
-                                onChange={e => {
-                                  console.log('Batch selected:', e.target.value)
-                                  updateItem(item.id, 'batchLot', e.target.value)
-                                }}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary bg-white text-slate-900"
-                                required
-                              >
-                                <option value="">Select batch…</option>
-                                {options.map(batch => (
-                                  <option key={batch.id} value={batch.batchCode}>
-                                    {batch.batchCode}
-                                  </option>
-                                ))}
-                              </select>
-                            )
-                          })()}
+                          ) : !item.skuId ? (
+                            <span className="text-sm text-slate-500">Select a SKU first</span>
+                          ) : item.loadingBatch ? (
+                            <div className="flex items-center gap-2 text-sm text-slate-500">
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <span>Loading batches…</span>
+                            </div>
+                          ) : (batchesBySku[item.skuId] ?? []).length === 0 ? (
+                            <span className="text-sm text-amber-600">No batches defined</span>
+                          ) : (
+                            <select
+                              name={`batch-${item.id}`}
+                              value={item.batchLot}
+                              onChange={e => updateItem(item.id, 'batchLot', e.target.value)}
+                              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                              required
+                            >
+                              <option value="">Select batch…</option>
+                              {(batchesBySku[item.skuId] ?? []).map(batch => (
+                                <option key={batch.id} value={batch.batchCode}>
+                                  {batch.batchCode}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <input
