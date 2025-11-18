@@ -68,6 +68,7 @@ type ValidatedTransactionLine = {
 
 type TransactionCostPayload = {
  costType?: string
+ costName?: string
  quantity?: number
  unitRate?: number
  totalCost?: number
@@ -121,6 +122,16 @@ const sanitizeNullableString = (value?: string | null): string | null => {
 const sanitizeRequiredString = (value: string): string => {
  const sanitized = sanitizeForDisplay(value)
  return sanitized || value
+}
+
+const prettifyCostLabel = (value?: string | null): string | null => {
+ if (!value) return null
+ const normalized = value.replace(/_/g, ' ').trim()
+ if (!normalized) return null
+ return normalized
+  .split(' ')
+  .map(word => (word ? word[0].toUpperCase() + word.slice(1) : ''))
+  .join(' ')
 }
 
 const normalizeSkuData = (input: unknown): NewSkuPayload | undefined => {
@@ -193,11 +204,15 @@ function normalizeCostInput(input: unknown): TransactionCostPayload | null {
  return null
  }
 
+ const description =
+  isRecord(input) && typeof input.description === 'string' ? input.description : undefined
+
  return {
- costType,
- quantity: asNumber(input.quantity),
- unitRate: asNumber(input.unitRate),
- totalCost,
+  costType,
+  costName: asString((input as { costName?: unknown }).costName) ?? description,
+  quantity: asNumber(input.quantity),
+  unitRate: asNumber(input.unitRate),
+  totalCost,
  }
 }
 
@@ -1012,10 +1027,16 @@ for (const item of validatedItems) {
  costCategory = CostCategory.Accessorial
  }
  
+      const resolvedCostName =
+        cost.costName ??
+        prettifyCostLabel(cost.costType) ??
+        costCategory.toString()
+
       await tx.costLedger.create({
         data: {
           transactionId: transaction.id,
           costCategory,
+          costName: sanitizeRequiredString(resolvedCostName),
           quantity: cost.quantity || 1,
           unitRate: cost.unitRate || 0,
  totalCost: cost.totalCost || 0,

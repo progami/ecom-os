@@ -16,6 +16,7 @@ import { AlertCircle, Lock, Unlock, Calculator, Truck } from '@/lib/lucide-icons
 export interface CostEntry {
   id: string
   costType: 'container_receiving' | 'container_freight' | 'carton' | 'pallet'
+  costName?: string
   quantity: number
   unitRate: number
   totalCost: number
@@ -175,6 +176,7 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
       initialCosts.push({
         id: rate.id,
         costType: 'container_receiving',
+        costName: rate.costName || getCostLabel('container_receiving'),
         quantity: 1,
         unitRate: Number(rate.costValue || 0),
         totalCost: Number(rate.costValue || 0),
@@ -187,6 +189,7 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
       initialCosts.push({
         id: 'freight',
         costType: 'container_freight',
+        costName: getCostLabel('container_freight'),
         quantity: 1,
         unitRate: 0,
         totalCost: 0,
@@ -214,6 +217,7 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
       initialCosts.push({
         id: rate.id,
         costType: costType as 'carton' | 'pallet',
+        costName: rate.costName || getCostLabel(costType as 'carton' | 'pallet'),
         quantity: quantity,
         unitRate: Number(rate.costValue || 0),
         totalCost: quantity * Number(rate.costValue || 0),
