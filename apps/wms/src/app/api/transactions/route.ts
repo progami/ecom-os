@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { TransactionType, CostCategory } from '@ecom-os/prisma-wms'
+import { Prisma, TransactionType, CostCategory } from '@ecom-os/prisma-wms'
 import { businessLogger, perfLogger } from '@/lib/logger/index'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 // handleTransactionCosts removed - costs are handled via frontend pre-filling
@@ -310,6 +310,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+ const errorContext: Record<string, unknown> = {}
  try {
  const session = await getServerSession(authOptions)
  
@@ -337,7 +338,9 @@ export async function POST(request: NextRequest) {
 
  // Handle both 'type' and 'transactionType' fields for backward compatibility
  const txType = type || transactionType
+ errorContext.txType = txType
  const refNumber = sanitizedReferenceNumber || sanitizedReferenceId
+ errorContext.referenceNumber = refNumber
  const txDate = date || transactionDate
 
  // Validate transaction type
@@ -356,6 +359,15 @@ const attachmentList: AttachmentPayload[] = Array.isArray(attachments)
 .filter((item): item is AttachmentPayload => item !== null)
 : []
 const batchValidationCache = new Map<string, boolean>()
+const pendingBatchCreates = new Map<
+ string,
+ {
+  skuId?: string
+  skuCode: string
+  batchLot: string
+  description?: string | null
+ }
+>()
 
  const newSkuRequests = itemsArray.filter(item => item.isNewSku)
  if (newSkuRequests.length > 0) {
@@ -509,6 +521,7 @@ const batchValidationCache = new Map<string, boolean>()
  }
 
  const warehouseId = session.user.warehouseId || bodyWarehouseId
+ errorContext.warehouseId = warehouseId
 
  if (!warehouseId) {
  return NextResponse.json({ error: 'Warehouse ID required' }, { status: 400 })
@@ -645,26 +658,6 @@ item.skuCode = sanitizedSkuCode || item.skuCode
  item.batchData.batchCode = item.batchLot
  }
 
-if (['RECEIVE', 'ADJUST_IN'].includes(txType) && !item.isNewSku) {
- const cacheKey = `${item.skuCode}::${item.batchLot}`
- if (!batchValidationCache.has(cacheKey)) {
-  const batchExists = await prisma.skuBatch.findFirst({
-   where: {
-    batchCode: item.batchLot,
-    isActive: true,
-    sku: { skuCode: item.skuCode },
-   },
-  })
-
-  if (!batchExists) {
-   return NextResponse.json({
-    error: `Batch ${item.batchLot} is not registered for SKU ${item.skuCode}. Create it in Products before receiving.`,
-   }, { status: 400 })
-  }
-
-  batchValidationCache.set(cacheKey, true)
- }
-}
 }
 
  // Check for duplicate SKU/batch combinations in the request
@@ -692,7 +685,8 @@ const validatedItems: ValidatedTransactionLine[] = itemsArray.map((item) => ({
  isNewSku: item.isNewSku ?? false,
  skuData: item.skuData,
  batchData: item.batchData
- }))
+}))
+errorContext.itemCount = validatedItems.length
 
  // Get warehouse for transaction ID generation
  const warehouse = await prisma.warehouse.findUnique({
@@ -732,6 +726,30 @@ for (const item of validatedItems) {
  return NextResponse.json({ 
  error: `SKU ${item.skuCode} not found. Please create the SKU first.` 
  }, { status: 400 })
+ }
+
+ if (['RECEIVE', 'ADJUST_IN'].includes(txType)) {
+ const cacheKey = `${sku.id}::${item.batchLot}`
+ if (!batchValidationCache.has(cacheKey)) {
+  const batchRecord = await prisma.skuBatch.findFirst({
+   where: {
+    skuId: sku.id,
+    batchCode: item.batchLot,
+    isActive: true,
+   },
+  })
+
+  if (!batchRecord) {
+   pendingBatchCreates.set(cacheKey, {
+    skuId: sku.id,
+    skuCode: sku.skuCode,
+    batchLot: item.batchLot,
+    description: item.batchData?.description ?? null,
+   })
+  }
+
+  batchValidationCache.set(cacheKey, true)
+ }
  }
 
  // For SHIP and ADJUST_OUT transactions, verify inventory availability
@@ -814,6 +832,31 @@ for (const item of validatedItems) {
  const skus = await tx.sku.findMany({
  where: { skuCode: { in: skuCodes } }
  });
+
+ if (pendingBatchCreates.size > 0) {
+  for (const pending of pendingBatchCreates.values()) {
+    if (!pending.skuId) continue
+    try {
+      await tx.skuBatch.create({
+        data: {
+          skuId: pending.skuId,
+          batchCode: pending.batchLot,
+          description: sanitizeNullableString(pending.description),
+          isActive: true,
+        },
+      })
+    } catch (creationError) {
+      if (
+        !(creationError instanceof Prisma.PrismaClientKnownRequestError) ||
+        creationError.code !== 'P2002'
+      ) {
+        throw creationError
+      }
+      // If another request created the batch simultaneously, it's safe to continue.
+    }
+  }
+ }
+
  const skuMap = new Map(skus.map(sku => [sku.skuCode, sku]));
  
  for (const item of validatedItems) {
@@ -1072,10 +1115,18 @@ for (const item of validatedItems) {
  }
  }
  
- return NextResponse.json({ 
- error: 'Failed to create transaction',
- details: error instanceof Error ? error.message : 'Unknown error'
- }, { status: 500 })
+ const detailMessage = error instanceof Error ? error.message : 'Unknown error'
+ businessLogger.error('Inventory transaction failed', {
+  ...errorContext,
+  detail: detailMessage,
+ })
+ return NextResponse.json(
+  { 
+   error: detailMessage,
+   details: detailMessage
+  },
+  { status: 500 }
+ )
  }
 }
 
