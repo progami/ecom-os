@@ -100,6 +100,7 @@ export async function handleTransactionCosts(transaction: TransactionWithCosts) 
  costEntries.push({
  transactionId: transaction.transactionId,
  costCategory: 'Carton' as const,
+ costName: 'Carton Handling',
  quantity: safeQuantity,
  unitRate: transaction.costs.handling / safeQuantity,
  totalCost: transaction.costs.handling,
@@ -120,6 +121,7 @@ export async function handleTransactionCosts(transaction: TransactionWithCosts) 
  costEntries.push({
  transactionId: transaction.transactionId,
  costCategory: 'Storage' as const,
+ costName: 'Storage Cost',
  quantity: safeQuantity,
  unitRate: transaction.costs.storage / safeQuantity,
  totalCost: transaction.costs.storage,
@@ -141,6 +143,7 @@ export async function handleTransactionCosts(transaction: TransactionWithCosts) 
  costEntries.push({
  transactionId: transaction.transactionId,
  costCategory: 'Accessorial' as const,
+ costName: customCost.name || 'Accessorial Cost',
  quantity: safeQuantity,
  unitRate: customCost.amount / safeQuantity,
  totalCost: customCost.amount,

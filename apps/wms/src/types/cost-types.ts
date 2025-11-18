@@ -15,6 +15,7 @@ export interface CostRate {
 export interface CostEntry {
  id: string
  costType: 'container' | 'carton' | 'pallet'
+ costName?: string
  quantity: number
  unitRate: number
  totalCost: number

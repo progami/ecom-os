@@ -14,13 +14,14 @@ import type { CostRate } from '@/types/cost-types'
 import { AlertCircle, Lock, Unlock, Calculator, Truck } from '@/lib/lucide-icons'
 
 export interface CostEntry {
- id: string
- costType: 'transportation' | 'carton' | 'pallet'
- quantity: number
- unitRate: number
- totalCost: number
- isManual: boolean
- isLocked: boolean
+  id: string
+  costType: 'transportation' | 'carton' | 'pallet'
+  costName?: string
+  quantity: number
+  unitRate: number
+  totalCost: number
+  isManual: boolean
+  isLocked: boolean
  description?: string
 }
 
@@ -175,6 +176,7 @@ export const ShipCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  initialCosts.push({
  id: rate.id,
  costType: 'transportation',
+ costName: rate.costName || getCostLabel('transportation'),
  quantity: 1,
  unitRate: 0,
  totalCost: 0,
@@ -196,6 +198,7 @@ export const ShipCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
  initialCosts.push({
  id: rate.id,
  costType: costType as 'carton' | 'pallet',
+ costName: rate.costName || getCostLabel(costType as 'carton' | 'pallet'),
  quantity: quantity,
  unitRate: rateValue,
  totalCost: quantity * rateValue,
