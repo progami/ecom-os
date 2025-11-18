@@ -218,9 +218,12 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
   }
 
   const updateItem = async (id: string, field: keyof LineItem, value: string | number | null) => {
-    setItems(prevItems =>
-      prevItems.map(item => (item.id === id ? { ...item, [field]: value } : item))
-    )
+    console.log('updateItem called:', { id, field, value })
+    setItems(prevItems => {
+      const updated = prevItems.map(item => (item.id === id ? { ...item, [field]: value } : item))
+      console.log('Items updated:', updated)
+      return updated
+    })
 
     // If SKU code changed, load batches and defaults
     if (field === 'skuCode') {
@@ -510,7 +513,10 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                               <select
                                 name={`batch-${item.id}`}
                                 value={item.batchLot || ''}
-                                onChange={e => updateItem(item.id, 'batchLot', e.target.value)}
+                                onChange={e => {
+                                  console.log('Batch selected:', e.target.value)
+                                  updateItem(item.id, 'batchLot', e.target.value)
+                                }}
                                 className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary bg-white"
                                 required
                               >
