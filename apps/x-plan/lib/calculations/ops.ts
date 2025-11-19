@@ -258,7 +258,6 @@ export function computePurchaseOrderDerived(
   let totalSellingPrice = 0
   let totalManufacturingCost = 0
   let totalFreightCost = 0
-  let totalTariffRate = 0
   let totalTacosPercent = 0
   let totalFbaFee = 0
   let totalReferralRate = 0
@@ -279,7 +278,9 @@ export function computePurchaseOrderDerived(
       batch.overrideManufacturingCost ?? order.overrideManufacturingCost
     )
     const freightCost = resolveOverride(product.freightCost, batch.overrideFreightCost ?? order.overrideFreightCost)
-    const tariffRate = resolveOverride(product.tariffRate, batch.overrideTariffRate ?? order.overrideTariffRate)
+    const overrideTariffAmount = parseNumber(batch.overrideTariffRate ?? order.overrideTariffRate)
+    const baseTariffCost = Number.isFinite(product.tariffCost) ? product.tariffCost : product.manufacturingCost * product.tariffRate
+    const tariffCost = overrideTariffAmount ?? baseTariffCost
     const tacosPercent = resolveOverride(product.tacosPercent, batch.overrideTacosPercent ?? order.overrideTacosPercent)
     const fbaFee = resolveOverride(product.fbaFee, batch.overrideFbaFee ?? order.overrideFbaFee)
     const referralRate = resolveOverride(
@@ -291,7 +292,6 @@ export function computePurchaseOrderDerived(
       batch.overrideStoragePerMonth ?? order.overrideStoragePerMonth
     )
 
-    const tariffCost = manufacturingCost * tariffRate
     const advertisingCost = sellingPrice * tacosPercent
     const landedUnitCost = manufacturingCost + freightCost + tariffCost
 
@@ -299,7 +299,6 @@ export function computePurchaseOrderDerived(
     totalSellingPrice += sellingPrice * quantity
     totalManufacturingCost += manufacturingCost * quantity
     totalFreightCost += freightCost * quantity
-    totalTariffRate += tariffRate * quantity
     totalTacosPercent += tacosPercent * quantity
     totalFbaFee += fbaFee * quantity
     totalReferralRate += referralRate * quantity
@@ -316,7 +315,7 @@ export function computePurchaseOrderDerived(
   const sellingPrice = divisor > 0 ? totalSellingPrice / divisor : 0
   const manufacturingCost = divisor > 0 ? totalManufacturingCost / divisor : 0
   const freightCost = divisor > 0 ? totalFreightCost / divisor : 0
-  const tariffRate = divisor > 0 ? totalTariffRate / divisor : 0
+  const tariffRate = divisor > 0 ? totalTariffCost / divisor : 0
   const tacosPercent = divisor > 0 ? totalTacosPercent / divisor : 0
   const fbaFee = divisor > 0 ? totalFbaFee / divisor : 0
   const referralRate = divisor > 0 ? totalReferralRate / divisor : 0

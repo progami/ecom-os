@@ -45,14 +45,14 @@ const BATCH_NUMERIC_PRECISION = {
   sellingPrice: 2,
   manufacturingCost: 2,
   freightCost: 2,
+  tariffRate: 2,
   fbaFee: 2,
   storagePerMonth: 2,
 } as const
 
 const BATCH_PERCENT_PRECISION = {
-  tariffRate: 4,
-  tacosPercent: 4,
-  referralRate: 4,
+  tacosPercent: 2,
+  referralRate: 2,
 } as const
 
 export type PurchaseOrderSerialized = {
@@ -419,7 +419,7 @@ function mergeOrders(
       overrideSellingPrice: parseNumber(row.sellingPrice),
       overrideManufacturingCost: parseNumber(row.manufacturingCost),
       overrideFreightCost: parseNumber(row.freightCost),
-      overrideTariffRate: parsePercent(row.tariffRate),
+      overrideTariffRate: parseNumber(row.tariffRate),
       overrideTacosPercent: parsePercent(row.tacosPercent),
       overrideFbaFee: parseNumber(row.fbaFee),
       overrideReferralRate: parsePercent(row.referralRate),
@@ -454,7 +454,7 @@ function mergeOrders(
       overrideSellingPrice: parseNumber(row.sellingPrice),
       overrideManufacturingCost: parseNumber(row.manufacturingCost),
       overrideFreightCost: parseNumber(row.freightCost),
-      overrideTariffRate: parsePercent(row.tariffRate),
+      overrideTariffRate: parseNumber(row.tariffRate),
       overrideTacosPercent: parsePercent(row.tacosPercent),
       overrideFbaFee: parseNumber(row.fbaFee),
       overrideReferralRate: parsePercent(row.referralRate),
@@ -684,7 +684,7 @@ export function OpsPlanningWorkspace({
         BATCH_NUMERIC_PRECISION.manufacturingCost
       ),
       freightCost: formatNumericInput(batch.overrideFreightCost, BATCH_NUMERIC_PRECISION.freightCost),
-      tariffRate: formatPercentInput(batch.overrideTariffRate, BATCH_PERCENT_PRECISION.tariffRate),
+      tariffRate: formatNumericInput(batch.overrideTariffRate, BATCH_NUMERIC_PRECISION.tariffRate),
       tacosPercent: formatPercentInput(batch.overrideTacosPercent, BATCH_PERCENT_PRECISION.tacosPercent),
       fbaFee: formatNumericInput(batch.overrideFbaFee, BATCH_NUMERIC_PRECISION.fbaFee),
       referralRate: formatPercentInput(batch.overrideReferralRate, BATCH_PERCENT_PRECISION.referralRate),
@@ -985,7 +985,7 @@ useEffect(() => {
             overrideSellingPrice: parseNumber(update.sellingPrice),
             overrideManufacturingCost: parseNumber(update.manufacturingCost),
             overrideFreightCost: parseNumber(update.freightCost),
-            overrideTariffRate: parsePercent(update.tariffRate),
+            overrideTariffRate: parseNumber(update.tariffRate),
             overrideTacosPercent: parsePercent(update.tacosPercent),
             overrideFbaFee: parseNumber(update.fbaFee),
             overrideReferralRate: parsePercent(update.referralRate),

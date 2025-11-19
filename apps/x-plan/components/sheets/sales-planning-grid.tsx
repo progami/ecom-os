@@ -33,7 +33,7 @@ const editableMetrics = new Set(['actualSales', 'forecastSales'])
 const BASE_SALES_METRICS = ['stockStart', 'actualSales', 'forecastSales', 'finalSales', 'finalSalesError'] as const
 const STOCK_METRIC_OPTIONS = [
   { id: 'stockWeeks', label: 'Stock (Weeks)' },
-  { id: 'stockEnd', label: 'Stock End' },
+  { id: 'stockEnd', label: 'Stock Qty' },
 ] as const
 type StockMetricId = (typeof STOCK_METRIC_OPTIONS)[number]['id']
 
@@ -430,7 +430,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
       }
 
       if (meta.field === activeStockMetric) {
-        renderToggle(activeStockMetric === 'stockWeeks' ? 'Stock (Weeks)' : 'Stock End', () => {
+        renderToggle(activeStockMetric === 'stockWeeks' ? 'Stock (Weeks)' : 'Stock Qty', () => {
           setActiveStockMetric((prev) => (prev === 'stockWeeks' ? 'stockEnd' : 'stockWeeks'))
         })
         return
@@ -504,7 +504,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
           afterGetColHeader={handleColHeader}
           stretchH="all"
           className="x-plan-hot"
-          height="auto"
+          height="70vh"
           rowHeaders={false}
           undo
           comments={true}

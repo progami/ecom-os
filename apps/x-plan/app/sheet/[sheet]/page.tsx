@@ -388,7 +388,7 @@ function metricHeader(metric: SalesMetric): NestedHeaderCell {
           'Weeks of stock = number of future weeks until projected inventory reaches zero using Final Sales (Actuals when present, otherwise Forecast) and scheduled arrivals.',
       }
     case 'stockEnd':
-      return 'Stock End'
+      return 'Stock Qty'
     default:
       return metric
   }
@@ -979,7 +979,7 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
     sellingPrice: formatNumeric(input.overrideSellingPrice ?? null),
     manufacturingCost: formatNumeric(input.overrideManufacturingCost ?? null),
     freightCost: formatNumeric(input.overrideFreightCost ?? null),
-    tariffRate: formatPercentDecimal(input.overrideTariffRate ?? null),
+    tariffRate: formatNumeric(input.overrideTariffRate ?? null),
     tacosPercent: formatPercentDecimal(input.overrideTacosPercent ?? null),
     fbaFee: formatNumeric(input.overrideFbaFee ?? null),
     referralRate: formatPercentDecimal(input.overrideReferralRate ?? null),
@@ -1099,7 +1099,7 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
       sellingPrice: formatNumeric(batch.overrideSellingPrice ?? order.overrideSellingPrice ?? null),
       manufacturingCost: formatNumeric(batch.overrideManufacturingCost ?? order.overrideManufacturingCost ?? null),
       freightCost: formatNumeric(batch.overrideFreightCost ?? order.overrideFreightCost ?? null),
-      tariffRate: formatPercentDecimal(batch.overrideTariffRate ?? order.overrideTariffRate ?? null),
+      tariffRate: formatNumeric(batch.overrideTariffRate ?? order.overrideTariffRate ?? null),
       tacosPercent: formatPercentDecimal(batch.overrideTacosPercent ?? order.overrideTacosPercent ?? null),
       fbaFee: formatNumeric(batch.overrideFbaFee ?? order.overrideFbaFee ?? null),
       referralRate: formatPercentDecimal(batch.overrideReferralRate ?? order.overrideReferralRate ?? null),
