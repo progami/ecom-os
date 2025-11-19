@@ -106,10 +106,25 @@ export async function PUT(
  const body = await request.json()
  const { costRates } = body
 
- // Delete existing cost rates for this warehouse
- await prisma.costRate.deleteMany({
- where: { warehouseId }
- })
+  // Delete existing cost rates for this warehouse, detaching any storage ledger references first
+  await prisma.$transaction(async tx => {
+    const existingRates = await tx.costRate.findMany({
+      where: { warehouseId },
+      select: { id: true }
+    })
+
+    if (existingRates.length > 0) {
+      const rateIds = existingRates.map(rate => rate.id)
+      await tx.storageLedger.updateMany({
+        where: { costRateId: { in: rateIds } },
+        data: { costRateId: null }
+      })
+    }
+
+    await tx.costRate.deleteMany({
+      where: { warehouseId }
+    })
+  })
 
  // Create new cost rates
  const incomingRates: IncomingCostRate[] = Array.isArray(costRates) ? costRates : []
