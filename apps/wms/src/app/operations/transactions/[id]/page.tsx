@@ -4,27 +4,24 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
-import { 
- Package2, 
- Truck,
- ArrowLeft,
- Loader2,
- FileText,
- DollarSign,
- Paperclip,
- Edit2,
- Save,
- X,
- Trash2
+import {
+  Package2,
+  Truck,
+  ArrowLeft,
+  Loader2,
+  FileText,
+  DollarSign,
+  Paperclip,
+  Trash2,
 } from '@/lib/lucide-icons'
 import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
-import { EditAttachmentsTab, type ApiAttachment, type EditAttachment } from '@/components/operations/edit-attachments-tab'
+import { type ApiAttachment } from '@/components/operations/edit-attachments-tab'
 import { DeleteTransactionDialog } from '@/components/operations/delete-transaction-dialog'
 
 const ORDERS_INDEX_PATH = '/operations/orders'
 
 interface TransactionData {
- id: string
+  id: string
  transactionId: string
  transactionType: 'RECEIVE' | 'SHIP' | 'ADJUST_IN' | 'ADJUST_OUT'
  transactionDate: string
@@ -54,7 +51,19 @@ interface TransactionData {
  rate?: number
  amount?: number
  }>
- stagedAttachments?: Record<string, EditAttachment | null>
+ costs?: Array<{
+  id?: string
+  costType?: string
+  costName?: string
+  quantity?: number
+  unitRate?: number
+  totalCost?: number
+ }>
+ createdBy?: {
+  fullName?: string
+  email?: string
+ }
+ history?: Array<Record<string, unknown>>
  lineItems: Array<{
  id: string
  skuId: string
@@ -75,6 +84,27 @@ interface TransactionData {
  }>
 }
 
+type TransactionValidation = {
+  canEdit: boolean
+  canDelete: boolean
+  reason: string | null
+  details?: {
+    dependentTransactions?: Array<{
+      id: string
+      transactionType: string
+      transactionDate: string
+      quantity: number
+    }>
+    currentInventory?: {
+      skuCode: string
+      batchLot: string
+      quantity: number
+      allocated: number
+      available: number
+    }
+  }
+}
+
 export default function TransactionDetailPage() {
  const params = useParams()
  const router = useRouter()
@@ -82,22 +112,14 @@ export default function TransactionDetailPage() {
  const [transaction, setTransaction] = useState<TransactionData | null>(null)
  const [activeTab, setActiveTab] = useState('details')
  const [_skus, setSkus] = useState<Array<{ id: string; skuCode: string; description: string }>>([])
- const [isEditMode, setIsEditMode] = useState(false)
- const [isSaving, setIsSaving] = useState(false)
  const [isDeleting, setIsDeleting] = useState(false)
  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
- const [editedData, setEditedData] = useState<Partial<TransactionData>>({})
- const [validation, setValidation] = useState<{
- canEdit: boolean
- canDelete: boolean
- reason: string | null
- details: Record<string, unknown>
- }>({
- canEdit: true,
- canDelete: true,
- reason: null,
- details: {}
- })
+  const [validation, setValidation] = useState<TransactionValidation>({
+    canEdit: false,
+    canDelete: true,
+    reason: null,
+    details: {},
+  })
 
  useEffect(() => {
  loadTransaction()
@@ -126,41 +148,27 @@ export default function TransactionDetailPage() {
  ? (data.attachments as Record<string, ApiAttachment | null>)
  : {}
 
- const transformedData: TransactionData = {
+const transformedData: TransactionData = {
  ...data,
  transactionId: data.transactionId || data.referenceId || data.id,
  warehouseId: data.warehouse?.id || data.warehouseId,
  skuCode: data.skuCode || data.sku?.skuCode || '',
  cartonsIn: data.cartonsIn ?? 0,
  cartonsOut: data.cartonsOut ?? 0,
- lineItems: [
- {
- id: data.id,
- skuId: data.sku?.id || data.skuId,
- sku: data.sku,
- batchLot: data.batchLot || '',
- cartonsIn: data.cartonsIn || 0,
- cartonsOut: data.cartonsOut || 0,
- storagePalletsIn: data.storagePalletsIn || 0,
- shippingPalletsOut: data.shippingPalletsOut || 0,
- storageCartonsPerPallet: data.storageCartonsPerPallet || 0,
- shippingCartonsPerPallet: data.shippingCartonsPerPallet || 0,
- unitsPerCarton: data.unitsPerCarton || data.sku?.unitsPerCarton || 0
- }
- ],
- attachments: attachmentsRecord
- }
- 
- 
- setTransaction(transformedData)
- 
- // Initialize edited data with editable fields
- setEditedData({
+ lineItems: data.lineItems || data.transactionLines || [],
+ costs: data.costs || [],
+ attachments: attachmentsRecord,
+ createdBy: data.createdBy || { fullName: 'System User', email: 'system@warehouse.com' },
+ history: data.history || [],
  referenceId: data.referenceId || '',
  shipName: data.shipName || '',
  trackingNumber: data.trackingNumber || '',
  supplier: data.supplier || ''
- })
+}
+ 
+ 
+ setTransaction(transformedData)
+ 
  } catch (_error) {
  // Error loading transaction
  toast.error('Failed to load transaction')
@@ -188,63 +196,17 @@ export default function TransactionDetailPage() {
  const response = await fetch(`/api/transactions/${params.id}/validate-edit`, {
  credentials: 'include'
  })
- if (response.ok) {
- const data = await response.json()
- setValidation(data)
- }
+  if (response.ok) {
+    const data = await response.json()
+    setValidation({
+      canEdit: Boolean(data.canEdit),
+      canDelete: Boolean(data.canDelete),
+      reason: data.reason ?? null,
+      details: data.details,
+    })
+  }
  } catch (_error) {
  // Failed to check validation
- }
- }
-
- const handleSave = async () => {
- setIsSaving(true)
- try {
- // First, save the basic transaction data
- const { stagedAttachments, ...basicData } = editedData
- const response = await fetch(`/api/transactions/${params.id}`, {
- method: 'PUT',
- headers: { 'Content-Type': 'application/json' },
- body: JSON.stringify(basicData),
- credentials: 'include'
- })
-
- if (!response.ok) {
- const error = await response.json()
- throw new Error(error.error || 'Failed to update transaction')
- }
-
- // Handle staged attachment changes if any
- if (stagedAttachments) {
- const entries = Object.entries(stagedAttachments) as Array<[string, EditAttachment | null]>
- for (const [category, attachment] of entries) {
- if (!attachment) continue
-
- if (attachment.deleted && attachment.s3Key) {
- await fetch(`/api/transactions/${params.id}/attachments?category=${category}`, {
- method: 'DELETE',
- credentials: 'include'
- })
- } else if (attachment.isNew && attachment.file) {
- const formData = new FormData()
- formData.append('file', attachment.file)
- formData.append('documentType', category)
-
- await fetch(`/api/transactions/${params.id}/attachments`, {
- method: 'POST',
- body: formData,
- credentials: 'include'
- })
- }
- }
- }
-
- toast.success('Transaction updated successfully')
- router.push(ORDERS_INDEX_PATH)
- } catch (_error) {
- toast.error(_error instanceof Error ? _error.message : 'Failed to update transaction')
- } finally {
- setIsSaving(false)
  }
  }
 
@@ -357,53 +319,25 @@ export default function TransactionDetailPage() {
  </span>
  </div>
  </div>
- <div className="flex gap-2">
- {isEditMode ? (
- <>
- <button
- onClick={() => {
- setIsEditMode(false)
- setEditedData({
- referenceId: transaction.referenceId || '',
- shipName: transaction.shipName || '',
- trackingNumber: transaction.trackingNumber || '',
- supplier: transaction.supplier || '',
- stagedAttachments: undefined
- })
- }}
- className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
- >
- <X className="w-4 h-4 mr-2 inline" />
- Cancel
- </button>
- <button
- onClick={handleSave}
- disabled={isSaving}
- className="px-4 py-2 text-sm font-medium text-white bg-cyan-600 rounded-md hover:bg-cyan-700 disabled:opacity-50"
- >
- <Save className="w-4 h-4 mr-2 inline" />
- {isSaving ? 'Saving...' : 'Save'}
- </button>
- </>
- ) : (
- <>
- <button
- onClick={() => setShowDeleteDialog(true)}
- className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
- >
- <Trash2 className="w-4 h-4 mr-2 inline" />
- Delete
- </button>
- <button
- onClick={() => setIsEditMode(true)}
- className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
- >
- <Edit2 className="w-4 h-4 mr-2 inline" />
- Edit
- </button>
- </>
- )}
- </div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => router.push(ORDERS_INDEX_PATH)}
+          className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
+        >
+          Close
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowDeleteDialog(true)}
+          disabled={!validation.canDelete}
+          className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
+          title={validation.canDelete ? undefined : validation.reason || 'Unable to delete transaction'}
+        >
+          <Trash2 className="w-4 h-4 mr-2 inline" />
+          Delete
+        </button>
+      </div>
  </div>
 
  {/* Tabbed Container */}
@@ -429,17 +363,16 @@ export default function TransactionDetailPage() {
  </div>
 
  <div>
- <label className="block text-sm font-medium text-slate-700 mb-1">
- {isReceive ? 'PI/CI Number' : 'CI/PI Number'}
- </label>
- <input
- type="text"
- value={isEditMode ? editedData.referenceId : (transaction.referenceId || '')}
- onChange={(e) => setEditedData({...editedData, referenceId: e.target.value})}
- className={`w-full px-3 py-2 border border-slate-300 rounded-md ${isEditMode ? 'bg-white' : 'bg-slate-50'}`}
- readOnly={!isEditMode}
- />
- </div>
+      <label className="block text-sm font-medium text-slate-700 mb-1">
+        {isReceive ? 'PI/CI Number' : 'CI/PI Number'}
+      </label>
+      <input
+        type="text"
+        value={transaction.referenceId || ''}
+        className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
+        readOnly
+      />
+    </div>
 
  <div>
  <label className="block text-sm font-medium text-slate-700 mb-1">
@@ -456,43 +389,40 @@ export default function TransactionDetailPage() {
  {isReceive && (
  <>
  <div>
- <label className="block text-sm font-medium text-slate-700 mb-1">
- Ship Name
- </label>
- <input
- type="text"
- value={isEditMode ? editedData.shipName : (transaction.shipName || '')}
- onChange={(e) => setEditedData({...editedData, shipName: e.target.value})}
- className={`w-full px-3 py-2 border border-slate-300 rounded-md ${isEditMode ? 'bg-white' : 'bg-slate-50'}`}
- readOnly={!isEditMode}
- />
- </div>
+      <label className="block text-sm font-medium text-slate-700 mb-1">
+        Ship Name
+      </label>
+      <input
+        type="text"
+        value={transaction.shipName || ''}
+        className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
+        readOnly
+      />
+    </div>
 
  <div>
- <label className="block text-sm font-medium text-slate-700 mb-1">
- Container Number
- </label>
- <input
- type="text"
- value={isEditMode ? editedData.trackingNumber : (transaction.trackingNumber || '')}
- onChange={(e) => setEditedData({...editedData, trackingNumber: e.target.value})}
- className={`w-full px-3 py-2 border border-slate-300 rounded-md ${isEditMode ? 'bg-white' : 'bg-slate-50'}`}
- readOnly={!isEditMode}
- />
- </div>
+      <label className="block text-sm font-medium text-slate-700 mb-1">
+        Container Number
+      </label>
+      <input
+        type="text"
+        value={transaction.trackingNumber || ''}
+        className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
+        readOnly
+      />
+    </div>
 
  <div>
- <label className="block text-sm font-medium text-slate-700 mb-1">
- Supplier
- </label>
- <input
- type="text"
- value={isEditMode ? editedData.supplier : (transaction.supplier || '')}
- onChange={(e) => setEditedData({...editedData, supplier: e.target.value})}
- className={`w-full px-3 py-2 border border-slate-300 rounded-md ${isEditMode ? 'bg-white' : 'bg-slate-50'}`}
- readOnly={!isEditMode}
- />
- </div>
+      <label className="block text-sm font-medium text-slate-700 mb-1">
+        Supplier
+      </label>
+      <input
+        type="text"
+        value={transaction.supplier || ''}
+        className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
+        readOnly
+      />
+    </div>
  </>
  )}
 
@@ -511,17 +441,16 @@ export default function TransactionDetailPage() {
  </div>
 
  <div>
- <label className="block text-sm font-medium text-slate-700 mb-1">
- Tracking Number
- </label>
- <input
- type="text"
- value={isEditMode ? editedData.trackingNumber : (transaction.trackingNumber || '')}
- onChange={(e) => setEditedData({...editedData, trackingNumber: e.target.value})}
- className={`w-full px-3 py-2 border border-slate-300 rounded-md ${isEditMode ? 'bg-white' : 'bg-slate-50'}`}
- readOnly={!isEditMode}
- />
- </div>
+      <label className="block text-sm font-medium text-slate-700 mb-1">
+        Tracking Number
+      </label>
+      <input
+        type="text"
+        value={transaction.trackingNumber || ''}
+        className="w-full px-3 py-2 border border-slate-300 rounded-md bg-slate-50"
+        readOnly
+      />
+    </div>
 
  </>
  )}
@@ -712,94 +641,84 @@ export default function TransactionDetailPage() {
  </div>
  </TabPanel>
 
- {/* Attachments Tab */}
- <TabPanel>
- {isEditMode ? (
- // Use EditAttachmentsTab component in edit mode - stages changes locally
- <EditAttachmentsTab 
- existingAttachments={transaction.attachments ?? null}
- transactionType={transaction.transactionType}
- onAttachmentsChange={(attachments) => {
- const normalized = attachments as Record<string, EditAttachment | null>
- // Store the staged attachments in editedData
- setEditedData({
- ...editedData,
- stagedAttachments: normalized
- })
- }}
- />
- ) : (
- // Read-only view when not in edit mode
- <div className="space-y-4">
- {(!transaction.attachments || Object.keys(transaction.attachments).length === 0) ? (
- <div className="text-center py-12 text-slate-500">
- <Paperclip className="h-12 w-12 mx-auto mb-4 text-slate-400" />
- <p className="text-lg font-medium">No attachments</p>
- <p className="text-sm mt-2">No documents have been attached to this transaction</p>
- </div>
- ) : (
- <div className="bg-white rounded-xl border">
- <div className="px-6 py-4 border-b bg-slate-50">
- <h3 className="text-lg font-semibold">Transaction Documents</h3>
- </div>
- <div className="p-6">
- <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
- {Object.entries(transaction.attachments as Record<string, ApiAttachment | null>).map(([category, attachment]) => {
- if (!attachment) return null
- 
- const categoryLabels: Record<string, string> = {
- commercial_invoice: 'Commercial Invoice',
- bill_of_lading: 'Bill of Lading',
- packing_list: 'Packing List',
- delivery_note: 'Movement Note',
- cube_master: 'Cube Master',
- transaction_certificate: 'TC GRS',
- custom_declaration: 'CDS'
- }
- 
- return (
- <div key={category} className="border rounded-lg p-4 bg-slate-50">
- <div className="flex items-start justify-between">
- <div className="flex-1 min-w-0">
- <h4 className="font-medium text-sm text-slate-900">
- {categoryLabels[category] || category}
- </h4>
- <div className="flex items-center gap-2 mt-2">
- <Paperclip className="h-4 w-4 text-slate-400 flex-shrink-0" />
- <p className="text-sm text-slate-700 truncate">
- {attachment.fileName || attachment.name || 'Document'}
- </p>
- </div>
- {attachment.size && (
- <p className="text-xs text-slate-500 mt-1">
- {(attachment.size / 1024).toFixed(1)} KB
- </p>
- )}
- </div>
- {attachment.s3Url && (
- <a
- href={attachment.s3Url}
- target="_blank"
- rel="noopener noreferrer"
- className="ml-2 p-2 text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 rounded"
- title="Download"
- >
- <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
- <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
- </svg>
- </a>
- )}
- </div>
- </div>
- )
- })}
- </div>
- </div>
- </div>
- )}
- </div>
- )}
- </TabPanel>
+    {/* Attachments Tab */}
+    <TabPanel>
+      <div className="space-y-4">
+        {(!transaction.attachments || Object.keys(transaction.attachments).length === 0) ? (
+          <div className="text-center py-12 text-slate-500">
+            <Paperclip className="h-12 w-12 mx-auto mb-4 text-slate-400" />
+            <p className="text-lg font-medium">No attachments</p>
+            <p className="text-sm mt-2">No documents have been attached to this transaction</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl border">
+            <div className="px-6 py-4 border-b bg-slate-50">
+              <h3 className="text-lg font-semibold">Transaction Documents</h3>
+            </div>
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {Object.entries(transaction.attachments as Record<string, ApiAttachment | null>).map(
+                  ([category, attachment]) => {
+                    if (!attachment) return null
+
+                    const categoryLabels: Record<string, string> = {
+                      commercial_invoice: 'Commercial Invoice',
+                      bill_of_lading: 'Bill of Lading',
+                      packing_list: 'Packing List',
+                      delivery_note: 'Movement Note',
+                      cube_master: 'Cube Master',
+                      transaction_certificate: 'TC GRS',
+                      custom_declaration: 'CDS',
+                    }
+
+                    return (
+                      <div key={category} className="border rounded-lg p-4 bg-slate-50">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-sm text-slate-900">
+                              {categoryLabels[category] || category}
+                            </h4>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Paperclip className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                              <p className="text-sm text-slate-700 truncate">
+                                {attachment.fileName || attachment.name || 'Document'}
+                              </p>
+                            </div>
+                            {attachment.size && (
+                              <p className="text-xs text-slate-500 mt-1">
+                                {(attachment.size / 1024).toFixed(1)} KB
+                              </p>
+                            )}
+                          </div>
+                          {attachment.s3Url && (
+                            <a
+                              href={attachment.s3Url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-2 p-2 text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 rounded"
+                              title="Download"
+                            >
+                              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                                />
+                              </svg>
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  }
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </TabPanel>
  </TabbedContainer>
  </div>
 
