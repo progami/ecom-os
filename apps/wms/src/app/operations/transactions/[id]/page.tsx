@@ -12,11 +12,9 @@ import {
   FileText,
   DollarSign,
   Paperclip,
-  Trash2,
 } from '@/lib/lucide-icons'
 import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
 import { type ApiAttachment } from '@/components/operations/edit-attachments-tab'
-import { DeleteTransactionDialog } from '@/components/operations/delete-transaction-dialog'
 
 const ORDERS_INDEX_PATH = '/operations/orders'
 
@@ -84,27 +82,6 @@ interface TransactionData {
  }>
 }
 
-type TransactionValidation = {
-  canEdit: boolean
-  canDelete: boolean
-  reason: string | null
-  details?: {
-    dependentTransactions?: Array<{
-      id: string
-      transactionType: string
-      transactionDate: string
-      quantity: number
-    }>
-    currentInventory?: {
-      skuCode: string
-      batchLot: string
-      quantity: number
-      allocated: number
-      available: number
-    }
-  }
-}
-
 export default function TransactionDetailPage() {
  const params = useParams()
  const router = useRouter()
@@ -112,19 +89,9 @@ export default function TransactionDetailPage() {
  const [transaction, setTransaction] = useState<TransactionData | null>(null)
  const [activeTab, setActiveTab] = useState('details')
  const [_skus, setSkus] = useState<Array<{ id: string; skuCode: string; description: string }>>([])
- const [isDeleting, setIsDeleting] = useState(false)
- const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [validation, setValidation] = useState<TransactionValidation>({
-    canEdit: false,
-    canDelete: true,
-    reason: null,
-    details: {},
-  })
-
  useEffect(() => {
  loadTransaction()
  loadSkus()
- checkValidation()
  // eslint-disable-next-line react-hooks/exhaustive-deps
  }, [params.id])
 
@@ -188,48 +155,6 @@ const transformedData: TransactionData = {
  }
  } catch (_error) {
  // Failed to load SKUs
- }
- }
-
- const checkValidation = async () => {
- try {
- const response = await fetch(`/api/transactions/${params.id}/validate-edit`, {
- credentials: 'include'
- })
-  if (response.ok) {
-    const data = await response.json()
-    setValidation({
-      canEdit: Boolean(data.canEdit),
-      canDelete: Boolean(data.canDelete),
-      reason: data.reason ?? null,
-      details: data.details,
-    })
-  }
- } catch (_error) {
- // Failed to check validation
- }
- }
-
- const handleDelete = async () => {
- setIsDeleting(true)
- try {
- const response = await fetch(`/api/transactions/${params.id}`, {
- method: 'DELETE',
- credentials: 'include'
- })
-
- if (!response.ok) {
- const error = await response.json()
- throw new Error(error.error || 'Failed to delete transaction')
- }
-
- toast.success('Transaction deleted successfully')
- router.push(ORDERS_INDEX_PATH)
- } catch (_error) {
- toast.error(_error instanceof Error ? _error.message : 'Failed to delete transaction')
- } finally {
- setIsDeleting(false)
- setShowDeleteDialog(false)
  }
  }
 
@@ -326,16 +251,6 @@ const transformedData: TransactionData = {
           className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
         >
           Close
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowDeleteDialog(true)}
-          disabled={!validation.canDelete}
-          className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
-          title={validation.canDelete ? undefined : validation.reason || 'Unable to delete transaction'}
-        >
-          <Trash2 className="w-4 h-4 mr-2 inline" />
-          Delete
         </button>
       </div>
  </div>
@@ -722,15 +637,6 @@ const transformedData: TransactionData = {
  </TabbedContainer>
  </div>
 
- {/* Delete Confirmation Dialog */}
- <DeleteTransactionDialog
- isOpen={showDeleteDialog}
- onClose={() => setShowDeleteDialog(false)}
- onConfirm={handleDelete}
- transaction={transaction}
- validation={validation}
- isDeleting={isDeleting}
- />
  </DashboardLayout>
  )
 }
