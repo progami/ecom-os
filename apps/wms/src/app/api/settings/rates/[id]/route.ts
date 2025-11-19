@@ -180,8 +180,15 @@ export async function DELETE(
  return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
  }
 
- await prisma.costRate.delete({
- where: { id: rateId }
+ await prisma.$transaction(async tx => {
+  await tx.storageLedger.updateMany({
+   where: { costRateId: rateId },
+   data: { costRateId: null },
+  })
+
+  await tx.costRate.delete({
+   where: { id: rateId },
+  })
  })
 
  return NextResponse.json({ success: true })
