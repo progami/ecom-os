@@ -217,7 +217,7 @@ export default function WarehousesPanel() {
     if (!confirm(`Delete "${rate.costName}" (${formatCostCategory(rate.costCategory)}) rate (£${rate.costValue.toFixed(2)}/${rate.unitOfMeasure})? This cannot be undone.`)) return
 
     try {
-      const response = await fetchWithCSRF(`/api/settings/rates?id=${rate.id}`, {
+      const response = await fetchWithCSRF(`/api/settings/rates/${rate.id}`, {
         method: 'DELETE'
       })
 
