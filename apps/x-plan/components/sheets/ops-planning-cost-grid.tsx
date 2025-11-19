@@ -9,8 +9,9 @@ import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { finishEditingSafely } from '@/lib/handsontable'
-import { formatNumericInput, formatPercentInput, numericValidator } from '@/components/sheets/validators'
+import { formatNumericInput, formatPercentInput, numericValidator, sanitizeNumeric } from '@/components/sheets/validators'
 import { withAppBasePath } from '@/lib/base-path'
+import { Info } from 'lucide-react'
 
 registerAllModules()
 
@@ -54,34 +55,48 @@ const COST_HEADERS = [
   'Sell $',
   'Mfg $',
   'Freight $',
-  'Tariff %',
+  'Tariff $',
   'TACoS %',
   'FBA $',
   'Referral %',
   'Storage $',
 ]
 
-const NUMERIC_FIELDS = ['quantity', 'sellingPrice', 'manufacturingCost', 'freightCost', 'fbaFee', 'storagePerMonth'] as const
+const NUMERIC_FIELDS = [
+  'quantity',
+  'sellingPrice',
+  'manufacturingCost',
+  'freightCost',
+  'tariffRate',
+  'fbaFee',
+  'storagePerMonth',
+] as const
 type NumericField = (typeof NUMERIC_FIELDS)[number]
 const NUMERIC_PRECISION: Record<NumericField, number> = {
   quantity: 0,
   sellingPrice: 2,
   manufacturingCost: 2,
   freightCost: 2,
+  tariffRate: 2,
   fbaFee: 2,
   storagePerMonth: 2,
 }
 
-const PERCENT_FIELDS = ['tariffRate', 'tacosPercent', 'referralRate'] as const
+const PERCENT_FIELDS = ['tacosPercent', 'referralRate'] as const
 type PercentField = (typeof PERCENT_FIELDS)[number]
 const PERCENT_PRECISION: Record<PercentField, number> = {
-  tariffRate: 4,
-  tacosPercent: 4,
-  referralRate: 4,
+  tacosPercent: 2,
+  referralRate: 2,
 }
 
 const NUMERIC_FIELD_SET = new Set<string>(NUMERIC_FIELDS)
 const PERCENT_FIELD_SET = new Set<string>(PERCENT_FIELDS)
+const ABSOLUTE_ENTRY_FIELDS: ReadonlySet<NumericField> = new Set([
+  'manufacturingCost',
+  'freightCost',
+  'tariffRate',
+  'storagePerMonth',
+])
 
 const SERVER_FIELD_MAP: Partial<Record<keyof OpsBatchRow, string>> = {
   quantity: 'quantity',
@@ -109,6 +124,21 @@ function normalizeCurrency(value: unknown, fractionDigits = 2) {
 
 function normalizePercent(value: unknown, fractionDigits = 4) {
   return formatPercentInput(value, fractionDigits)
+}
+
+function normalizeAbsoluteCurrency(value: unknown, fractionDigits: number, quantity: string | number | null | undefined) {
+  if (value === null || value === undefined || value === '') {
+    return ''
+  }
+  const total = sanitizeNumeric(value)
+  if (Number.isNaN(total)) {
+    return ''
+  }
+  const qty = sanitizeNumeric(quantity)
+  if (!Number.isFinite(qty) || qty <= 0) {
+    return total.toFixed(fractionDigits)
+  }
+  return (total / qty).toFixed(fractionDigits)
 }
 
 export function OpsPlanningCostGrid({
@@ -208,7 +238,7 @@ export function OpsPlanningCostGrid({
       {
         data: 'tariffRate',
         type: 'numeric',
-        numericFormat: { pattern: '0.00%' },
+        numericFormat: { pattern: '$0,0.00' },
         className: 'cell-editable text-right',
         width: 110,
         validator: numericValidator,
@@ -295,9 +325,17 @@ export function OpsPlanningCostGrid({
   return (
     <section className="space-y-3">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
-          Batch Table
-        </h2>
+        <div className="space-y-1">
+          <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
+            Batch Table
+          </h2>
+          <p className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-200/80">
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-cyan-200/70 text-cyan-700 dark:border-cyan-300/40 dark:text-cyan-200">
+              <Info className="h-3.5 w-3.5" aria-hidden />
+            </span>
+            Values display per-unit. Enter total freight, manufacturing, or storage costs and we’ll normalize them by the batch quantity.
+          </p>
+        </div>
         <div className="flex flex-wrap gap-2">
           {onAddBatch ? (
             <button
@@ -387,7 +425,9 @@ export function OpsPlanningCostGrid({
               record.quantity = normalized
             } else if (isNumericField(prop)) {
               const precision = NUMERIC_PRECISION[prop]
-              const normalized = normalizeCurrency(newValue, precision)
+              const normalized = ABSOLUTE_ENTRY_FIELDS.has(prop)
+                ? normalizeAbsoluteCurrency(newValue, precision, record.quantity)
+                : normalizeCurrency(newValue, precision)
               const serverKey = SERVER_FIELD_MAP[prop]
               if (serverKey) {
                 entry.values[serverKey] = normalized === '' ? null : normalized

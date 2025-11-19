@@ -37,13 +37,21 @@ export async function PUT(request: Request) {
   await prisma.$transaction(
     parsed.data.updates.map(({ productId, weekNumber, values }) => {
       const data: Record<string, number | null> = {}
+      let touchedAutoField = false
       for (const field of allowedFields) {
         if (!(field in values)) continue
         data[field] = parseIntValue(values[field])
+        if (field === 'actualSales' || field === 'forecastSales') {
+          touchedAutoField = true
+        }
       }
 
       if (Object.keys(data).length === 0) {
         return prisma.salesWeek.findFirst({ where: { productId, weekNumber } })
+      }
+
+      if (touchedAutoField && !('finalSales' in values)) {
+        data.finalSales = null
       }
 
       const weekDate = getCalendarDateForWeek(weekNumber, calendar)
@@ -66,4 +74,3 @@ export async function PUT(request: Request) {
 
   return NextResponse.json({ ok: true })
 }
-

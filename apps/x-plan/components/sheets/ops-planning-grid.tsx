@@ -150,10 +150,10 @@ const NUMERIC_PRECISION: Partial<Record<keyof OpsInputRow, number>> = {
   sellingPrice: 2,
   manufacturingCost: 2,
   freightCost: 2,
-  tariffRate: 4,
-  tacosPercent: 4,
+  tariffRate: 2,
+  tacosPercent: 2,
   fbaFee: 2,
-  referralRate: 4,
+  referralRate: 2,
   storagePerMonth: 2,
 }
 
