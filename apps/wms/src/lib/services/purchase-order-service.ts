@@ -9,6 +9,7 @@ import {
  PurchaseOrderStatus,
  PurchaseOrderType,
  TransactionType,
+  MovementNoteStatus,
 } from '@ecom-os/prisma-wms'
 
 export interface UserContext {
@@ -413,10 +414,10 @@ export async function transitionPurchaseOrderStatus(
  id: string,
  targetStatus: PurchaseOrderStatus,
 ): Promise<PurchaseOrderWithLines> {
- const order = await prisma.purchaseOrder.findUnique({
- where: { id },
- include: { lines: true },
- })
+  const order = await prisma.purchaseOrder.findUnique({
+    where: { id },
+    include: { lines: true },
+  })
 
  if (!order) {
  throw new Error('Purchase order not found')
@@ -435,18 +436,117 @@ export async function transitionPurchaseOrderStatus(
  }
 
  if (targetStatus === PurchaseOrderStatus.POSTED) {
- if (order.status !== PurchaseOrderStatus.REVIEW) {
- throw new Error('Only purchase orders in review can be posted')
- }
+    if (order.status !== PurchaseOrderStatus.REVIEW) {
+      throw new Error('Only purchase orders in review can be posted')
+    }
 
- return prisma.purchaseOrder.update({
- where: { id },
- data: {
- status: PurchaseOrderStatus.POSTED,
- postedAt: new Date(),
- },
- include: { lines: true },
- })
+    return prisma.$transaction(async (tx) => {
+      const freshOrder = await tx.purchaseOrder.findUnique({
+        where: { id },
+        include: { lines: true },
+      })
+
+      if (!freshOrder) throw new Error('Purchase order not found')
+
+      const movementNotes = await tx.movementNote.findMany({
+        where: { purchaseOrderId: id, status: MovementNoteStatus.POSTED },
+        include: { lines: true },
+      })
+
+      if (movementNotes.length === 0) {
+        throw new ConflictError('Cannot post without posted movement notes')
+      }
+
+      const allLinesPosted = freshOrder.lines.every(line => line.status === PurchaseOrderLineStatus.POSTED)
+      if (!allLinesPosted) {
+        throw new ConflictError('All purchase order lines must be posted before finalizing')
+      }
+
+      await tx.inventoryTransaction.deleteMany({ where: { purchaseOrderId: id } })
+
+      const transactionType = (() => {
+        switch (freshOrder.type) {
+          case PurchaseOrderType.PURCHASE:
+            return TransactionType.RECEIVE
+          case PurchaseOrderType.FULFILLMENT:
+            return TransactionType.SHIP
+          default:
+            return TransactionType.ADJUST_IN
+        }
+      })()
+
+      const isInbound = transactionType === TransactionType.RECEIVE || transactionType === TransactionType.ADJUST_IN
+
+      for (const note of movementNotes) {
+        const transactionDate = note.receivedAt ?? new Date()
+        for (const line of note.lines) {
+          const poLine = freshOrder.lines.find(l => l.id === line.purchaseOrderLineId)
+          if (!poLine) {
+            throw new ConflictError('Purchase order line missing for movement note line')
+          }
+
+          const sku = await tx.sku.findFirst({ where: { skuCode: poLine.skuCode } })
+          const unitsPerCarton = sku?.unitsPerCarton ?? 1
+          const batchLot = resolveBatchLot({
+            rawBatchLot: line.batchLot ?? poLine.batchLot,
+            orderNumber: freshOrder.orderNumber,
+            warehouseCode: freshOrder.warehouseCode,
+            skuCode: poLine.skuCode,
+            transactionDate,
+          })
+
+          await tx.inventoryTransaction.create({
+            data: {
+              warehouseCode: freshOrder.warehouseCode,
+              warehouseName: freshOrder.warehouseName,
+              warehouseAddress: null,
+              skuCode: poLine.skuCode,
+              skuDescription: poLine.skuDescription ?? sku?.description ?? '',
+              unitDimensionsCm: sku?.unitDimensionsCm ?? null,
+              unitWeightKg: sku?.unitWeightKg ?? null,
+              cartonDimensionsCm: sku?.cartonDimensionsCm ?? null,
+              cartonWeightKg: sku?.cartonWeightKg ?? null,
+              packagingType: sku?.packagingType ?? null,
+              unitsPerCarton,
+              batchLot,
+              transactionType,
+              referenceId: note.referenceNumber ?? toPublicOrderNumber(freshOrder.orderNumber),
+              cartonsIn: isInbound ? line.quantity : 0,
+              cartonsOut: isInbound ? 0 : line.quantity,
+              storagePalletsIn: isInbound
+                ? Math.ceil(line.quantity / Math.max(1, line.storageCartonsPerPallet ?? unitsPerCarton))
+                : 0,
+              shippingPalletsOut: !isInbound
+                ? Math.ceil(line.quantity / Math.max(1, line.shippingCartonsPerPallet ?? unitsPerCarton))
+                : 0,
+              storageCartonsPerPallet: line.storageCartonsPerPallet ?? null,
+              shippingCartonsPerPallet: line.shippingCartonsPerPallet ?? null,
+              transactionDate,
+              pickupDate: transactionDate,
+              shipName: !isInbound ? note.referenceNumber ?? freshOrder.counterpartyName ?? null : null,
+              trackingNumber: null,
+              supplier: isInbound ? freshOrder.counterpartyName ?? null : null,
+              attachments: line.attachments as Prisma.JsonValue ?? null,
+              purchaseOrderId: freshOrder.id,
+              purchaseOrderLineId: poLine.id,
+              createdById: SYSTEM_FALLBACK_ID,
+              createdByName: SYSTEM_FALLBACK_NAME,
+              isReconciled: false,
+              isDemo: false,
+            },
+          })
+        }
+      }
+
+      return tx.purchaseOrder.update({
+        where: { id },
+        data: {
+          status: PurchaseOrderStatus.POSTED,
+          postedAt: new Date(),
+        },
+        include: { lines: true },
+      })
+    })
  }
 
  const allowedTransitions: Record<PurchaseOrderStatus, PurchaseOrderStatus[]> = {
@@ -503,15 +603,15 @@ async function createPurchaseOrderRecord(
 
    try {
      const created = await client.purchaseOrder.create({
-       data: {
-         orderNumber: candidateNumber,
-         type: params.orderType,
-         status: PurchaseOrderStatus.AWAITING_PROOF,
-         warehouseCode: params.warehouseCode,
-         warehouseName: params.warehouseName,
-         counterpartyName: params.counterparty,
-         expectedDate: params.expectedDate ?? undefined,
-         notes: params.notes,
+      data: {
+        orderNumber: candidateNumber,
+        type: params.orderType,
+        status: PurchaseOrderStatus.DRAFT,
+        warehouseCode: params.warehouseCode,
+        warehouseName: params.warehouseName,
+        counterpartyName: params.counterparty,
+        expectedDate: params.expectedDate ?? undefined,
+        notes: params.notes,
          createdById: params.createdById ?? undefined,
          createdByName: params.createdByName ?? undefined,
        },

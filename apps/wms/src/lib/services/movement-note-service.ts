@@ -1,11 +1,10 @@
 import { prisma } from '@/lib/prisma'
 import {
  Prisma,
- MovementNoteStatus,
- PurchaseOrderLineStatus,
- PurchaseOrderStatus,
- PurchaseOrderType,
- TransactionType,
+  MovementNoteStatus,
+  PurchaseOrderLineStatus,
+  PurchaseOrderStatus,
+  PurchaseOrderType,
 } from '@ecom-os/prisma-wms'
 import { ValidationError, ConflictError, NotFoundError } from '@/lib/api'
 import { resolveBatchLot, toPublicOrderNumber } from '@/lib/services/purchase-order-service'
@@ -184,17 +183,6 @@ export async function cancelMovementNote(id: string) {
   })
 }
 
-function determineTransactionType(poType: PurchaseOrderType): TransactionType {
- switch (poType) {
- case PurchaseOrderType.PURCHASE:
- return TransactionType.RECEIVE
- case PurchaseOrderType.FULFILLMENT:
- return TransactionType.SHIP
- default:
- return TransactionType.ADJUST_IN
- }
-}
-
 function formatNoteOrderNumber<T extends { purchaseOrder: { orderNumber: string } | null }>(note: T): T {
  const purchaseOrder = note.purchaseOrder
  if (!purchaseOrder) return note
@@ -234,11 +222,9 @@ export async function postMovementNote(id: string, user: UserContext) {
  const displayOrderNumber = toPublicOrderNumber(po.orderNumber)
 
  if (po.status === PurchaseOrderStatus.CANCELLED || po.status === PurchaseOrderStatus.CLOSED) {
- throw new ConflictError('Cannot post a note for a closed or cancelled purchase order')
+   throw new ConflictError('Cannot post a note for a closed or cancelled purchase order')
  }
 
- const transactionType = determineTransactionType(po.type)
- const isInbound = transactionType === TransactionType.RECEIVE
  const transactionDate = note.receivedAt
 
  for (const line of note.lines) {
@@ -257,49 +243,6 @@ export async function postMovementNote(id: string, user: UserContext) {
 
  const sku = await tx.sku.findFirst({ where: { skuCode: poLine.skuCode } })
  const unitsPerCarton = sku?.unitsPerCarton ?? 1
-
- await tx.inventoryTransaction.create({
- data: {
- warehouseCode: po.warehouseCode,
- warehouseName: po.warehouseName,
- warehouseAddress: null,
- skuCode: poLine.skuCode,
- skuDescription: poLine.skuDescription ?? sku?.description ?? '',
- unitDimensionsCm: sku?.unitDimensionsCm ?? null,
- unitWeightKg: sku?.unitWeightKg ?? null,
- cartonDimensionsCm: sku?.cartonDimensionsCm ?? null,
- cartonWeightKg: sku?.cartonWeightKg ?? null,
- packagingType: sku?.packagingType ?? null,
- unitsPerCarton,
- batchLot: resolveBatchLot({
- rawBatchLot: line.batchLot ?? poLine.batchLot,
- orderNumber: po.orderNumber,
- warehouseCode: po.warehouseCode,
- skuCode: poLine.skuCode,
- transactionDate: transactionDate,
- }),
- transactionType,
- referenceId: note.referenceNumber ?? displayOrderNumber,
- cartonsIn: isInbound ? line.quantity : 0,
- cartonsOut: isInbound ? 0 : line.quantity,
- storagePalletsIn: isInbound ? Math.ceil(line.quantity / Math.max(1, line.storageCartonsPerPallet ?? unitsPerCarton)) : 0,
- shippingPalletsOut: !isInbound ? Math.ceil(line.quantity / Math.max(1, line.shippingCartonsPerPallet ?? unitsPerCarton)) : 0,
- storageCartonsPerPallet: line.storageCartonsPerPallet ?? null,
- shippingCartonsPerPallet: line.shippingCartonsPerPallet ?? null,
- transactionDate,
- pickupDate: transactionDate,
- shipName: !isInbound ? note.referenceNumber ?? po.counterpartyName ?? null : null,
- trackingNumber: null,
- supplier: isInbound ? po.counterpartyName ?? null : null,
- attachments: null,
- purchaseOrderId: po.id,
- purchaseOrderLineId: poLine.id,
- createdById: user.id ?? null,
- createdByName: user.name ?? 'System',
- isReconciled: false,
- isDemo: false,
- },
- })
 
  const newPostedQuantity = poLine.postedQuantity + line.quantity
  const lineStatus = newPostedQuantity >= poLine.quantity ? PurchaseOrderLineStatus.POSTED : PurchaseOrderLineStatus.PENDING
