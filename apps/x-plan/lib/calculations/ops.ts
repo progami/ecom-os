@@ -273,14 +273,20 @@ export function computePurchaseOrderDerived(
     if (!product) continue
 
     const sellingPrice = resolveOverride(product.sellingPrice, batch.overrideSellingPrice ?? order.overrideSellingPrice)
-    const manufacturingCost = resolveOverride(
-      product.manufacturingCost,
-      batch.overrideManufacturingCost ?? order.overrideManufacturingCost
-    )
-    const freightCost = resolveOverride(product.freightCost, batch.overrideFreightCost ?? order.overrideFreightCost)
+    const overrideManufacturing = batch.overrideManufacturingCost ?? order.overrideManufacturingCost
+    const parsedManufacturing = overrideManufacturing != null ? parseNumber(overrideManufacturing) : null
+    const batchManufacturingTotal =
+      parsedManufacturing != null ? parsedManufacturing : product.manufacturingCost * quantity
+
+    const overrideFreight = batch.overrideFreightCost ?? order.overrideFreightCost
+    const parsedFreight = overrideFreight != null ? parseNumber(overrideFreight) : null
+    const batchFreightTotal = parsedFreight != null ? parsedFreight : product.freightCost * quantity
+
     const overrideTariffAmount = parseNumber(batch.overrideTariffRate ?? order.overrideTariffRate)
-    const baseTariffCost = Number.isFinite(product.tariffCost) ? product.tariffCost : product.manufacturingCost * product.tariffRate
-    const tariffCost = overrideTariffAmount ?? baseTariffCost
+    const baseTariffCost = Number.isFinite(product.tariffCost)
+      ? product.tariffCost
+      : product.manufacturingCost * product.tariffRate
+    const batchTariffTotal = overrideTariffAmount != null ? overrideTariffAmount : baseTariffCost * quantity
     const tacosPercent = resolveOverride(product.tacosPercent, batch.overrideTacosPercent ?? order.overrideTacosPercent)
     const fbaFee = resolveOverride(product.fbaFee, batch.overrideFbaFee ?? order.overrideFbaFee)
     const referralRate = resolveOverride(
@@ -293,17 +299,17 @@ export function computePurchaseOrderDerived(
     )
 
     const advertisingCost = sellingPrice * tacosPercent
-    const landedUnitCost = manufacturingCost + freightCost + tariffCost
+    const landedUnitCost = (batchManufacturingTotal + batchFreightTotal + batchTariffTotal) / Math.max(quantity, 1)
 
     totalQuantity += quantity
     totalSellingPrice += sellingPrice * quantity
-    totalManufacturingCost += manufacturingCost * quantity
-    totalFreightCost += freightCost * quantity
+    totalManufacturingCost += batchManufacturingTotal
+    totalFreightCost += batchFreightTotal
     totalTacosPercent += tacosPercent * quantity
     totalFbaFee += fbaFee * quantity
     totalReferralRate += referralRate * quantity
     totalStoragePerMonth += storagePerMonth * quantity
-    totalTariffCost += tariffCost * quantity
+    totalTariffCost += batchTariffTotal
     totalAdvertisingCost += advertisingCost * quantity
     totalLandedCost += landedUnitCost * quantity
   }
