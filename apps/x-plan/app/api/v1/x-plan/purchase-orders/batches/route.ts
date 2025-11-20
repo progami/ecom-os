@@ -199,7 +199,14 @@ export async function PUT(request: Request) {
         data[field] = parsedQuantity != null ? Math.max(0, Math.round(parsedQuantity)) : null
       } else if (percentFields[field]) {
         const parsedNumber = parseNumber(incoming)
-        data[field] = parsedNumber == null ? null : parsedNumber > 1 ? parsedNumber / 100 : parsedNumber
+        if (parsedNumber == null) {
+          data[field] = null
+        } else {
+          const normalized = parsedNumber > 1 ? parsedNumber / 100 : parsedNumber
+          // Clamp to the column precision (5,4) to avoid numeric overflow
+          const clamped = Math.min(Math.max(normalized, 0), 0.9999)
+          data[field] = clamped
+        }
       } else if (decimalFields[field]) {
         data[field] = parseNumber(incoming)
       } else if (field === 'productId' || field === 'batchCode') {
