@@ -274,15 +274,19 @@ export function computePurchaseOrderDerived(
 
     const sellingPrice = resolveOverride(product.sellingPrice, batch.overrideSellingPrice ?? order.overrideSellingPrice)
     const overrideManufacturing = batch.overrideManufacturingCost ?? order.overrideManufacturingCost
+    const parsedManufacturing = overrideManufacturing != null ? parseNumber(overrideManufacturing) : null
     const batchManufacturingTotal =
-      overrideManufacturing != null ? parseNumber(overrideManufacturing) * 1 : product.manufacturingCost * quantity
+      parsedManufacturing != null ? parsedManufacturing : product.manufacturingCost * quantity
+
     const overrideFreight = batch.overrideFreightCost ?? order.overrideFreightCost
-    const batchFreightTotal = overrideFreight != null ? parseNumber(overrideFreight) * 1 : product.freightCost * quantity
+    const parsedFreight = overrideFreight != null ? parseNumber(overrideFreight) : null
+    const batchFreightTotal = parsedFreight != null ? parsedFreight : product.freightCost * quantity
+
     const overrideTariffAmount = parseNumber(batch.overrideTariffRate ?? order.overrideTariffRate)
     const baseTariffCost = Number.isFinite(product.tariffCost)
       ? product.tariffCost
       : product.manufacturingCost * product.tariffRate
-    const batchTariffTotal = overrideTariffAmount != null ? overrideTariffAmount * 1 : baseTariffCost * quantity
+    const batchTariffTotal = overrideTariffAmount != null ? overrideTariffAmount : baseTariffCost * quantity
     const tacosPercent = resolveOverride(product.tacosPercent, batch.overrideTacosPercent ?? order.overrideTacosPercent)
     const fbaFee = resolveOverride(product.fbaFee, batch.overrideFbaFee ?? order.overrideFbaFee)
     const referralRate = resolveOverride(
