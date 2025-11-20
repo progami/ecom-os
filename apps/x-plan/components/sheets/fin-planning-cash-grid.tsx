@@ -52,6 +52,7 @@ function normalizeEditable(value: unknown) {
 
 export function CashFlowGrid({ weekly }: CashFlowGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
+  const gridHeight = 'min(78vh, calc(100vh - 260px))'
 
   const data = useMemo(() => weekly, [weekly])
 
@@ -158,55 +159,60 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
 
   return (
     <div className="p-4">
-      <HotTable
-        ref={(instance) => {
-          hotRef.current = instance?.hotInstance ?? null
-        }}
-        data={data}
-        licenseKey="non-commercial-and-evaluation"
-        width="100%"
-        columns={columns}
-        colHeaders={['Week', 'Date', 'Amazon Payout', 'Inventory Purchase', 'Fixed Costs', 'Net Cash', 'Cash Balance']}
-        rowHeaders={false}
-        undo
-        stretchH="all"
-        className="x-plan-hot"
-        height="auto"
-        dropdownMenu
-        filters
-        autoColumnSize={false}
-        colWidths={columnWidths}
-        beforeStretchingColumnWidth={clampStretchWidth}
-        afterChange={(changes, source) => {
-          if (!changes || source === 'loadData') return
-          const hot = hotRef.current
-          if (!hot) return
-          for (const change of changes) {
-            const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof WeeklyRow, any, any]
-            if (!editableFields.includes(prop)) continue
-            const record = hot.getSourceDataAtRow(rowIndex) as WeeklyRow | null
-            if (!record) continue
-            const weekNumber = Number(record.weekNumber)
-            if (!pendingRef.current.has(weekNumber)) {
-              pendingRef.current.set(weekNumber, { weekNumber, values: {} })
+      <div
+        className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/60"
+        style={{ height: gridHeight, minHeight: '520px' }}
+      >
+        <HotTable
+          ref={(instance) => {
+            hotRef.current = instance?.hotInstance ?? null
+          }}
+          data={data}
+          licenseKey="non-commercial-and-evaluation"
+          width="100%"
+          columns={columns}
+          colHeaders={['Week', 'Date', 'Amazon Payout', 'Inventory Purchase', 'Fixed Costs', 'Net Cash', 'Cash Balance']}
+          rowHeaders={false}
+          undo
+          stretchH="all"
+          className="x-plan-hot h-full"
+          height="100%"
+          dropdownMenu
+          filters
+          autoColumnSize={false}
+          colWidths={columnWidths}
+          beforeStretchingColumnWidth={clampStretchWidth}
+          afterChange={(changes, source) => {
+            if (!changes || source === 'loadData') return
+            const hot = hotRef.current
+            if (!hot) return
+            for (const change of changes) {
+              const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof WeeklyRow, any, any]
+              if (!editableFields.includes(prop)) continue
+              const record = hot.getSourceDataAtRow(rowIndex) as WeeklyRow | null
+              if (!record) continue
+              const weekNumber = Number(record.weekNumber)
+              if (!pendingRef.current.has(weekNumber)) {
+                pendingRef.current.set(weekNumber, { weekNumber, values: {} })
+              }
+              const entry = pendingRef.current.get(weekNumber)
+              if (!entry) continue
+              const formatted = normalizeEditable(newValue)
+              entry.values[prop] = formatted
+              record[prop] = formatted
             }
-            const entry = pendingRef.current.get(weekNumber)
-            if (!entry) continue
-            const formatted = normalizeEditable(newValue)
-            entry.values[prop] = formatted
-            record[prop] = formatted
-          }
-          scheduleFlush()
-        }}
-        cells={(row, col) => {
-          const cell: Handsontable.CellMeta = {}
-          const week = Number(data[row]?.weekNumber)
-          if (Number.isFinite(week) && inboundSpendWeeks.has(week)) {
-            cell.className = `${cell.className ?? ''} row-inbound-cash`.trim()
-          }
-          return cell
-        }}
-      />
+            scheduleFlush()
+          }}
+          cells={(row, col) => {
+            const cell: Handsontable.CellMeta = {}
+            const week = Number(data[row]?.weekNumber)
+            if (Number.isFinite(week) && inboundSpendWeeks.has(week)) {
+              cell.className = `${cell.className ?? ''} row-inbound-cash`.trim()
+            }
+            return cell
+          }}
+        />
+      </div>
     </div>
   )
 }
