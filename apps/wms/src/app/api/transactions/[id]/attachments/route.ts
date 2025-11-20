@@ -431,12 +431,20 @@ export async function DELETE(
  
  // If the attachment has an S3 key, we should delete it from S3
  const s3Service = getS3Service()
- if (attachments[category]?.s3Key) {
- try {
- await s3Service.deleteFile(attachments[category].s3Key)
- } catch (_s3Error) {
- // console.error('Failed to delete from S3:', s3Error)
- // Continue even if S3 deletion fails
+ const recordToDelete = attachments[category]
+ if (recordToDelete?.s3Key) {
+ const primaryKey = recordToDelete.s3Key
+ await s3Service.deleteFile(primaryKey)
+
+ // Also sweep any other files for this transaction/category prefix (to avoid clutter)
+ const prefix = deriveCategoryPrefix(primaryKey, category)
+ if (prefix) {
+ const keys = await s3Service.listFiles(prefix)
+ for (const key of keys) {
+ if (key !== primaryKey) {
+ await s3Service.deleteFile(key)
+ }
+ }
  }
  }
 
@@ -470,6 +478,17 @@ export async function DELETE(
  details: _error instanceof Error ? _error.message : 'Unknown error'
  }, { status: 500 })
  }
+}
+
+function deriveCategoryPrefix(s3Key: string, category: string): string | null {
+ if (!s3Key) return null
+ const lastSlash = s3Key.lastIndexOf('/')
+ if (lastSlash === -1) return null
+
+ // Keys are stored as: transactions/YYYY/MM/{transactionId}/{category}_<timestamp>_...
+ const basePath = s3Key.slice(0, lastSlash + 1)
+ const normalizedCategory = category.trim().toLowerCase()
+ return `${basePath}${normalizedCategory}_`
 }
 
 // Helper function to check if all required documents are present
