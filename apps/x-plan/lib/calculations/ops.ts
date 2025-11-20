@@ -254,6 +254,14 @@ export function computePurchaseOrderDerived(
         },
       ]
 
+  const batchCount = batches.length || 1
+  const totalBatchQuantity = batches.reduce((sum, batch) => {
+    return sum + Math.max(0, coerceNumber(batch.quantity))
+  }, 0)
+  const orderManufacturingOverride = parseNumber(order.overrideManufacturingCost)
+  const orderFreightOverride = parseNumber(order.overrideFreightCost)
+  const orderTariffOverride = parseNumber(order.overrideTariffRate)
+
   let totalQuantity = 0
   let totalSellingPrice = 0
   let totalManufacturingCost = 0
@@ -272,17 +280,34 @@ export function computePurchaseOrderDerived(
     const product = productIndex.get(batch.productId)
     if (!product) continue
 
+    const ratio = totalBatchQuantity > 0 ? quantity / totalBatchQuantity : 1 / batchCount
     const sellingPrice = resolveOverride(product.sellingPrice, batch.overrideSellingPrice ?? order.overrideSellingPrice)
-    const overrideManufacturing = batch.overrideManufacturingCost ?? order.overrideManufacturingCost
-    const parsedManufacturing = overrideManufacturing != null ? parseNumber(overrideManufacturing) : null
+    const parsedBatchManufacturing = batch.overrideManufacturingCost != null ? parseNumber(batch.overrideManufacturingCost) : null
+    const parsedManufacturing =
+      parsedBatchManufacturing != null
+        ? parsedBatchManufacturing
+        : orderManufacturingOverride != null
+          ? orderManufacturingOverride * ratio
+          : null
     const batchManufacturingTotal =
       parsedManufacturing != null ? parsedManufacturing : product.manufacturingCost * quantity
 
-    const overrideFreight = batch.overrideFreightCost ?? order.overrideFreightCost
-    const parsedFreight = overrideFreight != null ? parseNumber(overrideFreight) : null
+    const parsedBatchFreight = batch.overrideFreightCost != null ? parseNumber(batch.overrideFreightCost) : null
+    const parsedFreight =
+      parsedBatchFreight != null
+        ? parsedBatchFreight
+        : orderFreightOverride != null
+          ? orderFreightOverride * ratio
+          : null
     const batchFreightTotal = parsedFreight != null ? parsedFreight : product.freightCost * quantity
 
-    const overrideTariffAmount = parseNumber(batch.overrideTariffRate ?? order.overrideTariffRate)
+    const parsedBatchTariff = parseNumber(batch.overrideTariffRate)
+    const overrideTariffAmount =
+      parsedBatchTariff != null
+        ? parsedBatchTariff
+        : orderTariffOverride != null
+          ? orderTariffOverride * ratio
+          : null
     const baseTariffCost = Number.isFinite(product.tariffCost)
       ? product.tariffCost
       : product.manufacturingCost * product.tariffRate
