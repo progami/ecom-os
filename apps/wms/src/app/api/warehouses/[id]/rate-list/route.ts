@@ -180,7 +180,9 @@ export async function POST(
       message: 'Rate list uploaded successfully',
     })
   } catch (_error) {
-    return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 })
+    console.error('Rate list upload failed', _error)
+    const message = _error instanceof Error ? _error.message : 'Failed to upload file'
+    return NextResponse.json({ error: 'Failed to upload file', details: message }, { status: 500 })
   }
 }
 
