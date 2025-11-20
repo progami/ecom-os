@@ -674,10 +674,10 @@ export default function PurchaseOrderDetailPage() {
  <label className="text-sm font-medium text-muted-foreground">Workflow</label>
  <Input value={workflowLabel} disabled readOnly />
  </div>
- <div className="space-y-2">
- <label className="text-sm font-medium text-muted-foreground">Warehouse</label>
- <Input value={`${order.warehouseName} (${order.warehouseCode})`} disabled readOnly />
- </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-muted-foreground">Warehouse</label>
+            <Input value={order.warehouseCode} disabled readOnly />
+          </div>
  <div className="space-y-2">
  <label className="text-sm font-medium text-muted-foreground">Counterparty</label>
  {isEditingDetails ? (

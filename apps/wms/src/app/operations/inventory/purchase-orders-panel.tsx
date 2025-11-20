@@ -262,10 +262,10 @@ export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT', typeFilt
  <Badge className={typeBadgeClasses(order.type)}>
  {order.type === 'FULFILLMENT' ? 'Fulfillment' : order.type === 'PURCHASE' ? 'Purchase' : 'Adjustment'}
  </Badge>
- </td>
- <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
- {order.warehouseName} ({order.warehouseCode})
- </td>
+            </td>
+            <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
+              {order.warehouseCode}
+            </td>
  <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
  {order.counterpartyName || '—'}
  </td>
