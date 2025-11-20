@@ -212,6 +212,17 @@ export async function DELETE(
     if (record?.s3Key) {
       try {
         await s3Service.deleteFile(record.s3Key)
+
+        // Clean up any other files in the same rate-list folder to avoid S3 clutter
+        const folderPrefix = record.s3Key.slice(0, record.s3Key.lastIndexOf('/') + 1)
+        if (folderPrefix) {
+          const keys = await s3Service.listFiles(folderPrefix)
+          for (const key of keys) {
+            if (key !== record.s3Key) {
+              await s3Service.deleteFile(key)
+            }
+          }
+        }
       } catch {
         // Ignore
       }
