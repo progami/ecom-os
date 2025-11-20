@@ -91,12 +91,7 @@ const PERCENT_PRECISION: Record<PercentField, number> = {
 
 const NUMERIC_FIELD_SET = new Set<string>(NUMERIC_FIELDS)
 const PERCENT_FIELD_SET = new Set<string>(PERCENT_FIELDS)
-const ABSOLUTE_ENTRY_FIELDS: ReadonlySet<NumericField> = new Set([
-  'manufacturingCost',
-  'freightCost',
-  'tariffRate',
-  'storagePerMonth',
-])
+const ABSOLUTE_ENTRY_FIELDS: ReadonlySet<NumericField> = new Set()
 
 const SERVER_FIELD_MAP: Partial<Record<keyof OpsBatchRow, string>> = {
   quantity: 'quantity',
@@ -425,9 +420,7 @@ export function OpsPlanningCostGrid({
               record.quantity = normalized
             } else if (isNumericField(prop)) {
               const precision = NUMERIC_PRECISION[prop]
-              const normalized = ABSOLUTE_ENTRY_FIELDS.has(prop)
-                ? normalizeAbsoluteCurrency(newValue, precision, record.quantity)
-                : normalizeCurrency(newValue, precision)
+              const normalized = normalizeCurrency(newValue, precision)
               const serverKey = SERVER_FIELD_MAP[prop]
               if (serverKey) {
                 entry.values[serverKey] = normalized === '' ? null : normalized
