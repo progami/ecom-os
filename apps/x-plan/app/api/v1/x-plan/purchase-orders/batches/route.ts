@@ -203,8 +203,8 @@ export async function PUT(request: Request) {
           data[field] = null
         } else {
           const normalized = parsedNumber > 1 ? parsedNumber / 100 : parsedNumber
-          // Clamp to the column precision (5,4) to avoid numeric overflow
-          const clamped = Math.min(Math.max(normalized, 0), 0.9999)
+          // Clamp to the column precision (5,4) to avoid numeric overflow while allowing full percentages
+          const clamped = Math.min(Math.max(normalized, 0), 9.9999)
           data[field] = clamped
         }
       } else if (decimalFields[field]) {

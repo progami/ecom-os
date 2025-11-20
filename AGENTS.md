@@ -31,4 +31,5 @@
 - Group changes by app or shared package and mention additional workspaces touched when scopes differ.
 - PRs should include purpose, testing evidence (`pnpm lint && pnpm test`), screenshots for UI shifts, and linked GitHub issues.
 - Request owners of affected apps and shared packages as reviewers; flag infra updates for DevOps before merge.
+- Use concise, descriptive PR titles that capture the change (e.g., “WMS: show warehouse codes in ledger”, not “Misc fixes”).
 - Branching: use short-lived `app-name/feature-name` branches off `dev` (e.g., `website/website-hydration`, `hrms/test-feature`), merge via PR with passing checks, and advance `main` only through deliberate release PRs; never push directly to `main`.
