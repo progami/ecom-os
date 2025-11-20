@@ -1,13 +1,12 @@
 import { prisma } from '@/lib/prisma'
 import {
- Prisma,
+  Prisma,
   MovementNoteStatus,
   PurchaseOrderLineStatus,
   PurchaseOrderStatus,
-  PurchaseOrderType,
 } from '@ecom-os/prisma-wms'
 import { ValidationError, ConflictError, NotFoundError } from '@/lib/api'
-import { resolveBatchLot, toPublicOrderNumber } from '@/lib/services/purchase-order-service'
+import { toPublicOrderNumber } from '@/lib/services/purchase-order-service'
 
 export interface UserContext {
  id?: string | null
@@ -195,7 +194,7 @@ function formatNoteOrderNumber<T extends { purchaseOrder: { orderNumber: string 
  } as T
 }
 
-export async function postMovementNote(id: string, user: UserContext) {
+export async function postMovementNote(id: string, _user: UserContext) {
  return prisma.$transaction(async tx => {
  const note = await tx.movementNote.findUnique({
  where: { id },
@@ -219,13 +218,9 @@ export async function postMovementNote(id: string, user: UserContext) {
  if (!po) {
  throw new NotFoundError('Purchase order missing for delivery note')
  }
- const displayOrderNumber = toPublicOrderNumber(po.orderNumber)
-
  if (po.status === PurchaseOrderStatus.CANCELLED || po.status === PurchaseOrderStatus.CLOSED) {
-   throw new ConflictError('Cannot post a note for a closed or cancelled purchase order')
+ throw new ConflictError('Cannot post a note for a closed or cancelled purchase order')
  }
-
- const transactionDate = note.receivedAt
 
  for (const line of note.lines) {
  if (!line.purchaseOrderLineId) {
@@ -241,8 +236,7 @@ export async function postMovementNote(id: string, user: UserContext) {
  throw new ConflictError('Cannot post against a cancelled line')
  }
 
- const sku = await tx.sku.findFirst({ where: { skuCode: poLine.skuCode } })
- const unitsPerCarton = sku?.unitsPerCarton ?? 1
+ await tx.sku.findFirst({ where: { skuCode: poLine.skuCode } })
 
  const newPostedQuantity = poLine.postedQuantity + line.quantity
  const lineStatus = newPostedQuantity >= poLine.quantity ? PurchaseOrderLineStatus.POSTED : PurchaseOrderLineStatus.PENDING
