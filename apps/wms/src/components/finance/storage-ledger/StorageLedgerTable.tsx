@@ -36,17 +36,15 @@ export function StorageLedgerTable({
  filters,
  onFilterChange,
 }: StorageLedgerTableProps) {
- const uniqueWarehouses = useMemo(() => {
- const map = new Map<string, string>()
- entries.forEach(entry => {
- if (!map.has(entry.warehouseCode)) {
- map.set(entry.warehouseCode, entry.warehouseName)
- }
- })
- return Array.from(map.entries())
- .map(([value, label]) => ({ value, label }))
- .sort((a, b) => a.label.localeCompare(b.label))
- }, [entries])
+  const uniqueWarehouses = useMemo(() => {
+    const set = new Set<string>()
+    entries.forEach(entry => {
+      set.add(entry.warehouseCode)
+    })
+    return Array.from(set.values())
+      .map((value) => ({ value, label: value }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [entries])
 
  const uniqueSkus = useMemo(() => {
  const set = new Set<string>()
@@ -219,13 +217,11 @@ export function StorageLedgerTable({
  </label>
  ))}
  </div>
- </PopoverContent>
- </Popover>
- </div>
- </th>
- <th className="px-3 py-2 text-left font-semibold">
- Code
- </th>
+        </PopoverContent>
+      </Popover>
+    </div>
+  </th>
+          
  <th className="px-3 py-2 text-left font-semibold">
  <div className="flex items-center justify-between gap-1">
  <span>SKU</span>
@@ -353,26 +349,23 @@ export function StorageLedgerTable({
  <tbody>
  {entries.length === 0 && (
  <tr>
- <td
- colSpan={10}
- className="px-4 py-10 text-center text-muted-foreground"
- >
+          <td
+            colSpan={9}
+            className="px-4 py-10 text-center text-muted-foreground"
+          >
  No storage entries found. Adjust filters to see results.
  </td>
  </tr>
  )}
 
- {entries.map(entry => (
- <tr key={entry.id} className="odd:bg-muted/20">
- <td className="px-3 py-2 text-sm text-foreground whitespace-nowrap">
- {format(new Date(entry.weekEndingDate), 'PP')}
- </td>
- <td className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
- {entry.warehouseName}
- </td>
- <td className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
- {entry.warehouseCode}
- </td>
+      {entries.map(entry => (
+        <tr key={entry.id} className="odd:bg-muted/20">
+          <td className="px-3 py-2 text-sm text-foreground whitespace-nowrap">
+            {format(new Date(entry.weekEndingDate), 'PP')}
+          </td>
+          <td className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
+            {entry.warehouseCode}
+          </td>
  <td className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
  {entry.skuCode}
  </td>
