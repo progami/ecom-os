@@ -28,7 +28,6 @@ const allowedFields = [
 ] as const
 
 const percentFields: Record<string, true> = {
-  overrideTariffRate: true,
   overrideTacosPercent: true,
   overrideReferralRate: true,
 }
@@ -37,6 +36,7 @@ const decimalFields: Record<string, true> = {
   overrideSellingPrice: true,
   overrideManufacturingCost: true,
   overrideFreightCost: true,
+  overrideTariffRate: true,
   overrideFbaFee: true,
   overrideStoragePerMonth: true,
 }
