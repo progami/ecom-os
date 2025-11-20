@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-hot-toast'
 import { format } from 'date-fns'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
 export type PurchaseOrderTypeOption = 'PURCHASE' | 'FULFILLMENT' | 'ADJUSTMENT'
@@ -109,10 +108,9 @@ function sumLineQuantities(lines: PurchaseOrderLineSummary[]) {
  return lines.reduce((sum, line) => sum + line.quantity, 0)
 }
 
-export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT', typeFilter }: PurchaseOrdersPanelProps) {
- const [orders, setOrders] = useState<PurchaseOrderSummary[]>([])
- const [loading, setLoading] = useState(true)
- const [voidingId, setVoidingId] = useState<string | null>(null)
+export function PurchaseOrdersPanel({ onPosted: _onPosted, statusFilter = 'DRAFT', typeFilter }: PurchaseOrdersPanelProps) {
+  const [orders, setOrders] = useState<PurchaseOrderSummary[]>([])
+  const [loading, setLoading] = useState(true)
 
  const fetchOrders = useCallback(async () => {
  try {
@@ -135,31 +133,8 @@ export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT', typeFilt
  }, [])
 
  useEffect(() => {
- fetchOrders()
- }, [fetchOrders])
-
- const handleVoid = useCallback(async (orderId: string) => {
- try {
- setVoidingId(orderId)
- const response = await fetch(`/api/purchase-orders/${orderId}/void`, {
- method: 'POST',
- })
-
- if (!response.ok) {
- const errorPayload = await response.json().catch(() => null)
- toast.error(errorPayload?.error ?? 'Failed to void purchase order')
- return
- }
-
- toast.success('Purchase order voided')
- await fetchOrders()
- onPosted()
- } catch (_error) {
- toast.error('Failed to void purchase order')
- } finally {
- setVoidingId(null)
- }
- }, [fetchOrders, onPosted])
+    fetchOrders()
+  }, [fetchOrders])
 
  const { draftCount, awaitingProofCount, reviewCount, postedCount, cancelledCount } = useMemo(() => {
  return orders.reduce(
@@ -224,26 +199,25 @@ export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT', typeFilt
  <th className="px-3 py-2 text-left font-semibold">Warehouse</th>
  <th className="px-3 py-2 text-left font-semibold">Counterparty</th>
  <th className="px-3 py-2 text-right font-semibold">Lines</th>
- <th className="px-3 py-2 text-right font-semibold">Quantity</th>
- <th className="px-3 py-2 text-left font-semibold">Status</th>
- <th className="px-3 py-2 text-left font-semibold">Expected</th>
- <th className="px-3 py-2 text-left font-semibold">Posted</th>
- <th className="px-3 py-2 text-left font-semibold">Actions</th>
- </tr>
- </thead>
- <tbody>
- {loading ? (
- <tr>
- <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
- Loading purchase orders…
- </td>
- </tr>
- ) : visibleOrders.length === 0 ? (
- <tr>
- <td colSpan={10} className="px-4 py-6 text-center text-muted-foreground">
- No purchase orders yet. Use the Inventory Actions menu to create one.
- </td>
- </tr>
+<th className="px-3 py-2 text-right font-semibold">Quantity</th>
+<th className="px-3 py-2 text-left font-semibold">Status</th>
+<th className="px-3 py-2 text-left font-semibold">Expected</th>
+<th className="px-3 py-2 text-left font-semibold">Posted</th>
+</tr>
+</thead>
+<tbody>
+{loading ? (
+<tr>
+<td colSpan={9} className="px-4 py-6 text-center text-muted-foreground">
+Loading purchase orders…
+</td>
+</tr>
+) : visibleOrders.length === 0 ? (
+<tr>
+<td colSpan={9} className="px-4 py-6 text-center text-muted-foreground">
+No purchase orders yet. Use the Inventory Actions menu to create one.
+</td>
+</tr>
  ) : (
  visibleOrders.map(order => {
  const totalQuantity = sumLineQuantities(order.lines)
@@ -274,30 +248,8 @@ export function PurchaseOrdersPanel({ onPosted, statusFilter = 'DRAFT', typeFilt
  <td className="px-3 py-2 whitespace-nowrap">
  <Badge className={statusBadgeClasses(order.status)}>{formatStatusLabel(order.status)}</Badge>
  </td>
- <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatDateDisplay(order.expectedDate)}</td>
- <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatDateDisplay(order.postedAt)}</td>
- <td className="px-3 py-2 whitespace-nowrap">
- <div className="flex flex-wrap items-center gap-2">
- <Button size="sm" variant="secondary" asChild>
-                <Link href={`/operations/orders/${order.id}`} prefetch={false}>
- {order.status === 'POSTED' ? 'View' : 'Open'}
- </Link>
- </Button>
- {order.status !== 'POSTED' && order.status !== 'CANCELLED' && (
- <Button
- size="sm"
- variant="destructive"
- onClick={() => handleVoid(order.id)}
- disabled={voidingId === order.id}
- >
- {voidingId === order.id ? 'Voiding…' : 'Void'}
- </Button>
- )}
- {order.status === 'CANCELLED' && (
- <span className="text-xs font-medium text-muted-foreground">Voided</span>
- )}
- </div>
- </td>
+  <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatDateDisplay(order.expectedDate)}</td>
+  <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">{formatDateDisplay(order.postedAt)}</td>
  </tr>
  )
  })
