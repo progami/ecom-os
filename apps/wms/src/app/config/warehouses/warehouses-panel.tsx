@@ -115,7 +115,7 @@ export default function WarehousesPanel() {
 
       if (!response.ok) {
         const error = await response.json().catch(() => null)
-        throw new Error(error?.error || 'Failed to upload rate list')
+        throw new Error(error?.error || error?.details || 'Failed to upload rate list')
       }
 
       toast.success('Rate list uploaded')
@@ -320,29 +320,79 @@ export default function WarehousesPanel() {
                   </div>
                 </div>
                 {selectedWarehouseId === warehouse.id && (
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t">
-                    <Button
-                      onClick={() => handleToggleActive(warehouse)}
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                    >
-                      {warehouse.isActive ? 'Deactivate' : 'Activate'}
-                    </Button>
-                    <Button
-                      onClick={() => router.push(`/config/warehouses/${warehouse.id}/edit`)}
-                      variant="outline"
-                      size="sm"
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      onClick={() => handleDelete(warehouse)}
-                      variant="destructive"
-                      size="sm"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                  <div className="mt-3 pt-3 border-t space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={() => handleToggleActive(warehouse)}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                        >
+                          {warehouse.isActive ? 'Deactivate' : 'Activate'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Upload rate list"
+                          aria-label="Upload rate list"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadingRateList}
+                        >
+                          <Upload className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          title={warehouse.rateListAttachment ? 'Download rate list' : 'No rate list uploaded'}
+                          aria-label="Download rate list"
+                          onClick={() => handleDownloadRateList(warehouse.id)}
+                          disabled={!warehouse.rateListAttachment || downloadingRateList}
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="h-8 w-8"
+                          title={warehouse.rateListAttachment ? 'Remove rate list' : 'No rate list to remove'}
+                          aria-label="Remove rate list"
+                          onClick={() => handleRemoveRateList(warehouse.id)}
+                          disabled={!warehouse.rateListAttachment || removingRateList}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          onClick={() => router.push(`/config/warehouses/${warehouse.id}/edit`)}
+                          variant="outline"
+                          size="sm"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          onClick={() => handleDelete(warehouse)}
+                          variant="destructive"
+                          size="sm"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <span className="font-semibold text-slate-700">Rate list:</span>
+                      <span className="truncate">
+                        {warehouse.rateListAttachment
+                          ? warehouse.rateListAttachment.fileName
+                          : 'No upload yet'}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -362,87 +412,6 @@ export default function WarehousesPanel() {
               className="hidden"
               onChange={(event) => handleRateListFileChange(event, selectedWarehouse.id)}
             />
-            <div className="rounded-xl border bg-white shadow-soft mb-6">
-              <div className="border-b px-6 py-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900">Rate List Attachment</h3>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Store the latest warehouse-specific rate sheet for reference.
-                  </p>
-                </div>
-                {selectedWarehouse.rateListAttachment && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                    onClick={() => handleDownloadRateList(selectedWarehouse.id)}
-                    disabled={downloadingRateList}
-                  >
-                    <Download className="h-4 w-4" />
-                    {downloadingRateList ? 'Preparing…' : 'Download'}
-                  </Button>
-                )}
-              </div>
-              <div className="px-6 py-4 space-y-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="gap-2"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploadingRateList}
-                  >
-                    <Upload className="h-4 w-4" />
-                    {uploadingRateList ? 'Uploading…' : 'Upload document'}
-                  </Button>
-                  <p className="text-xs text-slate-500">
-                    PDF, Office docs or images up to 10MB.
-                  </p>
-                </div>
-                {selectedWarehouse.rateListAttachment ? (
-                  <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm">
-                    <div>
-                      <p className="font-medium text-slate-900">
-                        {selectedWarehouse.rateListAttachment.fileName}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Uploaded{' '}
-                        {selectedWarehouse.rateListAttachment.uploadedAt
-                          ? new Date(selectedWarehouse.rateListAttachment.uploadedAt).toLocaleString()
-                          : 'recently'}
-                        {selectedWarehouse.rateListAttachment.uploadedBy
-                          ? ` · ${selectedWarehouse.rateListAttachment.uploadedBy}`
-                          : ''}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1"
-                        onClick={() => handleDownloadRateList(selectedWarehouse.id)}
-                        disabled={downloadingRateList}
-                      >
-                        <Download className="h-4 w-4" />
-                        {downloadingRateList ? 'Preparing…' : 'Download'}
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="gap-1"
-                        onClick={() => handleRemoveRateList(selectedWarehouse.id)}
-                        disabled={removingRateList}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        {removingRateList ? 'Removing…' : 'Remove'}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-500">No rate list uploaded yet.</p>
-                )}
-              </div>
-            </div>
             {/* Cost Rates Card */}
             <div className="rounded-xl border bg-white shadow-soft">
               <div className="border-b px-6 py-4">
