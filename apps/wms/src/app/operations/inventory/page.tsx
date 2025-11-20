@@ -309,24 +309,19 @@ function InventoryPage() {
  [columnFilters]
  )
 
- const uniqueWarehouseOptions = useMemo(() => {
- const map = new Map<string, { name: string; code?: string | null }>()
- balances.forEach(balance => {
- const value = (balance.warehouseId || balance.warehouse.code || balance.warehouse.name)?.toString().trim()
- if (!value) return
- if (!map.has(value)) {
- const name = balance.warehouse.name?.trim() || 'Unnamed Warehouse'
- const code = balance.warehouse.code?.trim()
- map.set(value, { name, code })
- }
- })
- return Array.from(map.entries())
- .map(([value, info]) => ({
- value,
- label: info.code ? `${info.name} (${info.code})` : info.name,
- }))
- .sort((a, b) => a.label.localeCompare(b.label))
- }, [balances])
+  const uniqueWarehouseOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    balances.forEach((balance) => {
+      const code = balance.warehouse.code?.trim() || balance.warehouse.name?.trim()
+      if (!code) return
+      if (!map.has(code)) {
+        map.set(code, code)
+      }
+    })
+    return Array.from(map.entries())
+      .map(([value, label]) => ({ value, label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [balances])
 
  const uniqueSkuOptions = useMemo(() => {
  const map = new Map<string, string>()
@@ -368,12 +363,12 @@ function InventoryPage() {
  const filtered = balances.filter(balance => {
  const movementType = getMovementTypeFromTransaction(balance.lastTransactionType)
 
- if (columnFilters.warehouse.length > 0) {
- const warehouseIdentifier = (balance.warehouseId || balance.warehouse.code || balance.warehouse.name)?.toString().trim()
- if (!warehouseIdentifier || !columnFilters.warehouse.includes(warehouseIdentifier)) {
- return false
- }
- }
+    if (columnFilters.warehouse.length > 0) {
+      const warehouseIdentifier = (balance.warehouse.code || balance.warehouse.name || balance.warehouseId)?.toString().trim()
+      if (!warehouseIdentifier || !columnFilters.warehouse.includes(warehouseIdentifier)) {
+        return false
+      }
+    }
 
  if (columnFilters.sku.length > 0) {
  const skuCode = balance.sku.skuCode?.trim()
@@ -448,17 +443,17 @@ function InventoryPage() {
  return filtered
  }
 
- const sorted = [...filtered].sort((a, b) => {
- let comparison = 0
+    const sorted = [...filtered].sort((a, b) => {
+      let comparison = 0
 
- switch (sortConfig.key) {
- case 'warehouse':
- comparison = `${a.warehouse.name} ${a.warehouse.code}`.localeCompare(
- `${b.warehouse.name} ${b.warehouse.code}`,
- undefined,
- { sensitivity: 'base' }
- )
- break
+      switch (sortConfig.key) {
+      case 'warehouse':
+        comparison = (a.warehouse.code?.trim() || a.warehouse.name?.trim() || '').localeCompare(
+          b.warehouse.code?.trim() || b.warehouse.name?.trim() || '',
+          undefined,
+          { sensitivity: 'base' }
+        )
+        break
  case 'sku':
  comparison = `${a.sku.skuCode} ${a.sku.description}`.localeCompare(
  `${b.sku.skuCode} ${b.sku.description}`,
@@ -949,13 +944,13 @@ function InventoryPage() {
  return (
  <tr key={balance.id} className="odd:bg-muted/20">
  <td
- className="px-3 py-2 text-sm font-semibold text-foreground whitespace-nowrap"
- title={balance.purchaseOrderNumber || undefined}
+  className="px-3 py-2 text-sm font-semibold text-foreground whitespace-nowrap"
+  title={balance.purchaseOrderNumber || undefined}
  >
- {purchaseOrderLabel}
+  {purchaseOrderLabel}
  </td>
  <td className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
- {balance.warehouse.name}
+ {balance.warehouse.code || balance.warehouse.name || '—'}
  </td>
  <td className="px-3 py-2 text-sm font-semibold text-foreground whitespace-nowrap">
  {balance.sku.skuCode}
