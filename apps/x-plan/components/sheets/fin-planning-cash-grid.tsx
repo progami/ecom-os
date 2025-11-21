@@ -52,7 +52,7 @@ function normalizeEditable(value: unknown) {
 
 export function CashFlowGrid({ weekly }: CashFlowGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
-  const gridHeight = 'min(78vh, calc(100vh - 260px))'
+  const gridHeight = 'calc(100vh - 300px)'
 
   const data = useMemo(() => weekly, [weekly])
 
@@ -158,9 +158,9 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
   }, [flushNow])
 
   return (
-    <div className="p-4">
+    <div className="flex h-full flex-col gap-4 p-4 overflow-hidden">
       <div
-        className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/60"
+        className="flex-1 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/60"
         style={{ height: gridHeight, minHeight: '520px' }}
       >
         <HotTable
