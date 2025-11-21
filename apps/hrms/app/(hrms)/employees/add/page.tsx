@@ -28,7 +28,7 @@ export default function AddEmployeePage() {
         employmentType: String(payload.employmentType || 'FULL_TIME'),
         status: String(payload.status || 'ACTIVE'),
       })
-      r.push('/hrms/employees')
+      r.push('/employees')
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -40,7 +40,7 @@ export default function AddEmployeePage() {
     <div className="max-w-2xl space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Add Employee</h1>
-        <Link href="/hrms/employees" className="text-sm underline">Back to list</Link>
+        <Link href="/employees" className="text-sm underline">Back to list</Link>
       </div>
 
       {error && <div className="rounded-md border border-red-300 bg-red-50 text-red-700 p-3 text-sm">{error}</div>}

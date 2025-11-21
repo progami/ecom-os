@@ -27,7 +27,7 @@ export default function AddResourcePage() {
         description: payload.description ? String(payload.description) : undefined,
         rating: payload.rating ? Number(payload.rating) : undefined,
       })
-      r.push('/hrms/resources')
+      r.push('/resources')
     } catch (e: any) {
       setError(e.message)
     } finally {
@@ -39,7 +39,7 @@ export default function AddResourcePage() {
     <div className="max-w-2xl space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Add Resource</h1>
-        <Link href="/hrms/resources" className="text-sm underline">Back to list</Link>
+        <Link href="/resources" className="text-sm underline">Back to list</Link>
       </div>
 
       {error && <div className="rounded-md border border-red-300 bg-red-50 text-red-700 p-3 text-sm">{error}</div>}
@@ -94,4 +94,3 @@ export default function AddResourcePage() {
     </div>
   )
 }
-
