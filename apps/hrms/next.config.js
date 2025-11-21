@@ -4,6 +4,7 @@ const path = require('path')
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  basePath: '/hrms',
   assetPrefix: '/hrms',
   outputFileTracingRoot: path.join(__dirname, '../..'),
 }
