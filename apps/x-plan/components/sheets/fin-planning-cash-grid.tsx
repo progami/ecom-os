@@ -160,7 +160,7 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
     <div className="p-4">
       <div
         className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/60"
-        style={{ height: '70vh', minHeight: '420px' }}
+        style={{ height: 'calc(100vh - 220px)', minHeight: '420px' }}
       >
         <HotTable
           ref={(instance) => {
