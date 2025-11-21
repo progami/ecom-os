@@ -9,7 +9,7 @@
     "dev": "node ../../scripts/run-dev-with-logs.js hrms -- next dev -p 3006",
     "build": "next build",
     "start": "next start -p 3006",
-    "type-check": "tsc --noEmit --skipLibCheck",
+    "type-check": "DATABASE_URL=${DATABASE_URL:-postgresql://localhost:5432/hrms} prisma generate --schema prisma/schema.prisma && tsc --noEmit --skipLibCheck",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate:dev": "prisma migrate dev",
