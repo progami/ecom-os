@@ -329,7 +329,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
     <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-[#041324]">
       <main className="flex flex-1 overflow-hidden" role="main" aria-label="Main content">
         <section className="flex flex-1 overflow-hidden">
-          <div className={clsx("flex-1", YEAR_AWARE_SHEETS.has(activeSlug) ? "overflow-hidden" : "overflow-auto")}>
+          <div className={clsx("flex-1 min-h-0", YEAR_AWARE_SHEETS.has(activeSlug) ? "overflow-hidden" : "overflow-auto")}>
             <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-4 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] sm:px-6 lg:px-8" role="banner">
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between gap-4">
@@ -371,7 +371,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
                 )}
               </div>
             </header>
-            <div className={clsx("px-4 py-6 sm:px-6 lg:px-8", YEAR_AWARE_SHEETS.has(activeSlug) && "flex h-full flex-col overflow-hidden")}>
+            <div className={clsx("px-4 py-6 sm:px-6 lg:px-8", YEAR_AWARE_SHEETS.has(activeSlug) && "flex h-full min-h-0 flex-col overflow-hidden")}>
               {children}
             </div>
           </div>
