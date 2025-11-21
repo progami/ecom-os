@@ -80,7 +80,7 @@ function normalizeEditable(value: unknown) {
 
 export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: ProfitAndLossGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
-  const gridHeight = 'calc(100vh - 280px)'
+  const gridHeight = 'calc(100vh - 220px)'
 
   const data = useMemo(() => weekly, [weekly])
 
@@ -201,7 +201,7 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
     <div className="flex h-full min-h-0 flex-col gap-3 p-4 overflow-hidden">
       <div
         className="flex-1 min-h-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/60"
-        style={{ height: gridHeight, minHeight: '420px' }}
+        style={{ height: gridHeight, minHeight: '360px' }}
       >
         <HotTable
           ref={(instance) => {
