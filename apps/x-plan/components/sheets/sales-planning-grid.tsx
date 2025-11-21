@@ -114,6 +114,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
   const focusContext = useContext(SalesPlanningFocusContext)
   const [activeStockMetric, setActiveStockMetric] = usePersistentState<StockMetricId>('xplan:sales-grid:metric', 'stockWeeks')
   const [showFinalError, setShowFinalError] = usePersistentState<boolean>('xplan:sales-grid:show-final-error', false)
+  const gridHeight = 'calc(100vh - 220px)'
   const focusProductId = focusContext?.focusProductId ?? 'ALL'
   const warningThreshold = Number.isFinite(stockWarningWeeks) ? stockWarningWeeks : Number.POSITIVE_INFINITY
   const router = useRouter()
@@ -492,7 +493,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
     <div className="flex h-full min-h-0 flex-col gap-3 p-4 overflow-hidden">
       <div
         className="flex-1 min-h-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/60"
-        style={{ maxHeight: 'calc(100vh - 220px)', minHeight: '320px', height: 'auto' }}
+        style={{ height: gridHeight, minHeight: '360px' }}
       >
         <HotTable
           ref={(instance) => {
@@ -506,8 +507,8 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
           nestedHeaders={nestedHeaders as unknown as HandsontableNestedHeaders}
           afterGetColHeader={handleColHeader}
           stretchH="all"
-          className="x-plan-hot"
-          height="auto"
+          className="x-plan-hot h-full"
+          height="100%"
           rowHeaders={false}
           undo
           comments={true}
