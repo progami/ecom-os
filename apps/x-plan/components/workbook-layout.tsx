@@ -329,19 +329,11 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
     <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-[#041324]">
       <main className="flex flex-1 overflow-hidden" role="main" aria-label="Main content">
         <section className="flex flex-1 overflow-hidden">
-          <div className={clsx("flex-1 min-h-0 overflow-hidden", YEAR_AWARE_SHEETS.has(activeSlug) ? "overflow-hidden" : "overflow-auto")}>
+          <div className="flex-1 min-h-0 overflow-auto">
             <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-4 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] sm:px-6 lg:px-8" role="banner">
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-600 shadow-md dark:bg-[#00c2b9] dark:shadow-[0_12px_24px_rgba(0,194,185,0.25)]">
-                      <span className="text-lg font-bold text-white dark:text-[#002430]">X</span>
-                    </div>
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-xs font-bold uppercase tracking-[0.1em] text-cyan-700/70 dark:text-cyan-300/60">X-Plan</span>
-                      <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">{activeSheet?.label ?? 'Workbook'}</h1>
-                    </div>
-                  </div>
+                  <div />
                   <div className="flex shrink-0 items-center gap-3">
                     {isPending && (
                       <div className="flex items-center gap-2">
@@ -350,6 +342,15 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
                       </div>
                     )}
                     <ThemeToggle />
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-600 shadow-md dark:bg-[#00c2b9] dark:shadow-[0_12px_24px_rgba(0,194,185,0.25)]">
+                        <span className="text-lg font-bold text-white dark:text-[#002430]">X</span>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-xs font-bold uppercase tracking-[0.1em] text-cyan-700/70 dark:text-cyan-300/60">X-Plan</span>
+                        <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">{activeSheet?.label ?? 'Workbook'}</h1>
+                      </div>
+                    </div>
                     {ribbon}
                   </div>
                 </div>
@@ -371,7 +372,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
                 )}
               </div>
             </header>
-            <div className={clsx("flex h-full min-h-0 flex-col overflow-hidden px-4 py-6 sm:px-6 lg:px-8")}>
+            <div className="px-4 py-6 sm:px-6 lg:px-8">
               {children}
             </div>
           </div>
