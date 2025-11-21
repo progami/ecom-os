@@ -12,7 +12,6 @@ body {
   color: #0f172a;
   font-feature-settings: "cv11", "ss01";
   font-optical-sizing: auto;
-  overflow: hidden;
 }
 
 body.dark {
