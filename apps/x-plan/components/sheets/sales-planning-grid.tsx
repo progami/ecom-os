@@ -590,6 +590,5 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
           />
         </div>
       </div>
-    </div>
   )
 }
