@@ -157,8 +157,11 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
   }, [flushNow])
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 p-4 overflow-hidden">
-      <div className="flex-1 min-h-0 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/60">
+    <div className="p-4">
+      <div
+        className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/60"
+        style={{ height: '70vh', minHeight: '420px' }}
+      >
         <HotTable
           ref={(instance) => {
             hotRef.current = instance?.hotInstance ?? null
