@@ -28,7 +28,7 @@ export default function CalendarPage() {
           <h1 className="text-2xl font-semibold">Team Calendar</h1>
           <p className="text-muted-foreground">Google Calendar integration</p>
         </div>
-        <Link href="/hrms" className="text-sm underline">Back to Dashboard</Link>
+        <Link href="/" className="text-sm underline">Back to Dashboard</Link>
       </div>
 
       {EMBED_URL ? (
@@ -71,4 +71,3 @@ export default function CalendarPage() {
     </div>
   )
 }
-
