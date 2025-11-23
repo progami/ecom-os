@@ -51,7 +51,8 @@ function getApiBase(): string {
   if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_BASE) {
     return process.env.NEXT_PUBLIC_API_BASE
   }
-  return ''
+  const basePath = (typeof process !== 'undefined' && (process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH)) || ''
+  return basePath || ''
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
