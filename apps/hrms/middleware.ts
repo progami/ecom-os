@@ -11,7 +11,7 @@ export async function middleware(request: NextRequest) {
     : pathname
 
   // Public routes
-  const PUBLIC_PREFIXES = ['/api/auth/', '/_next', '/favicon.ico']
+  const PUBLIC_PREFIXES = ['/api/', '/api/auth/', '/_next', '/favicon.ico']
   const PUBLIC_ROUTES = ['/', '/health']
   const isPublic =
     PUBLIC_ROUTES.includes(normalizedPath) ||
