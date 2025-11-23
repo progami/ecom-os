@@ -7,6 +7,8 @@ const nextConfig = {
   basePath: '/hrms',
   assetPrefix: '/hrms',
   outputFileTracingRoot: path.join(__dirname, '../..'),
+  trailingSlash: false,
+  skipTrailingSlashRedirect: true,
 }
 
 module.exports = nextConfig
