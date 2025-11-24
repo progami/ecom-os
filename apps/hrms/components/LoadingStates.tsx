@@ -1,9 +1,11 @@
+'use client'
+
 export function CardSkeleton() {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 animate-pulse">
-      <div className="h-4 bg-gray-200 rounded w-1/3 mb-4"></div>
-      <div className="h-8 bg-gray-200 rounded w-2/3 mb-2"></div>
-      <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+    <div className="dashboard-card p-6 animate-pulse">
+      <div className="h-4 bg-slate-200 rounded w-1/3 mb-4"></div>
+      <div className="h-8 bg-slate-200 rounded w-2/3 mb-2"></div>
+      <div className="h-4 bg-slate-200 rounded w-1/4"></div>
     </div>
   )
 }
@@ -11,17 +13,17 @@ export function CardSkeleton() {
 export function TableRowSkeleton() {
   return (
     <tr className="animate-pulse">
-      <td className="px-6 py-4">
-        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+      <td className="px-4 py-4">
+        <div className="h-4 bg-slate-200 rounded w-3/4"></div>
       </td>
-      <td className="px-6 py-4">
-        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+      <td className="px-4 py-4">
+        <div className="h-4 bg-slate-200 rounded w-1/2"></div>
       </td>
-      <td className="px-6 py-4">
-        <div className="h-4 bg-gray-200 rounded w-2/3"></div>
+      <td className="px-4 py-4">
+        <div className="h-4 bg-slate-200 rounded w-2/3"></div>
       </td>
-      <td className="px-6 py-4">
-        <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+      <td className="px-4 py-4">
+        <div className="h-6 bg-slate-200 rounded-full w-20"></div>
       </td>
     </tr>
   )
@@ -30,46 +32,80 @@ export function TableRowSkeleton() {
 export function PageSkeleton() {
   return (
     <div className="space-y-6 animate-pulse">
-      {/* Header */}
-      <div>
-        <div className="h-8 bg-gray-200 rounded w-1/4 mb-2"></div>
-        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-      </div>
-
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[...Array(4)].map((_, i) => (
-          <CardSkeleton key={i} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="dashboard-card p-6">
+            <div className="h-4 bg-slate-200 rounded w-24 mb-3"></div>
+            <div className="h-8 bg-slate-200 rounded w-16 mb-2"></div>
+            <div className="h-3 bg-slate-200 rounded w-20"></div>
+          </div>
         ))}
       </div>
 
-      {/* Content */}
+      {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
+        <div className="lg:col-span-2 dashboard-card p-6">
+          <div className="h-5 bg-slate-200 rounded w-32 mb-4"></div>
           <div className="space-y-3">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="flex gap-4">
-                <div className="flex-1">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                </div>
-                <div className="h-6 bg-gray-200 rounded-full w-20"></div>
+              <div key={i} className="p-3 rounded-lg bg-slate-50">
+                <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-slate-200 rounded w-1/4"></div>
               </div>
             ))}
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="h-6 bg-gray-200 rounded w-1/3 mb-4"></div>
+        <div className="dashboard-card p-6">
+          <div className="h-5 bg-slate-200 rounded w-28 mb-4"></div>
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="p-3 border border-gray-200 rounded-lg">
-                <div className="h-4 bg-gray-200 rounded w-2/3 mb-2"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+              <div key={i} className="p-3 rounded-lg border border-slate-200">
+                <div className="h-4 bg-slate-200 rounded w-2/3 mb-2"></div>
+                <div className="h-3 bg-slate-200 rounded w-1/3"></div>
               </div>
             ))}
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+export function TableSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="dashboard-card overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50">
+              <th className="text-left px-4 py-3">
+                <div className="h-3 bg-slate-200 rounded w-20"></div>
+              </th>
+              <th className="text-left px-4 py-3">
+                <div className="h-3 bg-slate-200 rounded w-24"></div>
+              </th>
+              <th className="text-left px-4 py-3">
+                <div className="h-3 bg-slate-200 rounded w-16"></div>
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-200">
+            {[...Array(rows)].map((_, i) => (
+              <tr key={i}>
+                <td className="px-4 py-4">
+                  <div className="h-4 bg-slate-200 rounded w-32"></div>
+                </td>
+                <td className="px-4 py-4">
+                  <div className="h-4 bg-slate-200 rounded w-24"></div>
+                </td>
+                <td className="px-4 py-4">
+                  <div className="h-6 bg-slate-200 rounded-full w-16"></div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   )
@@ -77,44 +113,34 @@ export function PageSkeleton() {
 
 export function Spinner({ size = 'md', className = '' }: { size?: 'sm' | 'md' | 'lg', className?: string }) {
   const sizeClasses = {
-    sm: 'w-4 h-4',
-    md: 'w-8 h-8',
-    lg: 'w-12 h-12'
+    sm: 'w-4 h-4 border-2',
+    md: 'w-6 h-6 border-2',
+    lg: 'w-8 h-8 border-3'
   }
 
   return (
-    <div className={`${sizeClasses[size]} ${className}`}>
-      <svg
-        className="animate-spin text-teal"
-        xmlns="http://www.w3.org/2000/svg"
-        fill="none"
-        viewBox="0 0 24 24"
-      >
-        <circle
-          className="opacity-25"
-          cx="12"
-          cy="12"
-          r="10"
-          stroke="currentColor"
-          strokeWidth="4"
-        />
-        <path
-          className="opacity-75"
-          fill="currentColor"
-          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-        />
-      </svg>
-    </div>
+    <div
+      className={`animate-spin rounded-full border-cyan-600 border-t-transparent ${sizeClasses[size]} ${className}`}
+    />
   )
 }
 
 export function LoadingOverlay({ message = 'Loading...' }: { message?: string }) {
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4">
+    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="bg-white rounded-lg p-6 shadow-soft-lg flex flex-col items-center gap-4">
         <Spinner size="lg" />
-        <p className="text-navy font-medium">{message}</p>
+        <p className="text-slate-900 font-medium">{message}</p>
       </div>
+    </div>
+  )
+}
+
+export function FullPageLoader({ message = 'Loading...' }: { message?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[400px]">
+      <Spinner size="lg" />
+      <p className="mt-4 text-sm text-slate-500">{message}</p>
     </div>
   )
 }
