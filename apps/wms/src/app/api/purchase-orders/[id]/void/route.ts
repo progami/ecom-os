@@ -5,16 +5,24 @@ import {
  serializePurchaseOrder,
 } from '@/lib/services/purchase-order-service'
 
-export const POST = withAuthAndParams(async (_request: NextRequest, params, _session) => {
+export const POST = withAuthAndParams(async (_request: NextRequest, params, session) => {
  const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params?.id?.[0] : undefined
  if (!id) {
  return ApiResponses.badRequest('Purchase order ID is required')
  }
 
  try {
- const order = await voidPurchaseOrder(id)
+ const result = await voidPurchaseOrder(id, {
+ id: session.user.id,
+ name: session.user.name,
+ })
 
- return ApiResponses.success(serializePurchaseOrder(order))
+ return ApiResponses.success(
+ serializePurchaseOrder(result.order, {
+ voidedFromStatus: result.voidedFromStatus,
+ voidedAt: result.voidedAt,
+ })
+ )
  } catch (error) {
  return ApiResponses.handleError(error)
  }
