@@ -4,7 +4,6 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { getWarehouseFilter } from '@/lib/auth-utils'
-import { getStorageCostSummary } from '@/services/storageCost.service'
 import { Prisma, PurchaseOrderStatus } from '@ecom-os/prisma-wms'
 
 export const dynamic = 'force-dynamic'
@@ -73,9 +72,6 @@ export async function GET(request: NextRequest) {
  ]
  }
 
- // Get total count for pagination
- const _totalCount = await prisma.storageLedger.count({ where })
-
  // Get paginated results
  const entries = await prisma.storageLedger.findMany({
  where,
@@ -107,37 +103,47 @@ export async function GET(request: NextRequest) {
  take: limit
  })
 
- // Filter out entries where all transactions are from cancelled POs
- const filteredEntries = []
- for (const entry of entries) {
- const hasValidTx = await prisma.inventoryTransaction.count({
+ // Only keep entries where at least one transaction is from a finalized or PO-less source
+ const validTransactionCombos = await prisma.inventoryTransaction.groupBy({
+ by: ['warehouseCode', 'skuCode', 'batchLot'],
  where: {
- warehouseCode: entry.warehouseCode,
- skuCode: entry.skuCode,
- batchLot: entry.batchLot,
+ ...(scopedWarehouseCode ? { warehouseCode: scopedWarehouseCode } : {}),
  OR: [
  { purchaseOrderId: null },
- {
- purchaseOrder: {
- status: { in: [PurchaseOrderStatus.POSTED, PurchaseOrderStatus.CLOSED] },
- },
- },
+ { purchaseOrder: { status: { in: [PurchaseOrderStatus.POSTED, PurchaseOrderStatus.CLOSED] } } }
  ],
  },
  })
- if (hasValidTx > 0) {
- filteredEntries.push(entry)
- }
- }
-
- // Get summary statistics if costs are included
- let summary = null
- if (includeCosts && startDate && endDate) {
- summary = await getStorageCostSummary(
- new Date(startDate),
- new Date(endDate),
- scopedWarehouseCode
+ const validKey = new Set(
+ validTransactionCombos.map(
+ (combo) => `${combo.warehouseCode}::${combo.skuCode}::${combo.batchLot}`
  )
+ )
+
+ const filteredEntries = entries.filter((entry) =>
+ validKey.has(`${entry.warehouseCode}::${entry.skuCode}::${entry.batchLot}`)
+ )
+
+ // Build summary from the filtered set
+ let summary = null
+ if (includeCosts) {
+ const totalEntries = filteredEntries.length
+ const entriesWithCosts = filteredEntries.filter((e) => e.totalStorageCost != null).length
+ const totalCartons = filteredEntries.reduce((sum, entry) => sum + Number(entry.closingBalance || 0), 0)
+ const totalStorageCost = filteredEntries.reduce(
+ (sum, entry) => sum + Number(entry.totalStorageCost || 0),
+ 0
+ )
+ const costCalculationRate =
+ totalEntries > 0 ? ((entriesWithCosts / totalEntries) * 100).toFixed(1) : '0'
+
+ summary = {
+ totalEntries,
+ entriesWithCosts,
+ totalCartons,
+ totalStorageCost,
+ costCalculationRate,
+ }
  }
 
  const response = {

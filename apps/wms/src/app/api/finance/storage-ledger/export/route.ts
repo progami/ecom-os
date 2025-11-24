@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { getWarehouseFilter } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
-import type { Prisma } from '@ecom-os/prisma-wms'
+import { PurchaseOrderStatus, type Prisma } from '@ecom-os/prisma-wms'
 
 interface StorageLedgerEntryRow {
  warehouseCode: string
@@ -149,7 +149,27 @@ export async function GET(request: NextRequest) {
  ]
  })
 
- if (entries.length === 0) {
+ const validTransactionCombos = await prisma.inventoryTransaction.groupBy({
+ by: ['warehouseCode', 'skuCode', 'batchLot'],
+ where: {
+ OR: [
+ { purchaseOrderId: null },
+ { purchaseOrder: { status: { in: [PurchaseOrderStatus.POSTED, PurchaseOrderStatus.CLOSED] } } }
+ ],
+ ...(where.warehouseCode ? { warehouseCode: where.warehouseCode as string } : {}),
+ },
+ })
+ const validKey = new Set(
+ validTransactionCombos.map(
+ (combo) => `${combo.warehouseCode}::${combo.skuCode}::${combo.batchLot}`
+ )
+ )
+
+ const filteredEntries = entries.filter((entry) =>
+ validKey.has(`${entry.warehouseCode}::${entry.skuCode}::${entry.batchLot}`)
+ )
+
+ if (filteredEntries.length === 0) {
  return NextResponse.json(
  { error: 'No data found for the specified criteria' },
  { status: 404 }
@@ -157,7 +177,7 @@ export async function GET(request: NextRequest) {
  }
 
  if (format === 'csv') {
- const csv = generateStorageLedgerCSV(entries)
+ const csv = generateStorageLedgerCSV(filteredEntries)
  const filename = `storage-ledger-${startDate}-to-${endDate}.csv`
  
  return new NextResponse(csv, {
@@ -169,16 +189,16 @@ export async function GET(request: NextRequest) {
  }
 
  // JSON format
- return NextResponse.json({
- entries,
+return NextResponse.json({
+ entries: filteredEntries,
  exportedAt: new Date().toISOString(),
  criteria: {
  startDate,
  endDate,
  warehouseCode: warehouseCode || 'all'
  },
- totalEntries: entries.length
- })
+ totalEntries: filteredEntries.length
+})
 
  } catch (error) {
  console.error('Storage ledger export error:', error)
