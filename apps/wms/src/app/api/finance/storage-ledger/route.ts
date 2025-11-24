@@ -119,7 +119,7 @@ export async function GET(request: NextRequest) {
  { purchaseOrderId: null },
  {
  purchaseOrder: {
- status: { not: PurchaseOrderStatus.CANCELLED },
+ status: { in: [PurchaseOrderStatus.POSTED, PurchaseOrderStatus.CLOSED] },
  },
  },
  ],

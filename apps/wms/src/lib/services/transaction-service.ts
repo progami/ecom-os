@@ -64,28 +64,29 @@ export async function createTransaction(input: CreateTransactionInput) {
  })
 
  if (costs && shouldProcessCosts(transaction.transactionType)) {
- try {
- await handleTransactionCosts({
- transactionId: transaction.id,
- warehouseCode: transaction.warehouseCode,
- warehouseName: transaction.warehouseName,
- skuCode: transaction.skuCode,
- batchLot: transaction.batchLot,
- transactionType: transaction.transactionType,
- transactionDate: transaction.transactionDate,
- cartonsIn: transaction.cartonsIn,
- cartonsOut: transaction.cartonsOut,
- storagePalletsIn: transaction.storagePalletsIn,
- shippingPalletsOut: transaction.shippingPalletsOut,
- storageCartonsPerPallet: transaction.storageCartonsPerPallet,
- shippingCartonsPerPallet: transaction.shippingCartonsPerPallet,
- costs,
- createdByName: transaction.createdByName,
- })
- } catch (_error) {
- // console.error(`Failed to process costs for transaction ${transaction.id}:`, _error)
- // Don't fail the transaction if cost processing fails
- // This could be sent to an error tracking service
+    try {
+      await handleTransactionCosts({
+        transactionId: transaction.id,
+        warehouseCode: transaction.warehouseCode,
+        warehouseName: transaction.warehouseName,
+        skuCode: transaction.skuCode,
+        batchLot: transaction.batchLot,
+        purchaseOrderId: transaction.purchaseOrderId,
+        transactionType: transaction.transactionType,
+        transactionDate: transaction.transactionDate,
+        cartonsIn: transaction.cartonsIn,
+        cartonsOut: transaction.cartonsOut,
+        storagePalletsIn: transaction.storagePalletsIn,
+        shippingPalletsOut: transaction.shippingPalletsOut,
+        storageCartonsPerPallet: transaction.storageCartonsPerPallet,
+        shippingCartonsPerPallet: transaction.shippingCartonsPerPallet,
+        costs,
+        createdByName: transaction.createdByName,
+      })
+    } catch (_error) {
+      // console.error(`Failed to process costs for transaction ${transaction.id}:`, _error)
+      // Don't fail the transaction if cost processing fails
+      // This could be sent to an error tracking service
  }
  }
 
@@ -144,24 +145,25 @@ export async function createTransactionBatch(
  if (adjustedCosts && shouldProcessCosts(transaction.transactionType)) {
  // Since we're in a transaction context, we need to handle costs here
  // This would ideally be refactored to use tx instead of prisma
- await handleTransactionCosts({
- transactionId: transaction.id,
- warehouseCode: transaction.warehouseCode,
- warehouseName: transaction.warehouseName,
- skuCode: transaction.skuCode,
- batchLot: transaction.batchLot,
- transactionType: transaction.transactionType,
- transactionDate: transaction.transactionDate,
- cartonsIn: transaction.cartonsIn,
- cartonsOut: transaction.cartonsOut,
- storagePalletsIn: transaction.storagePalletsIn,
- shippingPalletsOut: transaction.shippingPalletsOut,
- storageCartonsPerPallet: transaction.storageCartonsPerPallet,
- shippingCartonsPerPallet: transaction.shippingCartonsPerPallet,
- costs: adjustedCosts,
- createdByName: transaction.createdByName
- })
- }
+      await handleTransactionCosts({
+        transactionId: transaction.id,
+        warehouseCode: transaction.warehouseCode,
+        warehouseName: transaction.warehouseName,
+        skuCode: transaction.skuCode,
+        batchLot: transaction.batchLot,
+        purchaseOrderId: transaction.purchaseOrderId,
+        transactionType: transaction.transactionType,
+        transactionDate: transaction.transactionDate,
+        cartonsIn: transaction.cartonsIn,
+        cartonsOut: transaction.cartonsOut,
+        storagePalletsIn: transaction.storagePalletsIn,
+        shippingPalletsOut: transaction.shippingPalletsOut,
+        storageCartonsPerPallet: transaction.storageCartonsPerPallet,
+        shippingCartonsPerPallet: transaction.shippingCartonsPerPallet,
+        costs: adjustedCosts,
+        createdByName: transaction.createdByName
+      })
+    }
  
  results.push(transaction)
  }
