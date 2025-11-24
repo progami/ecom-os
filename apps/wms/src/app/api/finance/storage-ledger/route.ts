@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
  }
 
  // Get total count for pagination
- const totalCount = await prisma.storageLedger.count({ where })
+ const _totalCount = await prisma.storageLedger.count({ where })
 
  // Get paginated results
  const entries = await prisma.storageLedger.findMany({
