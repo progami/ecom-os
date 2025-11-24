@@ -47,12 +47,12 @@ export class ApiError extends Error {
 }
 
 function getApiBase(): string {
-  // Allow override via env for future deployments; default to same-origin
+  // Allow override via env for future deployments; default to /hrms
   if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_BASE) {
     return process.env.NEXT_PUBLIC_API_BASE
   }
-  const basePath = (typeof process !== 'undefined' && (process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH)) || ''
-  return basePath || ''
+  // Default to /hrms basePath matching next.config.js
+  return '/hrms'
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
