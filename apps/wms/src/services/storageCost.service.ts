@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { Prisma, TransactionType } from '@ecom-os/prisma-wms'
+import { Prisma, TransactionType, PurchaseOrderStatus } from '@ecom-os/prisma-wms'
 import { endOfWeek, startOfWeek } from 'date-fns'
 import { randomUUID } from 'crypto'
 import { getStorageRate, calculateStorageCost, type StorageRateResult } from './storageRate.service'
@@ -25,9 +25,24 @@ export async function recordStorageCostEntry({
  skuDescription,
  batchLot,
  transactionDate,
-}: RecordStorageCostParams) {
+  purchaseOrderId,
+}: RecordStorageCostParams & { purchaseOrderId?: string }) {
  const weekEndingDate = endOfWeek(transactionDate, { weekStartsOn: 1 })
  const weekStartingDate = startOfWeek(transactionDate, { weekStartsOn: 1 })
+
+ // Skip and clean up if the source PO is cancelled
+ if (purchaseOrderId) {
+ const po = await prisma.purchaseOrder.findUnique({
+ where: { id: purchaseOrderId },
+ select: { status: true },
+ })
+ if (po?.status === PurchaseOrderStatus.CANCELLED) {
+ await prisma.storageLedger.deleteMany({
+ where: { warehouseCode, skuCode, batchLot },
+ })
+ return null
+ }
+ }
 
  // Calculate opening balance (inventory prior to the start of the week)
  const openingAggregate = await prisma.inventoryTransaction.aggregate({
@@ -196,11 +211,19 @@ export async function ensureWeeklyStorageEntries(date: Date = new Date()) {
  const weekEndingDate = endOfWeek(date, { weekStartsOn: 1 })
 
  // Get all batches with positive inventory balances
- const aggregates = await prisma.inventoryTransaction.groupBy({
- by: ['warehouseCode', 'warehouseName', 'skuCode', 'skuDescription', 'batchLot'],
- _sum: { cartonsIn: true, cartonsOut: true },
- where: { transactionDate: { lte: date } }
- })
+  const aggregates = await prisma.inventoryTransaction.groupBy({
+  by: ['warehouseCode', 'warehouseName', 'skuCode', 'skuDescription', 'batchLot'],
+  _sum: { cartonsIn: true, cartonsOut: true },
+  where: {
+  transactionDate: { lte: date },
+  OR: [
+  { purchaseOrderId: null },
+  {
+  purchaseOrder: { status: { not: PurchaseOrderStatus.CANCELLED } },
+  },
+  ],
+  },
+  })
 
  let processed = 0
  let costCalculated = 0

@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { getWarehouseFilter } from '@/lib/auth-utils'
 import { getStorageCostSummary } from '@/services/storageCost.service'
-import { Prisma } from '@ecom-os/prisma-wms'
+import { Prisma, PurchaseOrderStatus } from '@ecom-os/prisma-wms'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
  }
 
  // Get total count for pagination
- const totalCount = await prisma.storageLedger.count({ where })
+ const _totalCount = await prisma.storageLedger.count({ where })
 
  // Get paginated results
  const entries = await prisma.storageLedger.findMany({
@@ -107,6 +107,29 @@ export async function GET(request: NextRequest) {
  take: limit
  })
 
+ // Filter out entries where all transactions are from cancelled POs
+ const filteredEntries = []
+ for (const entry of entries) {
+ const hasValidTx = await prisma.inventoryTransaction.count({
+ where: {
+ warehouseCode: entry.warehouseCode,
+ skuCode: entry.skuCode,
+ batchLot: entry.batchLot,
+ OR: [
+ { purchaseOrderId: null },
+ {
+ purchaseOrder: {
+ status: { not: PurchaseOrderStatus.CANCELLED },
+ },
+ },
+ ],
+ },
+ })
+ if (hasValidTx > 0) {
+ filteredEntries.push(entry)
+ }
+ }
+
  // Get summary statistics if costs are included
  let summary = null
  if (includeCosts && startDate && endDate) {
@@ -118,13 +141,13 @@ export async function GET(request: NextRequest) {
  }
 
  const response = {
- entries,
+ entries: filteredEntries,
  pagination: {
  page,
  limit,
- totalCount,
- totalPages: Math.ceil(totalCount / limit),
- hasNext: page * limit < totalCount,
+ totalCount: filteredEntries.length,
+ totalPages: Math.ceil(filteredEntries.length / limit),
+ hasNext: filteredEntries.length > limit,
  hasPrev: page > 1
  },
  ...(summary && { summary })
