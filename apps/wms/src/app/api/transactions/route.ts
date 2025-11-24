@@ -1062,18 +1062,19 @@ for (const item of validatedItems) {
  // Record storage cost entries for each transaction
  await Promise.all(
  result.map((t) =>
- recordStorageCostEntry({
- warehouseCode: t.warehouseCode,
- warehouseName: t.warehouseName,
- skuCode: t.skuCode,
- skuDescription: t.skuDescription,
- batchLot: t.batchLot,
- transactionDate: t.transactionDate,
- }).catch((storageError) => {
- // Don't fail transaction processing if storage cost recording fails
- const message = storageError instanceof Error ? storageError.message : 'Unknown error'
- console.error(
- `Storage cost recording failed for ${t.warehouseCode}/${t.skuCode}/${t.batchLot}:`,
+      recordStorageCostEntry({
+        warehouseCode: t.warehouseCode,
+        warehouseName: t.warehouseName,
+        skuCode: t.skuCode,
+        skuDescription: t.skuDescription,
+        batchLot: t.batchLot,
+        transactionDate: t.transactionDate,
+        purchaseOrderId: t.purchaseOrderId || undefined,
+      }).catch((storageError) => {
+        // Don't fail transaction processing if storage cost recording fails
+        const message = storageError instanceof Error ? storageError.message : 'Unknown error'
+        console.error(
+          `Storage cost recording failed for ${t.warehouseCode}/${t.skuCode}/${t.batchLot}:`,
  message
  )
  })
