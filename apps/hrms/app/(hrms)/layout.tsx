@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { ReactNode, useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 
-// Simple icon components
+// Icons
 function HomeIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -53,22 +53,6 @@ function XIcon({ className }: { className?: string }) {
   )
 }
 
-function UserCircleIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
-    </svg>
-  )
-}
-
-function ChevronDownIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-    </svg>
-  )
-}
-
 interface NavItem {
   name: string
   href: string
@@ -106,21 +90,8 @@ function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(' ')
 }
 
-function Sidebar({ onClose, isCollapsed = false }: { onClose?: () => void; isCollapsed?: boolean }) {
+function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname()
-  const [userMenuOpen, setUserMenuOpen] = useState(false)
-
-  // Close user menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (userMenuOpen && !(event.target as HTMLElement).closest('.user-menu-container')) {
-        setUserMenuOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [userMenuOpen])
 
   const matchesPath = (href: string) => {
     if (href === '/') return pathname === '/' || pathname === ''
@@ -128,79 +99,33 @@ function Sidebar({ onClose, isCollapsed = false }: { onClose?: () => void; isCol
   }
 
   return (
-    <div className="flex grow flex-col gap-y-3 overflow-y-auto border-r border-slate-200 bg-white px-4 pb-3">
+    <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-slate-200 bg-white px-6 pb-4">
       <div className="flex h-16 shrink-0 items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-teal-500 shadow-md">
-            <span className="text-lg font-bold text-white">HR</span>
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-600">
+            <span className="text-sm font-bold text-white">HR</span>
           </div>
-          <span className={cn(
-            "text-xl font-bold text-slate-900 transition-all duration-300",
-            isCollapsed && "md:hidden lg:inline"
-          )}>HRMS</span>
+          <span className="text-lg font-semibold text-slate-900">HRMS</span>
         </Link>
-
-        <div className="flex items-center gap-2">
-          {/* User avatar/menu */}
-          <div className={cn(
-            "relative transition-all duration-300 user-menu-container",
-            isCollapsed && "md:hidden lg:block"
-          )}>
-            <button
-              onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-            >
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-cyan-500 to-teal-400 flex items-center justify-center shadow-sm">
-                <UserCircleIcon className="h-5 w-5 text-white" />
-              </div>
-              <ChevronDownIcon className={cn(
-                "h-4 w-4 text-slate-400 transition-transform duration-200",
-                userMenuOpen && "rotate-180"
-              )} />
-            </button>
-            {/* Dropdown menu */}
-            {userMenuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-50">
-                <div className="px-4 py-3 border-b border-slate-100">
-                  <p className="text-sm font-medium text-slate-900">HR Admin</p>
-                  <p className="text-xs text-slate-500 mt-0.5">admin@company.com</p>
-                </div>
-                <div className="py-1">
-                  <button
-                    className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2"
-                  >
-                    <UserCircleIcon className="h-4 w-4 text-slate-400" />
-                    Profile Settings
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Mobile close button */}
-          {onClose && (
-            <button onClick={onClose} className="md:hidden p-2 rounded-lg hover:bg-slate-100">
-              <XIcon className="h-5 w-5 text-slate-500" />
-            </button>
-          )}
-        </div>
+        {onClose && (
+          <button onClick={onClose} className="md:hidden p-2 hover:bg-slate-100 rounded-lg">
+            <XIcon className="h-5 w-5 text-slate-500" />
+          </button>
+        )}
       </div>
 
       <nav className="flex flex-1 flex-col">
-        <ul role="list" className="flex flex-1 flex-col gap-y-6">
+        <ul role="list" className="flex flex-1 flex-col gap-y-7">
           <li>
             <ul role="list" className="-mx-2 space-y-1">
               {navigation.map((section, sectionIdx) => (
                 <li key={sectionIdx}>
                   {section.title && (
-                    <div className={cn(
-                      "px-3 pb-1.5 pt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-400 transition-all duration-300",
-                      isCollapsed && "md:hidden lg:block"
-                    )}>
+                    <div className="px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                       {section.title}
                     </div>
                   )}
-                  <ul role="list" className="space-y-0.5">
+                  <ul role="list" className="space-y-1">
                     {section.items.map((item) => (
                       <li key={item.name}>
                         <Link
@@ -208,9 +133,9 @@ function Sidebar({ onClose, isCollapsed = false }: { onClose?: () => void; isCol
                           onClick={onClose}
                           className={cn(
                             matchesPath(item.href)
-                              ? 'bg-gradient-to-r from-cyan-50 to-teal-50 text-cyan-700 border-l-2 border-cyan-500'
-                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 border-l-2 border-transparent',
-                            'group flex gap-x-3 rounded-lg py-2.5 px-3 text-sm font-medium transition-all duration-200'
+                              ? 'bg-cyan-50 text-cyan-600'
+                              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-50',
+                            'group flex gap-x-3 rounded-lg py-2 px-3 text-sm font-medium'
                           )}
                         >
                           <item.icon
@@ -218,15 +143,10 @@ function Sidebar({ onClose, isCollapsed = false }: { onClose?: () => void; isCol
                               matchesPath(item.href)
                                 ? 'text-cyan-600'
                                 : 'text-slate-400 group-hover:text-slate-600',
-                              'h-5 w-5 shrink-0 transition-colors'
+                              'h-5 w-5 shrink-0'
                             )}
                           />
-                          <span className={cn(
-                            "transition-all duration-300",
-                            isCollapsed && "md:hidden lg:inline"
-                          )}>
-                            {item.name}
-                          </span>
+                          {item.name}
                         </Link>
                       </li>
                     ))}
@@ -246,19 +166,11 @@ function MobileNav({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
 
   return (
     <div className="relative z-50 md:hidden">
-      <div
-        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-slate-900/80" onClick={onClose} />
       <div className="fixed inset-0 flex">
         <div className="relative mr-16 flex w-full max-w-xs flex-1">
           <div className="absolute left-full top-0 flex w-16 justify-center pt-5">
-            <button
-              type="button"
-              className="-m-2.5 p-2.5"
-              onClick={onClose}
-            >
-              <span className="sr-only">Close sidebar</span>
+            <button type="button" className="-m-2.5 p-2.5" onClick={onClose}>
               <XIcon className="h-6 w-6 text-white" />
             </button>
           </div>
@@ -286,16 +198,10 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
   }
 
   return (
-    <div className="sticky top-0 z-40 flex items-center gap-x-4 bg-white/95 backdrop-blur-sm px-4 py-4 shadow-sm border-b border-slate-200 sm:px-6 md:hidden">
-      <button
-        type="button"
-        className="-m-2 p-2 text-slate-600 hover:text-slate-900 transition-colors"
-        onClick={onMenuClick}
-      >
-        <span className="sr-only">Open sidebar</span>
+    <div className="sticky top-0 z-40 flex items-center gap-x-6 bg-white px-4 py-4 border-b border-slate-200 sm:px-6 md:hidden">
+      <button type="button" className="-m-2.5 p-2.5 text-slate-700" onClick={onMenuClick}>
         <MenuIcon className="h-6 w-6" />
       </button>
-      <div className="h-6 w-px bg-slate-200" />
       <div className="flex-1 text-sm font-semibold text-slate-900">
         {getCurrentPageName()}
       </div>
@@ -305,12 +211,8 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
 
 export default function HRMSLayout({ children }: { children: ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [isTabletCollapsed, setIsTabletCollapsed] = useState(false)
   const version = process.env.NEXT_PUBLIC_VERSION || '1.1.0'
-  const releaseTag = `hrms-${version}`
-  const releaseUrl = `https://github.com/progami/ecom-os/releases/tag/${releaseTag}`
 
-  // Close mobile menu on route change
   const pathname = usePathname()
   useEffect(() => {
     setMobileMenuOpen(false)
@@ -318,43 +220,28 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
 
   return (
     <>
-      {/* Desktop Navigation */}
-      <div className={cn(
-        "hidden md:fixed md:inset-y-0 md:z-50 md:flex md:flex-col transition-all duration-300",
-        isTabletCollapsed ? "md:w-16 lg:w-64" : "md:w-64"
-      )}>
-        <Sidebar isCollapsed={isTabletCollapsed} />
+      {/* Desktop Sidebar */}
+      <div className="hidden md:fixed md:inset-y-0 md:z-50 md:flex md:w-64 md:flex-col">
+        <Sidebar />
       </div>
 
-      {/* Mobile Navigation */}
+      {/* Mobile Nav */}
       <MobileNav isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 
       {/* Main Content */}
-      <div className={cn(
-        "transition-all duration-300 h-screen flex flex-col overflow-hidden bg-slate-50",
-        isTabletCollapsed ? "md:pl-16 lg:pl-64" : "md:pl-64"
-      )}>
+      <div className="md:pl-64 h-screen flex flex-col overflow-hidden bg-slate-50">
         <Header onMenuClick={() => setMobileMenuOpen(true)} />
 
         <main className="flex-1 flex flex-col min-h-0">
-          <div className="flex-1 flex flex-col px-4 sm:px-6 md:px-8 py-6 min-h-0 overflow-y-auto">
+          <div className="flex-1 flex flex-col px-4 sm:px-6 lg:px-8 py-6 min-h-0 overflow-y-auto">
             {children}
           </div>
         </main>
 
-        <footer className="flex-shrink-0 border-t border-slate-200 bg-white/80 backdrop-blur-sm">
-          <div className="px-4 sm:px-6 md:px-8 py-3">
-            <p className="text-xs text-slate-400 text-center">
-              HRMS{' '}
-              <a
-                href={releaseUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-cyan-600 transition-colors"
-              >
-                v{version}
-              </a>
-              {' '}• Human Resource Management System
+        <footer className="border-t border-slate-200 bg-white">
+          <div className="px-4 sm:px-6 lg:px-8 py-3">
+            <p className="text-xs text-slate-500 text-center">
+              HRMS v{version}
             </p>
           </div>
         </footer>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ResourcesApi, type Resource } from '@/lib/api-client'
 
-// Icon components
+// Icons
 function FolderIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -15,7 +15,7 @@ function FolderIcon({ className }: { className?: string }) {
 
 function PlusIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
     </svg>
   )
@@ -37,15 +37,7 @@ function ExternalLinkIcon({ className }: { className?: string }) {
   )
 }
 
-function FolderPlusIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 10.5v6m3-3H9m4.06-7.19l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
-    </svg>
-  )
-}
-
-// Page Header Component
+// Page Header
 function PageHeader({
   title,
   description,
@@ -58,24 +50,22 @@ function PageHeader({
   actions?: React.ReactNode
 }) {
   return (
-    <header className="sticky top-0 z-10 -mx-4 sm:-mx-6 md:-mx-8 -mt-6 border-b border-slate-200 bg-white/95 px-4 py-4 shadow-sm backdrop-blur-xl sm:px-6 md:px-8 mb-6">
+    <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6 lg:px-8 -mx-4 sm:-mx-6 lg:-mx-8 -mt-6 mb-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           {Icon && (
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-600 to-teal-500 shadow-md">
-              <Icon className="h-5 w-5 text-white" />
+            <div className="p-2 rounded-lg bg-slate-100">
+              <Icon className="h-6 w-6 text-slate-700" />
             </div>
           )}
-          <div className="flex flex-col">
-            {description && (
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                {description}
-              </span>
-            )}
+          <div>
             <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+            {description && (
+              <p className="text-sm text-slate-500">{description}</p>
+            )}
           </div>
         </div>
-        {actions && <div className="flex shrink-0 items-center gap-3">{actions}</div>}
+        {actions && <div className="flex items-center gap-3">{actions}</div>}
       </div>
     </header>
   )
@@ -117,7 +107,7 @@ export default function ResourcesPage() {
         actions={
           <Link
             href="/resources/add"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-teal-500 text-white rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg text-sm font-medium hover:bg-cyan-700"
           >
             <PlusIcon className="h-4 w-4" />
             Add Resource
@@ -125,110 +115,95 @@ export default function ResourcesPage() {
         }
       />
 
-      <div className="space-y-4">
+      <div className="space-y-6">
         {/* Search */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-lg p-4">
           <form onSubmit={handleSearch} className="flex gap-3">
             <div className="relative flex-1">
-              <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <input
                 type="text"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="Search by name or description..."
-                className="pl-10 pr-4 py-2.5 w-full border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500/20 focus:border-cyan-500 text-sm transition-all"
+                placeholder="Search resources..."
+                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
               />
             </div>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors text-sm font-medium"
+              className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800"
             >
               Search
             </button>
           </form>
         </div>
 
-        {/* Results count */}
-        <div className="flex items-center justify-between px-1">
-          <p className="text-sm text-slate-500">
-            {loading ? 'Loading...' : `${items.length} resource${items.length !== 1 ? 's' : ''} found`}
-          </p>
-        </div>
+        {/* Results */}
+        <p className="text-sm text-slate-500">
+          {loading ? 'Loading...' : `${items.length} resource${items.length !== 1 ? 's' : ''}`}
+        </p>
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/50">
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500">Name</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500">Category</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500">Subcategory</th>
-                  <th className="text-left px-5 py-3.5 text-xs font-semibold uppercase tracking-wider text-slate-500">Website</th>
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Name</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Category</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Subcategory</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Website</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {loading ? (
+                [...Array(5)].map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-32" /></td>
+                    <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-24" /></td>
+                    <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-20" /></td>
+                    <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-40" /></td>
+                  </tr>
+                ))
+              ) : items.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-12 text-center">
+                    <FolderIcon className="h-10 w-10 mx-auto text-slate-300 mb-3" />
+                    <p className="text-sm text-slate-500">No resources found</p>
+                    <Link
+                      href="/resources/add"
+                      className="inline-flex items-center gap-1 text-cyan-600 hover:text-cyan-700 text-sm mt-2"
+                    >
+                      <PlusIcon className="h-4 w-4" />
+                      Add your first resource
+                    </Link>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading ? (
-                  [...Array(5)].map((_, i) => (
-                    <tr key={i} className="animate-pulse">
-                      <td className="px-5 py-4"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
-                      <td className="px-5 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
-                      <td className="px-5 py-4"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
-                      <td className="px-5 py-4"><div className="h-4 bg-slate-200 rounded w-40"></div></td>
-                    </tr>
-                  ))
-                ) : items.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-5 py-16 text-center">
-                      <div className="flex flex-col items-center">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-slate-100 mb-4">
-                          <FolderIcon className="h-7 w-7 text-slate-400" />
-                        </div>
-                        <p className="text-sm font-medium text-slate-900 mb-1">No resources found</p>
-                        <p className="text-xs text-slate-500 mb-4">Get started by adding your first service provider</p>
-                        <Link
-                          href="/resources/add"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-cyan-600 to-teal-500 text-white rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all"
+              ) : (
+                items.map((r) => (
+                  <tr key={r.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-4 text-sm font-medium text-slate-900">{r.name}</td>
+                    <td className="px-4 py-4 text-sm text-slate-600">{r.category}</td>
+                    <td className="px-4 py-4 text-sm text-slate-500">{r.subcategory || '—'}</td>
+                    <td className="px-4 py-4">
+                      {r.website ? (
+                        <a
+                          href={r.website}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-sm text-cyan-600 hover:text-cyan-700"
                         >
-                          <FolderPlusIcon className="h-4 w-4" />
-                          Add Resource
-                        </Link>
-                      </div>
+                          <span className="truncate max-w-[180px]">{r.website.replace(/^https?:\/\//, '')}</span>
+                          <ExternalLinkIcon className="h-3.5 w-3.5" />
+                        </a>
+                      ) : (
+                        <span className="text-sm text-slate-400">—</span>
+                      )}
                     </td>
                   </tr>
-                ) : (
-                  items.map((r) => (
-                    <tr key={r.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="px-5 py-4">
-                        <p className="text-sm font-medium text-slate-900">{r.name}</p>
-                      </td>
-                      <td className="px-5 py-4 text-sm text-slate-600">
-                        {r.category}
-                      </td>
-                      <td className="px-5 py-4 text-sm text-slate-500">
-                        {r.subcategory || '—'}
-                      </td>
-                      <td className="px-5 py-4">
-                        {r.website ? (
-                          <a
-                            href={r.website}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-sm text-cyan-600 hover:text-cyan-700 transition-colors"
-                          >
-                            <span className="truncate max-w-[200px]">{r.website.replace(/^https?:\/\//, '')}</span>
-                            <ExternalLinkIcon className="h-3.5 w-3.5 flex-shrink-0" />
-                          </a>
-                        ) : (
-                          <span className="text-sm text-slate-400">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </>
