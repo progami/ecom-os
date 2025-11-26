@@ -199,6 +199,28 @@ const STAGE_OVERRIDE_FIELDS: Record<StageWeeksKey, StageOverrideKey> = STAGE_CON
   {} as Record<StageWeeksKey, StageOverrideKey>
 )
 
+function recomputeStageDates(
+  record: OpsInputRow,
+  entry: { values: Record<string, string | null> }
+) {
+  let working: OpsInputRow | null = null
+
+  for (const stage of STAGE_CONFIG) {
+    const baseRecord: OpsInputRow = working ?? record
+    const end = resolveStageEnd(baseRecord, stage.weeksKey)
+    const iso = end ? toIsoDate(end) ?? '' : ''
+    const target = baseRecord[stage.overrideKey]
+    if (target !== iso) {
+      working = { ...baseRecord, [stage.overrideKey]: iso as OpsInputRow[StageOverrideKey] }
+      entry.values[stage.overrideKey] = iso
+    }
+  }
+
+  if (working) {
+    Object.assign(record, working)
+  }
+}
+
 function parseIsoDate(value: string | null | undefined): Date | null {
   if (!value) return null
   const trimmed = value.trim()
@@ -459,6 +481,7 @@ export function OpsPlanningGrid({
           if (!changes || rawSource === 'loadData') return
           const hot = hotRef.current
           if (!hot) return
+          const dirtyStageRows = new Set<string>()
 
           for (const change of changes) {
             const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof OpsInputRow | ((row: OpsInputRow, value?: any) => any), any, any]
@@ -485,15 +508,32 @@ export function OpsPlanningGrid({
                 const overrideField = STAGE_OVERRIDE_FIELDS[prop as StageWeeksKey]
                 entry.values[overrideField] = ''
                 record[overrideField] = '' as OpsInputRow[StageOverrideKey]
+                dirtyStageRows.add(record.id)
               }
             } else if (DATE_FIELDS.has(prop)) {
               const value = newValue ? String(newValue) : ''
               entry.values[prop] = value
               record[prop] = value as OpsInputRow[typeof prop]
+              if (prop === 'poDate') {
+                dirtyStageRows.add(record.id)
+              }
             } else {
               const value = newValue == null ? '' : String(newValue)
               entry.values[prop] = value
               record[prop] = value as OpsInputRow[typeof prop]
+            }
+          }
+
+          if (dirtyStageRows.size > 0) {
+            for (const rowId of dirtyStageRows) {
+              const sourceData = hot.getSourceData() as OpsInputRow[]
+              const rowIndex = sourceData.findIndex((r: OpsInputRow) => r.id === rowId)
+              if (rowIndex === -1) continue
+              const record = sourceData[rowIndex] as OpsInputRow | null
+              const entry = pendingRef.current.get(rowId)
+              if (record && entry) {
+                recomputeStageDates(record, entry as { values: Record<string, string | null> })
+              }
             }
           }
 

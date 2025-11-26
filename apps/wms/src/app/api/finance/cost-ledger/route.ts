@@ -1,6 +1,6 @@
 import { withAuth, ApiResponses } from '@/lib/api'
 import { prisma } from '@/lib/prisma'
-import { Prisma } from '@ecom-os/prisma-wms'
+import { Prisma, PurchaseOrderStatus } from '@ecom-os/prisma-wms'
 import { aggregateCostLedger } from '@ecom-os/ledger'
 
 export const dynamic = 'force-dynamic'
@@ -24,18 +24,52 @@ export const GET = withAuth(async (request, _session) => {
  createdAt: {
  gte: startDate,
  lte: endDate
- }
- }
-
- if (warehouseCode) {
- where.warehouseCode = warehouseCode
+ },
+ ...(warehouseCode ? { warehouseCode } : {})
  }
 
  const costEntries = await prisma.costLedger.findMany({
  where,
- include: {
- transaction: {
+ orderBy: { createdAt: 'asc' }
+ })
+
+ const transactionIds = Array.from(
+ new Set(
+ costEntries
+ .map((entry) => entry.transactionId)
+ .filter((id): id is string => Boolean(id))
+ )
+ )
+
+ if (transactionIds.length === 0) {
+ return ApiResponses.success({
+ groups: [],
+ totals: {
+ storage: 0,
+ container: 0,
+ pallet: 0,
+ carton: 0,
+ unit: 0,
+ transportation: 0,
+ accessorial: 0,
+ other: 0,
+ total: 0
+ },
+ groupBy
+ })
+ }
+
+ const validTransactions = await prisma.inventoryTransaction.findMany({
+ where: {
+ id: { in: transactionIds },
+ OR: [
+ { purchaseOrderId: null },
+ { purchaseOrder: { status: { in: [PurchaseOrderStatus.POSTED, PurchaseOrderStatus.CLOSED] } } }
+ ],
+ ...(warehouseCode ? { warehouseCode } : {})
+ },
  select: {
+ id: true,
  transactionType: true,
  warehouseCode: true,
  warehouseName: true,
@@ -43,13 +77,18 @@ export const GET = withAuth(async (request, _session) => {
  skuDescription: true,
  batchLot: true
  }
- }
- },
- orderBy: { createdAt: 'asc' }
  })
 
+ const transactionMap = new Map(validTransactions.map((tx) => [tx.id, tx]))
+
+ const filteredEntries = costEntries.filter(
+ entry => entry.transactionId && transactionMap.has(entry.transactionId)
+ )
+
  const aggregated = aggregateCostLedger(
- costEntries.map(entry => ({
+ filteredEntries.map(entry => {
+ const transaction = transactionMap.get(entry.transactionId!)
+ return {
  id: entry.id,
  transactionId: entry.transactionId,
  costCategory: entry.costCategory,
@@ -58,15 +97,18 @@ export const GET = withAuth(async (request, _session) => {
  totalCost: entry.totalCost as unknown as number | string | null,
  createdAt: entry.createdAt,
  warehouseCode: entry.warehouseCode,
- context: {
- transactionType: entry.transaction?.transactionType,
- warehouseCode: entry.transaction?.warehouseCode,
- warehouseName: entry.transaction?.warehouseName,
- skuCode: entry.transaction?.skuCode,
- skuDescription: entry.transaction?.skuDescription,
- batchLot: entry.transaction?.batchLot
+ context: transaction
+ ? {
+ transactionType: transaction.transactionType,
+ warehouseCode: transaction.warehouseCode,
+ warehouseName: transaction.warehouseName,
+ skuCode: transaction.skuCode,
+ skuDescription: transaction.skuDescription,
+ batchLot: transaction.batchLot
  }
- })),
+ : undefined
+ }
+ }),
  { groupBy }
  )
 

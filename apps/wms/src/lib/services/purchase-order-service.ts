@@ -11,6 +11,7 @@ import {
  TransactionType,
   MovementNoteStatus,
 } from '@ecom-os/prisma-wms'
+import { auditLog } from '@/lib/security/audit-logger'
 
 export interface UserContext {
  id?: string | null
@@ -46,11 +47,23 @@ export type PurchaseOrderWithLines = Prisma.PurchaseOrderGetPayload<{
  include: { lines: true }
 }>
 
-export function serializePurchaseOrder(order: PurchaseOrderWithLines) {
+export function serializePurchaseOrder(
+ order: PurchaseOrderWithLines,
+ metadata?: {
+ voidedFromStatus?: PurchaseOrderStatus | null
+ voidedAt?: Date | string | null
+ }
+) {
   return {
     ...order,
     expectedDate: order.expectedDate?.toISOString() ?? null,
     postedAt: order.postedAt?.toISOString() ?? null,
+    voidedFromStatus: metadata?.voidedFromStatus ?? null,
+    voidedAt: metadata?.voidedAt
+      ? typeof metadata.voidedAt === 'string'
+        ? metadata.voidedAt
+        : metadata.voidedAt.toISOString()
+      : null,
     createdAt: order.createdAt.toISOString(),
     updatedAt: order.updatedAt.toISOString(),
     orderNumber: toPublicOrderNumber(order.orderNumber),
@@ -632,44 +645,112 @@ async function createPurchaseOrderRecord(
  throw new ConflictError('Unable to create purchase order with a unique reference')
 }
 
-export async function voidPurchaseOrder(id: string): Promise<PurchaseOrderWithLines> {
- return prisma.$transaction(async tx => {
- const order = await tx.purchaseOrder.findUnique({
- where: { id },
- include: { lines: true },
- })
+export async function voidPurchaseOrder(
+  id: string,
+  user?: UserContext
+): Promise<{
+  order: PurchaseOrderWithLines
+  voidedFromStatus: PurchaseOrderStatus
+  voidedAt: Date
+}> {
+  return prisma.$transaction(async tx => {
+    const order = await tx.purchaseOrder.findUnique({
+      where: { id },
+      include: { lines: true },
+    })
 
- if (!order) {
- throw new Error('Purchase order not found')
- }
+    if (!order) {
+      throw new Error('Purchase order not found')
+    }
 
- if (order.status === PurchaseOrderStatus.CLOSED) {
- throw new Error('Closed purchase orders cannot be voided')
- }
+    if (order.status === PurchaseOrderStatus.CLOSED) {
+      throw new Error('Closed purchase orders cannot be voided')
+    }
 
- if (order.status === PurchaseOrderStatus.CANCELLED) {
- return order
- }
+    if (order.status === PurchaseOrderStatus.CANCELLED) {
+      return {
+        order,
+        voidedFromStatus: order.status,
+        voidedAt: new Date(),
+      }
+    }
 
- await tx.inventoryTransaction.deleteMany({
- where: { purchaseOrderId: order.id },
- })
+    const previousStatus = order.status
+    const targetStatus =
+      previousStatus === PurchaseOrderStatus.POSTED
+        ? PurchaseOrderStatus.CLOSED
+        : PurchaseOrderStatus.CANCELLED
 
- await tx.purchaseOrderLine.updateMany({
- where: { purchaseOrderId: order.id },
- data: {
- status: PurchaseOrderLineStatus.CANCELLED,
- postedQuantity: 0,
- },
- })
+    const voidedAt = new Date()
 
- return tx.purchaseOrder.update({
- where: { id: order.id },
- data: {
- status: PurchaseOrderStatus.CANCELLED,
- postedAt: null,
- },
- include: { lines: true },
- })
- })
+    if (previousStatus !== PurchaseOrderStatus.POSTED) {
+      await tx.inventoryTransaction.deleteMany({
+        where: { purchaseOrderId: order.id },
+      })
+
+      await tx.purchaseOrderLine.updateMany({
+        where: { purchaseOrderId: order.id },
+        data: {
+          status: PurchaseOrderLineStatus.CANCELLED,
+          postedQuantity: 0,
+        },
+      })
+    }
+
+    const updated = await tx.purchaseOrder.update({
+      where: { id: order.id },
+      data: {
+        status: targetStatus,
+        postedAt: targetStatus === PurchaseOrderStatus.CLOSED ? order.postedAt : null,
+      },
+      include: { lines: true },
+    })
+
+    await auditLog({
+      entityType: 'PurchaseOrder',
+      entityId: order.id,
+      action: 'VOID',
+      userId: user?.id || 'SYSTEM',
+      data: {
+        previousStatus,
+        targetStatus,
+        voidedAt: voidedAt.toISOString(),
+        voidedBy: user?.name || null,
+      },
+    })
+
+    return {
+      order: updated,
+      voidedFromStatus: previousStatus,
+      voidedAt,
+    }
+  })
+}
+
+export async function getPurchaseOrderVoidMetadata(id: string): Promise<{
+  voidedFromStatus: PurchaseOrderStatus | null
+  voidedAt: string | null
+} | null> {
+  const log = await prisma.auditLog.findFirst({
+    where: {
+      entity: 'PurchaseOrder',
+      entityId: id,
+      action: 'VOID',
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  if (!log) return null
+
+  const data = (log.newValue ?? {}) as Record<string, unknown>
+  const previousStatus = (data.previousStatus as PurchaseOrderStatus | undefined) ?? null
+  const voidedAt =
+    typeof data.voidedAt === 'string'
+      ? data.voidedAt
+      : log.createdAt?.toISOString?.() || null
+
+  return {
+    voidedFromStatus: previousStatus,
+    voidedAt,
+  }
 }
