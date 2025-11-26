@@ -30,13 +30,17 @@ export async function recordStorageCostEntry({
  const weekEndingDate = endOfWeek(transactionDate, { weekStartsOn: 1 })
  const weekStartingDate = startOfWeek(transactionDate, { weekStartsOn: 1 })
 
- // Skip and clean up if the source PO is cancelled
+  // Skip and clean up unless the source PO is finalized
  if (purchaseOrderId) {
  const po = await prisma.purchaseOrder.findUnique({
  where: { id: purchaseOrderId },
  select: { status: true },
  })
- if (po?.status === PurchaseOrderStatus.CANCELLED) {
+
+ const isFinalized =
+ po?.status === PurchaseOrderStatus.POSTED || po?.status === PurchaseOrderStatus.CLOSED
+
+ if (!isFinalized) {
  await prisma.storageLedger.deleteMany({
  where: { warehouseCode, skuCode, batchLot },
  })
@@ -219,7 +223,7 @@ export async function ensureWeeklyStorageEntries(date: Date = new Date()) {
   OR: [
   { purchaseOrderId: null },
   {
-  purchaseOrder: { status: { not: PurchaseOrderStatus.CANCELLED } },
+  purchaseOrder: { status: { in: [PurchaseOrderStatus.POSTED, PurchaseOrderStatus.CLOSED] } },
   },
   ],
   },

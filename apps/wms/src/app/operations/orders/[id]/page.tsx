@@ -33,6 +33,8 @@ interface PurchaseOrderSummary {
  orderNumber: string
  type: 'PURCHASE' | 'FULFILLMENT' | 'ADJUSTMENT'
  status: 'DRAFT' | 'AWAITING_PROOF' | 'REVIEW' | 'POSTED' | 'CANCELLED' | 'CLOSED'
+  voidedFromStatus?: PurchaseOrderSummary['status'] | null
+  voidedAt?: string | null
  warehouseCode: string
  warehouseName: string
  counterpartyName: string | null
@@ -468,9 +470,13 @@ export default function PurchaseOrderDetailPage() {
  : order.status === 'POSTED'
  ? 'Order posted to the ledger. No further changes allowed.'
  : order.status === 'CANCELLED'
- ? 'This purchase order was cancelled early in the workflow.'
+ ? order.voidedFromStatus
+ ? `Cancelled from ${formatStatusLabel(order.voidedFromStatus)}.`
+ : 'This purchase order was cancelled early in the workflow.'
  : order.status === 'CLOSED'
- ? 'This purchase order is closed and archived.'
+ ? order.voidedFromStatus === 'POSTED'
+ ? 'This purchase order was voided after posting and is now closed.'
+ : 'This purchase order is closed and archived.'
  : 'Review the current status for next steps.'
  const statusSteps = [
  { value: 'DRAFT', label: 'Draft' },

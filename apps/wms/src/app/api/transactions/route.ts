@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { Prisma, TransactionType, CostCategory } from '@ecom-os/prisma-wms'
+import { Prisma, TransactionType, CostCategory, PurchaseOrderStatus } from '@ecom-os/prisma-wms'
 import { businessLogger, perfLogger } from '@/lib/logger/index'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 // handleTransactionCosts removed - costs are handled via frontend pre-filling
@@ -954,8 +954,8 @@ for (const item of validatedItems) {
  purchaseOrderCache.set(cacheKey, purchaseOrderId)
  }
 
- const transaction = await tx.inventoryTransaction.create({
- data: {
+  const transaction = await tx.inventoryTransaction.create({
+    data: {
  // Warehouse snapshot data
  warehouseCode: warehouse.code,
  warehouseName: warehouse.name,
@@ -996,21 +996,37 @@ for (const item of validatedItems) {
  unitsPerCarton,
  purchaseOrderId,
  purchaseOrderLineId,
- }
- })
+    }
+  })
 
- transactions.push(transaction)
+  transactions.push(transaction)
 
- // Save costs to CostLedger if provided manually
- const normalizedCosts = Array.isArray(costs)
- ? costs.map(normalizeCostInput).filter((value): value is TransactionCostPayload => value !== null)
- : []
+  const purchaseOrderStatus = purchaseOrderId
+    ? (await tx.purchaseOrder.findUnique({
+        where: { id: purchaseOrderId },
+        select: { status: true },
+      }))?.status ?? null
+    : null
 
- if (normalizedCosts.length > 0) {
- for (const cost of normalizedCosts) {
- if (cost.totalCost && cost.totalCost > 0) {
- // Map frontend cost types to database enum values
- let costCategory: CostCategory = CostCategory.Container
+  const isFinalizedPO =
+    !purchaseOrderId ||
+    purchaseOrderStatus === PurchaseOrderStatus.POSTED ||
+    purchaseOrderStatus === PurchaseOrderStatus.CLOSED
+
+  if (!isFinalizedPO) {
+    await tx.costLedger.deleteMany({ where: { transactionId: transaction.id } })
+  }
+
+  // Save costs to CostLedger if provided manually
+  const normalizedCosts = Array.isArray(costs)
+    ? costs.map(normalizeCostInput).filter((value): value is TransactionCostPayload => value !== null)
+    : []
+
+  if (normalizedCosts.length > 0 && isFinalizedPO) {
+    for (const cost of normalizedCosts) {
+      if (cost.totalCost && cost.totalCost > 0) {
+        // Map frontend cost types to database enum values
+        let costCategory: CostCategory = CostCategory.Container
  if (cost.costType === 'container') {
  costCategory = CostCategory.Container
  } else if (cost.costType === 'carton') {

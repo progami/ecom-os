@@ -53,6 +53,7 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
   const [costRates, setCostRates] = useState<CostRate[]>([])
   const [loading, setLoading] = useState(true)
   const [isInitialized, setIsInitialized] = useState(false)
+  const [selectedContainerRateId, setSelectedContainerRateId] = useState<string | undefined>(undefined)
 
   // Fetch cost rates only when warehouse changes
   useEffect(() => {
@@ -172,18 +173,20 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
     const initialCosts: CostEntry[] = []
 
     const containerRates = rates.filter(rate => rate.costCategory === 'container')
-    containerRates.forEach(rate => {
+    if (containerRates.length > 0) {
+      const defaultRate = containerRates[0]
+      setSelectedContainerRateId(defaultRate.id)
       initialCosts.push({
-        id: rate.id,
+        id: defaultRate.id,
         costType: 'container_receiving',
-        costName: rate.costName || getCostLabel('container_receiving'),
+        costName: defaultRate.costName || getCostLabel('container_receiving'),
         quantity: 1,
-        unitRate: Number(rate.costValue || 0),
-        totalCost: Number(rate.costValue || 0),
+        unitRate: Number(defaultRate.costValue || 0),
+        totalCost: Number(defaultRate.costValue || 0),
         isManual: true,
         isLocked: false
       })
-    })
+    }
 
     if (!initialCosts.some(cost => cost.costType === 'container_freight')) {
       initialCosts.push({
@@ -203,7 +206,13 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
       ['carton', 'pallet'].includes(rate.costCategory)
     )
 
+    // Only keep one rate per category/unit combo
+    const seenKeys = new Set<string>()
     handlingRates.forEach(rate => {
+      const key = `${rate.costCategory}:${(rate.unitOfMeasure || '').toLowerCase()}`
+      if (seenKeys.has(key)) return
+      seenKeys.add(key)
+
       // Determine quantity based on unit of measure
       let quantity = 1
       if (rate.unitOfMeasure?.toLowerCase().includes('carton')) {
@@ -342,7 +351,40 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   {getCostLabel(cost.costType)}
                 </label>
-                {cost.id === 'other' && (
+                {cost.costType === 'container_receiving' ? (
+                  <select
+                    className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-primary focus:ring-2 focus:ring-primary"
+                    value={selectedContainerRateId || ''}
+                    onChange={(e) => {
+                      const nextId = e.target.value
+                      setSelectedContainerRateId(nextId)
+                      const nextRate = costRates.find(r => r.id === nextId)
+                      if (nextRate) {
+                        setCosts(prev =>
+                          prev.map(item =>
+                            item.costType === 'container_receiving'
+                              ? {
+                                  ...item,
+                                  id: nextRate.id,
+                                  costName: nextRate.costName || getCostLabel('container_receiving'),
+                                  unitRate: Number(nextRate.costValue || 0),
+                                  totalCost: Number(nextRate.costValue || 0),
+                                }
+                              : item
+                          )
+                        )
+                      }
+                    }}
+                  >
+                    {costRates
+                      .filter(r => r.costCategory === 'container')
+                      .map(rate => (
+                        <option key={rate.id} value={rate.id}>
+                          {rate.costName || rate.unitOfMeasure || 'Container Rate'} ({formatCurrency(Number(rate.costValue || 0))})
+                        </option>
+                      ))}
+                  </select>
+                ) : cost.id === 'other' ? (
                   <input
                     type="text"
                     placeholder="Specify..."
@@ -350,7 +392,7 @@ export const ReceiveCostsTab = React.forwardRef<CostsTabRef, CostsTabProps>(({
                     onChange={(e) => updateCost(cost.id, 'description', e.target.value)}
                     className="mt-1 w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
                   />
-                )}
+                ) : null}
               </div>
 
               <div>

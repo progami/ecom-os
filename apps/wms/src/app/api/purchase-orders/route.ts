@@ -11,6 +11,6 @@ export const GET = withAuth(async (_request: NextRequest, _session) => {
 
   const orders = await getPurchaseOrders()
   return ApiResponses.success({
-    data: orders.map(serializePurchaseOrder),
+    data: orders.map((order) => serializePurchaseOrder(order)),
   })
 })

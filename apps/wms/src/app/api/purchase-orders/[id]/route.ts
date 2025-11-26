@@ -3,6 +3,7 @@ import {
  getPurchaseOrderById,
  serializePurchaseOrder,
  updatePurchaseOrderDetails,
+  getPurchaseOrderVoidMetadata,
 } from '@/lib/services/purchase-order-service'
 
 export const GET = withAuthAndParams(async (_request, params, _session) => {
@@ -16,7 +17,14 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
  return ApiResponses.notFound('Purchase order not found')
  }
 
- return ApiResponses.success(serializePurchaseOrder(order))
+ const voidMeta = await getPurchaseOrderVoidMetadata(order.id)
+
+ return ApiResponses.success(
+ serializePurchaseOrder(order, {
+ voidedFromStatus: voidMeta?.voidedFromStatus ?? null,
+ voidedAt: voidMeta?.voidedAt ?? null,
+ })
+ )
 })
 
 const UpdateDetailsSchema = z.object({

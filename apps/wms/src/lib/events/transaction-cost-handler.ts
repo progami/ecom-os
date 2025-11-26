@@ -1,18 +1,19 @@
 // Transaction cost handler - automatically creates cost ledger entries when transactions include costs
 import { prisma } from '@/lib/prisma'
-import { TransactionType } from '@ecom-os/prisma-wms'
+import { TransactionType, PurchaseOrderStatus } from '@ecom-os/prisma-wms'
 import { getValidCostCategories } from '@/lib/cost-validation'
 
 interface TransactionWithCosts {
- transactionId: string
- warehouseCode: string
- warehouseName?: string
- skuCode?: string
- batchLot?: string
- transactionType: TransactionType
- transactionDate: Date
- cartonsIn: number
- cartonsOut: number
+  transactionId: string
+  warehouseCode: string
+  warehouseName?: string
+  skuCode?: string
+  batchLot?: string
+  purchaseOrderId?: string | null
+  transactionType: TransactionType
+  transactionDate: Date
+  cartonsIn: number
+  cartonsOut: number
  storagePalletsIn?: number
  shippingPalletsOut?: number
  storageCartonsPerPallet?: number
@@ -73,11 +74,26 @@ async function resolveWarehouseName(transaction: TransactionWithCosts): Promise<
  * This is called automatically by Prisma middleware when a transaction is created with costs
  */
 export async function handleTransactionCosts(transaction: TransactionWithCosts) {
- try {
- // Only process if costs are provided
- if (!transaction.costs) {
- return
- }
+  try {
+    // Only process if costs are provided
+    if (!transaction.costs) {
+      return
+    }
+
+    if (transaction.purchaseOrderId) {
+      const po = await prisma.purchaseOrder.findUnique({
+        where: { id: transaction.purchaseOrderId },
+        select: { status: true },
+      })
+
+      const isFinalized =
+        po?.status === PurchaseOrderStatus.POSTED || po?.status === PurchaseOrderStatus.CLOSED
+
+      if (!isFinalized) {
+        await prisma.costLedger.deleteMany({ where: { transactionId: transaction.transactionId } })
+        return
+      }
+    }
 
  // Get valid cost categories for this warehouse
  const validCategories = await getValidCostCategories(transaction.warehouseCode)

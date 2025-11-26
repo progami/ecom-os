@@ -102,14 +102,14 @@ export async function PUT(
   : existingRate.costName
 
  if (sanitizedCostName !== existingRate.costName) {
-  const existingName = await prisma.costRate.findFirst({
-   where: {
-    warehouseId: existingRate.warehouseId,
-    costName: sanitizedCostName,
-    effectiveDate: existingRate.effectiveDate,
-    id: { not: rateId }
-   }
-  })
+ const existingName = await prisma.costRate.findFirst({
+  where: {
+   warehouseId: existingRate.warehouseId,
+   costName: sanitizedCostName,
+   effectiveDate: existingRate.effectiveDate,
+   id: { not: rateId }
+  }
+ })
 
   if (existingName) {
    return NextResponse.json(
@@ -117,13 +117,33 @@ export async function PUT(
      error: `Another rate named "${sanitizedCostName}" already exists for this warehouse on ${existingRate.effectiveDate.toISOString().slice(0, 10)}.`
     },
     { status: 400 }
-   )
-  }
+ )
+ }
+}
+
+ // Prevent duplicate category/unit combinations on the same date
+ const duplicateCategoryUnit = await prisma.costRate.findFirst({
+   where: {
+     warehouseId: existingRate.warehouseId,
+     costCategory: existingRate.costCategory,
+     unitOfMeasure,
+     effectiveDate: existingRate.effectiveDate,
+     id: { not: rateId },
+   },
+ })
+
+ if (duplicateCategoryUnit) {
+  return NextResponse.json(
+   {
+    error: `A ${existingRate.costCategory} rate with unit "${unitOfMeasure}" already exists for this warehouse on ${existingRate.effectiveDate.toISOString().slice(0, 10)}.`
+   },
+   { status: 400 }
+  )
  }
 
  const updatedRate = await prisma.costRate.update({
- where: { id: rateId },
- data: {
+where: { id: rateId },
+data: {
   costName: sanitizedCostName,
   unitOfMeasure,
   costValue,
@@ -160,7 +180,7 @@ export async function PUT(
  { error: 'Failed to update rate' },
  { status: 500 }
  )
- }
+}
 }
 
 export async function DELETE(

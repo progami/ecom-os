@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
 
 export async function GET() {
+  // Default fallback data when database is unavailable
+  const fallbackStats = [
+    { label: 'Total Employees', value: 0, trend: 'neutral' as const, change: '—' },
+    { label: 'Active Policies', value: 0, trend: 'neutral' as const, change: '—' },
+    { label: 'Providers', value: 0, trend: 'neutral' as const, change: '—' },
+  ]
+
+  const fallbackActivity: any[] = []
+  const fallbackEvents: any[] = []
+
   try {
     const [employeeCount, activePolicies, providerCount] = await Promise.all([
       prisma.employee.count(),
@@ -10,21 +20,27 @@ export async function GET() {
     ])
 
     const stats = [
-      { label: 'Total Employees', value: employeeCount, trend: 'neutral', change: '—' },
-      { label: 'Active Policies', value: activePolicies, trend: 'neutral', change: '—' },
-      { label: 'Providers', value: providerCount, trend: 'neutral', change: '—' },
+      { label: 'Total Employees', value: employeeCount, trend: 'neutral' as const, change: '—' },
+      { label: 'Active Policies', value: activePolicies, trend: 'neutral' as const, change: '—' },
+      { label: 'Providers', value: providerCount, trend: 'neutral' as const, change: '—' },
     ]
 
     const recentActivity = [
-      { id: 'act_1', type: 'employee', description: 'Employee imported: EMP1001', timestamp: new Date().toISOString(), status: 'completed' },
+      { id: 'act_1', type: 'employee', description: 'System ready', timestamp: new Date().toISOString(), status: 'completed' as const },
     ]
 
-    const upcomingEvents = [
-      { id: 'evt_1', title: 'Performance review cycle', date: new Date(Date.now()+7*24*60*60*1000).toISOString(), type: 'hr' },
-    ]
+    const upcomingEvents: any[] = []
 
     return NextResponse.json({ stats, recentActivity, upcomingEvents })
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Failed to load dashboard' }, { status: 500 })
+    // Log error server-side but return fallback data to keep UI functional
+    console.error('[HRMS Dashboard] Database error:', e?.message || e)
+
+    // Return fallback data instead of error so UI renders
+    return NextResponse.json({
+      stats: fallbackStats,
+      recentActivity: fallbackActivity,
+      upcomingEvents: fallbackEvents
+    })
   }
 }
