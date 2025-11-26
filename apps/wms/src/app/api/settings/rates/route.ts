@@ -139,11 +139,12 @@ export async function POST(request: NextRequest) {
  )
  const effectiveOn = new Date(effectiveDate)
 
- // Enforce a single rate per category per warehouse
+ // Enforce a single rate per category/unit per warehouse/effective date
 const duplicateRate = await prisma.costRate.findFirst({
  where: {
   warehouseId,
-  costName,
+  costCategory,
+  unitOfMeasure,
   effectiveDate: effectiveOn
  }
 })
@@ -151,7 +152,7 @@ const duplicateRate = await prisma.costRate.findFirst({
 if (duplicateRate) {
 return NextResponse.json(
  {
-  error: `A rate named "${costName}" already exists for this warehouse on ${effectiveOn.toISOString().slice(0, 10)}. Update the existing rate instead of creating a duplicate.`
+  error: `A ${costCategory} rate with unit "${unitOfMeasure}" already exists for this warehouse on ${effectiveOn.toISOString().slice(0, 10)}. Update the existing rate instead of creating a duplicate.`
  },
 { status: 400 }
 )
