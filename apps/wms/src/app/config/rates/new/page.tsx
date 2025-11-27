@@ -31,23 +31,21 @@ export default function NewRatePage() {
 }
 
 const costCategories = [
- { value: 'Storage', label: 'Storage', description: 'Storage charges (pallet/day or pallet/week)' },
+ { value: 'Storage', label: 'Storage', description: 'Storage charges (pallet/day)' },
  { value: 'Container', label: 'Container - Handling Charges', description: 'Per container handling charges' },
  { value: 'Carton', label: 'Carton', description: 'Per carton handling' },
- { value: 'Pallet', label: 'Pallet', description: 'Pallet movement charges' },
- { value: 'Unit', label: 'Unit', description: 'Individual unit handling' },
- { value: 'transportation', label: 'Transportation', description: 'Freight or shipment fees' },
- { value: 'Accessorial', label: 'Accessorial', description: 'Additional services' }
+ { value: 'Unit', label: 'Unit', description: 'Per SKU handling' },
+ { value: 'transportation', label: 'Transportation', description: 'Quoted freight' },
+ { value: 'Accessorial', label: 'Accessorial', description: 'Additional services or minimums' }
 ]
 
 const unitsByCategory: { [key: string]: string[] } = {
- Storage: ['per_pallet_day', 'pallet/day', 'pallet/week', 'pallet-day'],
- Container: ['per_container', 'container', '20ft', '40ft', '40HQ', '45HQ', 'lcl'],
- Carton: ['per_carton', 'carton', 'case'],
- Pallet: ['per_pallet', 'pallet', 'pallet/day', 'pallet/in', 'pallet/out'],
- Unit: ['per_sku', 'unit', 'piece', 'item', 'SKU', 'flat'],
- transportation: ['per_delivery', 'delivery', 'shipment', 'order', 'mile', 'flat'],
- Accessorial: ['per_invoice', 'per_shipment', 'per_day', 'per_hour', 'per_delivery', 'flat', 'bond', 'service', 'fee', 'charge']
+ Storage: ['per_pallet_day'],
+ Container: ['per_container'],
+ Carton: ['per_carton'],
+ Unit: ['per_sku', 'flat'],
+ transportation: ['flat'],
+ Accessorial: ['per_shipment', 'per_invoice', 'flat']
 }
 
 function NewRatePageContent() {
@@ -305,19 +303,26 @@ function NewRatePageContent() {
  <label className="block text-sm font-medium text-slate-700 mb-2">
  Unit of Measure <span className="text-red-500">*</span>
  </label>
- <select
- value={formData.unitOfMeasure}
- onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
- required
- >
- <option value="">Select unit</option>
- {formData.costCategory && unitsByCategory[formData.costCategory]?.map(unit => (
- <option key={unit} value={unit}>
- {unit}
- </option>
- ))}
- </select>
+ {(() => {
+   const baseUnits = formData.costCategory ? unitsByCategory[formData.costCategory] ?? [] : []
+   const currentUnit = formData.unitOfMeasure ? [formData.unitOfMeasure] : []
+   const unitOptions = Array.from(new Set([...baseUnits, ...currentUnit].filter(Boolean)))
+   return (
+     <select
+       value={formData.unitOfMeasure}
+       onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
+       className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+       required
+     >
+       <option value="">Select unit</option>
+       {unitOptions.map(unit => (
+         <option key={unit} value={unit}>
+           {unit}
+         </option>
+       ))}
+     </select>
+   )
+ })()}
  </div>
 
  {/* Cost Value */}
