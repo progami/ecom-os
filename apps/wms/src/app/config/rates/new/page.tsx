@@ -31,7 +31,7 @@ export default function NewRatePage() {
 }
 
 const costCategories = [
- { value: 'Storage', label: 'Storage', description: 'Storage charges (pallet/week)' },
+ { value: 'Storage', label: 'Storage', description: 'Storage charges (pallet/day or pallet/week)' },
  { value: 'Container', label: 'Container - Handling Charges', description: 'Per container handling charges' },
  { value: 'Carton', label: 'Carton', description: 'Per carton handling' },
  { value: 'Pallet', label: 'Pallet', description: 'Pallet movement charges' },
@@ -41,13 +41,13 @@ const costCategories = [
 ]
 
 const unitsByCategory: { [key: string]: string[] } = {
- Storage: ['pallet/week'],
- Container: ['20ft', '40ft', 'lcl'],
- Carton: ['carton', 'case'],
- Pallet: ['pallet', 'pallet/in', 'pallet/out'],
- Unit: ['unit', 'piece', 'item'],
- transportation: ['shipment', 'order', 'delivery'],
- Accessorial: ['hour', 'service', 'fee', 'charge']
+ Storage: ['per_pallet_day', 'pallet/day', 'pallet/week', 'pallet-day'],
+ Container: ['per_container', 'container', '20ft', '40ft', '40HQ', '45HQ', 'lcl'],
+ Carton: ['per_carton', 'carton', 'case'],
+ Pallet: ['per_pallet', 'pallet', 'pallet/day', 'pallet/in', 'pallet/out'],
+ Unit: ['per_sku', 'unit', 'piece', 'item', 'SKU', 'flat'],
+ transportation: ['per_delivery', 'delivery', 'shipment', 'order', 'mile', 'flat'],
+ Accessorial: ['per_invoice', 'per_shipment', 'per_day', 'per_hour', 'per_delivery', 'flat', 'bond', 'service', 'fee', 'charge']
 }
 
 function NewRatePageContent() {
@@ -87,6 +87,32 @@ function NewRatePageContent() {
  return { ...current, warehouseId }
  })
  }, [searchParams, warehouses])
+
+ useEffect(() => {
+ const presetCategory = searchParams.get('costCategory')
+ const presetName = searchParams.get('costName')
+ const presetUnit = searchParams.get('unitOfMeasure')
+ const presetValue = searchParams.get('costValue')
+
+ if (!presetCategory && !presetName && !presetUnit && !presetValue) return
+
+ setFormData(current => {
+   const next = { ...current }
+   if (presetCategory && !current.costCategory) {
+     next.costCategory = presetCategory
+   }
+   if (presetName && !current.costName) {
+     next.costName = presetName
+   }
+   if (presetUnit && !current.unitOfMeasure) {
+     next.unitOfMeasure = presetUnit
+   }
+   if (presetValue && !current.costValue) {
+     next.costValue = presetValue
+   }
+   return next
+ })
+ }, [searchParams])
 
  const fetchWarehouses = async () => {
  try {
@@ -270,7 +296,7 @@ function NewRatePageContent() {
  </p>
  )}
  <p className="text-xs text-slate-500 mt-1">
- Each cost category can only have one active rate per warehouse.
+ Rate names must be unique per effective date; reuse a category with different names/units for scenarios like container sizes or thresholds.
  </p>
  </div>
 

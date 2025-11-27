@@ -113,6 +113,7 @@ import {
   Activity,
   Zap,
   History,
+  ClipboardList,
 } from 'lucide-react'
 
 import type { LucideIcon } from 'lucide-react'
@@ -216,5 +217,6 @@ export {
   Activity,
   Zap,
   History,
+  ClipboardList,
   type LucideIcon,
 }

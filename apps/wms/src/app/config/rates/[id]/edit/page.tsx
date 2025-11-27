@@ -26,13 +26,13 @@ interface CostRate {
 }
 
 const unitsByCategory: { [key: string]: string[] } = {
- Storage: ['pallet/week'],
- Container: ['20ft', '40ft', 'lcl'],
- Carton: ['carton', 'case'],
- Pallet: ['pallet', 'pallet/in', 'pallet/out'],
- Unit: ['unit', 'piece', 'item'],
- Shipment: ['shipment', 'order', 'delivery'],
- Accessorial: ['hour', 'service', 'fee', 'charge']
+ Storage: ['per_pallet_day', 'pallet/day', 'pallet/week', 'pallet-day'],
+ Container: ['per_container', 'container', '20ft', '40ft', '40HQ', '45HQ', 'lcl'],
+ Carton: ['per_carton', 'carton', 'case'],
+ Pallet: ['per_pallet', 'pallet', 'pallet/day', 'pallet/in', 'pallet/out'],
+ Unit: ['per_sku', 'unit', 'piece', 'item', 'SKU', 'flat'],
+ transportation: ['per_delivery', 'delivery', 'shipment', 'order', 'mile', 'flat'],
+ Accessorial: ['per_invoice', 'per_shipment', 'per_day', 'per_hour', 'per_delivery', 'flat', 'bond', 'service', 'fee', 'charge']
 }
 
 export default function EditRatePage() {
@@ -238,7 +238,6 @@ export default function EditRatePage() {
  onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
  className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
  required
- disabled={rate.costCategory === 'Storage'}
  >
  <option value="">Select unit</option>
  {unitsByCategory[rate.costCategory]?.map(unit => (
@@ -247,11 +246,9 @@ export default function EditRatePage() {
  </option>
  ))}
  </select>
- {rate.costCategory === 'Storage' && (
  <p className="text-xs text-slate-500 mt-1">
- Storage must use pallet/week
+ Pick the unit that matches how this rate is applied (e.g., pallet-day, container, shipment).
  </p>
- )}
  </div>
 
  {/* Cost Value */}

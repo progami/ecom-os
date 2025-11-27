@@ -139,32 +139,6 @@ export async function POST(request: NextRequest) {
  )
  const effectiveOn = new Date(effectiveDate)
 
- // Enforce a single rate per category/unit per warehouse/effective date
-const duplicateRate = await prisma.costRate.findFirst({
- where: {
-  warehouseId,
-  costCategory,
-  unitOfMeasure,
-  effectiveDate: effectiveOn
- }
-})
-
-if (duplicateRate) {
-return NextResponse.json(
- {
-  error: `A ${costCategory} rate with unit "${unitOfMeasure}" already exists for this warehouse on ${effectiveOn.toISOString().slice(0, 10)}. Update the existing rate instead of creating a duplicate.`
- },
-{ status: 400 }
-)
-}
-
- if (costCategory === 'Storage' && unitOfMeasure !== 'pallet/week') {
- return NextResponse.json(
- { error: 'Storage rates must use "pallet/week" as the unit of measure' },
- { status: 400 }
- )
- }
-
  const wmsUser = await ensureWmsUser(session)
 
  const newRate = await prisma.costRate.create({
