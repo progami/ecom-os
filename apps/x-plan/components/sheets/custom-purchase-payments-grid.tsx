@@ -1,0 +1,602 @@
+'use client'
+
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from 'react'
+import { toast } from 'sonner'
+import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { deriveIsoWeek, formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
+import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
+import { withAppBasePath } from '@/lib/base-path'
+import '@/styles/custom-table.css'
+
+export type PurchasePaymentRow = {
+  id: string
+  purchaseOrderId: string
+  orderCode: string
+  category: string
+  label: string
+  weekNumber: string
+  paymentIndex: number
+  dueDate: string
+  dueDateValue?: Date | null
+  dueDateIso: string | null
+  dueDateDefault: string
+  dueDateDefaultIso: string | null
+  dueDateSource: 'SYSTEM' | 'USER'
+  percentage: string
+  amountExpected: string
+  amountPaid: string
+}
+
+type PaymentUpdate = {
+  id: string
+  values: Partial<Record<string, string>>
+}
+
+export interface PaymentSummary {
+  plannedAmount: number
+  plannedPercent: number
+  actualAmount: number
+  actualPercent: number
+  remainingAmount: number
+  remainingPercent: number
+}
+
+interface CustomPurchasePaymentsGridProps {
+  payments: PurchasePaymentRow[]
+  activeOrderId?: string | null
+  onSelectOrder?: (orderId: string) => void
+  onAddPayment?: () => void
+  onRemovePayment?: (paymentId: string) => Promise<void> | void
+  onRowsChange?: (rows: PurchasePaymentRow[]) => void
+  onSynced?: () => void
+  isLoading?: boolean
+  orderSummaries?: Map<string, PaymentSummary>
+  summaryLine?: string | null
+}
+
+type ColumnDef = {
+  key: keyof PurchasePaymentRow
+  header: string
+  width: number
+  type: 'text' | 'numeric' | 'percent' | 'date' | 'currency'
+  editable: boolean
+  precision?: number
+}
+
+const COLUMNS: ColumnDef[] = [
+  { key: 'orderCode', header: 'PO', width: 120, type: 'text', editable: false },
+  { key: 'label', header: 'Invoice', width: 140, type: 'text', editable: false },
+  { key: 'weekNumber', header: 'Week', width: 70, type: 'text', editable: false },
+  { key: 'dueDateIso', header: 'Due Date', width: 130, type: 'date', editable: true },
+  { key: 'percentage', header: 'Percent', width: 90, type: 'percent', editable: false, precision: 2 },
+  { key: 'amountExpected', header: 'Expected $', width: 110, type: 'currency', editable: false, precision: 2 },
+  { key: 'amountPaid', header: 'Paid $', width: 110, type: 'currency', editable: true, precision: 2 },
+]
+
+function normalizeNumeric(value: unknown, fractionDigits = 2): string {
+  return formatNumericInput(value, fractionDigits)
+}
+
+function validateNumeric(value: string): boolean {
+  if (!value || value.trim() === '') return true
+  const parsed = sanitizeNumeric(value)
+  return !Number.isNaN(parsed)
+}
+
+function parseNumericInput(value: string | null | undefined): number | null {
+  if (!value) return null
+  const cleaned = value.replace(/[$,%]/g, '').trim()
+  const num = parseFloat(cleaned)
+  return Number.isNaN(num) ? null : num
+}
+
+export function CustomPurchasePaymentsGrid({
+  payments,
+  activeOrderId,
+  onSelectOrder,
+  onAddPayment,
+  onRemovePayment,
+  onRowsChange,
+  onSynced,
+  isLoading,
+  orderSummaries,
+  summaryLine,
+}: CustomPurchasePaymentsGridProps) {
+  const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof PurchasePaymentRow } | null>(null)
+  const [editValue, setEditValue] = useState<string>('')
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
+  const [isRemoving, setIsRemoving] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const rowsRef = useRef<PurchasePaymentRow[]>(payments)
+
+  useEffect(() => {
+    rowsRef.current = payments
+  }, [payments])
+
+  const handleFlush = useCallback(
+    async (payload: PaymentUpdate[]) => {
+      if (payload.length === 0) return
+      // Filter out items that no longer exist in the current payments
+      const existingIds = new Set(payments.map((p) => p.id))
+      const validPayload = payload.filter((item) => existingIds.has(item.id))
+      if (validPayload.length === 0) return
+      try {
+        const res = await fetch(withAppBasePath('/api/v1/x-plan/purchase-order-payments'), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ updates: validPayload }),
+        })
+        if (!res.ok) throw new Error('Failed to update payments')
+        toast.success('Payment schedule updated', { id: 'payment-updated' })
+        onSynced?.()
+      } catch (error) {
+        console.error(error)
+        toast.error('Unable to update payment schedule', { id: 'payment-error' })
+      }
+    },
+    [onSynced, payments]
+  )
+
+  const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<string, PaymentUpdate>({
+    debounceMs: 400,
+    onFlush: handleFlush,
+  })
+
+  useEffect(() => {
+    return () => {
+      flushNow().catch(() => {})
+    }
+  }, [flushNow])
+
+  useEffect(() => {
+    if (editingCell && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [editingCell])
+
+  useEffect(() => {
+    setSelectedPaymentId(null)
+  }, [activeOrderId])
+
+  useEffect(() => {
+    if (!selectedPaymentId) return
+    const stillExists = payments.some((payment) => payment.id === selectedPaymentId)
+    if (!stillExists) setSelectedPaymentId(null)
+  }, [payments, selectedPaymentId])
+
+  // Scoped data based on active order
+  const data = useMemo(() => {
+    return activeOrderId ? payments.filter((p) => p.purchaseOrderId === activeOrderId) : payments
+  }, [activeOrderId, payments])
+
+  const summary = activeOrderId ? orderSummaries?.get(activeOrderId) : undefined
+
+  const computedSummaryLine = useMemo(() => {
+    if (!summary) return null
+    const parts: string[] = []
+    parts.push(`Plan ${summary.plannedAmount.toFixed(2)}`)
+    if (summary.plannedAmount > 0) {
+      const paidPercent = Math.max(summary.actualPercent * 100, 0).toFixed(1)
+      parts.push(`Paid ${summary.actualAmount.toFixed(2)} (${paidPercent}%)`)
+      if (summary.remainingAmount > 0.01) {
+        parts.push(`Remaining ${summary.remainingAmount.toFixed(2)}`)
+      } else if (summary.remainingAmount < -0.01) {
+        parts.push(`Cleared (+$${Math.abs(summary.remainingAmount).toFixed(2)})`)
+      } else {
+        parts.push('Cleared')
+      }
+    } else {
+      parts.push(`Paid ${summary.actualAmount.toFixed(2)}`)
+    }
+    return parts.join(' • ')
+  }, [summary])
+
+  const summaryText = summaryLine ?? computedSummaryLine
+
+  const startEditing = (rowId: string, colKey: keyof PurchasePaymentRow, currentValue: string) => {
+    setEditingCell({ rowId, colKey })
+    setEditValue(currentValue)
+  }
+
+  const cancelEditing = () => {
+    setEditingCell(null)
+    setEditValue('')
+  }
+
+  const commitEdit = useCallback(() => {
+    if (!editingCell) return
+
+    const { rowId, colKey } = editingCell
+    const row = rowsRef.current.find((r) => r.id === rowId)
+    if (!row) {
+      cancelEditing()
+      return
+    }
+
+    const column = COLUMNS.find((c) => c.key === colKey)
+    if (!column) {
+      cancelEditing()
+      return
+    }
+
+    let finalValue = editValue
+
+    // Validate and normalize based on column type
+    if (column.type === 'currency') {
+      if (!validateNumeric(finalValue)) {
+        toast.error('Invalid number')
+        cancelEditing()
+        return
+      }
+      finalValue = normalizeNumeric(finalValue, column.precision ?? 2)
+    } else if (column.type === 'date') {
+      // For date columns, convert to ISO
+      if (finalValue) {
+        const iso = toIsoDate(finalValue)
+        finalValue = iso ?? ''
+      }
+    }
+
+    // Prepare mutation entry
+    if (!pendingRef.current.has(rowId)) {
+      pendingRef.current.set(rowId, { id: rowId, values: {} })
+    }
+    const entry = pendingRef.current.get(rowId)!
+
+    // Create updated row
+    const updatedRow = { ...row }
+
+    if (colKey === 'dueDateIso') {
+      const iso = finalValue
+      const week = deriveIsoWeek(iso)
+      entry.values.dueDate = iso
+      entry.values.dueDateSource = iso ? 'USER' : 'SYSTEM'
+      entry.values.weekNumber = week
+      updatedRow.dueDateIso = iso || null
+      updatedRow.dueDate = iso ? formatDateDisplay(iso) : ''
+      updatedRow.dueDateSource = iso ? 'USER' : 'SYSTEM'
+      updatedRow.weekNumber = week
+    } else if (colKey === 'amountPaid') {
+      // Validate that amount doesn't exceed planned
+      const plannedAmount = orderSummaries?.get(row.purchaseOrderId)?.plannedAmount ?? 0
+      const numericAmount = parseNumericInput(finalValue) ?? 0
+
+      if (plannedAmount > 0 && Number.isFinite(numericAmount)) {
+        const amountTolerance = Math.max(plannedAmount * 0.001, 0.01)
+        const otherPayments = rowsRef.current
+          .filter((r) => r.purchaseOrderId === row.purchaseOrderId && r.id !== rowId)
+          .reduce((sum, r) => sum + (parseNumericInput(r.amountPaid) ?? 0), 0)
+        const totalAmount = otherPayments + numericAmount
+
+        if (totalAmount > plannedAmount + amountTolerance) {
+          toast.error('Amount paid exceeds the expected total. Adjust the values before continuing.')
+          cancelEditing()
+          return
+        }
+
+        // Derive percentage from amount
+        const derivedPercent = numericAmount / plannedAmount
+        const normalizedPercent = (derivedPercent * 100).toFixed(2) + '%'
+        entry.values.percentage = String(derivedPercent)
+        updatedRow.percentage = normalizedPercent
+      }
+
+      entry.values.amountPaid = finalValue
+      updatedRow.amountPaid = finalValue
+    }
+
+    // Update rows
+    const updatedRows = rowsRef.current.map((r) => (r.id === rowId ? updatedRow : r))
+    rowsRef.current = updatedRows
+    onRowsChange?.(updatedRows)
+
+    scheduleFlush()
+    cancelEditing()
+  }, [editingCell, editValue, pendingRef, scheduleFlush, onRowsChange, orderSummaries])
+
+  const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
+    let idx = startIndex + direction
+    while (idx >= 0 && idx < COLUMNS.length) {
+      if (COLUMNS[idx].editable) return idx
+      idx += direction
+    }
+    return -1
+  }
+
+  const moveToCell = (rowIndex: number, colIndex: number) => {
+    if (rowIndex < 0 || rowIndex >= data.length) return
+    if (colIndex < 0 || colIndex >= COLUMNS.length) return
+    const column = COLUMNS[colIndex]
+    if (!column.editable) return
+    const row = data[rowIndex]
+    const rawValue = row[column.key] ?? ''
+    startEditing(row.id, column.key, typeof rawValue === 'string' ? rawValue : String(rawValue))
+  }
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      commitEdit()
+      // Move to next row, same column
+      if (editingCell) {
+        const currentRowIndex = data.findIndex((r) => r.id === editingCell.rowId)
+        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+        if (currentRowIndex < data.length - 1) {
+          moveToCell(currentRowIndex + 1, currentColIndex)
+        }
+      }
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      cancelEditing()
+    } else if (e.key === 'Tab') {
+      e.preventDefault()
+      commitEdit()
+      if (editingCell) {
+        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+        const currentRowIndex = data.findIndex((r) => r.id === editingCell.rowId)
+        const nextColIndex = findNextEditableColumn(currentColIndex, e.shiftKey ? -1 : 1)
+
+        if (nextColIndex !== -1) {
+          moveToCell(currentRowIndex, nextColIndex)
+        } else if (!e.shiftKey && currentRowIndex < data.length - 1) {
+          const firstEditableColIndex = findNextEditableColumn(-1, 1)
+          if (firstEditableColIndex !== -1) {
+            moveToCell(currentRowIndex + 1, firstEditableColIndex)
+          }
+        } else if (e.shiftKey && currentRowIndex > 0) {
+          const lastEditableColIndex = findNextEditableColumn(COLUMNS.length, -1)
+          if (lastEditableColIndex !== -1) {
+            moveToCell(currentRowIndex - 1, lastEditableColIndex)
+          }
+        }
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      commitEdit()
+      if (editingCell) {
+        const currentRowIndex = data.findIndex((r) => r.id === editingCell.rowId)
+        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+        moveToCell(currentRowIndex - 1, currentColIndex)
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      commitEdit()
+      if (editingCell) {
+        const currentRowIndex = data.findIndex((r) => r.id === editingCell.rowId)
+        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+        moveToCell(currentRowIndex + 1, currentColIndex)
+      }
+    } else if (e.key === 'ArrowLeft') {
+      const input = e.currentTarget
+      if (input.selectionStart === 0 && input.selectionEnd === 0) {
+        e.preventDefault()
+        commitEdit()
+        if (editingCell) {
+          const currentRowIndex = data.findIndex((r) => r.id === editingCell.rowId)
+          const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+          const prevColIndex = findNextEditableColumn(currentColIndex, -1)
+          if (prevColIndex !== -1) {
+            moveToCell(currentRowIndex, prevColIndex)
+          } else if (currentRowIndex > 0) {
+            const lastEditableColIndex = findNextEditableColumn(COLUMNS.length, -1)
+            if (lastEditableColIndex !== -1) {
+              moveToCell(currentRowIndex - 1, lastEditableColIndex)
+            }
+          }
+        }
+      }
+    } else if (e.key === 'ArrowRight') {
+      const input = e.currentTarget
+      const len = input.value.length
+      if (input.selectionStart === len && input.selectionEnd === len) {
+        e.preventDefault()
+        commitEdit()
+        if (editingCell) {
+          const currentRowIndex = data.findIndex((r) => r.id === editingCell.rowId)
+          const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+          const nextColIndex = findNextEditableColumn(currentColIndex, 1)
+          if (nextColIndex !== -1) {
+            moveToCell(currentRowIndex, nextColIndex)
+          } else if (currentRowIndex < data.length - 1) {
+            const firstEditableColIndex = findNextEditableColumn(-1, 1)
+            if (firstEditableColIndex !== -1) {
+              moveToCell(currentRowIndex + 1, firstEditableColIndex)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setEditValue(e.target.value)
+  }
+
+  const handleCellClick = (row: PurchasePaymentRow, column: ColumnDef) => {
+    onSelectOrder?.(row.purchaseOrderId)
+    setSelectedPaymentId(row.id)
+    if (column.editable) {
+      const rawValue = row[column.key] ?? ''
+      startEditing(row.id, column.key, typeof rawValue === 'string' ? rawValue : String(rawValue))
+    }
+  }
+
+  const handleCellBlur = () => {
+    commitEdit()
+  }
+
+  const formatDisplayValue = (row: PurchasePaymentRow, column: ColumnDef): string => {
+    const value = row[column.key]
+    if (value === null || value === undefined || value === '') return ''
+
+    if (column.type === 'date') {
+      const isoValue = typeof value === 'string' ? value : null
+      return isoValue ? formatDateDisplay(isoValue) : ''
+    }
+
+    if (column.type === 'currency') {
+      const num = sanitizeNumeric(String(value))
+      if (Number.isNaN(num)) return String(value)
+      return `$${num.toFixed(column.precision ?? 2)}`
+    }
+
+    if (column.type === 'percent') {
+      const num = sanitizeNumeric(String(value))
+      if (Number.isNaN(num)) return String(value)
+      return `${(num * 100).toFixed(column.precision ?? 2)}%`
+    }
+
+    return String(value)
+  }
+
+  const renderCell = (row: PurchasePaymentRow, column: ColumnDef) => {
+    const isEditing = editingCell?.rowId === row.id && editingCell?.colKey === column.key
+    const displayValue = formatDisplayValue(row, column)
+
+    const cellClasses = [
+      column.editable ? 'ops-cell-editable' : 'ops-cell-readonly',
+      column.type === 'currency' || column.type === 'percent' ? 'ops-cell-numeric' : '',
+      column.type === 'date' ? 'ops-cell-date' : '',
+      column.key === 'weekNumber' ? 'text-center' : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
+
+    if (isEditing) {
+      const inputType = column.type === 'date' ? 'date' : 'text'
+
+      return (
+        <td
+          key={column.key}
+          className={cellClasses}
+          style={{ width: column.width, minWidth: column.width }}
+        >
+          <input
+            ref={inputRef}
+            type={inputType}
+            value={editValue}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            onBlur={handleCellBlur}
+            className="ops-cell-input"
+            placeholder={column.type === 'date' ? 'Select date' : undefined}
+          />
+        </td>
+      )
+    }
+
+    const showPlaceholder = column.type === 'date' && !displayValue
+    const displayContent = showPlaceholder ? (
+      <span className="ops-cell-placeholder">Click to select</span>
+    ) : (
+      displayValue
+    )
+
+    return (
+      <td
+        key={column.key}
+        className={cellClasses}
+        style={{ width: column.width, minWidth: column.width }}
+        onClick={() => handleCellClick(row, column)}
+      >
+        <div className="ops-cell-display">{displayContent}</div>
+      </td>
+    )
+  }
+
+  const isRowActive = (row: PurchasePaymentRow): boolean => {
+    if (selectedPaymentId && row.id === selectedPaymentId) return true
+    if (!selectedPaymentId && activeOrderId && row.purchaseOrderId === activeOrderId) return true
+    return false
+  }
+
+  return (
+    <section className="space-y-3">
+      <header className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
+          Payments
+        </h2>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-200/80">
+          {summaryText && <span>{summaryText}</span>}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (!selectedPaymentId || !onRemovePayment) return
+                setIsRemoving(true)
+                Promise.resolve(onRemovePayment(selectedPaymentId))
+                  .then(() => setSelectedPaymentId(null))
+                  .catch((error) => {
+                    console.error(error)
+                    toast.error('Unable to delete payment')
+                  })
+                  .finally(() => setIsRemoving(false))
+              }}
+              disabled={!selectedPaymentId || isLoading || isRemoving}
+              className="rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-700 shadow-sm transition enabled:hover:border-rose-500 enabled:hover:bg-rose-100 enabled:hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/60 dark:bg-rose-500/10 dark:text-rose-300 dark:enabled:hover:border-rose-500/80 dark:enabled:hover:bg-rose-500/20"
+            >
+              Remove Payment
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (onAddPayment) void onAddPayment()
+              }}
+              disabled={!activeOrderId || isLoading}
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
+            >
+              Add Payment
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div className="ops-table-container">
+        <div className="ops-table-body-scroll">
+          <table className="ops-table">
+            <thead>
+              <tr>
+                {COLUMNS.map((column) => (
+                  <th key={column.key} style={{ width: column.width, minWidth: column.width }}>
+                    {column.header}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.length === 0 ? (
+                <tr>
+                  <td colSpan={COLUMNS.length} className="ops-table-empty">
+                    No payments yet. Select a purchase order and click &quot;Add Payment&quot; to create one.
+                  </td>
+                </tr>
+              ) : (
+                data.map((row) => (
+                  <tr
+                    key={row.id}
+                    className={isRowActive(row) ? 'row-active' : ''}
+                    onClick={() => {
+                      onSelectOrder?.(row.purchaseOrderId)
+                      setSelectedPaymentId(row.id)
+                    }}
+                  >
+                    {COLUMNS.map((column) => renderCell(row, column))}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  )
+}

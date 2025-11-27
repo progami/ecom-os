@@ -11,7 +11,7 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
-import { toIsoDate } from '@/lib/utils/dates'
+import { toIsoDate, formatDateDisplay } from '@/lib/utils/dates'
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
 import { withAppBasePath } from '@/lib/base-path'
 import '@/styles/custom-table.css'
@@ -273,45 +273,40 @@ export function CustomOpsPlanningGrid({
   const handleFlush = useCallback(
     async (payload: Array<{ id: string; values: Record<string, string> }>) => {
       if (payload.length === 0) return
+      // Filter out items that no longer exist in the current rows
+      const existingIds = new Set(rows.map((r) => r.id))
+      const validPayload = payload.filter((item) => existingIds.has(item.id))
+      if (validPayload.length === 0) return
       const url = withAppBasePath('/api/v1/x-plan/purchase-orders')
-      console.log('[CustomOpsPlanningGrid] Flushing to:', url, 'payload:', payload)
       try {
         const response = await fetch(url, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ updates: payload }),
+          body: JSON.stringify({ updates: validPayload }),
         })
-        console.log('[CustomOpsPlanningGrid] Response status:', response.status, 'ok:', response.ok)
         if (!response.ok) {
-          // Try to parse JSON error, fall back to text if that fails
           let errorMessage = 'Failed to update purchase orders'
           try {
             const text = await response.text()
-            console.log('[CustomOpsPlanningGrid] Error response body:', text)
             if (text) {
               const errorData = JSON.parse(text)
-              console.log('[CustomOpsPlanningGrid] Parsed error data:', errorData)
               if (errorData?.error) {
                 errorMessage = errorData.error
               }
             }
           } catch (parseError) {
-            console.warn('[CustomOpsPlanningGrid] Could not parse error response:', parseError)
+            // ignore parse error
           }
-
-          console.log('[CustomOpsPlanningGrid] Showing error toast for status:', response.status, 'message:', errorMessage)
-          // Show error toast - client-side validation should catch most cases,
-          // this is a fallback for race conditions or data that changed on the server
-          toast.error(errorMessage, { duration: 5000 })
+          toast.error(errorMessage, { duration: 5000, id: 'po-update-error' })
           return
         }
-        toast.success('PO inputs saved')
+        toast.success('PO inputs saved', { id: 'po-inputs-saved' })
       } catch (error) {
         console.error('[CustomOpsPlanningGrid] Failed to update purchase orders:', error)
-        toast.error('Unable to save purchase order inputs', { duration: 5000 })
+        toast.error('Unable to save purchase order inputs', { duration: 5000, id: 'po-update-error' })
       }
     },
-    []
+    [rows]
   )
 
   const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<
@@ -397,7 +392,10 @@ export function CustomOpsPlanningGrid({
         (r) => r.id !== rowId && r.orderCode.toLowerCase() === finalValue.toLowerCase()
       )
       if (isDuplicate) {
-        toast.error(`Order code "${finalValue}" is already in use by another purchase order.`)
+        toast.warning(`Order code "${finalValue}" is already in use`, {
+          description: 'Please choose a unique order code.',
+          duration: 4000,
+        })
         cancelEditing()
         return
       }
@@ -463,34 +461,120 @@ export function CustomOpsPlanningGrid({
     cancelEditing()
   }, [editingCell, editValue, rows, stageMode, pendingRef, scheduleFlush, onRowsChange])
 
+  const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
+    let idx = startIndex + direction
+    while (idx >= 0 && idx < COLUMNS.length) {
+      if (COLUMNS[idx].editable !== false) return idx
+      idx += direction
+    }
+    return -1
+  }
+
+  const moveToCell = (rowIndex: number, colIndex: number) => {
+    if (rowIndex < 0 || rowIndex >= rows.length) return
+    if (colIndex < 0 || colIndex >= COLUMNS.length) return
+    const column = COLUMNS[colIndex]
+    if (column.editable === false) return
+    const row = rows[rowIndex]
+    startEditing(row.id, column.key, getCellDisplayValue(row, column))
+  }
+
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       commitEdit()
+      // Move to next row, same column
+      if (editingCell) {
+        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+        if (currentRowIndex < rows.length - 1) {
+          moveToCell(currentRowIndex + 1, currentColIndex)
+        }
+      }
     } else if (e.key === 'Escape') {
       e.preventDefault()
       cancelEditing()
     } else if (e.key === 'Tab') {
       e.preventDefault()
       commitEdit()
-      // Move to next cell
+      // Move to next/prev editable cell
       if (editingCell) {
         const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
         const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
-        const nextCol = e.shiftKey ? currentColIndex - 1 : currentColIndex + 1
+        const nextColIndex = findNextEditableColumn(currentColIndex, e.shiftKey ? -1 : 1)
 
-        if (nextCol >= 0 && nextCol < COLUMNS.length) {
-          const nextColumn = COLUMNS[nextCol]
-          if (nextColumn.editable !== false) {
-            const row = rows[currentRowIndex]
-            startEditing(row.id, nextColumn.key, getCellDisplayValue(row, nextColumn))
-          }
+        if (nextColIndex !== -1) {
+          moveToCell(currentRowIndex, nextColIndex)
         } else if (!e.shiftKey && currentRowIndex < rows.length - 1) {
           // Move to first editable column of next row
-          const nextRow = rows[currentRowIndex + 1]
-          const firstEditableCol = COLUMNS.find((c) => c.editable !== false)
-          if (firstEditableCol && nextRow) {
-            startEditing(nextRow.id, firstEditableCol.key, getCellDisplayValue(nextRow, firstEditableCol))
+          const firstEditableColIndex = findNextEditableColumn(-1, 1)
+          if (firstEditableColIndex !== -1) {
+            moveToCell(currentRowIndex + 1, firstEditableColIndex)
+          }
+        } else if (e.shiftKey && currentRowIndex > 0) {
+          // Move to last editable column of previous row
+          const lastEditableColIndex = findNextEditableColumn(COLUMNS.length, -1)
+          if (lastEditableColIndex !== -1) {
+            moveToCell(currentRowIndex - 1, lastEditableColIndex)
+          }
+        }
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      commitEdit()
+      if (editingCell) {
+        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+        moveToCell(currentRowIndex - 1, currentColIndex)
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      commitEdit()
+      if (editingCell) {
+        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+        moveToCell(currentRowIndex + 1, currentColIndex)
+      }
+    } else if (e.key === 'ArrowLeft') {
+      // Only move to prev cell if cursor is at start of input
+      const input = e.currentTarget
+      if (input.selectionStart === 0 && input.selectionEnd === 0) {
+        e.preventDefault()
+        commitEdit()
+        if (editingCell) {
+          const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+          const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+          const prevColIndex = findNextEditableColumn(currentColIndex, -1)
+          if (prevColIndex !== -1) {
+            moveToCell(currentRowIndex, prevColIndex)
+          } else if (currentRowIndex > 0) {
+            // Move to last editable column of previous row
+            const lastEditableColIndex = findNextEditableColumn(COLUMNS.length, -1)
+            if (lastEditableColIndex !== -1) {
+              moveToCell(currentRowIndex - 1, lastEditableColIndex)
+            }
+          }
+        }
+      }
+    } else if (e.key === 'ArrowRight') {
+      // Only move to next cell if cursor is at end of input
+      const input = e.currentTarget
+      const len = input.value.length
+      if (input.selectionStart === len && input.selectionEnd === len) {
+        e.preventDefault()
+        commitEdit()
+        if (editingCell) {
+          const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+          const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+          const nextColIndex = findNextEditableColumn(currentColIndex, 1)
+          if (nextColIndex !== -1) {
+            moveToCell(currentRowIndex, nextColIndex)
+          } else if (currentRowIndex < rows.length - 1) {
+            // Move to first editable column of next row
+            const firstEditableColIndex = findNextEditableColumn(-1, 1)
+            if (firstEditableColIndex !== -1) {
+              moveToCell(currentRowIndex + 1, firstEditableColIndex)
+            }
           }
         }
       }
@@ -517,8 +601,32 @@ export function CustomOpsPlanningGrid({
       if (stageMode === 'dates') {
         const stageField = column.key as StageWeeksKey
         const endDate = resolveStageEnd(row, stageField)
+        // Return ISO for editing, but display is formatted in renderCell
         return toIsoDate(endDate) ?? ''
       }
+    }
+    // Format date columns for display
+    if (column.type === 'date') {
+      const isoValue = row[column.key]
+      if (isoValue) {
+        return formatDateDisplay(isoValue)
+      }
+      return ''
+    }
+    return row[column.key] ?? ''
+  }
+
+  // Get display-formatted value (always formatted for user readability)
+  const getFormattedDisplayValue = (row: OpsInputRow, column: ColumnDef): string => {
+    if (column.type === 'stage' && stageMode === 'dates') {
+      const stageField = column.key as StageWeeksKey
+      const endDate = resolveStageEnd(row, stageField)
+      const iso = toIsoDate(endDate)
+      return iso ? formatDateDisplay(iso) : ''
+    }
+    if (column.type === 'date') {
+      const isoValue = row[column.key]
+      return isoValue ? formatDateDisplay(isoValue) : ''
     }
     return row[column.key] ?? ''
   }
@@ -534,7 +642,8 @@ export function CustomOpsPlanningGrid({
 
   const renderCell = (row: OpsInputRow, column: ColumnDef) => {
     const isEditing = editingCell?.rowId === row.id && editingCell?.colKey === column.key
-    const displayValue = getCellDisplayValue(row, column)
+    // Use formatted display value for showing, raw value for editing
+    const formattedValue = getFormattedDisplayValue(row, column)
 
     const cellClasses = [
       column.editable !== false ? 'ops-cell-editable' : 'ops-cell-readonly',
@@ -575,11 +684,12 @@ export function CustomOpsPlanningGrid({
     }
 
     // Show placeholder for empty date fields
-    const showPlaceholder = column.type === 'date' && !displayValue
+    const isDateColumn = column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')
+    const showPlaceholder = isDateColumn && !formattedValue
     const displayContent = showPlaceholder ? (
       <span className="ops-cell-placeholder">Click to select date</span>
     ) : (
-      displayValue
+      formattedValue
     )
 
     return (
@@ -632,11 +742,8 @@ export function CustomOpsPlanningGrid({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
-            PO table
+            PO Table
           </h2>
-          <p className="text-xs text-slate-700 dark:text-slate-200/80">
-            Manage purchase order timing and status; the highlighted row stays in sync with the detail view.
-          </p>
         </div>
         {(onCreateOrder || onDeleteOrder) && (
           <div className="flex flex-wrap gap-2">
