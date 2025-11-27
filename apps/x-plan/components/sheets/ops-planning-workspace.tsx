@@ -18,10 +18,10 @@ import { PurchaseTimeline } from '@/components/sheets/purchase-timeline'
 import type { OpsTimelineRow } from '@/components/sheets/ops-planning-timeline'
 import { CustomOpsCostGrid, type OpsBatchRow } from '@/components/sheets/custom-ops-cost-grid'
 import {
-  PurchasePaymentsGrid,
+  CustomPurchasePaymentsGrid,
   type PurchasePaymentRow,
   type PaymentSummary,
-} from '@/components/sheets/purchase-payments-grid'
+} from '@/components/sheets/custom-purchase-payments-grid'
 import { createTimelineOrderFromDerived, type PurchaseTimelineOrder } from '@/lib/planning/timeline'
 import { getISOWeek } from 'date-fns'
 import {
@@ -1500,7 +1500,7 @@ useEffect(() => {
                 <h3 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
                   New purchase order
                 </h3>
-                <p className="text-xs text-slate-700 dark:text-slate-200/80">
+                <p className="text-xs text-slate-600 dark:text-slate-200/80">
                   Set the PO identifier now — assign cost details and the target product in the batch cost table below.
                 </p>
               </header>
@@ -1555,7 +1555,7 @@ useEffect(() => {
             products={productOptions}
             onSync={handleCostSync}
           />
-          <PurchasePaymentsGrid
+          <CustomPurchasePaymentsGrid
             payments={visiblePayments}
             activeOrderId={activeOrderId}
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}

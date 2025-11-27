@@ -12,7 +12,6 @@ import { toast } from 'sonner'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { formatNumericInput, formatPercentInput, sanitizeNumeric } from '@/components/sheets/validators'
 import { withAppBasePath } from '@/lib/base-path'
-import { Info } from 'lucide-react'
 import '@/styles/custom-table.css'
 
 export type OpsBatchRow = {
@@ -158,21 +157,25 @@ export function CustomOpsCostGrid({
   const handleFlush = useCallback(
     async (payload: Array<{ id: string; values: Record<string, string | null> }>) => {
       if (payload.length === 0) return
+      // Filter out items that no longer exist in the current rows
+      const existingIds = new Set(rows.map((r) => r.id))
+      const validPayload = payload.filter((item) => existingIds.has(item.id))
+      if (validPayload.length === 0) return
       try {
         const response = await fetch(withAppBasePath('/api/v1/x-plan/purchase-orders/batches'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ updates: payload }),
+          body: JSON.stringify({ updates: validPayload }),
         })
         if (!response.ok) throw new Error('Failed to update batch cost overrides')
-        toast.success('Batch cost saved')
+        toast.success('Batch cost saved', { id: 'batch-cost-saved' })
         onSync?.()
       } catch (error) {
         console.error(error)
-        toast.error('Unable to save batch costs')
+        toast.error('Unable to save batch costs', { id: 'batch-cost-error' })
       }
     },
-    [onSync]
+    [onSync, rows]
   )
 
   const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<
@@ -297,34 +300,120 @@ export function CustomOpsCostGrid({
     cancelEditing()
   }, [editingCell, editValue, rows, products, pendingRef, scheduleFlush, onRowsChange])
 
+  const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
+    let idx = startIndex + direction
+    while (idx >= 0 && idx < COLUMNS.length) {
+      if (COLUMNS[idx].editable) return idx
+      idx += direction
+    }
+    return -1
+  }
+
+  const moveToCell = (rowIndex: number, colIndex: number) => {
+    if (rowIndex < 0 || rowIndex >= rows.length) return
+    if (colIndex < 0 || colIndex >= COLUMNS.length) return
+    const column = COLUMNS[colIndex]
+    if (!column.editable) return
+    const row = rows[rowIndex]
+    startEditing(row.id, column.key, row[column.key] ?? '')
+  }
+
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLSelectElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault()
       commitEdit()
+      // Move to next row, same column
+      if (editingCell) {
+        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+        if (currentRowIndex < rows.length - 1) {
+          moveToCell(currentRowIndex + 1, currentColIndex)
+        }
+      }
     } else if (e.key === 'Escape') {
       e.preventDefault()
       cancelEditing()
     } else if (e.key === 'Tab') {
       e.preventDefault()
       commitEdit()
-      // Move to next cell
+      // Move to next/prev editable cell
       if (editingCell) {
         const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
         const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
-        const nextCol = e.shiftKey ? currentColIndex - 1 : currentColIndex + 1
+        const nextColIndex = findNextEditableColumn(currentColIndex, e.shiftKey ? -1 : 1)
 
-        if (nextCol >= 0 && nextCol < COLUMNS.length) {
-          const nextColumn = COLUMNS[nextCol]
-          if (nextColumn.editable) {
-            const row = rows[currentRowIndex]
-            startEditing(row.id, nextColumn.key, row[nextColumn.key] ?? '')
-          }
+        if (nextColIndex !== -1) {
+          moveToCell(currentRowIndex, nextColIndex)
         } else if (!e.shiftKey && currentRowIndex < rows.length - 1) {
           // Move to first editable column of next row
-          const nextRow = rows[currentRowIndex + 1]
-          const firstEditableCol = COLUMNS.find((c) => c.editable)
-          if (firstEditableCol && nextRow) {
-            startEditing(nextRow.id, firstEditableCol.key, nextRow[firstEditableCol.key] ?? '')
+          const firstEditableColIndex = findNextEditableColumn(-1, 1)
+          if (firstEditableColIndex !== -1) {
+            moveToCell(currentRowIndex + 1, firstEditableColIndex)
+          }
+        } else if (e.shiftKey && currentRowIndex > 0) {
+          // Move to last editable column of previous row
+          const lastEditableColIndex = findNextEditableColumn(COLUMNS.length, -1)
+          if (lastEditableColIndex !== -1) {
+            moveToCell(currentRowIndex - 1, lastEditableColIndex)
+          }
+        }
+      }
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      commitEdit()
+      if (editingCell) {
+        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+        moveToCell(currentRowIndex - 1, currentColIndex)
+      }
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      commitEdit()
+      if (editingCell) {
+        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+        moveToCell(currentRowIndex + 1, currentColIndex)
+      }
+    } else if (e.key === 'ArrowLeft' && e.currentTarget instanceof HTMLInputElement) {
+      // Only move to prev cell if cursor is at start of input (not for select)
+      const input = e.currentTarget
+      if (input.selectionStart === 0 && input.selectionEnd === 0) {
+        e.preventDefault()
+        commitEdit()
+        if (editingCell) {
+          const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+          const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+          const prevColIndex = findNextEditableColumn(currentColIndex, -1)
+          if (prevColIndex !== -1) {
+            moveToCell(currentRowIndex, prevColIndex)
+          } else if (currentRowIndex > 0) {
+            // Move to last editable column of previous row
+            const lastEditableColIndex = findNextEditableColumn(COLUMNS.length, -1)
+            if (lastEditableColIndex !== -1) {
+              moveToCell(currentRowIndex - 1, lastEditableColIndex)
+            }
+          }
+        }
+      }
+    } else if (e.key === 'ArrowRight' && e.currentTarget instanceof HTMLInputElement) {
+      // Only move to next cell if cursor is at end of input (not for select)
+      const input = e.currentTarget
+      const len = input.value.length
+      if (input.selectionStart === len && input.selectionEnd === len) {
+        e.preventDefault()
+        commitEdit()
+        if (editingCell) {
+          const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+          const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+          const nextColIndex = findNextEditableColumn(currentColIndex, 1)
+          if (nextColIndex !== -1) {
+            moveToCell(currentRowIndex, nextColIndex)
+          } else if (currentRowIndex < rows.length - 1) {
+            // Move to first editable column of next row
+            const firstEditableColIndex = findNextEditableColumn(-1, 1)
+            if (firstEditableColIndex !== -1) {
+              moveToCell(currentRowIndex + 1, firstEditableColIndex)
+            }
           }
         }
       }
@@ -456,12 +545,6 @@ export function CustomOpsCostGrid({
           <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
             Batch Table
           </h2>
-          <p className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-200/80">
-            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-cyan-200/70 text-cyan-700 dark:border-cyan-300/40 dark:text-cyan-200">
-              <Info className="h-3.5 w-3.5" aria-hidden />
-            </span>
-            Values display per-unit. Enter total freight, manufacturing, or storage costs and we&apos;ll normalize them by the batch quantity.
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {onAddBatch ? (
