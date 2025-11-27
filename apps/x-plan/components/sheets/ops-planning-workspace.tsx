@@ -934,11 +934,10 @@ useEffect(() => {
       ordersRef.current = mergedOrders
       inputRowsRef.current = updatedRows
 
-      // FIX: Sync orderCode changes to batch rows
       // Build a map of orderId -> orderCode from updated rows
       const orderCodeMap = new Map(updatedRows.map((row) => [row.id, row.orderCode]))
 
-      // Update batch rows with new orderCode values
+      // FIX: Sync orderCode changes to batch rows
       setBatchRows((previousBatchRows) => {
         let hasChanges = false
         const updatedBatchRows = previousBatchRows.map((batchRow) => {
@@ -954,6 +953,24 @@ useEffect(() => {
           return updatedBatchRows
         }
         return previousBatchRows
+      })
+
+      // FIX: Sync orderCode changes to payment rows
+      setPaymentRows((previousPaymentRows) => {
+        let hasChanges = false
+        const updatedPaymentRows = previousPaymentRows.map((paymentRow) => {
+          const newOrderCode = orderCodeMap.get(paymentRow.purchaseOrderId)
+          if (newOrderCode && newOrderCode !== paymentRow.orderCode) {
+            hasChanges = true
+            return { ...paymentRow, orderCode: newOrderCode }
+          }
+          return paymentRow
+        })
+        if (hasChanges) {
+          paymentRowsRef.current = updatedPaymentRows
+          return updatedPaymentRows
+        }
+        return previousPaymentRows
       })
 
       applyTimelineUpdate(mergedOrders, updatedRows, paymentRowsRef.current)
