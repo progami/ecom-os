@@ -823,7 +823,7 @@ function TacticalRateChecklist({
 
 function formatCostCategory(category: string) {
   if (normalizeCategory(category) === 'container') {
-    return 'Container - Handling Charges'
+    return 'Container'
   }
   if (normalizeCategory(category) === 'transportation') {
     return 'Transportation'

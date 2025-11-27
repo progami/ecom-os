@@ -32,7 +32,7 @@ export default function NewRatePage() {
 
 const costCategories = [
  { value: 'Storage', label: 'Storage', description: 'Storage charges (pallet/day)' },
- { value: 'Container', label: 'Container - Handling Charges', description: 'Per container handling charges' },
+ { value: 'Container', label: 'Container', description: 'Per container handling charges' },
  { value: 'Carton', label: 'Carton', description: 'Per carton handling' },
  { value: 'Unit', label: 'Unit', description: 'Per SKU handling' },
  { value: 'transportation', label: 'Transportation', description: 'Quoted freight' },
