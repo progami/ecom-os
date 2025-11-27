@@ -11,12 +11,12 @@ import {
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
-  OpsPlanningGrid,
+  CustomOpsPlanningGrid,
   type OpsInputRow,
-} from '@/components/sheets/ops-planning-grid'
+} from '@/components/sheets/custom-ops-planning-grid'
 import { PurchaseTimeline } from '@/components/sheets/purchase-timeline'
 import type { OpsTimelineRow } from '@/components/sheets/ops-planning-timeline'
-import { OpsPlanningCostGrid, type OpsBatchRow } from '@/components/sheets/ops-planning-cost-grid'
+import { CustomOpsCostGrid, type OpsBatchRow } from '@/components/sheets/custom-ops-cost-grid'
 import {
   PurchasePaymentsGrid,
   type PurchasePaymentRow,
@@ -933,6 +933,29 @@ useEffect(() => {
       setOrders(mergedOrders)
       ordersRef.current = mergedOrders
       inputRowsRef.current = updatedRows
+
+      // FIX: Sync orderCode changes to batch rows
+      // Build a map of orderId -> orderCode from updated rows
+      const orderCodeMap = new Map(updatedRows.map((row) => [row.id, row.orderCode]))
+
+      // Update batch rows with new orderCode values
+      setBatchRows((previousBatchRows) => {
+        let hasChanges = false
+        const updatedBatchRows = previousBatchRows.map((batchRow) => {
+          const newOrderCode = orderCodeMap.get(batchRow.purchaseOrderId)
+          if (newOrderCode && newOrderCode !== batchRow.orderCode) {
+            hasChanges = true
+            return { ...batchRow, orderCode: newOrderCode }
+          }
+          return batchRow
+        })
+        if (hasChanges) {
+          batchRowsRef.current = updatedBatchRows
+          return updatedBatchRows
+        }
+        return previousBatchRows
+      })
+
       applyTimelineUpdate(mergedOrders, updatedRows, paymentRowsRef.current)
     },
     [applyTimelineUpdate, stageDefaults]
@@ -1443,7 +1466,7 @@ useEffect(() => {
     <div className="space-y-6">
       {!isVisualMode && (
         <>
-          <OpsPlanningGrid
+          <CustomOpsPlanningGrid
             rows={inputRows}
             activeOrderId={activeOrderId}
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}
@@ -1501,7 +1524,7 @@ useEffect(() => {
             </section>
           ) : null}
 
-          <OpsPlanningCostGrid
+          <CustomOpsCostGrid
             rows={visibleBatches}
             activeOrderId={activeOrderId}
             activeBatchId={activeBatchId}
