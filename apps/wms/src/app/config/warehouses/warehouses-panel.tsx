@@ -59,7 +59,7 @@ type RateTemplate = {
 const tacticalRateTemplate: RateTemplate[] = [
   {
     key: 'fcl-20',
-    section: 'Warehouse Receiving',
+    section: 'Inbound',
     label: 'FCL Receiving 20',
     costCategory: 'Container',
     costName: 'FCL Receiving 20',
@@ -69,7 +69,7 @@ const tacticalRateTemplate: RateTemplate[] = [
   },
   {
     key: 'fcl-40',
-    section: 'Warehouse Receiving',
+    section: 'Inbound',
     label: 'FCL Receiving 40',
     costCategory: 'Container',
     costName: 'FCL Receiving 40',
@@ -79,7 +79,7 @@ const tacticalRateTemplate: RateTemplate[] = [
   },
   {
     key: 'fcl-40hq',
-    section: 'Warehouse Receiving',
+    section: 'Inbound',
     label: 'FCL Receiving 40HQ',
     costCategory: 'Container',
     costName: 'FCL Receiving 40HQ',
@@ -89,7 +89,7 @@ const tacticalRateTemplate: RateTemplate[] = [
   },
   {
     key: 'fcl-45hq',
-    section: 'Warehouse Receiving',
+    section: 'Inbound',
     label: 'FCL Receiving 45HQ',
     costCategory: 'Container',
     costName: 'FCL Receiving 45HQ',
@@ -99,7 +99,7 @@ const tacticalRateTemplate: RateTemplate[] = [
   },
   {
     key: 'lcl',
-    section: 'Warehouse Receiving',
+    section: 'Inbound',
     label: 'LCL Receiving',
     costCategory: 'Carton',
     costName: 'LCL Receiving',
@@ -109,7 +109,7 @@ const tacticalRateTemplate: RateTemplate[] = [
   },
   {
     key: 'extra-skus',
-    section: 'Warehouse Receiving',
+    section: 'Inbound',
     label: 'Extra SKUs over 10',
     costCategory: 'Unit',
     costName: 'Extra SKUs over 10',
