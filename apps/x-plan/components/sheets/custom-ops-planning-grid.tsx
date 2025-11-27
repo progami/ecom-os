@@ -273,17 +273,42 @@ export function CustomOpsPlanningGrid({
   const handleFlush = useCallback(
     async (payload: Array<{ id: string; values: Record<string, string> }>) => {
       if (payload.length === 0) return
+      const url = withAppBasePath('/api/v1/x-plan/purchase-orders')
+      console.log('[CustomOpsPlanningGrid] Flushing to:', url, 'payload:', payload)
       try {
-        const response = await fetch(withAppBasePath('/api/v1/x-plan/purchase-orders'), {
+        const response = await fetch(url, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ updates: payload }),
         })
-        if (!response.ok) throw new Error('Failed to update purchase orders')
+        console.log('[CustomOpsPlanningGrid] Response status:', response.status, 'ok:', response.ok)
+        if (!response.ok) {
+          // Try to parse JSON error, fall back to text if that fails
+          let errorMessage = 'Failed to update purchase orders'
+          try {
+            const text = await response.text()
+            console.log('[CustomOpsPlanningGrid] Error response body:', text)
+            if (text) {
+              const errorData = JSON.parse(text)
+              console.log('[CustomOpsPlanningGrid] Parsed error data:', errorData)
+              if (errorData?.error) {
+                errorMessage = errorData.error
+              }
+            }
+          } catch (parseError) {
+            console.warn('[CustomOpsPlanningGrid] Could not parse error response:', parseError)
+          }
+
+          console.log('[CustomOpsPlanningGrid] Showing error toast for status:', response.status, 'message:', errorMessage)
+          // Show error toast - client-side validation should catch most cases,
+          // this is a fallback for race conditions or data that changed on the server
+          toast.error(errorMessage, { duration: 5000 })
+          return
+        }
         toast.success('PO inputs saved')
       } catch (error) {
-        console.error(error)
-        toast.error('Unable to save purchase order inputs')
+        console.error('[CustomOpsPlanningGrid] Failed to update purchase orders:', error)
+        toast.error('Unable to save purchase order inputs', { duration: 5000 })
       }
     },
     []
@@ -364,6 +389,18 @@ export function CustomOpsPlanningGrid({
     if (row[colKey] === finalValue) {
       cancelEditing()
       return
+    }
+
+    // Client-side validation for duplicate orderCode
+    if (colKey === 'orderCode' && finalValue) {
+      const isDuplicate = rows.some(
+        (r) => r.id !== rowId && r.orderCode.toLowerCase() === finalValue.toLowerCase()
+      )
+      if (isDuplicate) {
+        toast.error(`Order code "${finalValue}" is already in use by another purchase order.`)
+        cancelEditing()
+        return
+      }
     }
 
     // Prepare mutation entry
@@ -531,10 +568,19 @@ export function CustomOpsPlanningGrid({
             onKeyDown={handleKeyDown}
             onBlur={handleCellBlur}
             className="ops-cell-input"
+            placeholder={column.type === 'date' ? 'Select date' : undefined}
           />
         </td>
       )
     }
+
+    // Show placeholder for empty date fields
+    const showPlaceholder = column.type === 'date' && !displayValue
+    const displayContent = showPlaceholder ? (
+      <span className="ops-cell-placeholder">Click to select date</span>
+    ) : (
+      displayValue
+    )
 
     return (
       <td
@@ -543,7 +589,7 @@ export function CustomOpsPlanningGrid({
         style={{ width: column.width, minWidth: column.width }}
         onClick={() => handleCellClick(row, column)}
       >
-        <div className="ops-cell-display">{displayValue}</div>
+        <div className="ops-cell-display">{displayContent}</div>
       </td>
     )
   }

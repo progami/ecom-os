@@ -87,30 +87,32 @@
    EDITABLE CELLS - Light Mode
    ========================================== */
 .ops-cell-editable {
-  background-color: #f0fdfa !important;
-  color: #134e4a !important;
+  background-color: #ecfeff !important;
+  color: #164e63 !important;
   cursor: text;
-  border: 1px solid #99f6e4 !important;
+  border: 1.5px solid #0891b2 !important;
+  font-weight: 600;
 }
 
 .ops-cell-editable:hover {
-  background-color: #ccfbf1 !important;
-  border-color: #5eead4 !important;
+  background-color: #cffafe !important;
+  border-color: #0e7490 !important;
 }
 
 /* ==========================================
    EDITABLE CELLS - Dark Mode
-   Use darker teal background with light text
+   Light background with dark text (matches Handsontable theme)
    ========================================== */
 .dark .ops-cell-editable {
-  background-color: #0d3d56 !important;
-  color: #e2e8f0 !important;
-  border: 1px solid #0e7490 !important;
+  background-color: #ccfbf1 !important;
+  color: #0a1f35 !important;
+  border: 1px solid #00c2b9 !important;
+  font-weight: 600;
 }
 
 .dark .ops-cell-editable:hover {
-  background-color: #155e75 !important;
-  border-color: #22d3ee !important;
+  background-color: #99f6e4 !important;
+  border-color: #00c2b9 !important;
 }
 
 /* ==========================================
@@ -148,22 +150,22 @@
 
 /* ==========================================
    ACTIVE ROW - Dark Mode
-   Use subtle highlight, not bright colors
+   Light background with dark text (matches Handsontable theme)
    ========================================== */
 .dark .ops-table tbody tr.row-active td {
-  background-color: #164e63 !important;
-  color: #e2e8f0 !important;
+  background-color: #ccfbf1 !important;
+  color: #0a1f35 !important;
 }
 
 .dark .ops-table tbody tr.row-active td:first-child {
-  border-left: 4px solid #22d3ee;
+  border-left: 4px solid #00c2b9;
 }
 
 /* Active row + editable cell combo - dark mode */
 .dark .ops-table tbody tr.row-active td.ops-cell-editable {
-  background-color: #155e75 !important;
-  color: #f0fdfa !important;
-  border-color: #22d3ee !important;
+  background-color: #99f6e4 !important;
+  color: #0a1f35 !important;
+  border-color: #00c2b9 !important;
 }
 
 /* ==========================================
@@ -176,14 +178,14 @@
   border: none;
   background: transparent;
   font-size: 12px;
-  font-weight: 500;
-  color: #0f172a !important;
+  font-weight: 600;
+  color: #164e63 !important;
   outline: none;
   box-sizing: border-box;
 }
 
 .dark .ops-cell-input {
-  color: #f1f5f9 !important;
+  color: #0a1f35 !important;
 }
 
 .ops-cell-input:focus {
@@ -223,8 +225,8 @@
   border: none;
   background: transparent;
   font-size: 12px;
-  font-weight: 500;
-  color: #0f172a;
+  font-weight: 600;
+  color: #164e63 !important;
   outline: none;
   box-sizing: border-box;
   cursor: pointer;
@@ -235,30 +237,29 @@
 .ops-cell-date input[type="date"]::-webkit-datetime-edit-month-field,
 .ops-cell-date input[type="date"]::-webkit-datetime-edit-day-field,
 .ops-cell-date input[type="date"]::-webkit-datetime-edit-year-field {
-  color: #0f172a;
+  color: #164e63 !important;
 }
 
 /* Empty date placeholder styling */
 .ops-cell-date input[type="date"]:invalid::-webkit-datetime-edit,
 .ops-cell-date input[type="date"][value=""]::-webkit-datetime-edit {
-  color: #64748b;
+  color: #0e7490 !important;
 }
 
 .dark .ops-cell-date input[type="date"] {
-  color: #f1f5f9;
-  color-scheme: dark;
+  color: #0a1f35 !important;
 }
 
 .dark .ops-cell-date input[type="date"]::-webkit-datetime-edit-text,
 .dark .ops-cell-date input[type="date"]::-webkit-datetime-edit-month-field,
 .dark .ops-cell-date input[type="date"]::-webkit-datetime-edit-day-field,
 .dark .ops-cell-date input[type="date"]::-webkit-datetime-edit-year-field {
-  color: #f1f5f9;
+  color: #0a1f35 !important;
 }
 
 .dark .ops-cell-date input[type="date"]:invalid::-webkit-datetime-edit,
 .dark .ops-cell-date input[type="date"][value=""]::-webkit-datetime-edit {
-  color: #94a3b8;
+  color: #115e59 !important;
 }
 
 .ops-cell-date input[type="date"]:focus {
@@ -393,11 +394,29 @@
 
 /* Ensure display text has correct color in editable cells */
 .ops-cell-editable .ops-cell-display {
-  color: #0f172a !important;
+  color: #164e63 !important;
 }
 
 .dark .ops-cell-editable .ops-cell-display {
-  color: #f1f5f9 !important;
+  color: #0a1f35 !important;
+}
+
+/* Date cell display text - ensure visibility */
+.ops-cell-date .ops-cell-display {
+  color: #164e63 !important;
+}
+
+.dark .ops-cell-date .ops-cell-display {
+  color: #0a1f35 !important;
+}
+
+/* Combined editable + date cell */
+.ops-cell-editable.ops-cell-date .ops-cell-display {
+  color: #164e63 !important;
+}
+
+.dark .ops-cell-editable.ops-cell-date .ops-cell-display {
+  color: #0a1f35 !important;
 }
 
 /* Readonly cell display text */
@@ -411,11 +430,11 @@
 
 /* Active row display text */
 .ops-table tbody tr.row-active .ops-cell-display {
-  color: #0f172a !important;
+  color: #164e63 !important;
 }
 
 .dark .ops-table tbody tr.row-active .ops-cell-display {
-  color: #f1f5f9 !important;
+  color: #0a1f35 !important;
 }
 
 /* ==========================================
@@ -462,4 +481,26 @@
 
 .dark .ops-table-empty {
   color: #94a3b8;
+}
+
+/* ==========================================
+   PLACEHOLDER TEXT FOR EMPTY CELLS
+   ========================================== */
+.ops-cell-placeholder {
+  color: #94a3b8;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.dark .ops-cell-placeholder {
+  color: #64748b;
+}
+
+/* Editable cell placeholder - darker to stand out on light teal bg */
+.ops-cell-editable .ops-cell-placeholder {
+  color: #0e7490;
+}
+
+.dark .ops-cell-editable .ops-cell-placeholder {
+  color: #115e59;
 }
