@@ -722,23 +722,7 @@ function TacticalRateChecklist({
   const isTacticalWarehouse =
     warehouse.code.toLowerCase() === 'tactical' || warehouse.name.toLowerCase().includes('tactical')
 
-  if (!isTacticalWarehouse) {
-    return (
-      <div className="mb-6 rounded-xl border bg-slate-50 px-6 py-4 shadow-soft">
-        <div className="flex items-center gap-3">
-          <div className="rounded-full bg-slate-900/5 p-2 text-slate-700">
-            <ClipboardList className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-900">Tactical rate template</p>
-            <p className="text-xs text-slate-600">
-              Select the Tactical warehouse to check required rates against the billing algorithm.
-            </p>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  if (!isTacticalWarehouse) return null
 
   if (checklist.length === 0) return null
 
