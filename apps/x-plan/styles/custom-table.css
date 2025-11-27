@@ -177,13 +177,13 @@
   background: transparent;
   font-size: 12px;
   font-weight: 500;
-  color: #134e4a;
+  color: #0f172a !important;
   outline: none;
   box-sizing: border-box;
 }
 
 .dark .ops-cell-input {
-  color: #e2e8f0;
+  color: #f1f5f9 !important;
 }
 
 .ops-cell-input:focus {
@@ -191,21 +191,21 @@
   outline: 2px solid #0891b2;
   outline-offset: -2px;
   border-radius: 4px;
-  color: #0f172a;
+  color: #0f172a !important;
 }
 
 .dark .ops-cell-input:focus {
   background: #0c2537;
   outline-color: #22d3ee;
-  color: #f0fdfa;
+  color: #f0fdfa !important;
 }
 
 .ops-cell-input::placeholder {
-  color: #94a3b8;
+  color: #64748b;
 }
 
 .dark .ops-cell-input::placeholder {
-  color: #64748b;
+  color: #94a3b8;
 }
 
 /* Numeric cells - right aligned */
@@ -224,15 +224,41 @@
   background: transparent;
   font-size: 12px;
   font-weight: 500;
-  color: #134e4a;
+  color: #0f172a;
   outline: none;
   box-sizing: border-box;
   cursor: pointer;
 }
 
+/* Style the date input placeholder (mm/dd/yyyy) */
+.ops-cell-date input[type="date"]::-webkit-datetime-edit-text,
+.ops-cell-date input[type="date"]::-webkit-datetime-edit-month-field,
+.ops-cell-date input[type="date"]::-webkit-datetime-edit-day-field,
+.ops-cell-date input[type="date"]::-webkit-datetime-edit-year-field {
+  color: #0f172a;
+}
+
+/* Empty date placeholder styling */
+.ops-cell-date input[type="date"]:invalid::-webkit-datetime-edit,
+.ops-cell-date input[type="date"][value=""]::-webkit-datetime-edit {
+  color: #64748b;
+}
+
 .dark .ops-cell-date input[type="date"] {
-  color: #e2e8f0;
+  color: #f1f5f9;
   color-scheme: dark;
+}
+
+.dark .ops-cell-date input[type="date"]::-webkit-datetime-edit-text,
+.dark .ops-cell-date input[type="date"]::-webkit-datetime-edit-month-field,
+.dark .ops-cell-date input[type="date"]::-webkit-datetime-edit-day-field,
+.dark .ops-cell-date input[type="date"]::-webkit-datetime-edit-year-field {
+  color: #f1f5f9;
+}
+
+.dark .ops-cell-date input[type="date"]:invalid::-webkit-datetime-edit,
+.dark .ops-cell-date input[type="date"][value=""]::-webkit-datetime-edit {
+  color: #94a3b8;
 }
 
 .ops-cell-date input[type="date"]:focus {
@@ -354,29 +380,42 @@
   min-height: 38px;
   display: flex;
   align-items: center;
-  color: inherit;
+  color: #0f172a;
 }
 
 .ops-cell-numeric .ops-cell-display {
   justify-content: flex-end;
 }
 
+.dark .ops-cell-display {
+  color: #f1f5f9;
+}
+
 /* Ensure display text has correct color in editable cells */
 .ops-cell-editable .ops-cell-display {
-  color: #134e4a;
+  color: #0f172a !important;
 }
 
 .dark .ops-cell-editable .ops-cell-display {
-  color: #e2e8f0;
+  color: #f1f5f9 !important;
+}
+
+/* Readonly cell display text */
+.ops-cell-readonly .ops-cell-display {
+  color: #475569 !important;
+}
+
+.dark .ops-cell-readonly .ops-cell-display {
+  color: #94a3b8 !important;
 }
 
 /* Active row display text */
 .ops-table tbody tr.row-active .ops-cell-display {
-  color: #164e63;
+  color: #0f172a !important;
 }
 
 .dark .ops-table tbody tr.row-active .ops-cell-display {
-  color: #e2e8f0;
+  color: #f1f5f9 !important;
 }
 
 /* ==========================================
