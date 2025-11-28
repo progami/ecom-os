@@ -30,7 +30,6 @@ const FINANCE_DEFAULTS = [
   { label: 'Starting Cash', defaultValue: '0' },
   { label: 'Amazon Payout Delay (weeks)', defaultValue: '2' },
   { label: 'Weekly Fixed Costs', defaultValue: '0' },
-  { label: 'Supplier Payment Terms (weeks)', defaultValue: '0' },
   { label: 'Supplier Payment Split 1 (%)', defaultValue: '50' },
   { label: 'Supplier Payment Split 2 (%)', defaultValue: '30' },
   { label: 'Supplier Payment Split 3 (%)', defaultValue: '20' },

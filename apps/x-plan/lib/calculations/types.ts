@@ -43,7 +43,6 @@ export type BusinessParameterMap = {
   startingCash: number
   amazonPayoutDelayWeeks: number
   weeklyFixedCosts: number
-  supplierPaymentTermsWeeks: number
   supplierPaymentSplit: [number, number, number]
   stockWarningWeeks: number
   defaultProductionWeeks: number
