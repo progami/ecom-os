@@ -702,11 +702,6 @@ function buildRateLink(template: RateTemplate, warehouseId: string) {
   return `/config/rates/new?${params.toString()}`
 }
 
-function formatSuggestedRate(value?: number) {
-  if (value === undefined) return ''
-  return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
 function TacticalRateChecklist({
   warehouse,
   activeRates,
@@ -790,23 +785,25 @@ function TacticalRateChecklist({
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-500 truncate">
-                          Looks for rate name "{item.costName}"{item.note ? `. ${item.note}` : ''}.
+                          Rate name "{item.costName}"{item.note ? `. ${item.note}` : ''}.
                         </p>
-                        {item.suggestedValue !== undefined && (
-                          <p className="text-[11px] text-slate-500">
-                            Template: ${formatSuggestedRate(item.suggestedValue)}
-                          </p>
-                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
                       {item.matchedRate ? (
-                        <Badge className="bg-green-50 text-green-700 border-green-200">Found</Badge>
+                        <>
+                          <Badge className="bg-green-50 text-green-700 border-green-200">
+                            {`$${item.matchedRate.costValue.toFixed(2)} / ${item.matchedRate.unitOfMeasure}`}
+                          </Badge>
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/config/rates/${item.matchedRate.id}/edit`}>Edit</Link>
+                          </Button>
+                        </>
                       ) : item.optional ? (
                         <Badge className="bg-slate-100 text-slate-700 border-slate-200">Optional / quoted</Badge>
                       ) : (
                         <Button asChild size="sm" variant="outline">
-                          <Link href={buildRateLink(item, warehouse.id)}>Add rate</Link>
+                          <Link href={buildRateLink(item, warehouse.id)}>Set rate</Link>
                         </Button>
                       )}
                     </div>

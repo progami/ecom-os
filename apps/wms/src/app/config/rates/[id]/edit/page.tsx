@@ -221,10 +221,11 @@ export default function EditRatePage() {
  <input
  value={formData.costName}
  onChange={(e) => setFormData({ ...formData, costName: e.target.value })}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+ className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-slate-50"
  required
+ readOnly
  />
- <p className="text-xs text-slate-500 mt-1">Update the display label for this rate.</p>
+ <p className="text-xs text-slate-500 mt-1">Rate name is fixed for this tariff item.</p>
  </div>
 
  {/* Unit of Measure */}
@@ -235,28 +236,29 @@ export default function EditRatePage() {
  {(() => {
    const baseUnits = unitsByCategory[rate.costCategory] ?? []
    const currentUnit = formData.unitOfMeasure ? [formData.unitOfMeasure] : []
-   const unitOptions = Array.from(new Set([...baseUnits, ...currentUnit].filter(Boolean)))
-   return (
-     <>
-       <select
-         value={formData.unitOfMeasure}
-         onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
-         className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-         required
-       >
-         <option value="">Select unit</option>
-         {unitOptions.map(unit => (
-           <option key={unit} value={unit}>
-             {unit}
-           </option>
-         ))}
-       </select>
-       <p className="text-xs text-slate-500 mt-1">
-         Pick the unit that matches how this rate is applied (e.g., per_pallet_day, per_container, per_shipment).
-       </p>
-     </>
-   )
- })()}
+  const unitOptions = Array.from(new Set([...baseUnits, ...currentUnit].filter(Boolean)))
+  return (
+    <>
+      <select
+        value={formData.unitOfMeasure}
+        onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
+        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-slate-50"
+        required
+        disabled
+      >
+        <option value="">Select unit</option>
+        {unitOptions.map(unit => (
+          <option key={unit} value={unit}>
+            {unit}
+          </option>
+        ))}
+      </select>
+      <p className="text-xs text-slate-500 mt-1">
+        Unit is fixed for this tariff item.
+      </p>
+    </>
+  )
+})()}
  </div>
 
  {/* Cost Value */}
