@@ -72,7 +72,7 @@ type ColumnDef = {
 }
 
 const COLUMNS: ColumnDef[] = [
-  { key: 'orderCode', header: 'PO', width: 120, type: 'text', editable: false },
+  { key: 'orderCode', header: 'PO Code', width: 120, type: 'text', editable: false },
   { key: 'label', header: 'Invoice', width: 140, type: 'text', editable: false },
   { key: 'weekNumber', header: 'Week', width: 70, type: 'text', editable: false },
   { key: 'dueDateIso', header: 'Due Date', width: 130, type: 'date', editable: true },
@@ -150,11 +150,16 @@ export function CustomPurchasePaymentsGrid({
     onFlush: handleFlush,
   })
 
+  const flushNowRef = useRef(flushNow)
+  useEffect(() => {
+    flushNowRef.current = flushNow
+  }, [flushNow])
+
   useEffect(() => {
     return () => {
-      flushNow().catch(() => {})
+      flushNowRef.current().catch(() => {})
     }
-  }, [flushNow])
+  }, []) // Only run cleanup on unmount
 
   useEffect(() => {
     if (editingCell && inputRef.current) {
@@ -244,6 +249,16 @@ export function CustomPurchasePaymentsGrid({
         const iso = toIsoDate(finalValue)
         finalValue = iso ?? ''
       }
+    }
+
+    // Get the current value for comparison
+    const currentValue = row[colKey]
+    const currentValueStr = currentValue === null || currentValue === undefined ? '' : String(currentValue)
+
+    // Don't update if value hasn't changed
+    if (currentValueStr === finalValue) {
+      cancelEditing()
+      return
     }
 
     // Prepare mutation entry
@@ -531,6 +546,16 @@ export function CustomPurchasePaymentsGrid({
             <button
               type="button"
               onClick={() => {
+                if (onAddPayment) void onAddPayment()
+              }}
+              disabled={!activeOrderId || isLoading}
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-1 enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:focus:ring-cyan-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
+            >
+              Add Payment
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 if (!selectedPaymentId || !onRemovePayment) return
                 setIsRemoving(true)
                 Promise.resolve(onRemovePayment(selectedPaymentId))
@@ -542,19 +567,9 @@ export function CustomPurchasePaymentsGrid({
                   .finally(() => setIsRemoving(false))
               }}
               disabled={!selectedPaymentId || isLoading || isRemoving}
-              className="rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-700 shadow-sm transition enabled:hover:border-rose-500 enabled:hover:bg-rose-100 enabled:hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/60 dark:bg-rose-500/10 dark:text-rose-300 dark:enabled:hover:border-rose-500/80 dark:enabled:hover:bg-rose-500/20"
+              className="rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-700 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-1 enabled:hover:border-rose-500 enabled:hover:bg-rose-100 enabled:hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/60 dark:bg-rose-500/10 dark:text-rose-300 dark:focus:ring-rose-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-rose-500/80 dark:enabled:hover:bg-rose-500/20"
             >
               Remove Payment
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (onAddPayment) void onAddPayment()
-              }}
-              disabled={!activeOrderId || isLoading}
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
-            >
-              Add Payment
             </button>
           </div>
         </div>
@@ -576,7 +591,9 @@ export function CustomPurchasePaymentsGrid({
               {data.length === 0 ? (
                 <tr>
                   <td colSpan={COLUMNS.length} className="ops-table-empty">
-                    No payments yet. Select a purchase order and click &quot;Add Payment&quot; to create one.
+                    {activeOrderId
+                      ? 'No payments for this order. Click "Add Payment" to schedule one.'
+                      : 'Select a purchase order above to view or add payments.'}
                   </td>
                 </tr>
               ) : (

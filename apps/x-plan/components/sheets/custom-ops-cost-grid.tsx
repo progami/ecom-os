@@ -186,11 +186,16 @@ export function CustomOpsCostGrid({
     onFlush: handleFlush,
   })
 
+  const flushNowRef = useRef(flushNow)
+  useEffect(() => {
+    flushNowRef.current = flushNow
+  }, [flushNow])
+
   useEffect(() => {
     return () => {
-      flushNow().catch(() => {})
+      flushNowRef.current().catch(() => {})
     }
-  }, [flushNow])
+  }, []) // Only run cleanup on unmount
 
   useEffect(() => {
     if (editingCell && inputRef.current) {
@@ -552,7 +557,7 @@ export function CustomOpsCostGrid({
               type="button"
               onClick={onAddBatch}
               disabled={Boolean(disableAdd)}
-              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-1 enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:focus:ring-cyan-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
             >
               Add batch
             </button>
@@ -562,7 +567,7 @@ export function CustomOpsCostGrid({
               type="button"
               onClick={onDeleteBatch}
               disabled={Boolean(disableDelete) || !activeBatchId}
-              className="rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-700 shadow-sm transition enabled:hover:border-rose-500 enabled:hover:bg-rose-100 enabled:hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/60 dark:bg-rose-500/10 dark:text-rose-300 dark:enabled:hover:border-rose-500/80 dark:enabled:hover:bg-rose-500/20"
+              className="rounded-md border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-rose-700 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-1 enabled:hover:border-rose-500 enabled:hover:bg-rose-100 enabled:hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/60 dark:bg-rose-500/10 dark:text-rose-300 dark:focus:ring-rose-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-rose-500/80 dark:enabled:hover:bg-rose-500/20"
             >
               Remove batch
             </button>
@@ -586,7 +591,9 @@ export function CustomOpsCostGrid({
               {rows.length === 0 ? (
                 <tr>
                   <td colSpan={COLUMNS.length} className="ops-table-empty">
-                    No batches yet. Select a purchase order and click &quot;Add batch&quot; to create one.
+                    {activeOrderId
+                      ? 'No batches for this order. Click "Add batch" to add cost details.'
+                      : 'Select a purchase order above to view or add batches.'}
                   </td>
                 </tr>
               ) : (

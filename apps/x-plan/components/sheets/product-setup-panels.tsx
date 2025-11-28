@@ -44,6 +44,7 @@ function getDefaults(type: 'ops' | 'sales' | 'finance') {
 
 export interface ProductSetupParametersPanelProps {
   title: string
+  description?: string
   parameterType: 'ops' | 'sales' | 'finance'
   parameters: BusinessParameter[]
   className?: string
@@ -82,6 +83,7 @@ function formatNumericForDisplay(value: string): string {
 
 export function ProductSetupParametersPanel({
   title,
+  description,
   parameterType,
   parameters,
   className,
@@ -265,83 +267,70 @@ export function ProductSetupParametersPanel({
       const key = item.id || item.label
 
       return (
-        <tr key={key} className="bg-white transition hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5">
-          <td className="px-4 py-3 align-top">
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{item.label}</p>
-              <span className="inline-flex items-center rounded-full border border-slate-200 px-2 py-0.5 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 dark:border-white/20 dark:text-slate-300">
-                Numeric
-              </span>
+        <div
+          key={key}
+          className="flex items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-4 py-3 transition hover:border-slate-300 dark:border-white/10 dark:bg-white/[0.02] dark:hover:border-white/20"
+        >
+          <label htmlFor={`param-${key}`} className="flex-1 text-sm font-medium text-slate-700 dark:text-slate-200">
+            {item.label}
+          </label>
+          <div className="relative w-32">
+            <input
+              id={`param-${key}`}
+              value={item.value}
+              onChange={(event) => handleValueChange(key, event.target.value)}
+              onBlur={handleBlur}
+              inputMode="decimal"
+              aria-invalid={isError}
+              aria-describedby={isError ? `${item.id}-error` : undefined}
+              disabled={isSaving}
+              className={clsx(
+                'w-full rounded-md border px-3 py-1.5 pr-8 text-right text-sm font-medium tabular-nums transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70',
+                isError
+                  ? 'border-rose-400 bg-rose-50 text-rose-900 focus:border-rose-400 focus:ring-rose-400/30 dark:border-rose-400/60 dark:bg-rose-900/30 dark:text-rose-100'
+                  : isDirty
+                    ? 'border-amber-400 bg-amber-50 text-slate-900 focus:border-amber-500 focus:ring-amber-500/30 dark:border-amber-400/60 dark:bg-amber-900/20 dark:text-slate-100'
+                    : isSaving
+                      ? 'border-cyan-400 bg-cyan-50 text-slate-900 focus:border-cyan-500 focus:ring-cyan-500/30 dark:border-cyan-400/60 dark:bg-cyan-900/20 dark:text-slate-100'
+                      : 'border-slate-200 bg-slate-50 text-slate-900 focus:border-cyan-500 focus:ring-cyan-500/30 dark:border-white/15 dark:bg-[#071d31] dark:text-slate-100 dark:focus:border-cyan-400 dark:focus:ring-cyan-400/30'
+              )}
+            />
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
+              {isSaving ? (
+                <svg className="h-3.5 w-3.5 animate-spin text-cyan-600 dark:text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : isDirty ? (
+                <svg className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              ) : isError ? (
+                <svg className="h-3.5 w-3.5 text-rose-500 dark:text-rose-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+              ) : isIdle ? (
+                <svg className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              ) : null}
             </div>
-          </td>
-          <td className="px-4 py-3">
-            <div className="relative">
-              <input
-                value={item.value}
-                onChange={(event) => handleValueChange(key, event.target.value)}
-                onBlur={handleBlur}
-                inputMode="decimal"
-                aria-invalid={isError}
-                aria-describedby={isError ? `${item.id}-error` : undefined}
-                disabled={isSaving}
-                className={clsx(
-                  'w-full rounded-lg border px-3 py-2 pr-10 text-sm font-medium transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70',
-                  isError
-                    ? 'border-rose-400 bg-rose-50 text-rose-900 focus:border-rose-400 focus:ring-rose-400/30 dark:border-rose-400/60 dark:bg-rose-900/30 dark:text-rose-100'
-                    : isDirty
-                      ? 'border-amber-400 bg-amber-50 text-slate-900 focus:border-amber-500 focus:ring-amber-500/30 dark:border-amber-400/60 dark:bg-amber-900/20 dark:text-slate-100'
-                      : isSaving
-                        ? 'border-cyan-400 bg-cyan-50 text-slate-900 focus:border-cyan-500 focus:ring-cyan-500/30 dark:border-cyan-400/60 dark:bg-cyan-900/20 dark:text-slate-100'
-                        : 'border-slate-300 bg-white text-slate-900 placeholder-slate-400 focus:border-cyan-500 focus:ring-cyan-500/30 dark:border-white/15 dark:bg-[#071d31] dark:text-slate-100 dark:placeholder-slate-500 dark:focus:border-cyan-400 dark:focus:ring-cyan-400/30'
-                )}
-              />
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                {isSaving ? (
-                  <svg className="h-4 w-4 animate-spin text-cyan-600 dark:text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                ) : isDirty ? (
-                  <svg className="h-4 w-4 text-amber-600 dark:text-amber-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                ) : isError ? (
-                  <svg className="h-4 w-4 text-rose-600 dark:text-rose-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                  </svg>
-                ) : isIdle ? (
-                  <svg className="h-4 w-4 text-emerald-600 dark:text-emerald-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                ) : null}
-              </div>
-            </div>
-            {isError ? (
-              <p id={`${item.id}-error`} className="mt-1 text-xs text-rose-600 dark:text-rose-400">
-                Enter a valid numeric value
-              </p>
-            ) : null}
-          </td>
-        </tr>
+          </div>
+        </div>
       )
     })
   }, [handleBlur, handleValueChange, items])
 
   return (
-    <div className={clsx('space-y-4', className)}>
-      <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h2>
-      <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-white/12">
-        <table className="min-w-full divide-y divide-slate-200 dark:divide-white/10">
-          <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:bg-white/5 dark:text-slate-300">
-            <tr>
-              <th className="px-4 py-3 text-left">Parameter</th>
-              <th className="px-4 py-3 text-left">Value</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-200 bg-white dark:divide-white/10 dark:bg-transparent">
-            {parameterRows}
-          </tbody>
-        </table>
+    <div className={clsx('space-y-5', className)}>
+      <div>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h2>
+        {description && (
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{description}</p>
+        )}
+      </div>
+      <div className="grid gap-2">
+        {parameterRows}
       </div>
     </div>
   )

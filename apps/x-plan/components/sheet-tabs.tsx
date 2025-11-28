@@ -34,7 +34,7 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
         <nav className="flex flex-col gap-1">
           {sheets.map((sheet) => {
             const Icon = sheet.icon
-            const href = sheet.href ?? `/sheet/${sheet.slug}`
+            const href = sheet.href ?? `/${sheet.slug}`
             const isActive = activeSlug === sheet.slug || pathname === href
             return (
               <Link
@@ -66,7 +66,7 @@ export function SheetTabs({ sheets, activeSlug, suffix, variant = 'scroll', onSh
       <nav className="flex items-center overflow-x-auto">
         <ol className="flex items-center">
           {sheets.map((sheet, index) => {
-            const href = sheet.href ?? `/sheet/${sheet.slug}`
+            const href = sheet.href ?? `/${sheet.slug}`
             const isActive = activeSlug === sheet.slug || pathname === href
             const isCompleted = index < activeIndex
             const stepNumber = index + 1
