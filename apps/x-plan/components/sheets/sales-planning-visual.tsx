@@ -200,7 +200,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
             Set up your first product in the Product Setup sheet to start tracking stock levels and sales planning.
           </p>
           <a
-            href="/sheet/1-product-setup"
+            href="/1-product-setup"
             className="inline-flex items-center gap-2 rounded-lg border border-cyan-600 bg-cyan-600/20 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-cyan-600/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 dark:border-[#00C2B9] dark:bg-[#00C2B9]/20 dark:text-white dark:hover:bg-[#00C2B9]/30 dark:focus-visible:outline-[#00C2B9]"
           >
             <span>→</span> Go to Product Setup

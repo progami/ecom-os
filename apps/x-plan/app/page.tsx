@@ -33,7 +33,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   const query = params.toString()
-  const href = query ? `/sheet/1-product-setup?${query}` : '/sheet/1-product-setup'
+  const href = query ? `/1-product-setup?${query}` : '/1-product-setup'
 
   redirect(href)
 }

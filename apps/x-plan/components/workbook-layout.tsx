@@ -77,7 +77,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
         base.delete('year')
       }
       const query = base.toString()
-      return `/sheet/${slug}${query ? `?${query}` : ''}`
+      return `/${slug}${query ? `?${query}` : ''}`
     },
     [resolvedYear, searchParams]
   )
