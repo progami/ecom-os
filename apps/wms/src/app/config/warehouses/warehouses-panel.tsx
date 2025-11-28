@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback, useRef, ChangeEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Edit, Trash2, RefreshCw, DollarSign, Upload, Download } from '@/lib/lucide-icons'
+import { Plus, Edit, Trash2, RefreshCw, DollarSign, Upload, Download, LayoutGrid, TableProperties } from '@/lib/lucide-icons'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { toast } from 'react-hot-toast'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { WarehouseRatesPanel } from './warehouse-rates-panel'
 
 interface Warehouse {
   id: string
@@ -55,6 +56,7 @@ export default function WarehousesPanel() {
   const [uploadingRateList, setUploadingRateList] = useState(false)
   const [downloadingRateList, setDownloadingRateList] = useState(false)
   const [removingRateList, setRemovingRateList] = useState(false)
+  const [viewMode, setViewMode] = useState<'structured' | 'table'>('structured')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const loadData = useCallback(async () => {
@@ -412,105 +414,144 @@ export default function WarehousesPanel() {
               className="hidden"
               onChange={(event) => handleRateListFileChange(event, selectedWarehouse.id)}
             />
-            {/* Cost Rates Card */}
-            <div className="rounded-xl border bg-white shadow-soft">
-              <div className="border-b px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900">Cost Rates</h3>
-                    <p className="text-sm text-slate-500 mt-1">
-                      {activeRates.length} active of {warehouseRates.length} total
-                    </p>
-                  </div>
-                  <Button asChild className="gap-2" size="sm">
-                    <Link href={`/config/rates/new?warehouseId=${selectedWarehouse.id}`}>
-                      <Plus className="h-4 w-4" />
-                      Add Rate
-                    </Link>
-                  </Button>
-                </div>
+            {/* View Mode Toggle & Actions */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setViewMode('structured')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                    viewMode === 'structured'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                  Rate Sheet
+                </button>
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                    viewMode === 'table'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <TableProperties className="h-4 w-4" />
+                  All Rates
+                </button>
               </div>
-
-              {warehouseRates.length === 0 ? (
-                <div className="p-12 text-center">
-                  <DollarSign className="mx-auto h-12 w-12 text-slate-300" />
-                  <h3 className="mt-4 text-sm font-semibold text-slate-900">No cost rates</h3>
-                  <p className="mt-2 text-sm text-slate-500">Add cost rates to calculate storage and handling fees.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-slate-50 text-xs uppercase text-slate-500">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-semibold">Rate</th>
-                        <th className="px-4 py-3 text-right font-semibold">Rate</th>
-                        <th className="px-4 py-3 text-left font-semibold">Unit</th>
-                        <th className="px-4 py-3 text-left font-semibold">Effective</th>
-                        <th className="px-4 py-3 text-left font-semibold">Status</th>
-                        <th className="px-4 py-3 text-right font-semibold">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y">
-                      {warehouseRates.map(rate => {
-                        const now = Date.now()
-                        const effective = new Date(rate.effectiveDate).getTime()
-                        const end = rate.endDate ? new Date(rate.endDate).getTime() : null
-                        const isActive = effective <= now && (end === null || end >= now)
-                        const isFuture = effective > now
-
-                        return (
-                          <tr key={rate.id} className="hover:bg-slate-50">
-                            <td className="px-4 py-3">
-                              <div className="flex flex-col gap-1">
-                                <span className="font-medium text-slate-900">{rate.costName}</span>
-                                <span className={`inline-flex w-fit px-2 py-0.5 text-[11px] font-medium rounded ${getCategoryColor(rate.costCategory)}`}>
-                                  {formatCostCategory(rate.costCategory)}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-right font-semibold text-slate-900">
-                              <div className="flex items-center justify-end gap-2">
-                                <span className="text-xs font-semibold text-slate-500">£ / $</span>
-                                <span>{rate.costValue.toFixed(2)}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-slate-600">{rate.unitOfMeasure}</td>
-                            <td className="px-4 py-3 text-slate-600">
-                              {new Date(rate.effectiveDate).toLocaleDateString()}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span
-                                className={`text-xs font-medium ${
-                                  isActive ? 'text-green-600' : isFuture ? 'text-cyan-600' : 'text-slate-500'
-                                }`}
-                              >
-                                {isActive ? 'Active' : isFuture ? 'Future' : 'Expired'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <div className="flex items-center justify-end gap-3">
-                                <Link
-                                  href={`/config/rates/${rate.id}/edit`}
-                                  className="text-cyan-600 hover:text-cyan-700"
-                                >
-                                  <Edit className="h-4 w-4 inline" />
-                                </Link>
-                                <button
-                                  onClick={() => handleDeleteRate(rate)}
-                                  className="text-red-600 hover:text-red-700"
-                                >
-                                  <Trash2 className="h-4 w-4 inline" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+              <Button asChild className="gap-2" size="sm">
+                <Link href={`/config/rates/new?warehouseId=${selectedWarehouse.id}`}>
+                  <Plus className="h-4 w-4" />
+                  Add Rate
+                </Link>
+              </Button>
             </div>
+
+            {viewMode === 'structured' ? (
+              /* Structured Rate Sheet View */
+              <div className="rounded-xl border bg-white shadow-soft p-6">
+                <WarehouseRatesPanel
+                  warehouseId={selectedWarehouse.id}
+                  warehouseName={selectedWarehouse.name}
+                  warehouseCode={selectedWarehouse.code}
+                />
+              </div>
+            ) : (
+              /* Table View (Legacy) */
+              <div className="rounded-xl border bg-white shadow-soft">
+                <div className="border-b px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900">All Cost Rates</h3>
+                      <p className="text-sm text-slate-500 mt-1">
+                        {activeRates.length} active of {warehouseRates.length} total
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {warehouseRates.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <DollarSign className="mx-auto h-12 w-12 text-slate-300" />
+                    <h3 className="mt-4 text-sm font-semibold text-slate-900">No cost rates</h3>
+                    <p className="mt-2 text-sm text-slate-500">Add cost rates to calculate storage and handling fees.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-semibold">Rate</th>
+                          <th className="px-4 py-3 text-right font-semibold">Rate</th>
+                          <th className="px-4 py-3 text-left font-semibold">Unit</th>
+                          <th className="px-4 py-3 text-left font-semibold">Effective</th>
+                          <th className="px-4 py-3 text-left font-semibold">Status</th>
+                          <th className="px-4 py-3 text-right font-semibold">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {warehouseRates.map(rate => {
+                          const now = Date.now()
+                          const effective = new Date(rate.effectiveDate).getTime()
+                          const end = rate.endDate ? new Date(rate.endDate).getTime() : null
+                          const isActive = effective <= now && (end === null || end >= now)
+                          const isFuture = effective > now
+
+                          return (
+                            <tr key={rate.id} className="hover:bg-slate-50">
+                              <td className="px-4 py-3">
+                                <div className="flex flex-col gap-1">
+                                  <span className="font-medium text-slate-900">{rate.costName}</span>
+                                  <span className={`inline-flex w-fit px-2 py-0.5 text-[11px] font-medium rounded ${getCategoryColor(rate.costCategory)}`}>
+                                    {formatCostCategory(rate.costCategory)}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                                <div className="flex items-center justify-end gap-2">
+                                  <span className="text-xs font-semibold text-slate-500">£ / $</span>
+                                  <span>{rate.costValue.toFixed(2)}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-slate-600">{rate.unitOfMeasure}</td>
+                              <td className="px-4 py-3 text-slate-600">
+                                {new Date(rate.effectiveDate).toLocaleDateString()}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span
+                                  className={`text-xs font-medium ${
+                                    isActive ? 'text-green-600' : isFuture ? 'text-cyan-600' : 'text-slate-500'
+                                  }`}
+                                >
+                                  {isActive ? 'Active' : isFuture ? 'Future' : 'Expired'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex items-center justify-end gap-3">
+                                  <Link
+                                    href={`/config/rates/${rate.id}/edit`}
+                                    className="text-cyan-600 hover:text-cyan-700"
+                                  >
+                                    <Edit className="h-4 w-4 inline" />
+                                  </Link>
+                                  <button
+                                    onClick={() => handleDeleteRate(rate)}
+                                    className="text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="h-4 w-4 inline" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="rounded-xl border bg-white shadow-soft p-12 text-center">
