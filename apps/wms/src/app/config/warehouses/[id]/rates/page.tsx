@@ -1,0 +1,237 @@
+'use client'
+
+import { use, useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
+import { DashboardLayout } from '@/components/layout/dashboard-layout'
+import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
+import { ArrowLeft, DollarSign, RefreshCw, Upload, Download, Trash2 } from '@/lib/lucide-icons'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
+import { toast } from 'react-hot-toast'
+import { WarehouseRatesPanel } from '../../warehouse-rates-panel'
+import { useRef, ChangeEvent } from 'react'
+
+interface Warehouse {
+  id: string
+  code: string
+  name: string
+  address?: string | null
+  isActive: boolean
+  rateListAttachment?: {
+    fileName: string
+    size: number
+    contentType: string
+    uploadedAt: string
+  } | null
+}
+
+export default function WarehouseRatesPage({
+  params
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = use(params)
+  const [warehouse, setWarehouse] = useState<Warehouse | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const loadWarehouse = useCallback(async () => {
+    try {
+      const response = await fetchWithCSRF(`/api/warehouses?id=${id}`)
+      if (response.ok) {
+        const data = await response.json()
+        // API returns array when queried by id, get first item
+        const warehouseData = Array.isArray(data) ? data[0] : data
+        setWarehouse(warehouseData)
+      }
+    } catch (error) {
+      console.error('Failed to load warehouse:', error)
+      toast.error('Failed to load warehouse')
+    } finally {
+      setLoading(false)
+    }
+  }, [id])
+
+  useEffect(() => {
+    loadWarehouse()
+  }, [loadWarehouse])
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !warehouse) return
+
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const response = await fetchWithCSRF(`/api/warehouses/${warehouse.id}/rate-list`, {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => null)
+        throw new Error(error?.error || 'Failed to upload')
+      }
+
+      toast.success('Rate list uploaded')
+      await loadWarehouse()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Upload failed')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleDownload = async () => {
+    if (!warehouse) return
+    setDownloading(true)
+    try {
+      const response = await fetchWithCSRF(`/api/warehouses/${warehouse.id}/rate-list`)
+      if (!response.ok) throw new Error('Download unavailable')
+
+      const data = await response.json()
+      if (data?.attachment?.downloadUrl) {
+        window.open(data.attachment.downloadUrl, '_blank', 'noopener')
+      } else {
+        toast.error('Download link unavailable')
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Download failed')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  const handleRemoveAttachment = async () => {
+    if (!warehouse || !confirm('Remove the rate list attachment?')) return
+    try {
+      const response = await fetchWithCSRF(`/api/warehouses/${warehouse.id}/rate-list`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) throw new Error('Failed to remove')
+      toast.success('Attachment removed')
+      await loadWarehouse()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Remove failed')
+    }
+  }
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center">
+          <RefreshCw className="h-6 w-6 animate-spin text-slate-400" />
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  if (!warehouse) {
+    return (
+      <DashboardLayout>
+        <div className="p-6 text-center">
+          <p className="text-slate-500">Warehouse not found</p>
+          <Button asChild className="mt-4">
+            <Link href="/config/warehouses">Back to Warehouses</Link>
+          </Button>
+        </div>
+      </DashboardLayout>
+    )
+  }
+
+  return (
+    <DashboardLayout>
+      <PageContainer>
+        <PageHeaderSection
+          title={warehouse.name}
+          description={`Rate Sheet • ${warehouse.code}`}
+          icon={DollarSign}
+          actions={
+            <div className="flex items-center gap-3">
+              {/* Rate List Attachment Actions */}
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg">
+                <span className="text-xs text-slate-600">Rate List:</span>
+                {warehouse.rateListAttachment ? (
+                  <>
+                    <span className="text-xs font-medium text-slate-700 max-w-[150px] truncate">
+                      {warehouse.rateListAttachment.fileName}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleDownload}
+                      disabled={downloading}
+                      className="h-7 px-2"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleRemoveAttachment}
+                      className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
+                ) : (
+                  <span className="text-xs text-slate-400">None</span>
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="h-7 px-2"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+              </div>
+
+              <Badge
+                className={
+                  warehouse.isActive
+                    ? 'bg-green-50 text-green-700 border-green-200'
+                    : 'bg-slate-100 text-slate-500 border-slate-200'
+                }
+              >
+                {warehouse.isActive ? 'Active' : 'Inactive'}
+              </Badge>
+
+              <Button asChild variant="outline" size="sm">
+                <Link href="/config/warehouses" className="gap-2">
+                  <ArrowLeft className="h-4 w-4" />
+                  Back
+                </Link>
+              </Button>
+            </div>
+          }
+        />
+
+        <PageContent>
+          <div className="rounded-xl border bg-white shadow-soft p-6">
+            <WarehouseRatesPanel
+              warehouseId={warehouse.id}
+              warehouseName={warehouse.name}
+              warehouseCode={warehouse.code}
+            />
+          </div>
+        </PageContent>
+      </PageContainer>
+    </DashboardLayout>
+  )
+}

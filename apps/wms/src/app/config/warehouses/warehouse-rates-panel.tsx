@@ -1,6 +1,5 @@
 'use client'
 
-import { useState } from 'react'
 import {
   Boxes,
   Package,
@@ -13,6 +12,7 @@ import {
 } from '@/lib/lucide-icons'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { usePersistedTab } from '@/hooks/usePersistedState'
 
 interface WarehouseRatesPanelProps {
   warehouseId: string
@@ -23,10 +23,15 @@ interface WarehouseRatesPanelProps {
 type TabKey = 'receiving' | 'storage' | 'outbound' | 'fba-trucking' | 'drayage'
 
 export function WarehouseRatesPanel({
+  warehouseId,
   warehouseName,
   warehouseCode
 }: WarehouseRatesPanelProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>('receiving')
+  // Use persisted tab state - remembers which tab user was on
+  const [activeTab, setActiveTab] = usePersistedTab(
+    `/config/warehouses/${warehouseId}/rates`,
+    'receiving'
+  )
 
   const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'receiving', label: 'Receiving', icon: <Boxes className="h-4 w-4" /> },
