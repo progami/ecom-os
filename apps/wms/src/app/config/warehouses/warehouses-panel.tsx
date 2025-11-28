@@ -784,9 +784,7 @@ function TacticalRateChecklist({
                             {formatCostCategory(item.costCategory)} - {item.unitOfMeasure}
                           </span>
                         </div>
-                        <p className="text-[11px] text-slate-500 truncate">
-                          Rate name "{item.costName}"{item.note ? `. ${item.note}` : ''}.
-                        </p>
+                        <p className="text-[11px] text-slate-500 truncate">Rate name "{item.costName}".</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
