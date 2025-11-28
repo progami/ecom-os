@@ -113,7 +113,11 @@ import {
   Activity,
   Zap,
   History,
-  ClipboardList,
+
+  // Layout & View icons
+  LayoutGrid,
+  TableProperties,
+  Boxes,
 } from 'lucide-react'
 
 import type { LucideIcon } from 'lucide-react'
@@ -217,6 +221,8 @@ export {
   Activity,
   Zap,
   History,
-  ClipboardList,
+  LayoutGrid,
+  TableProperties,
+  Boxes,
   type LucideIcon,
 }

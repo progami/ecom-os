@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback, useRef, ChangeEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Plus, Edit, Trash2, RefreshCw, Upload, Download, AlertTriangle, CheckCircle2, ClipboardList } from '@/lib/lucide-icons'
+import { Plus, Edit, Trash2, RefreshCw, DollarSign, Upload, Download, LayoutGrid, TableProperties } from '@/lib/lucide-icons'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { toast } from 'react-hot-toast'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { WarehouseRatesPanel } from './warehouse-rates-panel'
 
 interface Warehouse {
   id: string
@@ -44,228 +45,6 @@ interface CostRate {
   endDate: string | null
 }
 
-type RateTemplate = {
-  key: string
-  section: string
-  label: string
-  costCategory: string
-  costName: string
-  unitOfMeasure: string
-  suggestedValue?: number
-  note?: string
-  optional?: boolean
-}
-
-const tacticalRateTemplate: RateTemplate[] = [
-  {
-    key: 'fcl-20',
-    section: 'Inbound',
-    label: 'FCL Receiving 20',
-    costCategory: 'Container',
-    costName: 'FCL Receiving 20',
-    unitOfMeasure: 'per_container',
-    suggestedValue: 650,
-    note: 'Per 20ft container; includes unload/label/palletize'
-  },
-  {
-    key: 'fcl-40',
-    section: 'Inbound',
-    label: 'FCL Receiving 40',
-    costCategory: 'Container',
-    costName: 'FCL Receiving 40',
-    unitOfMeasure: 'per_container',
-    suggestedValue: 825,
-    note: 'Per 40ft container; includes unload/label/palletize'
-  },
-  {
-    key: 'fcl-40hq',
-    section: 'Inbound',
-    label: 'FCL Receiving 40HQ',
-    costCategory: 'Container',
-    costName: 'FCL Receiving 40HQ',
-    unitOfMeasure: 'per_container',
-    suggestedValue: 875,
-    note: 'Per 40HQ container; includes unload/label/palletize'
-  },
-  {
-    key: 'fcl-45hq',
-    section: 'Inbound',
-    label: 'FCL Receiving 45HQ',
-    costCategory: 'Container',
-    costName: 'FCL Receiving 45HQ',
-    unitOfMeasure: 'per_container',
-    suggestedValue: 950,
-    note: 'Per 45HQ container; includes unload/label/palletize'
-  },
-  {
-    key: 'lcl',
-    section: 'Inbound',
-    label: 'LCL Receiving',
-    costCategory: 'Carton',
-    costName: 'LCL Receiving',
-    unitOfMeasure: 'per_carton',
-    suggestedValue: 0.95,
-    note: 'Per-carton receiving for LCL'
-  },
-  {
-    key: 'extra-skus',
-    section: 'Inbound',
-    label: 'Extra SKUs over 10',
-    costCategory: 'Unit',
-    costName: 'Extra SKUs over 10',
-    unitOfMeasure: 'per_sku',
-    suggestedValue: 10,
-    note: 'Per-SKU over 10 per shipment'
-  },
-  {
-    key: 'storage-0-6',
-    section: 'Storage',
-    label: 'Pallet Storage 0-6 months',
-    costCategory: 'Storage',
-    costName: 'Pallet Storage 0-6 months',
-    unitOfMeasure: 'per_pallet_day',
-    suggestedValue: 0.69,
-    note: 'Daily rate per pallet'
-  },
-  {
-    key: 'storage-6-plus',
-    section: 'Storage',
-    label: 'Pallet Storage 6+ months',
-    costCategory: 'Storage',
-    costName: 'Pallet Storage 6+ months',
-    unitOfMeasure: 'per_pallet_day',
-    suggestedValue: 1.2,
-    note: 'Daily rate per pallet'
-  },
-  {
-    key: 'outbound-inventory',
-    section: 'Outbound',
-    label: 'Loose-carton replenishment to FBA',
-    costCategory: 'Carton',
-    costName: 'Loose-carton replenishment to FBA',
-    unitOfMeasure: 'per_carton',
-    suggestedValue: 1,
-    note: 'Per carton from stock'
-  },
-  {
-    key: 'outbound-min',
-    section: 'Outbound',
-    label: 'Outbound Shipment Minimum',
-    costCategory: 'Accessorial',
-    costName: 'Outbound Shipment Minimum',
-    unitOfMeasure: 'per_shipment',
-    suggestedValue: 15,
-    note: 'Per shipment minimum'
-  },
-  {
-    key: 'ocean-freight',
-    section: 'Forwarding / Clearance',
-    label: 'Ocean Freight (quoted)',
-    costCategory: 'transportation',
-    costName: 'Ocean Freight',
-    unitOfMeasure: 'flat',
-    note: 'Enter quoted amount',
-    optional: true
-  },
-  {
-    key: 'freight-insurance',
-    section: 'Forwarding / Clearance',
-    label: 'Freight Insurance (quoted)',
-    costCategory: 'Accessorial',
-    costName: 'Freight Insurance',
-    unitOfMeasure: 'flat',
-    note: 'Enter quoted amount',
-    optional: true
-  },
-  {
-    key: 'isf',
-    section: 'Forwarding / Clearance',
-    label: 'ISF fee',
-    costCategory: 'Unit',
-    costName: 'ISF Fee',
-    unitOfMeasure: 'flat',
-    suggestedValue: 35,
-    note: 'Legacy brokerage rate (2022)',
-    optional: true
-  },
-  {
-    key: 'clearance-3',
-    section: 'Forwarding / Clearance',
-    label: 'Customs Clearance (<=3 lines)',
-    costCategory: 'Unit',
-    costName: 'Customs Clearance (<=3 lines)',
-    unitOfMeasure: 'per_invoice',
-    suggestedValue: 125,
-    note: 'Legacy brokerage rate (2022)',
-    optional: true
-  },
-  {
-    key: 'clearance-4-plus',
-    section: 'Forwarding / Clearance',
-    label: 'Customs Clearance (4+ lines)',
-    costCategory: 'Unit',
-    costName: 'Customs Clearance (4+ lines)',
-    unitOfMeasure: 'per_invoice',
-    suggestedValue: 175,
-    note: 'Legacy brokerage rate (2022)',
-    optional: true
-  },
-  {
-    key: 'fda-lacey',
-    section: 'Forwarding / Clearance',
-    label: 'FDA / Lacey / Other Regulatory',
-    costCategory: 'Unit',
-    costName: 'FDA / Lacey / Other Regulatory',
-    unitOfMeasure: 'flat',
-    suggestedValue: 50,
-    note: 'Legacy brokerage rate (2022)',
-    optional: true
-  },
-  {
-    key: 'duty',
-    section: 'Forwarding / Clearance',
-    label: 'Import Duty (pass-through)',
-    costCategory: 'Unit',
-    costName: 'Import Duty',
-    unitOfMeasure: 'flat',
-    note: 'Enter duty amount',
-    optional: true
-  },
-  {
-    key: 'bond-single',
-    section: 'Forwarding / Clearance',
-    label: 'Customs Bond - Single',
-    costCategory: 'Accessorial',
-    costName: 'Customs Bond - Single',
-    unitOfMeasure: 'flat',
-    suggestedValue: 175,
-    note: 'Legacy brokerage rate (2022)',
-    optional: true
-  },
-  {
-    key: 'bond-yearly',
-    section: 'Forwarding / Clearance',
-    label: 'Customs Bond - Yearly',
-    costCategory: 'Accessorial',
-    costName: 'Customs Bond - Yearly',
-    unitOfMeasure: 'flat',
-    suggestedValue: 550,
-    note: 'Legacy brokerage rate (2022)',
-    optional: true
-  },
-  {
-    key: 'other-brokerage',
-    section: 'Forwarding / Clearance',
-    label: 'Other Brokerage / Accessorials',
-    costCategory: 'Accessorial',
-    costName: 'Other Brokerage / Accessorials',
-    unitOfMeasure: 'flat',
-    note: 'Enter pass-through amount',
-    optional: true
-  },
-  // FBA direct port service removed from required list; treat as quoted/manual if re-added
-]
-
 export default function WarehousesPanel() {
   const router = useRouter()
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
@@ -277,6 +56,7 @@ export default function WarehousesPanel() {
   const [uploadingRateList, setUploadingRateList] = useState(false)
   const [downloadingRateList, setDownloadingRateList] = useState(false)
   const [removingRateList, setRemovingRateList] = useState(false)
+  const [viewMode, setViewMode] = useState<'structured' | 'table'>('structured')
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const loadData = useCallback(async () => {
@@ -435,6 +215,22 @@ export default function WarehousesPanel() {
     }
   }
 
+  const handleDeleteRate = async (rate: CostRate) => {
+    if (!confirm(`Delete "${rate.costName}" (${formatCostCategory(rate.costCategory)}) rate (£${rate.costValue.toFixed(2)}/${rate.unitOfMeasure})? This cannot be undone.`)) return
+
+    try {
+      const response = await fetchWithCSRF(`/api/settings/rates/${rate.id}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) throw new Error('Failed to delete rate')
+      toast.success('Rate deleted successfully')
+      await loadData()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete rate')
+    }
+  }
+
   const selectedWarehouse = warehouses.find(w => w.id === selectedWarehouseId)
   const warehouseRates = selectedWarehouse
     ? costRates.filter(r => r.warehouseId === selectedWarehouse.id)
@@ -521,7 +317,7 @@ export default function WarehousesPanel() {
                   )}
                   <div className="mt-2 flex items-center gap-3 text-xs text-slate-500">
                     <span>{warehouse._count.costRates} rates</span>
-                    <span>-</span>
+                    <span>•</span>
                     <span>{warehouse._count.inventoryTransactions} txns</span>
                   </div>
                 </div>
@@ -607,6 +403,7 @@ export default function WarehousesPanel() {
         </div>
       </div>
 
+      {/* Cost Rates */}
       <div className="lg:col-span-2">
         {selectedWarehouse ? (
           <div>
@@ -617,11 +414,144 @@ export default function WarehousesPanel() {
               className="hidden"
               onChange={(event) => handleRateListFileChange(event, selectedWarehouse.id)}
             />
-            <TacticalRateChecklist
-              warehouse={selectedWarehouse}
-              activeRates={activeRates}
-              addRateHref={`/config/rates/new?warehouseId=${selectedWarehouse.id}`}
-            />
+            {/* View Mode Toggle & Actions */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setViewMode('structured')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                    viewMode === 'structured'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                  Rate Sheet
+                </button>
+                <button
+                  onClick={() => setViewMode('table')}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                    viewMode === 'table'
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <TableProperties className="h-4 w-4" />
+                  All Rates
+                </button>
+              </div>
+              <Button asChild className="gap-2" size="sm">
+                <Link href={`/config/rates/new?warehouseId=${selectedWarehouse.id}`}>
+                  <Plus className="h-4 w-4" />
+                  Add Rate
+                </Link>
+              </Button>
+            </div>
+
+            {viewMode === 'structured' ? (
+              /* Structured Rate Sheet View */
+              <div className="rounded-xl border bg-white shadow-soft p-6">
+                <WarehouseRatesPanel
+                  warehouseId={selectedWarehouse.id}
+                  warehouseName={selectedWarehouse.name}
+                  warehouseCode={selectedWarehouse.code}
+                />
+              </div>
+            ) : (
+              /* Table View (Legacy) */
+              <div className="rounded-xl border bg-white shadow-soft">
+                <div className="border-b px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900">All Cost Rates</h3>
+                      <p className="text-sm text-slate-500 mt-1">
+                        {activeRates.length} active of {warehouseRates.length} total
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {warehouseRates.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <DollarSign className="mx-auto h-12 w-12 text-slate-300" />
+                    <h3 className="mt-4 text-sm font-semibold text-slate-900">No cost rates</h3>
+                    <p className="mt-2 text-sm text-slate-500">Add cost rates to calculate storage and handling fees.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-semibold">Rate</th>
+                          <th className="px-4 py-3 text-right font-semibold">Rate</th>
+                          <th className="px-4 py-3 text-left font-semibold">Unit</th>
+                          <th className="px-4 py-3 text-left font-semibold">Effective</th>
+                          <th className="px-4 py-3 text-left font-semibold">Status</th>
+                          <th className="px-4 py-3 text-right font-semibold">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {warehouseRates.map(rate => {
+                          const now = Date.now()
+                          const effective = new Date(rate.effectiveDate).getTime()
+                          const end = rate.endDate ? new Date(rate.endDate).getTime() : null
+                          const isActive = effective <= now && (end === null || end >= now)
+                          const isFuture = effective > now
+
+                          return (
+                            <tr key={rate.id} className="hover:bg-slate-50">
+                              <td className="px-4 py-3">
+                                <div className="flex flex-col gap-1">
+                                  <span className="font-medium text-slate-900">{rate.costName}</span>
+                                  <span className={`inline-flex w-fit px-2 py-0.5 text-[11px] font-medium rounded ${getCategoryColor(rate.costCategory)}`}>
+                                    {formatCostCategory(rate.costCategory)}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                                <div className="flex items-center justify-end gap-2">
+                                  <span className="text-xs font-semibold text-slate-500">£ / $</span>
+                                  <span>{rate.costValue.toFixed(2)}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-slate-600">{rate.unitOfMeasure}</td>
+                              <td className="px-4 py-3 text-slate-600">
+                                {new Date(rate.effectiveDate).toLocaleDateString()}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span
+                                  className={`text-xs font-medium ${
+                                    isActive ? 'text-green-600' : isFuture ? 'text-cyan-600' : 'text-slate-500'
+                                  }`}
+                                >
+                                  {isActive ? 'Active' : isFuture ? 'Future' : 'Expired'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <div className="flex items-center justify-end gap-3">
+                                  <Link
+                                    href={`/config/rates/${rate.id}/edit`}
+                                    className="text-cyan-600 hover:text-cyan-700"
+                                  >
+                                    <Edit className="h-4 w-4 inline" />
+                                  </Link>
+                                  <button
+                                    onClick={() => handleDeleteRate(rate)}
+                                    className="text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="h-4 w-4 inline" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="rounded-xl border bg-white shadow-soft p-12 text-center">
@@ -634,209 +564,22 @@ export default function WarehousesPanel() {
   )
 }
 
-type ChecklistItem = RateTemplate & { matchedRate?: CostRate }
-
-function normalizeValue(value?: string | null) {
-  return (value || '').toLowerCase().replace(/\s+/g, ' ').trim()
-}
-
-function normalizeCategory(value?: string | null) {
-  const normalized = normalizeValue(value)
-  if (normalized.startsWith('container')) return 'container'
-  if (normalized.startsWith('carton')) return 'carton'
-  if (normalized.startsWith('storage')) return 'storage'
-  if (normalized.startsWith('pallet')) return 'pallet'
-  if (normalized === 'transportation' || normalized === 'shipment') return 'transportation'
-  if (normalized.startsWith('unit')) return 'unit'
-  if (normalized.startsWith('accessorial')) return 'accessorial'
-  return normalized
-}
-
-function normalizeUnit(value?: string | null) {
-  const normalized = normalizeValue(value)
-    .replace('pallet/day', 'pallet-day')
-    .replace('pallet per day', 'pallet-day')
-    .replace(/^container$/, 'per_container')
-    .replace(/^carton$/, 'per_carton')
-    .replace(/^pallet$/, 'per_pallet')
-    .replace(/^sku$/, 'per_sku')
-    .replace('per container', 'per_container')
-    .replace('per carton', 'per_carton')
-    .replace('per pallet', 'per_pallet')
-    .replace('per pallet day', 'per_pallet_day')
-    .replace('per pallet-day', 'per_pallet_day')
-    .replace('per hour', 'per_hour')
-    .replace('per day', 'per_day')
-    .replace('per delivery', 'per_delivery')
-    .replace('per shipment', 'per_shipment')
-    .replace('per invoice', 'per_invoice')
-    .replace('per sku', 'per_sku')
-    .replace('flat', 'flat')
-  return normalized
-}
-
-function buildTacticalChecklist(activeRates: CostRate[]): ChecklistItem[] {
-  return tacticalRateTemplate.map(template => {
-    const matchedRate = activeRates.find(rate =>
-      normalizeCategory(rate.costCategory) === normalizeCategory(template.costCategory) &&
-      normalizeValue(rate.costName) === normalizeValue(template.costName) &&
-      normalizeUnit(rate.unitOfMeasure) === normalizeUnit(template.unitOfMeasure)
-    )
-
-    return { ...template, matchedRate }
-  })
-}
-
-function buildRateLink(template: RateTemplate, warehouseId: string) {
-  const params = new URLSearchParams({
-    warehouseId,
-    costCategory: template.costCategory,
-    costName: template.costName,
-    unitOfMeasure: template.unitOfMeasure
-  })
-
-  if (template.suggestedValue !== undefined) {
-    params.append('costValue', template.suggestedValue.toString())
+function getCategoryColor(category: string) {
+  const colors: Record<string, string> = {
+    Storage: 'bg-purple-100 text-purple-700',
+    Container: 'bg-blue-100 text-blue-700',
+    Carton: 'bg-green-100 text-green-700',
+    Pallet: 'bg-amber-100 text-amber-700',
+    Unit: 'bg-pink-100 text-pink-700',
+    Shipment: 'bg-cyan-100 text-cyan-700',
+    Accessorial: 'bg-slate-100 text-slate-700'
   }
-
-  return `/config/rates/new?${params.toString()}`
-}
-
-function TacticalRateChecklist({
-  warehouse,
-  activeRates,
-  addRateHref
-}: {
-  warehouse: Warehouse
-  activeRates: CostRate[]
-  addRateHref?: string
-}) {
-  const checklist = buildTacticalChecklist(activeRates)
-  const sections = Array.from(new Set(checklist.map(item => item.section)))
-  const missingCount = checklist.filter(item => !item.optional && !item.matchedRate).length
-  const isTacticalWarehouse =
-    warehouse.code.toLowerCase() === 'tactical' || warehouse.name.toLowerCase().includes('tactical')
-
-  if (!isTacticalWarehouse) return null
-
-  if (checklist.length === 0) return null
-
-  return (
-    <div className="mb-6 rounded-xl border bg-slate-50 shadow-soft">
-      <div className="flex items-start justify-between gap-3 border-b px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="rounded-full bg-slate-900/5 p-2 text-slate-700">
-            <ClipboardList className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-slate-900">
-              Rate list readiness {isTacticalWarehouse && <span className="text-xs font-medium text-cyan-700">(Tactical)</span>}
-            </p>
-            <p className="text-xs text-slate-600">
-              Checks for the cost names and units the Tactical billing algorithm expects.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge
-            className={
-              missingCount === 0
-                ? 'bg-green-100 text-green-700 border-green-200'
-                : 'bg-amber-100 text-amber-700 border-amber-200'
-            }
-          >
-            {missingCount === 0 ? 'Complete' : `${missingCount} missing`}
-          </Badge>
-          {addRateHref && (
-            <Button asChild size="sm" className="ml-2">
-              <Link href={addRateHref}>
-                <Plus className="h-4 w-4" />
-                Add Rate
-              </Link>
-            </Button>
-          )}
-        </div>
-      </div>
-      <div className="divide-y">
-        {sections.map(section => {
-          const sectionItems = checklist.filter(item => item.section === section)
-          return (
-            <div key={section} className="space-y-3 px-6 py-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">{section}</p>
-              </div>
-              <div className="grid gap-2">
-                {sectionItems.map(item => (
-                  <div
-                    key={item.key}
-                    className="flex flex-col gap-3 rounded-lg border bg-white px-3 py-2 md:flex-row md:items-center md:justify-between"
-                  >
-                    <div className="flex items-start gap-3">
-                      {item.matchedRate ? (
-                        <CheckCircle2 className="h-5 w-5 flex-shrink-0 text-green-600" />
-                      ) : (
-                        <AlertTriangle className="h-5 w-5 flex-shrink-0 text-amber-500" />
-                      )}
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold text-slate-900">{item.label}</p>
-                          <span className="text-[11px] text-slate-500">
-                            {formatCostCategory(item.costCategory)} - {item.unitOfMeasure}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-500 truncate">Rate name "{item.costName}".</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {item.matchedRate ? (
-                        <>
-                          <Badge className="bg-green-50 text-green-700 border-green-200">
-                            {`$${item.matchedRate.costValue.toFixed(2)} / ${item.matchedRate.unitOfMeasure}`}
-                          </Badge>
-                          <Button asChild size="sm" variant="outline">
-                            <Link href={`/config/rates/${item.matchedRate.id}/edit`}>Edit</Link>
-                          </Button>
-                        </>
-                      ) : item.optional ? (
-                        <Badge className="bg-slate-100 text-slate-700 border-slate-200">Optional / quoted</Badge>
-                      ) : (
-                        <Button asChild size="sm" variant="outline">
-                          <Link href={buildRateLink(item, warehouse.id)}>Set rate</Link>
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
+  return colors[category] || 'bg-slate-100 text-slate-700'
 }
 
 function formatCostCategory(category: string) {
-  if (normalizeCategory(category) === 'container') {
-    return 'Container'
-  }
-  if (normalizeCategory(category) === 'transportation') {
-    return 'Transportation'
-  }
-  if (normalizeCategory(category) === 'accessorial') {
-    return 'Accessorial'
-  }
-  if (normalizeCategory(category) === 'carton') {
-    return 'Carton'
-  }
-  if (normalizeCategory(category) === 'storage') {
-    return 'Storage'
-  }
-  if (normalizeCategory(category) === 'pallet') {
-    return 'Pallet'
-  }
-  if (normalizeCategory(category) === 'unit') {
-    return 'Unit'
+  if (category === 'Container') {
+    return 'Container - Handling Charges'
   }
   return category
 }
