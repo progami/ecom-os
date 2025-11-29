@@ -106,17 +106,20 @@ export async function handleTransactionCosts(transaction: TransactionWithCosts) 
  const safeQuantity = quantity > 0 ? quantity : 1
  const costEntries = []
  
+ // Determine category based on transaction type
+ const isInbound = transaction.transactionType === 'RECEIVE'
+ const costCategory = isInbound ? 'Inbound' : 'Outbound'
+
  // Create handling cost entry if provided
  if (transaction.costs.handling && transaction.costs.handling > 0) {
- // Check if Carton category is valid for this warehouse
- if (!validCategories.includes('Carton')) {
- // console.warn(`Carton costs not configured for warehouse ${transaction.warehouseCode}`)
+ // Check if category is valid for this warehouse
+ if (!validCategories.includes(costCategory)) {
+ // console.warn(`${costCategory} costs not configured for warehouse ${transaction.warehouseCode}`)
  } else {
- // Try to get the actual rate
  costEntries.push({
  transactionId: transaction.transactionId,
- costCategory: 'Carton' as const,
- costName: 'Carton Handling',
+ costCategory: costCategory as const,
+ costName: isInbound ? 'Inbound Handling' : 'Outbound Handling',
  quantity: safeQuantity,
  unitRate: transaction.costs.handling / safeQuantity,
  totalCost: transaction.costs.handling,
@@ -153,13 +156,12 @@ export async function handleTransactionCosts(transaction: TransactionWithCosts) 
  if (transaction.costs.custom && Array.isArray(transaction.costs.custom)) {
  for (const customCost of transaction.costs.custom) {
  if (customCost.amount && customCost.amount > 0) {
- // Custom costs should only be created if a matching cost rate exists
- // OR if Accessorial category is configured
- if (validCategories.includes('Accessorial')) {
+ // Custom costs use the same category as the transaction type (Inbound/Outbound)
+ if (validCategories.includes(costCategory)) {
  costEntries.push({
  transactionId: transaction.transactionId,
- costCategory: 'Accessorial' as const,
- costName: customCost.name || 'Accessorial Cost',
+ costCategory: costCategory as const,
+ costName: customCost.name || 'Additional Cost',
  quantity: safeQuantity,
  unitRate: customCost.amount / safeQuantity,
  totalCost: customCost.amount,
@@ -169,7 +171,7 @@ export async function handleTransactionCosts(transaction: TransactionWithCosts) 
  createdAt: transaction.transactionDate
  })
  } else {
- // console.warn(`Cannot add custom cost "${customCost.name}" - Accessorial category not configured for warehouse ${transaction.warehouseCode}`)
+ // console.warn(`Cannot add custom cost "${customCost.name}" - ${costCategory} category not configured for warehouse ${transaction.warehouseCode}`)
  }
  }
  }
