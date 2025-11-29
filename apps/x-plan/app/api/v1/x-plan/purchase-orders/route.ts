@@ -157,13 +157,45 @@ function resolveStageDefaultWeeks(map: StageDefaultsMap, label: string): number 
 
 export async function PUT(request: Request) {
   const body = await request.json().catch(() => null)
+  console.log('[PUT /purchase-orders] body:', JSON.stringify(body, null, 2))
   const parsed = updateSchema.safeParse(body)
 
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+    console.log('[PUT /purchase-orders] validation error:', parsed.error.format())
+    return NextResponse.json({ error: 'Invalid payload', details: parsed.error.format() }, { status: 400 })
   }
 
-  await prisma.$transaction(
+  try {
+    // Pre-validate orderCode uniqueness before attempting batch update
+    const orderCodeUpdates = parsed.data.updates
+      .filter(({ values }) => values.orderCode && values.orderCode.trim() !== '')
+      .map(({ id, values }) => ({ id, orderCode: values.orderCode!.trim() }))
+
+    if (orderCodeUpdates.length > 0) {
+      const existingOrders = await prisma.purchaseOrder.findMany({
+        where: {
+          orderCode: { in: orderCodeUpdates.map((u) => u.orderCode) },
+        },
+        select: { id: true, orderCode: true },
+      })
+
+      // Check if any orderCode would conflict with a different PO
+      for (const update of orderCodeUpdates) {
+        const conflict = existingOrders.find(
+          (existing) => existing.orderCode === update.orderCode && existing.id !== update.id
+        )
+        if (conflict) {
+          const errorMessage = `Order code "${update.orderCode}" is already in use by another purchase order.`
+          console.log('[PUT /purchase-orders] returning 409:', errorMessage)
+          return new Response(JSON.stringify({ error: errorMessage }), {
+            status: 409,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }
+      }
+    }
+
+    await prisma.$transaction(
     parsed.data.updates.map(({ id, values }) => {
       const data: Record<string, unknown> = {}
       for (const field of allowedFields) {
@@ -201,8 +233,20 @@ export async function PUT(request: Request) {
       return prisma.purchaseOrder.update({ where: { id }, data })
     })
   )
-
-  return NextResponse.json({ ok: true })
+    console.log('[PUT /purchase-orders] success')
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    console.error('[PUT /purchase-orders] error:', error)
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const errorMessage = 'A purchase order with this code already exists.'
+      console.log('[PUT /purchase-orders] returning 409 (Prisma P2002):', errorMessage)
+      return new Response(JSON.stringify({ error: errorMessage }), {
+        status: 409,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    return NextResponse.json({ error: 'Database error', details: String(error) }, { status: 500 })
+  }
 }
 
 function generateOrderCode() {

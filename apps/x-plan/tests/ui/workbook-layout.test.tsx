@@ -7,7 +7,7 @@ import type { WorkbookSheetStatus } from '@/lib/workbook'
 
 const pushMock = vi.fn()
 let searchParamsInstance: URLSearchParams
-let mockedPathname = '/sheet/1-product-setup'
+let mockedPathname = '/1-product-setup'
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -34,7 +34,7 @@ const sheetStatus: WorkbookSheetStatus[] = SHEETS.map((sheet, index) => ({
 function renderLayout(activeYear: number | null, activeSlug: WorkbookSheetStatus['slug'] = '3-sales-planning') {
   searchParamsInstance = activeYear != null ? new URLSearchParams({ year: String(activeYear) }) : new URLSearchParams()
   pushMock.mockReset()
-  mockedPathname = `/sheet/${activeSlug}`
+  mockedPathname = `/${activeSlug}`
 
   render(
     <WorkbookLayout
@@ -66,13 +66,13 @@ describe('WorkbookLayout year navigation', () => {
 
     const yearButtons = screen.getAllByRole('button', { name: /2026/ })
     fireEvent.click(yearButtons[0]!)
-    expect(pushMock).toHaveBeenCalledWith('/sheet/3-sales-planning?year=2026')
+    expect(pushMock).toHaveBeenCalledWith('/3-sales-planning?year=2026')
 
     pushMock.mockReset()
 
     const nextButtons = screen.getAllByRole('button', { name: 'Next year' })
     fireEvent.click(nextButtons[0]!)
-    expect(pushMock).toHaveBeenCalledWith('/sheet/3-sales-planning?year=2026')
+    expect(pushMock).toHaveBeenCalledWith('/3-sales-planning?year=2026')
   })
 
   it('hides year controls on time-agnostic sheets', () => {

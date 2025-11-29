@@ -6,7 +6,6 @@ const DEFAULT_BUSINESS_PARAMETERS: BusinessParameterMap = {
   startingCash: 0,
   amazonPayoutDelayWeeks: 2,
   weeklyFixedCosts: 0,
-  supplierPaymentTermsWeeks: 0,
   supplierPaymentSplit: [0.5, 0.3, 0.2],
   stockWarningWeeks: 4,
   defaultProductionWeeks: 1,
@@ -44,10 +43,6 @@ export function normalizeBusinessParameters(
       }
       case 'weekly fixed costs': {
         normalized.weeklyFixedCosts = numeric ?? normalized.weeklyFixedCosts
-        break
-      }
-      case 'supplier payment terms (weeks)': {
-        normalized.supplierPaymentTermsWeeks = numeric ?? normalized.supplierPaymentTermsWeeks
         break
       }
       case 'supplier payment split 1 (%)': {

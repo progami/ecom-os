@@ -11,17 +11,17 @@ import {
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import {
-  OpsPlanningGrid,
+  CustomOpsPlanningGrid,
   type OpsInputRow,
-} from '@/components/sheets/ops-planning-grid'
+} from '@/components/sheets/custom-ops-planning-grid'
 import { PurchaseTimeline } from '@/components/sheets/purchase-timeline'
 import type { OpsTimelineRow } from '@/components/sheets/ops-planning-timeline'
-import { OpsPlanningCostGrid, type OpsBatchRow } from '@/components/sheets/ops-planning-cost-grid'
+import { CustomOpsCostGrid, type OpsBatchRow } from '@/components/sheets/custom-ops-cost-grid'
 import {
-  PurchasePaymentsGrid,
+  CustomPurchasePaymentsGrid,
   type PurchasePaymentRow,
   type PaymentSummary,
-} from '@/components/sheets/purchase-payments-grid'
+} from '@/components/sheets/custom-purchase-payments-grid'
 import { createTimelineOrderFromDerived, type PurchaseTimelineOrder } from '@/lib/planning/timeline'
 import { getISOWeek } from 'date-fns'
 import {
@@ -933,6 +933,46 @@ useEffect(() => {
       setOrders(mergedOrders)
       ordersRef.current = mergedOrders
       inputRowsRef.current = updatedRows
+
+      // Build a map of orderId -> orderCode from updated rows
+      const orderCodeMap = new Map(updatedRows.map((row) => [row.id, row.orderCode]))
+
+      // FIX: Sync orderCode changes to batch rows
+      setBatchRows((previousBatchRows) => {
+        let hasChanges = false
+        const updatedBatchRows = previousBatchRows.map((batchRow) => {
+          const newOrderCode = orderCodeMap.get(batchRow.purchaseOrderId)
+          if (newOrderCode && newOrderCode !== batchRow.orderCode) {
+            hasChanges = true
+            return { ...batchRow, orderCode: newOrderCode }
+          }
+          return batchRow
+        })
+        if (hasChanges) {
+          batchRowsRef.current = updatedBatchRows
+          return updatedBatchRows
+        }
+        return previousBatchRows
+      })
+
+      // FIX: Sync orderCode changes to payment rows
+      setPaymentRows((previousPaymentRows) => {
+        let hasChanges = false
+        const updatedPaymentRows = previousPaymentRows.map((paymentRow) => {
+          const newOrderCode = orderCodeMap.get(paymentRow.purchaseOrderId)
+          if (newOrderCode && newOrderCode !== paymentRow.orderCode) {
+            hasChanges = true
+            return { ...paymentRow, orderCode: newOrderCode }
+          }
+          return paymentRow
+        })
+        if (hasChanges) {
+          paymentRowsRef.current = updatedPaymentRows
+          return updatedPaymentRows
+        }
+        return previousPaymentRows
+      })
+
       applyTimelineUpdate(mergedOrders, updatedRows, paymentRowsRef.current)
     },
     [applyTimelineUpdate, stageDefaults]
@@ -1440,10 +1480,10 @@ useEffect(() => {
   }, [newOrderCode, productOptions, router, startTransition])
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {!isVisualMode && (
         <>
-          <OpsPlanningGrid
+          <CustomOpsPlanningGrid
             rows={inputRows}
             activeOrderId={activeOrderId}
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}
@@ -1460,7 +1500,7 @@ useEffect(() => {
                 <h3 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
                   New purchase order
                 </h3>
-                <p className="text-xs text-slate-700 dark:text-slate-200/80">
+                <p className="text-xs text-slate-600 dark:text-slate-200/80">
                   Set the PO identifier now — assign cost details and the target product in the batch cost table below.
                 </p>
               </header>
@@ -1501,7 +1541,7 @@ useEffect(() => {
             </section>
           ) : null}
 
-          <OpsPlanningCostGrid
+          <CustomOpsCostGrid
             rows={visibleBatches}
             activeOrderId={activeOrderId}
             activeBatchId={activeBatchId}
@@ -1515,7 +1555,7 @@ useEffect(() => {
             products={productOptions}
             onSync={handleCostSync}
           />
-          <PurchasePaymentsGrid
+          <CustomPurchasePaymentsGrid
             payments={visiblePayments}
             activeOrderId={activeOrderId}
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}

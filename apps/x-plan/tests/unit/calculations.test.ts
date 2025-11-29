@@ -52,7 +52,6 @@ const parameters: BusinessParameterMap = {
   startingCash: 1000,
   amazonPayoutDelayWeeks: 2,
   weeklyFixedCosts: 200,
-  supplierPaymentTermsWeeks: 1,
   supplierPaymentSplit: [0.3, 0.3, 0.4],
   stockWarningWeeks: 4,
   defaultProductionWeeks: 1,

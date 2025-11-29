@@ -171,13 +171,18 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
   }
 
   return (
-    <div className={clsx('space-y-4', className)}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Products</h2>
-        <div className="flex flex-col items-start gap-3 lg:items-end">
+    <div className={clsx('space-y-5', className)}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Product Catalog</h2>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Add and manage products that flow through your planning sheets
+          </p>
+        </div>
+        <div className="flex flex-col items-start gap-3 sm:items-end">
           {isAdding ? (
             <form
-              className="flex w-full min-w-[260px] flex-col gap-3 rounded-2xl border border-slate-300 bg-slate-50 p-4 shadow-md dark:border-white/10 dark:bg-white/5 dark:shadow-[0_14px_35px_rgba(1,18,32,0.45)] lg:w-auto"
+              className="flex w-full min-w-[260px] flex-col gap-3 rounded-2xl border border-slate-300 bg-slate-50 p-4 shadow-md dark:border-white/10 dark:bg-white/5 dark:shadow-[0_14px_35px_rgba(1,18,32,0.45)] sm:w-auto"
               onSubmit={(event) => {
                 event.preventDefault()
                 handleCreateProduct()
@@ -245,8 +250,18 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
           <tbody className="divide-y divide-white/8">
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-300/80">
-                  No products yet. Use &ldquo;New product&rdquo; to add the first SKU to the planning catalogue.
+                <td colSpan={3} className="px-6 py-12 text-center">
+                  <div className="mx-auto max-w-sm space-y-3">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 dark:bg-white/5">
+                      <svg className="h-6 w-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                      </svg>
+                    </div>
+                    <p className="text-sm font-medium text-slate-900 dark:text-white">No products yet</p>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                      Click &ldquo;New product&rdquo; to add your first SKU to the planning catalog.
+                    </p>
+                  </div>
                 </td>
               </tr>
             ) : (

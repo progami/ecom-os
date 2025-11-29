@@ -278,7 +278,7 @@ export function PurchasePaymentsGrid({
         <h2 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
           Payments
         </h2>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-700 dark:text-slate-200/80">
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600 dark:text-slate-200/80">
           {summaryText && <span>{summaryText}</span>}
           <div className="flex flex-wrap items-center gap-2">
             <button
