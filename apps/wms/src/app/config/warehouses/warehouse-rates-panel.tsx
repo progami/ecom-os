@@ -71,14 +71,6 @@ const RATE_TEMPLATES = {
   ],
 }
 
-// Map categories to tabs (now 1:1 mapping since categories match tabs)
-const CATEGORY_TO_TAB: Record<string, TabKey> = {
-  Inbound: 'inbound',
-  Storage: 'storage',
-  Outbound: 'outbound',
-  Forwarding: 'forwarding',
-}
-
 export function WarehouseRatesPanel({
   warehouseId,
   warehouseName,
@@ -121,10 +113,6 @@ export function WarehouseRatesPanel({
     return rates.find(r => r.costName === template.costName)
   }
 
-  const getTabForRate = (rate: CostRate): TabKey => {
-    return CATEGORY_TO_TAB[rate.costCategory] || 'inbound'
-  }
-
   const startEditing = (rate: CostRate) => {
     setEditingRateId(rate.id)
     setEditValue(rate.costValue.toString())
@@ -156,7 +144,7 @@ export function WarehouseRatesPanel({
         const error = await response.json()
         toast.error(error.error || 'Failed to update rate')
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error('Failed to update rate')
     } finally {
       setSaving(false)
