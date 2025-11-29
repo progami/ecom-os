@@ -1026,23 +1026,17 @@ for (const item of validatedItems) {
     for (const cost of normalizedCosts) {
       if (cost.totalCost && cost.totalCost > 0) {
         // Map frontend cost types to database enum values
-        let costCategory: CostCategory = CostCategory.Container
- if (cost.costType === 'container') {
- costCategory = CostCategory.Container
- } else if (cost.costType === 'carton') {
- costCategory = CostCategory.Carton
- } else if (cost.costType === 'pallet') {
- costCategory = CostCategory.Pallet
- } else if (cost.costType === 'transportation') {
- costCategory = CostCategory.transportation
- } else if (cost.costType === 'storage') {
- costCategory = CostCategory.Storage
- } else if (cost.costType === 'unit') {
- costCategory = CostCategory.Unit
- } else if (cost.costType === 'accessorial') {
- costCategory = CostCategory.Accessorial
- }
- 
+        let costCategory: CostCategory = CostCategory.Inbound
+        if (cost.costType === 'container' || cost.costType === 'carton' || cost.costType === 'pallet' || cost.costType === 'unit') {
+          costCategory = CostCategory.Inbound
+        } else if (cost.costType === 'transportation') {
+          costCategory = CostCategory.Outbound
+        } else if (cost.costType === 'storage') {
+          costCategory = CostCategory.Storage
+        } else if (cost.costType === 'accessorial') {
+          costCategory = CostCategory.Forwarding
+        }
+        
       const resolvedCostName =
         cost.costName ??
         prettifyCostLabel(cost.costType) ??
