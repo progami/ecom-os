@@ -23,6 +23,7 @@ import { formatCurrency } from '@/lib/utils'
 import { toast } from 'react-hot-toast'
 import type { CostLedgerBucketTotals, CostLedgerGroupResult } from '@ecom-os/ledger'
 import { redirectToPortal } from '@/lib/portal'
+import { usePageState } from '@/lib/store'
 
 const baseFilterInputClass = 'w-full rounded-md border border-muted px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary'
 
@@ -44,15 +45,9 @@ const defaultFilters: FilterState = {
  endDate: new Date().toISOString().split('T')[0],
 }
 
-function CostLedgerPage() {
- const { data: session, status } = useSession()
- const router = useRouter()
- const [_loading, setLoading] = useState(true)
- const [ledgerData, setLedgerData] = useState<CostLedgerGroupResult[]>([])
- const [totals, setTotals] = useState<CostLedgerBucketTotals | null>(null)
- const [filters] = useState<FilterState>(defaultFilters)
- const [exporting, setExporting] = useState(false)
- const [columnFilters, setColumnFilters] = useState({
+const PAGE_KEY = '/finance/cost-ledger'
+
+const defaultColumnFilters = {
  weekEnding: '',
  storageMin: '',
  storageMax: '',
@@ -72,7 +67,39 @@ function CostLedgerPage() {
  otherMax: '',
  totalMin: '',
  totalMax: '',
- })
+}
+
+function CostLedgerPage() {
+ const { data: session, status } = useSession()
+ const router = useRouter()
+ const [_loading, setLoading] = useState(true)
+ const [ledgerData, setLedgerData] = useState<CostLedgerGroupResult[]>([])
+ const [totals, setTotals] = useState<CostLedgerBucketTotals | null>(null)
+ const [filters] = useState<FilterState>(defaultFilters)
+ const [exporting, setExporting] = useState(false)
+
+ // Use persisted page state for column filters
+ const pageState = usePageState(PAGE_KEY)
+ const [hydrated, setHydrated] = useState(false)
+
+ // Initialize column filters from persisted state after hydration
+ const [columnFilters, setColumnFilters] = useState(defaultColumnFilters)
+
+ useEffect(() => {
+   setHydrated(true)
+   // Restore column filters from persisted state
+   const persisted = pageState.custom?.columnFilters as typeof defaultColumnFilters | undefined
+   if (persisted) {
+     setColumnFilters(prev => ({ ...prev, ...persisted }))
+   }
+ }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+ // Persist column filters when they change (after hydration)
+ useEffect(() => {
+   if (hydrated) {
+     pageState.setCustom('columnFilters', columnFilters)
+   }
+ }, [columnFilters, hydrated]) // eslint-disable-line react-hooks/exhaustive-deps
 
  useEffect(() => {
  if (status === 'loading') return
