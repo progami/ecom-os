@@ -387,13 +387,10 @@ enum UserRole {
 }
 
 enum CostCategory {
-  Container
-  Carton
+  Inbound
   Storage
-  Pallet
-  transportation
-  Unit
-  Accessorial
+  Outbound
+  Forwarding
 
   @@map("CostCategory")
 }

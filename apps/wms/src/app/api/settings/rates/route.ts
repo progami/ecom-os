@@ -5,7 +5,6 @@ import bcrypt from 'bcryptjs'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { UserRole } from '@ecom-os/prisma-wms'
-import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 export const dynamic = 'force-dynamic'
 
 const PLACEHOLDER_PASSWORD =
@@ -132,38 +131,11 @@ export async function POST(request: NextRequest) {
  )
 }
 
- const costName = sanitizeForDisplay(
-  typeof rawCostName === 'string' && rawCostName.trim().length > 0
+ // Don't HTML-encode costName - just trim and validate
+ const costName = typeof rawCostName === 'string' && rawCostName.trim().length > 0
    ? rawCostName.trim()
    : costCategory
- )
  const effectiveOn = new Date(effectiveDate)
-
- // Enforce a single rate per category/unit per warehouse/effective date
-const duplicateRate = await prisma.costRate.findFirst({
- where: {
-  warehouseId,
-  costCategory,
-  unitOfMeasure,
-  effectiveDate: effectiveOn
- }
-})
-
-if (duplicateRate) {
-return NextResponse.json(
- {
-  error: `A ${costCategory} rate with unit "${unitOfMeasure}" already exists for this warehouse on ${effectiveOn.toISOString().slice(0, 10)}. Update the existing rate instead of creating a duplicate.`
- },
-{ status: 400 }
-)
-}
-
- if (costCategory === 'Storage' && unitOfMeasure !== 'pallet/week') {
- return NextResponse.json(
- { error: 'Storage rates must use "pallet/week" as the unit of measure' },
- { status: 400 }
- )
- }
 
  const wmsUser = await ensureWmsUser(session)
 

@@ -8,7 +8,7 @@ import { z } from 'zod'
 export const dynamic = 'force-dynamic'
 
 // Validation schemas
-const COST_CATEGORY_OPTIONS = ['Container', 'Carton', 'Pallet', 'Storage', 'Unit', 'transportation', 'Accessorial'] as const
+const COST_CATEGORY_OPTIONS = ['Inbound', 'Storage', 'Outbound', 'Forwarding'] as const
 
 const createRateSchema = z.object({
  warehouseId: z.string().uuid(),

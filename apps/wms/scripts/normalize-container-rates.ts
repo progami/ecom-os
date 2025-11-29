@@ -1,13 +1,13 @@
 #!/usr/bin/env tsx
 
 /**
- * Normalizes container cost rates for the dev schema by forcing the unit of measure
- * to one of the supported container sizes: 20ft, 40ft, or lcl. This script is
+ * Normalizes inbound container handling rates for the dev schema. This script is
  * intentionally blocked from running against production-like database URLs unless
  * ALLOW_NON_DEV=true is supplied.
  */
 
 import { prisma } from '../src/lib/prisma'
+import { CostCategory } from '@ecom-os/prisma-wms'
 
 function assertDevSchema() {
   const dbUrl = process.env.DATABASE_URL ?? ''
@@ -26,11 +26,11 @@ async function normalizeContainerRates() {
 
   console.log('🔧 Normalizing container cost rates (dev schema only)...')
 
-  const supportedUnits = ['20ft', '40ft', 'lcl'] as const
-  const defaultUnit = supportedUnits[0]
+  const supportedUnits = ['per_container', 'per_carton', 'per_sku', 'per_pallet', 'per_pallet_day'] as const
+  const defaultUnit = 'per_container' as const
 
   const containerRates = await prisma.costRate.findMany({
-    where: { costCategory: 'Container' },
+    where: { costCategory: CostCategory.Inbound },
     select: {
       id: true,
       unitOfMeasure: true,

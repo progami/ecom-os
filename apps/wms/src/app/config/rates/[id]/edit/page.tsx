@@ -26,13 +26,10 @@ interface CostRate {
 }
 
 const unitsByCategory: { [key: string]: string[] } = {
- Storage: ['pallet/week'],
- Container: ['20ft', '40ft', 'lcl'],
- Carton: ['carton', 'case'],
- Pallet: ['pallet', 'pallet/in', 'pallet/out'],
- Unit: ['unit', 'piece', 'item'],
- Shipment: ['shipment', 'order', 'delivery'],
- Accessorial: ['hour', 'service', 'fee', 'charge']
+ Inbound: ['per_container', 'per_carton', 'per_sku', 'flat'],
+ Storage: ['per_pallet_day'],
+ Outbound: ['per_carton', 'per_shipment', 'per_delivery', 'per_hour', 'flat'],
+ Forwarding: ['flat', 'per_container'],
 }
 
 export default function EditRatePage() {
@@ -222,10 +219,11 @@ export default function EditRatePage() {
  <input
  value={formData.costName}
  onChange={(e) => setFormData({ ...formData, costName: e.target.value })}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+ className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-slate-50"
  required
+ readOnly
  />
- <p className="text-xs text-slate-500 mt-1">Update the display label for this rate.</p>
+ <p className="text-xs text-slate-500 mt-1">Rate name is fixed for this tariff item.</p>
  </div>
 
  {/* Unit of Measure */}
@@ -233,25 +231,32 @@ export default function EditRatePage() {
  <label className="block text-sm font-medium text-slate-700 mb-2">
  Unit of Measure <span className="text-red-500">*</span>
  </label>
- <select
- value={formData.unitOfMeasure}
- onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
- required
- disabled={rate.costCategory === 'Storage'}
- >
- <option value="">Select unit</option>
- {unitsByCategory[rate.costCategory]?.map(unit => (
- <option key={unit} value={unit}>
- {unit}
- </option>
- ))}
- </select>
- {rate.costCategory === 'Storage' && (
- <p className="text-xs text-slate-500 mt-1">
- Storage must use pallet/week
- </p>
- )}
+ {(() => {
+   const baseUnits = unitsByCategory[rate.costCategory] ?? []
+   const currentUnit = formData.unitOfMeasure ? [formData.unitOfMeasure] : []
+  const unitOptions = Array.from(new Set([...baseUnits, ...currentUnit].filter(Boolean)))
+  return (
+    <>
+      <select
+        value={formData.unitOfMeasure}
+        onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
+        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-slate-50"
+        required
+        disabled
+      >
+        <option value="">Select unit</option>
+        {unitOptions.map(unit => (
+          <option key={unit} value={unit}>
+            {unit}
+          </option>
+        ))}
+      </select>
+      <p className="text-xs text-slate-500 mt-1">
+        Unit is fixed for this tariff item.
+      </p>
+    </>
+  )
+})()}
  </div>
 
  {/* Cost Value */}

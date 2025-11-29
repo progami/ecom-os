@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 export const dynamic = 'force-dynamic'
 
 export async function GET(
@@ -88,17 +87,10 @@ export async function PUT(
  return NextResponse.json({ error: 'Rate not found' }, { status: 404 })
  }
 
- // Special validation for Storage category
- if (existingRate.costCategory === 'Storage' && unitOfMeasure !== 'pallet/week') {
- return NextResponse.json(
- { error: 'Storage rates must use "pallet/week" as the unit of measure' },
- { status: 400 }
- )
- }
-
+ // Don't HTML-encode costName - just trim
  const sanitizedCostName =
  typeof rawCostName === 'string' && rawCostName.trim().length > 0
-  ? sanitizeForDisplay(rawCostName.trim())
+  ? rawCostName.trim()
   : existingRate.costName
 
  if (sanitizedCostName !== existingRate.costName) {
@@ -120,26 +112,6 @@ export async function PUT(
  )
  }
 }
-
- // Prevent duplicate category/unit combinations on the same date
- const duplicateCategoryUnit = await prisma.costRate.findFirst({
-   where: {
-     warehouseId: existingRate.warehouseId,
-     costCategory: existingRate.costCategory,
-     unitOfMeasure,
-     effectiveDate: existingRate.effectiveDate,
-     id: { not: rateId },
-   },
- })
-
- if (duplicateCategoryUnit) {
-  return NextResponse.json(
-   {
-    error: `A ${existingRate.costCategory} rate with unit "${unitOfMeasure}" already exists for this warehouse on ${existingRate.effectiveDate.toISOString().slice(0, 10)}.`
-   },
-   { status: 400 }
-  )
- }
 
  const updatedRate = await prisma.costRate.update({
 where: { id: rateId },
