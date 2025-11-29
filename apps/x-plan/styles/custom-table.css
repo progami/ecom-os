@@ -1,0 +1,552 @@
+/* Custom Table Styles for OPS Planning */
+
+.ops-table-container {
+  border-radius: 0.75rem;
+  border: 1px solid #cbd5e1;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08);
+  position: relative;
+}
+
+/* Scroll shadow indicators */
+.ops-table-container::before,
+.ops-table-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 5;
+}
+
+.ops-table-container::before {
+  left: 0;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.95), transparent);
+}
+
+.ops-table-container::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(255, 255, 255, 0.95), transparent);
+}
+
+.ops-table-container.scroll-left::before {
+  opacity: 1;
+}
+
+.ops-table-container.scroll-right::after {
+  opacity: 1;
+}
+
+.dark .ops-table-container {
+  border: 1px solid #0b3a52;
+  background: #041324;
+  box-shadow: 0 20px 40px rgba(1, 12, 24, 0.4);
+}
+
+.dark .ops-table-container::before {
+  background: linear-gradient(to right, rgba(4, 19, 36, 0.95), transparent);
+}
+
+.dark .ops-table-container::after {
+  background: linear-gradient(to left, rgba(4, 19, 36, 0.95), transparent);
+}
+
+.ops-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+/* Header styles */
+.ops-table thead th {
+  background-color: #f1f5f9;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #0e7490;
+  font-size: 11px;
+  padding: 10px 12px;
+  border-bottom: 3px solid #0891b2;
+  border-right: 1px solid rgba(203, 213, 225, 0.6);
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.dark .ops-table thead th {
+  background-color: #0a1f35;
+  color: #5eead4;
+  border-bottom: 3px solid #00c2b9;
+  border-right: 1px solid rgba(11, 58, 82, 0.6);
+}
+
+.ops-table thead th:last-child {
+  border-right: none;
+}
+
+/* Body cell styles */
+.ops-table tbody td {
+  font-size: 12px;
+  color: #1e293b;
+  border-bottom: 1px solid rgba(203, 213, 225, 0.5);
+  border-right: 1px solid rgba(203, 213, 225, 0.5);
+  padding: 0;
+  font-weight: 500;
+  line-height: 1.4;
+  transition: background-color 0.12s ease;
+  background-color: #ffffff;
+  height: 38px;
+  vertical-align: middle;
+}
+
+.dark .ops-table tbody td {
+  color: #e2e8f0;
+  border-bottom: 1px solid rgba(11, 58, 82, 0.4);
+  border-right: 1px solid rgba(11, 58, 82, 0.4);
+  background-color: #0c2537;
+}
+
+.ops-table tbody td:last-child {
+  border-right: none;
+}
+
+/* Zebra striping */
+.ops-table tbody tr:nth-child(even) td {
+  background-color: #f8fafc;
+}
+
+.dark .ops-table tbody tr:nth-child(even) td {
+  background-color: #0f2942;
+}
+
+/* ==========================================
+   EDITABLE CELLS - Light Mode
+   ========================================== */
+.ops-cell-editable {
+  background-color: #ecfeff !important;
+  color: #164e63 !important;
+  cursor: text;
+  border: 1.5px solid #0891b2 !important;
+  font-weight: 600;
+}
+
+.ops-cell-editable:hover {
+  background-color: #cffafe !important;
+  border-color: #0e7490 !important;
+}
+
+/* ==========================================
+   EDITABLE CELLS - Dark Mode
+   Light background with dark text (matches Handsontable theme)
+   ========================================== */
+.dark .ops-cell-editable {
+  background-color: #ccfbf1 !important;
+  color: #0a1f35 !important;
+  border: 1px solid #00c2b9 !important;
+  font-weight: 600;
+}
+
+.dark .ops-cell-editable:hover {
+  background-color: #99f6e4 !important;
+  border-color: #00c2b9 !important;
+}
+
+/* ==========================================
+   READONLY CELLS
+   ========================================== */
+.ops-cell-readonly {
+  background-color: #f1f5f9 !important;
+  color: #64748b !important;
+  cursor: default;
+}
+
+.dark .ops-cell-readonly {
+  background-color: #0a1f35 !important;
+  color: #94a3b8 !important;
+}
+
+/* ==========================================
+   ACTIVE ROW - Light Mode
+   ========================================== */
+.ops-table tbody tr.row-active td {
+  background-color: #ecfeff !important;
+  color: #164e63 !important;
+}
+
+.ops-table tbody tr.row-active td:first-child {
+  border-left: 4px solid #0891b2;
+}
+
+/* Active row + editable cell combo - light mode */
+.ops-table tbody tr.row-active td.ops-cell-editable {
+  background-color: #cffafe !important;
+  color: #134e4a !important;
+  border-color: #22d3ee !important;
+}
+
+/* ==========================================
+   ACTIVE ROW - Dark Mode
+   Light background with dark text (matches Handsontable theme)
+   ========================================== */
+.dark .ops-table tbody tr.row-active td {
+  background-color: #ccfbf1 !important;
+  color: #0a1f35 !important;
+}
+
+.dark .ops-table tbody tr.row-active td:first-child {
+  border-left: 4px solid #00c2b9;
+}
+
+/* Active row + editable cell combo - dark mode */
+.dark .ops-table tbody tr.row-active td.ops-cell-editable {
+  background-color: #99f6e4 !important;
+  color: #0a1f35 !important;
+  border-color: #00c2b9 !important;
+}
+
+/* ==========================================
+   CELL INPUT STYLES
+   ========================================== */
+.ops-cell-input {
+  width: 100%;
+  height: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: #164e63 !important;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.dark .ops-cell-input {
+  color: #0a1f35 !important;
+}
+
+.ops-cell-input:focus {
+  background: #ffffff;
+  outline: 2px solid #0891b2;
+  outline-offset: -2px;
+  border-radius: 4px;
+  color: #0f172a !important;
+}
+
+.dark .ops-cell-input:focus {
+  background: #0c2537;
+  outline-color: #22d3ee;
+  color: #f0fdfa !important;
+}
+
+.ops-cell-input::placeholder {
+  color: #64748b;
+}
+
+.dark .ops-cell-input::placeholder {
+  color: #94a3b8;
+}
+
+/* Numeric cells - right aligned */
+.ops-cell-numeric .ops-cell-input {
+  text-align: right;
+}
+
+/* ==========================================
+   DATE INPUT STYLES
+   ========================================== */
+.ops-cell-date input[type="date"] {
+  width: 100%;
+  height: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: #164e63 !important;
+  outline: none;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+/* Style the date input placeholder (mm/dd/yyyy) */
+.ops-cell-date input[type="date"]::-webkit-datetime-edit-text,
+.ops-cell-date input[type="date"]::-webkit-datetime-edit-month-field,
+.ops-cell-date input[type="date"]::-webkit-datetime-edit-day-field,
+.ops-cell-date input[type="date"]::-webkit-datetime-edit-year-field {
+  color: #164e63 !important;
+}
+
+/* Empty date placeholder styling */
+.ops-cell-date input[type="date"]:invalid::-webkit-datetime-edit,
+.ops-cell-date input[type="date"][value=""]::-webkit-datetime-edit {
+  color: #0e7490 !important;
+}
+
+.dark .ops-cell-date input[type="date"] {
+  color: #0a1f35 !important;
+}
+
+.dark .ops-cell-date input[type="date"]::-webkit-datetime-edit-text,
+.dark .ops-cell-date input[type="date"]::-webkit-datetime-edit-month-field,
+.dark .ops-cell-date input[type="date"]::-webkit-datetime-edit-day-field,
+.dark .ops-cell-date input[type="date"]::-webkit-datetime-edit-year-field {
+  color: #0a1f35 !important;
+}
+
+.dark .ops-cell-date input[type="date"]:invalid::-webkit-datetime-edit,
+.dark .ops-cell-date input[type="date"][value=""]::-webkit-datetime-edit {
+  color: #115e59 !important;
+}
+
+.ops-cell-date input[type="date"]:focus {
+  background: #ffffff;
+  outline: 2px solid #0891b2;
+  outline-offset: -2px;
+  border-radius: 4px;
+  color: #0f172a;
+}
+
+.dark .ops-cell-date input[type="date"]:focus {
+  background: #0c2537;
+  outline-color: #22d3ee;
+  color: #f0fdfa;
+}
+
+/* ==========================================
+   DROPDOWN/SELECT STYLES
+   ========================================== */
+.ops-cell-select select {
+  width: 100%;
+  height: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  color: #134e4a;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%230e7490' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+}
+
+.dark .ops-cell-select select {
+  color: #e2e8f0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2322d3ee' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+}
+
+.ops-cell-select select:focus {
+  background-color: #ffffff;
+  outline: 2px solid #0891b2;
+  outline-offset: -2px;
+  border-radius: 4px;
+  color: #0f172a;
+}
+
+.dark .ops-cell-select select:focus {
+  background-color: #0c2537;
+  outline-color: #22d3ee;
+  color: #f0fdfa;
+}
+
+/* Select options styling */
+.ops-cell-select select option {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.dark .ops-cell-select select option {
+  background: #0c2537;
+  color: #e2e8f0;
+}
+
+/* ==========================================
+   HEADER TOGGLE BUTTON
+   ========================================== */
+.ops-header-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 0.5rem;
+  border: 1.5px dashed rgba(8, 145, 178, 0.4);
+  background: rgba(241, 245, 249, 0.5);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #0e7490;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+}
+
+.ops-header-toggle:hover {
+  background: rgba(8, 145, 178, 0.1);
+  border-color: rgba(8, 145, 178, 0.7);
+  border-style: solid;
+  outline-color: rgba(8, 145, 178, 0.2);
+  transform: translateY(-1px);
+  color: #164e63;
+}
+
+.dark .ops-header-toggle {
+  border: 1.5px dashed rgba(34, 211, 238, 0.4);
+  background: rgba(13, 61, 86, 0.5);
+  color: #22d3ee;
+}
+
+.dark .ops-header-toggle:hover {
+  background: rgba(34, 211, 238, 0.15);
+  border-color: rgba(34, 211, 238, 0.7);
+  border-style: solid;
+  outline-color: rgba(34, 211, 238, 0.2);
+  color: #67e8f9;
+}
+
+/* ==========================================
+   CELL DISPLAY TEXT
+   ========================================== */
+.ops-cell-display {
+  padding: 8px 12px;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  color: #0f172a;
+}
+
+.ops-cell-numeric .ops-cell-display {
+  justify-content: flex-end;
+}
+
+.dark .ops-cell-display {
+  color: #f1f5f9;
+}
+
+/* Ensure display text has correct color in editable cells */
+.ops-cell-editable .ops-cell-display {
+  color: #164e63 !important;
+}
+
+.dark .ops-cell-editable .ops-cell-display {
+  color: #0a1f35 !important;
+}
+
+/* Date cell display text - ensure visibility */
+.ops-cell-date .ops-cell-display {
+  color: #164e63 !important;
+}
+
+.dark .ops-cell-date .ops-cell-display {
+  color: #0a1f35 !important;
+}
+
+/* Combined editable + date cell */
+.ops-cell-editable.ops-cell-date .ops-cell-display {
+  color: #164e63 !important;
+}
+
+.dark .ops-cell-editable.ops-cell-date .ops-cell-display {
+  color: #0a1f35 !important;
+}
+
+/* Readonly cell display text */
+.ops-cell-readonly .ops-cell-display {
+  color: #475569 !important;
+}
+
+.dark .ops-cell-readonly .ops-cell-display {
+  color: #94a3b8 !important;
+}
+
+/* Active row display text */
+.ops-table tbody tr.row-active .ops-cell-display {
+  color: #164e63 !important;
+}
+
+.dark .ops-table tbody tr.row-active .ops-cell-display {
+  color: #0a1f35 !important;
+}
+
+/* ==========================================
+   SCROLLABLE TABLE BODY
+   ========================================== */
+.ops-table-body-scroll {
+  max-height: 400px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.ops-table-body-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.ops-table-body-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ops-table-body-scroll::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 3px;
+}
+
+.ops-table-body-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.dark .ops-table-body-scroll {
+  scrollbar-color: #0b3a52 transparent;
+}
+
+.dark .ops-table-body-scroll::-webkit-scrollbar-thumb {
+  background-color: #0b3a52;
+}
+
+/* ==========================================
+   EMPTY STATE
+   ========================================== */
+.ops-table-empty {
+  padding: 24px;
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+  background: transparent !important;
+}
+
+.dark .ops-table-empty {
+  color: #94a3b8;
+}
+
+/* ==========================================
+   PLACEHOLDER TEXT FOR EMPTY CELLS
+   ========================================== */
+.ops-cell-placeholder {
+  color: #94a3b8;
+  font-style: italic;
+  font-weight: 400;
+}
+
+.dark .ops-cell-placeholder {
+  color: #64748b;
+}
+
+/* Editable cell placeholder - darker to stand out on light teal bg */
+.ops-cell-editable .ops-cell-placeholder {
+  color: #0e7490;
+}
+
+.dark .ops-cell-editable .ops-cell-placeholder {
+  color: #115e59;
+}

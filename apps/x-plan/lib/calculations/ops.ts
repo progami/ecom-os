@@ -210,13 +210,13 @@ function computeWeeksUntil(date: Date | null): number | null {
 function plannedPaymentDate(
   index: 1 | 2 | 3,
   baseDates: { productionStart: Date | null; productionComplete: Date | null; inboundEta: Date | null },
-  stageProfile: LeadTimeProfile,
-  params: BusinessParameterMap
+  stageProfile: LeadTimeProfile
 ): Date | null {
+  // Payment 1: at PO/production start date (50%)
+  // Payment 2: at production end date (30%)
+  // Payment 3: at arrival/inbound ETA (20%)
   if (index === 1) {
-    if (!baseDates.productionStart) return null
-    const daysOffset = Math.round(params.supplierPaymentTermsWeeks * 7)
-    return addDays(baseDates.productionStart, daysOffset)
+    return baseDates.productionStart
   }
   if (index === 2) {
     if (baseDates.productionComplete) return baseDates.productionComplete

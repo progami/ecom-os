@@ -40,7 +40,7 @@ export function WorkbookSidebar({ items, activeSlug, completionRatio }: Workbook
           return (
             <Link
               key={item.slug}
-              href={`/sheet/${item.slug}`}
+              href={`/${item.slug}`}
               className={clsx(
                 'group rounded-xl border border-transparent p-4 transition hover:border-slate-200 hover:bg-white hover:shadow-sm dark:hover:border-slate-700 dark:hover:bg-slate-900',
                 isActive && 'border-slate-200 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900',
