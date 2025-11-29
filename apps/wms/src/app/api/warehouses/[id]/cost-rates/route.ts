@@ -11,22 +11,16 @@ const normalizeCostCategory = (value: string): CostCategory => {
   const normalized = (value || '').toLowerCase()
 
   switch (normalized) {
-    case 'container':
-      return CostCategory.Container
-    case 'carton':
-      return CostCategory.Carton
+    case 'inbound':
+      return CostCategory.Inbound
     case 'storage':
       return CostCategory.Storage
-    case 'pallet':
-      return CostCategory.Pallet
-    case 'transportation':
-      return CostCategory.transportation
-    case 'unit':
-      return CostCategory.Unit
-    case 'accessorial':
-      return CostCategory.Accessorial
+    case 'outbound':
+      return CostCategory.Outbound
+    case 'forwarding':
+      return CostCategory.Forwarding
     default:
-      return CostCategory.Unit
+      return CostCategory.Inbound
   }
 }
 
@@ -64,15 +58,9 @@ export async function GET(
 
  // Transform to match frontend expectations
  const transformedRates = costRates.map(rate => {
- // Keep transportation as is, lowercase others
- let category: string = rate.costCategory
- if (category !== 'transportation') {
- category = category.toLowerCase()
- }
- 
   return {
  id: rate.id,
- costCategory: category,
+ costCategory: rate.costCategory,
  costName: rate.costName,
  defaultRate: Number(rate.costValue),
  costValue: Number(rate.costValue),
