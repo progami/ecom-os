@@ -97,16 +97,6 @@ async function seedCostRates() {
       isActive: true,
       createdById: admin.id,
     },
-    {
-      warehouseId: warehouse.id,
-      costCategory: CostCategory.Accessorial,
-      costName: 'Accessorial Handling',
-      costValue: new Prisma.Decimal(8),
-      unitOfMeasure: 'PALLET',
-      effectiveDate,
-      isActive: true,
-      createdById: admin.id,
-    },
   ])
 
   if (rates.length > 0) {
