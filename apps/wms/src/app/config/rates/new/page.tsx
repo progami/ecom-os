@@ -31,23 +31,17 @@ export default function NewRatePage() {
 }
 
 const costCategories = [
- { value: 'Storage', label: 'Storage', description: 'Storage charges (pallet/week)' },
- { value: 'Container', label: 'Container - Handling Charges', description: 'Per container handling charges' },
- { value: 'Carton', label: 'Carton', description: 'Per carton handling' },
- { value: 'Pallet', label: 'Pallet', description: 'Pallet movement charges' },
- { value: 'Unit', label: 'Unit', description: 'Individual unit handling' },
- { value: 'transportation', label: 'Transportation', description: 'Freight or shipment fees' },
- { value: 'Accessorial', label: 'Accessorial', description: 'Additional services' }
+ { value: 'Inbound', label: 'Inbound', description: 'Receiving and handling costs' },
+ { value: 'Storage', label: 'Storage', description: 'Storage charges (pallet/day)' },
+ { value: 'Outbound', label: 'Outbound', description: 'Shipping and fulfillment costs' },
+ { value: 'Forwarding', label: 'Forwarding', description: 'Freight and drayage costs' },
 ]
 
 const unitsByCategory: { [key: string]: string[] } = {
- Storage: ['pallet/week'],
- Container: ['20ft', '40ft', 'lcl'],
- Carton: ['carton', 'case'],
- Pallet: ['pallet', 'pallet/in', 'pallet/out'],
- Unit: ['unit', 'piece', 'item'],
- transportation: ['shipment', 'order', 'delivery'],
- Accessorial: ['hour', 'service', 'fee', 'charge']
+ Inbound: ['per_container', 'per_carton', 'per_sku', 'flat'],
+ Storage: ['per_pallet_day'],
+ Outbound: ['per_carton', 'per_shipment', 'per_delivery', 'per_hour', 'flat'],
+ Forwarding: ['flat', 'per_container'],
 }
 
 function NewRatePageContent() {
@@ -58,11 +52,11 @@ function NewRatePageContent() {
  const [warehouses, setWarehouses] = useState<Warehouse[]>([])
  const [checkingOverlap, setCheckingOverlap] = useState(false)
  
- const [formData, setFormData] = useState({
-   warehouseId: '',
-   costName: '',
-   costCategory: '',
-   costValue: '',
+  const [formData, setFormData] = useState({
+    warehouseId: '',
+    costName: '',
+    costCategory: '',
+    costValue: '',
    unitOfMeasure: '',
    effectiveDate: new Date().toISOString().split('T')[0],
  endDate: ''
@@ -87,6 +81,38 @@ function NewRatePageContent() {
  return { ...current, warehouseId }
  })
  }, [searchParams, warehouses])
+
+ useEffect(() => {
+ const presetCategory = searchParams.get('costCategory')
+ const presetName = searchParams.get('costName')
+ const presetUnit = searchParams.get('unitOfMeasure')
+ const presetValue = searchParams.get('costValue')
+
+ if (!presetCategory && !presetName && !presetUnit && !presetValue) return
+
+ setFormData(current => {
+   const next = { ...current }
+   if (presetCategory && !current.costCategory) {
+     next.costCategory = presetCategory
+   }
+   if (presetName && !current.costName) {
+     next.costName = presetName
+   }
+   if (presetUnit && !current.unitOfMeasure) {
+     next.unitOfMeasure = presetUnit
+   }
+   if (presetValue && !current.costValue) {
+     next.costValue = presetValue
+   }
+   return next
+ })
+ }, [searchParams])
+
+const presetCategory = searchParams.get('costCategory')
+const presetName = searchParams.get('costName')
+const presetUnit = searchParams.get('unitOfMeasure')
+const presetWarehouseId = searchParams.get('warehouseId')
+const missingPreset = !(presetCategory && presetName && presetUnit && (presetWarehouseId || formData.warehouseId))
 
  const fetchWarehouses = async () => {
  try {
@@ -214,12 +240,13 @@ function NewRatePageContent() {
  <label className="block text-sm font-medium text-slate-700 mb-2">
  Warehouse <span className="text-red-500">*</span>
  </label>
- <select
- value={formData.warehouseId}
- onChange={(e) => setFormData({ ...formData, warehouseId: e.target.value })}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
- required
- >
+  <select
+   value={formData.warehouseId}
+   onChange={(e) => setFormData({ ...formData, warehouseId: e.target.value })}
+   className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-slate-50"
+   required
+   disabled={Boolean(presetWarehouseId)}
+  >
  <option value="">Select warehouse</option>
  {warehouses.map(warehouse => (
  <option key={warehouse.id} value={warehouse.id}>
@@ -234,15 +261,16 @@ function NewRatePageContent() {
  <label className="block text-sm font-medium text-slate-700 mb-2">
  Rate Name <span className="text-red-500">*</span>
  </label>
- <input
- value={formData.costName}
- onChange={(e) => setFormData({ ...formData, costName: e.target.value })}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
- placeholder="e.g., Storage - Standard pallets"
- required
- />
+  <input
+   value={formData.costName}
+   onChange={(e) => setFormData({ ...formData, costName: e.target.value })}
+   className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-slate-50"
+   placeholder="e.g., Storage - Standard pallets"
+   required
+   readOnly
+  />
  <p className="text-xs text-slate-500 mt-1">
- This label appears anywhere the rate is referenced.
+ Rate name is fixed for this tariff item.
  </p>
  </div>
 
@@ -251,12 +279,13 @@ function NewRatePageContent() {
  <label className="block text-sm font-medium text-slate-700 mb-2">
  Cost Category <span className="text-red-500">*</span>
  </label>
- <select
- value={formData.costCategory}
- onChange={(e) => handleCategoryChange(e.target.value)}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
- required
- >
+  <select
+   value={formData.costCategory}
+   onChange={(e) => handleCategoryChange(e.target.value)}
+   className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-slate-50"
+   required
+   disabled
+  >
  <option value="">Select category</option>
  {costCategories.map(cat => (
  <option key={cat.value} value={cat.value} title={cat.description}>
@@ -264,14 +293,6 @@ function NewRatePageContent() {
  </option>
  ))}
  </select>
- {formData.costCategory && (
- <p className="text-xs text-slate-500 mt-1">
- {costCategories.find(cat => cat.value === formData.costCategory)?.description}
- </p>
- )}
- <p className="text-xs text-slate-500 mt-1">
- Each cost category can only have one active rate per warehouse.
- </p>
  </div>
 
  {/* Unit of Measure */}
@@ -279,19 +300,27 @@ function NewRatePageContent() {
  <label className="block text-sm font-medium text-slate-700 mb-2">
  Unit of Measure <span className="text-red-500">*</span>
  </label>
- <select
- value={formData.unitOfMeasure}
- onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
- className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
- required
- >
- <option value="">Select unit</option>
- {formData.costCategory && unitsByCategory[formData.costCategory]?.map(unit => (
- <option key={unit} value={unit}>
- {unit}
- </option>
- ))}
- </select>
+ {(() => {
+   const baseUnits = formData.costCategory ? unitsByCategory[formData.costCategory] ?? [] : []
+   const currentUnit = formData.unitOfMeasure ? [formData.unitOfMeasure] : []
+   const unitOptions = Array.from(new Set([...baseUnits, ...currentUnit].filter(Boolean)))
+   return (
+     <select
+      value={formData.unitOfMeasure}
+      onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
+      className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-slate-50"
+      required
+       disabled
+    >
+       <option value="">Select unit</option>
+       {unitOptions.map(unit => (
+         <option key={unit} value={unit}>
+           {unit}
+         </option>
+       ))}
+     </select>
+   )
+ })()}
  </div>
 
  {/* Cost Value */}
@@ -363,11 +392,11 @@ function NewRatePageContent() {
  </button>
  <button
  type="submit"
- disabled={loading || checkingOverlap}
+ disabled={loading || checkingOverlap || missingPreset}
  className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 disabled:opacity-50"
  >
  <Save className="h-4 w-4 mr-2 inline" />
- {loading ? 'Creating...' : checkingOverlap ? 'Checking...' : 'Create Rate'}
+ {loading ? 'Saving...' : checkingOverlap ? 'Checking...' : 'Save Rate'}
  </button>
  </div>
  </form>
