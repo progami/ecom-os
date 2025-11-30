@@ -222,6 +222,62 @@ describe('computeSalesPlan', () => {
     expect(arrivalRow?.arrivalOrders[0]?.orderCode).toBe(purchaseOrderInput.orderCode)
   })
 
+  it('allocates inbound quantities to the correct batch products', () => {
+    const productTwo: ProductInput = {
+      id: 'prod-2',
+      name: 'Gadget',
+      sku: 'G-1',
+      sellingPrice: 12,
+      manufacturingCost: 4,
+      freightCost: 1,
+      tariffRate: 0.05,
+      tacosPercent: 0.1,
+      fbaFee: 2,
+      amazonReferralRate: 0.15,
+      storagePerMonth: 0.5,
+    }
+    const productIndexMulti = buildProductCostIndex([product, productTwo])
+    const multiProductOrder: PurchaseOrderInput = {
+      id: 'po-multi',
+      orderCode: 'PO-MULTI',
+      productId: product.id,
+      quantity: 300,
+      productionWeeks: leadProfile.productionWeeks,
+      sourceWeeks: leadProfile.sourceWeeks,
+      oceanWeeks: leadProfile.oceanWeeks,
+      finalWeeks: leadProfile.finalWeeks,
+      productionStart,
+      availableDate: arrivalDate,
+      inboundEta: arrivalDate,
+      status: 'PLANNED',
+      payments: [],
+      batchTableRows: [
+        { id: 'b1', purchaseOrderId: 'po-multi', productId: product.id, quantity: 120, batchCode: 'B1' },
+        { id: 'b2', purchaseOrderId: 'po-multi', productId: productTwo.id, quantity: 180, batchCode: 'B2' },
+      ],
+    }
+
+    const derivedMulti = computePurchaseOrderDerived(multiProductOrder, productIndexMulti, leadProfile, parameters)
+    const multiSalesWeeks: SalesWeekInput[] = [
+      { id: 'mw1a', productId: product.id, weekNumber: 1, weekDate: new Date('2024-01-01T00:00:00.000Z'), stockStart: 0 },
+      { id: 'mw1b', productId: productTwo.id, weekNumber: 1, weekDate: new Date('2024-01-01T00:00:00.000Z'), stockStart: 0 },
+      { id: 'mw3a', productId: product.id, weekNumber: 3, weekDate: new Date('2024-01-15T00:00:00.000Z'), forecastSales: 0 },
+      { id: 'mw3b', productId: productTwo.id, weekNumber: 3, weekDate: new Date('2024-01-15T00:00:00.000Z'), forecastSales: 0 },
+    ]
+
+    const multiPlan = computeSalesPlan(multiSalesWeeks, [derivedMulti], { productIds: [product.id, productTwo.id] })
+    const widgetArrival = multiPlan.find((row) => row.productId === product.id && row.weekNumber === 3)
+    const gadgetArrival = multiPlan.find((row) => row.productId === productTwo.id && row.weekNumber === 3)
+
+    expect(widgetArrival?.arrivals).toBe(120)
+    expect(widgetArrival?.arrivalOrders[0]?.productId).toBe(product.id)
+    expect(widgetArrival?.arrivalOrders[0]?.quantity).toBe(120)
+
+    expect(gadgetArrival?.arrivals).toBe(180)
+    expect(gadgetArrival?.arrivalOrders[0]?.productId).toBe(productTwo.id)
+    expect(gadgetArrival?.arrivalOrders[0]?.quantity).toBe(180)
+  })
+
   it('counts future weeks until depletion using projected sales', () => {
     const coverageInput: SalesWeekInput[] = [
       { id: 'c1', productId: product.id, weekNumber: 10, stockStart: 100, forecastSales: 20 },

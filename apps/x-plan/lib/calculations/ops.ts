@@ -24,11 +24,27 @@ export interface PaymentPlanItem {
   actualDate?: Date | null
 }
 
+export interface PurchaseOrderBatchDerived {
+  batchCode?: string | null
+  productId: string
+  quantity: number
+  sellingPrice: number
+  manufacturingCost: number
+  freightCost: number
+  tariffRate: number
+  tacosPercent: number
+  fbaFee: number
+  amazonReferralRate: number
+  storagePerMonth: number
+  landedUnitCost: number
+}
+
 export interface PurchaseOrderDerived {
   id: string
   orderCode: string
   productId: string
   quantity: number
+  batches: PurchaseOrderBatchDerived[]
   status: PurchaseOrderStatus
   statusIcon?: string | null
   notes?: string | null
@@ -254,6 +270,8 @@ export function computePurchaseOrderDerived(
         },
       ]
 
+  const derivedBatches: PurchaseOrderBatchDerived[] = []
+
   const batchCount = batches.length || 1
   const totalBatchQuantity = batches.reduce((sum, batch) => {
     return sum + Math.max(0, coerceNumber(batch.quantity))
@@ -325,6 +343,21 @@ export function computePurchaseOrderDerived(
 
     const advertisingCost = sellingPrice * tacosPercent
     const landedUnitCost = (batchManufacturingTotal + batchFreightTotal + batchTariffTotal) / Math.max(quantity, 1)
+
+    derivedBatches.push({
+      batchCode: batch.batchCode,
+      productId: batch.productId,
+      quantity,
+      sellingPrice,
+      manufacturingCost: batchManufacturingTotal / Math.max(quantity, 1),
+      freightCost: batchFreightTotal / Math.max(quantity, 1),
+      tariffRate: batchTariffTotal / Math.max(quantity, 1),
+      tacosPercent,
+      fbaFee,
+      amazonReferralRate: referralRate,
+      storagePerMonth,
+      landedUnitCost,
+    })
 
     totalQuantity += quantity
     totalSellingPrice += sellingPrice * quantity
@@ -528,6 +561,7 @@ export function computePurchaseOrderDerived(
     orderCode: order.orderCode,
     productId: order.productId,
     quantity,
+    batches: derivedBatches,
     status: order.status,
     statusIcon: order.statusIcon ?? STATUS_ICON_MAP[order.status],
     notes: order.notes ?? null,
