@@ -1279,10 +1279,20 @@ function formatInboundSummary(summary: InboundSummary): string {
   const lines: string[] = []
   summary.forEach((entry) => {
     const ship = entry.shipName && entry.shipName.trim().length ? entry.shipName : '—'
+    const totalQuantity = Array.from(entry.items.values()).reduce((sum, qty) => {
+      return Number.isFinite(qty) ? sum + qty : sum
+    }, 0)
     const skuParts = Array.from(entry.items.entries())
       .filter(([, qty]) => Number.isFinite(qty) && qty > 0)
       .map(([name, qty]) => `(${name}, ${formatNumeric(qty, 0)})`)
-    lines.push(skuParts.length ? `${ship} - ${skuParts.join(', ')}` : ship)
+    const totalLabel = Number.isFinite(totalQuantity) && totalQuantity > 0
+      ? `${ship} - ${formatNumeric(totalQuantity, 0)}`
+      : ship
+    if (skuParts.length) {
+      lines.push(`${totalLabel}\nNotes: ${skuParts.join(', ')}`)
+    } else {
+      lines.push(totalLabel)
+    }
   })
   return lines.join('\n')
 }
