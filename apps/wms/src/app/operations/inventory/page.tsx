@@ -12,6 +12,7 @@ import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
 import { toast } from 'react-hot-toast'
 import { format } from 'date-fns'
 import { redirectToPortal } from '@/lib/portal'
+import { usePageState } from '@/lib/store'
 
 interface InventoryBalance {
  id: string
@@ -150,6 +151,8 @@ const createColumnFilterDefaults = (): ColumnFiltersState => ({
 
 type ColumnFilterKey = keyof ColumnFiltersState
 
+const PAGE_KEY = '/operations/inventory'
+
 const balanceDateToTime = (value: string | null) => {
  if (!value) {
  return 0
@@ -166,6 +169,37 @@ function InventoryPage() {
  const [summary, setSummary] = useState<InventorySummary | null>(null)
  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(() => createColumnFilterDefaults())
  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: 'asc' | 'desc' } | null>(null)
+
+ // Use persisted page state for filters and sort
+ const pageState = usePageState(PAGE_KEY)
+ const [hydrated, setHydrated] = useState(false)
+
+ // Restore persisted state after hydration
+ useEffect(() => {
+   setHydrated(true)
+   const persistedFilters = pageState.custom?.columnFilters as ColumnFiltersState | undefined
+   const persistedSort = pageState.sort
+   if (persistedFilters) {
+     setColumnFilters(prev => ({ ...prev, ...persistedFilters }))
+   }
+   if (persistedSort) {
+     setSortConfig({ key: persistedSort.field as SortKey, direction: persistedSort.direction })
+   }
+ }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+ // Persist column filters when they change
+ useEffect(() => {
+   if (hydrated) {
+     pageState.setCustom('columnFilters', columnFilters)
+   }
+ }, [columnFilters, hydrated]) // eslint-disable-line react-hooks/exhaustive-deps
+
+ // Persist sort config when it changes
+ useEffect(() => {
+   if (hydrated && sortConfig) {
+     pageState.setSort(sortConfig.key, sortConfig.direction)
+   }
+ }, [sortConfig, hydrated]) // eslint-disable-line react-hooks/exhaustive-deps
 
  useEffect(() => {
  if (status === 'loading') return

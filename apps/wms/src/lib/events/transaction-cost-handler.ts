@@ -1,6 +1,6 @@
 // Transaction cost handler - automatically creates cost ledger entries when transactions include costs
 import { prisma } from '@/lib/prisma'
-import { TransactionType, PurchaseOrderStatus } from '@ecom-os/prisma-wms'
+import { TransactionType, PurchaseOrderStatus, CostCategory } from '@ecom-os/prisma-wms'
 import { getValidCostCategories } from '@/lib/cost-validation'
 
 interface TransactionWithCosts {
@@ -95,95 +95,97 @@ export async function handleTransactionCosts(transaction: TransactionWithCosts) 
       }
     }
 
- // Get valid cost categories for this warehouse
- const validCategories = await getValidCostCategories(transaction.warehouseCode)
- if (validCategories.length === 0) {
- // console.warn(`No cost rates defined for warehouse ${transaction.warehouseCode}`)
- }
+    // Get valid cost categories for this warehouse
+    const validCategories = await getValidCostCategories(transaction.warehouseCode)
+    if (validCategories.length === 0) {
+      // console.warn(`No cost rates defined for warehouse ${transaction.warehouseCode}`)
+    }
 
- const warehouseName = await resolveWarehouseName(transaction)
- const quantity = resolveLedgerQuantity(transaction)
- const safeQuantity = quantity > 0 ? quantity : 1
- const costEntries = []
- 
- // Create handling cost entry if provided
- if (transaction.costs.handling && transaction.costs.handling > 0) {
- // Check if Carton category is valid for this warehouse
- if (!validCategories.includes('Carton')) {
- // console.warn(`Carton costs not configured for warehouse ${transaction.warehouseCode}`)
- } else {
- // Try to get the actual rate
- costEntries.push({
- transactionId: transaction.transactionId,
- costCategory: 'Carton' as const,
- costName: 'Carton Handling',
- quantity: safeQuantity,
- unitRate: transaction.costs.handling / safeQuantity,
- totalCost: transaction.costs.handling,
- warehouseCode: transaction.warehouseCode,
- warehouseName,
- createdByName: transaction.createdByName || 'System',
- createdAt: transaction.transactionDate
- })
- }
- }
- 
- // Create storage cost entry if provided
- if (transaction.costs.storage && transaction.costs.storage > 0) {
- // Check if Storage category is valid for this warehouse
- if (!validCategories.includes('Storage')) {
- // console.warn(`Storage costs not configured for warehouse ${transaction.warehouseCode}`)
- } else {
- costEntries.push({
- transactionId: transaction.transactionId,
- costCategory: 'Storage' as const,
- costName: 'Storage Cost',
- quantity: safeQuantity,
- unitRate: transaction.costs.storage / safeQuantity,
- totalCost: transaction.costs.storage,
- warehouseCode: transaction.warehouseCode,
- warehouseName,
- createdByName: transaction.createdByName || 'System',
- createdAt: transaction.transactionDate
- })
- }
- }
- 
- // Create custom cost entries if provided
- if (transaction.costs.custom && Array.isArray(transaction.costs.custom)) {
- for (const customCost of transaction.costs.custom) {
- if (customCost.amount && customCost.amount > 0) {
- // Custom costs should only be created if a matching cost rate exists
- // OR if Accessorial category is configured
- if (validCategories.includes('Accessorial')) {
- costEntries.push({
- transactionId: transaction.transactionId,
- costCategory: 'Accessorial' as const,
- costName: customCost.name || 'Accessorial Cost',
- quantity: safeQuantity,
- unitRate: customCost.amount / safeQuantity,
- totalCost: customCost.amount,
- warehouseCode: transaction.warehouseCode,
- warehouseName,
- createdByName: transaction.createdByName || 'System',
- createdAt: transaction.transactionDate
- })
- } else {
- // console.warn(`Cannot add custom cost "${customCost.name}" - Accessorial category not configured for warehouse ${transaction.warehouseCode}`)
- }
- }
- }
- }
- 
- // Create all cost ledger entries
- // Note: We use individual creates instead of createMany to ensure createdAt is set correctly
- if (costEntries.length > 0) {
- for (const entry of costEntries) {
- await prisma.costLedger.create({
- data: entry
- })
- }
- }
+    const warehouseName = await resolveWarehouseName(transaction)
+    const quantity = resolveLedgerQuantity(transaction)
+    const safeQuantity = quantity > 0 ? quantity : 1
+    const costEntries = []
+    
+    // Determine category based on transaction type
+    const isInbound = transaction.transactionType === 'RECEIVE'
+    const costCategory = isInbound ? CostCategory.Inbound : CostCategory.Outbound
+
+    // Create handling cost entry if provided
+    if (transaction.costs.handling && transaction.costs.handling > 0) {
+      // Check if category is valid for this warehouse
+      if (!validCategories.includes(costCategory)) {
+        // console.warn(`${costCategory} costs not configured for warehouse ${transaction.warehouseCode}`)
+      } else {
+        costEntries.push({
+          transactionId: transaction.transactionId,
+          costCategory,
+          costName: isInbound ? 'Inbound Handling' : 'Outbound Handling',
+          quantity: safeQuantity,
+          unitRate: transaction.costs.handling / safeQuantity,
+          totalCost: transaction.costs.handling,
+          warehouseCode: transaction.warehouseCode,
+          warehouseName,
+          createdByName: transaction.createdByName || 'System',
+          createdAt: transaction.transactionDate
+        })
+      }
+    }
+    
+    // Create storage cost entry if provided
+    if (transaction.costs.storage && transaction.costs.storage > 0) {
+      // Check if Storage category is valid for this warehouse
+      if (!validCategories.includes(CostCategory.Storage)) {
+        // console.warn(`Storage costs not configured for warehouse ${transaction.warehouseCode}`)
+      } else {
+        costEntries.push({
+          transactionId: transaction.transactionId,
+          costCategory: CostCategory.Storage,
+          costName: 'Storage Cost',
+          quantity: safeQuantity,
+          unitRate: transaction.costs.storage / safeQuantity,
+          totalCost: transaction.costs.storage,
+          warehouseCode: transaction.warehouseCode,
+          warehouseName,
+          createdByName: transaction.createdByName || 'System',
+          createdAt: transaction.transactionDate
+        })
+      }
+    }
+    
+    // Create custom cost entries if provided
+    if (transaction.costs.custom && Array.isArray(transaction.costs.custom)) {
+      for (const customCost of transaction.costs.custom) {
+        if (customCost.amount && customCost.amount > 0) {
+          // Custom costs use the same category as the transaction type (Inbound/Outbound)
+          if (validCategories.includes(costCategory)) {
+            costEntries.push({
+              transactionId: transaction.transactionId,
+              costCategory,
+              costName: customCost.name || 'Additional Cost',
+              quantity: safeQuantity,
+              unitRate: customCost.amount / safeQuantity,
+              totalCost: customCost.amount,
+              warehouseCode: transaction.warehouseCode,
+              warehouseName,
+              createdByName: transaction.createdByName || 'System',
+              createdAt: transaction.transactionDate
+            })
+          } else {
+            // console.warn(`Cannot add custom cost "${customCost.name}" - ${costCategory} category not configured for warehouse ${transaction.warehouseCode}`)
+          }
+        }
+      }
+    }
+    
+    // Create all cost ledger entries
+    // Note: We use individual creates instead of createMany to ensure createdAt is set correctly
+    if (costEntries.length > 0) {
+      for (const entry of costEntries) {
+        await prisma.costLedger.create({
+          data: entry
+        })
+      }
+    }
  
  return Promise.resolve()
  } catch (_error) {
