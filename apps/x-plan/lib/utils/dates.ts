@@ -2,6 +2,7 @@ const DEFAULT_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
   month: 'short',
   day: 'numeric',
   year: 'numeric',
+  timeZone: 'UTC',
 })
 
 export function parseDate(value: string | number | Date | null | undefined): Date | null {
