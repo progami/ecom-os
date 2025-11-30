@@ -66,7 +66,8 @@ type SalesMetric = (typeof SALES_METRICS)[number]
 type SalesRow = {
   weekNumber: string
   weekDate: string
-  [key: string]: string
+  arrivalNote?: string
+  [key: string]: string | undefined
 }
 
 type BatchAllocationMeta = {
@@ -1182,7 +1183,11 @@ function getSalesPlanningView(
         addToInboundSummary(inboundSummary, order.shipName, product.name, order.quantity)
       }
     }
-    row.arrivalDetail = formatInboundSummary(inboundSummary)
+    const inboundFormatted = formatInboundSummary(inboundSummary)
+    row.arrivalDetail = inboundFormatted.display
+    if (inboundFormatted.note) {
+      row.arrivalNote = inboundFormatted.note
+    }
 
     productList.forEach((product, productIdx) => {
       const keyRoot = `${product.id}-${weekNumber}`
@@ -1274,9 +1279,11 @@ function addToInboundSummary(
   summary.set(key, entry)
 }
 
-function formatInboundSummary(summary: InboundSummary): string {
-  if (!summary.size) return ''
-  const lines: string[] = []
+function formatInboundSummary(summary: InboundSummary): { display: string; note: string } {
+  if (!summary.size) return { display: '', note: '' }
+  const displayLines: string[] = []
+  const noteLines: string[] = []
+
   summary.forEach((entry) => {
     const ship = entry.shipName && entry.shipName.trim().length ? entry.shipName : '—'
     const totalQuantity = Array.from(entry.items.values()).reduce((sum, qty) => {
@@ -1284,17 +1291,24 @@ function formatInboundSummary(summary: InboundSummary): string {
     }, 0)
     const skuParts = Array.from(entry.items.entries())
       .filter(([, qty]) => Number.isFinite(qty) && qty > 0)
-      .map(([name, qty]) => `(${name}, ${formatNumeric(qty, 0)})`)
+      .map(([name, qty]) => `${name}: ${formatNumeric(qty, 0)} units`)
+
     const totalLabel = Number.isFinite(totalQuantity) && totalQuantity > 0
       ? `${ship} - ${formatNumeric(totalQuantity, 0)}`
       : ship
+
+    displayLines.push(totalLabel)
     if (skuParts.length) {
-      lines.push(`${totalLabel}\nNotes: ${skuParts.join(', ')}`)
-    } else {
-      lines.push(totalLabel)
+      noteLines.push(`${ship}:`, ...skuParts)
     }
   })
-  return lines.join('\n')
+
+  const note =
+    noteLines.length > 0
+      ? `Inbound Breakdown:\n${noteLines.join('\n')}`
+      : ''
+
+  return { display: displayLines.join('\n'), note }
 }
 
 function getProfitAndLossView(
