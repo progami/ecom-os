@@ -75,34 +75,59 @@ function buildArrivalSchedule(
     if (!arrivalDate) continue
     const weekNumber = weekNumberForDate(arrivalDate, calendar)
     if (weekNumber == null) continue
-    const key = `${order.productId}:${weekNumber}`
-    const entry = schedule.get(key) ?? { quantity: 0, orders: [], batches: [] }
-    entry.quantity += order.quantity
-    entry.orders.push({
-      orderCode: order.orderCode,
-      shipName: order.shipName ?? null,
-      productId: order.productId,
-      quantity: order.quantity,
-    })
+    const arrivalBatches =
+      Array.isArray(order.batches) && order.batches.length > 0
+        ? order.batches
+        : [
+            {
+              batchCode: order.orderCode,
+              productId: order.productId,
+              quantity: order.quantity,
+              sellingPrice: order.sellingPrice,
+              landedUnitCost: order.landedUnitCost,
+              manufacturingCost: order.manufacturingCost,
+              freightCost: order.freightCost,
+              tariffRate: order.tariffRate,
+              tacosPercent: order.tacosPercent,
+              fbaFee: order.fbaFee,
+              amazonReferralRate: order.amazonReferralRate,
+              storagePerMonth: order.storagePerMonth,
+            },
+          ]
 
-    // Add batch with costs
-    entry.batches.push({
-      orderCode: order.orderCode,
-      batchCode: order.orderCode, // Use orderCode as batchCode for now
-      quantity: order.quantity,
-      arrivalWeek: weekNumber,
-      sellingPrice: order.sellingPrice,
-      landedUnitCost: order.landedUnitCost,
-      manufacturingCost: order.manufacturingCost,
-      freightCost: order.freightCost,
-      tariffRate: order.tariffRate,
-      tacosPercent: order.tacosPercent,
-      fbaFee: order.fbaFee,
-      amazonReferralRate: order.amazonReferralRate,
-      storagePerMonth: order.storagePerMonth,
-    })
+    for (const batch of arrivalBatches) {
+      const quantity = Math.max(0, batch.quantity)
+      if (!batch.productId || quantity <= 0) continue
 
-    schedule.set(key, entry)
+      const key = `${batch.productId}:${weekNumber}`
+      const entry = schedule.get(key) ?? { quantity: 0, orders: [], batches: [] }
+      entry.quantity += quantity
+      entry.orders.push({
+        orderCode: order.orderCode,
+        shipName: order.shipName ?? null,
+        productId: batch.productId,
+        quantity,
+      })
+
+      // Add batch with costs
+      entry.batches.push({
+        orderCode: order.orderCode,
+        batchCode: batch.batchCode ?? order.orderCode, // Use orderCode as batchCode for now
+        quantity,
+        arrivalWeek: weekNumber,
+        sellingPrice: batch.sellingPrice ?? order.sellingPrice,
+        landedUnitCost: batch.landedUnitCost ?? order.landedUnitCost,
+        manufacturingCost: batch.manufacturingCost ?? order.manufacturingCost,
+        freightCost: batch.freightCost ?? order.freightCost,
+        tariffRate: batch.tariffRate ?? order.tariffRate,
+        tacosPercent: batch.tacosPercent ?? order.tacosPercent,
+        fbaFee: batch.fbaFee ?? order.fbaFee,
+        amazonReferralRate: batch.amazonReferralRate ?? order.amazonReferralRate,
+        storagePerMonth: batch.storagePerMonth ?? order.storagePerMonth,
+      })
+
+      schedule.set(key, entry)
+    }
   }
 
   return schedule

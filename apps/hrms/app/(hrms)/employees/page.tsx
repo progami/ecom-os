@@ -21,6 +21,14 @@ function PlusIcon({ className }: { className?: string }) {
   )
 }
 
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M6 7.5h12M9.75 7.5V5.25c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V7.5m-7.5 0h-.375C5.51 7.5 5.25 7.76 5.25 8.125v11.25c0 .621.504 1.125 1.125 1.125h11.25c.621 0 1.125-.504 1.125-1.125V8.125c0-.365-.26-.625-.625-.625H9.75zM10.5 11.25v6M13.5 11.25v6" />
+    </svg>
+  )
+}
+
 function SearchIcon({ className }: { className?: string }) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
@@ -75,6 +83,7 @@ export default function EmployeesPage() {
   const [items, setItems] = useState<Employee[]>([])
   const [q, setQ] = useState('')
   const [loading, setLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -96,6 +105,21 @@ export default function EmployeesPage() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     load()
+  }
+
+  const handleDelete = async (id: string, label: string) => {
+    const confirmed = window.confirm(`Delete employee ${label}? This cannot be undone.`)
+    if (!confirmed) return
+    try {
+      setDeletingId(id)
+      await EmployeesApi.delete(id)
+      setItems((prev) => prev.filter((e) => e.id !== id))
+    } catch (err) {
+      console.error('Failed to delete employee', err)
+      alert('Failed to delete employee. Please try again.')
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   return (
@@ -153,6 +177,7 @@ export default function EmployeesPage() {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Position</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Status</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Join Date</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
@@ -209,12 +234,29 @@ export default function EmployeesPage() {
                         {e.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td className="px-4 py-4 text-sm text-slate-500">{e.joinDate}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                  <td className="px-4 py-4 text-sm text-slate-500">{e.joinDate}</td>
+                  <td className="px-4 py-4 text-sm text-slate-500">
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(e.id, `${e.firstName} ${e.lastName}`)}
+                      disabled={deletingId === e.id}
+                      className="inline-flex items-center gap-1 text-red-600 hover:text-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-medium"
+                    >
+                      {deletingId === e.id ? (
+                        'Deleting…'
+                      ) : (
+                        <>
+                          <TrashIcon className="h-3.5 w-3.5" />
+                          Delete
+                        </>
+                      )}
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
         </div>
       </div>
     </>
