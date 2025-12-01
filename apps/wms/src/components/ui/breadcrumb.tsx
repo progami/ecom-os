@@ -16,11 +16,16 @@ export function Breadcrumb() {
 
  // Parse the pathname into segments
  const segments = pathname.split('/').filter(Boolean)
- 
+
  // Create breadcrumb items
  const breadcrumbs = segments.map((segment, index) => {
  const href = '/' + segments.slice(0, index + 1).join('/')
- 
+ const previousSegment = index > 0 ? segments[index - 1] : null
+
+ // Skip warehouse IDs in breadcrumbs (they don't have their own page)
+ // Warehouse IDs appear after 'warehouses' and before 'rates' or 'edit'
+ const isWarehouseId = previousSegment === 'warehouses' && segment.match(/^[a-f0-9-]{36}$/i)
+
  // Handle special cases for better labels
  let label = segment
  switch (segment) {
@@ -57,9 +62,9 @@ export function Breadcrumb() {
  .join(' ')
  }
  }
- 
- return { href, label }
- })
+
+ return { href, label, skip: isWarehouseId }
+ }).filter(item => !item.skip)
 
  // Determine home link based on user role
  const homeLink = session?.user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'
