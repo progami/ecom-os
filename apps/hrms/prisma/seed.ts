@@ -1,10 +1,33 @@
 /* eslint-disable no-console */
 import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { EmploymentType, EmployeeStatus, HRMSPrismaClient } from '@/lib/hrms-prisma-types'
+import { Pool } from 'pg'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const prisma = new PrismaClient() as HRMSPrismaClient
+const connectionString = process.env.DATABASE_URL || 'postgresql://hrms:hrms@localhost:5432/hrms?schema=public'
+const url = new URL(connectionString)
+const schema = url.searchParams.get('schema') || undefined
+const sslMode = (url.searchParams.get('sslmode') || '').toLowerCase()
+const ssl =
+  sslMode === 'disable'
+    ? undefined
+    : {
+        rejectUnauthorized: sslMode !== 'no-verify',
+      }
+
+const pool = new Pool({ connectionString, ssl })
+
+if (schema) {
+  pool.on('connect', (client) => {
+    client.query(`set search_path to "${schema}", public`).catch(console.error)
+  })
+}
+
+const prisma = new PrismaClient({
+  adapter: new PrismaPg(pool, schema ? { schema } : undefined),
+}) as HRMSPrismaClient
 
 type EmployeeInput = {
   employeeId: string
