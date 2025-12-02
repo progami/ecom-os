@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import Link from 'next/link'
 import {
   Package,
   Warehouse as WarehouseIcon,
@@ -14,7 +13,6 @@ import {
   DollarSign,
 } from '@/lib/lucide-icons'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { toast } from 'react-hot-toast'
 
