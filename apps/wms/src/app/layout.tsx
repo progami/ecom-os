@@ -5,6 +5,7 @@ import Providers from '@/components/providers'
 import { Toaster } from 'react-hot-toast'
 import '@/lib/utils/patch-fetch'
 import FetchPatch from '@/components/fetch-patch'
+import ChunkReloader from '@/components/chunk-reloader'
 
 const appBasePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || ''
 
@@ -36,6 +37,7 @@ export default function RootLayout({
  <html lang="en" suppressHydrationWarning>
  <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans`}>
  <FetchPatch />
+ <ChunkReloader />
  <Providers>
  {children}
  <Toaster

@@ -119,6 +119,11 @@ export const EmployeesApi = {
       body: JSON.stringify(payload),
     })
   },
+  delete(id: string) {
+    return request<{ ok: boolean }>(`/api/employees/${id}`, {
+      method: 'DELETE',
+    })
+  },
 }
 
 // Resources
