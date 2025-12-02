@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
 
 export async function GET() {
- redirect('/config/rates')
+ redirect('/config/warehouses')
 }
