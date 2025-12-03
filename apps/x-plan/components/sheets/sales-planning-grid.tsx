@@ -23,7 +23,8 @@ registerAllModules()
 type SalesRow = {
   weekNumber: string
   weekDate: string
-  [key: string]: string
+  arrivalNote?: string
+  [key: string]: string | undefined
 }
 
 type ColumnMeta = Record<string, { productId: string; field: string }>
@@ -526,6 +527,12 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
             if (col < offset) {
               if (hasInbound) {
                 cell.className = cell.className ? `${cell.className} row-inbound-sales` : 'row-inbound-sales'
+              }
+              if (col === 2) {
+                const note = data[row]?.arrivalNote
+                if (note && note.trim().length > 0) {
+                  cell.comment = { value: note }
+                }
               }
               return cell
             }
