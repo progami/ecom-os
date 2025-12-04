@@ -147,6 +147,35 @@ Updated the following packages to latest stable versions:
 | `@aws-sdk/lib-storage` | 3.864.0 | 3.943.0 | API updates |
 | `@aws-sdk/s3-request-presigner` | 3.864.0 | 3.943.0 | API updates |
 
+### December 2025 - Phase 2 Incremental Updates
+Updated additional packages and removed unused dependencies:
+
+| Package | Previous | Updated | Notes |
+|---------|----------|---------|-------|
+| `@hookform/resolvers` | 5.2.1 | 5.2.2 | Patch update |
+| `@supabase/supabase-js` | 2.55.0 | 2.86.0 | New features and fixes |
+| `@tanstack/react-table` | 8.13.2 | 8.21.3 | Multiple updates |
+| `dotenv` | 17.2.1 | 17.2.3 | Security patches |
+| `ioredis` | 5.7.0 | 5.8.2 | Performance improvements |
+| `jspdf-autotable` | 5.0.2 | 5.0.2 | No update needed |
+| `mime-types` | 3.0.1 | 3.0.2 | Patch update |
+| `pg` | 8.16.0 | 8.16.3 | Bug fixes |
+| `react-hook-form` | 7.62.0 | 7.67.0 | New features |
+| `recharts` | 3.1.2 | 3.5.1 | Charts improvements |
+| `tailwind-merge` | 2.2.1 | 3.4.0 | Major update, backward compatible |
+| `winston` | 3.17.0 | 3.18.3 | Logging improvements |
+| `zustand` | 5.0.8 | 5.0.9 | Patch update |
+
+**Removed Dependencies:**
+- `bullmq` ^5.58.0 - Unused, no imports found
+- `@types/axios` ^0.14.4 - Stub type, axios has built-in types
+- `@types/bcryptjs` ^3.0.0 - Stub type, bcryptjs has built-in types
+- `@types/decimal.js` ^7.4.3 - Stub type, decimal.js has built-in types
+- `@types/dompurify` ^3.2.0 - Stub type, dompurify has built-in types
+- `@types/jspdf` ^2.0.0 - Stub type, jspdf has built-in types
+- `@types/xlsx` ^0.0.36 - Stub type, xlsx has built-in types
+- `@types/testing-library__jest-dom` ^6.0.0 - Stub type, has built-in types
+
 ### Pending Major Updates (Future Consideration)
 - **Prisma 7.x** - Rust-free client, faster performance (Breaking changes)
 - **Tailwind CSS 4.x** - 5x faster builds, modern CSS features (Breaking changes)
