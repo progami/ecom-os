@@ -848,7 +848,8 @@ export default function AdminDashboardPage() {
  cx="50%"
  cy="50%"
  labelLine={false}
- label={(entry: { name: string; percentage: number }) => `${entry.name}: ${entry.percentage}%`}
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ label={(entry: any) => `${entry.name}: ${entry.percentage}%`}
  outerRadius={120}
  fill="#8884d8"
  dataKey="value"
@@ -931,7 +932,8 @@ export default function AdminDashboardPage() {
  <ZAxis type="number" dataKey="turnover" range={[64, 400]} />
  <Tooltip 
  cursor={{ strokeDasharray: '3 3' }}
- content={({ active, payload }: { active?: boolean; payload?: Array<{ payload: { category: string; quantity: number; value: number; turnover: number } }> }) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ content={({ active, payload }: any) => {
  if (active && payload && payload.length) {
  const data = payload[0].payload
  return (
