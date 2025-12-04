@@ -150,15 +150,35 @@ export function CustomOpsCostGrid({
   products,
   onSync,
 }: CustomOpsCostGridProps) {
+  const [localRows, setLocalRows] = useState<OpsBatchRow[]>(rows)
   const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof OpsBatchRow } | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null)
+
+  // Keep a local copy to avoid UI flicker when parent props refresh after saving.
+  useEffect(() => {
+    setLocalRows((previous) => {
+      if (previous.length === 0) return rows
+      const byId = new Map(previous.map((row) => [row.id, row]))
+      let changed = false
+      for (const row of rows) {
+        const existing = byId.get(row.id)
+        const serializedExisting = existing ? JSON.stringify(existing) : null
+        const serializedIncoming = JSON.stringify(row)
+        if (serializedExisting !== serializedIncoming) {
+          byId.set(row.id, row)
+          changed = true
+        }
+      }
+      return changed ? rows.map((row) => byId.get(row.id) ?? row) : previous
+    })
+  }, [rows])
 
   const handleFlush = useCallback(
     async (payload: Array<{ id: string; values: Record<string, string | null> }>) => {
       if (payload.length === 0) return
       // Filter out items that no longer exist in the current rows
-      const existingIds = new Set(rows.map((r) => r.id))
+      const existingIds = new Set(localRows.map((r) => r.id))
       const validPayload = payload.filter((item) => existingIds.has(item.id))
       if (validPayload.length === 0) return
       try {
@@ -175,7 +195,7 @@ export function CustomOpsCostGrid({
         toast.error('Unable to save batch costs', { id: 'batch-cost-error' })
       }
     },
-    [onSync, rows]
+    [localRows, onSync]
   )
 
   const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<
@@ -220,7 +240,7 @@ export function CustomOpsCostGrid({
     if (!editingCell) return
 
     const { rowId, colKey } = editingCell
-    const row = rows.find((r) => r.id === rowId)
+    const row = localRows.find((r) => r.id === rowId)
     if (!row) {
       cancelEditing()
       return
@@ -298,12 +318,13 @@ export function CustomOpsCostGrid({
     }
 
     // Update rows
-    const updatedRows = rows.map((r) => (r.id === rowId ? updatedRow : r))
+    const updatedRows = localRows.map((r) => (r.id === rowId ? updatedRow : r))
+    setLocalRows(updatedRows)
     onRowsChange?.(updatedRows)
 
     scheduleFlush()
     cancelEditing()
-  }, [editingCell, editValue, rows, products, pendingRef, scheduleFlush, onRowsChange])
+  }, [editingCell, editValue, localRows, products, pendingRef, scheduleFlush, onRowsChange])
 
   const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
     let idx = startIndex + direction
@@ -315,11 +336,11 @@ export function CustomOpsCostGrid({
   }
 
   const moveToCell = (rowIndex: number, colIndex: number) => {
-    if (rowIndex < 0 || rowIndex >= rows.length) return
+    if (rowIndex < 0 || rowIndex >= localRows.length) return
     if (colIndex < 0 || colIndex >= COLUMNS.length) return
     const column = COLUMNS[colIndex]
     if (!column.editable) return
-    const row = rows[rowIndex]
+    const row = localRows[rowIndex]
     startEditing(row.id, column.key, row[column.key] ?? '')
   }
 
@@ -329,9 +350,9 @@ export function CustomOpsCostGrid({
       commitEdit()
       // Move to next row, same column
       if (editingCell) {
-        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+        const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
         const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
-        if (currentRowIndex < rows.length - 1) {
+        if (currentRowIndex < localRows.length - 1) {
           moveToCell(currentRowIndex + 1, currentColIndex)
         }
       }
@@ -344,12 +365,12 @@ export function CustomOpsCostGrid({
       // Move to next/prev editable cell
       if (editingCell) {
         const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
-        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+        const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
         const nextColIndex = findNextEditableColumn(currentColIndex, e.shiftKey ? -1 : 1)
 
         if (nextColIndex !== -1) {
           moveToCell(currentRowIndex, nextColIndex)
-        } else if (!e.shiftKey && currentRowIndex < rows.length - 1) {
+        } else if (!e.shiftKey && currentRowIndex < localRows.length - 1) {
           // Move to first editable column of next row
           const firstEditableColIndex = findNextEditableColumn(-1, 1)
           if (firstEditableColIndex !== -1) {
@@ -367,7 +388,7 @@ export function CustomOpsCostGrid({
       e.preventDefault()
       commitEdit()
       if (editingCell) {
-        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+        const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
         const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
         moveToCell(currentRowIndex - 1, currentColIndex)
       }
@@ -375,7 +396,7 @@ export function CustomOpsCostGrid({
       e.preventDefault()
       commitEdit()
       if (editingCell) {
-        const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+        const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
         const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
         moveToCell(currentRowIndex + 1, currentColIndex)
       }
@@ -386,7 +407,7 @@ export function CustomOpsCostGrid({
         e.preventDefault()
         commitEdit()
         if (editingCell) {
-          const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+          const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
           const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
           const prevColIndex = findNextEditableColumn(currentColIndex, -1)
           if (prevColIndex !== -1) {
@@ -408,12 +429,12 @@ export function CustomOpsCostGrid({
         e.preventDefault()
         commitEdit()
         if (editingCell) {
-          const currentRowIndex = rows.findIndex((r) => r.id === editingCell.rowId)
+          const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
           const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
           const nextColIndex = findNextEditableColumn(currentColIndex, 1)
           if (nextColIndex !== -1) {
             moveToCell(currentRowIndex, nextColIndex)
-          } else if (currentRowIndex < rows.length - 1) {
+          } else if (currentRowIndex < localRows.length - 1) {
             // Move to first editable column of next row
             const firstEditableColIndex = findNextEditableColumn(-1, 1)
             if (firstEditableColIndex !== -1) {
