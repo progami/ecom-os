@@ -1450,7 +1450,8 @@ useEffect(() => {
           } catch (error) {
             // ignore JSON parse errors
           }
-          throw new Error(message)
+          toast.error(message)
+          return
         }
 
         const result = await response.json().catch(() => null)
@@ -1464,7 +1465,7 @@ useEffect(() => {
         router.refresh()
       } catch (error) {
         console.error(error)
-        toast.error('Unable to create purchase order')
+        toast.error(error instanceof Error ? error.message : 'Unable to create purchase order')
       }
     })
   }, [newOrderCode, productOptions, router, startTransition])
