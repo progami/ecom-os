@@ -944,6 +944,7 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
 
   const weekMatchesSegment = (date: Date | null | undefined) => {
     if (!planning || !activeSegment) return true
+    if (!date) return true
     const weekNumber = weekNumberForDate(date ?? null, planning.calendar)
     if (weekNumber == null) return false
     return weekNumber >= activeSegment.startWeekNumber && weekNumber <= activeSegment.endWeekNumber
