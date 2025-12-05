@@ -942,22 +942,7 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
 
   const derivedOrders = deriveOrders(context)
 
-  const weekMatchesSegment = (date: Date | null | undefined) => {
-    if (!planning || !activeSegment) return true
-    if (!date) return true
-    const weekNumber = weekNumberForDate(date ?? null, planning.calendar)
-    if (weekNumber == null) return false
-    return weekNumber >= activeSegment.startWeekNumber && weekNumber <= activeSegment.endWeekNumber
-  }
-
-  const visibleOrders = planning && activeSegment
-    ? derivedOrders.filter(({ derived }) =>
-        weekMatchesSegment(derived.availableDate) ||
-        weekMatchesSegment(derived.inboundEta) ||
-        weekMatchesSegment(derived.productionStart)
-      )
-    : derivedOrders
-
+  const visibleOrders = derivedOrders
   const visibleOrderIds = new Set(visibleOrders.map((item) => item.derived.id))
 
   const inputRows: OpsInputRow[] = visibleOrders.map(({ input, productName }) => ({
