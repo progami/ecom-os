@@ -12,7 +12,7 @@ if (!process.env.NEXT_PUBLIC_PORTAL_AUTH_URL) {
   throw new Error('NEXT_PUBLIC_PORTAL_AUTH_URL must be defined for HRMS auth configuration.')
 }
 applyDevAuthDefaults({
-  appId: 'ecomos',
+  appId: 'hrms',
 });
 
 const sharedSecret = process.env.PORTAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET;
@@ -45,5 +45,5 @@ const baseAuthOptions: NextAuthOptions = {
 
 export const authOptions: NextAuthOptions = withSharedAuth(baseAuthOptions, {
   cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
-  appId: 'ecomos',
+  appId: 'hrms',
 });

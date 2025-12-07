@@ -1,65 +1,122 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
+import {
+  CreateResourceSchema,
+  PaginationSchema,
+  MAX_PAGINATION_LIMIT,
+  ResourceCategoryEnum,
+} from '@/lib/validations'
+import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 
 export async function GET(req: Request) {
+  // Rate limiting
+  const rateLimitError = withRateLimit(req)
+  if (rateLimitError) return rateLimitError
+
   try {
     const { searchParams } = new URL(req.url)
-    const q = (searchParams.get('q') || '').toLowerCase()
-    const take = Number(searchParams.get('take') || 50)
-    const skip = Number(searchParams.get('skip') || 0)
-    const category = searchParams.get('category') || undefined
-    const subs = [...searchParams.getAll('subcategory')]
-    const csv = (searchParams.get('subcategories') || '').split(',').map(s => s.trim()).filter(Boolean)
-    const subcategories = [...subs, ...csv]
 
-    const where: any = {}
+    // Validate pagination params
+    const paginationResult = PaginationSchema.safeParse({
+      take: searchParams.get('take') || undefined,
+      skip: searchParams.get('skip') || undefined,
+      q: searchParams.get('q') || undefined,
+    })
+
+    const take = paginationResult.success ? paginationResult.data.take : 50
+    const skip = paginationResult.success ? paginationResult.data.skip : 0
+    const q = paginationResult.success ? paginationResult.data.q?.toLowerCase() : ''
+
+    // Parse subcategories
+    const subs = [...searchParams.getAll('subcategory')]
+    const csv = (searchParams.get('subcategories') || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    const subcategories = [...subs, ...csv].slice(0, 20) // Limit to 20 subcategories
+
+    const where: Record<string, unknown> = {}
+
     if (q) {
       where.OR = [
         { name: { contains: q, mode: 'insensitive' } },
         { description: { contains: q, mode: 'insensitive' } },
       ]
     }
-    if (category) where.category = String(category).toUpperCase()
-    if (subcategories.length) where.subcategory = { in: subcategories }
+
+    // Validate category enum
+    const categoryParam = searchParams.get('category')
+    if (categoryParam) {
+      const categoryValidation = ResourceCategoryEnum.safeParse(categoryParam.toUpperCase())
+      if (categoryValidation.success) {
+        where.category = categoryValidation.data
+      }
+    }
+
+    if (subcategories.length) {
+      where.subcategory = { in: subcategories }
+    }
 
     const [items, total] = await Promise.all([
-      prisma.resource.findMany({ where, take, skip, orderBy: { createdAt: 'desc' } }),
-      prisma.resource.count({ where })
+      prisma.resource.findMany({
+        where,
+        take: Math.min(take, MAX_PAGINATION_LIMIT),
+        skip,
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.resource.count({ where }),
     ])
+
     return NextResponse.json({ items, total })
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Failed to fetch resources' }, { status: 500 })
+  } catch (e) {
+    return safeErrorResponse(e, 'Failed to fetch resources')
   }
 }
 
 export async function POST(req: Request) {
+  // Rate limiting
+  const rateLimitError = withRateLimit(req)
+  if (rateLimitError) return rateLimitError
+
   try {
     const body = await req.json()
-    if (!body.name || !body.category) return NextResponse.json({ error: 'Missing name or category' }, { status: 400 })
 
-    const category = String(body.category).toUpperCase()
-    const rating = body.rating === undefined || body.rating === null ? null : Number(body.rating)
+    // Validate input
+    const validation = validateBody(CreateResourceSchema, body)
+    if (!validation.success) {
+      return validation.error
+    }
 
-    // Simple de-duplication by website if provided
-    if (body.website) {
-      const existing = await prisma.resource.findFirst({ where: { website: body.website } })
-      if (existing) return NextResponse.json(existing)
+    const data = validation.data
+
+    // Check for duplicate by website if provided
+    if (data.website) {
+      const existing = await prisma.resource.findFirst({
+        where: { website: data.website },
+      })
+      if (existing) {
+        return NextResponse.json(
+          { error: 'A resource with this website already exists', existing },
+          { status: 409 }
+        )
+      }
     }
 
     const item = await prisma.resource.create({
       data: {
-        name: body.name,
-        category: category as any,
-        subcategory: body.subcategory ?? null,
-        email: body.email ?? null,
-        phone: body.phone ?? null,
-        website: body.website ?? null,
-        description: body.description ?? null,
-        rating,
-      }
+        name: data.name,
+        category: data.category,
+        subcategory: data.subcategory ?? null,
+        email: data.email ?? null,
+        phone: data.phone ?? null,
+        website: data.website ?? null,
+        description: data.description ?? null,
+        rating: data.rating ?? null,
+      },
     })
+
     return NextResponse.json(item, { status: 201 })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'Failed to create resource' }, { status: 500 })
+  } catch (e) {
+    return safeErrorResponse(e, 'Failed to create resource')
   }
 }
