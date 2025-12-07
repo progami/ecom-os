@@ -1,14 +1,22 @@
 import { NextResponse } from 'next/server'
 import { isCalendarConfigured, listUpcomingEvents, createEvent } from '@/lib/google-calendar'
+import { CreateCalendarEventSchema } from '@/lib/validations'
+import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Rate limiting
+  const rateLimitError = withRateLimit(req)
+  if (rateLimitError) return rateLimitError
+
   try {
     if (!isCalendarConfigured()) {
       return NextResponse.json({ items: [], note: 'Google Calendar not configured' }, { status: 200 })
     }
+
     const items = await listUpcomingEvents({ maxResults: 25 })
-    // Normalize minimal fields for client
-    const normalized = items.map((e: any) => ({
+
+    // Normalize minimal fields for client - only expose safe fields
+    const normalized = items.map((e: Record<string, unknown>) => ({
       id: e.id,
       summary: e.summary,
       description: e.description,
@@ -17,31 +25,43 @@ export async function GET() {
       end: e.end,
       htmlLink: e.htmlLink,
     }))
+
     return NextResponse.json({ items: normalized })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'Failed to load events' }, { status: 500 })
+  } catch (e) {
+    return safeErrorResponse(e, 'Failed to load events')
   }
 }
 
 export async function POST(req: Request) {
+  // Rate limiting
+  const rateLimitError = withRateLimit(req)
+  if (rateLimitError) return rateLimitError
+
   try {
     if (!isCalendarConfigured()) {
       return NextResponse.json({ error: 'Google Calendar not configured' }, { status: 400 })
     }
+
     const body = await req.json()
-    const required = ['summary', 'start', 'end']
-    for (const k of required) {
-      if (!body[k]) return NextResponse.json({ error: `Missing ${k}` }, { status: 400 })
+
+    // Validate input
+    const validation = validateBody(CreateCalendarEventSchema, body)
+    if (!validation.success) {
+      return validation.error
     }
+
+    const data = validation.data
+
     const event = await createEvent({
-      summary: String(body.summary),
-      description: body.description || undefined,
-      location: body.location || undefined,
-      start: body.start,
-      end: body.end,
+      summary: data.summary,
+      description: data.description,
+      location: data.location,
+      start: data.start,
+      end: data.end,
     })
+
     return NextResponse.json(event, { status: 201 })
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'Failed to create event' }, { status: 500 })
+  } catch (e) {
+    return safeErrorResponse(e, 'Failed to create event')
   }
 }

@@ -10,9 +10,9 @@ export async function middleware(request: NextRequest) {
     ? pathname.slice(basePath.length) || '/'
     : pathname
 
-  // Public routes
-  const PUBLIC_PREFIXES = ['/api/', '/api/auth/', '/_next', '/favicon.ico']
-  const PUBLIC_ROUTES = ['/', '/health']
+  // Public routes - only specific endpoints, NOT all /api/ routes
+  const PUBLIC_PREFIXES = ['/_next', '/favicon.ico']
+  const PUBLIC_ROUTES = ['/', '/health', '/api/health']
   const isPublic =
     PUBLIC_ROUTES.includes(normalizedPath) ||
     PUBLIC_PREFIXES.some((p) => normalizedPath.startsWith(p))
@@ -27,6 +27,14 @@ export async function middleware(request: NextRequest) {
     })
 
     if (!hasSession) {
+      // For API routes, return 401 instead of redirect
+      if (normalizedPath.startsWith('/api/')) {
+        return NextResponse.json(
+          { error: 'Authentication required' },
+          { status: 401 }
+        )
+      }
+
       const login = portalUrl('/login', request)
       if (debug) {
         console.log('[hrms middleware] missing session, redirecting to', login.toString())

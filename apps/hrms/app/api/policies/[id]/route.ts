@@ -1,46 +1,96 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
+import { UpdatePolicySchema } from '@/lib/validations'
+import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 
-type PolicyRouteContext = { params: { id: string } }
+type PolicyRouteContext = { params: Promise<{ id: string }> }
 
-function extractParams(context: unknown): PolicyRouteContext['params'] {
-  return (context as PolicyRouteContext).params
-}
+export async function GET(req: Request, context: PolicyRouteContext) {
+  // Rate limiting
+  const rateLimitError = withRateLimit(req)
+  if (rateLimitError) return rateLimitError
 
-export async function GET(_req: Request, context: unknown) {
-  const params = extractParams(context)
-  const p = await prisma.policy.findUnique({ where: { id: params.id } })
-  if (!p) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-  return NextResponse.json(p)
-}
-
-export async function PATCH(req: Request, context: unknown) {
-  const params = extractParams(context)
   try {
-    const body = await req.json()
-    const updates: any = {}
-    if ('title' in body) updates.title = String(body.title)
-    if ('category' in body) updates.category = String(body.category).toUpperCase()
-    if ('summary' in body) updates.summary = body.summary ?? null
-    if ('content' in body) updates.content = body.content ?? null
-    if ('fileUrl' in body) updates.fileUrl = body.fileUrl ?? null
-    if ('version' in body) updates.version = body.version ?? null
-    if ('effectiveDate' in body) updates.effectiveDate = body.effectiveDate ? new Date(body.effectiveDate) : null
-    if ('status' in body) updates.status = String(body.status).toUpperCase()
+    const { id } = await context.params
 
-    const p = await prisma.policy.update({ where: { id: params.id }, data: updates })
+    if (!id || id.length > 100) {
+      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
+    }
+
+    const p = await prisma.policy.findUnique({ where: { id } })
+
+    if (!p) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
     return NextResponse.json(p)
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'Failed to update policy' }, { status: 500 })
+  } catch (e) {
+    return safeErrorResponse(e, 'Failed to fetch policy')
   }
 }
 
-export async function DELETE(_req: Request, context: unknown) {
-  const params = extractParams(context)
+export async function PATCH(req: Request, context: PolicyRouteContext) {
+  // Rate limiting
+  const rateLimitError = withRateLimit(req)
+  if (rateLimitError) return rateLimitError
+
   try {
-    await prisma.policy.delete({ where: { id: params.id } })
+    const { id } = await context.params
+
+    if (!id || id.length > 100) {
+      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
+    }
+
+    const body = await req.json()
+
+    // Validate input with whitelist schema
+    const validation = validateBody(UpdatePolicySchema, body)
+    if (!validation.success) {
+      return validation.error
+    }
+
+    const data = validation.data
+
+    // Build update object with explicit field whitelist
+    const updates: Record<string, unknown> = {}
+
+    if (data.title !== undefined) updates.title = data.title
+    if (data.category !== undefined) updates.category = data.category
+    if (data.summary !== undefined) updates.summary = data.summary
+    if (data.content !== undefined) updates.content = data.content
+    if (data.fileUrl !== undefined) updates.fileUrl = data.fileUrl
+    if (data.version !== undefined) updates.version = data.version
+    if (data.effectiveDate !== undefined) {
+      updates.effectiveDate = data.effectiveDate ? new Date(data.effectiveDate) : null
+    }
+    if (data.status !== undefined) updates.status = data.status
+
+    const p = await prisma.policy.update({
+      where: { id },
+      data: updates,
+    })
+
+    return NextResponse.json(p)
+  } catch (e) {
+    return safeErrorResponse(e, 'Failed to update policy')
+  }
+}
+
+export async function DELETE(req: Request, context: PolicyRouteContext) {
+  // Rate limiting
+  const rateLimitError = withRateLimit(req)
+  if (rateLimitError) return rateLimitError
+
+  try {
+    const { id } = await context.params
+
+    if (!id || id.length > 100) {
+      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
+    }
+
+    await prisma.policy.delete({ where: { id } })
     return NextResponse.json({ ok: true })
-  } catch {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  } catch (e) {
+    return safeErrorResponse(e, 'Failed to delete policy')
   }
 }
