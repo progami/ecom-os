@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
+import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 
-export async function GET() {
+export async function GET(req: Request) {
+  // Rate limiting
+  const rateLimitError = withRateLimit(req)
+  if (rateLimitError) return rateLimitError
+
   // Default fallback data when database is unavailable
   const fallbackStats = [
     { label: 'Total Employees', value: 0, trend: 'neutral' as const, change: '—' },
@@ -9,13 +14,13 @@ export async function GET() {
     { label: 'Providers', value: 0, trend: 'neutral' as const, change: '—' },
   ]
 
-  const fallbackActivity: any[] = []
-  const fallbackEvents: any[] = []
+  const fallbackActivity: unknown[] = []
+  const fallbackEvents: unknown[] = []
 
   try {
     const [employeeCount, activePolicies, providerCount] = await Promise.all([
       prisma.employee.count(),
-      prisma.policy.count({ where: { status: 'ACTIVE' as any } }),
+      prisma.policy.count({ where: { status: 'ACTIVE' } }),
       prisma.resource.count(),
     ])
 
@@ -26,21 +31,27 @@ export async function GET() {
     ]
 
     const recentActivity = [
-      { id: 'act_1', type: 'employee', description: 'System ready', timestamp: new Date().toISOString(), status: 'completed' as const },
+      {
+        id: 'act_1',
+        type: 'employee',
+        description: 'System ready',
+        timestamp: new Date().toISOString(),
+        status: 'completed' as const,
+      },
     ]
 
-    const upcomingEvents: any[] = []
+    const upcomingEvents: unknown[] = []
 
     return NextResponse.json({ stats, recentActivity, upcomingEvents })
-  } catch (e: any) {
+  } catch (e) {
     // Log error server-side but return fallback data to keep UI functional
-    console.error('[HRMS Dashboard] Database error:', e?.message || e)
+    console.error('[HRMS Dashboard] Database error:', e instanceof Error ? e.message : e)
 
     // Return fallback data instead of error so UI renders
     return NextResponse.json({
       stats: fallbackStats,
       recentActivity: fallbackActivity,
-      upcomingEvents: fallbackEvents
+      upcomingEvents: fallbackEvents,
     })
   }
 }

@@ -10,7 +10,7 @@ set -euo pipefail
 DEV_ROOT=${DEV_ROOT:-/home/ec2-user/dev}
 PROD_ROOT=${PROD_ROOT:-/home/ec2-user/main}
 HEADER_FILE=${NGINX_DEPLOY_HEADER_FILE:-/etc/nginx/conf.d/deploy-headers.conf}
-TOKEN_FILE=${CLOUDFLARE_TOKEN_FILE:-/home/ec2-user/.cloudflare_token}
+TOKEN_FILE=${CLOUDFLARE_TOKEN_FILE:-/home/ec2-user/secrets/.cloudflare_token}
 ZONE_ID=${CLOUDFLARE_ZONE_ID:-2025e49f450d3a8474f9bf191337ab82}
 PURGE=${CLOUDFLARE_PURGE:-true}
 
