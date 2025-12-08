@@ -17,23 +17,23 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^3.0.0",
-    "@types/node": "^20.12.12",
+    "@types/node": "^24.3.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.0",
     "next": "15.5.0",
     "next-auth": "^4.24.11",
     "prisma": "6.19.0",
-    "typescript": "5.9.2"
+    "typescript": "5.9.3"
   },
   "dependencies": {
     "@prisma/client": "6.19.0",
     "bcryptjs": "^3.0.2",
-    "zod": "^3.22.4"
+    "zod": "^3.23.8"
   },
   "peerDependencies": {
-    "next-auth": "^4.24.0",
-    "next": ">=13",
-    "zod": "^3.22.4"
+    "next-auth": "^4.24.11",
+    "next": "15.5.0",
+    "zod": "^3.23.8"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -269,7 +269,7 @@ export function TemplatePicker({ onSelectTemplate, selectedId }: TemplatePickerP
       <div className="mt-8 p-4 bg-muted rounded-lg">
         <div className="flex items-center gap-2 mb-2">
           <Package className="h-4 w-4 text-muted-foreground" />
-          <p className="text-sm font-medium">What's included in each template:</p>
+          <p className="text-sm font-medium">What is included in each template:</p>
         </div>
         <ul className="text-sm text-muted-foreground space-y-1 ml-6">
           <li>• Multiple pricing scenarios to compare</li>

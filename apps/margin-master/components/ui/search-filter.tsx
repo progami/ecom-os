@@ -22,7 +22,7 @@ export function SearchFilter({
   debounceMs = 300,
 }: SearchFilterProps) {
   const [localValue, setLocalValue] = React.useState(value);
-  const debounceTimerRef = React.useRef<NodeJS.Timeout>();
+  const debounceTimerRef = React.useRef<NodeJS.Timeout | undefined>(undefined);
 
   React.useEffect(() => {
     setLocalValue(value);

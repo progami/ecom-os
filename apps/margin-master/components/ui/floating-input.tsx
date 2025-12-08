@@ -33,7 +33,8 @@ const FloatingInput = React.forwardRef<HTMLInputElement, FloatingInputProps>(
   }, ref) => {
     const [isFocused, setIsFocused] = React.useState(false)
     const [hasValue, setHasValue] = React.useState(false)
-    const inputId = id || React.useId()
+    const generatedId = React.useId()
+    const inputId = id || generatedId
     
     React.useEffect(() => {
       setHasValue(!!value && value !== "")

@@ -27,12 +27,12 @@ export async function POST(request: Request) {
     
     // Log individual sync results
     Object.entries(syncResults).forEach(([provider, result]) => {
-      if (result.status === 'success') {
+      if (result.status === 'success' && 'events' in result) {
         contextLogger.info(`[CalendarSync] ${provider} sync completed`, {
           provider,
           eventCount: result.events
         });
-      } else {
+      } else if ('error' in result) {
         contextLogger.warn(`[CalendarSync] ${provider} sync failed`, {
           provider,
           error: result.error
@@ -42,8 +42,8 @@ export async function POST(request: Request) {
     
     // Calculate summary
     const totalEvents = Object.values(syncResults)
-      .filter(r => r.status === 'success')
-      .reduce((sum, r) => sum + (r.events || 0), 0);
+      .filter((r): r is { status: string; events: number } => r.status === 'success' && 'events' in r)
+      .reduce((sum, r) => sum + r.events, 0);
     
     contextLogger.info('[CalendarSync] Sync operation completed', {
       totalEvents,

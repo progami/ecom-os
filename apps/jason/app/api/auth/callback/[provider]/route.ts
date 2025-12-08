@@ -8,12 +8,13 @@ import logger from '@/lib/logger';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { provider: string } }
+  { params }: { params: Promise<{ provider: string }> }
 ) {
+  const { provider: providerParam } = await params;
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get('code');
   const error = searchParams.get('error');
-  const provider = params.provider as 'google' | 'microsoft';
+  const provider = providerParam as 'google' | 'microsoft';
 
   if (error) {
     logger.error(`[OAuth] ${provider} auth error:`, error);
