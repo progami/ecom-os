@@ -86,9 +86,9 @@ if (process.env.NODE_ENV !== 'production') {
           (info) => {
             const timestamp = info.timestamp;
             const level = info.level.toUpperCase();
-            const message = typeof info.message === 'object' 
-              ? JSON.stringify(info.message, null, 2) 
-              : info.message;
+            const message: string = typeof info.message === 'object'
+              ? JSON.stringify(info.message, null, 2)
+              : String(info.message ?? '');
             
             // Extract module name from message if it starts with [ModuleName]
             let moduleName = 'Server';
@@ -144,9 +144,9 @@ if (typeof window === 'undefined' && process.env.NODE_ENV !== 'production') {
           winston.format.printf(
             (info) => {
               const level = info.level.toUpperCase();
-              const message = typeof info.message === 'object' 
-                ? JSON.stringify(info.message, null, 2) 
-                : info.message;
+              const message: string = typeof info.message === 'object'
+                ? JSON.stringify(info.message, null, 2)
+                : String(info.message ?? '');
               
               // Extract module name from message if it starts with [ModuleName]
               let moduleName = 'Server';
@@ -193,14 +193,14 @@ if (process.env.NODE_ENV === 'production' && DailyRotateFile && typeof window ==
       winston.format.printf(
         (info) => {
           const level = info.level.toUpperCase();
-          const message = typeof info.message === 'object' 
-            ? JSON.stringify(info.message, null, 2) 
-            : info.message;
-          
+          const message: string = typeof info.message === 'object'
+            ? JSON.stringify(info.message, null, 2)
+            : String(info.message ?? '');
+
           // Extract module name from message if it starts with [ModuleName]
           let moduleName = 'Server';
           let cleanMessage = message;
-          
+
           // Check for [CLIENT] prefix
           if (message.startsWith('[CLIENT]')) {
             const afterClient = message.substring('[CLIENT]'.length).trim();

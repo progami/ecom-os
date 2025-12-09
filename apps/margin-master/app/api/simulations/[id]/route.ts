@@ -4,11 +4,11 @@ import { prisma } from '@/lib/prisma'
 // GET /api/simulations/[id] - Get a single simulation
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
-    
+    const { id } = await params
+
     // For demo purposes, fetch without userId filter
     const simulation = await prisma.simulation.findUnique({
       where: {
@@ -39,10 +39,10 @@ export async function GET(
 // DELETE /api/simulations/[id] - Delete a simulation
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
 
     // In a real app, verify the user owns this simulation
     const userId = 'default-user-id' // Replace with actual user authentication

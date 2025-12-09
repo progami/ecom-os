@@ -318,7 +318,7 @@ function CombinationResultsContent() {
                 <span>Unprofitable</span>
               </div>
               <div className="flex items-center gap-2 ml-auto text-muted-foreground">
-                <span>Faded rows don't meet target margin</span>
+                <span>Faded rows do not meet target margin</span>
               </div>
             </div>
           </CardContent>

@@ -169,6 +169,10 @@ export class MicrosoftCalendarService implements CalendarService {
         scopes: this.config.scopes,
       });
 
+      if (!result) {
+        throw new Error('Failed to acquire token: no result returned');
+      }
+
       return {
         accessToken: result.accessToken,
         refreshToken: undefined, // Microsoft doesn't return a new refresh token
@@ -180,7 +184,7 @@ export class MicrosoftCalendarService implements CalendarService {
     }
   }
 
-  getAuthorizationUrl(): string {
+  async getAuthorizationUrl(): Promise<string> {
     return this.msalClient.getAuthCodeUrl({
       scopes: this.config.scopes,
       redirectUri: this.config.redirectUri,
@@ -197,7 +201,7 @@ export class MicrosoftCalendarService implements CalendarService {
 
       return {
         accessToken: result.accessToken,
-        refreshToken: result.refreshToken || undefined,
+        refreshToken: (result as unknown as { refreshToken?: string }).refreshToken,
         expiresIn: result.expiresOn ? Math.floor((result.expiresOn.getTime() - Date.now()) / 1000) : 3600,
       };
     } catch (error) {

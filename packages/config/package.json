@@ -11,8 +11,7 @@
     "lint": "echo 'No lint configured for config package'"
   },
   "devDependencies": {
-    "typescript": "5.9.2",
-    "zod": "^3.22.4"
+    "typescript": "5.9.3",
+    "zod": "^3.23.8"
   }
 }
-

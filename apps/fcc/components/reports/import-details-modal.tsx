@@ -344,7 +344,7 @@ export function ImportDetailsModal({ importId, isOpen, onClose }: ImportDetailsM
                 </p>
                 <ul className="text-sm text-gray-400 mt-2 list-disc list-inside space-y-1">
                   <li>No transactions exist in Xero for this period</li>
-                  <li>Transactions haven't been reconciled or approved</li>
+                  <li>Transactions have not been reconciled or approved</li>
                   <li>The selected date range has no activity</li>
                 </ul>
                 <p className="text-sm text-gray-400 mt-3">

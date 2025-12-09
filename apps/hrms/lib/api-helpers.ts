@@ -65,7 +65,7 @@ export function validateBody<T>(schema: ZodSchema<T>, body: unknown): { success:
     return { success: true, data }
   } catch (err) {
     if (err instanceof ZodError) {
-      const errors = err.errors.map((e) => ({
+      const errors = err.issues.map((e) => ({
         field: e.path.join('.'),
         message: e.message,
       }))
