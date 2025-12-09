@@ -6,9 +6,10 @@ import logger from '@/lib/logger';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { provider: string } }
+  { params }: { params: Promise<{ provider: string }> }
 ) {
-  const provider = params.provider as 'google' | 'microsoft';
+  const { provider: providerParam } = await params;
+  const provider = providerParam as 'google' | 'microsoft';
   
   try {
     let authUrl: string;

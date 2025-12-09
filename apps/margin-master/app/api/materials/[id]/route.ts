@@ -14,11 +14,12 @@ const updateMaterialSchema = z.object({
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const material = await prisma.materialProfile.findUnique({
-      where: { id: params.id },
+      where: { id },
     })
 
     if (!material) {
@@ -40,14 +41,15 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     const validatedData = updateMaterialSchema.parse(body)
 
     const material = await prisma.materialProfile.update({
-      where: { id: params.id },
+      where: { id },
       data: validatedData,
     })
 
@@ -69,11 +71,12 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     await prisma.materialProfile.delete({
-      where: { id: params.id },
+      where: { id },
     })
 
     return NextResponse.json({ success: true })

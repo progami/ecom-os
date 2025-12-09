@@ -33,7 +33,8 @@ export function FormField({
   labelClassName,
   id,
 }: FormFieldProps) {
-  const fieldId = id || React.useId()
+  const generatedId = React.useId()
+  const fieldId = id || generatedId
 
   return (
     <div className={cn("space-y-2", className)}>
@@ -65,7 +66,7 @@ export function FormField({
         </div>
       )}
       
-      {React.cloneElement(children as React.ReactElement, { id: fieldId })}
+      {React.cloneElement(children as React.ReactElement<{ id?: string }>, { id: fieldId })}
       
       {error && (
         <p className="text-xs text-destructive flex items-center gap-1 animate-in fade-in-0 slide-in-from-top-1">
@@ -100,7 +101,8 @@ export function InlineFormField({
   labelWidth = "120px",
   id,
 }: InlineFormFieldProps) {
-  const fieldId = id || React.useId()
+  const generatedId = React.useId()
+  const fieldId = id || generatedId
 
   return (
     <div className={cn("space-y-1", className)}>
@@ -137,7 +139,7 @@ export function InlineFormField({
         )}
         
         <div className="flex-1">
-          {React.cloneElement(children as React.ReactElement, { id: fieldId })}
+          {React.cloneElement(children as React.ReactElement<{ id?: string }>, { id: fieldId })}
         </div>
       </div>
       

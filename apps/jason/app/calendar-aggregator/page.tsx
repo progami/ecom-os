@@ -4,11 +4,11 @@ import { AppLayout } from '@/components/layout/app-layout';
 import { Calendar, RefreshCw, CheckCircle, AlertCircle, Plus, Settings, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useCalendarEvents } from '@/lib/hooks/use-calendar-events';
 
-export default function CalendarAggregator() {
+function CalendarAggregatorContent() {
   const [showConnectModal, setShowConnectModal] = useState(false);
   const searchParams = useSearchParams();
   
@@ -305,5 +305,22 @@ export default function CalendarAggregator() {
         )}
       </div>
     </AppLayout>
+  );
+}
+
+export default function CalendarAggregator() {
+  return (
+    <Suspense fallback={
+      <AppLayout>
+        <div className="p-8">
+          <div className="animate-pulse space-y-4">
+            <div className="h-8 bg-muted rounded w-1/3" />
+            <div className="h-4 bg-muted rounded w-1/2" />
+          </div>
+        </div>
+      </AppLayout>
+    }>
+      <CalendarAggregatorContent />
+    </Suspense>
   );
 }
