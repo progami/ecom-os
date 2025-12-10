@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { PoliciesApi, type Policy } from '@/lib/api-client'
 import { DocumentIcon, PencilIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -140,10 +142,10 @@ export default function ViewPolicyPage() {
         {policy.content && (
           <Card padding="md">
             <h2 className="text-sm font-semibold text-slate-900 mb-4">Policy Content</h2>
-            <div className="prose prose-sm prose-slate max-w-none">
-              <pre className="whitespace-pre-wrap font-sans text-sm text-slate-700 leading-relaxed bg-slate-50 p-4 rounded-lg">
+            <div className="prose prose-sm max-w-none prose-headings:text-cyan-700 prose-h1:text-xl prose-h1:font-bold prose-h2:text-lg prose-h2:font-semibold prose-h2:border-b prose-h2:border-cyan-200 prose-h2:pb-2 prose-h2:mt-6 prose-table:text-sm prose-th:bg-cyan-50 prose-th:text-cyan-900 prose-th:p-2 prose-th:border prose-th:border-cyan-200 prose-td:p-2 prose-td:border prose-td:border-slate-200 prose-strong:text-cyan-800 prose-a:text-cyan-600 hover:prose-a:text-cyan-800">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {policy.content}
-              </pre>
+              </ReactMarkdown>
             </div>
           </Card>
         )}

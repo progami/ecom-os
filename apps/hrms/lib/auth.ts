@@ -1,4 +1,5 @@
-import type { NextAuthOptions } from 'next-auth';
+import NextAuth from 'next-auth';
+import type { NextAuthConfig } from 'next-auth';
 import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth';
 
 // NOTE: Keep providers/callbacks/pages here as HRMS evolves.
@@ -20,7 +21,7 @@ if (sharedSecret) {
   process.env.NEXTAUTH_SECRET = sharedSecret;
 }
 
-const baseAuthOptions: NextAuthOptions = {
+const baseAuthOptions: NextAuthConfig = {
   // Add providers when ready (e.g., Credentials, OIDC)
   providers: [],
   session: { strategy: 'jwt' },
@@ -36,14 +37,16 @@ const baseAuthOptions: NextAuthOptions = {
       // propagate portal roles for HRMS consumption if needed
       // @ts-expect-error roles claim passthrough
       session.roles = (token as any).roles
-      // @ts-expect-error id
       session.user.id = (token.sub as string) || session.user.id
       return session
     },
   },
 };
 
-export const authOptions: NextAuthOptions = withSharedAuth(baseAuthOptions, {
+export const authOptions: NextAuthConfig = withSharedAuth(baseAuthOptions, {
   cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
   appId: 'hrms',
 });
+
+// Initialize NextAuth with config and export handlers + auth function
+export const { handlers, auth, signIn, signOut } = NextAuth(authOptions);
