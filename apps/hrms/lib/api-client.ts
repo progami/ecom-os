@@ -104,7 +104,6 @@ export const EmployeesApi = {
     return request<{ items: Employee[]; total: number }>(`/api/employees${qs ? `?${qs}` : ''}`)
   },
   create(payload: Partial<Employee> & {
-    employeeId: string
     firstName: string
     lastName: string
     email: string
