@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { PoliciesApi, type Policy } from '@/lib/api-client'
 
 // Icons
@@ -72,6 +73,7 @@ function getStatusBadge(status: string) {
 }
 
 export default function PoliciesPage() {
+  const router = useRouter()
   const [items, setItems] = useState<Policy[]>([])
   const [q, setQ] = useState('')
   const [loading, setLoading] = useState(true)
@@ -150,6 +152,7 @@ export default function PoliciesPage() {
               <tr className="border-b border-slate-200 bg-slate-50">
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Title</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Category</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Version</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-600 uppercase">Status</th>
               </tr>
             </thead>
@@ -159,12 +162,13 @@ export default function PoliciesPage() {
                   <tr key={i} className="animate-pulse">
                     <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-48" /></td>
                     <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-24" /></td>
+                    <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-12" /></td>
                     <td className="px-4 py-4"><div className="h-5 bg-slate-200 rounded w-16" /></td>
                   </tr>
                 ))
               ) : items.length === 0 ? (
                 <tr>
-                  <td colSpan={3} className="px-4 py-12 text-center">
+                  <td colSpan={4} className="px-4 py-12 text-center">
                     <DocumentIcon className="h-10 w-10 mx-auto text-slate-300 mb-3" />
                     <p className="text-sm text-slate-500">No policies found</p>
                     <Link
@@ -178,9 +182,19 @@ export default function PoliciesPage() {
                 </tr>
               ) : (
                 items.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-4 text-sm font-medium text-slate-900">{p.title}</td>
+                  <tr
+                    key={p.id}
+                    className="hover:bg-slate-50 cursor-pointer"
+                    onClick={() => router.push(`/policies/${p.id}`)}
+                  >
+                    <td className="px-4 py-4">
+                      <p className="text-sm font-medium text-slate-900">{p.title}</p>
+                      {p.summary && (
+                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{p.summary}</p>
+                      )}
+                    </td>
                     <td className="px-4 py-4 text-sm text-slate-600">{p.category}</td>
+                    <td className="px-4 py-4 text-sm text-slate-500">{(p as any).version || '—'}</td>
                     <td className="px-4 py-4">
                       <span className={`text-xs px-2 py-1 rounded font-medium ${getStatusBadge(p.status)}`}>
                         {p.status}
