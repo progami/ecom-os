@@ -5,6 +5,8 @@ const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || ''
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || ''
 const REFRESH_TOKEN = process.env.GOOGLE_REFRESH_TOKEN || ''
 
+const REQUEST_TIMEOUT = 8000 // 8 seconds timeout
+
 export function isCalendarConfigured() {
   return Boolean(CALENDAR_ID && CLIENT_ID && CLIENT_SECRET && REFRESH_TOKEN)
 }
@@ -28,7 +30,7 @@ export async function listUpcomingEvents(opts?: { maxResults?: number }) {
     maxResults: opts?.maxResults ?? 10,
     singleEvents: true,
     orderBy: 'startTime',
-  })
+  }, { timeout: REQUEST_TIMEOUT })
   return res.data.items || []
 }
 
@@ -52,7 +54,7 @@ export async function createEvent(input: CreateEventInput) {
       start: input.start,
       end: input.end,
     },
-  })
+  }, { timeout: REQUEST_TIMEOUT })
   return res.data
 }
 
