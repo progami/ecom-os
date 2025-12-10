@@ -34,7 +34,13 @@ export type Policy = {
   title: string
   category: string
   summary?: string | null
+  content?: string | null
+  fileUrl?: string | null
+  version?: string | null
+  effectiveDate?: string | null
   status: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 export class ApiError extends Error {
@@ -169,11 +175,26 @@ export const PoliciesApi = {
     const qs = qp.toString()
     return request<{ items: Policy[]; total: number }>(`/api/policies${qs ? `?${qs}` : ''}`)
   },
+  get(id: string) {
+    return request<Policy>(`/api/policies/${encodeURIComponent(id)}`)
+  },
   create(payload: Partial<Policy> & { title: string; category: string; status?: string }) {
     return request<Policy>(`/api/policies`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+    })
+  },
+  update(id: string, payload: Partial<Policy>) {
+    return request<Policy>(`/api/policies/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  delete(id: string) {
+    return request<{ ok: boolean }>(`/api/policies/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
     })
   },
 }

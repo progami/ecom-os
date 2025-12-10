@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import { PoliciesApi } from '@/lib/api-client'
+import { PoliciesApi, type Policy } from '@/lib/api-client'
 
 function DocumentIcon({ className }: { className?: string }) {
   return (
@@ -67,6 +67,7 @@ function FormField({
   type = 'text',
   required = false,
   placeholder,
+  defaultValue,
   children
 }: {
   label: string
@@ -74,6 +75,7 @@ function FormField({
   type?: string
   required?: boolean
   placeholder?: string
+  defaultValue?: string
   children?: React.ReactNode
 }) {
   return (
@@ -88,6 +90,7 @@ function FormField({
           type={type}
           required={required}
           placeholder={placeholder}
+          defaultValue={defaultValue}
           className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
         />
       )}
@@ -95,10 +98,29 @@ function FormField({
   )
 }
 
-export default function AddPolicyPage() {
+export default function EditPolicyPage() {
   const router = useRouter()
+  const params = useParams()
+  const id = params.id as string
+
+  const [policy, setPolicy] = useState<Policy | null>(null)
+  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await PoliciesApi.get(id)
+        setPolicy(data)
+      } catch (e: any) {
+        setError(e.message || 'Failed to load policy')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [id])
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -108,30 +130,73 @@ export default function AddPolicyPage() {
     const payload = Object.fromEntries(fd.entries()) as any
 
     try {
-      await PoliciesApi.create({
+      await PoliciesApi.update(id, {
         title: String(payload.title),
         category: String(payload.category),
-        status: String(payload.status || 'DRAFT'),
-        version: payload.version ? String(payload.version) : undefined,
-        effectiveDate: payload.effectiveDate ? String(payload.effectiveDate) : undefined,
-        summary: payload.summary ? String(payload.summary) : undefined,
-        content: payload.content ? String(payload.content) : undefined,
+        status: String(payload.status),
+        version: payload.version ? String(payload.version) : null,
+        effectiveDate: payload.effectiveDate ? String(payload.effectiveDate) : null,
+        summary: payload.summary ? String(payload.summary) : null,
+        content: payload.content ? String(payload.content) : null,
       })
-      router.push('/policies')
+      router.push(`/policies/${id}`)
     } catch (e: any) {
-      setError(e.message || 'Failed to create policy')
+      setError(e.message || 'Failed to update policy')
     } finally {
       setSubmitting(false)
     }
   }
 
+  if (loading) {
+    return (
+      <>
+        <PageHeader
+          title="Edit Policy"
+          description="Company Policies"
+          icon={DocumentIcon}
+          backHref="/policies"
+        />
+        <div className="max-w-3xl">
+          <div className="dashboard-card p-6">
+            <div className="animate-pulse space-y-4">
+              <div className="h-4 bg-slate-200 rounded w-1/4" />
+              <div className="h-10 bg-slate-200 rounded" />
+              <div className="h-4 bg-slate-200 rounded w-1/4" />
+              <div className="h-10 bg-slate-200 rounded" />
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  if (!policy) {
+    return (
+      <>
+        <PageHeader
+          title="Edit Policy"
+          description="Company Policies"
+          icon={DocumentIcon}
+          backHref="/policies"
+        />
+        <div className="max-w-3xl">
+          <div className="dashboard-card p-6">
+            <p className="text-red-600">{error || 'Policy not found'}</p>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  const effectiveDateFormatted = policy.effectiveDate ? policy.effectiveDate.split('T')[0] : ''
+
   return (
     <>
       <PageHeader
-        title="Add Policy"
+        title="Edit Policy"
         description="Company Policies"
         icon={DocumentIcon}
-        backHref="/policies"
+        backHref={`/policies/${id}`}
       />
 
       <div className="max-w-3xl">
@@ -152,7 +217,7 @@ export default function AddPolicyPage() {
                     label="Policy Title"
                     name="title"
                     required
-                    placeholder="e.g., Annual Leave Policy"
+                    defaultValue={policy.title}
                   />
                 </div>
                 <FormField label="Category" name="category" required>
@@ -160,9 +225,9 @@ export default function AddPolicyPage() {
                     id="category"
                     name="category"
                     required
+                    defaultValue={policy.category}
                     className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all bg-white"
                   >
-                    <option value="">Select category...</option>
                     <option value="LEAVE">Leave</option>
                     <option value="PERFORMANCE">Performance</option>
                     <option value="CONDUCT">Conduct</option>
@@ -175,7 +240,7 @@ export default function AddPolicyPage() {
                   <select
                     id="status"
                     name="status"
-                    defaultValue="DRAFT"
+                    defaultValue={policy.status}
                     className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all bg-white"
                   >
                     <option value="DRAFT">Draft</option>
@@ -187,11 +252,13 @@ export default function AddPolicyPage() {
                   label="Version"
                   name="version"
                   placeholder="e.g., 1.0"
+                  defaultValue={policy.version || ''}
                 />
                 <FormField
                   label="Effective Date"
                   name="effectiveDate"
                   type="date"
+                  defaultValue={effectiveDateFormatted}
                 />
               </div>
             </div>
@@ -204,6 +271,7 @@ export default function AddPolicyPage() {
                 id="summary"
                 name="summary"
                 rows={2}
+                defaultValue={policy.summary || ''}
                 placeholder="A brief summary of what this policy covers..."
                 className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all resize-none"
               />
@@ -217,22 +285,8 @@ export default function AddPolicyPage() {
                 id="content"
                 name="content"
                 rows={15}
-                placeholder="# Policy Title
-
-## Purpose
-Describe the purpose of this policy...
-
-## Scope
-Who this policy applies to...
-
-## Policy Statement
-The main policy content...
-
-## Procedures
-Step-by-step procedures...
-
-## Compliance
-Consequences of non-compliance..."
+                defaultValue={policy.content || ''}
+                placeholder="Full policy content..."
                 className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all resize-y min-h-[300px]"
               />
             </div>
@@ -240,7 +294,7 @@ Consequences of non-compliance..."
             {/* Actions */}
             <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
               <Link
-                href="/policies"
+                href={`/policies/${id}`}
                 className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
               >
                 Cancel
@@ -250,7 +304,7 @@ Consequences of non-compliance..."
                 disabled={submitting}
                 className="px-4 py-2 text-sm font-medium text-white bg-cyan-600 rounded-md hover:bg-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? 'Saving...' : 'Save Policy'}
+                {submitting ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </form>
