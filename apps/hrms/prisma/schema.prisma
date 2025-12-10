@@ -114,7 +114,7 @@ model Policy {
   summary       String?
   content       String?
   fileUrl       String?
-  version       String?
+  version       String        @default("1.0")
   effectiveDate DateTime?
   status        PolicyStatus  @default(ACTIVE)
 
@@ -123,6 +123,7 @@ model Policy {
 
   @@index([category])
   @@index([status])
+  @@index([version])
 }
 
 enum EmploymentType {

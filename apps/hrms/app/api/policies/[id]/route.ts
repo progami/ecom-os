@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
-import { UpdatePolicySchema } from '@/lib/validations'
+import { UpdatePolicySchema, bumpVersion } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 
 type PolicyRouteContext = { params: Promise<{ id: string }> }
@@ -59,7 +59,15 @@ export async function PATCH(req: Request, context: PolicyRouteContext) {
     if (data.summary !== undefined) updates.summary = data.summary
     if (data.content !== undefined) updates.content = data.content
     if (data.fileUrl !== undefined) updates.fileUrl = data.fileUrl
-    if (data.version !== undefined) updates.version = data.version
+
+    // Handle version: explicit version takes precedence, then bumpVersion
+    if (data.version !== undefined) {
+      updates.version = data.version
+    } else if (data.bumpVersion) {
+      const existing = await prisma.policy.findUnique({ where: { id }, select: { version: true } })
+      updates.version = bumpVersion(existing?.version || '1.0', data.bumpVersion)
+    }
+
     if (data.effectiveDate !== undefined) {
       updates.effectiveDate = data.effectiveDate ? new Date(data.effectiveDate) : null
     }

@@ -94,7 +94,7 @@ export async function POST(req: Request) {
         summary: data.summary ?? null,
         content: data.content ?? null,
         fileUrl: data.fileUrl ?? null,
-        version: data.version ?? null,
+        version: data.version,
         effectiveDate: data.effectiveDate ? new Date(data.effectiveDate) : null,
         status: data.status,
       },

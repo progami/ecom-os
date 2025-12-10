@@ -118,7 +118,9 @@ export default function ViewPolicyPage() {
               <StatusBadge status={policy.status} />
             </MetaItem>
             <MetaItem label="Version">
-              {policy.version || '—'}
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
+                v{policy.version}
+              </span>
             </MetaItem>
             <MetaItem label="Effective Date">
               {formatDate(policy.effectiveDate)}

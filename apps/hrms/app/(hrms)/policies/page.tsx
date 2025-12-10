@@ -115,7 +115,11 @@ export default function PoliciesPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-slate-600">{p.category}</TableCell>
-                  <TableCell className="text-slate-500">{p.version || '—'}</TableCell>
+                  <TableCell>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
+                      v{p.version}
+                    </span>
+                  </TableCell>
                   <TableCell>
                     <StatusBadge status={p.status} />
                   </TableCell>

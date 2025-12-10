@@ -36,7 +36,7 @@ export type Policy = {
   summary?: string | null
   content?: string | null
   fileUrl?: string | null
-  version?: string | null
+  version: string
   effectiveDate?: string | null
   status: string
   createdAt?: string
@@ -185,7 +185,7 @@ export const PoliciesApi = {
       body: JSON.stringify(payload),
     })
   },
-  update(id: string, payload: Partial<Policy>) {
+  update(id: string, payload: Partial<Policy> & { bumpVersion?: 'major' | 'minor' }) {
     return request<Policy>(`/api/policies/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

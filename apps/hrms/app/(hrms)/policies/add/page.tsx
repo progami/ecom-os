@@ -107,6 +107,7 @@ export default function AddPolicyPage() {
                 <FormField
                   label="Version"
                   name="version"
+                  defaultValue="1.0"
                   placeholder="e.g., 1.0"
                 />
                 <FormField
