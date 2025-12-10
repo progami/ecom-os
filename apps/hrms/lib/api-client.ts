@@ -7,6 +7,7 @@ export type Employee = {
   firstName: string
   lastName: string
   email: string
+  phone?: string
   department?: string
   dept?: { id: string; name: string } | null
   position: string
@@ -117,6 +118,21 @@ export const EmployeesApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+    })
+  },
+  get(id: string) {
+    return request<Employee>(`/api/employees/${encodeURIComponent(id)}`)
+  },
+  update(id: string, payload: Partial<Employee>) {
+    return request<Employee>(`/api/employees/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  delete(id: string) {
+    return request<{ ok: boolean }>(`/api/employees/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
     })
   },
 }
