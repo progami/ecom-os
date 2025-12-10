@@ -10,7 +10,6 @@ const nextConfig = {
   assetPrefix: basePath,
   outputFileTracingRoot: path.join(__dirname, '../..'),
   trailingSlash: false,
-  skipTrailingSlashRedirect: true,
 }
 
 module.exports = nextConfig

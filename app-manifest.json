@@ -1,40 +1,11 @@
 {
   "apps": {
-    "website": {
-      "lifecycle": "production",
-      "status": "production"
-    },
-    "wms": {
-      "lifecycle": "production",
-      "status": "production"
-    },
-    "hrms": {
-      "lifecycle": "dev",
-      "status": "development"
-    },
-    "fcc": {
-      "lifecycle": "archive",
-      "status": "archive"
-    },
-    "ecomos": {
-      "lifecycle": "production",
-      "status": "production"
-    },
-    "legal-suite": {
-      "lifecycle": "dev",
-      "status": "development"
-    },
-    "margin-master": {
-      "lifecycle": "archive",
-      "status": "archive"
-    },
-    "jason": {
-      "lifecycle": "archive",
-      "status": "archive"
-    },
-    "x-plan": {
-      "lifecycle": "production",
-      "status": "production"
-    }
+    "wms": { "lifecycle": "active" },
+    "hrms": { "lifecycle": "dev" },
+    "x-plan": { "lifecycle": "active" },
+    "fcc": { "lifecycle": "dev" },
+    "margin-master": { "lifecycle": "dev" },
+    "jason": { "lifecycle": "dev" },
+    "legal-suite": { "lifecycle": "dev" }
   }
 }
