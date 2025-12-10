@@ -2,98 +2,34 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { PoliciesApi } from '@/lib/api-client'
+import { DocumentIcon } from '@/components/ui/Icons'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { Card, CardDivider } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Alert } from '@/components/ui/Alert'
+import {
+  FormField,
+  SelectField,
+  TextareaField,
+  FormSection,
+  FormActions,
+} from '@/components/ui/FormField'
 
-function DocumentIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-    </svg>
-  )
-}
+const categoryOptions = [
+  { value: 'LEAVE', label: 'Leave' },
+  { value: 'PERFORMANCE', label: 'Performance' },
+  { value: 'CONDUCT', label: 'Conduct' },
+  { value: 'SECURITY', label: 'Security' },
+  { value: 'COMPENSATION', label: 'Compensation' },
+  { value: 'OTHER', label: 'Other' },
+]
 
-function ArrowLeftIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-    </svg>
-  )
-}
-
-function PageHeader({
-  title,
-  description,
-  icon: Icon,
-  backHref
-}: {
-  title: string
-  description?: string
-  icon?: React.ComponentType<{ className?: string }>
-  backHref?: string
-}) {
-  return (
-    <header className="sticky top-0 z-10 -mx-4 sm:-mx-6 md:-mx-8 -mt-6 border-b border-slate-200 bg-white/95 px-4 py-4 shadow-soft backdrop-blur-xl sm:px-6 md:px-8 mb-6">
-      <div className="flex items-center gap-3">
-        {backHref && (
-          <Link
-            href={backHref}
-            className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
-          >
-            <ArrowLeftIcon className="h-5 w-5 text-slate-600" />
-          </Link>
-        )}
-        {Icon && (
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-600 shadow-md">
-            <Icon className="h-5 w-5 text-white" />
-          </div>
-        )}
-        <div className="flex flex-col gap-0.5">
-          {description && (
-            <span className="text-xs font-bold uppercase tracking-[0.1em] text-cyan-700/70">
-              {description}
-            </span>
-          )}
-          <h1 className="text-2xl font-semibold text-slate-900">{title}</h1>
-        </div>
-      </div>
-    </header>
-  )
-}
-
-function FormField({
-  label,
-  name,
-  type = 'text',
-  required = false,
-  placeholder,
-  children
-}: {
-  label: string
-  name: string
-  type?: string
-  required?: boolean
-  placeholder?: string
-  children?: React.ReactNode
-}) {
-  return (
-    <div className="space-y-1.5">
-      <label htmlFor={name} className="block text-sm font-medium text-slate-700">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      {children || (
-        <input
-          id={name}
-          name={name}
-          type={type}
-          required={required}
-          placeholder={placeholder}
-          className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
-        />
-      )}
-    </div>
-  )
-}
+const statusOptions = [
+  { value: 'DRAFT', label: 'Draft' },
+  { value: 'ACTIVE', label: 'Active' },
+  { value: 'ARCHIVED', label: 'Archived' },
+]
 
 export default function AddPolicyPage() {
   const router = useRouter()
@@ -130,23 +66,22 @@ export default function AddPolicyPage() {
       <PageHeader
         title="Add Policy"
         description="Company Policies"
-        icon={DocumentIcon}
+        icon={<DocumentIcon className="h-6 w-6 text-white" />}
         backHref="/policies"
       />
 
       <div className="max-w-3xl">
-        <div className="dashboard-card p-6">
+        <Card padding="lg">
           {error && (
-            <div className="mb-6 p-4 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm">
+            <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
               {error}
-            </div>
+            </Alert>
           )}
 
-          <form onSubmit={onSubmit} className="space-y-6">
+          <form onSubmit={onSubmit} className="space-y-8">
             {/* Basic Info */}
-            <div>
-              <h3 className="text-sm font-semibold text-slate-900 mb-4">Policy Information</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormSection title="Policy Information" description="Enter the basic details for this policy">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div className="sm:col-span-2">
                   <FormField
                     label="Policy Title"
@@ -155,37 +90,24 @@ export default function AddPolicyPage() {
                     placeholder="e.g., Annual Leave Policy"
                   />
                 </div>
-                <FormField label="Category" name="category" required>
-                  <select
-                    id="category"
-                    name="category"
-                    required
-                    className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all bg-white"
-                  >
-                    <option value="">Select category...</option>
-                    <option value="LEAVE">Leave</option>
-                    <option value="PERFORMANCE">Performance</option>
-                    <option value="CONDUCT">Conduct</option>
-                    <option value="SECURITY">Security</option>
-                    <option value="COMPENSATION">Compensation</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </FormField>
-                <FormField label="Status" name="status" required>
-                  <select
-                    id="status"
-                    name="status"
-                    defaultValue="DRAFT"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all bg-white"
-                  >
-                    <option value="DRAFT">Draft</option>
-                    <option value="ACTIVE">Active</option>
-                    <option value="ARCHIVED">Archived</option>
-                  </select>
-                </FormField>
+                <SelectField
+                  label="Category"
+                  name="category"
+                  required
+                  options={categoryOptions}
+                  placeholder="Select category..."
+                />
+                <SelectField
+                  label="Status"
+                  name="status"
+                  required
+                  options={statusOptions}
+                  defaultValue="DRAFT"
+                />
                 <FormField
                   label="Version"
                   name="version"
+                  defaultValue="1.0"
                   placeholder="e.g., 1.0"
                 />
                 <FormField
@@ -194,30 +116,31 @@ export default function AddPolicyPage() {
                   type="date"
                 />
               </div>
-            </div>
+            </FormSection>
+
+            <CardDivider />
 
             {/* Summary */}
-            <div className="pt-4 border-t border-slate-200">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4">Summary</h3>
-              <p className="text-xs text-slate-500 mb-2">Brief overview of the policy (1-2 sentences)</p>
-              <textarea
-                id="summary"
+            <FormSection title="Summary" description="Brief overview of the policy (1-2 sentences)">
+              <TextareaField
+                label="Summary"
                 name="summary"
-                rows={2}
+                rows={3}
                 placeholder="A brief summary of what this policy covers..."
-                className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all resize-none"
+                resizable={false}
               />
-            </div>
+            </FormSection>
+
+            <CardDivider />
 
             {/* Content */}
-            <div className="pt-4 border-t border-slate-200">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4">Policy Content</h3>
-              <p className="text-xs text-slate-500 mb-2">Full policy text. You can use markdown formatting.</p>
-              <textarea
-                id="content"
+            <FormSection title="Policy Content" description="Full policy text. You can use markdown formatting.">
+              <TextareaField
+                label="Content"
                 name="content"
-                rows={15}
-                placeholder="# Policy Title
+                rows={16}
+                monospace
+                placeholder={`# Policy Title
 
 ## Purpose
 Describe the purpose of this policy...
@@ -232,29 +155,21 @@ The main policy content...
 Step-by-step procedures...
 
 ## Compliance
-Consequences of non-compliance..."
-                className="w-full px-3 py-2 border border-slate-200 rounded-md text-sm font-mono focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all resize-y min-h-[300px]"
+Consequences of non-compliance...`}
               />
-            </div>
+            </FormSection>
 
             {/* Actions */}
-            <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
-              <Link
-                href="/policies"
-                className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-md hover:bg-slate-50 transition-colors"
-              >
+            <FormActions>
+              <Button variant="secondary" href="/policies">
                 Cancel
-              </Link>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-4 py-2 text-sm font-medium text-white bg-cyan-600 rounded-md hover:bg-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
+              </Button>
+              <Button type="submit" loading={submitting}>
                 {submitting ? 'Saving...' : 'Save Policy'}
-              </button>
-            </div>
+              </Button>
+            </FormActions>
           </form>
-        </div>
+        </Card>
       </div>
     </>
   )
