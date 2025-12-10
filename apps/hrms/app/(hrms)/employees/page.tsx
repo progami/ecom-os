@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { EmployeesApi, type Employee } from '@/lib/api-client'
 
 // Icons
@@ -72,6 +73,7 @@ function getStatusBadge(status: string) {
 }
 
 export default function EmployeesPage() {
+  const router = useRouter()
   const [items, setItems] = useState<Employee[]>([])
   const [q, setQ] = useState('')
   const [loading, setLoading] = useState(true)
@@ -190,7 +192,11 @@ export default function EmployeesPage() {
                 </tr>
               ) : (
                 items.map((e) => (
-                  <tr key={e.id} className="hover:bg-slate-50">
+                  <tr
+                    key={e.id}
+                    className="hover:bg-slate-50 cursor-pointer"
+                    onClick={() => router.push(`/employees/${e.id}/edit`)}
+                  >
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-3">
                         <div className="h-8 w-8 rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center text-sm font-medium">
