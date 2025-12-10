@@ -99,11 +99,23 @@ export async function POST(req: Request) {
     const departmentName = data.department || data.departmentName || 'General'
     const roles = data.roles || []
 
+    // Auto-generate employeeId if not provided
+    let employeeId = data.employeeId
+    if (!employeeId) {
+      const lastEmployee = await prisma.employee.findFirst({
+        orderBy: { createdAt: 'desc' },
+        select: { employeeId: true },
+      })
+      const lastNum = lastEmployee?.employeeId?.match(/EMP(\d+)/)?.[1]
+      const nextNum = lastNum ? parseInt(lastNum, 10) + 1 : 1
+      employeeId = `EMP${String(nextNum).padStart(3, '0')}`
+    }
+
     // Use transaction for atomic operation
     const emp = await prisma.$transaction(async (tx: TransactionClient) => {
       return tx.employee.create({
         data: {
-          employeeId: data.employeeId,
+          employeeId,
           firstName: data.firstName,
           lastName: data.lastName,
           email: data.email,
