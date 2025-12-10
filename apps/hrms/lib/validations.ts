@@ -9,7 +9,7 @@ export const EmploymentTypeEnum = z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 
 export const EmployeeStatusEnum = z.enum(['ACTIVE', 'ON_LEAVE', 'TERMINATED', 'RESIGNED'])
 
 export const CreateEmployeeSchema = z.object({
-  employeeId: z.string().min(1).max(50).trim(),
+  employeeId: z.string().min(1).max(50).trim().optional(),
   firstName: z.string().min(1).max(100).trim(),
   lastName: z.string().min(1).max(100).trim(),
   email: z.string().email().max(255).trim().toLowerCase(),

@@ -112,7 +112,6 @@ export default function AddEmployeePage() {
 
     try {
       await EmployeesApi.create({
-        employeeId: String(payload.employeeId),
         firstName: String(payload.firstName),
         lastName: String(payload.lastName),
         email: String(payload.email),
@@ -153,19 +152,6 @@ export default function AddEmployeePage() {
               <h3 className="text-sm font-semibold text-slate-900 mb-4">Basic Information</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
-                  label="Employee ID"
-                  name="employeeId"
-                  required
-                  placeholder="e.g., EMP001"
-                />
-                <FormField
-                  label="Email"
-                  name="email"
-                  type="email"
-                  required
-                  placeholder="employee@company.com"
-                />
-                <FormField
                   label="First Name"
                   name="firstName"
                   required
@@ -176,6 +162,13 @@ export default function AddEmployeePage() {
                   name="lastName"
                   required
                   placeholder="Doe"
+                />
+                <FormField
+                  label="Email"
+                  name="email"
+                  type="email"
+                  required
+                  placeholder="employee@company.com"
                 />
               </div>
             </div>
