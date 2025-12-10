@@ -70,13 +70,27 @@ export const UpdateResourceSchema = z.object({
 export const PolicyCategoryEnum = z.enum(['LEAVE', 'PERFORMANCE', 'CONDUCT', 'SECURITY', 'COMPENSATION', 'OTHER'])
 export const PolicyStatusEnum = z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED'])
 
+// Version format: major.minor (e.g., "1.0", "2.3")
+export const VersionSchema = z.string().regex(/^\d+\.\d+$/, {
+  message: 'Version must be in format X.Y (e.g., 1.0, 2.3)',
+})
+
+export function bumpVersion(current: string, type: 'major' | 'minor' = 'minor'): string {
+  const match = current.match(/^(\d+)\.(\d+)$/)
+  if (!match) return '1.0'
+  const major = parseInt(match[1], 10)
+  const minor = parseInt(match[2], 10)
+  if (type === 'major') return `${major + 1}.0`
+  return `${major}.${minor + 1}`
+}
+
 export const CreatePolicySchema = z.object({
   title: z.string().min(1).max(200).trim(),
   category: PolicyCategoryEnum,
   summary: z.string().max(1000).trim().optional().nullable(),
   content: z.string().max(50000).optional().nullable(),
   fileUrl: z.string().url().max(500).optional().nullable(),
-  version: z.string().max(50).trim().optional().nullable(),
+  version: VersionSchema.default('1.0'),
   effectiveDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: 'Invalid date format',
   }).optional().nullable(),
@@ -89,7 +103,8 @@ export const UpdatePolicySchema = z.object({
   summary: z.string().max(1000).trim().optional().nullable(),
   content: z.string().max(50000).optional().nullable(),
   fileUrl: z.string().url().max(500).optional().nullable(),
-  version: z.string().max(50).trim().optional().nullable(),
+  version: VersionSchema.optional(),
+  bumpVersion: z.enum(['major', 'minor']).optional(),
   effectiveDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: 'Invalid date format',
   }).optional().nullable(),

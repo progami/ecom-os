@@ -187,7 +187,7 @@ async function seedPolicies() {
           summary: p.summary ?? null,
           content: p.content ?? null,
           fileUrl: p.fileUrl ?? null,
-          version: p.version ?? null,
+          version: p.version ?? '1.0',
           effectiveDate: p.effectiveDate ? new Date(p.effectiveDate) : null,
           status: String(p.status || 'ACTIVE').toUpperCase() as any,
         } })
@@ -200,7 +200,7 @@ async function seedPolicies() {
         summary: p.summary ?? null,
         content: p.content ?? null,
         fileUrl: p.fileUrl ?? null,
-        version: p.version ?? null,
+        version: p.version ?? '1.0',
         effectiveDate: p.effectiveDate ? new Date(p.effectiveDate) : null,
         status: String(p.status || 'ACTIVE').toUpperCase() as any,
       } })
