@@ -67,10 +67,10 @@ export default function EditPolicyPage() {
         title: String(payload.title),
         category: String(payload.category),
         status: String(payload.status),
-        version: payload.version ? String(payload.version) : null,
-        effectiveDate: payload.effectiveDate ? String(payload.effectiveDate) : null,
-        summary: payload.summary ? String(payload.summary) : null,
-        content: payload.content ? String(payload.content) : null,
+        version: payload.version ? String(payload.version) : undefined,
+        effectiveDate: payload.effectiveDate ? String(payload.effectiveDate) : undefined,
+        summary: payload.summary ? String(payload.summary) : undefined,
+        content: payload.content ? String(payload.content) : undefined,
       })
       router.push(`/policies/${id}`)
     } catch (e: any) {
