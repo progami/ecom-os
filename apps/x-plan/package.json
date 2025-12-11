@@ -21,10 +21,10 @@
     "fix:weekly-costs": "tsx scripts/fix-weekly-fixed-costs.ts"
   },
   "dependencies": {
-    "@ecom-os/prisma-x-plan": "workspace:*",
     "@ecom-os/auth": "workspace:*",
     "@ecom-os/config": "workspace:*",
     "@ecom-os/logger": "workspace:*",
+    "@ecom-os/prisma-x-plan": "workspace:*",
     "@handsontable/react": "^16.0.1",
     "@prisma/client": "6.19.0",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -74,7 +74,7 @@
     "tsx": "^4.21.0",
     "typescript": "5.9.3",
     "vite": "5.4.20",
-    "vitest": "^4.0.15"
+    "vitest": "^2.1.9"
   },
   "engines": {
     "node": ">=20.9.0"

@@ -7,18 +7,6 @@ const nextConfig: NextConfig = {
   basePath: appBasePath,
   assetPrefix: appBasePath,
 
-  experimental: {
-    turbo: {
-      rules: {
-        "*.{ts,tsx}": {
-          loaders: ["@vercel/turbo/next"],
-        },
-      },
-    },
-  },
-  eslint: {
-    dirs: ["app", "components", "lib"],
-  },
   transpilePackages: [
     "@ecom-os/auth",
     "@ecom-os/config",

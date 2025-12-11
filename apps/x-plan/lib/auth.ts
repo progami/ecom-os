@@ -42,9 +42,7 @@ const baseAuthOptions: NextAuthConfig = {
       return token
     },
     async session({ session, token }) {
-      // @ts-expect-error propagate roles if present
-      session.roles = (token as any).roles
-      // @ts-expect-error add user id for downstream services
+      (session as { roles?: unknown }).roles = (token as { roles?: unknown }).roles
       session.user.id = (token.sub as string) || session.user.id
       return session
     },
