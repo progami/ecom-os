@@ -2,142 +2,180 @@
 
 Ecom OS is a single pnpm + Turborepo workspace that hosts every customer-facing app. All apps live under `apps/` and share utilities under `packages/` (auth helpers, the design theme, configuration, etc.).
 
-## Apps & Ports
+## Apps & Environments
 
-| App | Path / Package | Default Port | Status | Hosted URL |
+| App | Package | Main Port | Dev Port | Status |
 | --- | --- | --- | --- | --- |
-| Portal / Navigation Hub | `apps/ecomos` (`@ecom-os/ecomos`) | 3000 | Production | `https://ecomos.targonglobal.com` |
-| Warehouse Management | `apps/wms` (`@ecom-os/wms`) | 3001 | Production | `https://ecomos.targonglobal.com/wms` |
-| Finance Console (Bookkeeping) | `apps/fcc` (`@ecom-os/fcc`) | 3003 | Archive | `https://ecomos.targonglobal.com/fcc` |
-| HRMS | `apps/hrms` (`@ecom-os/hrms`) | 3006 | Development | `https://ecomos.targonglobal.com/hrms` |
-| Legal Suite | Portal route (`/legal`) | 3015 | Development | — |
-| Marketing Website | `apps/website` (`@ecom-os/website`) | 3005 | Production | `https://www.targonglobal.com` |
-| Margin Master | `apps/margin-master` (`@ecom-os/margin-master`) | 3400 | Archive | `https://ecomos.targonglobal.com/margin-master` |
-| Jason (AI assistant) | `apps/jason` (`@ecom-os/jason`) | 3001 when run alone | Archive | `https://ecomos.targonglobal.com/jason` |
-| X‑Plan | `apps/x-plan` (`@ecom-os/x-plan`) | 3008 | Production | `https://ecomos.targonglobal.com/x-plan` |
+| Portal / Navigation Hub | `apps/ecomos` | 3000 | 3100 | Active |
+| Warehouse Management | `apps/wms` | 3001 | 3101 | Active |
+| Marketing Website | `apps/website` | 3005 | 3105 | Active |
+| HRMS | `apps/hrms` | 3006 | 3106 | Development |
+| X-Plan | `apps/x-plan` | 3008 | 3108 | Active |
+| Finance Console | `apps/fcc` | — | — | Archived |
+| Margin Master | `apps/margin-master` | — | — | Archived |
+| Jason (AI assistant) | `apps/jason` | — | — | Archived |
 
-### App Categories
+### Hosted URLs
 
-- **Production** (deployed + fully validated): Portal (`apps/ecomos`), WMS (`apps/wms`), Website (`apps/website`), X‑Plan (`apps/x-plan`).
-- **Development** (actively iterated, but still participate in CI): HRMS (`apps/hrms`), Legal Suite (portal module).
-- **Archive** (kept for reference, excluded from CI/builds): Finance Console (`apps/fcc`), Margin Master (`apps/margin-master`), Jason assistant (`apps/jason`).
+| Environment | Portal URL | Branch |
+| --- | --- | --- |
+| **Main** | `https://ecomos.targonglobal.com` | `main` |
+| **Dev** | `https://dev-ecomos.targonglobal.com` | `dev` |
 
-`app-manifest.json` is the source of truth for these lifecycles. Production and development apps run through every `pnpm lint|typecheck|build|test` invocation, while archived apps are automatically filtered out by `scripts/run-turbo-task.js` so CI and local workflows skip unnecessary work.
+Child apps are accessed via path-based routing: `/wms`, `/hrms`, `/x-plan`.
 
-Only the Production + Development apps participate in CI/builds; archived apps stay in the repo for historical context but are excluded from day-to-day work.
+### App Lifecycles
 
-We reserve ports in 20-port blocks so that future services slot in without conflicts (3000‑3019 for core apps, 3020‑3039 for finance, etc.). Margin Master keeps its historic 3400 assignment.
+- **Active**: Deployed, validated, and in use. Runs in both main and dev environments.
+- **Development**: Actively iterated, participates in CI, deployed to dev only.
+- **Archived**: Kept for reference, excluded from CI/builds/deployments.
+
+`app-manifest.json` is the source of truth for lifecycles. The `scripts/run-turbo-task.js` script filters archived apps from lint/type-check/build tasks.
+
+## Deployment Directories
+
+Two directories on the server correspond to two environments:
+
+| Directory | Environment | Ports | URL |
+| --- | --- | --- | --- |
+| `ecom-os-dev` | Dev | 31xx | dev-ecomos.targonglobal.com |
+| `ecom-os-main` | Main | 30xx | ecomos.targonglobal.com |
+
+Each directory tracks its respective git branch (`dev` or `main`).
+
+## Tech Stack
+
+- **Next.js 16** / **React 19** for all frontends
+- **NextAuth v5** (beta.30) for authentication — requires `trustHost: true` behind reverse proxy
+- **pnpm workspaces** + **Turborepo** for builds
+- **TypeScript 5.9** everywhere
+- **Prisma ORM** + **PostgreSQL** (single cluster, multi-schema)
+- **Tailwind CSS** + **Radix UI** for design
+- **PM2** + **nginx** on EC2; GitHub Actions for CI
 
 ## Shared Packages
 
-Everything under `packages/` is built so apps never re‑implement the same glue:
+Everything under `packages/` is built so apps never re-implement the same glue:
 
 - `@ecom-os/auth` – shared NextAuth config, cookie helpers, `hasPortalSession`, etc.
 - `@ecom-os/theme` – brand tokens, Tailwind extensions, spacing/radii definitions.
-- Future shared libraries (logger, config, UI) all belong here so consumers just `pnpm add @ecom-os/<pkg>`.
 
-## Tech Stack Snapshot
+## Database & Schemas
 
-- Next.js 15 / React 19 for all frontends.
-- pnpm workspaces + Turborepo for builds (`turbo.json` describes build/test/lint/type-check tasks).
-- TypeScript everywhere (`tsconfig.base.json` holds shared paths).
-- Prisma ORM + PostgreSQL (single cluster, multi-schema) for data; Tailwind CSS + Radix UI for design.
-- PM2 + nginx on the EC2 host; GitHub Actions handles CI (`.github/workflows/ci.yml`). CI runs only on pull requests and passes `APP_CHANGED_SINCE=<base-sha>` so lint/type-check/build tasks are scoped to the app workspaces touched by a PR instead of rebuilding everything.
+One PostgreSQL cluster (`portal_db`) backs every environment. Each app owns its own schema:
 
-## Database & Migrations
+| App | Main Schema | Dev Schema |
+| --- | --- | --- |
+| Portal / Auth | `auth` | `dev_auth` |
+| WMS | `wms` | `dev_wms` |
+| X-Plan | `xplan` | `dev_xplan` |
+| HRMS | `hrms` | `dev_hrms` |
 
-One RDS Postgres cluster (`portal_db`) backs every environment. Each app owns its own schema per environment:
+Environment files (`.env.local`) in each app directory configure the correct schema via `DATABASE_URL` query param.
 
-| App | Prod Schema | Dev Schema | Notes |
-| --- | --- | --- | --- |
-| Portal / Auth | `auth_prod` | `auth_dev` | NextAuth tables + directory |
-| WMS | `wms_prod` | `wms_dev` | Immutable inventory + cost ledgers |
-| X‑Plan | `xplan_prod` | `xplan_dev` | Planning tables + workbook metadata |
-| Website / FCC / others | `website_prod` | `website_dev` | Create per feature |
+## PM2 Process Management
 
-### Shared tunnel + service accounts
-
-Local Prisma failures almost always trace back to pointing at `postgres:postgres@localhost`. Don’t use placeholders. Every dev should follow the same steps before touching WMS or X‑Plan:
-
-1. Run `./scripts/open-db-tunnel.sh` (it binds `localhost:6543` to the shared RDS and keeps the tunnel alive in the background).
-2. Copy the real `DATABASE_URL` entries from `apps/wms/.env.dev.ci` and `apps/x-plan/.env.dev.ci` into the corresponding `.env.local` files. They must reference the service accounts (`portal_wms`, `portal_xplan`) plus the correct schema query string (`…?schema=wms_dev`, `…?schema=xplan_dev`). Fetch the actual passwords from 1Password (`WMS Dev DB`, `X-Plan Dev DB`)—never swap back to `postgres:postgres`.
-3. Keep `PRISMA_SCHEMA` in sync with the schema segment of your URL so the generated client matches.
-4. After changing either env file, regenerate Prisma clients for both apps (`pnpm --filter @ecom-os/wms db:generate` and `pnpm --filter @ecom-os/x-plan prisma:generate`) since they share the same root `@prisma/client` install.
-5. Start the apps with the standard ports: portal `pnpm --filter @ecom-os/ecomos dev` (3000), WMS `pnpm --filter @ecom-os/wms dev` (3001), and X‑Plan `pnpm --filter @ecom-os/x-plan exec -- next dev -p 3008`. Avoid hard-coded 3108 scripts so the DevTools and portal links continue to work.
-
-Rules of the road:
-- Every `DATABASE_URL` must pair with `PRISMA_SCHEMA` (the Prisma client now merges them so NextAuth, `pg` pools, etc. stay aligned).
-- Dev migrations: `pnpm --filter <app> prisma migrate dev`.
-- Prod migrations: `pnpm --filter <app> prisma migrate deploy`.
-- Never drop prod schemas; in dev you can `DROP SCHEMA <name> CASCADE` to reset safely.
-
-CI and DB tunnels:
-- `.github/workflows/ci.yml` copies `.env.dev.ci` for each app; keep those templates current so CI and Codespaces have the same schema names you expect locally.
-- `./scripts/open-db-tunnel.sh` opens `localhost:6543 → ecomos-prod…:5432` so Prisma/psql connect to the shared DB without exposing RDS publicly.
-
-## Auth & Local Dev
-
-- Portal (`apps/ecomos`) is the source of truth for NextAuth cookies. Run it with `PORTAL_APPS_CONFIG=dev.local.apps.json pnpm --filter @ecom-os/ecomos dev` so the tiles link to your localhost apps.
-- Every app shares `PORTAL_AUTH_SECRET` / `NEXTAUTH_SECRET`. Matching these secrets between the portal and a child app lets `hasPortalSession` decode cookies locally instead of hitting the remote `/api/auth/session`.
-- WMS/X‑Plan guard every route. If you’re prototyping and don’t care about auth, set `BYPASS_AUTH=true` (and `NEXT_PUBLIC_BYPASS_AUTH=true`) in the app’s `.env.local`.
-- Common “local 404” pitfall: you opened `http://localhost:3001` (WMS) without running the portal. The middleware sees no session and hard-404s protected routes.
-
-### Running the main apps
+All apps run via PM2 using `ecosystem.config.js`:
 
 ```bash
-# Portal
-PORTAL_APPS_CONFIG=dev.local.apps.json pnpm --filter @ecom-os/ecomos dev
+# View all processes
+pm2 status
 
-# Warehouse Management (needs portal cookies or BYPASS_AUTH)
-pnpm --filter @ecom-os/wms dev
+# Restart dev environment
+pm2 restart dev-ecomos dev-wms dev-website dev-hrms dev-x-plan --update-env
 
-# Finance Console / Bookkeeping
-pnpm --filter @ecom-os/fcc dev
+# Restart main environment
+pm2 restart main-ecomos main-wms main-website main-hrms main-x-plan --update-env
 
-# X‑Plan
-pnpm --filter @ecom-os/x-plan dev
+# View logs
+pm2 logs main-ecomos --lines 50
+
+# Save config (persists across reboots)
+pm2 save
 ```
 
-For prod-style builds use `pnpm --filter <app> build` followed by `pnpm --filter <app> start` with the right env file.
+The `ecosystem.config.js` uses environment variables for paths:
+- `ECOM_OS_DEV_DIR` – defaults to `/Users/jarraramjad/ecom-os-dev`
+- `ECOM_OS_MAIN_DIR` – defaults to `/Users/jarraramjad/ecom-os-main`
 
 ## Branching & Releases
 
-1. `git checkout dev && git pull origin dev` before starting work.
-2. Branch as `app-name/feature-name` (e.g. `wms/inline-sku-modal`).
-3. Build locally (`pnpm lint && pnpm typecheck && pnpm format`) before pushing.
-4. Open a PR into `dev`. CI (lint, type-check, build) must stay green; the PR auto-squashes into `dev` and deletes the remote branch when checks pass.
-5. Release to `main` only via a deliberate PR after testing. Direct pushes to `dev`/`main` are blocked—open a PR so the guard workflow and branch protections can run.
-6. Keep your local branch list clean (`git branch -d <branch>` after merge).
+1. All work branches off `dev`: `git checkout dev && git pull origin dev`
+2. Branch as `app-name/feature-name` (e.g., `wms/inline-sku-modal`)
+3. Open PR into `dev` — CI must pass (lint, type-check, build)
+4. After merge to `dev`, create PR from `dev` → `main` for production release
+5. Direct pushes to `dev`/`main` are blocked
 
-Versioning stays centralized: bump root `package.json` and, if needed, run `node scripts/sync-versions.js` to propagate the version to app packages. `--check` mode verifies nothing drifted.
+### Deployment Workflow
 
-## UI / Style Baseline
+```bash
+# After PR merged to dev:
+cd ~/ecom-os-dev
+git pull origin dev
+pnpm --filter ecomos --filter wms --filter website --filter hrms --filter x-plan build
+pm2 restart dev-ecomos dev-wms dev-website dev-hrms dev-x-plan --update-env
 
-- Always import brand tokens from `@ecom-os/theme` (`brandColors`, `brandFontFamilies`, `brandRadii`). Don’t paste hex codes or fonts.
-- Tailwind already exposes helpers like `bg-brand-primary`, `text-brand-accent`, `font-brand` – use them.
-- Shared component patterns (cards, CTAs, inputs) should follow the gradient + glassmorphism examples in `@ecom-os/theme` docs. Stick to `transition-all duration-300`, `rounded-3xl`, etc. for consistent motion.
-- Dark theme hierarchy: `bg-slate-900` (base) → `bg-slate-800/50` (cards) → `bg-slate-700/50` (popovers). Text colors: white (primary), `text-gray-300` (secondary), `text-gray-500` (disabled).
+# After PR merged to main:
+cd ~/ecom-os-main
+git pull origin main
+pnpm --filter ecomos --filter wms --filter website --filter hrms --filter x-plan build
+pm2 restart main-ecomos main-wms main-website main-hrms main-x-plan --update-env
+```
 
-## Troubleshooting Dev Auth
+## Auth & Local Dev
 
-- Missing cookies? Check the browser dev tools – you should see `__Secure-next-auth.session-token` scoped to `localhost` when running the portal locally.
-- “Portal session probe failed” logs usually mean `PORTAL_AUTH_URL` points at a host you’re not running. Update `.env.local` to `http://localhost:3000` during dev.
-- WMS 404 on `/operations/receive` happens when the auth check fails – run the portal or flip `BYPASS_AUTH` for local testing.
+- Portal (`apps/ecomos`) is the source of truth for NextAuth cookies
+- All apps share `PORTAL_AUTH_SECRET` / `NEXTAUTH_SECRET`
+- NextAuth v5 requires `AUTH_TRUST_HOST=true` when behind nginx/reverse proxy
+- WMS/X-Plan guard every route — use `BYPASS_AUTH=true` for local testing without auth
 
-## Getting Started Checklist
+### Running Apps Locally
 
-1. **Install deps** – Node.js 20+, `corepack enable`, `pnpm install`.
-2. **Open DB tunnel** – `./scripts/open-db-tunnel.sh` (optional if you use local DBs).
-3. **Copy envs** – each app has `.env.example` / `.env.dev.ci`. Fill secrets, especially `DATABASE_URL`, `PORTAL_AUTH_SECRET`, `NEXTAUTH_SECRET`.
-4. **Run apps** – use the commands above or `pnpm dev` to start everything through Turborepo (useful when you want multiple apps with shared caching).
-5. **Deploy helpers** – `pnpm deploy:metadata` rewrites nginx `X-Deploy-*` headers and purges Cloudflare (requires the CF token on the EC2 box).
+```bash
+# Install dependencies
+pnpm install
 
-## Scripts Worth Knowing
+# Run portal
+pnpm --filter @ecom-os/ecomos dev
+
+# Run other apps (needs portal for auth)
+pnpm --filter @ecom-os/wms dev
+pnpm --filter @ecom-os/hrms dev
+pnpm --filter @ecom-os/x-plan dev
+```
+
+## Environment Variables
+
+Each app has `.env.local` with environment-specific config. Key variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `PORT` | App port (30xx for main, 31xx for dev) |
+| `AUTH_TRUST_HOST` | Must be `true` for NextAuth v5 behind proxy |
+| `NEXTAUTH_URL` | Full URL to the app's auth endpoint |
+| `PORTAL_AUTH_URL` | Portal URL for cross-app auth |
+| `DATABASE_URL` | Postgres connection with schema param |
+| `PORTAL_APPS_CONFIG` | `prod.apps.json` or `dev.apps.json` |
+
+## Scripts
 
 | Script | Purpose |
 | --- | --- |
-| `scripts/open-db-tunnel.sh` | Background SSH tunnel to RDS on `localhost:6543`. Automatically kills stale listeners. |
-| `scripts/update-deploy-metadata.sh` | Rewrites `/etc/nginx/conf.d/deploy-headers.conf` with the latest dev/prod commits, reloads nginx, and purges Cloudflare. Invoked via `pnpm deploy:metadata`. |
-| `scripts/sync-versions.js` | Keeps app package versions aligned with the root version (supports `--check` and `--bump`). |
+| `scripts/run-turbo-task.js` | Runs turbo tasks, filtering archived apps |
+| `scripts/sync-versions.js` | Keeps app versions aligned with root |
+| `scripts/open-db-tunnel.sh` | SSH tunnel to RDS |
+| `scripts/update-deploy-metadata.sh` | Updates nginx headers, purges Cloudflare |
 
-That’s the whole picture – no extra scattered docs. If something feels missing, add it here so new teammates can grok the repo in one read.
+## Troubleshooting
+
+### "UntrustedHost" error
+Add `AUTH_TRUST_HOST=true` to `.env.local` and ensure `trustHost: true` is in the NextAuth config.
+
+### 502 Bad Gateway
+Check PM2 status — app may have crashed. View logs with `pm2 logs <app-name>`.
+
+### Auth cookies not working
+Ensure `COOKIE_DOMAIN=.targonglobal.com` is set and portal is running.
+
+### Database connection failed
+Verify `DATABASE_URL` points to correct host/schema and PostgreSQL is accessible.
