@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
 import { CostCategory, Prisma } from '@ecom-os/prisma-wms'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 
@@ -38,7 +37,7 @@ export async function GET(
 ) {
  try {
  const { id } = await context.params
- const session = await getServerSession(authOptions)
+ const session = await auth()
  if (!session) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }
@@ -85,7 +84,7 @@ export async function PUT(
 ) {
  try {
  const { id } = await context.params
- const session = await getServerSession(authOptions)
+ const session = await auth()
  if (!session) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }

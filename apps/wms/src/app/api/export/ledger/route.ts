@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Prisma, TransactionType } from '@ecom-os/prisma-wms'
 import * as XLSX from 'xlsx'
@@ -13,7 +12,7 @@ export const maxDuration = 60 // Allow up to 60 seconds for large exports
 
 export async function GET(request: NextRequest) {
  try {
- const session = await getServerSession(authOptions)
+ const session = await auth()
  
  if (!session) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

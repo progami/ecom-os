@@ -1,4 +1,7 @@
-import type { RequestInternal } from 'next-auth';
+// Type for request with headers (compatible with v5 auth)
+interface RequestWithHeaders {
+  headers?: Headers | Record<string, string | string[] | undefined>;
+}
 
 interface RateLimitContext {
   ip?: string;
@@ -151,7 +154,7 @@ export function getAuthRateLimiter() {
   return getLimiter();
 }
 
-export function resolveRateLimitContext(req: RequestInternal | undefined, identifier?: string): RateLimitContext {
+export function resolveRateLimitContext(req: RequestWithHeaders | undefined, identifier?: string): RateLimitContext {
   const headers = req?.headers;
   const headerLookup = (name: string): string | undefined => {
     if (!headers) return undefined;

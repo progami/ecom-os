@@ -1,5 +1,6 @@
-import type { NextAuthOptions } from 'next-auth';
+import type { NextAuthConfig } from 'next-auth';
 import { z } from 'zod';
+export type NextAuthOptions = NextAuthConfig;
 export type SameSite = 'lax' | 'strict' | 'none';
 export interface CookieDomainOptions {
     domain: string;
@@ -12,7 +13,7 @@ export interface CookieDomainOptions {
  * - In production (secure), uses __Secure- prefix for session/callback and __Host- for csrf (no domain).
  * - In development, optionally prefixes cookie names with `${appId}.` to avoid collisions on localhost.
  */
-export declare function buildCookieOptions(opts: CookieDomainOptions): NextAuthOptions["cookies"];
+export declare function buildCookieOptions(opts: CookieDomainOptions): NextAuthConfig["cookies"];
 export declare const AuthEnvSchema: z.ZodObject<{
     NEXTAUTH_SECRET: z.ZodString;
     NEXTAUTH_URL: z.ZodOptional<z.ZodString>;
@@ -43,7 +44,7 @@ export interface DevAuthDefaultsOptions {
  * Provide sane defaults for local development so NextAuth stops warning about missing env vars.
  */
 export declare function applyDevAuthDefaults(options?: DevAuthDefaultsOptions): void;
-export declare function withSharedAuth(base: NextAuthOptions, optsOrDomain: SharedAuthOptions | string): NextAuthOptions;
+export declare function withSharedAuth(base: NextAuthConfig, optsOrDomain: SharedAuthOptions | string): NextAuthConfig;
 /**
  * Helper to derive the likely session cookie names to probe in middleware.
  * Always include both secure (__Secure-) and non-secure variants because

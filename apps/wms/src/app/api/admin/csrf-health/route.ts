@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import { checkTokenStoreHealth } from '@/lib/security/csrf-init'
 
 export async function GET() {
  try {
  // Only allow admins to check health
- const session = await getServerSession(authOptions)
+ const session = await auth()
  if (!session?.user || session.user.role !== 'admin') {
  return NextResponse.json(
  { error: 'Unauthorized' },

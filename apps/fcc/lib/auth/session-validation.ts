@@ -5,8 +5,7 @@ import { getXeroClient, refreshToken, getStoredTokenSet } from '@/lib/xero-clien
 import { prisma } from '@/lib/prisma';
 import { structuredLogger } from '@/lib/logger';
 import { withLock, LOCK_RESOURCES } from '@/lib/redis-lock';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 
 export interface SessionUser {
   userId: string;
@@ -105,7 +104,7 @@ export async function validateSession(
 
     const cookieStore = cookies();
     // Unified auth: read NextAuth session
-    const nextAuthSession = await getServerSession(authOptions);
+    const nextAuthSession = await auth();
     if (!nextAuthSession || !nextAuthSession.user || !(nextAuthSession as any).user.id) {
       return {
         user: null as any,
@@ -176,7 +175,7 @@ export async function validateSession(
     };
 
     // Check admin privileges via portal roles claim when present
-    const portalSession = await getServerSession(authOptions)
+    const portalSession = await auth()
     const roles: any = (portalSession as any)?.roles
     const fccRole = roles?.fcc?.role as string | undefined
     const isAdmin = fccRole === 'admin'

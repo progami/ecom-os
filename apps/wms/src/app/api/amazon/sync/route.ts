@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getInventory, getCatalogItem } from '@/lib/amazon/client'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
  try {
- const session = await getServerSession(authOptions)
+ const session = await auth()
  
  if (!session || session.user.role !== 'admin') {
  return NextResponse.json(
@@ -41,7 +40,7 @@ export async function POST(request: NextRequest) {
 async function syncInventory() {
  try {
  // Get current session
- const session = await getServerSession(authOptions)
+ const session = await auth()
  if (!session?.user?.id) {
  return NextResponse.json(
  { message: 'Unauthorized' },

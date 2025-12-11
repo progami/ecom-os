@@ -1,5 +1,4 @@
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { TrendingUp, DollarSign, Package } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
@@ -9,7 +8,7 @@ import { prisma } from '@/lib/prisma'
 import { portalOrigin } from '@/lib/portal'
 
 export default async function AdminReportsPage() {
- const session = await getServerSession(authOptions)
+ const session = await auth()
 
  if (!session || session.user.role !== 'admin') {
  const portalAuth = portalOrigin()

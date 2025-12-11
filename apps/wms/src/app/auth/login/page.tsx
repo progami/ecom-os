@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import { portalOrigin } from '@/lib/portal'
 
 type SearchParamsInput =
@@ -14,7 +13,7 @@ export default async function LoginPage({ searchParams }: { searchParams?: Searc
  ? resolved.callbackUrl
  : '/dashboard'
 
- const session = await getServerSession(authOptions)
+ const session = await auth()
  if (session) {
  redirect(desired)
  }

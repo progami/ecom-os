@@ -1,6 +1,9 @@
-import type { NextAuthOptions } from 'next-auth';
+import type { NextAuthConfig } from 'next-auth';
 import { decode } from 'next-auth/jwt';
 import { z } from 'zod';
+
+// Backward compatibility alias
+export type NextAuthOptions = NextAuthConfig;
 
 export type SameSite = 'lax' | 'strict' | 'none';
 
@@ -72,7 +75,7 @@ export function buildCookieOptions(opts: CookieDomainOptions) {
         ...(secure ? {} : domainOption),
       },
     },
-  } as NextAuthOptions['cookies'];
+  } as NextAuthConfig['cookies'];
 }
 
 function parseCookieHeader(header: string | undefined | null): Map<string, string[]> {
@@ -210,7 +213,7 @@ export function applyDevAuthDefaults(options: DevAuthDefaultsOptions = {}) {
   }
 }
 
-export function withSharedAuth(base: NextAuthOptions, optsOrDomain: SharedAuthOptions | string): NextAuthOptions {
+export function withSharedAuth(base: NextAuthConfig, optsOrDomain: SharedAuthOptions | string): NextAuthConfig {
   const opts: SharedAuthOptions = typeof optsOrDomain === 'string'
     ? { cookieDomain: optsOrDomain }
     : optsOrDomain;
@@ -256,7 +259,7 @@ export function withSharedAuth(base: NextAuthOptions, optsOrDomain: SharedAuthOp
       ...buildCookieOptions({ domain: opts.cookieDomain, sameSite: 'lax', appId: opts.appId }),
       ...base.cookies,
     },
-  } satisfies NextAuthOptions;
+  } satisfies NextAuthConfig;
 }
 
 /**
@@ -339,9 +342,11 @@ export async function decodePortalSession(options: DecodePortalSessionOptions = 
     for (const raw of values) {
       if (!raw) continue;
       try {
+        // In v5, salt is required - use the cookie name as salt (typical pattern)
         const decoded = await decode({
           token: raw,
           secret: resolvedSecret,
+          salt: name, // Use the cookie name as salt
         });
         if (decoded && typeof decoded === 'object') {
           return decoded as PortalJwtPayload;

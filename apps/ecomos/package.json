@@ -11,11 +11,11 @@
     "postinstall": "node ../../scripts/link-prisma-client-auth.js"
   },
   "dependencies": {
-    "next": "15.5.0",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "next-auth": "^4.24.11",
-    "zod": "^3.23.8",
+    "next": "16.0.8",
+    "react": "19.2.1",
+    "react-dom": "19.2.1",
+    "next-auth": "5.0.0-beta.30",
+    "zod": "^3.24.4",
     "@ecom-os/auth": "workspace:*"
   },
   "devDependencies": {
