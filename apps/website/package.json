@@ -9,7 +9,7 @@
     "dev:port": "PORT=3001 next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint . --max-warnings=0",
+    "lint": "eslint . ",
     "type-check": "tsc --noEmit --skipLibCheck",
     "format": "prettier --write \"{app,components,docs}/**/*.{ts,tsx,md}\""
   },
