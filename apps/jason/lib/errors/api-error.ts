@@ -3,7 +3,7 @@ export class ApiError extends Error {
     public code: string,
     public statusCode: number,
     message: string,
-    public details?: any
+    public details?: unknown
   ) {
     super(message);
     this.name = 'ApiError';
@@ -11,7 +11,7 @@ export class ApiError extends Error {
 }
 
 export class ValidationError extends ApiError {
-  constructor(details: any) {
+  constructor(details: unknown) {
     super('VALIDATION_ERROR', 400, 'Validation failed', details);
   }
 }

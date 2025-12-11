@@ -9,6 +9,7 @@ export const QUEUE_NAMES = {
 } as const;
 
 export const defaultQueueOptions: QueueOptions = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   connection: redis as any,
   defaultJobOptions: {
     attempts: 3,

@@ -1,5 +1,6 @@
-import type { NextAuthOptions } from 'next-auth'
-import GoogleProvider from 'next-auth/providers/google'
+import NextAuth from 'next-auth'
+import type { NextAuthConfig } from 'next-auth'
+import Google from 'next-auth/providers/google'
 import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 import { getUserByEmail } from '@ecom-os/auth/server'
 
@@ -92,15 +93,15 @@ if (isProd && allowedEmails.addresses.size === 0 && allowedEmails.domains.size =
   throw new Error('GOOGLE_ALLOWED_EMAILS must include at least one permitted account in production.')
 }
 
-const providers: NextAuthOptions['providers'] = [
-  GoogleProvider({
+const providers: NextAuthConfig['providers'] = [
+  Google({
     clientId: googleClientId || '',
     clientSecret: googleClientSecret || '',
     authorization: { params: { prompt: 'select_account', access_type: 'offline', response_type: 'code' } },
   }),
 ]
 
-const baseAuthOptions: NextAuthOptions = {
+const baseAuthOptions: NextAuthConfig = {
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
   secret: sharedSecret,
   pages: {
@@ -217,10 +218,13 @@ const baseAuthOptions: NextAuthOptions = {
   },
 }
 
-export const authOptions: NextAuthOptions = withSharedAuth(baseAuthOptions, {
+export const authOptions: NextAuthConfig = withSharedAuth(baseAuthOptions, {
   cookieDomain: resolvedCookieDomain,
   appId: 'ecomos',
 })
+
+// Initialize NextAuth with config and export handlers + auth function
+export const { handlers, auth, signIn, signOut } = NextAuth(authOptions)
 
 function buildDevPortalUser(email: string) {
   const normalized = email.trim().toLowerCase()

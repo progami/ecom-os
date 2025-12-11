@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@ecom-os/prisma-wms'
@@ -12,7 +11,7 @@ export async function GET(request: NextRequest) {
  const rateLimitResponse = await checkRateLimit(request, rateLimitConfigs.api)
  if (rateLimitResponse) return rateLimitResponse
 
- const session = await getServerSession(authOptions)
+ const session = await auth()
  if (!session?.user) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }

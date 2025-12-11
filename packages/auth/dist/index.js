@@ -247,9 +247,11 @@ export async function decodePortalSession(options = {}) {
             if (!raw)
                 continue;
             try {
+                // In v5, salt is required - use the cookie name as salt (typical pattern)
                 const decoded = await decode({
                     token: raw,
                     secret: resolvedSecret,
+                    salt: name, // Use the cookie name as salt
                 });
                 if (decoded && typeof decoded === 'object') {
                     return decoded;

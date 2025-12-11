@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import { getS3Service } from '@/services/s3.service'
 import { validateFile } from '@/lib/security/file-upload'
 
@@ -19,7 +18,7 @@ interface PresignedUrlRequest {
 
 export async function POST(request: NextRequest) {
  try {
- const session = await getServerSession(authOptions)
+ const session = await auth()
  
  if (!session) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

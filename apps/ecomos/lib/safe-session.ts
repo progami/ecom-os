@@ -1,5 +1,4 @@
-import { getServerSession } from 'next-auth'
-import type { NextAuthOptions } from 'next-auth'
+import { auth } from '@/lib/auth'
 import type { Session } from 'next-auth'
 
 function isDecryptError(error: unknown): boolean {
@@ -12,9 +11,9 @@ function isDecryptError(error: unknown): boolean {
   )
 }
 
-export async function getSafeServerSession(options: NextAuthOptions): Promise<Session | null> {
+export async function getSafeServerSession(): Promise<Session | null> {
   try {
-    return await getServerSession(options)
+    return await auth()
   } catch (error) {
     if (isDecryptError(error)) {
       console.warn('[auth] Ignoring stale session cookie after decrypt failure')

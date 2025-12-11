@@ -10,6 +10,8 @@ const nextConfig = {
   assetPrefix: basePath,
   outputFileTracingRoot: path.join(__dirname, '../..'),
   trailingSlash: false,
+  // Turbopack is the default bundler in Next.js 16
+  turbopack: {},
 }
 
 module.exports = nextConfig

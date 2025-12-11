@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
 // Finance dashboard functionality removed in v0.5.0 with removal of Invoice/CalculatedCost models
 export async function GET() {
  try {
- const session = await getServerSession(authOptions)
+ const session = await auth()
  if (!session) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }

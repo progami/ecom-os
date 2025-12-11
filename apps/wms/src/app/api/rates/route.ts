@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
@@ -30,7 +29,7 @@ const updateRateSchema = z.object({
 // GET /api/rates - List cost rates
 export async function GET(req: NextRequest) {
  try {
- const session = await getServerSession(authOptions)
+ const session = await auth()
  if (!session) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }
@@ -98,7 +97,7 @@ export async function GET(req: NextRequest) {
 // POST /api/rates - Create new rate
 export async function POST(req: NextRequest) {
  try {
- const session = await getServerSession(authOptions)
+ const session = await auth()
  if (!session || !['admin', 'staff'].includes(session.user.role)) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }
@@ -172,7 +171,7 @@ export async function POST(req: NextRequest) {
 // PATCH /api/rates - Update rate
 export async function PATCH(req: NextRequest) {
  try {
- const session = await getServerSession(authOptions)
+ const session = await auth()
  if (!session || !['admin', 'staff'].includes(session.user.role)) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }
@@ -285,7 +284,7 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/rates - Delete rate
 export async function DELETE(req: NextRequest) {
  try {
- const session = await getServerSession(authOptions)
+ const session = await auth()
  if (!session || session.user.role !== 'admin') {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }

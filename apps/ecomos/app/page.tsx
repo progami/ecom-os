@@ -1,11 +1,10 @@
 import { redirect } from 'next/navigation'
-import { authOptions } from '@/lib/auth'
 import { ALL_APPS, resolveAppUrl } from '@/lib/apps'
 import { getSafeServerSession } from '@/lib/safe-session'
 import PortalClient from './PortalClient'
 
 export default async function PortalHome() {
-  const session = await getSafeServerSession(authOptions)
+  const session = await getSafeServerSession()
   if (!session) {
     redirect('/login')
   }

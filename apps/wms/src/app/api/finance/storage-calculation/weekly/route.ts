@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession, type Session } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import type { Session } from 'next-auth'
+import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { validateCSRFToken } from '@/lib/security/csrf-protection'
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
  return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 })
  }
 
- session = await getServerSession(authOptions)
+ session = await auth()
  if (!session?.user) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
  const rateLimitResponse = await checkRateLimit(request, rateLimitConfigs.api)
  if (rateLimitResponse) return rateLimitResponse
 
- const session = await getServerSession(authOptions)
+ const session = await auth()
  if (!session?.user) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }

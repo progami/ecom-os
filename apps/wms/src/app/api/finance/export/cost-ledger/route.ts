@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import * as XLSX from 'xlsx'
 import { getS3Service } from '@/services/s3.service'
 import { formatDateGMT } from '@/lib/date-utils'
@@ -10,7 +9,7 @@ export const maxDuration = 60 // Allow up to 60 seconds for large exports
 
 export async function GET(request: NextRequest) {
  try {
- const session = await getServerSession(authOptions)
+ const session = await auth()
  
  if (!session) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

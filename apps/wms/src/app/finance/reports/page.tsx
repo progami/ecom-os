@@ -1,5 +1,4 @@
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { FileText, Download, DollarSign, TrendingUp, Package2, Calendar, FileBarChart } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
@@ -8,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { portalOrigin } from '@/lib/portal'
 
 export default async function FinanceReportsPage() {
- const session = await getServerSession(authOptions)
+ const session = await auth()
 
  if (!session) {
  const portalAuth = portalOrigin()

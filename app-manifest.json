@@ -1,11 +1,12 @@
 {
   "apps": {
+    "ecomos": { "lifecycle": "active" },
     "wms": { "lifecycle": "active" },
+    "website": { "lifecycle": "active" },
     "hrms": { "lifecycle": "dev" },
     "x-plan": { "lifecycle": "active" },
-    "fcc": { "lifecycle": "dev" },
-    "margin-master": { "lifecycle": "dev" },
-    "jason": { "lifecycle": "dev" },
-    "legal-suite": { "lifecycle": "dev" }
+    "fcc": { "lifecycle": "archived" },
+    "margin-master": { "lifecycle": "archived" },
+    "jason": { "lifecycle": "archived" }
   }
 }
