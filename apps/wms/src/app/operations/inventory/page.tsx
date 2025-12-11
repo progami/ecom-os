@@ -9,6 +9,8 @@ import { Search, Building, Package, ArrowUpDown, ArrowUp, ArrowDown, Filter, Boo
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
+import { Badge } from '@/components/ui/badge'
+import { PageLoading } from '@/components/ui/loading-spinner'
 import { toast } from 'react-hot-toast'
 import { format } from 'date-fns'
 import { redirectToPortal } from '@/lib/portal'
@@ -577,15 +579,13 @@ function InventoryPage() {
  const baseFilterInputClass = 'w-full rounded-md border border-slate-200 px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary'
 
  if (status === 'loading') {
- return (
- <DashboardLayout>
- <PageContainer>
- <div className="flex h-full items-center justify-center">
- <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent " />
- </div>
- </PageContainer>
- </DashboardLayout>
- )
+   return (
+     <DashboardLayout>
+       <PageContainer>
+         <PageLoading />
+       </PageContainer>
+     </DashboardLayout>
+   )
  }
 
  return (
@@ -963,15 +963,15 @@ function InventoryPage() {
  ? balance.currentUnits
  : movementMultiplier * Math.abs(balance.currentUnits)
  const movementLabel = movementType === 'positive'
- ? 'Receive'
- : movementType === 'negative'
- ? 'Ship'
- : 'Flat'
- const movementBadgeClasses = movementType === 'positive'
- ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
- : movementType === 'negative'
- ? 'border-red-200 bg-red-50 text-red-700'
- : 'border-muted bg-muted/20 text-muted-foreground'
+   ? 'Receive'
+   : movementType === 'negative'
+   ? 'Ship'
+   : 'Flat'
+ const movementBadgeVariant = movementType === 'positive'
+   ? 'success' as const
+   : movementType === 'negative'
+   ? 'danger' as const
+   : 'neutral' as const
 
  const purchaseOrderLabel = balance.purchaseOrderNumber ?? '—'
 
@@ -1007,8 +1007,8 @@ function InventoryPage() {
  >
  {balance.lastTransactionReference ?? '—'}
  </td>
- <td className="px-3 py-2 text-right text-sm font-semibold text-cyan-700 whitespace-nowrap">
- {signedCartons.toLocaleString()}
+ <td className="px-3 py-2 text-right text-sm font-semibold text-primary whitespace-nowrap">
+                  {signedCartons.toLocaleString()}
  </td>
  <td className="px-3 py-2 text-right text-sm whitespace-nowrap">
  {signedPallets.toLocaleString()}
@@ -1017,14 +1017,9 @@ function InventoryPage() {
  {signedUnits.toLocaleString()}
  </td>
  <td className="px-3 py-2 text-sm whitespace-nowrap">
- <span
- className={cn(
- 'inline-flex w-fit items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium uppercase',
- movementBadgeClasses
- )}
- >
- {movementLabel}
- </span>
+                  <Badge variant={movementBadgeVariant} className="uppercase">
+                    {movementLabel}
+                  </Badge>
  </td>
  <td className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap">
  {lastTransactionDisplay ?? '—'}
@@ -1039,8 +1034,8 @@ function InventoryPage() {
  <div className="col-span-6 md:col-span-6 px-3 py-2 font-semibold text-left">
  Totals
  </div>
- <div className="col-span-1 px-3 py-2 text-right font-semibold text-cyan-700 whitespace-nowrap">
- {tableTotals.cartons.toLocaleString()}
+ <div className="col-span-1 px-3 py-2 text-right font-semibold text-primary whitespace-nowrap">
+                {tableTotals.cartons.toLocaleString()}
  </div>
  <div className="col-span-1 px-3 py-2 text-right font-semibold whitespace-nowrap">
  {tableTotals.pallets.toLocaleString()}
