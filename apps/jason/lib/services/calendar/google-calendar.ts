@@ -3,6 +3,17 @@ import { CalendarService, OAuthConfig } from './types';
 import { CalendarEvent } from '@/lib/types/calendar';
 import logger from '@/lib/logger';
 
+interface GoogleCalendarEvent {
+  id?: string | null;
+  summary?: string | null;
+  description?: string | null;
+  location?: string | null;
+  start?: { dateTime?: string | null; date?: string | null } | null;
+  end?: { dateTime?: string | null; date?: string | null } | null;
+  attendees?: Array<{ email?: string | null }> | null;
+  status?: string | null;
+}
+
 export class GoogleCalendarService implements CalendarService {
   private oauth2Client;
   
@@ -84,7 +95,7 @@ export class GoogleCalendarService implements CalendarService {
       this.oauth2Client.setCredentials({ access_token: accessToken });
       const calendar = google.calendar({ version: 'v3', auth: this.oauth2Client });
       
-      const requestBody: any = {};
+      const requestBody: Record<string, unknown> = {};
       if (event.title) requestBody.summary = event.title;
       if (event.description !== undefined) requestBody.description = event.description;
       if (event.location !== undefined) requestBody.location = event.location;
@@ -169,19 +180,19 @@ export class GoogleCalendarService implements CalendarService {
     }
   }
 
-  private mapGoogleEventToCalendarEvent(googleEvent: any): CalendarEvent {
-    const start = googleEvent.start?.dateTime || googleEvent.start?.date;
-    const end = googleEvent.end?.dateTime || googleEvent.end?.date;
+  private mapGoogleEventToCalendarEvent(googleEvent: GoogleCalendarEvent): CalendarEvent {
+    const startStr = googleEvent.start?.dateTime || googleEvent.start?.date || new Date().toISOString();
+    const endStr = googleEvent.end?.dateTime || googleEvent.end?.date || new Date().toISOString();
     const isAllDay = !googleEvent.start?.dateTime;
 
     return {
       id: `google_${googleEvent.id}`,
       title: googleEvent.summary || 'Untitled Event',
-      description: googleEvent.description,
-      start: new Date(start),
-      end: new Date(end),
-      location: googleEvent.location,
-      attendees: googleEvent.attendees?.map((a: any) => a.email) || [],
+      description: googleEvent.description ?? undefined,
+      start: new Date(startStr),
+      end: new Date(endStr),
+      location: googleEvent.location ?? undefined,
+      attendees: googleEvent.attendees?.map((a) => a.email).filter((e): e is string => e != null) || [],
       provider: {
         id: 'google',
         name: 'Google Calendar',
@@ -189,9 +200,9 @@ export class GoogleCalendarService implements CalendarService {
         color: '#4285F4',
         enabled: true,
       },
-      providerEventId: googleEvent.id,
+      providerEventId: googleEvent.id || '',
       isAllDay,
-      status: googleEvent.status as any,
+      status: googleEvent.status as CalendarEvent['status'],
     };
   }
 }

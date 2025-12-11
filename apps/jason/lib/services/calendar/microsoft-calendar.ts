@@ -4,6 +4,18 @@ import { CalendarService, OAuthConfig } from './types';
 import { CalendarEvent } from '@/lib/types/calendar';
 import logger from '@/lib/logger';
 
+interface MicrosoftCalendarEvent {
+  id: string;
+  subject?: string;
+  body?: { content?: string };
+  start: { dateTime: string };
+  end: { dateTime: string };
+  location?: { displayName?: string };
+  attendees?: Array<{ emailAddress: { address: string } }>;
+  isAllDay?: boolean;
+  showAs?: string;
+}
+
 export class MicrosoftCalendarService implements CalendarService {
   private msalClient: ConfidentialClientApplication;
   
@@ -39,7 +51,7 @@ export class MicrosoftCalendarService implements CalendarService {
         })
         .get();
 
-      return (response.value || []).map((event: any) => this.mapMicrosoftEventToCalendarEvent(event));
+      return (response.value || []).map((event: MicrosoftCalendarEvent) => this.mapMicrosoftEventToCalendarEvent(event));
     } catch (error) {
       logger.error('[MicrosoftCalendar] Failed to fetch events', error);
       throw error;
@@ -103,7 +115,7 @@ export class MicrosoftCalendarService implements CalendarService {
     try {
       const client = this.getGraphClient(accessToken);
       
-      const updateData: any = {};
+      const updateData: Record<string, unknown> = {};
       if (event.title) updateData.subject = event.title;
       if (event.description !== undefined) {
         updateData.body = {
@@ -210,7 +222,7 @@ export class MicrosoftCalendarService implements CalendarService {
     }
   }
 
-  private mapMicrosoftEventToCalendarEvent(msEvent: any): CalendarEvent {
+  private mapMicrosoftEventToCalendarEvent(msEvent: MicrosoftCalendarEvent): CalendarEvent {
     return {
       id: `microsoft_${msEvent.id}`,
       title: msEvent.subject || 'Untitled Event',
@@ -218,7 +230,7 @@ export class MicrosoftCalendarService implements CalendarService {
       start: new Date(msEvent.start.dateTime),
       end: new Date(msEvent.end.dateTime),
       location: msEvent.location?.displayName || undefined,
-      attendees: msEvent.attendees?.map((a: any) => a.emailAddress.address) || [],
+      attendees: msEvent.attendees?.map((a) => a.emailAddress.address) || [],
       provider: {
         id: 'microsoft',
         name: 'Outlook Calendar',

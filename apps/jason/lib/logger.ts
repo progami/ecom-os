@@ -10,11 +10,13 @@ if (!fs.existsSync(logsDir)) {
 }
 
 // Conditionally import DailyRotateFile only in Node.js runtime
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let DailyRotateFile: any;
 if (typeof window === 'undefined') {
   try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     DailyRotateFile = require('winston-daily-rotate-file');
-  } catch (e) {
+  } catch {
     // Silently ignore in edge runtime
   }
 }
@@ -249,7 +251,7 @@ if (process.env.NODE_ENV === 'production' && DailyRotateFile && typeof window ==
         format: productionFormat,
       })
     );
-  } catch (e) {
+  } catch {
     // Silently ignore if file transport fails
   }
 }
@@ -272,7 +274,7 @@ const createLogger = () => {
       config.rejectionHandlers = [
         new winston.transports.File({ filename: 'logs/rejections.log' }),
       ];
-    } catch (e) {
+    } catch {
       // Silently ignore if file transport fails (edge runtime)
     }
   }
@@ -285,9 +287,9 @@ const logger = createLogger();
 // Log initialization in development - only log once per process
 if (process.env.NODE_ENV !== 'production' && typeof window === 'undefined') {
   // Use a global flag to ensure we only log startup once
-  const globalAny = global as any;
-  if (!globalAny.__loggerInitialized) {
-    globalAny.__loggerInitialized = true;
+  const globalWithFlag = global as typeof globalThis & { __loggerInitialized?: boolean };
+  if (!globalWithFlag.__loggerInitialized) {
+    globalWithFlag.__loggerInitialized = true;
     
     // Use setTimeout to ensure the transport is ready
     setTimeout(() => {
@@ -304,8 +306,18 @@ if (process.env.NODE_ENV !== 'production' && typeof window === 'undefined') {
   }
 }
 
+interface RequestLike {
+  url: string;
+  method: string;
+}
+
+interface ResponseLike {
+  statusCode: number;
+  on: (event: string, callback: () => void) => void;
+}
+
 // Create request logger middleware
-export function requestLogger(req: any, res: any, next: any) {
+export function requestLogger(req: RequestLike, res: ResponseLike, next: () => void) {
   // Skip logging for static assets and health checks
   if (req.url.includes('_next') || req.url.includes('/health') || req.url.includes('/favicon')) {
     return next();
@@ -327,13 +339,13 @@ export function requestLogger(req: any, res: any, next: any) {
 
 // Export logger with context methods
 export class Logger {
-  private context: any = {};
+  private context: Record<string, unknown> = {};
 
-  constructor(context?: any) {
+  constructor(context?: Record<string, unknown>) {
     this.context = context || {};
   }
 
-  private log(level: string, message: string, meta?: any) {
+  private log(level: string, message: string, meta?: Record<string, unknown>) {
     // Format the message with context if available
     let formattedMessage = message;
     
@@ -378,27 +390,28 @@ export class Logger {
     }
   }
 
-  error(message: string, error?: any, meta?: any) {
-    this.log('error', message, { error: error?.stack || error, ...meta });
+  error(message: string, error?: unknown, meta?: Record<string, unknown>) {
+    const errorValue = error instanceof Error ? error.stack : error;
+    this.log('error', message, { error: errorValue, ...meta });
   }
 
-  warn(message: string, meta?: any) {
+  warn(message: string, meta?: Record<string, unknown>) {
     this.log('warn', message, meta);
   }
 
-  info(message: string, meta?: any) {
+  info(message: string, meta?: Record<string, unknown>) {
     this.log('info', message, meta);
   }
 
-  http(message: string, meta?: any) {
+  http(message: string, meta?: Record<string, unknown>) {
     this.log('http', message, meta);
   }
 
-  debug(message: string, meta?: any) {
+  debug(message: string, meta?: Record<string, unknown>) {
     this.log('debug', message, meta);
   }
 
-  child(context: any) {
+  child(context: Record<string, unknown>) {
     return new Logger({ ...this.context, ...context });
   }
 }
