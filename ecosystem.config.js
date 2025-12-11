@@ -1,5 +1,5 @@
 const path = require('path');
-const BASE_DIR = '/Users/jarraramjad/ecom-os';
+const BASE_DIR = process.env.ECOM_OS_DIR || __dirname;
 
 module.exports = {
   apps: [
