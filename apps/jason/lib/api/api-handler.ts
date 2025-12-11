@@ -3,21 +3,27 @@ import { z } from 'zod';
 import { validateSession } from '@/lib/auth/session';
 import { ApiError } from '@/lib/errors/api-error';
 
+interface User {
+  id: string;
+  email?: string;
+  name?: string | null;
+}
+
 type HandlerOptions<T extends z.ZodSchema> = {
   authenticate?: boolean;
   schema?: T;
   handler: (
     req: NextRequest,
     context: {
-      user?: any;
+      user?: User | null;
       body?: z.infer<T>;
-      params?: any;
+      params?: Record<string, string>;
     }
-  ) => Promise<any>;
+  ) => Promise<unknown>;
 };
 
 export function createApiHandler<T extends z.ZodSchema>(options: HandlerOptions<T>) {
-  return async (req: NextRequest, { params }: any) => {
+  return async (req: NextRequest, { params }: { params: Record<string, string> }) => {
     try {
       let user = null;
       let body = null;

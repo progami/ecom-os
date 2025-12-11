@@ -1,4 +1,5 @@
-import type { NextAuthOptions } from 'next-auth'
+import NextAuth from 'next-auth'
+import type { NextAuthConfig } from 'next-auth'
 import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 
 if (!process.env.NEXT_PUBLIC_APP_URL) {
@@ -19,7 +20,7 @@ if (sharedSecret) {
   process.env.NEXTAUTH_SECRET = sharedSecret
 }
 
-const baseAuthOptions: NextAuthOptions = {
+const baseAuthOptions: NextAuthConfig = {
   session: {
     strategy: 'jwt',
     maxAge: 30 * 24 * 60 * 60,
@@ -47,8 +48,11 @@ const baseAuthOptions: NextAuthOptions = {
   // No signIn page here; sign-in happens at the portal (ecomos)
 }
 
-export const authOptions: NextAuthOptions = withSharedAuth(baseAuthOptions, {
+export const authOptions: NextAuthConfig = withSharedAuth(baseAuthOptions, {
   cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
   // Read portal cookie in dev
   appId: 'ecomos',
 })
+
+// Initialize NextAuth with config and export handlers + auth function
+export const { handlers, auth, signIn, signOut } = NextAuth(authOptions)

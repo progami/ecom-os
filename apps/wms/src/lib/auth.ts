@@ -1,6 +1,7 @@
-import { NextAuthOptions } from 'next-auth'
+import NextAuth from 'next-auth'
+import type { NextAuthConfig } from 'next-auth'
 import type { Session } from 'next-auth'
-import CredentialsProvider from 'next-auth/providers/credentials'
+import Credentials from 'next-auth/providers/credentials'
 import { applyDevAuthDefaults, withSharedAuth, getAppEntitlement } from '@ecom-os/auth'
 import { UserRole } from '@ecom-os/prisma-wms'
 
@@ -30,7 +31,7 @@ if (sharedSecret) {
  }
 }
 
-const baseAuthOptions: NextAuthOptions = {
+const baseAuthOptions: NextAuthConfig = {
  // NextAuth automatically inherits Next.js basePath, no need to specify it here
  session: {
   strategy: 'jwt',
@@ -41,7 +42,7 @@ const baseAuthOptions: NextAuthOptions = {
  // Include a no-op credentials provider so NextAuth routes (csrf/session) function
  // WMS does not authenticate locally; the portal issues the session cookie
  providers: [
- CredentialsProvider({
+ Credentials({
  name: 'noop',
  credentials: {
  username: { label: 'Username', type: 'text' },
@@ -91,7 +92,7 @@ const baseAuthOptions: NextAuthOptions = {
  },
 }
 
-export const authOptions: NextAuthOptions = withSharedAuth(
+export const authOptions: NextAuthConfig = withSharedAuth(
  baseAuthOptions,
  {
  cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
@@ -99,3 +100,6 @@ export const authOptions: NextAuthOptions = withSharedAuth(
  appId: 'ecomos',
  }
 )
+
+// Initialize NextAuth with config and export handlers + auth function
+export const { handlers, auth, signIn, signOut } = NextAuth(authOptions)

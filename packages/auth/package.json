@@ -19,21 +19,21 @@
     "@types/bcryptjs": "^3.0.0",
     "@types/node": "^24.3.0",
     "ts-node": "^10.9.2",
-    "tsx": "^4.20.0",
-    "next": "15.5.0",
-    "next-auth": "^4.24.11",
+    "tsx": "^4.21.0",
+    "next": "16.0.8",
+    "next-auth": "5.0.0-beta.30",
     "prisma": "6.19.0",
     "typescript": "5.9.3"
   },
   "dependencies": {
     "@prisma/client": "6.19.0",
-    "bcryptjs": "^3.0.2",
-    "zod": "^3.23.8"
+    "bcryptjs": "^3.0.3",
+    "zod": "^3.24.4"
   },
   "peerDependencies": {
-    "next-auth": "^4.24.11",
-    "next": "15.5.0",
-    "zod": "^3.23.8"
+    "next-auth": "5.0.0-beta.30",
+    "next": "16.0.8",
+    "zod": "^3.24.4"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -55,12 +55,15 @@ const nextConfig = {
     ];
   },
   
+  // Turbopack is the default bundler in Next.js 16
+  turbopack: {},
+
   // Optimize images
   images: {
-    domains: [],
+    remotePatterns: [],
     formats: ['image/avif', 'image/webp'],
   },
-  
+
   // Prevent server restarts when logs or database files change
   webpack: (config, { dev, isServer }) => {
     if (dev && isServer) {

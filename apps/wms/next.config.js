@@ -34,7 +34,11 @@ const nextConfig = {
   
   // Image optimization
   images: {
-    domains: ['localhost', 'targonglobal.com', 'www.targonglobal.com'],
+    remotePatterns: [
+      { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'https', hostname: 'targonglobal.com' },
+      { protocol: 'https', hostname: 'www.targonglobal.com' },
+    ],
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 60,
   },
@@ -181,6 +185,10 @@ const nextConfig = {
   },
 
   
+  // Turbopack is the default bundler in Next.js 16
+  // Add empty config to silence webpack config warning
+  turbopack: {},
+
   // Enable experimental features for production optimization
   experimental: {
     // optimizeCss: true, // Disabled to avoid critters dependency issue
@@ -199,11 +207,6 @@ const nextConfig = {
   
   // Removed standalone output - incompatible with custom server.js
   // output: 'standalone',
-  
-  // Disable ESLint during production builds for deployment
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   
   // Disable TypeScript errors during production builds for deployment
   typescript: {

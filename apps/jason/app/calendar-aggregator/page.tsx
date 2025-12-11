@@ -1,7 +1,7 @@
 'use client';
 
 import { AppLayout } from '@/components/layout/app-layout';
-import { Calendar, RefreshCw, CheckCircle, AlertCircle, Plus, Settings, X } from 'lucide-react';
+import { Calendar, RefreshCw, CheckCircle, Plus, Settings, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useState, useEffect, Suspense } from 'react';
@@ -51,7 +51,7 @@ function CalendarAggregatorContent() {
       console.error('[CLIENT] [CalendarPage] OAuth error:', error);
       // You could show an error toast here
     }
-  }, [searchParams]);
+  }, [searchParams, refetch]);
 
   return (
     <AppLayout>
@@ -143,7 +143,7 @@ function CalendarAggregatorContent() {
             </p>
           </div>
           <div className="bg-card p-6 rounded-lg border">
-            <h3 className="text-sm font-medium text-muted-foreground mb-2">Today's Events</h3>
+            <h3 className="text-sm font-medium text-muted-foreground mb-2">Today&apos;s Events</h3>
             <p className="text-3xl font-bold">{todaysEvents.length}</p>
             <p className="text-sm text-muted-foreground mt-1">
               {todaysEvents.length === 0 ? 'No events today' : 'Scheduled events'}
@@ -160,7 +160,7 @@ function CalendarAggregatorContent() {
 
         {/* Today's Schedule */}
         <div className="bg-card p-6 rounded-lg border">
-          <h2 className="text-xl font-semibold mb-4">Today's Schedule</h2>
+          <h2 className="text-xl font-semibold mb-4">Today&apos;s Schedule</h2>
           {isLoading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
@@ -252,7 +252,7 @@ function CalendarAggregatorContent() {
               </div>
               
               <p className="text-muted-foreground mb-6">
-                Choose a calendar provider to connect. You'll be redirected to sign in and authorize access.
+                Choose a calendar provider to connect. You&apos;ll be redirected to sign in and authorize access.
               </p>
               
               <div className="space-y-3">

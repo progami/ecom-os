@@ -12,7 +12,7 @@ export interface CalendarEvent {
   organizer?: Organizer;
   recurrence?: RecurrenceRule;
   reminders?: Reminder[];
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface Attendee {
@@ -49,7 +49,7 @@ export interface CalendarCredentials {
   expiresAt?: Date;
   apiKey?: string;
   apiSecret?: string;
-  [key: string]: any;
+  [key: string]: string | Date | undefined;
 }
 
 export interface SyncResult {
@@ -85,5 +85,5 @@ export interface CalendarAdapter {
   
   unsubscribeFromWebhooks?(subscriptionId: string): Promise<void>;
   
-  validateWebhookPayload?(payload: any, signature?: string): boolean;
+  validateWebhookPayload?(payload: unknown, signature?: string): boolean;
 }

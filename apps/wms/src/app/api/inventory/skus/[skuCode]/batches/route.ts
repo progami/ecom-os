@@ -3,8 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { aggregateInventoryTransactions } from '@ecom-os/ledger'
 import { resolvePortalSession } from '@/lib/portal-session'
-import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,7 +51,7 @@ export async function GET(
   { params }: { params: Promise<{ skuCode: string }> }
 ) {
   try {
-    const session = await resolvePortalSession(req) ?? await getServerSession(authOptions)
+    const session = await resolvePortalSession(req) ?? await auth()
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

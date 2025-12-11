@@ -1,5 +1,4 @@
-import { getServerSession } from 'next-auth/next'
-import { authOptions } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageHeader } from '@/components/ui/page-header'
@@ -7,7 +6,7 @@ import { Construction, Hammer, Wrench } from '@/lib/lucide-icons'
 import { portalOrigin } from '@/lib/portal'
 
 export default async function OrderManagementPage() {
- const session = await getServerSession(authOptions)
+ const session = await auth()
 
  if (!session) {
  const portalAuth = portalOrigin()

@@ -1,5 +1,5 @@
 import { AppLayout } from '@/components/layout/app-layout';
-import { Calendar, Mail, Users, Activity, TrendingUp, Clock, ArrowUp, ArrowDown, Zap } from 'lucide-react';
+import { Calendar, Mail, Users, Activity, TrendingUp, Clock, ArrowUp, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
@@ -11,7 +11,7 @@ export default function Dashboard() {
           <h1 className="text-4xl font-bold mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
             Welcome back, John
           </h1>
-          <p className="text-muted-foreground text-lg">Here's your productivity overview for today.</p>
+          <p className="text-muted-foreground text-lg">Here&apos;s your productivity overview for today.</p>
         </div>
 
         {/* Stats Grid */}

@@ -36,7 +36,7 @@ export function useCalendarEvents(
       const data = await response.json();
       
       // Convert date strings back to Date objects
-      const parsedEvents = data.events.map((event: any) => ({
+      const parsedEvents = data.events.map((event: { start: string; end: string; [key: string]: unknown }) => ({
         ...event,
         start: new Date(event.start),
         end: new Date(event.end),

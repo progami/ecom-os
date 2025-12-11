@@ -69,7 +69,7 @@ export function sanitizeString(str: string): string {
 /**
  * Deep sanitize an object by removing sensitive fields
  */
-export function sanitizeObject(obj: any, visited = new WeakSet()): any {
+export function sanitizeObject(obj: unknown, visited = new WeakSet<object>()): unknown {
   if (!obj || typeof obj !== 'object') {
     return obj;
   }
@@ -84,10 +84,10 @@ export function sanitizeObject(obj: any, visited = new WeakSet()): any {
     return obj.map(item => sanitizeObject(item, visited));
   }
   
-  const sanitized: any = {};
-  
+  const sanitized: Record<string, unknown> = {};
+
   try {
-    for (const [key, value] of Object.entries(obj)) {
+    for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
       // Check if this is a sensitive field
       if (SENSITIVE_FIELDS.some(field => key.toLowerCase().includes(field.toLowerCase()))) {
         sanitized[key] = '[REDACTED]';
@@ -101,7 +101,7 @@ export function sanitizeObject(obj: any, visited = new WeakSet()): any {
         sanitized[key] = value;
       }
     }
-  } catch (error) {
+  } catch {
     // If Object.entries fails (e.g., on certain native objects), return a safe representation
     return '[Complex Object]';
   }

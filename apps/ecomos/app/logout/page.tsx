@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { type Session } from 'next-auth'
-import { authOptions } from '@/lib/auth'
 import { getSafeServerSession } from '@/lib/safe-session'
 import { LogoutForm } from './logout-form'
 import '../login/login.css'
@@ -25,7 +24,7 @@ function getAvatarInitial(session: Session | null): string {
 
 export default async function LogoutPage({ searchParams }: LogoutPageProps) {
   const resolvedParams = searchParams ? await searchParams : undefined
-  const session = await getSafeServerSession(authOptions)
+  const session = await getSafeServerSession()
   const callbackUrl = normalizeCallbackUrl(resolvedParams?.callbackUrl)
   const signedIn = Boolean(session)
   const userName = session?.user?.name

@@ -1,4 +1,5 @@
-import type { NextAuthOptions } from 'next-auth'
+import NextAuth from 'next-auth'
+import type { NextAuthConfig } from 'next-auth'
 import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 
 const isProductionBuild = process.env.NODE_ENV === 'production'
@@ -29,7 +30,7 @@ if (sharedSecret) {
   process.env.NEXTAUTH_SECRET = sharedSecret
 }
 
-const baseAuthOptions: NextAuthOptions = {
+const baseAuthOptions: NextAuthConfig = {
   providers: [],
   session: { strategy: 'jwt' },
   secret: sharedSecret,
@@ -41,16 +42,17 @@ const baseAuthOptions: NextAuthOptions = {
       return token
     },
     async session({ session, token }) {
-      // @ts-expect-error propagate roles if present
-      session.roles = (token as any).roles
-      // @ts-expect-error add user id for downstream services
+      (session as { roles?: unknown }).roles = (token as { roles?: unknown }).roles
       session.user.id = (token.sub as string) || session.user.id
       return session
     },
   },
 }
 
-export const authOptions: NextAuthOptions = withSharedAuth(baseAuthOptions, {
+export const authOptions: NextAuthConfig = withSharedAuth(baseAuthOptions, {
   cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
   appId: 'x-plan',
 })
+
+// Initialize NextAuth with config and export handlers + auth function
+export const { handlers, auth, signIn, signOut } = NextAuth(authOptions)

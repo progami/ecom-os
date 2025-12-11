@@ -68,11 +68,12 @@ export class SkuService extends BaseService {
  }
  
  // Create SKU (remove fields that don't exist in schema)
- const { warehouseId, category: _category, supplier: _supplier, ...skuData } = validatedData
+ const { warehouseId, category: _category, supplier: _supplier, skuCode, description, ...skuData } = validatedData
  const sku = await this.prisma.sku.create({
  data: {
- ...skuData,
- description: sanitizeForDisplay(skuData.description)
+ skuCode,
+ description: sanitizeForDisplay(description),
+ ...skuData
  }
  })
  

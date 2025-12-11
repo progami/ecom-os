@@ -39,8 +39,8 @@ The auth bootstrap fails fast when a required variable is missing. Make sure eve
   - Migrations tracked in `prisma/migrations/`
 
 ### Authentication & Authorization
-- **NextAuth.js** `4.24.7` - Authentication solution for Next.js
-  - `@next-auth/prisma-adapter` - Prisma adapter for session storage
+- **NextAuth.js** `5.0.0-beta.30` - Authentication solution for Next.js
+  - Shared auth via `@ecom-os/auth` workspace package
   - Session-based auth with JWT support
   - OAuth provider integrations
 
