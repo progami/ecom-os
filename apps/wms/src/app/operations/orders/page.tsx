@@ -1,13 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { PageTabs } from '@/components/ui/page-tabs'
+import { PageLoading } from '@/components/ui/loading-spinner'
 import { FileText, Plus, Construction, Ship, Warehouse, CheckCircle, XCircle, Archive } from '@/lib/lucide-icons'
 import { PurchaseOrdersPanel, PurchaseOrderFilter } from '../inventory/purchase-orders-panel'
 import { redirectToPortal } from '@/lib/portal'
@@ -71,9 +73,14 @@ const TERMINAL_STATUSES: StatusConfig[] = [
  },
 ]
 
-const STATUS_TABS = [...PIPELINE_STATUSES, ...TERMINAL_STATUSES]
+const STATUS_CONFIGS = [...PIPELINE_STATUSES, ...TERMINAL_STATUSES]
 
 type OrderType = 'PURCHASE' | 'SALES'
+
+const ORDER_TYPE_TABS = [
+  { value: 'PURCHASE', label: 'Purchase Order' },
+  { value: 'SALES', label: 'Sales Order' },
+]
 
 function OrdersPage() {
  const { data: session, status } = useSession()
@@ -94,16 +101,25 @@ function OrdersPage() {
  }
  }, [session, status, router])
 
- if (status === 'loading') {
- return (
- <DashboardLayout>
- <PageContainer>
- <div className="flex h-full items-center justify-center">
- <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent " />
- </div>
- </PageContainer>
- </DashboardLayout>
+ // Memoize status tabs to use with PageTabs
+ const statusTabs = useMemo(
+   () =>
+     STATUS_CONFIGS.map((config) => ({
+       value: config.value,
+       label: config.label,
+       icon: config.icon,
+     })),
+   []
  )
+
+ if (status === 'loading') {
+   return (
+     <DashboardLayout>
+       <PageContainer>
+         <PageLoading />
+       </PageContainer>
+     </DashboardLayout>
+   )
  }
 
  return (
@@ -138,58 +154,21 @@ function OrdersPage() {
  />
  <PageContent>
  <div className="flex flex-col gap-6">
- {/* Order Type Tabs */}
- <div className="border-b border-slate-300">
- <nav className="-mb-px flex space-x-1">
- <button
- type="button"
- onClick={() => setOrderType('PURCHASE')}
- className={`py-3 px-6 border-b-4 font-semibold text-base transition-all ${
- orderType === 'PURCHASE'
- ? 'border-cyan-600 text-cyan-600'
- : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-300'
- }`}
- >
- Purchase Order
- </button>
- <button
- type="button"
- onClick={() => setOrderType('SALES')}
- className={`py-3 px-6 border-b-4 font-semibold text-base transition-all ${
- orderType === 'SALES'
- ? 'border-cyan-600 text-cyan-600'
- : 'border-transparent text-slate-400 hover:text-slate-600 hover:border-slate-300'
- }`}
- >
- Sales Order
- </button>
- </nav>
- </div>
+          {/* Order Type Tabs */}
+          <PageTabs
+            tabs={ORDER_TYPE_TABS}
+            value={orderType}
+            onChange={(value) => setOrderType(value as OrderType)}
+            variant="underline-lg"
+          />
 
- {/* Status Tabs */}
- <div className="border-b">
- <nav className="-mb-px flex space-x-8">
- {STATUS_TABS.map(tab => {
- const isActive = statusFilter === tab.value
- const Icon = tab.icon
- return (
- <button
- key={tab.value}
- type="button"
- onClick={() => setStatusFilter(tab.value)}
- className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
- isActive
- ? 'border-primary text-primary'
- : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
- }`}
- >
- <Icon className="h-4 w-4" />
- {tab.label}
- </button>
- )
- })}
- </nav>
- </div>
+          {/* Status Tabs */}
+          <PageTabs
+            tabs={statusTabs}
+            value={statusFilter}
+            onChange={(value) => setStatusFilter(value as PurchaseOrderFilter)}
+            variant="underline"
+          />
 
  <PurchaseOrdersPanel
  onPosted={() => {}}

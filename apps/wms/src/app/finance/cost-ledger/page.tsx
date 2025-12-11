@@ -5,13 +5,13 @@ import { format } from 'date-fns'
 import { useSession } from '@/hooks/usePortalSession'
 import { useRouter } from 'next/navigation'
 import {
- DollarSign,
- BarChart3,
- Filter,
- Download,
- Truck,
- Box,
- Package,
+  DollarSign,
+  BarChart3,
+  Filter,
+  Download,
+  Truck,
+  Box,
+  Package,
 } from '@/lib/lucide-icons'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
@@ -19,6 +19,7 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
 import { Button } from '@/components/ui/button'
+import { PageLoading } from '@/components/ui/loading-spinner'
 import { formatCurrency } from '@/lib/utils'
 import { toast } from 'react-hot-toast'
 import type { CostLedgerBucketTotals, CostLedgerGroupResult } from '@ecom-os/ledger'
@@ -327,15 +328,13 @@ function CostLedgerPage() {
  }, [totals])
 
  if (status === 'loading') {
- return (
- <DashboardLayout>
- <PageContainer>
- <div className="flex h-full items-center justify-center">
- <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent " />
- </div>
- </PageContainer>
- </DashboardLayout>
- )
+   return (
+     <DashboardLayout>
+       <PageContainer>
+         <PageLoading />
+       </PageContainer>
+     </DashboardLayout>
+   )
  }
 
  return (
@@ -513,8 +512,8 @@ function CostLedgerPage() {
  <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.transportation)}</td>
  <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.accessorial)}</td>
  <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.other)}</td>
- <td className="px-3 py-2 text-right font-semibold text-emerald-700">
- {formatCurrency(group.costs.total)}
+ <td className="px-3 py-2 text-right font-semibold text-success-700">
+                {formatCurrency(group.costs.total)}
  </td>
  </tr>
  ))}

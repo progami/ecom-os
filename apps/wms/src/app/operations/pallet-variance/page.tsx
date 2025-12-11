@@ -1,25 +1,29 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useSession } from '@/hooks/usePortalSession'
 import { useRouter } from 'next/navigation'
-import { 
- Package, 
- AlertTriangle, 
- CheckCircle, 
- RefreshCw,
- FileText,
- Plus,
- Minus,
- Download,
- TrendingUp,
- TrendingDown
+import {
+  Package,
+  AlertTriangle,
+  CheckCircle,
+  RefreshCw,
+  FileText,
+  Plus,
+  Minus,
+  Download,
+  TrendingUp,
+  TrendingDown
 } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
+import { PageTabs } from '@/components/ui/page-tabs'
+import { PageLoading } from '@/components/ui/loading-spinner'
+import { DataTableContainer, DataTableHead, DataTableHeaderCell } from '@/components/ui/data-table-container'
 import { toast } from 'react-hot-toast'
 import { redirectToPortal } from '@/lib/portal'
 
@@ -148,16 +152,22 @@ export default function PalletVariancePage() {
  const negativeCount = variances.filter(v => v.variance < 0).length
  const pendingCount = variances.filter(v => v.status === 'PENDING').length
 
+ // Build filter tabs with counts
+ const filterTabs = useMemo(() => [
+   { value: 'all', label: `All (${variances.length})` },
+   { value: 'positive', label: `Overages (${positiveCount})` },
+   { value: 'negative', label: `Shortages (${negativeCount})` },
+   { value: 'pending', label: `Pending (${pendingCount})` },
+ ], [variances.length, positiveCount, negativeCount, pendingCount])
+
  if (loading || status === 'loading') {
- return (
- <DashboardLayout>
- <PageContainer>
- <div className="flex h-full items-center justify-center">
- <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent " />
- </div>
- </PageContainer>
- </DashboardLayout>
- )
+   return (
+     <DashboardLayout>
+       <PageContainer>
+         <PageLoading />
+       </PageContainer>
+     </DashboardLayout>
+   )
  }
 
  return (
@@ -216,92 +226,32 @@ export default function PalletVariancePage() {
  </StatsCardGrid>
 
  {/* Filter Tabs */}
- <div className="border-b">
- <nav className="-mb-px flex space-x-8">
- <button
- onClick={() => setFilter('all')}
- className={`py-2 px-1 border-b-2 font-medium text-sm ${
- filter === 'all'
- ? 'border-primary text-primary'
- : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
- }`}
- >
- All ({variances.length})
- </button>
- <button
- onClick={() => setFilter('positive')}
- className={`py-2 px-1 border-b-2 font-medium text-sm ${
- filter === 'positive'
- ? 'border-primary text-primary'
- : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
- }`}
- >
- Overages ({positiveCount})
- </button>
- <button
- onClick={() => setFilter('negative')}
- className={`py-2 px-1 border-b-2 font-medium text-sm ${
- filter === 'negative'
- ? 'border-primary text-primary'
- : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
- }`}
- >
- Shortages ({negativeCount})
- </button>
- <button
- onClick={() => setFilter('pending')}
- className={`py-2 px-1 border-b-2 font-medium text-sm ${
- filter === 'pending'
- ? 'border-primary text-primary'
- : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
- }`}
- >
- Pending ({pendingCount})
- </button>
- </nav>
- </div>
+          <PageTabs
+            tabs={filterTabs}
+            value={filter}
+            onChange={(value) => setFilter(value as typeof filter)}
+            variant="underline"
+          />
 
  {/* Variance Table */}
- <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft ">
- <div className="border-b border-slate-200 bg-slate-50 px-6 py-3 ">
- <h3 className="text-lg font-semibold">Pallet Variances</h3>
- <p className="text-sm text-slate-600 mt-1">
- Showing {filteredVariances.length} of {variances.length} variances
- </p>
- </div>
- <div className="overflow-x-auto">
- <table className="min-w-full divide-y divide-gray-200">
- <thead className="bg-slate-50">
+          <DataTableContainer
+            title="Pallet Variances"
+            subtitle={`Showing ${filteredVariances.length} of ${variances.length} variances`}
+          >
+ <table className="min-w-full">
+            <DataTableHead>
  <tr>
- <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
- Warehouse
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
- SKU
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
- Batch/Lot
- </th>
- <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
- System Pallets
- </th>
- <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
- Actual Pallets
- </th>
- <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
- Variance
- </th>
- <th className="px-6 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">
- Status
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
- Last Count
- </th>
- <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">
- Actions
- </th>
+                <DataTableHeaderCell>Warehouse</DataTableHeaderCell>
+                <DataTableHeaderCell>SKU</DataTableHeaderCell>
+                <DataTableHeaderCell>Batch/Lot</DataTableHeaderCell>
+                <DataTableHeaderCell align="center">System Pallets</DataTableHeaderCell>
+                <DataTableHeaderCell align="center">Actual Pallets</DataTableHeaderCell>
+                <DataTableHeaderCell align="center">Variance</DataTableHeaderCell>
+                <DataTableHeaderCell align="center">Status</DataTableHeaderCell>
+                <DataTableHeaderCell>Last Count</DataTableHeaderCell>
+                <DataTableHeaderCell>Actions</DataTableHeaderCell>
  </tr>
- </thead>
+            </DataTableHead>
  <tbody className="bg-white divide-y divide-gray-200">
  {filteredVariances.map((variance) => (
  <tr key={variance.id} className="hover:bg-slate-50">
@@ -336,15 +286,15 @@ export default function PalletVariancePage() {
  </div>
  </td>
  <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
- <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
- variance.status === 'RESOLVED' 
- ? 'bg-green-100 text-green-800'
- : variance.status === 'INVESTIGATING'
- ? 'bg-yellow-100 text-yellow-800'
- : 'bg-orange-100 text-orange-800'
- }`}>
- {variance.status}
- </span>
+                  <Badge
+                    variant={
+                      variance.status === 'RESOLVED'
+                        ? 'success' as const
+                        : 'warning' as const
+                    }
+                  >
+                    {variance.status}
+                  </Badge>
  </td>
  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
  {variance.lastPhysicalCount 
@@ -390,8 +340,7 @@ export default function PalletVariancePage() {
  )}
  </tbody>
  </table>
- </div>
- </div>
+          </DataTableContainer>
  </div>
  </PageContent>
  </PageContainer>

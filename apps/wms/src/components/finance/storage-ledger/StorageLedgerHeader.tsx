@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Download, RefreshCw } from '@/lib/lucide-icons'
 import { toast } from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { PageTabs } from '@/components/ui/page-tabs'
 
 interface StorageLedgerHeaderProps {
  aggregationView: 'weekly' | 'monthly'
@@ -53,32 +54,19 @@ export function StorageLedgerHeader({
  }
  }
 
+ const aggregationTabs = useMemo(() => [
+   { value: 'weekly', label: 'Weekly' },
+   { value: 'monthly', label: 'Monthly' },
+ ], [])
+
  return (
- <div className="flex flex-wrap items-center gap-3">
- <div className="flex items-center gap-2 rounded-xl border border-muted">
- <button
- onClick={() => onAggregationChange('weekly')}
- className={cn(
- 'px-3 py-2 rounded-l-lg transition-colors',
- aggregationView === 'weekly'
- ? 'bg-primary text-primary-foreground shadow-soft'
- : 'text-muted-foreground hover:bg-muted/30'
- )}
- >
- Weekly
- </button>
- <button
- onClick={() => onAggregationChange('monthly')}
- className={cn(
- 'px-3 py-2 rounded-r-lg transition-colors',
- aggregationView === 'monthly'
- ? 'bg-primary text-primary-foreground shadow-soft'
- : 'text-muted-foreground hover:bg-muted/30'
- )}
- >
- Monthly
- </button>
- </div>
+   <div className="flex flex-wrap items-center gap-3">
+     <PageTabs
+       tabs={aggregationTabs}
+       value={aggregationView}
+       onChange={(value) => onAggregationChange(value as 'weekly' | 'monthly')}
+       variant="pills"
+     />
 
  <Button
  onClick={handleWeeklySync}

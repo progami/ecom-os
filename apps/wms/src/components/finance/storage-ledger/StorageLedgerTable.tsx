@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { format } from 'date-fns'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Badge } from '@/components/ui/badge'
 import { Filter } from '@/lib/lucide-icons'
 import { cn } from '@/lib/utils'
 import type { StorageEntry } from '@/hooks/useStorageLedger'
@@ -391,13 +392,9 @@ export function StorageLedgerTable({
  }
  </td>
  <td className="px-3 py-2 text-sm">
- <span
- className={entry.isCostCalculated
- ? 'inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700'
- : 'inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700'}
- >
- {entry.isCostCalculated ? 'Calculated' : 'Pending'}
- </span>
+              <Badge variant={entry.isCostCalculated ? 'success' : 'warning'}>
+                {entry.isCostCalculated ? 'Calculated' : 'Pending'}
+              </Badge>
  </td>
  </tr>
  ))}

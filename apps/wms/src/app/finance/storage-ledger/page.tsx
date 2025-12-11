@@ -7,6 +7,7 @@ import { Package, Calendar } from '@/lib/lucide-icons'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { EmptyState } from '@/components/ui/empty-state'
+import { PageLoading, ContentLoading } from '@/components/ui/loading-spinner'
 import { StorageLedgerHeader } from '@/components/finance/storage-ledger/StorageLedgerHeader'
 import { StorageLedgerStats } from '@/components/finance/storage-ledger/StorageLedgerStats'
 import { StorageLedgerTable, type StorageLedgerColumnFilters } from '@/components/finance/storage-ledger/StorageLedgerTable'
@@ -30,15 +31,13 @@ export default function StorageLedgerPage() {
  }, [session, status, router])
 
  if (status === 'loading') {
- return (
- <DashboardLayout>
- <PageContainer>
- <div className="flex h-full items-center justify-center">
- <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent " />
- </div>
- </PageContainer>
- </DashboardLayout>
- )
+   return (
+     <DashboardLayout>
+       <PageContainer>
+         <PageLoading />
+       </PageContainer>
+     </DashboardLayout>
+   )
  }
 
  return (
@@ -84,11 +83,9 @@ function StorageLedgerContent() {
  actions={headerActions}
  />
  <PageContent className="flex-1 overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
- {loading ? (
- <div className="flex items-center justify-center h-64">
- <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
- </div>
- ) : error ? (
+        {loading ? (
+          <ContentLoading size="lg" />
+        ) : error ? (
  <EmptyState
  icon={Package}
  title="Error Loading Data"
