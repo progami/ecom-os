@@ -15,7 +15,7 @@
     "post-build": "npm run db:generate",
     "start": "NODE_ENV=production node server.js",
     "start:prod": "NODE_ENV=production node --max-old-space-size=2048 server.js",
-    "lint": "eslint --max-warnings=0 --ext .js,.jsx,.ts,.tsx src tests",
+    "lint": "eslint src tests --max-warnings=0",
     "lint:strict": "pnpm run lint",
     "test": "node ./scripts/playwright-test-runner.cjs",
     "test:headed": "cd tests && playwright test e2e/ --headed",
