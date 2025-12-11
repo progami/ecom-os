@@ -13,7 +13,7 @@
     "build": "next build",
     "start": "npm-run-all --parallel start:server workers",
     "start:server": "next start",
-    "lint": "next lint",
+    "lint": "next lint --dir app --dir components --dir lib",
     "lint:fix": "next lint --fix",
     "format": "prettier --write .",
     "prisma:generate": "prisma generate",
