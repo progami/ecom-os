@@ -3,11 +3,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { EmployeesApi, type Employee } from '@/lib/api-client'
-
-const REGION_LABELS: Record<string, string> = {
-  KANSAS_US: 'Kansas (USA)',
-  PAKISTAN: 'Pakistan',
-}
 import { UsersIcon, PlusIcon } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -49,7 +44,6 @@ function TableRowSkeleton() {
           </td>
           <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-20" /></td>
           <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-28" /></td>
-          <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-24" /></td>
           <td className="px-4 py-4"><div className="h-5 bg-slate-200 rounded w-16" /></td>
           <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-24" /></td>
         </tr>
@@ -119,7 +113,6 @@ export default function EmployeesPage() {
             <TableHead>Employee</TableHead>
             <TableHead>Department</TableHead>
             <TableHead>Position</TableHead>
-            <TableHead>Region</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Join Date</TableHead>
           </TableHeader>
@@ -128,7 +121,7 @@ export default function EmployeesPage() {
               <TableRowSkeleton />
             ) : items.length === 0 ? (
               <TableEmptyState
-                colSpan={6}
+                colSpan={5}
                 icon={<UsersIcon className="h-10 w-10" />}
                 title="No employees found"
                 action={{
@@ -153,7 +146,6 @@ export default function EmployeesPage() {
                   </TableCell>
                   <TableCell className="text-slate-600">{e.department || '—'}</TableCell>
                   <TableCell className="text-slate-600">{e.position}</TableCell>
-                  <TableCell className="text-slate-600">{REGION_LABELS[e.region] || e.region}</TableCell>
                   <TableCell>
                     <StatusBadge status={e.status.replace('_', ' ')} />
                   </TableCell>

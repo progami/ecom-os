@@ -14,8 +14,6 @@ export type Employee = {
   employmentType: string
   joinDate: string
   status: string
-  region: string
-  managerId?: string | null
   roles?: { id: string; name: string }[]
 }
 
@@ -31,73 +29,18 @@ export type Resource = {
   rating?: number | null
 }
 
-export type LeavePolicy = {
+export type Policy = {
   id: string
-  region: string
-  leaveType: string
   title: string
-  description?: string | null
-  entitledDays: number
-  isPaid: boolean
-  carryoverMax?: number | null
-  minNoticeDays: number
-  maxConsecutive?: number | null
-  rules?: Record<string, unknown> | null
-  effectiveFrom?: string | null
+  category: string
+  summary?: string | null
+  content?: string | null
+  fileUrl?: string | null
+  version: string
+  effectiveDate?: string | null
   status: string
   createdAt?: string
   updatedAt?: string
-}
-
-export type LeaveBalance = {
-  id: string
-  employeeId: string
-  leaveType: string
-  year: number
-  entitled: number
-  used: number
-  carryover: number
-  adjustment: number
-  remaining: number
-  employee?: {
-    id: string
-    firstName: string
-    lastName: string
-    email: string
-    region: string
-  }
-}
-
-export type LeaveRequest = {
-  id: string
-  employeeId: string
-  leaveType: string
-  startDate: string
-  endDate: string
-  workingDays: number
-  isHalfDay: boolean
-  halfDayType?: string | null
-  reason?: string | null
-  status: string
-  approverId?: string | null
-  approvedAt?: string | null
-  rejectedAt?: string | null
-  comments?: string | null
-  createdAt?: string
-  updatedAt?: string
-  employee?: {
-    id: string
-    firstName: string
-    lastName: string
-    email: string
-    department: string
-    region: string
-  }
-  approver?: {
-    id: string
-    firstName: string
-    lastName: string
-  } | null
 }
 
 export class ApiError extends Error {
@@ -175,8 +118,6 @@ export const EmployeesApi = {
     employmentType: string
     joinDate: string
     status?: string
-    region?: string
-    managerId?: string | null
   }) {
     return request<Employee>(`/api/employees`, {
       method: 'POST',
@@ -222,142 +163,38 @@ export const ResourcesApi = {
   },
 }
 
-// Leave Policies
-export const LeavePoliciesApi = {
-  list(params: { q?: string; take?: number; skip?: number; region?: string; leaveType?: string; status?: string } = {}) {
+// Policies
+export const PoliciesApi = {
+  list(params: { q?: string; take?: number; skip?: number; category?: string; status?: string } = {}) {
     const qp = new URLSearchParams()
     if (params.q) qp.set('q', params.q)
     if (params.take != null) qp.set('take', String(params.take))
     if (params.skip != null) qp.set('skip', String(params.skip))
-    if (params.region) qp.set('region', params.region)
-    if (params.leaveType) qp.set('leaveType', params.leaveType)
+    if (params.category) qp.set('category', params.category)
     if (params.status) qp.set('status', params.status)
     const qs = qp.toString()
-    return request<{ items: LeavePolicy[]; total: number }>(`/api/leave-policies${qs ? `?${qs}` : ''}`)
+    return request<{ items: Policy[]; total: number }>(`/api/policies${qs ? `?${qs}` : ''}`)
   },
   get(id: string) {
-    return request<LeavePolicy>(`/api/leave-policies/${encodeURIComponent(id)}`)
+    return request<Policy>(`/api/policies/${encodeURIComponent(id)}`)
   },
-  create(payload: {
-    region: string
-    leaveType: string
-    title: string
-    description?: string
-    entitledDays: number
-    isPaid?: boolean
-    carryoverMax?: number
-    minNoticeDays?: number
-    maxConsecutive?: number
-    status?: string
-  }) {
-    return request<LeavePolicy>(`/api/leave-policies`, {
+  create(payload: Partial<Policy> & { title: string; category: string; status?: string }) {
+    return request<Policy>(`/api/policies`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
   },
-  update(id: string, payload: Partial<LeavePolicy>) {
-    return request<LeavePolicy>(`/api/leave-policies/${encodeURIComponent(id)}`, {
+  update(id: string, payload: Partial<Policy> & { bumpVersion?: 'major' | 'minor' }) {
+    return request<Policy>(`/api/policies/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
   },
   delete(id: string) {
-    return request<{ ok: boolean }>(`/api/leave-policies/${encodeURIComponent(id)}`, {
+    return request<{ ok: boolean }>(`/api/policies/${encodeURIComponent(id)}`, {
       method: 'DELETE',
-    })
-  },
-}
-
-// Leave Requests
-export const LeaveRequestsApi = {
-  list(params: {
-    employeeId?: string
-    approverId?: string
-    status?: string
-    leaveType?: string
-    pendingForManager?: string
-    take?: number
-    skip?: number
-  } = {}) {
-    const qp = new URLSearchParams()
-    if (params.employeeId) qp.set('employeeId', params.employeeId)
-    if (params.approverId) qp.set('approverId', params.approverId)
-    if (params.status) qp.set('status', params.status)
-    if (params.leaveType) qp.set('leaveType', params.leaveType)
-    if (params.pendingForManager) qp.set('pendingForManager', params.pendingForManager)
-    if (params.take != null) qp.set('take', String(params.take))
-    if (params.skip != null) qp.set('skip', String(params.skip))
-    const qs = qp.toString()
-    return request<{ items: LeaveRequest[]; total: number }>(`/api/leave-requests${qs ? `?${qs}` : ''}`)
-  },
-  get(id: string) {
-    return request<LeaveRequest>(`/api/leave-requests/${encodeURIComponent(id)}`)
-  },
-  create(payload: {
-    employeeId: string
-    leaveType: string
-    startDate: string
-    endDate: string
-    isHalfDay?: boolean
-    halfDayType?: string
-    reason?: string
-  }) {
-    return request<LeaveRequest>(`/api/leave-requests`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-  },
-  approve(id: string, comments?: string) {
-    return request<LeaveRequest>(`/api/leave-requests/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'APPROVED', comments }),
-    })
-  },
-  reject(id: string, comments?: string) {
-    return request<LeaveRequest>(`/api/leave-requests/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'REJECTED', comments }),
-    })
-  },
-  cancel(id: string) {
-    return request<LeaveRequest>(`/api/leave-requests/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'CANCELLED' }),
-    })
-  },
-  delete(id: string) {
-    return request<{ ok: boolean }>(`/api/leave-requests/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-    })
-  },
-}
-
-// Leave Balances
-export const LeaveBalancesApi = {
-  list(params: { employeeId?: string; year?: number; leaveType?: string; take?: number; skip?: number } = {}) {
-    const qp = new URLSearchParams()
-    if (params.employeeId) qp.set('employeeId', params.employeeId)
-    if (params.year != null) qp.set('year', String(params.year))
-    if (params.leaveType) qp.set('leaveType', params.leaveType)
-    if (params.take != null) qp.set('take', String(params.take))
-    if (params.skip != null) qp.set('skip', String(params.skip))
-    const qs = qp.toString()
-    return request<{ items: LeaveBalance[]; total: number }>(`/api/leave-balances${qs ? `?${qs}` : ''}`)
-  },
-  get(id: string) {
-    return request<LeaveBalance>(`/api/leave-balances/${encodeURIComponent(id)}`)
-  },
-  adjust(id: string, adjustment: number, reason?: string) {
-    return request<LeaveBalance>(`/api/leave-balances/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ adjustment, reason }),
     })
   },
 }
