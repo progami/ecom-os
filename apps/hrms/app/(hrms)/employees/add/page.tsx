@@ -29,6 +29,11 @@ const statusOptions = [
   { value: 'RESIGNED', label: 'Resigned' },
 ]
 
+const regionOptions = [
+  { value: 'KANSAS_US', label: 'Kansas (USA)' },
+  { value: 'PAKISTAN', label: 'Pakistan' },
+]
+
 export default function AddEmployeePage() {
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
@@ -52,6 +57,7 @@ export default function AddEmployeePage() {
         joinDate: String(payload.joinDate),
         employmentType: String(payload.employmentType || 'FULL_TIME'),
         status: String(payload.status || 'ACTIVE'),
+        region: String(payload.region || 'KANSAS_US'),
       })
       router.push('/employees')
     } catch (e: any) {
@@ -146,6 +152,13 @@ export default function AddEmployeePage() {
                   required
                   options={statusOptions}
                   defaultValue="ACTIVE"
+                />
+                <SelectField
+                  label="Region"
+                  name="region"
+                  required
+                  options={regionOptions}
+                  defaultValue="KANSAS_US"
                 />
               </div>
             </FormSection>
