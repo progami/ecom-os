@@ -36,6 +36,17 @@ const statusOptions = [
   { value: 'ARCHIVED', label: 'Archived' },
 ]
 
+function getNextVersions(current: string): { minor: string; major: string } {
+  const match = current.match(/^(\d+)\.(\d+)$/)
+  if (!match) return { minor: '1.1', major: '2.0' }
+  const major = parseInt(match[1], 10)
+  const minor = parseInt(match[2], 10)
+  return {
+    minor: `${major}.${minor + 1}`,
+    major: `${major + 1}.0`,
+  }
+}
+
 export default function EditPolicyPage() {
   const router = useRouter()
   const params = useParams()
@@ -67,13 +78,20 @@ export default function EditPolicyPage() {
     const fd = new FormData(e.currentTarget)
     const payload = Object.fromEntries(fd.entries()) as any
 
+    // Validate version bump is selected
+    if (!payload.newVersion) {
+      setError('You must select a new version when updating a policy')
+      setSubmitting(false)
+      return
+    }
+
     try {
       await PoliciesApi.update(id, {
         title: String(payload.title),
         category: String(payload.category),
         region: String(payload.region),
         status: String(payload.status),
-        version: payload.version ? String(payload.version) : undefined,
+        version: String(payload.newVersion),
         effectiveDate: payload.effectiveDate ? String(payload.effectiveDate) : undefined,
         summary: payload.summary ? String(payload.summary) : undefined,
         content: payload.content ? String(payload.content) : undefined,
@@ -179,11 +197,23 @@ export default function EditPolicyPage() {
                   options={statusOptions}
                   defaultValue={policy.status}
                 />
-                <FormField
-                  label="Version"
-                  name="version"
-                  placeholder="e.g., 1.0"
-                  defaultValue={policy.version || ''}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Current Version
+                  </label>
+                  <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-600">
+                    v{policy.version}
+                  </div>
+                </div>
+                <SelectField
+                  label="New Version"
+                  name="newVersion"
+                  required
+                  options={[
+                    { value: getNextVersions(policy.version).minor, label: `v${getNextVersions(policy.version).minor} (Minor update)` },
+                    { value: getNextVersions(policy.version).major, label: `v${getNextVersions(policy.version).major} (Major update)` },
+                  ]}
+                  placeholder="Select new version..."
                 />
                 <FormField
                   label="Effective Date"
