@@ -13,6 +13,7 @@ import {
   XIcon,
   ClipboardDocumentCheckIcon,
   ShieldExclamationIcon,
+  OrgChartIcon,
 } from '@/components/ui/Icons'
 import { NotificationBell } from '@/components/ui/NotificationBell'
 
@@ -38,6 +39,7 @@ const navigation: NavSection[] = [
     title: 'People',
     items: [
       { name: 'Employees', href: '/employees', icon: UsersIcon },
+      { name: 'Org Chart', href: '/organogram', icon: OrgChartIcon },
     ]
   },
   {

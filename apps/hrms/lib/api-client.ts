@@ -202,9 +202,57 @@ export const PoliciesApi = {
 }
 
 // Dashboard
+export type DashboardUser = {
+  id: string
+  firstName: string
+  lastName: string
+  department: string
+  position: string
+  avatar: string | null
+}
+
+export type DashboardDirectReport = {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  email: string
+  department: string
+  position: string
+  avatar: string | null
+}
+
+export type DashboardPendingReview = {
+  id: string
+  reviewType: string
+  reviewPeriod: string
+  reviewDate: string
+  status: string
+  employee: {
+    id: string
+    firstName: string
+    lastName: string
+    employeeId: string
+  }
+}
+
+export type DashboardStat = {
+  label: string
+  value: number
+}
+
+export type DashboardData = {
+  user: DashboardUser | null
+  directReports: DashboardDirectReport[]
+  notifications: Notification[]
+  unreadNotificationCount: number
+  pendingReviews: DashboardPendingReview[]
+  stats: DashboardStat[]
+}
+
 export const DashboardApi = {
   get() {
-    return request<{ stats: any[]; recentActivity: any[]; upcomingEvents: any[] }>(`/api/dashboard`)
+    return request<DashboardData>(`/api/dashboard`)
   },
 }
 
@@ -448,6 +496,29 @@ export const HRCalendarApi = {
   },
 }
 
+// Google Admin Users
+export type GoogleAdminUser = {
+  googleId: string
+  email: string
+  firstName: string
+  lastName: string
+  fullName: string
+  department: string | null
+  position: string | null
+  phone: string | null
+  orgUnit: string
+  isAdmin: boolean
+  createdAt: string
+  lastLogin: string
+  photoUrl: string | null
+}
+
+export const GoogleAdminApi = {
+  listUsers() {
+    return request<{ items: GoogleAdminUser[]; total: number }>(`/api/google-admin/users`)
+  },
+}
+
 // Notifications
 export type Notification = {
   id: string
@@ -457,6 +528,7 @@ export type Notification = {
   link?: string | null
   relatedId?: string | null
   relatedType?: string | null
+  employeeId?: string | null
   isRead: boolean
   createdAt: string
 }
@@ -482,5 +554,36 @@ export const NotificationsApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ markAllRead: true }),
     })
+  },
+}
+
+// Hierarchy
+export type HierarchyEmployee = {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  email: string
+  department: string
+  position: string
+  avatar: string | null
+  reportsToId: string | null
+  status: string
+}
+
+export const HierarchyApi = {
+  getDirectReports() {
+    return request<{ items: HierarchyEmployee[]; currentEmployeeId: string | null }>(`/api/hierarchy?type=direct-reports`)
+  },
+  getManagerChain() {
+    return request<{ items: HierarchyEmployee[]; currentEmployeeId: string | null }>(`/api/hierarchy?type=manager-chain`)
+  },
+  getFull() {
+    return request<{
+      items: HierarchyEmployee[]
+      currentEmployeeId: string | null
+      managerChainIds: string[]
+      directReportIds: string[]
+    }>(`/api/hierarchy?type=full`)
   },
 }

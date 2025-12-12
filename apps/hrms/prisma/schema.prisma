@@ -10,6 +10,7 @@ datasource db {
 model Employee {
   id               String         @id @default(cuid())
   employeeId       String         @unique
+  googleId         String?        @unique  // Google Workspace user ID for sync
   firstName        String
   lastName         String
   email            String         @unique
@@ -32,7 +33,15 @@ model Employee {
   employmentType   EmploymentType  @default(FULL_TIME)
   joinDate         DateTime
   status           EmployeeStatus  @default(ACTIVE)
-  reportsTo        String?
+
+  // Reporting hierarchy (self-referential)
+  reportsToId      String?
+  manager          Employee?      @relation("EmployeeHierarchy", fields: [reportsToId], references: [id])
+  directReports    Employee[]     @relation("EmployeeHierarchy")
+
+  // Local override flags for Google sync
+  departmentLocalOverride  Boolean @default(false)
+  positionLocalOverride    Boolean @default(false)
 
   salary           Float?
   currency         String          @default("USD")
@@ -47,12 +56,14 @@ model Employee {
   roles            Role[]
   performanceReviews PerformanceReview[]
   disciplinaryActions DisciplinaryAction[]
+  notifications    Notification[]
 
   @@index([email])
   @@index([employeeId])
   @@index([department])
   @@index([departmentId])
   @@index([status])
+  @@index([reportsToId])
 }
 
 model EmployeeFile {
@@ -138,6 +149,10 @@ model Notification {
   message       String
   link          String?          // Optional link to related resource (e.g., /policies/xyz)
 
+  // Target specific employee (null = broadcast to all)
+  employeeId    String?
+  employee      Employee?        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
   // For tracking which record triggered the notification
   relatedId     String?
   relatedType   String?          // "POLICY", "REVIEW", etc.
@@ -148,6 +163,7 @@ model Notification {
   @@index([type])
   @@index([isRead])
   @@index([createdAt])
+  @@index([employeeId])
 }
 
 enum NotificationType {
@@ -156,6 +172,7 @@ enum NotificationType {
   POLICY_ARCHIVED
   ANNOUNCEMENT
   SYSTEM
+  PROFILE_INCOMPLETE
 }
 
 enum EmploymentType {
