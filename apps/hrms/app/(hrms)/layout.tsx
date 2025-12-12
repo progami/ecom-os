@@ -186,22 +186,22 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
       <MobileNav isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 
       {/* Main Content */}
-      <div className="md:pl-64 h-screen flex flex-col bg-slate-50">
+      <div className="md:pl-64 min-h-screen flex flex-col bg-slate-50">
         <Header onMenuClick={() => setMobileMenuOpen(true)} />
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1">
           <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
             {children}
           </div>
-
-          <footer className="border-t border-slate-200 bg-white">
-            <div className="px-4 sm:px-6 lg:px-8 py-4">
-              <p className="text-xs text-slate-400 text-center">
-                HRMS v{version}
-              </p>
-            </div>
-          </footer>
         </main>
+
+        <footer className="border-t border-slate-200 bg-white mt-auto">
+          <div className="px-4 sm:px-6 lg:px-8 py-4">
+            <p className="text-xs text-slate-400 text-center">
+              HRMS v{version}
+            </p>
+          </div>
+        </footer>
       </div>
     </>
   )
