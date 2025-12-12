@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { DisciplinaryActionsApi, EmployeesApi, type Employee } from '@/lib/api-client'
 import { ShieldExclamationIcon } from '@/components/ui/Icons'
@@ -107,7 +107,7 @@ const statusOptions = [
   { value: 'DISMISSED', label: 'Dismissed' },
 ]
 
-export default function AddDisciplinaryPage() {
+function AddDisciplinaryForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preselectedEmployeeId = searchParams.get('employeeId')
@@ -176,6 +176,164 @@ export default function AddDisciplinaryPage() {
     : [{ value: '', label: 'Select violation type first' }]
 
   return (
+    <Card padding="lg">
+      {error && (
+        <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      <form onSubmit={onSubmit} className="space-y-8">
+        <FormSection title="Incident Details">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="sm:col-span-2">
+              <SelectField
+                label="Employee"
+                name="employeeId"
+                required
+                options={employeeOptions}
+                placeholder={loadingEmployees ? 'Loading employees...' : 'Select employee...'}
+                defaultValue={preselectedEmployeeId || undefined}
+              />
+            </div>
+            <SelectField
+              label="Violation Type"
+              name="violationType"
+              required
+              options={violationTypeOptions}
+              placeholder="Select type..."
+              onChange={(e) => setSelectedViolationType(e.target.value)}
+            />
+            <SelectField
+              label="Specific Reason"
+              name="violationReason"
+              required
+              options={reasonOptions}
+              placeholder="Select reason..."
+            />
+            <SelectField
+              label="Severity"
+              name="severity"
+              required
+              options={severityOptions}
+              defaultValue="MODERATE"
+            />
+            <FormField
+              label="Incident Date"
+              name="incidentDate"
+              type="date"
+              required
+            />
+            <FormField
+              label="Reported By"
+              name="reportedBy"
+              required
+              placeholder="Manager or witness name"
+            />
+            <SelectField
+              label="Status"
+              name="status"
+              required
+              options={statusOptions}
+              defaultValue="OPEN"
+            />
+          </div>
+        </FormSection>
+
+        <CardDivider />
+
+        <FormSection title="Incident Description">
+          <div className="space-y-5">
+            <TextareaField
+              label="Description"
+              name="description"
+              required
+              rows={4}
+              placeholder="Detailed description of the incident..."
+            />
+            <FormField
+              label="Witnesses"
+              name="witnesses"
+              placeholder="Names of witnesses (if any)"
+            />
+            <FormField
+              label="Evidence"
+              name="evidence"
+              placeholder="Reference to evidence (file names, locations)"
+            />
+          </div>
+        </FormSection>
+
+        <CardDivider />
+
+        <FormSection title="Action Taken">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <SelectField
+              label="Action Type"
+              name="actionTaken"
+              required
+              options={actionTypeOptions}
+              defaultValue="VERBAL_WARNING"
+            />
+            <FormField
+              label="Action Date"
+              name="actionDate"
+              type="date"
+            />
+            <div className="sm:col-span-2">
+              <TextareaField
+                label="Action Details"
+                name="actionDetails"
+                rows={3}
+                placeholder="Details of the disciplinary action taken..."
+              />
+            </div>
+          </div>
+        </FormSection>
+
+        <CardDivider />
+
+        <FormSection title="Follow-up">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <FormField
+              label="Follow-up Date"
+              name="followUpDate"
+              type="date"
+            />
+            <div className="sm:col-span-2">
+              <TextareaField
+                label="Follow-up Notes"
+                name="followUpNotes"
+                rows={2}
+                placeholder="Notes for follow-up review..."
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <TextareaField
+                label="Resolution"
+                name="resolution"
+                rows={2}
+                placeholder="Final resolution (if closed)..."
+              />
+            </div>
+          </div>
+        </FormSection>
+
+        <FormActions>
+          <Button variant="secondary" href="/performance/disciplinary">
+            Cancel
+          </Button>
+          <Button type="submit" loading={submitting}>
+            {submitting ? 'Saving...' : 'Save Record'}
+          </Button>
+        </FormActions>
+      </form>
+    </Card>
+  )
+}
+
+export default function AddDisciplinaryPage() {
+  return (
     <>
       <PageHeader
         title="Report Violation"
@@ -185,159 +343,18 @@ export default function AddDisciplinaryPage() {
       />
 
       <div className="max-w-3xl">
-        <Card padding="lg">
-          {error && (
-            <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
-              {error}
-            </Alert>
-          )}
-
-          <form onSubmit={onSubmit} className="space-y-8">
-            <FormSection title="Incident Details">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="sm:col-span-2">
-                  <SelectField
-                    label="Employee"
-                    name="employeeId"
-                    required
-                    options={employeeOptions}
-                    placeholder={loadingEmployees ? 'Loading employees...' : 'Select employee...'}
-                    defaultValue={preselectedEmployeeId || undefined}
-                  />
-                </div>
-                <SelectField
-                  label="Violation Type"
-                  name="violationType"
-                  required
-                  options={violationTypeOptions}
-                  placeholder="Select type..."
-                  onChange={(e) => setSelectedViolationType(e.target.value)}
-                />
-                <SelectField
-                  label="Specific Reason"
-                  name="violationReason"
-                  required
-                  options={reasonOptions}
-                  placeholder="Select reason..."
-                />
-                <SelectField
-                  label="Severity"
-                  name="severity"
-                  required
-                  options={severityOptions}
-                  defaultValue="MODERATE"
-                />
-                <FormField
-                  label="Incident Date"
-                  name="incidentDate"
-                  type="date"
-                  required
-                />
-                <FormField
-                  label="Reported By"
-                  name="reportedBy"
-                  required
-                  placeholder="Manager or witness name"
-                />
-                <SelectField
-                  label="Status"
-                  name="status"
-                  required
-                  options={statusOptions}
-                  defaultValue="OPEN"
-                />
-              </div>
-            </FormSection>
-
-            <CardDivider />
-
-            <FormSection title="Incident Description">
-              <div className="space-y-5">
-                <TextareaField
-                  label="Description"
-                  name="description"
-                  required
-                  rows={4}
-                  placeholder="Detailed description of the incident..."
-                />
-                <FormField
-                  label="Witnesses"
-                  name="witnesses"
-                  placeholder="Names of witnesses (if any)"
-                />
-                <FormField
-                  label="Evidence"
-                  name="evidence"
-                  placeholder="Reference to evidence (file names, locations)"
-                />
-              </div>
-            </FormSection>
-
-            <CardDivider />
-
-            <FormSection title="Action Taken">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <SelectField
-                  label="Action Type"
-                  name="actionTaken"
-                  required
-                  options={actionTypeOptions}
-                  defaultValue="VERBAL_WARNING"
-                />
-                <FormField
-                  label="Action Date"
-                  name="actionDate"
-                  type="date"
-                />
-                <div className="sm:col-span-2">
-                  <TextareaField
-                    label="Action Details"
-                    name="actionDetails"
-                    rows={3}
-                    placeholder="Details of the disciplinary action taken..."
-                  />
-                </div>
-              </div>
-            </FormSection>
-
-            <CardDivider />
-
-            <FormSection title="Follow-up">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <FormField
-                  label="Follow-up Date"
-                  name="followUpDate"
-                  type="date"
-                />
-                <div className="sm:col-span-2">
-                  <TextareaField
-                    label="Follow-up Notes"
-                    name="followUpNotes"
-                    rows={2}
-                    placeholder="Notes for follow-up review..."
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <TextareaField
-                    label="Resolution"
-                    name="resolution"
-                    rows={2}
-                    placeholder="Final resolution (if closed)..."
-                  />
-                </div>
-              </div>
-            </FormSection>
-
-            <FormActions>
-              <Button variant="secondary" href="/performance/disciplinary">
-                Cancel
-              </Button>
-              <Button type="submit" loading={submitting}>
-                {submitting ? 'Saving...' : 'Save Record'}
-              </Button>
-            </FormActions>
-          </form>
-        </Card>
+        <Suspense fallback={
+          <Card padding="lg">
+            <div className="animate-pulse space-y-6">
+              <div className="h-4 bg-slate-200 rounded w-1/4" />
+              <div className="h-10 bg-slate-200 rounded" />
+              <div className="h-4 bg-slate-200 rounded w-1/4" />
+              <div className="h-10 bg-slate-200 rounded" />
+            </div>
+          </Card>
+        }>
+          <AddDisciplinaryForm />
+        </Suspense>
       </div>
     </>
   )
