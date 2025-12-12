@@ -217,7 +217,7 @@ export default function EmployeeViewPage() {
         description="People"
         icon={<UsersIcon className="h-6 w-6 text-white" />}
         backHref="/employees"
-        action={
+        actions={
           <Button href={`/employees/${id}/edit`} icon={<PencilIcon className="h-4 w-4" />}>
             Edit
           </Button>
