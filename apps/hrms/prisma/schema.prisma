@@ -45,6 +45,8 @@ model Employee {
 
   files            EmployeeFile[]
   roles            Role[]
+  performanceReviews PerformanceReview[]
+  disciplinaryActions DisciplinaryAction[]
 
   @@index([email])
   @@index([employeeId])
@@ -171,4 +173,212 @@ enum PolicyStatus {
 enum Region {
   KANSAS_US
   PAKISTAN
+}
+
+// ============ PERFORMANCE MANAGEMENT ============
+
+model PerformanceReview {
+  id              String              @id @default(cuid())
+  employee        Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId      String
+  reviewType      ReviewType
+  reviewPeriod    String              // e.g., "Q1 2025", "Annual 2024"
+  reviewDate      DateTime
+  reviewerName    String
+
+  // Ratings (1-5 scale)
+  overallRating   Int                 // 1-5
+  qualityOfWork   Int?                // 1-5
+  productivity    Int?                // 1-5
+  communication   Int?                // 1-5
+  teamwork        Int?                // 1-5
+  initiative      Int?                // 1-5
+  attendance      Int?                // 1-5
+
+  strengths       String?
+  areasToImprove  String?
+  goals           String?
+  comments        String?
+
+  status          ReviewStatus        @default(DRAFT)
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([employeeId])
+  @@index([reviewType])
+  @@index([reviewDate])
+  @@index([status])
+}
+
+model DisciplinaryAction {
+  id              String              @id @default(cuid())
+  employee        Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId      String
+
+  violationType   ViolationType
+  violationReason ViolationReason
+  severity        ViolationSeverity
+
+  incidentDate    DateTime
+  reportedDate    DateTime            @default(now())
+  reportedBy      String
+
+  description     String
+  witnesses       String?
+  evidence        String?             // file URLs or references
+
+  actionTaken     DisciplinaryActionType
+  actionDate      DateTime?
+  actionDetails   String?
+
+  followUpDate    DateTime?
+  followUpNotes   String?
+
+  status          DisciplinaryStatus  @default(OPEN)
+  resolution      String?
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([employeeId])
+  @@index([violationType])
+  @@index([severity])
+  @@index([status])
+  @@index([incidentDate])
+}
+
+model HRCalendarEvent {
+  id              String              @id @default(cuid())
+  title           String
+  description     String?
+  eventType       HREventType
+
+  startDate       DateTime
+  endDate         DateTime?
+  allDay          Boolean             @default(true)
+
+  // Optional link to related records
+  employeeId      String?
+  relatedRecordId String?             // ID of review, disciplinary action, etc.
+  relatedRecordType String?           // "PERFORMANCE_REVIEW", "DISCIPLINARY", etc.
+
+  googleEventId   String?             // For Google Calendar sync
+
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([eventType])
+  @@index([startDate])
+  @@index([employeeId])
+}
+
+enum ReviewType {
+  PROBATION       // 90-day review
+  QUARTERLY
+  SEMI_ANNUAL
+  ANNUAL
+  PROMOTION
+  PIP             // Performance Improvement Plan
+}
+
+enum ReviewStatus {
+  DRAFT
+  PENDING_REVIEW
+  COMPLETED
+  ACKNOWLEDGED
+}
+
+enum ViolationType {
+  ATTENDANCE
+  CONDUCT
+  PERFORMANCE
+  POLICY_VIOLATION
+  SAFETY
+  HARASSMENT
+  INSUBORDINATION
+  THEFT_FRAUD
+  SUBSTANCE_ABUSE
+  OTHER
+}
+
+enum ViolationReason {
+  // Attendance
+  EXCESSIVE_ABSENCES
+  TARDINESS
+  UNAUTHORIZED_LEAVE
+  NO_CALL_NO_SHOW
+
+  // Conduct
+  UNPROFESSIONAL_BEHAVIOR
+  DISRUPTIVE_CONDUCT
+  INAPPROPRIATE_LANGUAGE
+  DRESS_CODE_VIOLATION
+
+  // Performance
+  POOR_QUALITY_WORK
+  MISSED_DEADLINES
+  FAILURE_TO_FOLLOW_INSTRUCTIONS
+  NEGLIGENCE
+
+  // Policy
+  CONFIDENTIALITY_BREACH
+  DATA_SECURITY_VIOLATION
+  EXPENSE_POLICY_VIOLATION
+  IT_POLICY_VIOLATION
+
+  // Safety
+  SAFETY_PROTOCOL_VIOLATION
+  EQUIPMENT_MISUSE
+
+  // Serious
+  HARASSMENT_DISCRIMINATION
+  WORKPLACE_VIOLENCE
+  THEFT
+  FRAUD
+  FALSIFICATION
+  SUBSTANCE_USE_AT_WORK
+
+  OTHER
+}
+
+enum ViolationSeverity {
+  MINOR           // Verbal warning
+  MODERATE        // Written warning
+  MAJOR           // Final warning / Suspension
+  CRITICAL        // Termination consideration
+}
+
+enum DisciplinaryActionType {
+  VERBAL_WARNING
+  WRITTEN_WARNING
+  FINAL_WARNING
+  SUSPENSION
+  DEMOTION
+  TERMINATION
+  PIP             // Performance Improvement Plan
+  TRAINING_REQUIRED
+  NO_ACTION       // Investigation found no violation
+}
+
+enum DisciplinaryStatus {
+  OPEN
+  UNDER_INVESTIGATION
+  ACTION_TAKEN
+  APPEALED
+  CLOSED
+  DISMISSED
+}
+
+enum HREventType {
+  PERFORMANCE_REVIEW
+  PROBATION_END
+  PIP_REVIEW
+  DISCIPLINARY_HEARING
+  INTERVIEW
+  ONBOARDING
+  TRAINING
+  COMPANY_EVENT
+  HOLIDAY
+  OTHER
 }
