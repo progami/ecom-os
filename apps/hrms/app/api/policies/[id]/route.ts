@@ -70,7 +70,25 @@ export async function PATCH(req: Request, context: PolicyRouteContext) {
     }
 
     if (data.effectiveDate !== undefined) {
-      updates.effectiveDate = data.effectiveDate ? new Date(data.effectiveDate) : null
+      if (data.effectiveDate) {
+        const newDate = new Date(data.effectiveDate)
+        // Check if another policy has this effective date
+        const existing = await prisma.policy.findFirst({
+          where: {
+            effectiveDate: newDate,
+            id: { not: id },
+          },
+        })
+        if (existing) {
+          return NextResponse.json(
+            { error: `Another policy already has effective date ${data.effectiveDate}` },
+            { status: 400 }
+          )
+        }
+        updates.effectiveDate = newDate
+      } else {
+        updates.effectiveDate = null
+      }
     }
     if (data.status !== undefined) updates.status = data.status
 
