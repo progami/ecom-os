@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { PerformanceReviewsApi, EmployeesApi, type Employee } from '@/lib/api-client'
 import { ClipboardDocumentCheckIcon, StarIcon, StarFilledIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -58,8 +58,11 @@ function RatingInput({ name, label, value, onChange }: { name: string; label: st
   )
 }
 
-export default function AddReviewPage() {
+function AddReviewForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const preselectedEmployeeId = searchParams.get('employeeId')
+
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -129,6 +132,123 @@ export default function AddReviewPage() {
   }))
 
   return (
+    <Card padding="lg">
+      {error && (
+        <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      <form onSubmit={onSubmit} className="space-y-8">
+        <FormSection title="Review Details">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="sm:col-span-2">
+              <SelectField
+                label="Employee"
+                name="employeeId"
+                required
+                options={employeeOptions}
+                placeholder={loadingEmployees ? 'Loading employees...' : 'Select employee...'}
+                defaultValue={preselectedEmployeeId || undefined}
+              />
+            </div>
+            <SelectField
+              label="Review Type"
+              name="reviewType"
+              required
+              options={reviewTypeOptions}
+              defaultValue="ANNUAL"
+            />
+            <FormField
+              label="Review Period"
+              name="reviewPeriod"
+              required
+              placeholder="e.g., Q4 2025, Annual 2025"
+            />
+            <FormField
+              label="Review Date"
+              name="reviewDate"
+              type="date"
+              required
+            />
+            <FormField
+              label="Reviewer Name"
+              name="reviewerName"
+              required
+              placeholder="Manager name"
+            />
+            <SelectField
+              label="Status"
+              name="status"
+              required
+              options={statusOptions}
+              defaultValue="DRAFT"
+            />
+          </div>
+        </FormSection>
+
+        <CardDivider />
+
+        <FormSection title="Performance Ratings" description="Rate the employee on a scale of 1-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="sm:col-span-2">
+              <RatingInput name="overallRating" label="Overall Rating" value={overallRating} onChange={setOverallRating} />
+            </div>
+            <RatingInput name="qualityOfWork" label="Quality of Work" value={qualityOfWork} onChange={setQualityOfWork} />
+            <RatingInput name="productivity" label="Productivity" value={productivity} onChange={setProductivity} />
+            <RatingInput name="communication" label="Communication" value={communication} onChange={setCommunication} />
+            <RatingInput name="teamwork" label="Teamwork" value={teamwork} onChange={setTeamwork} />
+            <RatingInput name="initiative" label="Initiative" value={initiative} onChange={setInitiative} />
+            <RatingInput name="attendance" label="Attendance" value={attendance} onChange={setAttendance} />
+          </div>
+        </FormSection>
+
+        <CardDivider />
+
+        <FormSection title="Feedback" description="Detailed comments and goals">
+          <div className="space-y-5">
+            <TextareaField
+              label="Strengths"
+              name="strengths"
+              rows={3}
+              placeholder="Key strengths demonstrated..."
+            />
+            <TextareaField
+              label="Areas to Improve"
+              name="areasToImprove"
+              rows={3}
+              placeholder="Areas that need development..."
+            />
+            <TextareaField
+              label="Goals for Next Period"
+              name="goals"
+              rows={3}
+              placeholder="Objectives and targets..."
+            />
+            <TextareaField
+              label="Additional Comments"
+              name="comments"
+              rows={3}
+              placeholder="Any other observations..."
+            />
+          </div>
+        </FormSection>
+
+        <FormActions>
+          <Button variant="secondary" href="/performance/reviews">
+            Cancel
+          </Button>
+          <Button type="submit" loading={submitting}>
+            {submitting ? 'Saving...' : 'Save Review'}
+          </Button>
+        </FormActions>
+      </form>
+    </Card>
+  )
+}
+
+export default function AddReviewPage() {
+  return (
     <>
       <PageHeader
         title="New Performance Review"
@@ -138,117 +258,18 @@ export default function AddReviewPage() {
       />
 
       <div className="max-w-3xl">
-        <Card padding="lg">
-          {error && (
-            <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
-              {error}
-            </Alert>
-          )}
-
-          <form onSubmit={onSubmit} className="space-y-8">
-            <FormSection title="Review Details">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="sm:col-span-2">
-                  <SelectField
-                    label="Employee"
-                    name="employeeId"
-                    required
-                    options={employeeOptions}
-                    placeholder={loadingEmployees ? 'Loading employees...' : 'Select employee...'}
-                  />
-                </div>
-                <SelectField
-                  label="Review Type"
-                  name="reviewType"
-                  required
-                  options={reviewTypeOptions}
-                  defaultValue="ANNUAL"
-                />
-                <FormField
-                  label="Review Period"
-                  name="reviewPeriod"
-                  required
-                  placeholder="e.g., Q4 2025, Annual 2025"
-                />
-                <FormField
-                  label="Review Date"
-                  name="reviewDate"
-                  type="date"
-                  required
-                />
-                <FormField
-                  label="Reviewer Name"
-                  name="reviewerName"
-                  required
-                  placeholder="Manager name"
-                />
-                <SelectField
-                  label="Status"
-                  name="status"
-                  required
-                  options={statusOptions}
-                  defaultValue="DRAFT"
-                />
-              </div>
-            </FormSection>
-
-            <CardDivider />
-
-            <FormSection title="Performance Ratings" description="Rate the employee on a scale of 1-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="sm:col-span-2">
-                  <RatingInput name="overallRating" label="Overall Rating" value={overallRating} onChange={setOverallRating} />
-                </div>
-                <RatingInput name="qualityOfWork" label="Quality of Work" value={qualityOfWork} onChange={setQualityOfWork} />
-                <RatingInput name="productivity" label="Productivity" value={productivity} onChange={setProductivity} />
-                <RatingInput name="communication" label="Communication" value={communication} onChange={setCommunication} />
-                <RatingInput name="teamwork" label="Teamwork" value={teamwork} onChange={setTeamwork} />
-                <RatingInput name="initiative" label="Initiative" value={initiative} onChange={setInitiative} />
-                <RatingInput name="attendance" label="Attendance" value={attendance} onChange={setAttendance} />
-              </div>
-            </FormSection>
-
-            <CardDivider />
-
-            <FormSection title="Feedback" description="Detailed comments and goals">
-              <div className="space-y-5">
-                <TextareaField
-                  label="Strengths"
-                  name="strengths"
-                  rows={3}
-                  placeholder="Key strengths demonstrated..."
-                />
-                <TextareaField
-                  label="Areas to Improve"
-                  name="areasToImprove"
-                  rows={3}
-                  placeholder="Areas that need development..."
-                />
-                <TextareaField
-                  label="Goals for Next Period"
-                  name="goals"
-                  rows={3}
-                  placeholder="Objectives and targets..."
-                />
-                <TextareaField
-                  label="Additional Comments"
-                  name="comments"
-                  rows={3}
-                  placeholder="Any other observations..."
-                />
-              </div>
-            </FormSection>
-
-            <FormActions>
-              <Button variant="secondary" href="/performance/reviews">
-                Cancel
-              </Button>
-              <Button type="submit" loading={submitting}>
-                {submitting ? 'Saving...' : 'Save Review'}
-              </Button>
-            </FormActions>
-          </form>
-        </Card>
+        <Suspense fallback={
+          <Card padding="lg">
+            <div className="animate-pulse space-y-6">
+              <div className="h-4 bg-slate-200 rounded w-1/4" />
+              <div className="h-10 bg-slate-200 rounded" />
+              <div className="h-4 bg-slate-200 rounded w-1/4" />
+              <div className="h-10 bg-slate-200 rounded" />
+            </div>
+          </Card>
+        }>
+          <AddReviewForm />
+        </Suspense>
       </div>
     </>
   )

@@ -131,6 +131,33 @@ model Policy {
   @@index([status])
 }
 
+model Notification {
+  id            String           @id @default(cuid())
+  type          NotificationType
+  title         String
+  message       String
+  link          String?          // Optional link to related resource (e.g., /policies/xyz)
+
+  // For tracking which record triggered the notification
+  relatedId     String?
+  relatedType   String?          // "POLICY", "REVIEW", etc.
+
+  isRead        Boolean          @default(false)
+  createdAt     DateTime         @default(now())
+
+  @@index([type])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+enum NotificationType {
+  POLICY_CREATED
+  POLICY_UPDATED
+  POLICY_ARCHIVED
+  ANNOUNCEMENT
+  SYSTEM
+}
+
 enum EmploymentType {
   FULL_TIME
   PART_TIME

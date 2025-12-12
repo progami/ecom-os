@@ -447,3 +447,40 @@ export const HRCalendarApi = {
     })
   },
 }
+
+// Notifications
+export type Notification = {
+  id: string
+  type: string
+  title: string
+  message: string
+  link?: string | null
+  relatedId?: string | null
+  relatedType?: string | null
+  isRead: boolean
+  createdAt: string
+}
+
+export const NotificationsApi = {
+  list(params: { unreadOnly?: boolean; limit?: number } = {}) {
+    const qp = new URLSearchParams()
+    if (params.unreadOnly) qp.set('unreadOnly', 'true')
+    if (params.limit != null) qp.set('limit', String(params.limit))
+    const qs = qp.toString()
+    return request<{ items: Notification[]; unreadCount: number }>(`/api/notifications${qs ? `?${qs}` : ''}`)
+  },
+  markAsRead(ids: string[]) {
+    return request<{ ok: boolean }>(`/api/notifications`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    })
+  },
+  markAllAsRead() {
+    return request<{ ok: boolean }>(`/api/notifications`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ markAllRead: true }),
+    })
+  },
+}
