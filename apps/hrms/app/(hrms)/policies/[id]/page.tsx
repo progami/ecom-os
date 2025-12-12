@@ -38,6 +38,14 @@ function getCategoryLabel(category: string) {
   return map[category] || category
 }
 
+function getRegionLabel(region: string) {
+  const map: Record<string, string> = {
+    KANSAS_US: 'US (Kansas)',
+    PAKISTAN: 'Pakistan',
+  }
+  return map[region] || region
+}
+
 function MetaItem({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
@@ -112,9 +120,12 @@ export default function ViewPolicyPage() {
       <div className="max-w-4xl space-y-6">
         {/* Meta Info */}
         <Card padding="md">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-6">
             <MetaItem label="Category">
               {getCategoryLabel(policy.category)}
+            </MetaItem>
+            <MetaItem label="Region">
+              {getRegionLabel(policy.region)}
             </MetaItem>
             <MetaItem label="Status">
               <StatusBadge status={policy.status} />

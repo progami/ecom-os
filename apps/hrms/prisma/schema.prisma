@@ -111,6 +111,7 @@ model Policy {
   id            String        @id @default(cuid())
   title         String
   category      PolicyCategory
+  region        Region
   summary       String?
   content       String?
   fileUrl       String?
@@ -121,9 +122,10 @@ model Policy {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
+  @@unique([category, region])
   @@index([category])
+  @@index([region])
   @@index([status])
-  @@index([version])
 }
 
 enum EmploymentType {
@@ -163,4 +165,9 @@ enum PolicyStatus {
   DRAFT
   ACTIVE
   ARCHIVED
+}
+
+enum Region {
+  KANSAS_US
+  PAKISTAN
 }

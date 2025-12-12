@@ -56,6 +56,7 @@ export async function PATCH(req: Request, context: PolicyRouteContext) {
 
     if (data.title !== undefined) updates.title = data.title
     if (data.category !== undefined) updates.category = data.category
+    if (data.region !== undefined) updates.region = data.region
     if (data.summary !== undefined) updates.summary = data.summary
     if (data.content !== undefined) updates.content = data.content
     if (data.fileUrl !== undefined) updates.fileUrl = data.fileUrl
