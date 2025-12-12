@@ -60,7 +60,7 @@ export async function GET(req: Request) {
         where,
         take: Math.min(take, MAX_PAGINATION_LIMIT),
         skip,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { title: 'asc' },
       }),
       prisma.policy.count({ where }),
     ])
