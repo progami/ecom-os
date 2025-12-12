@@ -14,6 +14,7 @@ import {
   ClipboardDocumentCheckIcon,
   ShieldExclamationIcon,
 } from '@/components/ui/Icons'
+import { NotificationBell } from '@/components/ui/NotificationBell'
 
 interface NavItem {
   name: string
@@ -77,11 +78,16 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
           </div>
           <span className="text-lg font-semibold text-slate-900">HRMS</span>
         </Link>
-        {onClose && (
-          <button onClick={onClose} className="md:hidden p-2 hover:bg-slate-100 rounded-lg">
-            <XIcon className="h-5 w-5 text-slate-500" />
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <div className="hidden md:block">
+            <NotificationBell />
+          </div>
+          {onClose && (
+            <button onClick={onClose} className="md:hidden p-2 hover:bg-slate-100 rounded-lg">
+              <XIcon className="h-5 w-5 text-slate-500" />
+            </button>
+          )}
+        </div>
       </div>
 
       <nav className="flex flex-1 flex-col">
@@ -171,6 +177,7 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
       <div className="flex-1 text-base font-semibold text-slate-900">
         {getCurrentPageName()}
       </div>
+      <NotificationBell />
     </div>
   )
 }
