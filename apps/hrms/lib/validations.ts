@@ -69,6 +69,7 @@ export const UpdateResourceSchema = z.object({
 // Policy schemas
 export const PolicyCategoryEnum = z.enum(['LEAVE', 'PERFORMANCE', 'CONDUCT', 'SECURITY', 'COMPENSATION', 'OTHER'])
 export const PolicyStatusEnum = z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED'])
+export const RegionEnum = z.enum(['KANSAS_US', 'PAKISTAN'])
 
 // Version format: major.minor (e.g., "1.0", "2.3")
 export const VersionSchema = z.string().regex(/^\d+\.\d+$/, {
@@ -87,6 +88,7 @@ export function bumpVersion(current: string, type: 'major' | 'minor' = 'minor'):
 export const CreatePolicySchema = z.object({
   title: z.string().min(1).max(200).trim(),
   category: PolicyCategoryEnum,
+  region: RegionEnum,
   summary: z.string().max(1000).trim().optional().nullable(),
   content: z.string().max(50000).optional().nullable(),
   fileUrl: z.string().url().max(500).optional().nullable(),
@@ -100,6 +102,7 @@ export const CreatePolicySchema = z.object({
 export const UpdatePolicySchema = z.object({
   title: z.string().min(1).max(200).trim().optional(),
   category: PolicyCategoryEnum.optional(),
+  region: RegionEnum.optional(),
   summary: z.string().max(1000).trim().optional().nullable(),
   content: z.string().max(50000).optional().nullable(),
   fileUrl: z.string().url().max(500).optional().nullable(),

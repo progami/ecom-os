@@ -6,6 +6,7 @@ import {
   MAX_PAGINATION_LIMIT,
   PolicyCategoryEnum,
   PolicyStatusEnum,
+  RegionEnum,
 } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 
@@ -55,6 +56,15 @@ export async function GET(req: Request) {
       }
     }
 
+    // Validate region enum
+    const regionParam = searchParams.get('region')
+    if (regionParam) {
+      const regionValidation = RegionEnum.safeParse(regionParam.toUpperCase())
+      if (regionValidation.success) {
+        where.region = regionValidation.data
+      }
+    }
+
     const [items, total] = await Promise.all([
       prisma.policy.findMany({
         where,
@@ -91,6 +101,7 @@ export async function POST(req: Request) {
       data: {
         title: data.title,
         category: data.category,
+        region: data.region,
         summary: data.summary ?? null,
         content: data.content ?? null,
         fileUrl: data.fileUrl ?? null,

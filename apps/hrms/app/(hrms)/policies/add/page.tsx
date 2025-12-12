@@ -25,6 +25,11 @@ const categoryOptions = [
   { value: 'OTHER', label: 'Other' },
 ]
 
+const regionOptions = [
+  { value: 'KANSAS_US', label: 'US (Kansas)' },
+  { value: 'PAKISTAN', label: 'Pakistan' },
+]
+
 const statusOptions = [
   { value: 'DRAFT', label: 'Draft' },
   { value: 'ACTIVE', label: 'Active' },
@@ -47,6 +52,7 @@ export default function AddPolicyPage() {
       await PoliciesApi.create({
         title: String(payload.title),
         category: String(payload.category),
+        region: String(payload.region),
         status: String(payload.status || 'DRAFT'),
         version: payload.version ? String(payload.version) : undefined,
         effectiveDate: payload.effectiveDate ? String(payload.effectiveDate) : undefined,
@@ -96,6 +102,13 @@ export default function AddPolicyPage() {
                   required
                   options={categoryOptions}
                   placeholder="Select category..."
+                />
+                <SelectField
+                  label="Region"
+                  name="region"
+                  required
+                  options={regionOptions}
+                  placeholder="Select region..."
                 />
                 <SelectField
                   label="Status"
