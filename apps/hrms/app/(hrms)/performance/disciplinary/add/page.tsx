@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { DisciplinaryActionsApi, EmployeesApi, type Employee } from '@/lib/api-client'
 import { ShieldExclamationIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -109,6 +109,9 @@ const statusOptions = [
 
 export default function AddDisciplinaryPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const preselectedEmployeeId = searchParams.get('employeeId')
+
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -199,6 +202,7 @@ export default function AddDisciplinaryPage() {
                     required
                     options={employeeOptions}
                     placeholder={loadingEmployees ? 'Loading employees...' : 'Select employee...'}
+                    defaultValue={preselectedEmployeeId || undefined}
                   />
                 </div>
                 <SelectField

@@ -133,7 +133,7 @@ export default function EmployeesPage() {
               items.map((e) => (
                 <TableRow
                   key={e.id}
-                  onClick={() => router.push(`/employees/${e.id}/edit`)}
+                  onClick={() => router.push(`/employees/${e.id}`)}
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">

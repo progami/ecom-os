@@ -72,7 +72,7 @@ export default function EditEmployeePage() {
         employmentType: String(payload.employmentType || 'FULL_TIME'),
         status: String(payload.status || 'ACTIVE'),
       })
-      router.push('/employees')
+      router.push(`/employees/${id}`)
     } catch (e: any) {
       setError(e.message || 'Failed to update employee')
     } finally {
@@ -87,7 +87,7 @@ export default function EditEmployeePage() {
           title="Edit Employee"
           description="People"
           icon={<UsersIcon className="h-6 w-6 text-white" />}
-          backHref="/employees"
+          backHref={`/employees/${id}`}
         />
         <div className="max-w-3xl">
           <Card padding="lg">
@@ -110,7 +110,7 @@ export default function EditEmployeePage() {
           title="Edit Employee"
           description="People"
           icon={<UsersIcon className="h-6 w-6 text-white" />}
-          backHref="/employees"
+          backHref={`/employees/${id}`}
         />
         <div className="max-w-3xl">
           <Card padding="lg">
@@ -129,7 +129,7 @@ export default function EditEmployeePage() {
         title="Edit Employee"
         description="People"
         icon={<UsersIcon className="h-6 w-6 text-white" />}
-        backHref="/employees"
+        backHref={`/employees/${id}`}
       />
 
       <div className="max-w-3xl">
@@ -223,7 +223,7 @@ export default function EditEmployeePage() {
 
             {/* Actions */}
             <FormActions>
-              <Button variant="secondary" href="/employees">
+              <Button variant="secondary" href={`/employees/${id}`}>
                 Cancel
               </Button>
               <Button type="submit" loading={submitting}>

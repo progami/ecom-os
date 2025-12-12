@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { PerformanceReviewsApi, EmployeesApi, type Employee } from '@/lib/api-client'
 import { ClipboardDocumentCheckIcon, StarIcon, StarFilledIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -60,6 +60,9 @@ function RatingInput({ name, label, value, onChange }: { name: string; label: st
 
 export default function AddReviewPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const preselectedEmployeeId = searchParams.get('employeeId')
+
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -155,6 +158,7 @@ export default function AddReviewPage() {
                     required
                     options={employeeOptions}
                     placeholder={loadingEmployees ? 'Loading employees...' : 'Select employee...'}
+                    defaultValue={preselectedEmployeeId || undefined}
                   />
                 </div>
                 <SelectField
