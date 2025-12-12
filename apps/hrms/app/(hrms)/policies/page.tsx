@@ -25,6 +25,7 @@ import {
 import { TableEmptyState } from '@/components/ui/EmptyState'
 
 const REGION_LABELS: Record<string, string> = {
+  ALL: 'All Regions',
   KANSAS_US: 'US (Kansas)',
   PAKISTAN: 'Pakistan',
 }

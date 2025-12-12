@@ -69,7 +69,7 @@ export const UpdateResourceSchema = z.object({
 // Policy schemas
 export const PolicyCategoryEnum = z.enum(['LEAVE', 'PERFORMANCE', 'CONDUCT', 'SECURITY', 'COMPENSATION', 'OTHER'])
 export const PolicyStatusEnum = z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED'])
-export const RegionEnum = z.enum(['KANSAS_US', 'PAKISTAN'])
+export const RegionEnum = z.enum(['ALL', 'KANSAS_US', 'PAKISTAN'])
 
 // Version format: major.minor (e.g., "1.0", "2.3")
 export const VersionSchema = z.string().regex(/^\d+\.\d+$/, {
