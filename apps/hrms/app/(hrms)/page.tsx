@@ -6,22 +6,18 @@ import { DashboardApi, NotificationsApi, type DashboardData } from '@/lib/api-cl
 import {
   HomeIcon,
   UsersIcon,
-  DocumentIcon,
   BellIcon,
-  ChartBarIcon,
   SpinnerIcon,
   UserIcon,
-  ClipboardIcon,
   CheckIcon,
+  ChevronRightIcon,
+  ExclamationCircleIcon,
 } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
-import { Card, StatCard } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { StatusBadge } from '@/components/ui/Badge'
 import { Alert } from '@/components/ui/Alert'
 import { Avatar } from '@/components/ui/Avatar'
-
-// Types imported from api-client
 
 function formatDate(dateString: string) {
   const date = new Date(dateString)
@@ -36,18 +32,6 @@ function formatDate(dateString: string) {
   if (diffHours < 24) return `${diffHours}h ago`
   if (diffDays < 7) return `${diffDays}d ago`
   return date.toLocaleDateString()
-}
-
-function formatReviewType(type: string) {
-  const map: Record<string, string> = {
-    PROBATION: 'Probation',
-    QUARTERLY: 'Quarterly',
-    SEMI_ANNUAL: 'Semi-Annual',
-    ANNUAL: 'Annual',
-    PROMOTION: 'Promotion',
-    PIP: 'PIP',
-  }
-  return map[type] ?? type
 }
 
 export default function Dashboard() {
@@ -76,7 +60,6 @@ export default function Dashboard() {
   const markNotificationRead = async (id: string) => {
     try {
       await NotificationsApi.markAsRead([id])
-      // Update local state
       if (data) {
         setData({
           ...data,
@@ -88,6 +71,23 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.error('Failed to mark notification as read:', err)
+    }
+  }
+
+  const markAllRead = async () => {
+    if (!data) return
+    const unreadIds = data.notifications.filter(n => !n.isRead).map(n => n.id)
+    if (unreadIds.length === 0) return
+
+    try {
+      await NotificationsApi.markAsRead(unreadIds)
+      setData({
+        ...data,
+        notifications: data.notifications.map((n) => ({ ...n, isRead: true })),
+        unreadNotificationCount: 0,
+      })
+    } catch (err) {
+      console.error('Failed to mark notifications as read:', err)
     }
   }
 
@@ -124,7 +124,10 @@ export default function Dashboard() {
     )
   }
 
-  const greeting = data?.user ? `Welcome, ${data.user.firstName}` : 'Welcome'
+  const greeting = data?.user ? `Welcome back, ${data.user.firstName}` : 'Welcome'
+  const hasDirectReports = data?.directReports && data.directReports.length > 0
+  const hasNotifications = data?.notifications && data.notifications.length > 0
+  const unreadCount = data?.unreadNotificationCount ?? 0
 
   return (
     <>
@@ -132,53 +135,45 @@ export default function Dashboard() {
         title={greeting}
         description={
           data?.user
-            ? `${data.user.position} - ${data.user.department}`
+            ? `${data.user.position} • ${data.user.department}`
             : 'Your HR management dashboard'
         }
         icon={<HomeIcon className="h-6 w-6 text-white" />}
       />
 
-      <div className="space-y-8">
-        {/* Stats */}
-        {data?.stats && data.stats.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {data.stats.map((stat) => (
-              <StatCard
-                key={stat.label}
-                title={stat.label}
-                value={stat.value}
-                icon={<ChartBarIcon className="h-5 w-5 text-slate-500" />}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* My Team / Direct Reports */}
-          <Card padding="none" className="lg:col-span-2">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Main Content - My Team */}
+        <div className="lg:col-span-3">
+          <Card padding="none" className="h-full">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <h2 className="font-semibold text-slate-900 flex items-center gap-2">
                 <UsersIcon className="h-5 w-5 text-cyan-600" />
                 My Team
+                {hasDirectReports && (
+                  <span className="text-sm font-normal text-slate-400">
+                    ({data.directReports.length})
+                  </span>
+                )}
               </h2>
-              {data?.directReports && data.directReports.length > 0 && (
+              {hasDirectReports && (
                 <Link
                   href="/employees"
-                  className="text-sm text-cyan-600 hover:text-cyan-700"
+                  className="text-sm text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
                 >
-                  View all
+                  All employees
+                  <ChevronRightIcon className="h-4 w-4" />
                 </Link>
               )}
             </div>
-            <div className="p-6">
-              {data?.directReports && data.directReports.length > 0 ? (
-                <div className="space-y-4">
+
+            <div className="p-5">
+              {hasDirectReports ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {data.directReports.map((report) => (
                     <Link
                       key={report.id}
                       href={`/employees/${report.id}`}
-                      className="flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 transition-colors"
+                      className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-cyan-200 hover:bg-cyan-50/30 transition-all group"
                     >
                       <Avatar
                         src={report.avatar}
@@ -186,195 +181,128 @@ export default function Dashboard() {
                         size="md"
                       />
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-slate-900 truncate">
+                        <p className="font-medium text-slate-900 group-hover:text-cyan-700 truncate">
                           {report.firstName} {report.lastName}
                         </p>
                         <p className="text-sm text-slate-500 truncate">
-                          {report.position} - {report.department}
+                          {report.position}
                         </p>
                       </div>
-                      <span className="text-xs text-slate-400">
-                        {report.employeeId}
-                      </span>
                     </Link>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <UserIcon className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-500 text-sm">No direct reports</p>
-                  <p className="text-slate-400 text-xs mt-1">
-                    Employees reporting to you will appear here
+                <div className="text-center py-12">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4">
+                    <UserIcon className="h-8 w-8 text-slate-400" />
+                  </div>
+                  <p className="text-slate-600 font-medium">No direct reports</p>
+                  <p className="text-slate-400 text-sm mt-1">
+                    Team members will appear here once assigned
                   </p>
+                  <Link
+                    href="/organogram"
+                    className="inline-flex items-center gap-1 text-sm text-cyan-600 hover:text-cyan-700 mt-4"
+                  >
+                    View org chart
+                    <ChevronRightIcon className="h-4 w-4" />
+                  </Link>
                 </div>
               )}
             </div>
           </Card>
+        </div>
 
-          {/* My Notifications */}
-          <Card padding="none">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        {/* Sidebar - Notifications */}
+        <div className="lg:col-span-2">
+          <Card padding="none" className="h-full">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <h2 className="font-semibold text-slate-900 flex items-center gap-2">
                 <BellIcon className="h-5 w-5 text-cyan-600" />
                 Notifications
-                {(data?.unreadNotificationCount ?? 0) > 0 && (
-                  <span className="ml-1 px-2 py-0.5 text-xs font-medium bg-red-100 text-red-600 rounded-full">
-                    {data?.unreadNotificationCount}
+                {unreadCount > 0 && (
+                  <span className="px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-600 rounded-full">
+                    {unreadCount}
                   </span>
                 )}
               </h2>
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllRead}
+                  className="text-xs text-slate-500 hover:text-cyan-600 transition-colors"
+                >
+                  Mark all read
+                </button>
+              )}
             </div>
-            <div className="p-4 max-h-80 overflow-y-auto">
-              {data?.notifications && data.notifications.length > 0 ? (
-                <div className="space-y-3">
+
+            <div className="max-h-[400px] overflow-y-auto">
+              {hasNotifications ? (
+                <div className="divide-y divide-slate-100">
                   {data.notifications.map((notification) => (
                     <div
                       key={notification.id}
-                      className={`p-3 rounded-lg border transition-colors ${
-                        notification.isRead
-                          ? 'bg-white border-slate-100'
-                          : 'bg-cyan-50 border-cyan-100'
+                      className={`px-5 py-4 transition-colors ${
+                        notification.isRead ? 'bg-white' : 'bg-amber-50/50'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium text-slate-900">
-                          {notification.title}
-                        </p>
-                        {!notification.isRead && (
-                          <button
-                            onClick={() => markNotificationRead(notification.id)}
-                            className="p-1 hover:bg-cyan-100 rounded"
-                            title="Mark as read"
-                          >
-                            <CheckIcon className="h-4 w-4 text-cyan-600" />
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                        {notification.message}
-                      </p>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs text-slate-400">
-                          {formatDate(notification.createdAt)}
-                        </span>
-                        {notification.link && (
-                          <Link
-                            href={notification.link}
-                            className="text-xs text-cyan-600 hover:text-cyan-700"
-                          >
-                            View
-                          </Link>
-                        )}
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-0.5 flex-shrink-0 ${
+                          notification.isRead ? 'text-slate-400' : 'text-amber-500'
+                        }`}>
+                          {notification.isRead ? (
+                            <CheckIcon className="h-4 w-4" />
+                          ) : (
+                            <ExclamationCircleIcon className="h-4 w-4" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm ${
+                            notification.isRead ? 'text-slate-600' : 'text-slate-900 font-medium'
+                          }`}>
+                            {notification.title}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
+                            {notification.message}
+                          </p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <span className="text-[11px] text-slate-400">
+                              {formatDate(notification.createdAt)}
+                            </span>
+                            {notification.link && (
+                              <Link
+                                href={notification.link}
+                                className="text-[11px] text-cyan-600 hover:text-cyan-700"
+                              >
+                                View details
+                              </Link>
+                            )}
+                            {!notification.isRead && (
+                              <button
+                                onClick={() => markNotificationRead(notification.id)}
+                                className="text-[11px] text-slate-500 hover:text-slate-700"
+                              >
+                                Dismiss
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <BellIcon className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                <div className="text-center py-12 px-5">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 mb-3">
+                    <BellIcon className="h-6 w-6 text-slate-400" />
+                  </div>
                   <p className="text-slate-500 text-sm">No notifications</p>
                 </div>
               )}
             </div>
           </Card>
         </div>
-
-        {/* Pending Reviews */}
-        {data?.pendingReviews && data.pendingReviews.length > 0 && (
-          <Card padding="none">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                <ClipboardIcon className="h-5 w-5 text-amber-500" />
-                Pending Reviews
-              </h2>
-              <Link
-                href="/performance-management/reviews"
-                className="text-sm text-cyan-600 hover:text-cyan-700"
-              >
-                View all
-              </Link>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {data.pendingReviews.map((review) => (
-                  <Link
-                    key={review.id}
-                    href={`/performance-management/reviews/${review.id}`}
-                    className="p-4 rounded-lg border border-slate-200 hover:border-cyan-300 hover:shadow-sm transition-all"
-                  >
-                    <p className="font-medium text-slate-900">
-                      {review.employee.firstName} {review.employee.lastName}
-                    </p>
-                    <p className="text-sm text-slate-500 mt-1">
-                      {formatReviewType(review.reviewType)} - {review.reviewPeriod}
-                    </p>
-                    <div className="flex items-center justify-between mt-3">
-                      <StatusBadge status={review.status.toLowerCase().replace('_', '-')} />
-                      <span className="text-xs text-slate-400">
-                        Due: {new Date(review.reviewDate).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* Quick Actions */}
-        <div>
-          <h2 className="font-semibold text-slate-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <QuickActionCard
-              href="/employees"
-              icon={UsersIcon}
-              title="View Employees"
-              description="Manage your workforce"
-            />
-            <QuickActionCard
-              href="/organogram"
-              icon={UsersIcon}
-              title="Org Chart"
-              description="View company structure"
-            />
-            <QuickActionCard
-              href="/policies"
-              icon={DocumentIcon}
-              title="Company Policies"
-              description="View and manage policies"
-            />
-          </div>
-        </div>
       </div>
     </>
-  )
-}
-
-function QuickActionCard({
-  href,
-  icon: Icon,
-  title,
-  description,
-}: {
-  href: string
-  icon: React.ComponentType<{ className?: string }>
-  title: string
-  description: string
-}) {
-  return (
-    <Link
-      href={href}
-      className="bg-white border border-slate-200 rounded-xl p-5 hover:border-cyan-300 hover:shadow-md transition-all"
-    >
-      <div className="flex items-center gap-4">
-        <div className="p-2.5 bg-cyan-50 rounded-xl">
-          <Icon className="h-5 w-5 text-cyan-600" />
-        </div>
-        <div>
-          <p className="font-medium text-slate-900">{title}</p>
-          <p className="text-sm text-slate-500">{description}</p>
-        </div>
-      </div>
-    </Link>
   )
 }
