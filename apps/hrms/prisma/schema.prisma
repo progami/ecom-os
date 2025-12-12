@@ -123,6 +123,7 @@ model Policy {
   updatedAt     DateTime      @updatedAt
 
   @@unique([category, region])
+  @@unique([effectiveDate])
   @@index([category])
   @@index([region])
   @@index([status])

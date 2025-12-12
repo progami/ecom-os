@@ -97,6 +97,19 @@ export async function POST(req: Request) {
 
     const data = validation.data
 
+    // Check for duplicate effective date
+    if (data.effectiveDate) {
+      const existingWithDate = await prisma.policy.findFirst({
+        where: { effectiveDate: new Date(data.effectiveDate) },
+      })
+      if (existingWithDate) {
+        return NextResponse.json(
+          { error: `Another policy already has effective date ${data.effectiveDate}` },
+          { status: 400 }
+        )
+      }
+    }
+
     const item = await prisma.policy.create({
       data: {
         title: data.title,
