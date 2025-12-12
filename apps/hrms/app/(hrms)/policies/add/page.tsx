@@ -26,6 +26,7 @@ const categoryOptions = [
 ]
 
 const regionOptions = [
+  { value: 'ALL', label: 'All Regions' },
   { value: 'KANSAS_US', label: 'US (Kansas)' },
   { value: 'PAKISTAN', label: 'Pakistan' },
 ]

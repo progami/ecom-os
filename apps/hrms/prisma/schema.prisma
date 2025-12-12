@@ -171,6 +171,7 @@ enum PolicyStatus {
 }
 
 enum Region {
+  ALL
   KANSAS_US
   PAKISTAN
 }
