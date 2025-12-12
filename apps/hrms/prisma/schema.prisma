@@ -7,44 +7,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================================================
-// USER & AUTH (Hybrid with Portal SSO)
-// ============================================================================
-
-model User {
-  id            String    @id @default(cuid())
-  portalUserId  String    @unique // from portal SSO (token.sub)
-  email         String    @unique
-  name          String?
-  role          UserRole  @default(EMPLOYEE)
-  isActive      Boolean   @default(true)
-  lastLoginAt   DateTime?
-
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  employee      Employee?
-
-  @@index([portalUserId])
-  @@index([email])
-}
-
-enum UserRole {
-  EMPLOYEE
-  MANAGER
-  ADMIN
-}
-
-// ============================================================================
-// EMPLOYEE (HR Record)
-// ============================================================================
-
 model Employee {
   id               String         @id @default(cuid())
-  userId           String?        @unique
-  user             User?          @relation(fields: [userId], references: [id])
-
-  employeeId       String         @unique // EMP-001
+  employeeId       String         @unique
   firstName        String
   lastName         String
   email            String         @unique
@@ -64,38 +29,28 @@ model Employee {
   departmentId     String?
   dept             Department?    @relation(fields: [departmentId], references: [id])
   position         String
-  employmentType   EmploymentType @default(FULL_TIME)
+  employmentType   EmploymentType  @default(FULL_TIME)
   joinDate         DateTime
-  status           EmployeeStatus @default(ACTIVE)
-  region           Region         @default(KANSAS_US)
-
-  managerId        String?
-  manager          Employee?      @relation("EmployeeManager", fields: [managerId], references: [id])
-  directReports    Employee[]     @relation("EmployeeManager")
+  status           EmployeeStatus  @default(ACTIVE)
+  reportsTo        String?
 
   salary           Float?
-  currency         String         @default("USD")
+  currency         String          @default("USD")
 
   emergencyContact String?
   emergencyPhone   String?
 
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
   files            EmployeeFile[]
   roles            Role[]
-  leaveBalances    LeaveBalance[]
-  leaveRequests    LeaveRequest[] @relation("EmployeeLeaveRequests")
-  approvedRequests LeaveRequest[] @relation("ApproverLeaveRequests")
-  attendance       AttendanceRecord[]
 
   @@index([email])
   @@index([employeeId])
   @@index([department])
   @@index([departmentId])
   @@index([status])
-  @@index([region])
-  @@index([managerId])
 }
 
 model EmployeeFile {
@@ -152,118 +107,23 @@ model Resource {
   @@index([name])
 }
 
-// ============================================================================
-// LEAVE MANAGEMENT
-// ============================================================================
+model Policy {
+  id            String        @id @default(cuid())
+  title         String
+  category      PolicyCategory
+  summary       String?
+  content       String?
+  fileUrl       String?
+  version       String        @default("1.0")
+  effectiveDate DateTime?
+  status        PolicyStatus  @default(ACTIVE)
 
-model LeavePolicy {
-  id            String            @id @default(cuid())
-  region        Region
-  leaveType     LeaveType
-  title         String            // e.g., "PTO - Kansas"
-  description   String?
-  entitledDays  Int               // annual entitlement
-  isPaid        Boolean           @default(true)
-  carryoverMax  Int?              // max days to carry over (null = no carryover)
-  minNoticeDays Int               @default(0) // days notice required
-  maxConsecutive Int?             // max consecutive days (null = no limit)
-  rules         Json?             // additional rules/restrictions
-  effectiveFrom DateTime          @default(now())
-  status        LeavePolicyStatus @default(ACTIVE)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-
-  @@unique([region, leaveType]) // one policy per region+type combo
-  @@index([region])
+  @@index([category])
   @@index([status])
-}
-
-model LeaveBalance {
-  id          String    @id @default(cuid())
-  employeeId  String
-  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  leaveType   LeaveType
-  year        Int       // e.g., 2025
-  entitled    Int       // from policy at year start
-  used        Int       @default(0)
-  carryover   Int       @default(0) // from previous year
-  adjustment  Int       @default(0) // manual adjustments (+/-)
-
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  @@unique([employeeId, leaveType, year])
-  @@index([employeeId])
-  @@index([year])
-}
-
-model LeaveRequest {
-  id           String        @id @default(cuid())
-  employeeId   String
-  employee     Employee      @relation("EmployeeLeaveRequests", fields: [employeeId], references: [id], onDelete: Cascade)
-  leaveType    LeaveType
-  startDate    DateTime      @db.Date
-  endDate      DateTime      @db.Date
-  workingDays  Int           // calculated, excludes weekends/holidays
-  isHalfDay    Boolean       @default(false)
-  halfDayType  HalfDayType?  // FIRST_HALF or SECOND_HALF
-  reason       String?
-  status       LeaveRequestStatus @default(PENDING)
-
-  approverId   String?
-  approver     Employee?     @relation("ApproverLeaveRequests", fields: [approverId], references: [id])
-  approvedAt   DateTime?
-  rejectedAt   DateTime?
-  comments     String?       // approver comments
-
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-
-  attendance   AttendanceRecord[]
-
-  @@index([employeeId])
-  @@index([status])
-  @@index([startDate, endDate])
-  @@index([approverId])
-}
-
-// ============================================================================
-// ATTENDANCE
-// ============================================================================
-
-model AttendanceRecord {
-  id           String         @id @default(cuid())
-  employeeId   String
-  employee     Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  date         DateTime       @db.Date
-  type         AttendanceType @default(AUTO_PRESENT)
-  leaveId      String?
-  leave        LeaveRequest?  @relation(fields: [leaveId], references: [id])
-  notes        String?
-
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-
-  @@unique([employeeId, date])
-  @@index([employeeId])
-  @@index([date])
-  @@index([type])
-}
-
-model Holiday {
-  id          String   @id @default(cuid())
-  name        String
-  date        DateTime @db.Date
-  region      Region   // which region this holiday applies to
-  isOptional  Boolean  @default(false)
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@unique([date, region])
-  @@index([date])
-  @@index([region])
+  @@index([version])
 }
 
 enum EmploymentType {
@@ -290,43 +150,17 @@ enum ResourceCategory {
   OTHER
 }
 
-enum LeavePolicyStatus {
+enum PolicyCategory {
+  LEAVE
+  PERFORMANCE
+  CONDUCT
+  SECURITY
+  COMPENSATION
+  OTHER
+}
+
+enum PolicyStatus {
   DRAFT
   ACTIVE
   ARCHIVED
-}
-
-enum Region {
-  KANSAS_US
-  PAKISTAN
-}
-
-enum LeaveType {
-  PTO                    // Vacation/Sick/Personal
-  PARENTAL               // Maternity/Paternity
-  BEREAVEMENT_IMMEDIATE  // Immediate family
-  BEREAVEMENT_EXTENDED   // Extended family
-  JURY_DUTY
-}
-
-enum LeaveRequestStatus {
-  PENDING
-  APPROVED
-  REJECTED
-  CANCELLED
-}
-
-enum HalfDayType {
-  FIRST_HALF
-  SECOND_HALF
-}
-
-enum AttendanceType {
-  AUTO_PRESENT
-  LEAVE
-  HOLIDAY
-  WEEKEND
-  WFH
-  HALF_DAY
-  ABSENT
 }
