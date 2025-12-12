@@ -11,6 +11,8 @@ import {
   CalendarIcon,
   MenuIcon,
   XIcon,
+  ClipboardDocumentCheckIcon,
+  ShieldExclamationIcon,
 } from '@/components/ui/Icons'
 
 interface NavItem {
@@ -35,6 +37,13 @@ const navigation: NavSection[] = [
     title: 'People',
     items: [
       { name: 'Employees', href: '/employees', icon: UsersIcon },
+    ]
+  },
+  {
+    title: 'Performance',
+    items: [
+      { name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon },
+      { name: 'Disciplinary', href: '/performance/disciplinary', icon: ShieldExclamationIcon },
     ]
   },
   {

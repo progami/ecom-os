@@ -231,3 +231,219 @@ export const CalendarApi = {
     })
   }
 }
+
+// Performance Reviews
+export type PerformanceReview = {
+  id: string
+  employeeId: string
+  employee?: {
+    id: string
+    firstName: string
+    lastName: string
+    employeeId: string
+    department?: string
+    position?: string
+    email?: string
+  }
+  reviewType: string
+  reviewPeriod: string
+  reviewDate: string
+  reviewerName: string
+  overallRating: number
+  qualityOfWork?: number | null
+  productivity?: number | null
+  communication?: number | null
+  teamwork?: number | null
+  initiative?: number | null
+  attendance?: number | null
+  strengths?: string | null
+  areasToImprove?: string | null
+  goals?: string | null
+  comments?: string | null
+  status: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export const PerformanceReviewsApi = {
+  list(params: {
+    q?: string
+    take?: number
+    skip?: number
+    employeeId?: string
+    reviewType?: string
+    status?: string
+  } = {}) {
+    const qp = new URLSearchParams()
+    if (params.q) qp.set('q', params.q)
+    if (params.take != null) qp.set('take', String(params.take))
+    if (params.skip != null) qp.set('skip', String(params.skip))
+    if (params.employeeId) qp.set('employeeId', params.employeeId)
+    if (params.reviewType) qp.set('reviewType', params.reviewType)
+    if (params.status) qp.set('status', params.status)
+    const qs = qp.toString()
+    return request<{ items: PerformanceReview[]; total: number }>(`/api/performance-reviews${qs ? `?${qs}` : ''}`)
+  },
+  get(id: string) {
+    return request<PerformanceReview>(`/api/performance-reviews/${encodeURIComponent(id)}`)
+  },
+  create(payload: Omit<PerformanceReview, 'id' | 'employee' | 'createdAt' | 'updatedAt'>) {
+    return request<PerformanceReview>(`/api/performance-reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  update(id: string, payload: Partial<Omit<PerformanceReview, 'id' | 'employeeId' | 'employee' | 'createdAt' | 'updatedAt'>>) {
+    return request<PerformanceReview>(`/api/performance-reviews/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  delete(id: string) {
+    return request<{ ok: boolean }>(`/api/performance-reviews/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  },
+}
+
+// Disciplinary Actions
+export type DisciplinaryAction = {
+  id: string
+  employeeId: string
+  employee?: {
+    id: string
+    firstName: string
+    lastName: string
+    employeeId: string
+    department?: string
+    position?: string
+    email?: string
+  }
+  violationType: string
+  violationReason: string
+  severity: string
+  incidentDate: string
+  reportedDate: string
+  reportedBy: string
+  description: string
+  witnesses?: string | null
+  evidence?: string | null
+  actionTaken: string
+  actionDate?: string | null
+  actionDetails?: string | null
+  followUpDate?: string | null
+  followUpNotes?: string | null
+  status: string
+  resolution?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export const DisciplinaryActionsApi = {
+  list(params: {
+    q?: string
+    take?: number
+    skip?: number
+    employeeId?: string
+    violationType?: string
+    severity?: string
+    status?: string
+  } = {}) {
+    const qp = new URLSearchParams()
+    if (params.q) qp.set('q', params.q)
+    if (params.take != null) qp.set('take', String(params.take))
+    if (params.skip != null) qp.set('skip', String(params.skip))
+    if (params.employeeId) qp.set('employeeId', params.employeeId)
+    if (params.violationType) qp.set('violationType', params.violationType)
+    if (params.severity) qp.set('severity', params.severity)
+    if (params.status) qp.set('status', params.status)
+    const qs = qp.toString()
+    return request<{ items: DisciplinaryAction[]; total: number }>(`/api/disciplinary-actions${qs ? `?${qs}` : ''}`)
+  },
+  get(id: string) {
+    return request<DisciplinaryAction>(`/api/disciplinary-actions/${encodeURIComponent(id)}`)
+  },
+  create(payload: Omit<DisciplinaryAction, 'id' | 'employee' | 'reportedDate' | 'createdAt' | 'updatedAt'>) {
+    return request<DisciplinaryAction>(`/api/disciplinary-actions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  update(id: string, payload: Partial<Omit<DisciplinaryAction, 'id' | 'employeeId' | 'employee' | 'reportedDate' | 'createdAt' | 'updatedAt'>>) {
+    return request<DisciplinaryAction>(`/api/disciplinary-actions/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  delete(id: string) {
+    return request<{ ok: boolean }>(`/api/disciplinary-actions/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  },
+}
+
+// HR Calendar Events
+export type HRCalendarEvent = {
+  id: string
+  title: string
+  description?: string | null
+  eventType: string
+  startDate: string
+  endDate?: string | null
+  allDay: boolean
+  employeeId?: string | null
+  relatedRecordId?: string | null
+  relatedRecordType?: string | null
+  googleEventId?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
+
+export const HRCalendarApi = {
+  list(params: {
+    q?: string
+    take?: number
+    skip?: number
+    eventType?: string
+    employeeId?: string
+    startDate?: string
+    endDate?: string
+  } = {}) {
+    const qp = new URLSearchParams()
+    if (params.q) qp.set('q', params.q)
+    if (params.take != null) qp.set('take', String(params.take))
+    if (params.skip != null) qp.set('skip', String(params.skip))
+    if (params.eventType) qp.set('eventType', params.eventType)
+    if (params.employeeId) qp.set('employeeId', params.employeeId)
+    if (params.startDate) qp.set('startDate', params.startDate)
+    if (params.endDate) qp.set('endDate', params.endDate)
+    const qs = qp.toString()
+    return request<{ items: HRCalendarEvent[]; total: number }>(`/api/hr-calendar${qs ? `?${qs}` : ''}`)
+  },
+  get(id: string) {
+    return request<HRCalendarEvent>(`/api/hr-calendar/${encodeURIComponent(id)}`)
+  },
+  create(payload: Omit<HRCalendarEvent, 'id' | 'googleEventId' | 'createdAt' | 'updatedAt'>) {
+    return request<HRCalendarEvent>(`/api/hr-calendar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  update(id: string, payload: Partial<Omit<HRCalendarEvent, 'id' | 'googleEventId' | 'createdAt' | 'updatedAt'>>) {
+    return request<HRCalendarEvent>(`/api/hr-calendar/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  delete(id: string) {
+    return request<{ ok: boolean }>(`/api/hr-calendar/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  },
+}
