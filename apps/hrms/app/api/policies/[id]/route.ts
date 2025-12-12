@@ -97,6 +97,18 @@ export async function PATCH(req: Request, context: PolicyRouteContext) {
       data: updates,
     })
 
+    // Create company-wide notification for policy update
+    await prisma.notification.create({
+      data: {
+        type: 'POLICY_UPDATED',
+        title: 'Policy Updated',
+        message: `"${p.title}" has been updated to version ${p.version}. Please review the changes.`,
+        link: `/policies/${p.id}`,
+        relatedId: p.id,
+        relatedType: 'POLICY',
+      },
+    })
+
     return NextResponse.json(p)
   } catch (e) {
     return safeErrorResponse(e, 'Failed to update policy')
