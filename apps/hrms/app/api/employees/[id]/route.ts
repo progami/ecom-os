@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { UpdateEmployeeSchema } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
-import { EmploymentType, EmployeeStatus } from '@/lib/hrms-prisma-types'
+import { EmploymentType, EmployeeStatus, Region } from '@/lib/hrms-prisma-types'
 
 type EmployeeRouteContext = { params: Promise<{ id: string }> }
 
@@ -68,6 +68,8 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
     if (data.employmentType !== undefined) updates.employmentType = data.employmentType as EmploymentType
     if (data.status !== undefined) updates.status = data.status as EmployeeStatus
     if (data.joinDate !== undefined) updates.joinDate = new Date(data.joinDate)
+    if (data.region !== undefined) updates.region = data.region as Region
+    if (data.managerId !== undefined) updates.managerId = data.managerId
 
     // Handle department relationship
     if (departmentName) {

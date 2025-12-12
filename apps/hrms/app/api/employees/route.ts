@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
-import { EmploymentType, EmployeeStatus, TransactionClient } from '@/lib/hrms-prisma-types'
+import { EmploymentType, EmployeeStatus, Region, TransactionClient } from '@/lib/hrms-prisma-types'
 import {
   CreateEmployeeSchema,
   PaginationSchema,
   MAX_PAGINATION_LIMIT,
   EmployeeStatusEnum,
   EmploymentTypeEnum,
+  RegionEnum,
 } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 
@@ -61,6 +62,15 @@ export async function GET(req: Request) {
       const typeValidation = EmploymentTypeEnum.safeParse(employmentTypeParam.toUpperCase())
       if (typeValidation.success) {
         where.employmentType = typeValidation.data
+      }
+    }
+
+    // Validate region enum
+    const regionParam = searchParams.get('region')
+    if (regionParam) {
+      const regionValidation = RegionEnum.safeParse(regionParam.toUpperCase())
+      if (regionValidation.success) {
+        where.region = regionValidation.data
       }
     }
 
@@ -125,6 +135,8 @@ export async function POST(req: Request) {
           employmentType: data.employmentType as EmploymentType,
           joinDate: new Date(data.joinDate),
           status: data.status as EmployeeStatus,
+          region: (data.region as Region) ?? 'KANSAS_US',
+          managerId: data.managerId ?? null,
           dept: {
             connectOrCreate: {
               where: { name: departmentName },

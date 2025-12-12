@@ -2,40 +2,24 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import Link from 'next/link'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { PoliciesApi, type Policy } from '@/lib/api-client'
-import { DocumentIcon, PencilIcon } from '@/components/ui/Icons'
+import { LeavePoliciesApi, type LeavePolicy } from '@/lib/api-client'
+import { DocumentIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/ui/Badge'
 import { EmptyState } from '@/components/ui/EmptyState'
 
-function formatDate(dateStr: string | null | undefined) {
-  if (!dateStr) return '—'
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    })
-  } catch {
-    return dateStr
-  }
+const REGION_LABELS: Record<string, string> = {
+  KANSAS_US: 'Kansas (USA)',
+  PAKISTAN: 'Pakistan',
 }
 
-function getCategoryLabel(category: string) {
-  const map: Record<string, string> = {
-    LEAVE: 'Leave',
-    PERFORMANCE: 'Performance',
-    CONDUCT: 'Conduct',
-    SECURITY: 'Security',
-    COMPENSATION: 'Compensation',
-    OTHER: 'Other',
-  }
-  return map[category] || category
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  PTO: 'PTO (Paid Time Off)',
+  PARENTAL: 'Parental Leave',
+  BEREAVEMENT_IMMEDIATE: 'Bereavement (Immediate Family)',
+  BEREAVEMENT_EXTENDED: 'Bereavement (Extended Family)',
+  JURY_DUTY: 'Jury Duty',
 }
 
 function MetaItem({ label, children }: { label: string; children: React.ReactNode }) {
@@ -47,21 +31,21 @@ function MetaItem({ label, children }: { label: string; children: React.ReactNod
   )
 }
 
-export default function ViewPolicyPage() {
+export default function ViewLeavePolicyPage() {
   const params = useParams()
   const id = params.id as string
 
-  const [policy, setPolicy] = useState<Policy | null>(null)
+  const [policy, setPolicy] = useState<LeavePolicy | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
       try {
-        const data = await PoliciesApi.get(id)
+        const data = await LeavePoliciesApi.get(id)
         setPolicy(data)
       } catch (e: any) {
-        setError(e.message || 'Failed to load policy')
+        setError(e.message || 'Failed to load leave policy')
       } finally {
         setLoading(false)
       }
@@ -84,10 +68,10 @@ export default function ViewPolicyPage() {
       <div className="py-12">
         <EmptyState
           icon={<DocumentIcon className="h-12 w-12" />}
-          title={error || 'Policy not found'}
-          description="The policy you're looking for doesn't exist or has been removed."
+          title={error || 'Leave policy not found'}
+          description="The leave policy you're looking for doesn't exist or has been removed."
           action={{
-            label: 'Back to policies',
+            label: 'Back to leave policies',
             href: '/policies',
           }}
         />
@@ -99,69 +83,60 @@ export default function ViewPolicyPage() {
     <>
       <PageHeader
         title={policy.title}
-        description="Policy"
+        description={LEAVE_TYPE_LABELS[policy.leaveType] || policy.leaveType}
         icon={<DocumentIcon className="h-6 w-6 text-white" />}
         backHref="/policies"
-        actions={
-          <Button href={`/policies/${id}/edit`} icon={<PencilIcon className="h-4 w-4" />}>
-            Edit
-          </Button>
-        }
       />
 
       <div className="max-w-4xl space-y-6">
-        {/* Meta Info */}
+        {/* Basic Info */}
         <Card padding="md">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-            <MetaItem label="Category">
-              {getCategoryLabel(policy.category)}
+            <MetaItem label="Region">
+              {REGION_LABELS[policy.region] || policy.region}
             </MetaItem>
             <MetaItem label="Status">
               <StatusBadge status={policy.status} />
             </MetaItem>
-            <MetaItem label="Version">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
-                v{policy.version}
-              </span>
+            <MetaItem label="Entitled Days">
+              <span className="text-lg font-semibold text-cyan-700">{policy.entitledDays}</span>
+              <span className="text-slate-500 ml-1">days/year</span>
             </MetaItem>
-            <MetaItem label="Effective Date">
-              {formatDate(policy.effectiveDate)}
+            <MetaItem label="Paid Leave">
+              {policy.isPaid ? (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                  Yes
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-600">
+                  No
+                </span>
+              )}
             </MetaItem>
           </div>
         </Card>
 
-        {/* Summary */}
-        {policy.summary && (
-          <Card padding="md">
-            <h2 className="text-sm font-semibold text-slate-900 mb-3">Summary</h2>
-            <p className="text-sm text-slate-600 leading-relaxed">{policy.summary}</p>
-          </Card>
-        )}
+        {/* Policy Details */}
+        <Card padding="md">
+          <h2 className="text-sm font-semibold text-slate-900 mb-4">Policy Details</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
+            <MetaItem label="Carryover Maximum">
+              {policy.carryoverMax != null ? `${policy.carryoverMax} days` : 'No carryover'}
+            </MetaItem>
+            <MetaItem label="Minimum Notice">
+              {policy.minNoticeDays > 0 ? `${policy.minNoticeDays} days` : 'None required'}
+            </MetaItem>
+            <MetaItem label="Max Consecutive Days">
+              {policy.maxConsecutive != null ? `${policy.maxConsecutive} days` : 'No limit'}
+            </MetaItem>
+          </div>
+        </Card>
 
-        {/* Content */}
-        {policy.content && (
+        {/* Description */}
+        {policy.description && (
           <Card padding="md">
-            <h2 className="text-sm font-semibold text-slate-900 mb-4">Policy Content</h2>
-            <div className="prose prose-sm max-w-none prose-headings:text-cyan-700 prose-h1:text-xl prose-h1:font-bold prose-h2:text-lg prose-h2:font-semibold prose-h2:border-b prose-h2:border-cyan-200 prose-h2:pb-2 prose-h2:mt-6 prose-table:text-sm prose-th:bg-cyan-50 prose-th:text-cyan-900 prose-th:p-2 prose-th:border prose-th:border-cyan-200 prose-td:p-2 prose-td:border prose-td:border-slate-200 prose-strong:text-cyan-800 prose-a:text-cyan-600 hover:prose-a:text-cyan-800">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {policy.content}
-              </ReactMarkdown>
-            </div>
-          </Card>
-        )}
-
-        {/* No content message */}
-        {!policy.content && !policy.summary && (
-          <Card padding="lg">
-            <EmptyState
-              icon={<DocumentIcon className="h-10 w-10" />}
-              title="No content has been added"
-              description="This policy doesn't have any content yet."
-              action={{
-                label: 'Add content',
-                href: `/policies/${id}/edit`,
-              }}
-            />
+            <h2 className="text-sm font-semibold text-slate-900 mb-3">Description</h2>
+            <p className="text-sm text-slate-600 leading-relaxed">{policy.description}</p>
           </Card>
         )}
       </div>
