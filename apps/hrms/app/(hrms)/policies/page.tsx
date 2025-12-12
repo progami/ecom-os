@@ -24,6 +24,11 @@ import {
 } from '@/components/ui/Table'
 import { TableEmptyState } from '@/components/ui/EmptyState'
 
+const REGION_LABELS: Record<string, string> = {
+  KANSAS_US: 'US (Kansas)',
+  PAKISTAN: 'Pakistan',
+}
+
 export default function PoliciesPage() {
   const router = useRouter()
   const [items, setItems] = useState<Policy[]>([])
@@ -84,15 +89,16 @@ export default function PoliciesPage() {
           <TableHeader>
             <TableHead>Title</TableHead>
             <TableHead>Category</TableHead>
+            <TableHead>Region</TableHead>
             <TableHead>Version</TableHead>
             <TableHead>Status</TableHead>
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableSkeleton rows={5} columns={4} />
+              <TableSkeleton rows={5} columns={5} />
             ) : items.length === 0 ? (
               <TableEmptyState
-                colSpan={4}
+                colSpan={5}
                 icon={<DocumentIcon className="h-10 w-10" />}
                 title="No policies found"
                 action={{
@@ -115,6 +121,7 @@ export default function PoliciesPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-slate-600">{p.category}</TableCell>
+                  <TableCell className="text-slate-600">{REGION_LABELS[p.region] || p.region}</TableCell>
                   <TableCell>
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
                       v{p.version}

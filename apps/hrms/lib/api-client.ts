@@ -33,6 +33,7 @@ export type Policy = {
   id: string
   title: string
   category: string
+  region: string
   summary?: string | null
   content?: string | null
   fileUrl?: string | null
@@ -165,12 +166,13 @@ export const ResourcesApi = {
 
 // Policies
 export const PoliciesApi = {
-  list(params: { q?: string; take?: number; skip?: number; category?: string; status?: string } = {}) {
+  list(params: { q?: string; take?: number; skip?: number; category?: string; region?: string; status?: string } = {}) {
     const qp = new URLSearchParams()
     if (params.q) qp.set('q', params.q)
     if (params.take != null) qp.set('take', String(params.take))
     if (params.skip != null) qp.set('skip', String(params.skip))
     if (params.category) qp.set('category', params.category)
+    if (params.region) qp.set('region', params.region)
     if (params.status) qp.set('status', params.status)
     const qs = qp.toString()
     return request<{ items: Policy[]; total: number }>(`/api/policies${qs ? `?${qs}` : ''}`)
@@ -178,7 +180,7 @@ export const PoliciesApi = {
   get(id: string) {
     return request<Policy>(`/api/policies/${encodeURIComponent(id)}`)
   },
-  create(payload: Partial<Policy> & { title: string; category: string; status?: string }) {
+  create(payload: Partial<Policy> & { title: string; category: string; region: string; status?: string }) {
     return request<Policy>(`/api/policies`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
