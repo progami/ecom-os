@@ -207,9 +207,21 @@ export function getCandidateSessionCookieNames(appId) {
         '__Secure-next-auth.session-token',
         'next-auth.session-token',
     ]);
-    if (appId) {
-        names.add(`${appId}.next-auth.session-token`);
-        names.add(`__Secure-${appId}.next-auth.session-token`);
+    const portalAppIdRaw = typeof process !== 'undefined' && process.env
+        ? (process.env.PORTAL_APP_ID ?? 'ecomos')
+        : 'ecomos';
+    const normalizedPortalAppId = portalAppIdRaw.trim();
+    const addNamesFor = (id) => {
+        const normalized = id?.trim();
+        if (!normalized)
+            return;
+        names.add(`${normalized}.next-auth.session-token`);
+        names.add(`__Secure-${normalized}.next-auth.session-token`);
+    };
+    addNamesFor(appId);
+    const normalizedAppId = appId?.trim() ?? '';
+    if (normalizedPortalAppId && normalizedPortalAppId !== normalizedAppId) {
+        addNamesFor(normalizedPortalAppId);
     }
     return Array.from(names);
 }
@@ -235,9 +247,6 @@ export async function decodePortalSession(options = {}) {
         return null;
     }
     const cookies = parseCookieHeader(header);
-    if (debug) {
-        console.log('[auth] decodePortalSession: candidate names', names, 'cookie keys', Array.from(cookies.keys()), 'secret length', resolvedSecret?.length);
-    }
     for (const name of names) {
         const values = cookies.get(name);
         if (!values?.length) {
@@ -451,8 +460,14 @@ export function getAppEntitlement(roles, appId) {
     const ent = rec[appId];
     if (!ent || typeof ent !== 'object')
         return undefined;
+    const departments = Array.isArray(ent.departments)
+        ? ent.departments.map(String)
+        : Array.isArray(ent.depts)
+            ? ent.depts.map(String)
+            : undefined;
     return {
         role: String(ent.role ?? ''),
-        depts: Array.isArray(ent.depts) ? ent.depts.map(String) : undefined,
+        departments,
+        depts: departments,
     };
 }

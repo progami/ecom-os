@@ -14,7 +14,7 @@ const ensureEnv = (key: string, fallback?: string) => {
 }
 
 ensureEnv('NEXT_PUBLIC_APP_URL', 'https://ecomos.targonglobal.com/x-plan')
-ensureEnv('PORTAL_AUTH_URL', 'https://ecomos.targonglobal.com/api/auth')
+ensureEnv('PORTAL_AUTH_URL', 'https://ecomos.targonglobal.com')
 ensureEnv('NEXT_PUBLIC_PORTAL_AUTH_URL', process.env.PORTAL_AUTH_URL)
 
 applyDevAuthDefaults({
@@ -51,7 +51,8 @@ const baseAuthOptions: NextAuthConfig = {
 
 export const authOptions: NextAuthConfig = withSharedAuth(baseAuthOptions, {
   cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
-  appId: 'x-plan',
+  // Read portal cookie in dev
+  appId: 'ecomos',
 })
 
 // Initialize NextAuth with config and export handlers + auth function

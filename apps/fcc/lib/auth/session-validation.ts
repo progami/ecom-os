@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { structuredLogger } from '@/lib/logger';
 import { withLock, LOCK_RESOURCES } from '@/lib/redis-lock';
 import { auth } from '@/lib/auth';
+import { getAppEntitlement } from '@ecom-os/auth';
 
 export interface SessionUser {
   userId: string;
@@ -175,10 +176,9 @@ export async function validateSession(
     };
 
     // Check admin privileges via portal roles claim when present
-    const portalSession = await auth()
-    const roles: any = (portalSession as any)?.roles
-    const fccRole = roles?.fcc?.role as string | undefined
-    const isAdmin = fccRole === 'admin'
+    const rolesClaim: unknown = (nextAuthSession as any)?.roles
+    const fccEntitlement = getAppEntitlement(rolesClaim, 'fcc')
+    const isAdmin = fccEntitlement?.role === 'admin'
     if (level === ValidationLevel.ADMIN && !isAdmin) {
       structuredLogger.warn('Non-admin user attempted admin access', {
         component: 'session-validation',

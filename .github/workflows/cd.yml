@@ -120,6 +120,18 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile 2>/dev/null || pnpm install
 
+      - name: Prepare CI env files
+        run: |
+          # Next.js only auto-loads .env, .env.local, .env.production, etc.
+          # For CI builds we copy committed .env.dev.ci → .env.production when a production env file
+          # is not present in the checkout (secrets files are not committed).
+          for app_dir in apps/ecomos apps/wms apps/x-plan apps/hrms apps/website; do
+            if [[ -f "$app_dir/.env.dev.ci" && ! -f "$app_dir/.env.production" ]]; then
+              echo "Seeding $app_dir/.env.production from $app_dir/.env.dev.ci"
+              cp "$app_dir/.env.dev.ci" "$app_dir/.env.production"
+            fi
+          done
+
       - name: Generate Prisma clients
         run: |
           pnpm --filter @ecom-os/wms db:generate || true
