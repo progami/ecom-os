@@ -59,7 +59,8 @@ export async function middleware(request: NextRequest) {
         console.log('[x-plan middleware] no session, redirecting to portal login', login.toString())
       }
       const callbackOrigin = resolveAppOrigin(request)
-      const callbackUrl = new URL(request.nextUrl.pathname + request.nextUrl.search + request.nextUrl.hash, callbackOrigin)
+      const basePath = process.env.BASE_PATH || ''
+      const callbackUrl = new URL(basePath + request.nextUrl.pathname + request.nextUrl.search + request.nextUrl.hash, callbackOrigin)
       login.searchParams.set('callbackUrl', callbackUrl.toString())
       return NextResponse.redirect(login)
     }

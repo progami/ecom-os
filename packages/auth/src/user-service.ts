@@ -7,6 +7,7 @@ type AppEntitlementMap = Record<string, { role: string; departments: string[] }>
 
 const DEFAULT_DEMO_USERNAME = 'demo-admin'
 const DEFAULT_DEMO_PASSWORD = 'demo-password'
+const DEMO_ADMIN_UUID = '00000000-0000-4000-a000-000000000001'
 
 const credentialsSchema = z.object({
   emailOrUsername: z.string().min(1),
@@ -123,7 +124,7 @@ function buildDemoUser(): AuthenticatedUser {
   }
 
   return {
-    id: 'dev-demo-admin',
+    id: DEMO_ADMIN_UUID,
     email: process.env.DEMO_ADMIN_EMAIL || 'dev-admin@targonglobal.com',
     username: demoUsername,
     fullName: 'Development Admin',
