@@ -359,7 +359,7 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
 
  costEntries.push({
  transactionId: costTransactionId,
- costCategory: 'Carton' as const,
+ costCategory: 'Inbound' as const,
  costName: 'Carton Handling',
  quantity: baseCartons,
  unitRate: costs.handling / baseCartons,
@@ -385,7 +385,7 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
 
  costEntries.push({
  transactionId: costTransactionId,
- costCategory: 'Container' as const,
+ costCategory: 'Inbound' as const,
  costName: 'Container Handling',
  quantity: 1,
  unitRate: costs.container,
@@ -398,7 +398,7 @@ export async function createDemoTransactions(config: DemoTransactionConfig) {
 
  costEntries.push({
  transactionId: costTransactionId,
- costCategory: 'Pallet' as const,
+ costCategory: 'Inbound' as const,
  costName: 'Pallet Handling',
  quantity: Math.ceil(baseCartons / 40),
  unitRate: costs.pallet / Math.max(1, Math.ceil(baseCartons / 40)),

@@ -52,18 +52,12 @@ const defaultColumnFilters = {
  weekEnding: '',
  storageMin: '',
  storageMax: '',
- containerMin: '',
- containerMax: '',
- palletMin: '',
- palletMax: '',
- cartonMin: '',
- cartonMax: '',
- unitMin: '',
- unitMax: '',
- transportationMin: '',
- transportationMax: '',
- accessorialMin: '',
- accessorialMax: '',
+ inboundMin: '',
+ inboundMax: '',
+ outboundMin: '',
+ outboundMax: '',
+ forwardingMin: '',
+ forwardingMax: '',
  otherMin: '',
  otherMax: '',
  totalMin: '',
@@ -207,18 +201,12 @@ function CostLedgerPage() {
 
  const storageMin = parseNumber(columnFilters.storageMin)
  const storageMax = parseNumber(columnFilters.storageMax)
- const containerMin = parseNumber(columnFilters.containerMin)
- const containerMax = parseNumber(columnFilters.containerMax)
- const palletMin = parseNumber(columnFilters.palletMin)
- const palletMax = parseNumber(columnFilters.palletMax)
- const cartonMin = parseNumber(columnFilters.cartonMin)
- const cartonMax = parseNumber(columnFilters.cartonMax)
- const unitMin = parseNumber(columnFilters.unitMin)
- const unitMax = parseNumber(columnFilters.unitMax)
- const transportationMin = parseNumber(columnFilters.transportationMin)
- const transportationMax = parseNumber(columnFilters.transportationMax)
- const accessorialMin = parseNumber(columnFilters.accessorialMin)
- const accessorialMax = parseNumber(columnFilters.accessorialMax)
+ const inboundMin = parseNumber(columnFilters.inboundMin)
+ const inboundMax = parseNumber(columnFilters.inboundMax)
+ const outboundMin = parseNumber(columnFilters.outboundMin)
+ const outboundMax = parseNumber(columnFilters.outboundMax)
+ const forwardingMin = parseNumber(columnFilters.forwardingMin)
+ const forwardingMax = parseNumber(columnFilters.forwardingMax)
  const otherMin = parseNumber(columnFilters.otherMin)
  const otherMax = parseNumber(columnFilters.otherMax)
  const totalMin = parseNumber(columnFilters.totalMin)
@@ -242,12 +230,9 @@ function CostLedgerPage() {
  const costs = group.costs
 
  if (!matchesRange(costs.storage, storageMin, storageMax)) return false
- if (!matchesRange(costs.container, containerMin, containerMax)) return false
- if (!matchesRange(costs.pallet, palletMin, palletMax)) return false
- if (!matchesRange(costs.carton, cartonMin, cartonMax)) return false
- if (!matchesRange(costs.unit, unitMin, unitMax)) return false
- if (!matchesRange(costs.transportation, transportationMin, transportationMax)) return false
- if (!matchesRange(costs.accessorial, accessorialMin, accessorialMax)) return false
+ if (!matchesRange(costs.inbound, inboundMin, inboundMax)) return false
+ if (!matchesRange(costs.outbound, outboundMin, outboundMax)) return false
+ if (!matchesRange(costs.forwarding, forwardingMin, forwardingMax)) return false
  if (!matchesRange(costs.other, otherMin, otherMax)) return false
  if (!matchesRange(costs.total, totalMin, totalMax)) return false
 
@@ -292,8 +277,6 @@ function CostLedgerPage() {
  if (!totals) return []
 
  const totalAmount = totals.total || 0
- const handlingCosts = (totals.pallet ?? 0) + (totals.carton ?? 0) + (totals.unit ?? 0)
- const logisticsCosts = (totals.container ?? 0) + (totals.transportation ?? 0) + (totals.accessorial ?? 0) + (totals.other ?? 0)
 
  return [
  {
@@ -304,24 +287,24 @@ function CostLedgerPage() {
  variant: 'info' as const,
  },
  {
- title: 'Storage',
- value: formatCurrency(totals.storage ?? 0),
- subtitle: 'Weekly storage fees',
- icon: Box,
- variant: 'default' as const,
- },
- {
- title: 'Handling',
- value: formatCurrency(handlingCosts),
- subtitle: 'Pallet + carton + unit',
+ title: 'Inbound',
+ value: formatCurrency(totals.inbound ?? 0),
+ subtitle: 'Receiving + inbound handling',
  icon: Package,
  variant: 'default' as const,
  },
  {
- title: 'Logistics',
- value: formatCurrency(logisticsCosts),
- subtitle: 'Container + transport + other',
+ title: 'Outbound',
+ value: formatCurrency(totals.outbound ?? 0),
+ subtitle: 'Shipping + delivery',
  icon: Truck,
+ variant: 'default' as const,
+ },
+ {
+ title: 'Storage',
+ value: formatCurrency(totals.storage ?? 0),
+ subtitle: 'Storage fees',
+ icon: Box,
  variant: 'default' as const,
  },
  ]
@@ -422,44 +405,26 @@ function CostLedgerPage() {
  </th>
  <th className="px-3 py-2 text-right font-semibold">
  <div className="flex items-center justify-end gap-1">
+ <span>Inbound</span>
+ {renderNumericFilter('Inbound', 'inboundMin', 'inboundMax')}
+ </div>
+ </th>
+ <th className="px-3 py-2 text-right font-semibold">
+ <div className="flex items-center justify-end gap-1">
+ <span>Outbound</span>
+ {renderNumericFilter('Outbound', 'outboundMin', 'outboundMax')}
+ </div>
+ </th>
+ <th className="px-3 py-2 text-right font-semibold">
+ <div className="flex items-center justify-end gap-1">
+ <span>Forwarding</span>
+ {renderNumericFilter('Forwarding', 'forwardingMin', 'forwardingMax')}
+ </div>
+ </th>
+ <th className="px-3 py-2 text-right font-semibold">
+ <div className="flex items-center justify-end gap-1">
  <span>Storage</span>
  {renderNumericFilter('Storage', 'storageMin', 'storageMax')}
- </div>
- </th>
- <th className="px-3 py-2 text-right font-semibold">
- <div className="flex items-center justify-end gap-1">
- <span>Container</span>
- {renderNumericFilter('Container', 'containerMin', 'containerMax')}
- </div>
- </th>
- <th className="px-3 py-2 text-right font-semibold">
- <div className="flex items-center justify-end gap-1">
- <span>Pallet</span>
- {renderNumericFilter('Pallet', 'palletMin', 'palletMax')}
- </div>
- </th>
- <th className="px-3 py-2 text-right font-semibold">
- <div className="flex items-center justify-end gap-1">
- <span>Carton</span>
- {renderNumericFilter('Carton', 'cartonMin', 'cartonMax')}
- </div>
- </th>
- <th className="px-3 py-2 text-right font-semibold">
- <div className="flex items-center justify-end gap-1">
- <span>Unit</span>
- {renderNumericFilter('Unit', 'unitMin', 'unitMax')}
- </div>
- </th>
- <th className="px-3 py-2 text-right font-semibold">
- <div className="flex items-center justify-end gap-1">
- <span>Transportation</span>
- {renderNumericFilter('Transportation', 'transportationMin', 'transportationMax')}
- </div>
- </th>
- <th className="px-3 py-2 text-right font-semibold">
- <div className="flex items-center justify-end gap-1">
- <span>Accessorial</span>
- {renderNumericFilter('Accessorial', 'accessorialMin', 'accessorialMax')}
  </div>
  </th>
  <th className="px-3 py-2 text-right font-semibold">
@@ -483,15 +448,12 @@ function CostLedgerPage() {
  <th className="px-3 py-2" />
  <th className="px-3 py-2" />
  <th className="px-3 py-2" />
- <th className="px-3 py-2" />
- <th className="px-3 py-2" />
- <th className="px-3 py-2" />
  </tr>
  </thead>
  <tbody>
  {filteredLedgerData.length === 0 && (
  <tr>
- <td colSpan={10} className="px-4 py-10">
+ <td colSpan={7} className="px-4 py-10">
  <div className="text-center text-muted-foreground">
  No cost ledger data for the selected filters.
  </div>
@@ -504,13 +466,10 @@ function CostLedgerPage() {
  <td className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
  {formatPeriod(group)}
  </td>
+ <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.inbound)}</td>
+ <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.outbound)}</td>
+ <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.forwarding)}</td>
  <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.storage)}</td>
- <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.container)}</td>
- <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.pallet)}</td>
- <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.carton)}</td>
- <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.unit)}</td>
- <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.transportation)}</td>
- <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.accessorial)}</td>
  <td className="px-3 py-2 text-right text-sm">{formatCurrency(group.costs.other)}</td>
  <td className="px-3 py-2 text-right font-semibold text-success-700">
                 {formatCurrency(group.costs.total)}

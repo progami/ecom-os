@@ -1,7 +1,7 @@
 'use client'
 
 // React imports
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 // Next.js imports
 import { useRouter } from 'next/navigation'
@@ -14,12 +14,10 @@ import { useSession } from '@/hooks/usePortalSession'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
-import { ReceiveCostsTab, CostsTabRef } from '@/components/operations/receive-costs-tab'
 import { CargoTab } from '@/components/operations/receive-cargo-tab'
 import { AttachmentsTab } from '@/components/operations/receive-attachments-tab'
 
 // Internal utilities
-import { sumBy } from '@/lib/utils/calculations'
 // Temporary validation functions
 const validateTransaction = (_data: Record<string, unknown>, _isEdit: boolean) => ({
  isValid: true,
@@ -45,7 +43,7 @@ const displayValidationErrors = (errors: Array<{ field?: string; message: string
 const _getFieldError = (errors: Record<string, string>, field: string) => errors[field]
 
 // Icons
-import { Package2, FileText, DollarSign, Paperclip, Save, X, PackageCheck } from '@/lib/lucide-icons'
+import { Package2, FileText, Paperclip, Save, X, PackageCheck } from '@/lib/lucide-icons'
 
 // Types
 interface WarehouseOption {
@@ -53,6 +51,8 @@ interface WarehouseOption {
  name: string
  code: string
 }
+
+type ReceiveType = 'CONTAINER_20' | 'CONTAINER_40' | 'CONTAINER_40_HQ' | 'CONTAINER_45_HQ' | 'LCL'
 
 interface Sku {
  id: string
@@ -129,6 +129,7 @@ interface ReceiveFormData {
  referenceNumber: string
  shipName: string
  containerNumber: string
+ receiveType: ReceiveType | ''
  supplier: string
  notes: string
  warehouseId: string
@@ -137,7 +138,6 @@ interface ReceiveFormData {
 interface ValidationErrors {
  details: boolean
  lineItems: boolean
- costs: boolean
 }
 
 // Helper to get current datetime in UTC
@@ -152,6 +152,7 @@ const initialFormData: ReceiveFormData = {
  referenceNumber: '',
  shipName: '',
  containerNumber: '',
+ receiveType: '',
  supplier: '',
  notes: '',
  warehouseId: ''
@@ -159,8 +160,7 @@ const initialFormData: ReceiveFormData = {
 
 const initialValidationErrors: ValidationErrors = {
  details: false,
- lineItems: false,
- costs: false
+ lineItems: false
 }
 
 // Tab configuration (removed - will be dynamic based on warehouse selection)
@@ -169,7 +169,6 @@ export default function ReceiveTabbedPage() {
  const router = useRouter()
 const PURCHASE_ORDERS_PATH = '/operations/orders'
  const { data: session } = useSession()
- const costsTabRef = useRef<CostsTabRef>(null)
  
  // Core state
  const [isSubmitting, setIsSubmitting] = useState(false)
@@ -252,16 +251,7 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  }
  }
 
- // Calculate totals
- const totalCartons = lineItems ? sumBy(lineItems, 'cartons') : 0
- const totalPallets = lineItems ? sumBy(lineItems, 'storagePalletsIn') : 0
-
-
  const validateForm = (): boolean => {
- // Get costs from the costs tab
- const costsResult = costsTabRef.current?.getValidatedCosts()
- const costs = (!costsResult || 'error' in costsResult) ? [] : costsResult
-
  // Prepare data for validation
  const validationData = {
  transactionType: 'RECEIVE' as const,
@@ -276,12 +266,6 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  storagePalletsIn: item.storagePalletsIn,
  unitsPerCarton: item.unitsPerCarton,
  storageCartonsPerPallet: item.storageCartonsPerPallet
- })),
- costs: (costs || []).map(cost => ({
- costType: cost.costType,
- quantity: cost.quantity,
- unitRate: cost.unitRate,
- totalCost: cost.totalCost
  }))
  }
 
@@ -299,9 +283,7 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  details: hasErrors ? 
  errorsArray.some((e: { field?: string }) => e?.field && ['transactionDate', 'warehouseId', 'referenceNumber'].includes(e.field)) : false,
  lineItems: hasErrors ? 
- errorsArray.some((e: { field?: string }) => e?.field && typeof e.field === 'string' && e.field.startsWith('items')) : false,
- costs: hasErrors ? 
- errorsArray.some((e: { field?: string }) => e?.field && typeof e.field === 'string' && e.field.startsWith('costs')) : false
+ errorsArray.some((e: { field?: string }) => e?.field && typeof e.field === 'string' && e.field.startsWith('items')) : false
  }
  setValidationErrors(errors)
 
@@ -314,17 +296,8 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  setActiveTab('details')
  } else if (errors.lineItems) {
  setActiveTab('cargo')
- } else if (errors.costs) {
- setActiveTab('costs')
  }
  
- return false
- }
-
- // Additional check for costs from ref
- if (!costsResult || 'error' in costsResult) {
- toast.error((costsResult && 'error' in costsResult ? costsResult.error : null) || 'Please review and complete the Costs tab')
- setActiveTab('costs')
  return false
  }
 
@@ -363,6 +336,12 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  return
  }
 
+	 if (!formData.receiveType) {
+	 toast.error('Please select an inbound type')
+	 setActiveTab('details')
+	 return
+	 }
+
  // console.log('About to validate form')
  try {
  if (!validateForm()) {
@@ -380,20 +359,13 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  setIsSubmitting(true)
  
  try {
- // Get and validate costs first
- const costsResult = costsTabRef.current?.getValidatedCosts()
- if (costsResult && 'error' in costsResult) {
- toast.error(costsResult.error)
- setIsSubmitting(false)
- return
- }
- 
  // Prepare transaction data - API expects 'items' not 'lineItems'
  const transactionData = {
  transactionDate: formData.transactionDate,
  referenceNumber: formData.referenceNumber,
  shipName: formData.shipName,
  containerNumber: formData.containerNumber,
+ receiveType: formData.receiveType,
  supplier: formData.supplier,
  notes: formData.notes,
  warehouseId: formData.warehouseId,
@@ -418,7 +390,6 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
     } : undefined
  })),
  attachments,
- costs: Array.isArray(costsResult) ? costsResult : []
  }
  
  // Debug log to see what's being sent
@@ -550,7 +521,6 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  { id: 'details', label: 'Transaction Details', icon: <FileText className="h-4 w-4" /> },
  ...(formData.warehouseId ? [
  { id: 'cargo', label: 'Cargo', icon: <Package2 className="h-4 w-4" /> },
- { id: 'costs', label: 'Costs', icon: <DollarSign className="h-4 w-4" /> },
  { id: 'attachments', label: 'Attachments', icon: <Paperclip className="h-4 w-4" /> }
  ] : [])
  ]
@@ -559,7 +529,7 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  <DashboardLayout>
  <PageContainer>
  <PageHeaderSection
- title="Receive Inventory"
+	 title="Inbound Inventory"
  description="Operations"
  icon={PackageCheck}
  actions={
@@ -595,7 +565,7 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  <div className="bg-white rounded-lg border border-slate-200">
  <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
  <h3 className="text-base font-semibold text-slate-900">Transaction Information</h3>
- <p className="text-sm text-slate-600 mt-1">Enter the basic details for this receive transaction</p>
+	 <p className="text-sm text-slate-600 mt-1">Enter the basic details for this inbound transaction</p>
  </div>
 
  <div className="p-6">
@@ -678,6 +648,24 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
 
  <div>
  <label className="block text-sm font-medium text-slate-700 mb-2">
+	 Inbound Type *
+ </label>
+ <select
+ value={formData.receiveType}
+ onChange={(e) => updateFormField('receiveType', e.target.value as ReceiveFormData['receiveType'])}
+ className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+ >
+	 <option value="">Select inbound type</option>
+ <option value="CONTAINER_20">20&apos; Container</option>
+ <option value="CONTAINER_40">40&apos; Container</option>
+ <option value="CONTAINER_40_HQ">40&apos; HQ Container</option>
+ <option value="CONTAINER_45_HQ">45&apos; HQ Container</option>
+ <option value="LCL">LCL</option>
+ </select>
+ </div>
+
+ <div>
+ <label className="block text-sm font-medium text-slate-700 mb-2">
  Supplier
  </label>
  <input
@@ -712,16 +700,6 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  warehouseId={formData.warehouseId}
  skus={skus}
  onItemsChange={setLineItems}
- />
- </TabPanel>
-
- {/* Costs Tab */}
- <TabPanel>
- <ReceiveCostsTab
- ref={costsTabRef}
- warehouseId={formData.warehouseId}
- totalCartons={totalCartons}
- totalPallets={totalPallets}
  />
  </TabPanel>
 

@@ -39,6 +39,24 @@ export const UpdateEmployeeSchema = z.object({
   }).optional(),
   status: EmployeeStatusEnum.optional(),
   roles: z.array(z.string().max(100)).max(20).optional(),
+  // Hierarchy
+  reportsToId: z.string().max(100).optional().nullable(),
+  // Personal info
+  dateOfBirth: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: 'Invalid date format',
+  }).optional().nullable(),
+  gender: z.string().max(50).trim().optional().nullable(),
+  maritalStatus: z.string().max(50).trim().optional().nullable(),
+  nationality: z.string().max(100).trim().optional().nullable(),
+  address: z.string().max(500).trim().optional().nullable(),
+  city: z.string().max(100).trim().optional().nullable(),
+  country: z.string().max(100).trim().optional().nullable(),
+  postalCode: z.string().max(20).trim().optional().nullable(),
+  emergencyContact: z.string().max(100).trim().optional().nullable(),
+  emergencyPhone: z.string().max(50).trim().optional().nullable(),
+  // Salary
+  salary: z.number().min(0).optional().nullable(),
+  currency: z.string().max(10).trim().optional(),
 })
 
 // Resource schemas

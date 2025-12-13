@@ -60,13 +60,10 @@ export async function GET(request: NextRequest) {
  ['Period:', `${searchParams.get('startDate')} to ${searchParams.get('endDate')}`],
  [''],
  ['Cost Category', 'Total Amount', 'Percentage'],
+ ['Inbound', totals.inbound || 0, safePercent(totals.inbound)],
+ ['Outbound', totals.outbound || 0, safePercent(totals.outbound)],
+ ['Forwarding', totals.forwarding || 0, safePercent(totals.forwarding)],
  ['Storage', totals.storage || 0, safePercent(totals.storage)],
- ['Container', totals.container || 0, safePercent(totals.container)],
- ['Pallet', totals.pallet || 0, safePercent(totals.pallet)],
- ['Carton', totals.carton || 0, safePercent(totals.carton)],
- ['Unit', totals.unit || 0, safePercent(totals.unit)],
- ['Transportation', totals.transportation || 0, safePercent(totals.transportation)],
- ['Accessorial', totals.accessorial || 0, safePercent(totals.accessorial)],
  ['Other', totals.other || 0, safePercent(totals.other)],
  ['', '', ''],
  ['TOTAL', totals.total, '100.0%']
@@ -76,8 +73,8 @@ export async function GET(request: NextRequest) {
 
  // Cost by period sheet
  const periodHeaders = groupBy === 'week' 
- ? ['Week Starting', 'Week Ending', 'Storage', 'Container', 'Pallet', 'Carton', 'Unit', 'Transportation', 'Accessorial', 'Other', 'Total']
- : ['Period', 'Storage', 'Container', 'Pallet', 'Carton', 'Unit', 'Transportation', 'Accessorial', 'Other', 'Total']
+ ? ['Week Starting', 'Week Ending', 'Inbound', 'Outbound', 'Forwarding', 'Storage', 'Other', 'Total']
+ : ['Period', 'Inbound', 'Outbound', 'Forwarding', 'Storage', 'Other', 'Total']
 
  const periodData: (string | number | null)[][] = [periodHeaders]
  
@@ -86,26 +83,20 @@ export async function GET(request: NextRequest) {
  periodData.push([
  formatDateGMT(new Date(period.rangeStart)),
  formatDateGMT(new Date(period.rangeEnd)),
+ period.costs.inbound || 0,
+ period.costs.outbound || 0,
+ period.costs.forwarding || 0,
  period.costs.storage || 0,
- period.costs.container || 0,
- period.costs.pallet || 0,
- period.costs.carton || 0,
- period.costs.unit || 0,
- period.costs.transportation || 0,
- period.costs.accessorial || 0,
  period.costs.other || 0,
  period.costs.total || 0
  ])
  } else {
  periodData.push([
  period.period,
+ period.costs.inbound || 0,
+ period.costs.outbound || 0,
+ period.costs.forwarding || 0,
  period.costs.storage || 0,
- period.costs.container || 0,
- period.costs.pallet || 0,
- period.costs.carton || 0,
- period.costs.unit || 0,
- period.costs.transportation || 0,
- period.costs.accessorial || 0,
  period.costs.other || 0,
  period.costs.total || 0
  ])
@@ -114,9 +105,26 @@ export async function GET(request: NextRequest) {
 
  // Add totals row
  if (groupBy === 'week') {
- periodData.push(['', 'TOTAL', totals.storage || 0, totals.container || 0, totals.pallet || 0, totals.carton || 0, totals.unit || 0, totals.transportation || 0, totals.accessorial || 0, totals.other || 0, totals.total || 0])
+ periodData.push([
+ '',
+ 'TOTAL',
+ totals.inbound || 0,
+ totals.outbound || 0,
+ totals.forwarding || 0,
+ totals.storage || 0,
+ totals.other || 0,
+ totals.total || 0,
+ ])
  } else {
- periodData.push(['TOTAL', totals.storage || 0, totals.container || 0, totals.pallet || 0, totals.carton || 0, totals.unit || 0, totals.transportation || 0, totals.accessorial || 0, totals.other || 0, totals.total || 0])
+ periodData.push([
+ 'TOTAL',
+ totals.inbound || 0,
+ totals.outbound || 0,
+ totals.forwarding || 0,
+ totals.storage || 0,
+ totals.other || 0,
+ totals.total || 0,
+ ])
  }
 
  const periodWs = XLSX.utils.aoa_to_sheet(periodData)

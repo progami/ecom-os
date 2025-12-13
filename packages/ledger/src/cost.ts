@@ -8,17 +8,7 @@ import {
 } from './types'
 import { parseNumeric } from './utils/units'
 
-const CATEGORY_BUCKETS = {
-  storage: 'storage',
-  container: 'container',
-  pallet: 'pallet',
-  carton: 'carton',
-  unit: 'unit',
-  transportation: 'transportation',
-  accessorial: 'accessorial'
-} as const
-
-type BucketKey = keyof typeof CATEGORY_BUCKETS | 'other'
+type BucketKey = 'inbound' | 'outbound' | 'forwarding' | 'storage' | 'other'
 
 type BucketAccumulator = Omit<CostLedgerBucketTotals, 'total'>
 
@@ -50,13 +40,10 @@ export function aggregateCostLedger(
         rangeStart,
         rangeEnd,
         costs: {
+          inbound: 0,
+          outbound: 0,
+          forwarding: 0,
           storage: 0,
-          container: 0,
-          pallet: 0,
-          carton: 0,
-          unit: 0,
-          transportation: 0,
-          accessorial: 0,
           other: 0
         },
         transactions: new Set<string>(),
@@ -101,24 +88,18 @@ export function aggregateCostLedger(
     .sort((a, b) => new Date(a.rangeStart).getTime() - new Date(b.rangeStart).getTime())
 
   const grandTotals = groups.reduce<CostLedgerBucketTotals>((totals, group) => {
+    totals.inbound += group.costs.inbound
+    totals.outbound += group.costs.outbound
+    totals.forwarding += group.costs.forwarding
     totals.storage += group.costs.storage
-    totals.container += group.costs.container
-    totals.pallet += group.costs.pallet
-    totals.carton += group.costs.carton
-    totals.unit += group.costs.unit
-    totals.transportation += group.costs.transportation
-    totals.accessorial += group.costs.accessorial
     totals.other += group.costs.other
     totals.total += group.costs.total
     return totals
   }, {
+    inbound: 0,
+    outbound: 0,
+    forwarding: 0,
     storage: 0,
-    container: 0,
-    pallet: 0,
-    carton: 0,
-    unit: 0,
-    transportation: 0,
-    accessorial: 0,
     other: 0,
     total: 0
   })
@@ -131,18 +112,36 @@ export function aggregateCostLedger(
 
 function mapCostCategory(category: string): BucketKey {
   const normalized = category?.toLowerCase() ?? ''
-  return (CATEGORY_BUCKETS as Record<string, BucketKey>)[normalized] ?? 'other'
+  switch (normalized) {
+    case 'inbound':
+      return 'inbound'
+    case 'outbound':
+      return 'outbound'
+    case 'forwarding':
+      return 'forwarding'
+    case 'storage':
+      return 'storage'
+    // Backward-compat bucket mapping
+    case 'container':
+    case 'carton':
+    case 'pallet':
+    case 'unit':
+      return 'inbound'
+    case 'transportation':
+      return 'outbound'
+    case 'accessorial':
+      return 'forwarding'
+    default:
+      return 'other'
+  }
 }
 
 function computeBucketTotals(bucket: BucketAccumulator): CostLedgerBucketTotals {
   const total =
+    bucket.inbound +
+    bucket.outbound +
+    bucket.forwarding +
     bucket.storage +
-    bucket.container +
-    bucket.pallet +
-    bucket.carton +
-    bucket.unit +
-    bucket.transportation +
-    bucket.accessorial +
     bucket.other
 
   return {

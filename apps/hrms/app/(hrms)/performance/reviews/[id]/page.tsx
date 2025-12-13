@@ -106,7 +106,7 @@ export default function ViewReviewPage() {
           title="Performance Review"
           description="Loading..."
           icon={<ClipboardDocumentCheckIcon className="h-6 w-6 text-white" />}
-          backHref="/performance/reviews"
+          showBack
         />
         <div className="max-w-3xl">
           <Card padding="lg">
@@ -128,7 +128,7 @@ export default function ViewReviewPage() {
           title="Performance Review"
           description="Not Found"
           icon={<ClipboardDocumentCheckIcon className="h-6 w-6 text-white" />}
-          backHref="/performance/reviews"
+          showBack
         />
         <div className="max-w-3xl">
           <Card padding="lg">
@@ -145,7 +145,7 @@ export default function ViewReviewPage() {
         title="Performance Review"
         description={`${review.employee?.firstName} ${review.employee?.lastName}`}
         icon={<ClipboardDocumentCheckIcon className="h-6 w-6 text-white" />}
-        backHref="/performance/reviews"
+        showBack
       />
 
       <div className="max-w-3xl space-y-6">

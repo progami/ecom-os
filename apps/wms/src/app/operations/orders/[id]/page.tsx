@@ -456,7 +456,7 @@ export default function PurchaseOrderDetailPage() {
 
  const totalQuantity = order.lines.reduce((sum, line) => sum + line.quantity, 0)
  const isInbound = order.type === 'PURCHASE'
- const workflowLabel = isInbound ? 'Receive' : order.type === 'FULFILLMENT' ? 'Ship' : 'Adjustment'
+ const workflowLabel = isInbound ? 'Inbound' : order.type === 'FULFILLMENT' ? 'Outbound' : 'Adjustment'
  const statusHelper = statusUpdating
  ? 'Updating status…'
  : detailsSaving

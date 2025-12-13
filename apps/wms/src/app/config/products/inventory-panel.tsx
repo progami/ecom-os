@@ -163,7 +163,7 @@ const InventoryPanel = forwardRef<InventoryPanelHandle>((_, ref) => {
               description={
                 searchTerm || statusFilter !== 'ALL'
                   ? 'Adjust filters or clear your search to view more inventory.'
-                  : 'Receive inventory through purchase orders to see it here.'
+                  : 'Record inbound inventory through purchase orders to see it here.'
               }
             />
           </div>
@@ -179,7 +179,7 @@ const InventoryPanel = forwardRef<InventoryPanelHandle>((_, ref) => {
                   <th className="px-3 py-2 text-right font-semibold">On Hand (Units)</th>
                   <th className="px-3 py-2 text-right font-semibold">Cartons</th>
                   <th className="px-3 py-2 text-right font-semibold">Pallets</th>
-                  <th className="px-3 py-2 text-left font-semibold">Last Receive</th>
+                  <th className="px-3 py-2 text-left font-semibold">Last Inbound</th>
                   <th className="px-3 py-2 text-left font-semibold">Status</th>
                 </tr>
               </thead>

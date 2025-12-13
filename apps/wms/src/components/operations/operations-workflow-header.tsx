@@ -14,12 +14,12 @@ const workflowSteps: WorkflowStep[] = [
  group: 'outbound'
  },
  {
- title: 'Ship Goods',
+ title: 'Outbound Shipments',
  description: 'Process outbound orders',
  group: 'outbound'
  },
  {
- title: 'Receive Goods',
+ title: 'Inbound Receipts',
  description: 'Record incoming inventory',
  group: 'inbound'
  },

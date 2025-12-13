@@ -109,7 +109,7 @@ export default function ViewPolicyPage() {
         title={policy.title}
         description="Policy"
         icon={<DocumentIcon className="h-6 w-6 text-white" />}
-        backHref="/policies"
+        showBack
         actions={
           <Button href={`/policies/${id}/edit`} icon={<PencilIcon className="h-4 w-4" />}>
             Edit

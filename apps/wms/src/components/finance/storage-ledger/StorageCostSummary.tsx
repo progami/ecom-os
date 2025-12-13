@@ -20,9 +20,9 @@ export function StorageCostSummary({ summary }: StorageCostSummaryProps) {
  variant="default"
  />
  <StatsCard
- title="Total Cartons"
- value={summary.totalCartons}
- subtitle="Stored in period"
+ title="Total Pallet Days"
+ value={summary.totalPalletDays}
+ subtitle="Billed in period"
  icon={Archive}
  variant="info"
  />

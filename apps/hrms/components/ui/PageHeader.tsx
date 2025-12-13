@@ -1,5 +1,8 @@
+'use client'
+
 import Link from 'next/link'
 import { ArrowLeftIcon } from './Icons'
+import { useNavigationHistory } from '@/lib/navigation-history'
 
 type PageHeaderProps = {
   title: string
@@ -7,6 +10,7 @@ type PageHeaderProps = {
   icon?: React.ReactNode
   actions?: React.ReactNode
   backHref?: string
+  showBack?: boolean // Use navigation history for back
 }
 
 export function PageHeader({
@@ -15,18 +19,40 @@ export function PageHeader({
   icon,
   actions,
   backHref,
+  showBack = false,
 }: PageHeaderProps) {
+  const { goBack, canGoBack } = useNavigationHistory()
+
+  const handleBack = () => {
+    if (backHref) {
+      window.location.href = backHref
+    } else {
+      goBack()
+    }
+  }
+
+  const showBackButton = backHref || (showBack && canGoBack)
+
   return (
     <header className="mb-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          {backHref && (
-            <Link
-              href={backHref}
-              className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
-            >
-              <ArrowLeftIcon className="h-5 w-5 text-slate-600" />
-            </Link>
+          {showBackButton && (
+            backHref ? (
+              <Link
+                href={backHref}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+              >
+                <ArrowLeftIcon className="h-5 w-5 text-slate-600" />
+              </Link>
+            ) : (
+              <button
+                onClick={handleBack}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
+              >
+                <ArrowLeftIcon className="h-5 w-5 text-slate-600" />
+              </button>
+            )
           )}
           {icon && (
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-cyan-600 shadow-md">

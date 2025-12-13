@@ -208,7 +208,7 @@ useEffect(() => {
                     {skuData.batches.map((batch, index) => (
                       <option key={batch.batchLot} value={index}>
                         Batch {batch.batchLot} — {formatNumber(batch.currentUnits)} units on hand
-                        {batch.firstReceiveDate && ` — Received ${formatDate(batch.firstReceiveDate)}`}
+                        {batch.firstReceiveDate && ` — Inbound ${formatDate(batch.firstReceiveDate)}`}
                       </option>
                     ))}
                   </select>
@@ -281,7 +281,7 @@ useEffect(() => {
                       </div>
                       <div className="mt-4 grid grid-cols-2 gap-4 border-t pt-4 text-sm">
                         <div>
-                          <p className="text-xs uppercase text-slate-500">First Receive Date</p>
+                          <p className="text-xs uppercase text-slate-500">First Inbound Date</p>
                           <p className="text-base font-medium text-slate-900">
                             {formatDate(selectedBatch.firstReceiveDate)}
                           </p>

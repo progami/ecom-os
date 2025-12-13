@@ -176,6 +176,8 @@ model PurchaseOrder {
   counterpartyName String?                @map("counterparty_name")
   expectedDate     DateTime?              @map("expected_date")
   postedAt         DateTime?              @map("posted_at")
+  receiveType      InboundReceiveType?    @map("receive_type")
+  shipMode         OutboundShipMode?      @map("ship_mode")
   notes            String?
   createdById      String?                @map("created_by")
   createdByName    String?                @map("created_by_name")
@@ -325,9 +327,13 @@ model StorageLedger {
   closingBalance   Int       @map("closing_balance")
   averageBalance   Decimal   @map("average_balance") @db.Decimal(10, 2)
   dailyBalanceData Json?     @map("daily_balance_data")
+
+  // Tactical storage methodology fields
+  closingPallets   Int       @default(0) @map("closing_pallets")
+  palletDays       Int       @default(0) @map("pallet_days")
   
   // Storage cost fields
-  storageRatePerCarton    Decimal?  @map("storage_rate_per_carton") @db.Decimal(10, 4)
+  storageRatePerPalletDay Decimal?  @map("storage_rate_per_pallet_day") @db.Decimal(10, 4)
   totalStorageCost        Decimal?  @map("total_storage_cost") @db.Decimal(12, 2)
   rateEffectiveDate       DateTime? @map("rate_effective_date") @db.Date
   costRateId              String?   @map("cost_rate_id")
@@ -430,6 +436,23 @@ enum PurchaseOrderLineStatus {
   CANCELLED
 
   @@map("PurchaseOrderLineStatus")
+}
+
+enum InboundReceiveType {
+  CONTAINER_20
+  CONTAINER_40
+  CONTAINER_40_HQ
+  CONTAINER_45_HQ
+  LCL
+
+  @@map("InboundReceiveType")
+}
+
+enum OutboundShipMode {
+  PALLETS
+  CARTONS
+
+  @@map("OutboundShipMode")
 }
 
 enum MovementNoteStatus {

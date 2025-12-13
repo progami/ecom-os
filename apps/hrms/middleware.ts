@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
 
   // Public routes - only specific endpoints, NOT all /api/ routes
   const PUBLIC_PREFIXES = ['/_next', '/favicon.ico']
-  const PUBLIC_ROUTES = ['/', '/health', '/api/health']
+  const PUBLIC_ROUTES = ['/', '/health', '/api/health', '/api/setup/departments']
   const isPublic =
     PUBLIC_ROUTES.includes(normalizedPath) ||
     PUBLIC_PREFIXES.some((p) => normalizedPath.startsWith(p))

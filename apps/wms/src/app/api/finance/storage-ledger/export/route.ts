@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { getWarehouseFilter } from '@/lib/auth-utils'
 import { prisma } from '@/lib/prisma'
-import { PurchaseOrderStatus, type Prisma } from '@ecom-os/prisma-wms'
+import type { Prisma } from '@ecom-os/prisma-wms'
 
 interface StorageLedgerEntryRow {
  warehouseCode: string
@@ -13,8 +13,10 @@ interface StorageLedgerEntryRow {
  batchLot: string
  weekEndingDate: Date
  closingBalance: number
+ closingPallets: number
+ palletDays: number
  averageBalance: Prisma.Decimal | number
- storageRatePerCarton: Prisma.Decimal | number | null
+ storageRatePerPalletDay: Prisma.Decimal | number | null
  totalStorageCost: Prisma.Decimal | number | null
  isCostCalculated: boolean
  rateEffectiveDate: Date | null
@@ -38,9 +40,11 @@ function generateStorageLedgerCSV(entries: StorageLedgerEntryRow[]): string {
  'SKU Code',
  'SKU Description',
  'Batch Lot',
- 'Closing Balance',
- 'Average Balance',
- 'Storage Rate Per Carton',
+ 'Closing Cartons',
+ 'Closing Pallets',
+ 'Pallet Days',
+ 'Average Cartons',
+ 'Storage Rate Per Pallet Day',
  'Total Storage Cost',
  'Cost Calculated',
  'Rate Effective Date',
@@ -58,8 +62,10 @@ function generateStorageLedgerCSV(entries: StorageLedgerEntryRow[]): string {
  `"${entry.skuDescription.replace(/"/g, '""')}"`,
  `"${entry.batchLot}"`,
  entry.closingBalance,
+ entry.closingPallets,
+ entry.palletDays,
  toPrintableNumber(entry.averageBalance),
- toPrintableNumber(entry.storageRatePerCarton),
+ toPrintableNumber(entry.storageRatePerPalletDay),
  toPrintableNumber(entry.totalStorageCost),
  entry.isCostCalculated ? 'Yes' : 'No',
  entry.rateEffectiveDate ? new Date(entry.rateEffectiveDate).toLocaleDateString() : '',
@@ -134,8 +140,10 @@ export async function GET(request: NextRequest) {
  batchLot: true,
  weekEndingDate: true,
  closingBalance: true,
+ closingPallets: true,
+ palletDays: true,
  averageBalance: true,
- storageRatePerCarton: true,
+ storageRatePerPalletDay: true,
  totalStorageCost: true,
  isCostCalculated: true,
  rateEffectiveDate: true,
@@ -148,27 +156,7 @@ export async function GET(request: NextRequest) {
  ]
  })
 
- const validTransactionCombos = await prisma.inventoryTransaction.groupBy({
- by: ['warehouseCode', 'skuCode', 'batchLot'],
- where: {
- OR: [
- { purchaseOrderId: null },
- { purchaseOrder: { status: { in: [PurchaseOrderStatus.POSTED, PurchaseOrderStatus.CLOSED] } } }
- ],
- ...(where.warehouseCode ? { warehouseCode: where.warehouseCode as string } : {}),
- },
- })
- const validKey = new Set(
- validTransactionCombos.map(
- (combo) => `${combo.warehouseCode}::${combo.skuCode}::${combo.batchLot}`
- )
- )
-
- const filteredEntries = entries.filter((entry) =>
- validKey.has(`${entry.warehouseCode}::${entry.skuCode}::${entry.batchLot}`)
- )
-
- if (filteredEntries.length === 0) {
+ if (entries.length === 0) {
  return NextResponse.json(
  { error: 'No data found for the specified criteria' },
  { status: 404 }
@@ -176,7 +164,7 @@ export async function GET(request: NextRequest) {
  }
 
  if (format === 'csv') {
- const csv = generateStorageLedgerCSV(filteredEntries)
+ const csv = generateStorageLedgerCSV(entries)
  const filename = `storage-ledger-${startDate}-to-${endDate}.csv`
  
  return new NextResponse(csv, {
@@ -187,16 +175,16 @@ export async function GET(request: NextRequest) {
  })
  }
 
- // JSON format
+// JSON format
 return NextResponse.json({
- entries: filteredEntries,
+ entries,
  exportedAt: new Date().toISOString(),
  criteria: {
  startDate,
  endDate,
  warehouseCode: warehouseCode || 'all'
  },
- totalEntries: filteredEntries.length
+ totalEntries: entries.length
 })
 
  } catch (error) {

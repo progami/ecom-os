@@ -13,7 +13,10 @@ import {
   XIcon,
   ClipboardDocumentCheckIcon,
   ShieldExclamationIcon,
+  OrgChartIcon,
 } from '@/components/ui/Icons'
+import { NotificationBell } from '@/components/ui/NotificationBell'
+import { NavigationHistoryProvider } from '@/lib/navigation-history'
 
 interface NavItem {
   name: string
@@ -37,6 +40,7 @@ const navigation: NavSection[] = [
     title: 'People',
     items: [
       { name: 'Employees', href: '/employees', icon: UsersIcon },
+      { name: 'Org Chart', href: '/organogram', icon: OrgChartIcon },
     ]
   },
   {
@@ -77,11 +81,16 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
           </div>
           <span className="text-lg font-semibold text-slate-900">HRMS</span>
         </Link>
-        {onClose && (
-          <button onClick={onClose} className="md:hidden p-2 hover:bg-slate-100 rounded-lg">
-            <XIcon className="h-5 w-5 text-slate-500" />
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          <div className="hidden md:block">
+            <NotificationBell />
+          </div>
+          {onClose && (
+            <button onClick={onClose} className="md:hidden p-2 hover:bg-slate-100 rounded-lg">
+              <XIcon className="h-5 w-5 text-slate-500" />
+            </button>
+          )}
+        </div>
       </div>
 
       <nav className="flex flex-1 flex-col">
@@ -171,6 +180,7 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
       <div className="flex-1 text-base font-semibold text-slate-900">
         {getCurrentPageName()}
       </div>
+      <NotificationBell />
     </div>
   )
 }
@@ -185,7 +195,7 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
   }, [pathname])
 
   return (
-    <>
+    <NavigationHistoryProvider>
       {/* Desktop Sidebar */}
       <div className="hidden md:fixed md:inset-y-0 md:z-50 md:flex md:w-64 md:flex-col">
         <Sidebar />
@@ -212,6 +222,6 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
           </div>
         </footer>
       </div>
-    </>
+    </NavigationHistoryProvider>
   )
 }

@@ -157,7 +157,7 @@ export default function ViewDisciplinaryPage() {
           title="Disciplinary Record"
           description="Loading..."
           icon={<ShieldExclamationIcon className="h-6 w-6 text-white" />}
-          backHref="/performance/disciplinary"
+          showBack
         />
         <div className="max-w-3xl">
           <Card padding="lg">
@@ -179,7 +179,7 @@ export default function ViewDisciplinaryPage() {
           title="Disciplinary Record"
           description="Not Found"
           icon={<ShieldExclamationIcon className="h-6 w-6 text-white" />}
-          backHref="/performance/disciplinary"
+          showBack
         />
         <div className="max-w-3xl">
           <Card padding="lg">
@@ -196,7 +196,7 @@ export default function ViewDisciplinaryPage() {
         title="Disciplinary Record"
         description={`${action.employee?.firstName} ${action.employee?.lastName}`}
         icon={<ShieldExclamationIcon className="h-6 w-6 text-white" />}
-        backHref="/performance/disciplinary"
+        showBack
       />
 
       <div className="max-w-3xl space-y-6">
