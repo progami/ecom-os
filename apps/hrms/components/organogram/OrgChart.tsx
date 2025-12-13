@@ -67,12 +67,16 @@ function EmployeeCard({
   isExpanded: boolean
   onToggle: () => void
 }) {
+  const isContractor = node.employmentType === 'CONTRACT'
+
   return (
     <div
-      className={`relative flex flex-col items-center rounded-xl border p-4 min-w-[180px] max-w-[200px] hover:shadow-lg transition-all duration-200 ${
+      className={`relative flex flex-col items-center rounded-xl p-4 min-w-[180px] max-w-[200px] hover:shadow-lg transition-all duration-200 ${
         isCurrentUser
           ? 'border-cyan-500 border-2 bg-gradient-to-br from-cyan-50 to-white shadow-md shadow-cyan-100 ring-4 ring-cyan-100'
-          : 'border-slate-200 bg-white shadow-sm'
+          : isContractor
+            ? 'border-2 border-dashed border-amber-400 bg-amber-50/30 shadow-sm'
+            : 'border border-slate-200 bg-white shadow-sm'
       }`}
       data-employee-id={node.id}
     >
@@ -80,6 +84,13 @@ function EmployeeCard({
       {isCurrentUser && (
         <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-cyan-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
           You
+        </div>
+      )}
+
+      {/* Contractor badge */}
+      {isContractor && !isCurrentUser && (
+        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
+          Contractor
         </div>
       )}
 
