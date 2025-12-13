@@ -15,6 +15,7 @@ import {
   FormSection,
   FormActions,
 } from '@/components/ui/FormField'
+import { useNavigationHistory } from '@/lib/navigation-history'
 
 const categoryOptions = [
   { value: 'LEAVE', label: 'Leave' },
@@ -50,6 +51,7 @@ function getNextVersions(current: string): { minor: string; major: string } {
 
 export default function EditPolicyPage() {
   const router = useRouter()
+  const { goBack } = useNavigationHistory()
   const params = useParams()
   const id = params.id as string
 
@@ -255,7 +257,7 @@ export default function EditPolicyPage() {
 
             {/* Actions */}
             <FormActions>
-              <Button variant="secondary" href={`/policies/${id}`}>
+              <Button variant="secondary" onClick={goBack}>
                 Cancel
               </Button>
               <Button type="submit" loading={submitting}>

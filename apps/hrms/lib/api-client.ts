@@ -633,6 +633,7 @@ export type HierarchyEmployee = {
   email: string
   department: string
   position: string
+  employmentType: string
   avatar: string | null
   reportsToId: string | null
   status: string

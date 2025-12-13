@@ -15,6 +15,7 @@ import {
   FormSection,
   FormActions,
 } from '@/components/ui/FormField'
+import { useNavigationHistory } from '@/lib/navigation-history'
 
 const categoryOptions = [
   { value: 'LEAVE', label: 'Leave' },
@@ -39,6 +40,7 @@ const statusOptions = [
 
 export default function AddPolicyPage() {
   const router = useRouter()
+  const { goBack } = useNavigationHistory()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -74,7 +76,7 @@ export default function AddPolicyPage() {
         title="Add Policy"
         description="Company Policies"
         icon={<DocumentIcon className="h-6 w-6 text-white" />}
-        backHref="/policies"
+        showBack
       />
 
       <div className="max-w-3xl">
@@ -175,7 +177,7 @@ Consequences of non-compliance...`}
 
             {/* Actions */}
             <FormActions>
-              <Button variant="secondary" href="/policies">
+              <Button variant="secondary" onClick={goBack}>
                 Cancel
               </Button>
               <Button type="submit" loading={submitting}>
