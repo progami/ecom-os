@@ -34,8 +34,8 @@ async function main() {
   // Find key people
   const mehdi = findEmployee('Mehdi')
   const hamad = findEmployee('Hamad')
-  const imran = findEmployee('Imran')
-  const umair = findEmployee('Umair')
+  const imran = findEmployee('Imran Sharif') || findEmployee('Imran')
+  const umair = findEmployee('Umair Afzal') || findEmployee('Umair')
 
   // Project 1: Dust Sheets (US) - under Mehdi
   const dustSheetsUS = await prisma.project.upsert({
@@ -126,11 +126,6 @@ async function main() {
   for (const proj of allProjects) {
     const lead = proj.lead ? `${proj.lead.firstName} ${proj.lead.lastName}` : 'No lead'
     console.log(`  - ${proj.name} (Lead: ${lead}, Members: ${proj._count.members}, Status: ${proj.status})`)
-  }
-
-  if (!imran) {
-    console.log('\n⚠️  Note: Employee "Imran" was not found in the database.')
-    console.log('   Please add Imran as an employee first, then re-run this script to assign them as Project X lead.')
   }
 }
 
