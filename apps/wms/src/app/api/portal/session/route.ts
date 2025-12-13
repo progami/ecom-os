@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { resolvePortalSession } from '@/lib/portal-session'
+import { auth } from '@/lib/auth'
 
-export async function GET(request: NextRequest) {
-  const session = await resolvePortalSession(request)
+export async function GET(_request: NextRequest) {
+  const session = await auth()
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
