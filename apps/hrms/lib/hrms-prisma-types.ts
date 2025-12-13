@@ -1,8 +1,25 @@
-export type EmploymentType = 'FULL_TIME' | 'PART_TIME' | 'CONTRACT' | 'INTERN'
-export type EmployeeStatus = 'ACTIVE' | 'ON_LEAVE' | 'TERMINATED' | 'RESIGNED'
+import type { Prisma as PrismaNamespace } from '@ecom-os/prisma-hrms'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type HRMSPrismaClient = any
+// Re-export all Prisma types from the generated package
+export {
+  PrismaClient,
+  Prisma,
+  EmploymentType,
+  EmployeeStatus,
+  ResourceCategory,
+  PolicyCategory,
+  PolicyStatus,
+  Region,
+  ReviewType,
+  ReviewStatus,
+  ViolationType,
+  ViolationReason,
+  ViolationSeverity,
+  DisciplinaryActionType,
+  DisciplinaryStatus,
+  HREventType,
+  NotificationType,
+} from '@ecom-os/prisma-hrms'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type TransactionClient = any
+// Transaction client type for $transaction callbacks
+export type TransactionClient = PrismaNamespace.TransactionClient
