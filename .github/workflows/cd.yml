@@ -1,6 +1,10 @@
 name: CD
 
 on:
+  pull_request:
+    branches:
+      - dev
+      - main
   push:
     branches:
       - dev
@@ -31,8 +35,8 @@ env:
   ECOM_OS_MAIN_DIR: /Users/jarraramjad/ecom-os-main
 
 concurrency:
-  group: cd-${{ github.ref_name }}
-  cancel-in-progress: false
+  group: cd-${{ github.ref_name }}-${{ github.event_name }}
+  cancel-in-progress: true
 
 jobs:
   detect-changes:
@@ -44,85 +48,177 @@ jobs:
       xplan: ${{ steps.changes.outputs.xplan }}
       hrms: ${{ steps.changes.outputs.hrms }}
       packages: ${{ steps.changes.outputs.packages }}
+      any_app: ${{ steps.changes.outputs.any_app }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Detect changed apps
         id: changes
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.app }}" ]]; then
             echo "${{ inputs.app }}=true" >> "$GITHUB_OUTPUT"
+            echo "any_app=true" >> "$GITHUB_OUTPUT"
           else
-            CHANGED_FILES=$(git diff --name-only HEAD^ HEAD 2>/dev/null || git diff --name-only HEAD)
+            # For PRs, compare against base branch
+            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+              BASE="${{ github.event.pull_request.base.sha }}"
+              HEAD="${{ github.event.pull_request.head.sha }}"
+              CHANGED_FILES=$(git diff --name-only "$BASE" "$HEAD")
+            else
+              # For push, compare with previous commit
+              CHANGED_FILES=$(git diff --name-only HEAD^ HEAD 2>/dev/null || git diff --name-only HEAD)
+            fi
+
             echo "Changed files:"
             echo "$CHANGED_FILES"
 
-            echo "$CHANGED_FILES" | grep -q "^apps/ecomos/" && echo "ecomos=true" >> "$GITHUB_OUTPUT" || true
-            echo "$CHANGED_FILES" | grep -q "^apps/wms/" && echo "wms=true" >> "$GITHUB_OUTPUT" || true
-            echo "$CHANGED_FILES" | grep -q "^apps/website/" && echo "website=true" >> "$GITHUB_OUTPUT" || true
-            echo "$CHANGED_FILES" | grep -q "^apps/x-plan/" && echo "xplan=true" >> "$GITHUB_OUTPUT" || true
-            echo "$CHANGED_FILES" | grep -q "^apps/hrms/" && echo "hrms=true" >> "$GITHUB_OUTPUT" || true
-            echo "$CHANGED_FILES" | grep -q "^packages/" && echo "packages=true" >> "$GITHUB_OUTPUT" || true
+            ANY_APP=false
+
+            if echo "$CHANGED_FILES" | grep -q "^apps/ecomos/"; then
+              echo "ecomos=true" >> "$GITHUB_OUTPUT"
+              ANY_APP=true
+            fi
+            if echo "$CHANGED_FILES" | grep -q "^apps/wms/"; then
+              echo "wms=true" >> "$GITHUB_OUTPUT"
+              ANY_APP=true
+            fi
+            if echo "$CHANGED_FILES" | grep -q "^apps/website/"; then
+              echo "website=true" >> "$GITHUB_OUTPUT"
+              ANY_APP=true
+            fi
+            if echo "$CHANGED_FILES" | grep -q "^apps/x-plan/"; then
+              echo "xplan=true" >> "$GITHUB_OUTPUT"
+              ANY_APP=true
+            fi
+            if echo "$CHANGED_FILES" | grep -q "^apps/hrms/"; then
+              echo "hrms=true" >> "$GITHUB_OUTPUT"
+              ANY_APP=true
+            fi
+            if echo "$CHANGED_FILES" | grep -q "^packages/"; then
+              echo "packages=true" >> "$GITHUB_OUTPUT"
+              ANY_APP=true
+            fi
+
+            echo "any_app=$ANY_APP" >> "$GITHUB_OUTPUT"
           fi
 
+  # ===========================================
+  # BUILD CHECK - Runs on PRs (blocks merge if fails)
+  # ===========================================
+  build-check:
+    needs: detect-changes
+    if: github.event_name == 'pull_request' && needs.detect-changes.outputs.any_app == 'true'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        run: corepack enable && corepack prepare pnpm@10.21.0 --activate
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+
+      - name: Generate Prisma clients
+        run: |
+          pnpm --filter @ecom-os/wms db:generate || true
+          pnpm --filter @ecom-os/x-plan prisma:generate || true
+          cd apps/hrms && npx prisma generate || true
+
+      - name: Build changed apps
+        run: |
+          echo "Building changed apps..."
+          if [[ "${{ needs.detect-changes.outputs.ecomos }}" == "true" || "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
+            echo "Building ecomos..."
+            pnpm --filter @ecom-os/ecomos build
+          fi
+          if [[ "${{ needs.detect-changes.outputs.wms }}" == "true" || "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
+            echo "Building wms..."
+            pnpm --filter @ecom-os/wms build
+          fi
+          if [[ "${{ needs.detect-changes.outputs.website }}" == "true" || "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
+            echo "Building website..."
+            pnpm --filter @ecom-os/website build
+          fi
+          if [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" || "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
+            echo "Building x-plan..."
+            pnpm --filter @ecom-os/x-plan build
+          fi
+          if [[ "${{ needs.detect-changes.outputs.hrms }}" == "true" || "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
+            echo "Building hrms..."
+            cd apps/hrms && pnpm run build
+          fi
+          echo "All builds successful!"
+
+  # ===========================================
+  # DEPLOY - Only runs after merge (push event)
+  # ===========================================
   deploy-ecomos:
     needs: detect-changes
-    if: needs.detect-changes.outputs.ecomos == 'true' || needs.detect-changes.outputs.packages == 'true'
+    if: github.event_name == 'push' && (needs.detect-changes.outputs.ecomos == 'true' || needs.detect-changes.outputs.packages == 'true')
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Deploy ecomos
-        run: |
-          ENV="${{ github.ref_name }}"
-          [[ "${{ github.event_name }}" == "workflow_dispatch" ]] && ENV="${{ inputs.environment }}"
-          bash "${{ github.workspace }}/scripts/deploy-app.sh" ecomos "$ENV"
+        run: bash "${{ github.workspace }}/scripts/deploy-app.sh" ecomos "${{ github.ref_name }}"
 
   deploy-wms:
     needs: detect-changes
-    if: needs.detect-changes.outputs.wms == 'true' || needs.detect-changes.outputs.packages == 'true'
+    if: github.event_name == 'push' && (needs.detect-changes.outputs.wms == 'true' || needs.detect-changes.outputs.packages == 'true')
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Deploy wms
-        run: |
-          ENV="${{ github.ref_name }}"
-          [[ "${{ github.event_name }}" == "workflow_dispatch" ]] && ENV="${{ inputs.environment }}"
-          bash "${{ github.workspace }}/scripts/deploy-app.sh" wms "$ENV"
+        run: bash "${{ github.workspace }}/scripts/deploy-app.sh" wms "${{ github.ref_name }}"
 
   deploy-website:
     needs: detect-changes
-    if: needs.detect-changes.outputs.website == 'true' || needs.detect-changes.outputs.packages == 'true'
+    if: github.event_name == 'push' && (needs.detect-changes.outputs.website == 'true' || needs.detect-changes.outputs.packages == 'true')
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Deploy website
-        run: |
-          ENV="${{ github.ref_name }}"
-          [[ "${{ github.event_name }}" == "workflow_dispatch" ]] && ENV="${{ inputs.environment }}"
-          bash "${{ github.workspace }}/scripts/deploy-app.sh" website "$ENV"
+        run: bash "${{ github.workspace }}/scripts/deploy-app.sh" website "${{ github.ref_name }}"
 
   deploy-xplan:
     needs: detect-changes
-    if: needs.detect-changes.outputs.xplan == 'true' || needs.detect-changes.outputs.packages == 'true'
+    if: github.event_name == 'push' && (needs.detect-changes.outputs.xplan == 'true' || needs.detect-changes.outputs.packages == 'true')
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Deploy x-plan
-        run: |
-          ENV="${{ github.ref_name }}"
-          [[ "${{ github.event_name }}" == "workflow_dispatch" ]] && ENV="${{ inputs.environment }}"
-          bash "${{ github.workspace }}/scripts/deploy-app.sh" xplan "$ENV"
+        run: bash "${{ github.workspace }}/scripts/deploy-app.sh" xplan "${{ github.ref_name }}"
 
   deploy-hrms:
     needs: detect-changes
-    if: needs.detect-changes.outputs.hrms == 'true' || needs.detect-changes.outputs.packages == 'true'
+    if: github.event_name == 'push' && (needs.detect-changes.outputs.hrms == 'true' || needs.detect-changes.outputs.packages == 'true')
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Deploy hrms
+        run: bash "${{ github.workspace }}/scripts/deploy-app.sh" hrms "${{ github.ref_name }}"
+
+  # ===========================================
+  # MANUAL DEPLOY - For workflow_dispatch
+  # ===========================================
+  manual-deploy:
+    needs: detect-changes
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy selected app
         run: |
-          ENV="${{ github.ref_name }}"
-          [[ "${{ github.event_name }}" == "workflow_dispatch" ]] && ENV="${{ inputs.environment }}"
-          bash "${{ github.workspace }}/scripts/deploy-app.sh" hrms "$ENV"
+          APP="${{ inputs.app }}"
+          ENV="${{ inputs.environment }}"
+          if [[ -z "$APP" ]]; then
+            echo "No app selected, deploying all changed apps..."
+            [[ "${{ needs.detect-changes.outputs.ecomos }}" == "true" ]] && bash "${{ github.workspace }}/scripts/deploy-app.sh" ecomos "$ENV"
+            [[ "${{ needs.detect-changes.outputs.wms }}" == "true" ]] && bash "${{ github.workspace }}/scripts/deploy-app.sh" wms "$ENV"
+            [[ "${{ needs.detect-changes.outputs.website }}" == "true" ]] && bash "${{ github.workspace }}/scripts/deploy-app.sh" website "$ENV"
+            [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" ]] && bash "${{ github.workspace }}/scripts/deploy-app.sh" xplan "$ENV"
+            [[ "${{ needs.detect-changes.outputs.hrms }}" == "true" ]] && bash "${{ github.workspace }}/scripts/deploy-app.sh" hrms "$ENV"
+          else
+            bash "${{ github.workspace }}/scripts/deploy-app.sh" "$APP" "$ENV"
+          fi
