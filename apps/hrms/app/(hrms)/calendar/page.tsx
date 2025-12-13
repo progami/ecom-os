@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { CalendarApi, type CalendarEvent } from '@/lib/api-client'
+import { PageHeader } from '@/components/ui/PageHeader'
+import { CalendarIcon } from '@/components/ui/Icons'
 
 const EMBED_URL = process.env.NEXT_PUBLIC_GOOGLE_CALENDAR_EMBED_URL || ''
 
@@ -54,13 +55,12 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Team Calendar</h1>
-          <p className="text-muted-foreground">Google Calendar integration</p>
-        </div>
-        <Link href="/" className="text-sm underline">Back to Dashboard</Link>
-      </div>
+      <PageHeader
+        title="Team Calendar"
+        description="Google Calendar integration"
+        icon={<CalendarIcon className="h-6 w-6 text-white" />}
+        showBack
+      />
 
       {EMBED_URL && (
         <div className="w-full h-[700px] rounded-md border overflow-hidden">

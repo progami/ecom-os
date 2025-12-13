@@ -15,6 +15,7 @@ import {
   FormSection,
   FormActions,
 } from '@/components/ui/FormField'
+import { useNavigationHistory } from '@/lib/navigation-history'
 
 const reviewTypeOptions = [
   { value: 'PROBATION', label: 'Probation (90-day)' },
@@ -60,6 +61,7 @@ function RatingInput({ name, label, value, onChange }: { name: string; label: st
 
 function AddReviewForm() {
   const router = useRouter()
+  const { goBack } = useNavigationHistory()
   const searchParams = useSearchParams()
   const preselectedEmployeeId = searchParams.get('employeeId')
 
@@ -235,7 +237,7 @@ function AddReviewForm() {
         </FormSection>
 
         <FormActions>
-          <Button variant="secondary" href="/performance/reviews">
+          <Button variant="secondary" onClick={goBack}>
             Cancel
           </Button>
           <Button type="submit" loading={submitting}>
@@ -254,7 +256,7 @@ export default function AddReviewPage() {
         title="New Performance Review"
         description="Performance"
         icon={<ClipboardDocumentCheckIcon className="h-6 w-6 text-white" />}
-        backHref="/performance/reviews"
+        showBack
       />
 
       <div className="max-w-3xl">
