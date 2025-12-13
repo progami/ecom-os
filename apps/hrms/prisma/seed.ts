@@ -1,10 +1,9 @@
 /* eslint-disable no-console */
-import { PrismaClient } from '@prisma/client'
-import { EmploymentType, EmployeeStatus, HRMSPrismaClient } from '@/lib/hrms-prisma-types'
+import { PrismaClient, EmploymentType, EmployeeStatus } from '@ecom-os/prisma-hrms'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const prisma = new PrismaClient() as HRMSPrismaClient
+const prisma = new PrismaClient()
 
 type EmployeeInput = {
   employeeId: string

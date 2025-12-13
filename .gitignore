@@ -14,6 +14,7 @@ out/
 packages/**/prisma/generated/
 packages/prisma-wms/generated/
 packages/prisma-x-plan/generated/
+packages/prisma-hrms/generated/
 
 # TypeScript
 *.tsbuildinfo

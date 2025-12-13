@@ -5,7 +5,7 @@
  * Run with: npx tsx prisma/seed-departments.ts
  */
 
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@ecom-os/prisma-hrms'
 
 const prisma = new PrismaClient()
 
