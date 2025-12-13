@@ -20,8 +20,8 @@ jobs:
             exit 0
           fi
 
-          # Allow squash merges (contain PR number like "(#123)")
-          if [[ "$message" =~ \(#[0-9]+\)$ ]]; then
+          # Allow squash merges (contain PR number like "(#123)" anywhere)
+          if [[ "$message" =~ \(#[0-9]+\) ]]; then
             echo "Squash merge detected; allowed."
             exit 0
           fi
