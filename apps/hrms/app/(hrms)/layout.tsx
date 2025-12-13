@@ -16,6 +16,7 @@ import {
   OrgChartIcon,
 } from '@/components/ui/Icons'
 import { NotificationBell } from '@/components/ui/NotificationBell'
+import { NavigationHistoryProvider } from '@/lib/navigation-history'
 
 interface NavItem {
   name: string
@@ -194,7 +195,7 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
   }, [pathname])
 
   return (
-    <>
+    <NavigationHistoryProvider>
       {/* Desktop Sidebar */}
       <div className="hidden md:fixed md:inset-y-0 md:z-50 md:flex md:w-64 md:flex-col">
         <Sidebar />
@@ -221,6 +222,6 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
           </div>
         </footer>
       </div>
-    </>
+    </NavigationHistoryProvider>
   )
 }

@@ -171,7 +171,7 @@ export default function EmployeeViewPage() {
           title="Employee Details"
           description="People"
           icon={<UsersIcon className="h-6 w-6 text-white" />}
-          backHref="/employees"
+          showBack
         />
         <Card padding="lg">
           <div className="animate-pulse space-y-6">
@@ -195,7 +195,7 @@ export default function EmployeeViewPage() {
           title="Employee Details"
           description="People"
           icon={<UsersIcon className="h-6 w-6 text-white" />}
-          backHref="/employees"
+          showBack
         />
         <Card padding="lg">
           <Alert variant="error">{error || 'Employee not found'}</Alert>
@@ -216,7 +216,7 @@ export default function EmployeeViewPage() {
         title={`${employee.firstName} ${employee.lastName}`}
         description="People"
         icon={<UsersIcon className="h-6 w-6 text-white" />}
-        backHref="/employees"
+        showBack
         actions={
           <Button href={`/employees/${id}/edit`} icon={<PencilIcon className="h-4 w-4" />}>
             Edit

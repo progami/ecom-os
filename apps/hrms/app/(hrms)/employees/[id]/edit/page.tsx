@@ -87,7 +87,7 @@ export default function EditEmployeePage() {
           title="Edit Employee"
           description="People"
           icon={<UsersIcon className="h-6 w-6 text-white" />}
-          backHref={`/employees/${id}`}
+          showBack
         />
         <div className="max-w-3xl">
           <Card padding="lg">
@@ -110,7 +110,7 @@ export default function EditEmployeePage() {
           title="Edit Employee"
           description="People"
           icon={<UsersIcon className="h-6 w-6 text-white" />}
-          backHref={`/employees/${id}`}
+          showBack
         />
         <div className="max-w-3xl">
           <Card padding="lg">
@@ -129,7 +129,7 @@ export default function EditEmployeePage() {
         title="Edit Employee"
         description="People"
         icon={<UsersIcon className="h-6 w-6 text-white" />}
-        backHref={`/employees/${id}`}
+        showBack
       />
 
       <div className="max-w-3xl">

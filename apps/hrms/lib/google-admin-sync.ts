@@ -87,14 +87,14 @@ export async function syncGoogleAdminUsers(): Promise<SyncResult> {
             status: 'ACTIVE',
           }
 
-          // Only update department if local override is NOT set
-          if (!existing.departmentLocalOverride) {
-            updateData.department = gUser.organizations?.[0]?.department || 'General'
+          // Only update department if local override is NOT set AND Google has a value
+          if (!existing.departmentLocalOverride && gUser.organizations?.[0]?.department) {
+            updateData.department = gUser.organizations[0].department
           }
 
-          // Only update position if local override is NOT set
-          if (!existing.positionLocalOverride) {
-            updateData.position = gUser.organizations?.[0]?.title || 'Employee'
+          // Only update position if local override is NOT set AND Google has a value
+          if (!existing.positionLocalOverride && gUser.organizations?.[0]?.title) {
+            updateData.position = gUser.organizations[0].title
           }
 
           await prisma.employee.update({
@@ -108,7 +108,7 @@ export async function syncGoogleAdminUsers(): Promise<SyncResult> {
           await prisma.employee.create({
             data: {
               ...baseData,
-              department: gUser.organizations?.[0]?.department || 'General',
+              department: gUser.organizations?.[0]?.department || '',
               position: gUser.organizations?.[0]?.title || 'Employee',
               employeeId: generateEmployeeId(maxEmployeeNum),
               employmentType: 'FULL_TIME',
