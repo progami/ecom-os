@@ -11,8 +11,8 @@ Ecom OS is a single pnpm + Turborepo workspace that hosts every customer-facing 
 | Marketing Website | `apps/website` | 3005 | 3105 | Active |
 | HRMS | `apps/hrms` | 3006 | 3106 | Development |
 | X-Plan | `apps/x-plan` | 3008 | 3108 | Active |
-| Finance Console | `apps/fcc` | — | — | Archived |
-| Margin Master | `apps/margin-master` | — | — | Archived |
+| Finance Console | `apps/archived/fcc` | — | — | Archived |
+| Margin Master | `apps/archived/margin-master` | — | — | Archived |
 | Jason (AI assistant) | `apps/jason` | — | — | Archived |
 
 ### Hosted URLs
