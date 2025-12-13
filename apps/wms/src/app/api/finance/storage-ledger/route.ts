@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { getWarehouseFilter } from '@/lib/auth-utils'
-import { Prisma, PurchaseOrderStatus } from '@ecom-os/prisma-wms'
+import { Prisma } from '@ecom-os/prisma-wms'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,7 +35,6 @@ export async function GET(request: NextRequest) {
  // Apply warehouse filter based on user role
  const warehouseFilter = getWarehouseFilter(session, undefined)
  const where: Prisma.StorageLedgerWhereInput = {}
- let scopedWarehouseCode: string | undefined
 
  if (warehouseFilter?.warehouseId) {
  // Staff user - filter to their warehouse
@@ -45,12 +44,10 @@ export async function GET(request: NextRequest) {
  })
  if (warehouse) {
  where.warehouseCode = warehouse.code
- scopedWarehouseCode = warehouse.code
  }
  } else if (warehouseCode) {
  // Admin user with warehouse filter
  where.warehouseCode = warehouseCode
- scopedWarehouseCode = warehouseCode
  }
 
  // Date range filter
@@ -71,6 +68,8 @@ export async function GET(request: NextRequest) {
  ]
  }
 
+ const totalCount = await prisma.storageLedger.count({ where })
+
  // Get paginated results
  const entries = await prisma.storageLedger.findMany({
  where,
@@ -84,9 +83,11 @@ export async function GET(request: NextRequest) {
  weekEndingDate: true,
  closingBalance: true,
  averageBalance: true,
+ closingPallets: true,
+ palletDays: true,
  createdAt: true,
  ...(includeCosts && {
- storageRatePerCarton: true,
+ storageRatePerPalletDay: true,
  totalStorageCost: true,
  isCostCalculated: true,
  rateEffectiveDate: true,
@@ -102,57 +103,39 @@ export async function GET(request: NextRequest) {
  take: limit
  })
 
- // Only keep entries where at least one transaction is from a finalized or PO-less source
- const validTransactionCombos = await prisma.inventoryTransaction.groupBy({
- by: ['warehouseCode', 'skuCode', 'batchLot'],
- where: {
- ...(scopedWarehouseCode ? { warehouseCode: scopedWarehouseCode } : {}),
- OR: [
- { purchaseOrderId: null },
- { purchaseOrder: { status: { in: [PurchaseOrderStatus.POSTED, PurchaseOrderStatus.CLOSED] } } }
- ],
- },
- })
- const validKey = new Set(
- validTransactionCombos.map(
- (combo) => `${combo.warehouseCode}::${combo.skuCode}::${combo.batchLot}`
- )
- )
-
- const filteredEntries = entries.filter((entry) =>
- validKey.has(`${entry.warehouseCode}::${entry.skuCode}::${entry.batchLot}`)
- )
-
  // Build summary from the filtered set
  let summary = null
  if (includeCosts) {
- const totalEntries = filteredEntries.length
- const entriesWithCosts = filteredEntries.filter((e) => e.totalStorageCost != null).length
- const totalCartons = filteredEntries.reduce((sum, entry) => sum + Number(entry.closingBalance || 0), 0)
- const totalStorageCost = filteredEntries.reduce(
- (sum, entry) => sum + Number(entry.totalStorageCost || 0),
- 0
- )
+ const aggregated = await prisma.storageLedger.aggregate({
+ where,
+ _count: { id: true, totalStorageCost: true },
+ _sum: { palletDays: true, totalStorageCost: true },
+ })
+
+ const totalEntries = aggregated._count.id || 0
+ const entriesWithCosts = aggregated._count.totalStorageCost || 0
+ const totalPalletDays = Number(aggregated._sum.palletDays || 0)
+ const totalStorageCost = Number(aggregated._sum.totalStorageCost || 0)
  const costCalculationRate =
  totalEntries > 0 ? ((entriesWithCosts / totalEntries) * 100).toFixed(1) : '0'
 
  summary = {
  totalEntries,
  entriesWithCosts,
- totalCartons,
+ totalPalletDays,
  totalStorageCost,
  costCalculationRate,
  }
  }
 
  const response = {
- entries: filteredEntries,
+ entries,
  pagination: {
  page,
  limit,
- totalCount: filteredEntries.length,
- totalPages: Math.ceil(filteredEntries.length / limit),
- hasNext: filteredEntries.length > limit,
+ totalCount,
+ totalPages: Math.ceil(totalCount / limit),
+ hasNext: page < Math.ceil(totalCount / limit),
  hasPrev: page > 1
  },
  ...(summary && { summary })

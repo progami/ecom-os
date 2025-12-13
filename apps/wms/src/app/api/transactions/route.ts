@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
+import { ValidationError } from '@/lib/api'
 import { prisma } from '@/lib/prisma'
-import { Prisma, TransactionType, CostCategory, PurchaseOrderStatus } from '@ecom-os/prisma-wms'
+import {
+ Prisma,
+ TransactionType,
+ InboundReceiveType,
+ OutboundShipMode,
+} from '@ecom-os/prisma-wms'
 import { businessLogger, perfLogger } from '@/lib/logger/index'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 // handleTransactionCosts removed - costs are handled via frontend pre-filling
 import { parseLocalDateTime } from '@/lib/utils/date-helpers'
 import { recordStorageCostEntry } from '@/services/storageCost.service'
 import { ensurePurchaseOrderForTransaction, resolveBatchLot } from '@/lib/services/purchase-order-service'
+import { buildTacticalCostLedgerEntries } from '@/lib/costing/tactical-costing'
 export const dynamic = 'force-dynamic'
 
 type NewSkuPayload = {
@@ -65,14 +72,6 @@ type ValidatedTransactionLine = {
  batchData?: NewBatchPayload
 }
 
-type TransactionCostPayload = {
- costType?: string
- costName?: string
- quantity?: number
- unitRate?: number
- totalCost?: number
-}
-
 type AttachmentPayload = {
  type?: string
  content?: string
@@ -112,6 +111,24 @@ const asNumeric = (value: unknown): number | undefined => {
  return undefined
 }
 
+const parseInboundReceiveType = (value: unknown): InboundReceiveType | null => {
+ if (typeof value !== 'string') return null
+ const trimmed = value.trim()
+ if (!trimmed) return null
+ return Object.values(InboundReceiveType).includes(trimmed as InboundReceiveType)
+ ? (trimmed as InboundReceiveType)
+ : null
+}
+
+const parseOutboundShipMode = (value: unknown): OutboundShipMode | null => {
+ if (typeof value !== 'string') return null
+ const trimmed = value.trim()
+ if (!trimmed) return null
+ return Object.values(OutboundShipMode).includes(trimmed as OutboundShipMode)
+ ? (trimmed as OutboundShipMode)
+ : null
+}
+
 const sanitizeNullableString = (value?: string | null): string | null => {
  if (!value) return null
  const sanitized = sanitizeForDisplay(value)
@@ -121,16 +138,6 @@ const sanitizeNullableString = (value?: string | null): string | null => {
 const sanitizeRequiredString = (value: string): string => {
  const sanitized = sanitizeForDisplay(value)
  return sanitized || value
-}
-
-const prettifyCostLabel = (value?: string | null): string | null => {
- if (!value) return null
- const normalized = value.replace(/_/g, ' ').trim()
- if (!normalized) return null
- return normalized
-  .split(' ')
-  .map(word => (word ? word[0].toUpperCase() + word.slice(1) : ''))
-  .join(' ')
 }
 
 const normalizeSkuData = (input: unknown): NewSkuPayload | undefined => {
@@ -188,30 +195,6 @@ function normalizeTransactionLine(input: unknown): MutableTransactionLine {
  isNewSku: asBoolean(input.isNewSku),
  skuData: normalizeSkuData(input.skuData),
  batchData: normalizeBatchData(input.batchData)
- }
-}
-
-function normalizeCostInput(input: unknown): TransactionCostPayload | null {
- if (!isRecord(input)) {
- return null
- }
-
- const costType = asString(input.costType)
- const totalCost = asNumber(input.totalCost)
-
- if (!costType && !totalCost) {
- return null
- }
-
- const description =
-  isRecord(input) && typeof input.description === 'string' ? input.description : undefined
-
- return {
-  costType,
-  costName: asString((input as { costName?: unknown }).costName) ?? description,
-  quantity: asNumber(input.quantity),
-  unitRate: asNumber(input.unitRate),
-  totalCost,
  }
 }
 
@@ -338,7 +321,7 @@ export async function POST(request: NextRequest) {
  
  
  const { type, transactionType, referenceNumber, referenceId, date, transactionDate, pickupDate, items, lineItems, shipName, trackingNumber, attachments, notes, 
- warehouseId: bodyWarehouseId, skuId, batchLot, cartonsIn, cartonsOut, storagePalletsIn, shippingPalletsOut, supplier, costs } = body
+ warehouseId: bodyWarehouseId, skuId, batchLot, cartonsIn, cartonsOut, storagePalletsIn, shippingPalletsOut, supplier, receiveType, shipMode, costs } = body
  
  // Extracted values were logged here
  
@@ -362,6 +345,31 @@ export async function POST(request: NextRequest) {
  return NextResponse.json({ 
  error: 'Invalid transaction type. Must be RECEIVE, SHIP, ADJUST_IN, or ADJUST_OUT' 
  }, { status: 400 })
+ }
+
+ const inboundReceiveType = txType === 'RECEIVE' ? parseInboundReceiveType(receiveType) : null
+ const outboundShipMode = txType === 'SHIP' ? parseOutboundShipMode(shipMode) : null
+
+ if (txType === 'RECEIVE' && !inboundReceiveType) {
+ return NextResponse.json(
+ { error: 'Inbound type is required for inbound transactions' },
+ { status: 400 }
+ )
+ }
+
+ if (txType === 'SHIP' && !outboundShipMode) {
+ return NextResponse.json(
+ { error: 'Outbound mode is required for outbound transactions' },
+ { status: 400 }
+ )
+ }
+
+ // Manual cost entry is disabled; costs are derived from warehouse rates.
+ if (Array.isArray(costs) && costs.length > 0) {
+ return NextResponse.json(
+ { error: 'Manual costs are disabled. Costs are calculated automatically from warehouse rates.' },
+ { status: 400 }
+ )
  }
 
 const rawItemsInput = Array.isArray(items) ? items : Array.isArray(lineItems) ? lineItems : []
@@ -872,6 +880,8 @@ for (const item of validatedItems) {
  }
 
  const skuMap = new Map(skus.map(sku => [sku.skuCode, sku]));
+ let totalStoragePalletsIn = 0
+ let totalShippingPalletsOut = 0
  
  for (const item of validatedItems) {
  const sku = skuMap.get(item.skuCode);
@@ -880,42 +890,50 @@ for (const item of validatedItems) {
  }
 
  // Calculate pallet values
- let calculatedStoragePalletsIn = null
- let calculatedShippingPalletsOut = null
- let _palletVarianceNotes = null
  let batchShippingCartonsPerPallet = item.shippingCartonsPerPallet
- 
- if (['RECEIVE', 'ADJUST_IN'].includes(txType)) {
- // For adjustments, use provided pallets value directly
- if (txType === 'ADJUST_IN' && item.pallets) {
- calculatedStoragePalletsIn = item.pallets
- } else if ((item.storageCartonsPerPallet ?? 0) > 0) {
- calculatedStoragePalletsIn = Math.ceil(item.cartons / (item.storageCartonsPerPallet ?? 1))
- if (item.pallets !== calculatedStoragePalletsIn) {
- _palletVarianceNotes = `Storage pallet variance: Actual ${item.pallets}, Calculated ${calculatedStoragePalletsIn} (${item.cartons} cartons @ ${item.storageCartonsPerPallet}/pallet)`
- }
- }
- } else if (['SHIP', 'ADJUST_OUT'].includes(txType)) {
+
+ if (txType === 'SHIP') {
  // For SHIP, get the batch-specific config from the original RECEIVE transaction
  const originalReceive = await tx.inventoryTransaction.findFirst({
  where: {
  warehouseCode: warehouse.code,
  skuCode: sku.skuCode,
  batchLot: item.batchLot,
- transactionType: 'RECEIVE'
+ transactionType: 'RECEIVE',
  },
- orderBy: { transactionDate: 'asc' }
- });
- 
- if (txType === 'ADJUST_OUT' && item.pallets) {
- calculatedShippingPalletsOut = item.pallets
- } else if (originalReceive?.shippingCartonsPerPallet) {
+ orderBy: { transactionDate: 'asc' },
+ })
+
+ if (originalReceive?.shippingCartonsPerPallet) {
  batchShippingCartonsPerPallet = originalReceive.shippingCartonsPerPallet
- calculatedShippingPalletsOut = Math.ceil(item.cartons / batchShippingCartonsPerPallet)
- if (item.pallets !== calculatedShippingPalletsOut) {
- const _palletVarianceNotes = `Shipping pallet variance: Actual ${item.pallets}, Calculated ${calculatedShippingPalletsOut} (${item.cartons} cartons @ ${batchShippingCartonsPerPallet}/pallet)`
  }
  }
+
+ const calculatedStoragePalletsIn =
+ (['RECEIVE', 'ADJUST_IN'].includes(txType) && (item.storageCartonsPerPallet ?? 0) > 0)
+ ? Math.ceil(item.cartons / Math.max(1, item.storageCartonsPerPallet ?? 1))
+ : 0
+ const providedStoragePalletsIn = Number(item.storagePalletsIn ?? item.pallets ?? 0)
+ const hasStoragePalletOverride = item.storagePalletsIn !== undefined || item.pallets !== undefined
+ const finalStoragePalletsIn = ['RECEIVE', 'ADJUST_IN'].includes(txType)
+ ? (hasStoragePalletOverride ? providedStoragePalletsIn : calculatedStoragePalletsIn)
+ : 0
+
+ const calculatedShippingPalletsOut =
+ (['SHIP', 'ADJUST_OUT'].includes(txType) && (batchShippingCartonsPerPallet ?? 0) > 0)
+ ? Math.ceil(item.cartons / Math.max(1, batchShippingCartonsPerPallet ?? 1))
+ : 0
+ const providedShippingPalletsOut = Number(item.shippingPalletsOut ?? item.pallets ?? 0)
+ const hasShippingPalletOverride = item.shippingPalletsOut !== undefined || item.pallets !== undefined
+ const finalShippingPalletsOut = ['SHIP', 'ADJUST_OUT'].includes(txType)
+ ? (hasShippingPalletOverride ? providedShippingPalletsOut : calculatedShippingPalletsOut)
+ : 0
+
+ if (txType === 'RECEIVE') {
+ totalStoragePalletsIn += finalStoragePalletsIn
+ }
+ if (txType === 'SHIP') {
+ totalShippingPalletsOut += finalShippingPalletsOut
  }
  
  // Use the provided reference number (commercial invoice) directly
@@ -936,6 +954,8 @@ for (const item of validatedItems) {
  warehouseCode: warehouse.code,
  warehouseName: warehouse.name,
  counterpartyName,
+ receiveType: inboundReceiveType,
+ shipMode: outboundShipMode,
  transactionDate: transactionDateObj,
  expectedDate: pickupDateObj,
  skuCode: sku.skuCode,
@@ -972,8 +992,8 @@ for (const item of validatedItems) {
  referenceId: referenceId,
  cartonsIn: ['RECEIVE', 'ADJUST_IN'].includes(txType) ? item.cartons : 0,
  cartonsOut: ['SHIP', 'ADJUST_OUT'].includes(txType) ? item.cartons : 0,
- storagePalletsIn: ['RECEIVE', 'ADJUST_IN'].includes(txType) ? (item.storagePalletsIn ?? item.pallets ?? calculatedStoragePalletsIn ?? 0) : 0,
- shippingPalletsOut: ['SHIP', 'ADJUST_OUT'].includes(txType) ? (item.shippingPalletsOut ?? item.pallets ?? calculatedShippingPalletsOut ?? 0) : 0,
+ storagePalletsIn: finalStoragePalletsIn,
+ shippingPalletsOut: finalShippingPalletsOut,
  storageCartonsPerPallet: txType === 'RECEIVE' ? item.storageCartonsPerPallet ?? null : null,
  shippingCartonsPerPallet: txType === 'RECEIVE'
  ? item.shippingCartonsPerPallet ?? null
@@ -999,73 +1019,69 @@ for (const item of validatedItems) {
   })
 
   transactions.push(transaction)
-
-  const purchaseOrderStatus = purchaseOrderId
-    ? (await tx.purchaseOrder.findUnique({
-        where: { id: purchaseOrderId },
-        select: { status: true },
-      }))?.status ?? null
-    : null
-
-  const isFinalizedPO =
-    !purchaseOrderId ||
-    purchaseOrderStatus === PurchaseOrderStatus.POSTED ||
-    purchaseOrderStatus === PurchaseOrderStatus.CLOSED
-
-  if (!isFinalizedPO) {
-    await tx.costLedger.deleteMany({ where: { transactionId: transaction.id } })
-  }
-
-  // Save costs to CostLedger if provided manually
-  const normalizedCosts = Array.isArray(costs)
-    ? costs.map(normalizeCostInput).filter((value): value is TransactionCostPayload => value !== null)
-    : []
-
-  if (normalizedCosts.length > 0 && isFinalizedPO) {
-    for (const cost of normalizedCosts) {
-      if (cost.totalCost && cost.totalCost > 0) {
-        // Map frontend cost types to database enum values
-        let costCategory: CostCategory = CostCategory.Inbound
-        if (cost.costType === 'container' || cost.costType === 'carton' || cost.costType === 'pallet' || cost.costType === 'unit') {
-          costCategory = CostCategory.Inbound
-        } else if (cost.costType === 'transportation') {
-          costCategory = CostCategory.Outbound
-        } else if (cost.costType === 'storage') {
-          costCategory = CostCategory.Storage
-        } else if (cost.costType === 'accessorial') {
-          costCategory = CostCategory.Forwarding
-        }
-        
-      const resolvedCostName =
-        cost.costName ??
-        prettifyCostLabel(cost.costType) ??
-        costCategory.toString()
-
-      await tx.costLedger.create({
-        data: {
-          transactionId: transaction.id,
-          costCategory,
-          costName: sanitizeRequiredString(resolvedCostName),
-          quantity: cost.quantity || 1,
-          unitRate: cost.unitRate || 0,
- totalCost: cost.totalCost || 0,
- warehouseCode: warehouse.code,
- warehouseName: warehouse.name,
- createdByName: createdByName,
- createdAt: transactionDateObj
  }
+
+ if (txType === 'RECEIVE' && totalStoragePalletsIn <= 0) {
+ throw new ValidationError('Storage pallet count is required for inbound transactions')
+ }
+
+ if (txType === 'SHIP' && outboundShipMode === OutboundShipMode.PALLETS && totalShippingPalletsOut <= 0) {
+ throw new ValidationError('Total pallets is required for pallet outbound shipments')
+ }
+
+ // Create Tactical cost ledger entries automatically (manual costs are disabled).
+ if (txType === 'RECEIVE' || txType === 'SHIP') {
+ const rates = await tx.costRate.findMany({
+ where: {
+ warehouseId: warehouse.id,
+ isActive: true,
+ effectiveDate: { lte: transactionDateObj },
+ OR: [{ endDate: null }, { endDate: { gte: transactionDateObj } }],
+ },
+ orderBy: [{ costName: 'asc' }, { effectiveDate: 'desc' }],
+ })
+
+ const ratesByCostName = new Map<string, { costName: string; costValue: number; unitOfMeasure: string }>()
+ for (const rate of rates) {
+ if (!ratesByCostName.has(rate.costName)) {
+ ratesByCostName.set(rate.costName, {
+ costName: rate.costName,
+ costValue: Number(rate.costValue),
+ unitOfMeasure: rate.unitOfMeasure,
  })
  }
  }
- }
- // Note: RECEIVE transaction costs are pre-filled by the frontend based on warehouse cost rates
- // and sent as part of the costs array, so they're handled by the manual cost path above
+
+ let costLedgerEntries: Prisma.CostLedgerCreateManyInput[] = []
+ try {
+ costLedgerEntries = buildTacticalCostLedgerEntries({
+ transactionType: txType,
+ receiveType: inboundReceiveType,
+ shipMode: outboundShipMode,
+ ratesByCostName,
+ lines: transactions.map((t) => ({
+ transactionId: t.id,
+ skuCode: t.skuCode,
+ cartons: txType === 'RECEIVE' ? t.cartonsIn : t.cartonsOut,
+ pallets: txType === 'SHIP' ? t.shippingPalletsOut : t.storagePalletsIn,
+ cartonDimensionsCm: t.cartonDimensionsCm,
+ })),
+ warehouseCode: warehouse.code,
+ warehouseName: warehouse.name,
+ createdAt: transactionDateObj,
+ createdByName,
+ })
+ } catch (error) {
+ const message = error instanceof Error ? error.message : 'Cost calculation failed'
+ throw new ValidationError(message)
  }
 
- // Inventory balances are now calculated at runtime from transactions
- // No need to update a separate balance table
- 
- return transactions;
+ if (costLedgerEntries.length > 0) {
+ await tx.costLedger.createMany({ data: costLedgerEntries })
+ }
+ }
+
+ return transactions
  });
 
  // Record storage cost entries for each transaction
@@ -1078,7 +1094,6 @@ for (const item of validatedItems) {
         skuDescription: t.skuDescription,
         batchLot: t.batchLot,
         transactionDate: t.transactionDate,
-        purchaseOrderId: t.purchaseOrderId || undefined,
       }).catch((storageError) => {
         // Don't fail transaction processing if storage cost recording fails
         const message = storageError instanceof Error ? storageError.message : 'Unknown error'
@@ -1124,6 +1139,10 @@ for (const item of validatedItems) {
  } catch (error: unknown) {
  // console.error('Transaction error:', error);
  // console.error('Error stack:', error.stack);
+
+ if (error instanceof ValidationError) {
+ return NextResponse.json({ error: error.message }, { status: 400 })
+ }
  
  // Check for specific error types
  if (error instanceof Error) {

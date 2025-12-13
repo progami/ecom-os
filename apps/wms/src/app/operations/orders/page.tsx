@@ -11,7 +11,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { PageTabs } from '@/components/ui/page-tabs'
 import { PageLoading } from '@/components/ui/loading-spinner'
 import { FileText, Plus, Construction, Ship, Warehouse, CheckCircle, XCircle, Archive } from '@/lib/lucide-icons'
-import { PurchaseOrdersPanel, PurchaseOrderFilter } from '../inventory/purchase-orders-panel'
+import { PurchaseOrdersPanel } from '../inventory/purchase-orders-panel'
+import type { PurchaseOrderFilter } from '../inventory/purchase-orders-panel'
 import { redirectToPortal } from '@/lib/portal'
 import type { LucideIcon } from 'lucide-react'
 
@@ -137,18 +138,18 @@ function OrdersPage() {
  Raise PO
  </Button>
  </PopoverTrigger>
- <PopoverContent align="end" className="w-56 space-y-1 p-2">
- <Button asChild variant="ghost" className="w-full justify-start">
- <Link href="/operations/receive" prefetch={false}>
- Receive (Inbound PO)
- </Link>
- </Button>
- <Button asChild variant="ghost" className="w-full justify-start">
- <Link href="/operations/ship" prefetch={false}>
- Ship (Outbound PO)
- </Link>
- </Button>
- </PopoverContent>
+	 <PopoverContent align="end" className="w-56 space-y-1 p-2">
+	 <Button asChild variant="ghost" className="w-full justify-start">
+	 <Link href="/operations/receive" prefetch={false}>
+	 Inbound (Purchase Order)
+	 </Link>
+	 </Button>
+	 <Button asChild variant="ghost" className="w-full justify-start">
+	 <Link href="/operations/ship" prefetch={false}>
+	 Outbound (Fulfillment Order)
+	 </Link>
+	 </Button>
+	 </PopoverContent>
  </Popover>
  }
  />

@@ -3,6 +3,7 @@ import type { Session } from 'next-auth'
 import bcrypt from 'bcryptjs'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 import { UserRole } from '@ecom-os/prisma-wms'
 export const dynamic = 'force-dynamic'
 
@@ -105,79 +106,113 @@ export async function GET(_request: NextRequest) {
 
 export async function POST(request: NextRequest) {
  try {
- const session = await auth()
- 
- if (!session || session.user.role !== 'admin') {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+  const session = await auth()
 
- const body = await request.json()
- const {
-  warehouseId,
-  costCategory,
-  costValue,
-  unitOfMeasure,
-  effectiveDate,
-  endDate,
- costName: rawCostName
- } = body
+  if (!session || session.user.role !== 'admin') {
+   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
-// Validate required fields
- if (!warehouseId || !costCategory || costValue === undefined || !unitOfMeasure || !effectiveDate) {
- return NextResponse.json(
- { error: 'Missing required fields' },
- { status: 400 }
- )
-}
+  const body = await request.json()
+  const {
+   warehouseId,
+   costCategory,
+   costValue,
+   unitOfMeasure,
+   effectiveDate,
+   endDate,
+   costName: rawCostName,
+  } = body
 
- // Don't HTML-encode costName - just trim and validate
- const costName = typeof rawCostName === 'string' && rawCostName.trim().length > 0
-   ? rawCostName.trim()
-   : costCategory
- const effectiveOn = new Date(effectiveDate)
+  if (
+   !warehouseId ||
+   !costCategory ||
+   costValue === undefined ||
+   costValue === null ||
+   !unitOfMeasure ||
+   !effectiveDate
+  ) {
+   return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  }
 
- const wmsUser = await ensureWmsUser(session)
+  const costNameCandidate =
+   typeof rawCostName === 'string' && rawCostName.trim().length > 0
+    ? rawCostName.trim()
+    : String(costCategory)
+  const costName = sanitizeForDisplay(costNameCandidate)
 
- const newRate = await prisma.costRate.create({
- data: {
-  warehouseId,
- costCategory,
- costName,
- costValue,
- unitOfMeasure,
-  effectiveDate: effectiveOn,
-  endDate: endDate ? new Date(endDate) : null,
-  createdById: wmsUser.id
- },
- include: {
- warehouse: {
- select: {
- id: true,
- name: true,
- code: true
- }
- }
- }
- })
+  const effectiveOn = new Date(effectiveDate)
+  if (Number.isNaN(effectiveOn.getTime())) {
+   return NextResponse.json({ error: 'Invalid effective date' }, { status: 400 })
+  }
 
- const formattedRate = {
- id: newRate.id,
- warehouseId: newRate.warehouseId,
- warehouse: newRate.warehouse,
- costCategory: newRate.costCategory,
- costName: newRate.costName,
- costValue: parseFloat(newRate.costValue.toString()),
- unitOfMeasure: newRate.unitOfMeasure,
- effectiveDate: newRate.effectiveDate.toISOString(),
- endDate: newRate.endDate?.toISOString() || null
- }
+  const endOn = endDate ? new Date(endDate) : null
+  if (endOn && Number.isNaN(endOn.getTime())) {
+   return NextResponse.json({ error: 'Invalid end date' }, { status: 400 })
+  }
 
- return NextResponse.json(formattedRate)
+  if (endOn && endOn < effectiveOn) {
+   return NextResponse.json({ error: 'End date must be on or after effective date' }, { status: 400 })
+  }
+
+  const duplicateRate = await prisma.costRate.findFirst({
+   where: {
+    warehouseId,
+    costName,
+    effectiveDate: effectiveOn,
+   },
+  })
+
+  if (duplicateRate) {
+   return NextResponse.json(
+    {
+     error: `A rate named "${costName}" already exists for this warehouse on ${effectiveOn.toISOString().slice(0, 10)}.`,
+    },
+    { status: 400 }
+   )
+  }
+
+  const wmsUser = await ensureWmsUser(session)
+
+  const newRate = await prisma.costRate.create({
+   data: {
+    warehouseId,
+    costCategory,
+    costName,
+    costValue,
+    unitOfMeasure,
+    effectiveDate: effectiveOn,
+    endDate: endOn,
+    createdById: wmsUser.id,
+   },
+   include: {
+    warehouse: {
+     select: {
+      id: true,
+      name: true,
+      code: true,
+     },
+    },
+   },
+  })
+
+  const formattedRate = {
+   id: newRate.id,
+   warehouseId: newRate.warehouseId,
+   warehouse: newRate.warehouse,
+   costCategory: newRate.costCategory,
+   costName: newRate.costName,
+   costValue: parseFloat(newRate.costValue.toString()),
+   unitOfMeasure: newRate.unitOfMeasure,
+   effectiveDate: newRate.effectiveDate.toISOString(),
+   endDate: newRate.endDate?.toISOString() || null,
+  }
+
+  return NextResponse.json(formattedRate)
  } catch (error) {
- console.error('Error creating rate:', error)
- return NextResponse.json(
- { error: error instanceof Error ? error.message : 'Failed to create rate' },
- { status: 500 }
- )
-}
+  console.error('Error creating rate:', error)
+  return NextResponse.json(
+   { error: error instanceof Error ? error.message : 'Failed to create rate' },
+   { status: 500 }
+  )
+ }
 }

@@ -1,35 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { CostCategory, Prisma } from '@ecom-os/prisma-wms'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 
 export const dynamic = 'force-dynamic'
-
-const normalizeCostCategory = (value: string): CostCategory => {
-  const normalized = (value || '').toLowerCase()
-
-  switch (normalized) {
-    case 'inbound':
-      return CostCategory.Inbound
-    case 'storage':
-      return CostCategory.Storage
-    case 'outbound':
-      return CostCategory.Outbound
-    case 'forwarding':
-      return CostCategory.Forwarding
-    default:
-      return CostCategory.Inbound
-  }
-}
-
-type IncomingCostRate = {
- costCategory: string
- costName?: string
- defaultRate?: number
- unitOfMeasure?: string
- isActive?: boolean
-}
 
 export async function GET(
  request: NextRequest,
@@ -50,21 +23,21 @@ export async function GET(
  warehouseId: warehouseId,
  isActive: true
  },
- orderBy: [
- { costCategory: 'asc' },
- ]
+ orderBy: [{ costName: 'asc' }, { effectiveDate: 'desc' }]
  })
 
  // Transform to match frontend expectations
  const transformedRates = costRates.map(rate => {
   return {
  id: rate.id,
+ warehouseId: rate.warehouseId,
  costCategory: rate.costCategory,
  costName: rate.costName,
- defaultRate: Number(rate.costValue),
  costValue: Number(rate.costValue),
  unitOfMeasure: rate.unitOfMeasure,
- isActive: rate.isActive
+ effectiveDate: rate.effectiveDate.toISOString(),
+ endDate: rate.endDate ? rate.endDate.toISOString() : null,
+ isActive: rate.isActive,
   }
  })
 
@@ -82,98 +55,10 @@ export async function PUT(
  request: NextRequest,
  context: { params: Promise<{ id: string }> }
 ) {
- try {
- const { id } = await context.params
- const session = await auth()
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
-
- const warehouseId = id
- const body = await request.json()
- const { costRates } = body
-
-  // Delete existing cost rates for this warehouse, detaching any storage ledger references first
-  await prisma.$transaction(async tx => {
-    const existingRates = await tx.costRate.findMany({
-      where: { warehouseId },
-      select: { id: true }
-    })
-
-    if (existingRates.length > 0) {
-      const rateIds = existingRates.map(rate => rate.id)
-      await tx.storageLedger.updateMany({
-        where: { costRateId: { in: rateIds } },
-        data: { costRateId: null }
-      })
-    }
-
-    await tx.costRate.deleteMany({
-      where: { warehouseId }
-    })
-  })
-
- // Create new cost rates
- const incomingRates: IncomingCostRate[] = Array.isArray(costRates) ? costRates : []
-
- if (incomingRates.length > 0) {
-   const rateMap = incomingRates.reduce<Map<CostCategory, Prisma.CostRateCreateManyInput>>(
-     (map, rate) => {
-       const category = normalizeCostCategory(rate.costCategory)
-       if (!map.has(category)) {
-         const resolvedName =
-           rate.costName && rate.costName.trim().length > 0
-             ? sanitizeForDisplay(rate.costName.trim())
-             : sanitizeForDisplay(rate.costCategory)
-         map.set(category, {
-           warehouseId,
-           costCategory: category,
-           costName: resolvedName,
-           costValue: rate.defaultRate || 0,
-           unitOfMeasure: rate.unitOfMeasure || 'unit',
-           effectiveDate: new Date(),
-           isActive: rate.isActive !== false,
-           createdById: session.user.id
-         })
-       }
-       return map
-     },
-     new Map<CostCategory, Prisma.CostRateCreateManyInput>()
-   )
-
-   const uniqueRates: Prisma.CostRateCreateManyInput[] = Array.from(rateMap.values())
-
-   if (uniqueRates.length > 0) {
-     await prisma.costRate.createMany({
-       data: uniqueRates
-     })
-   }
- }
-
- // Fetch the updated rates
- const updatedRates = await prisma.costRate.findMany({
- where: { warehouseId },
- orderBy: [
- { costCategory: 'asc' }
- ]
- })
-
-const transformedRates = updatedRates.map(rate => ({
- id: rate.id,
- costCategory: rate.costCategory.toLowerCase(),
- costName: rate.costName,
- defaultRate: Number(rate.costValue),
- costValue: Number(rate.costValue),
- unitOfMeasure: rate.unitOfMeasure,
- isActive: rate.isActive
-}))
-
- return NextResponse.json({
- warehouseId,
- costRates: transformedRates
- })
- } catch (_error) {
- // console.error('Error updating cost rates:', _error)
- return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
- }
+ void request
+ void context
+ return NextResponse.json(
+ { error: 'Method not allowed' },
+ { status: 405, headers: { Allow: 'GET' } }
+ )
 }

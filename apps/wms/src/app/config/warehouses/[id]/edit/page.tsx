@@ -149,7 +149,7 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
  } catch (_error) {
  // console.error('Error fetching warehouse:', error)
  alert('Failed to load warehouse')
- router.push('/admin/settings/warehouses')
+ router.push('/config/warehouses')
  } finally {
  setLoading(false)
  }

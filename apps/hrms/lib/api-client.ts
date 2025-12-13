@@ -202,9 +202,124 @@ export const PoliciesApi = {
 }
 
 // Dashboard
+export type DashboardUser = {
+  id: string
+  firstName: string
+  lastName: string
+  department: string
+  position: string
+  avatar: string | null
+}
+
+export type DashboardDirectReport = {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  email: string
+  department: string
+  position: string
+  avatar: string | null
+}
+
+export type DashboardPendingReview = {
+  id: string
+  reviewType: string
+  reviewPeriod: string
+  reviewDate: string
+  status: string
+  employee: {
+    id: string
+    firstName: string
+    lastName: string
+    employeeId: string
+  }
+}
+
+export type DashboardStat = {
+  label: string
+  value: number
+}
+
+export type DashboardCurrentEmployee = {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  email: string
+  phone?: string | null
+  department?: string | null
+  position: string
+  avatar?: string | null
+  status: string
+  employmentType: string
+  joinDate?: string | null
+  reportsToId?: string | null
+  reportsTo?: {
+    id: string
+    firstName: string
+    lastName: string
+  } | null
+}
+
+export type DashboardPendingLeaveRequest = {
+  id: string
+  leaveType: string
+  startDate: string
+  endDate: string
+  totalDays: number
+  reason?: string | null
+  status: string
+  createdAt: string
+  employee: {
+    id: string
+    firstName: string
+    lastName: string
+    employeeId: string
+    avatar?: string | null
+  }
+}
+
+export type DashboardUpcomingLeave = {
+  id: string
+  leaveType: string
+  startDate: string
+  endDate: string
+  totalDays: number
+  employee: {
+    id: string
+    firstName: string
+    lastName: string
+    avatar?: string | null
+  }
+}
+
+export type LeaveBalance = {
+  leaveType: string
+  year?: number
+  allocated: number
+  used: number
+  pending: number
+  available: number
+}
+
+export type DashboardData = {
+  user: DashboardUser | null
+  isManager: boolean
+  currentEmployee: DashboardCurrentEmployee | null
+  directReports: DashboardDirectReport[]
+  notifications: Notification[]
+  unreadNotificationCount: number
+  pendingReviews: DashboardPendingReview[]
+  pendingLeaveRequests: DashboardPendingLeaveRequest[]
+  myLeaveBalance: LeaveBalance[]
+  upcomingLeaves: DashboardUpcomingLeave[]
+  stats: DashboardStat[]
+}
+
 export const DashboardApi = {
   get() {
-    return request<{ stats: any[]; recentActivity: any[]; upcomingEvents: any[] }>(`/api/dashboard`)
+    return request<DashboardData>(`/api/dashboard`)
   },
 }
 
@@ -448,6 +563,29 @@ export const HRCalendarApi = {
   },
 }
 
+// Google Admin Users
+export type GoogleAdminUser = {
+  googleId: string
+  email: string
+  firstName: string
+  lastName: string
+  fullName: string
+  department: string | null
+  position: string | null
+  phone: string | null
+  orgUnit: string
+  isAdmin: boolean
+  createdAt: string
+  lastLogin: string
+  photoUrl: string | null
+}
+
+export const GoogleAdminApi = {
+  listUsers() {
+    return request<{ items: GoogleAdminUser[]; total: number }>(`/api/google-admin/users`)
+  },
+}
+
 // Notifications
 export type Notification = {
   id: string
@@ -457,6 +595,7 @@ export type Notification = {
   link?: string | null
   relatedId?: string | null
   relatedType?: string | null
+  employeeId?: string | null
   isRead: boolean
   createdAt: string
 }
@@ -481,6 +620,184 @@ export const NotificationsApi = {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ markAllRead: true }),
+    })
+  },
+}
+
+// Hierarchy
+export type HierarchyEmployee = {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  email: string
+  department: string
+  position: string
+  avatar: string | null
+  reportsToId: string | null
+  status: string
+}
+
+export const HierarchyApi = {
+  getDirectReports() {
+    return request<{ items: HierarchyEmployee[]; currentEmployeeId: string | null }>(`/api/hierarchy?type=direct-reports`)
+  },
+  getManagerChain() {
+    return request<{ items: HierarchyEmployee[]; currentEmployeeId: string | null }>(`/api/hierarchy?type=manager-chain`)
+  },
+  getFull() {
+    return request<{
+      items: HierarchyEmployee[]
+      currentEmployeeId: string | null
+      managerChainIds: string[]
+      directReportIds: string[]
+    }>(`/api/hierarchy?type=full`)
+  },
+}
+
+// Leave Requests
+export type LeaveRequest = {
+  id: string
+  employeeId: string
+  employee?: {
+    id: string
+    firstName: string
+    lastName: string
+    employeeId: string
+    avatar: string | null
+  }
+  leaveType: string
+  startDate: string
+  endDate: string
+  totalDays: number
+  reason?: string | null
+  status: string
+  reviewedById?: string | null
+  reviewedBy?: {
+    id: string
+    firstName: string
+    lastName: string
+  } | null
+  reviewedAt?: string | null
+  reviewNotes?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export const LeavesApi = {
+  list(params: {
+    employeeId?: string
+    status?: string
+    startDate?: string
+    endDate?: string
+    take?: number
+    skip?: number
+  } = {}) {
+    const qp = new URLSearchParams()
+    if (params.employeeId) qp.set('employeeId', params.employeeId)
+    if (params.status) qp.set('status', params.status)
+    if (params.startDate) qp.set('startDate', params.startDate)
+    if (params.endDate) qp.set('endDate', params.endDate)
+    if (params.take != null) qp.set('take', String(params.take))
+    if (params.skip != null) qp.set('skip', String(params.skip))
+    const qs = qp.toString()
+    return request<{ items: LeaveRequest[]; total: number }>(`/api/leaves${qs ? `?${qs}` : ''}`)
+  },
+  get(id: string) {
+    return request<LeaveRequest>(`/api/leaves/${encodeURIComponent(id)}`)
+  },
+  create(payload: {
+    employeeId: string
+    leaveType: string
+    startDate: string
+    endDate: string
+    totalDays: number
+    reason?: string
+  }) {
+    return request<LeaveRequest>(`/api/leaves`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  update(id: string, payload: Partial<{
+    status: string
+    reviewNotes?: string
+  }>) {
+    return request<LeaveRequest>(`/api/leaves/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  delete(id: string) {
+    return request<{ ok: boolean }>(`/api/leaves/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  },
+  getBalance(params: { employeeId: string; year?: number } = { employeeId: '' }) {
+    const qp = new URLSearchParams()
+    if (params.employeeId) qp.set('employeeId', params.employeeId)
+    if (params.year != null) qp.set('year', String(params.year))
+    const qs = qp.toString()
+    return request<{ balances: LeaveBalance[] }>(`/api/leaves/balance${qs ? `?${qs}` : ''}`)
+  },
+}
+
+// Departments
+export type DepartmentHead = {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  email: string
+  position: string
+  avatar?: string | null
+}
+
+export type Department = {
+  id: string
+  name: string
+  code?: string | null
+  kpi?: string | null
+  headId?: string | null
+  head?: DepartmentHead | null
+  parentId?: string | null
+  parent?: { id: string; name: string } | null
+  children?: { id: string; name: string }[]
+  _count?: {
+    employees: number
+    children?: number
+  }
+}
+
+export const DepartmentsApi = {
+  list() {
+    return request<{ items: Department[] }>('/api/departments')
+  },
+  get(id: string) {
+    return request<Department>(`/api/departments/${encodeURIComponent(id)}`)
+  },
+  getHierarchy() {
+    return request<{ items: Department[] }>('/api/departments/hierarchy')
+  },
+  create(payload: { name: string; code?: string; kpi?: string; headId?: string; parentId?: string }) {
+    return request<Department>('/api/departments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  update(id: string, payload: Partial<{ name: string; code: string; kpi: string; headId: string; parentId: string }>) {
+    return request<Department>(`/api/departments/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  delete(id: string) {
+    return request<{ success: boolean }>(`/api/departments/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
     })
   },
 }

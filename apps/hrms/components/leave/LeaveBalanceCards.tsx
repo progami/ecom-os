@@ -1,0 +1,81 @@
+'use client'
+
+import { type LeaveBalance } from '@/lib/api-client'
+import { CalendarDaysIcon } from '@/components/ui/Icons'
+
+const LEAVE_TYPE_LABELS: Record<string, string> = {
+  ANNUAL: 'Annual Leave',
+  SICK: 'Sick Leave',
+  PERSONAL: 'Personal Leave',
+  UNPAID: 'Unpaid Leave',
+  MATERNITY: 'Maternity Leave',
+  PATERNITY: 'Paternity Leave',
+  BEREAVEMENT: 'Bereavement',
+  COMP_TIME: 'Comp Time',
+}
+
+const LEAVE_TYPE_COLORS: Record<string, { bg: string; text: string; progress: string }> = {
+  ANNUAL: { bg: 'bg-cyan-50', text: 'text-cyan-700', progress: 'bg-cyan-500' },
+  SICK: { bg: 'bg-rose-50', text: 'text-rose-700', progress: 'bg-rose-500' },
+  PERSONAL: { bg: 'bg-violet-50', text: 'text-violet-700', progress: 'bg-violet-500' },
+  UNPAID: { bg: 'bg-slate-50', text: 'text-slate-700', progress: 'bg-slate-500' },
+  MATERNITY: { bg: 'bg-pink-50', text: 'text-pink-700', progress: 'bg-pink-500' },
+  PATERNITY: { bg: 'bg-blue-50', text: 'text-blue-700', progress: 'bg-blue-500' },
+  BEREAVEMENT: { bg: 'bg-amber-50', text: 'text-amber-700', progress: 'bg-amber-500' },
+  COMP_TIME: { bg: 'bg-emerald-50', text: 'text-emerald-700', progress: 'bg-emerald-500' },
+}
+
+type LeaveBalanceCardsProps = {
+  balances: LeaveBalance[]
+}
+
+export function LeaveBalanceCards({ balances }: LeaveBalanceCardsProps) {
+  if (!balances || balances.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <CalendarDaysIcon className="h-10 w-10 text-slate-300 mx-auto mb-2" />
+        <p className="text-slate-500 text-sm">No leave balance data available</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {balances.map((balance) => {
+        const colors = LEAVE_TYPE_COLORS[balance.leaveType] || LEAVE_TYPE_COLORS.UNPAID
+        const label = LEAVE_TYPE_LABELS[balance.leaveType] || balance.leaveType.replace(/_/g, ' ')
+        const available = balance.available
+        const total = balance.allocated
+        const usedPercent = total > 0 ? ((total - available) / total) * 100 : 0
+
+        return (
+          <div
+            key={balance.leaveType}
+            className={`${colors.bg} rounded-xl p-4 border border-slate-100`}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h4 className={`text-sm font-medium ${colors.text}`}>{label}</h4>
+              <span className={`text-xs ${colors.text} opacity-75`}>
+                {balance.pending > 0 && `${balance.pending} pending`}
+              </span>
+            </div>
+            <div className="flex items-baseline gap-1 mb-2">
+              <span className={`text-2xl font-bold ${colors.text}`}>{available}</span>
+              <span className="text-sm text-slate-500">/ {total} days</span>
+            </div>
+            <div className="h-2 bg-white rounded-full overflow-hidden">
+              <div
+                className={`h-full ${colors.progress} transition-all duration-300`}
+                style={{ width: `${usedPercent}%` }}
+              />
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              {balance.used} used
+              {balance.pending > 0 && ` + ${balance.pending} pending`}
+            </p>
+          </div>
+        )
+      })}
+    </div>
+  )
+}

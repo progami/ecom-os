@@ -3,6 +3,7 @@ import prisma from '../../../../lib/prisma'
 import { UpdateEmployeeSchema } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { EmploymentType, EmployeeStatus } from '@/lib/hrms-prisma-types'
+import { checkAndNotifyMissingFields } from '@/lib/notification-service'
 
 type EmployeeRouteContext = { params: Promise<{ id: string }> }
 
@@ -64,14 +65,39 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
     if (data.lastName !== undefined) updates.lastName = data.lastName
     if (data.email !== undefined) updates.email = data.email
     if (data.phone !== undefined) updates.phone = data.phone
-    if (data.position !== undefined) updates.position = data.position
+    if (data.position !== undefined) {
+      updates.position = data.position
+      // Auto-set local override flag when position is manually updated
+      updates.positionLocalOverride = true
+    }
     if (data.employmentType !== undefined) updates.employmentType = data.employmentType as EmploymentType
     if (data.status !== undefined) updates.status = data.status as EmployeeStatus
     if (data.joinDate !== undefined) updates.joinDate = new Date(data.joinDate)
 
+    // Hierarchy
+    if (data.reportsToId !== undefined) updates.reportsToId = data.reportsToId
+
+    // Personal info
+    if (data.dateOfBirth !== undefined) updates.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : null
+    if (data.gender !== undefined) updates.gender = data.gender
+    if (data.maritalStatus !== undefined) updates.maritalStatus = data.maritalStatus
+    if (data.nationality !== undefined) updates.nationality = data.nationality
+    if (data.address !== undefined) updates.address = data.address
+    if (data.city !== undefined) updates.city = data.city
+    if (data.country !== undefined) updates.country = data.country
+    if (data.postalCode !== undefined) updates.postalCode = data.postalCode
+    if (data.emergencyContact !== undefined) updates.emergencyContact = data.emergencyContact
+    if (data.emergencyPhone !== undefined) updates.emergencyPhone = data.emergencyPhone
+
+    // Salary
+    if (data.salary !== undefined) updates.salary = data.salary
+    if (data.currency !== undefined) updates.currency = data.currency
+
     // Handle department relationship
     if (departmentName) {
       updates.department = departmentName
+      // Auto-set local override flag when department is manually updated
+      updates.departmentLocalOverride = true
       updates.dept = {
         connectOrCreate: {
           where: { name: departmentName },
@@ -96,6 +122,9 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
       data: updates,
       include: { roles: true, dept: true },
     })
+
+    // Re-check profile completion after update
+    await checkAndNotifyMissingFields(id)
 
     return NextResponse.json(e)
   } catch (e) {

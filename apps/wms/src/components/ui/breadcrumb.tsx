@@ -3,11 +3,9 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ChevronRight, Home } from '@/lib/lucide-icons'
-import { useSession } from '@/hooks/usePortalSession'
 
 export function Breadcrumb() {
  const pathname = usePathname()
- const { data: session } = useSession()
  
  // Don't show breadcrumbs on home or login pages
  if (pathname === '/' || pathname === '/auth/login') {
@@ -38,9 +36,6 @@ export function Breadcrumb() {
  case 'config':
  label = 'Configuration'
  break
- case 'admin':
- label = 'Admin'
- break
  case 'integrations':
  label = 'Integrations'
  break
@@ -66,8 +61,7 @@ export function Breadcrumb() {
  return { href, label, skip: isWarehouseId }
  }).filter(item => !item.skip)
 
- // Determine home link based on user role
- const homeLink = session?.user?.role === 'admin' ? '/admin/dashboard' : '/dashboard'
+ const homeLink = '/dashboard'
 
  return (
  <nav className="flex items-center space-x-1 text-sm text-slate-600 mb-4">

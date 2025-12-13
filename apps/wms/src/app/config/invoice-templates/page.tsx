@@ -385,10 +385,10 @@ export default function InvoiceTemplatesPage() {
  onChange={(e) => setFormData({...formData, transactionType: e.target.value as 'RECEIVE' | 'SHIP' | 'BOTH'})}
  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
  >
- <option value="BOTH">Both Receive & Ship</option>
- <option value="RECEIVE">Receive Only</option>
- <option value="SHIP">Ship Only</option>
- </select>
+	 <option value="BOTH">Both Inbound &amp; Outbound</option>
+	 <option value="RECEIVE">Inbound Only</option>
+	 <option value="SHIP">Outbound Only</option>
+	 </select>
  </div>
 
  <div className="flex items-center">

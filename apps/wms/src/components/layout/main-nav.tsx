@@ -7,8 +7,6 @@ import {
  Home,
  Package,
  FileText,
- Settings,
- Users,
  LogOut,
  Menu,
  X,
@@ -83,9 +81,6 @@ export function MainNav() {
  }, [userMenuOpen])
 
  if (!session) return null
-
- // Check if user has admin role
- const isAdmin = session.user.role === 'admin'
  
  // Use base navigation for all users
  const userNavigation = baseNavigation
@@ -148,30 +143,6 @@ export function MainNav() {
  <p className="text-xs text-slate-500 truncate">{session.user.email}</p>
  </div>
  
- {/* Admin options */}
- {isAdmin && (
- <>
- <div className="py-1 border-b border-slate-200 ">
- <Link
- href="/admin/users"
- onClick={() => setUserMenuOpen(false)}
- className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors flex items-center gap-2"
- >
- <Users className="h-4 w-4" />
- Users
- </Link>
- <Link
- href="/admin/settings"
- onClick={() => setUserMenuOpen(false)}
- className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors flex items-center gap-2"
- >
- <Settings className="h-4 w-4" />
- Settings
- </Link>
- </div>
- </>
- )}
-
  <button
  onClick={() => {
  const url = portalUrl('/api/auth/signout')

@@ -11,7 +11,9 @@ export interface StorageEntry {
  weekEndingDate: string
  closingBalance: number
  averageBalance: number
- storageRatePerCarton?: number
+ closingPallets: number
+ palletDays: number
+ storageRatePerPalletDay?: number
  totalStorageCost?: number
  isCostCalculated: boolean
  rateEffectiveDate?: string
@@ -21,7 +23,7 @@ export interface StorageEntry {
 export interface StorageSummary {
  totalEntries: number
  entriesWithCosts: number
- totalCartons: number
+ totalPalletDays: number
  totalStorageCost: number
  costCalculationRate: string
 }
@@ -38,7 +40,7 @@ export function useStorageLedger(filters: StorageLedgerFilters) {
  const [summary, setSummary] = useState<StorageSummary>({
  totalEntries: 0,
  entriesWithCosts: 0,
- totalCartons: 0,
+ totalPalletDays: 0,
  totalStorageCost: 0,
  costCalculationRate: '0'
  })

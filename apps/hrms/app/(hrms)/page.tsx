@@ -2,77 +2,41 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { DashboardApi } from '@/lib/api-client'
+import { DashboardApi, NotificationsApi, type DashboardData } from '@/lib/api-client'
 import {
   HomeIcon,
   UsersIcon,
-  DocumentIcon,
-  CalendarIcon,
-  PlusIcon,
-  ChartBarIcon,
+  BellIcon,
   SpinnerIcon,
+  UserIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  ExclamationCircleIcon,
+  CalendarDaysIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  BuildingIcon,
 } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
-import { Card, StatCard } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { StatusBadge } from '@/components/ui/Badge'
 import { Alert } from '@/components/ui/Alert'
+import { Avatar } from '@/components/ui/Avatar'
+import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
 
-interface StatItem {
-  label: string
-  value: string | number
-  change?: string
-  trend?: 'up' | 'down' | 'neutral'
-}
+function formatDate(dateString: string) {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMins / 60)
+  const diffDays = Math.floor(diffHours / 24)
 
-interface Activity {
-  id: string
-  type: string
-  description: string
-  timestamp: string
-  status: 'completed' | 'pending' | 'in-progress'
-}
-
-interface Event {
-  id: string
-  title: string
-  date: string
-  type: string
-}
-
-interface DashboardData {
-  stats: StatItem[]
-  recentActivity: Activity[]
-  upcomingEvents: Event[]
-}
-
-function QuickActionCard({
-  href,
-  icon: Icon,
-  title,
-  description,
-}: {
-  href: string
-  icon: React.ComponentType<{ className?: string }>
-  title: string
-  description: string
-}) {
-  return (
-    <Link
-      href={href}
-      className="bg-white border border-slate-200 rounded-xl p-5 hover:border-cyan-300 hover:shadow-md transition-all"
-    >
-      <div className="flex items-center gap-4">
-        <div className="p-2.5 bg-cyan-50 rounded-xl">
-          <Icon className="h-5 w-5 text-cyan-600" />
-        </div>
-        <div>
-          <p className="font-medium text-slate-900">{title}</p>
-          <p className="text-sm text-slate-500">{description}</p>
-        </div>
-      </div>
-    </Link>
-  )
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  return date.toLocaleDateString()
 }
 
 export default function Dashboard() {
@@ -90,10 +54,45 @@ export default function Dashboard() {
       setError(null)
       const dashboardData = await DashboardApi.get()
       setData(dashboardData)
-    } catch (err: any) {
-      setError(err?.message || 'Failed to load dashboard')
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load dashboard'
+      setError(message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const markNotificationRead = async (id: string) => {
+    try {
+      await NotificationsApi.markAsRead([id])
+      if (data) {
+        setData({
+          ...data,
+          notifications: data.notifications.map((n) =>
+            n.id === id ? { ...n, isRead: true } : n
+          ),
+          unreadNotificationCount: Math.max(0, data.unreadNotificationCount - 1),
+        })
+      }
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err)
+    }
+  }
+
+  const markAllRead = async () => {
+    if (!data) return
+    const unreadIds = data.notifications.filter(n => !n.isRead).map(n => n.id)
+    if (unreadIds.length === 0) return
+
+    try {
+      await NotificationsApi.markAsRead(unreadIds)
+      setData({
+        ...data,
+        notifications: data.notifications.map((n) => ({ ...n, isRead: true })),
+        unreadNotificationCount: 0,
+      })
+    } catch (err) {
+      console.error('Failed to mark notifications as read:', err)
     }
   }
 
@@ -124,122 +123,323 @@ export default function Dashboard() {
           <Alert variant="error" className="max-w-md mb-4">
             {error}
           </Alert>
-          <Button onClick={fetchDashboardData}>
-            Retry
-          </Button>
+          <Button onClick={fetchDashboardData}>Retry</Button>
         </div>
       </>
     )
   }
 
+  const greeting = data?.user ? `Welcome back, ${data.user.firstName}` : 'Welcome'
+  const isManager = data?.isManager ?? false
+  const hasDirectReports = data?.directReports && data.directReports.length > 0
+  const hasNotifications = data?.notifications && data.notifications.length > 0
+  const unreadCount = data?.unreadNotificationCount ?? 0
+  const hasPendingLeaves = data?.pendingLeaveRequests && data.pendingLeaveRequests.length > 0
+  const myLeaveBalance = data?.myLeaveBalance || []
+  const currentEmployee = data?.currentEmployee
+
   return (
     <>
       <ListPageHeader
-        title="Dashboard"
-        description="Welcome to your HR management system"
+        title={greeting}
+        description={
+          data?.user
+            ? `${data.user.position} • ${data.user.department}`
+            : 'Your HR management dashboard'
+        }
         icon={<HomeIcon className="h-6 w-6 text-white" />}
       />
 
-      <div className="space-y-8">
-        {/* Stats */}
-        {data?.stats && data.stats.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {data.stats.map((stat) => (
-              <StatCard
-                key={stat.label}
-                title={stat.label}
-                value={stat.value}
-                icon={<ChartBarIcon className="h-5 w-5 text-slate-500" />}
-                trend={stat.change && stat.change !== '—' && stat.trend !== 'neutral' ? {
-                  value: stat.change,
-                  positive: stat.trend === 'up',
-                } : undefined}
-              />
-            ))}
-          </div>
-        )}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Main Content - Manager sees My Team, Regular users see My Profile */}
+        <div className="lg:col-span-3 space-y-6">
+          {isManager ? (
+            <>
+              {/* Manager View: My Team */}
+              <Card padding="none">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                    <UsersIcon className="h-5 w-5 text-cyan-600" />
+                    My Team
+                    {hasDirectReports && (
+                      <span className="text-sm font-normal text-slate-400">
+                        ({data.directReports.length})
+                      </span>
+                    )}
+                  </h2>
+                  {hasDirectReports && (
+                    <Link
+                      href="/employees"
+                      className="text-sm text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
+                    >
+                      All employees
+                      <ChevronRightIcon className="h-4 w-4" />
+                    </Link>
+                  )}
+                </div>
 
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recent Activity */}
-          <Card padding="none" className="lg:col-span-2">
-            <div className="px-6 py-4 border-b border-slate-100">
-              <h2 className="font-semibold text-slate-900">Recent Activity</h2>
-            </div>
-            <div className="p-6">
-              {data?.recentActivity && data.recentActivity.length > 0 ? (
-                <div className="space-y-4">
-                  {data.recentActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-start justify-between gap-4 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-slate-900">{activity.description}</p>
-                        <p className="text-xs text-slate-500 mt-1">{activity.timestamp}</p>
-                      </div>
-                      <StatusBadge status={activity.status} />
+                <div className="p-5">
+                  {hasDirectReports ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {data.directReports.map((report) => (
+                        <Link
+                          key={report.id}
+                          href={`/employees/${report.id}`}
+                          className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-cyan-200 hover:bg-cyan-50/30 transition-all group"
+                        >
+                          <Avatar
+                            src={report.avatar}
+                            alt={`${report.firstName} ${report.lastName}`}
+                            size="md"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-slate-900 group-hover:text-cyan-700 truncate">
+                              {report.firstName} {report.lastName}
+                            </p>
+                            <p className="text-sm text-slate-500 truncate">
+                              {report.position}
+                            </p>
+                          </div>
+                        </Link>
+                      ))}
                     </div>
-                  ))}
+                  ) : (
+                    <div className="text-center py-8">
+                      <UserIcon className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                      <p className="text-slate-500 text-sm">No direct reports</p>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="text-center py-8 text-slate-500 text-sm">
-                  No recent activity
-                </div>
-              )}
-            </div>
-          </Card>
+              </Card>
 
-          {/* Upcoming Events */}
-          <Card padding="none">
-            <div className="px-6 py-4 border-b border-slate-100">
-              <h2 className="font-semibold text-slate-900">Upcoming Events</h2>
-            </div>
-            <div className="p-6">
-              {data?.upcomingEvents && data.upcomingEvents.length > 0 ? (
-                <div className="space-y-4">
-                  {data.upcomingEvents.map((event) => (
-                    <div key={event.id} className="pb-4 border-b border-slate-100 last:border-0 last:pb-0">
-                      <p className="text-sm font-medium text-slate-900">{event.title}</p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <CalendarIcon className="h-3.5 w-3.5 text-slate-400" />
-                        <span className="text-xs text-slate-500">{event.date}</span>
-                        <span className="text-xs bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded-full font-medium">
-                          {event.type}
-                        </span>
+              {/* Manager View: Pending Leave Approvals */}
+              {hasPendingLeaves && (
+                <Card padding="none">
+                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                      <CalendarDaysIcon className="h-5 w-5 text-amber-500" />
+                      Pending Leave Approvals
+                      <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-600 rounded-full">
+                        {data.pendingLeaveRequests.length}
+                      </span>
+                    </h2>
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    {data.pendingLeaveRequests.map((request) => (
+                      <div key={request.id} className="px-5 py-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Avatar
+                            src={request.employee?.avatar}
+                            alt={`${request.employee?.firstName} ${request.employee?.lastName}`}
+                            size="sm"
+                          />
+                          <div>
+                            <p className="font-medium text-slate-900">
+                              {request.employee?.firstName} {request.employee?.lastName}
+                            </p>
+                            <p className="text-sm text-slate-500">
+                              {request.leaveType.replace('_', ' ')} · {request.totalDays} day{request.totalDays !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <Link
+                          href={`/employees/${request.employee?.id}`}
+                          className="text-sm text-cyan-600 hover:text-cyan-700"
+                        >
+                          Review
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Regular User View: My Profile */}
+              <Card padding="none">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                    <UserIcon className="h-5 w-5 text-cyan-600" />
+                    My Profile
+                  </h2>
+                  {currentEmployee && (
+                    <Link
+                      href={`/employees/${currentEmployee.id}`}
+                      className="text-sm text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
+                    >
+                      View full profile
+                      <ChevronRightIcon className="h-4 w-4" />
+                    </Link>
+                  )}
+                </div>
+
+                <div className="p-5">
+                  {currentEmployee ? (
+                    <div className="flex flex-col sm:flex-row gap-6">
+                      <div className="flex items-center gap-4">
+                        <Avatar
+                          src={currentEmployee.avatar}
+                          alt={`${currentEmployee.firstName} ${currentEmployee.lastName}`}
+                          size="lg"
+                        />
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-900">
+                            {currentEmployee.firstName} {currentEmployee.lastName}
+                          </h3>
+                          <p className="text-slate-600">{currentEmployee.position}</p>
+                          <p className="text-sm text-slate-500">{currentEmployee.employeeId}</p>
+                        </div>
+                      </div>
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="flex items-center gap-2 text-sm">
+                          <EnvelopeIcon className="h-4 w-4 text-slate-400" />
+                          <span className="text-slate-600 truncate">{currentEmployee.email}</span>
+                        </div>
+                        {currentEmployee.phone && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <PhoneIcon className="h-4 w-4 text-slate-400" />
+                            <span className="text-slate-600">{currentEmployee.phone}</span>
+                          </div>
+                        )}
+                        {currentEmployee.department && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <BuildingIcon className="h-4 w-4 text-slate-400" />
+                            <span className="text-slate-600">{currentEmployee.department}</span>
+                          </div>
+                        )}
+                        {currentEmployee.reportsTo && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <UsersIcon className="h-4 w-4 text-slate-400" />
+                            <span className="text-slate-600">
+                              Reports to {currentEmployee.reportsTo.firstName} {currentEmployee.reportsTo.lastName}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  ))}
+                  ) : (
+                    <div className="text-center py-8">
+                      <UserIcon className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                      <p className="text-slate-500 text-sm">Profile not available</p>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="text-center py-8 text-slate-500 text-sm">
-                  No upcoming events
+              </Card>
+
+              {/* Regular User View: My Leave Balance */}
+              <Card padding="none">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                    <CalendarDaysIcon className="h-5 w-5 text-cyan-600" />
+                    My Leave Balance
+                  </h2>
+                  {currentEmployee && (
+                    <Link
+                      href={`/employees/${currentEmployee.id}`}
+                      className="text-sm text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
+                    >
+                      Request leave
+                      <ChevronRightIcon className="h-4 w-4" />
+                    </Link>
+                  )}
                 </div>
-              )}
-            </div>
-          </Card>
+                <div className="p-5">
+                  <LeaveBalanceCards balances={myLeaveBalance} />
+                </div>
+              </Card>
+            </>
+          )}
         </div>
 
-        {/* Quick Actions */}
-        <div>
-          <h2 className="font-semibold text-slate-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <QuickActionCard
-              href="/employees/add"
-              icon={PlusIcon}
-              title="Add Employee"
-              description="Register new team member"
-            />
-            <QuickActionCard
-              href="/employees"
-              icon={UsersIcon}
-              title="View Employees"
-              description="Manage your workforce"
-            />
-            <QuickActionCard
-              href="/policies"
-              icon={DocumentIcon}
-              title="Company Policies"
-              description="View and manage policies"
-            />
-          </div>
+        {/* Sidebar - Notifications */}
+        <div className="lg:col-span-2">
+          <Card padding="none" className="h-full">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                <BellIcon className="h-5 w-5 text-cyan-600" />
+                Notifications
+                {unreadCount > 0 && (
+                  <span className="px-2 py-0.5 text-xs font-semibold bg-red-100 text-red-600 rounded-full">
+                    {unreadCount}
+                  </span>
+                )}
+              </h2>
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllRead}
+                  className="text-xs text-slate-500 hover:text-cyan-600 transition-colors"
+                >
+                  Mark all read
+                </button>
+              )}
+            </div>
+
+            <div className="max-h-[400px] overflow-y-auto">
+              {hasNotifications ? (
+                <div className="divide-y divide-slate-100">
+                  {data.notifications.map((notification) => (
+                    <div
+                      key={notification.id}
+                      className={`px-5 py-4 transition-colors ${
+                        notification.isRead ? 'bg-white' : 'bg-amber-50/50'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`mt-0.5 flex-shrink-0 ${
+                          notification.isRead ? 'text-slate-400' : 'text-amber-500'
+                        }`}>
+                          {notification.isRead ? (
+                            <CheckIcon className="h-4 w-4" />
+                          ) : (
+                            <ExclamationCircleIcon className="h-4 w-4" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm ${
+                            notification.isRead ? 'text-slate-600' : 'text-slate-900 font-medium'
+                          }`}>
+                            {notification.title}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
+                            {notification.message}
+                          </p>
+                          <div className="flex items-center gap-3 mt-2">
+                            <span className="text-[11px] text-slate-400">
+                              {formatDate(notification.createdAt)}
+                            </span>
+                            {notification.link && (
+                              <Link
+                                href={notification.link}
+                                className="text-[11px] text-cyan-600 hover:text-cyan-700"
+                              >
+                                View details
+                              </Link>
+                            )}
+                            {!notification.isRead && (
+                              <button
+                                onClick={() => markNotificationRead(notification.id)}
+                                className="text-[11px] text-slate-500 hover:text-slate-700"
+                              >
+                                Dismiss
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 px-5">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-slate-100 mb-3">
+                    <BellIcon className="h-6 w-6 text-slate-400" />
+                  </div>
+                  <p className="text-slate-500 text-sm">No notifications</p>
+                </div>
+              )}
+            </div>
+          </Card>
         </div>
       </div>
     </>

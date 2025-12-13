@@ -7,9 +7,12 @@ import {
   EmployeesApi,
   PerformanceReviewsApi,
   DisciplinaryActionsApi,
+  LeavesApi,
   type Employee,
   type PerformanceReview,
   type DisciplinaryAction,
+  type LeaveBalance,
+  type LeaveRequest,
 } from '@/lib/api-client'
 import {
   UsersIcon,
@@ -21,14 +24,18 @@ import {
   ClipboardDocumentCheckIcon,
   ShieldExclamationIcon,
   StarFilledIcon,
+  CalendarDaysIcon,
 } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { StatusBadge } from '@/components/ui/Badge'
+import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
+import { LeaveHistoryTable } from '@/components/leave/LeaveHistoryTable'
+import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
 
-type Tab = 'overview' | 'reviews' | 'disciplinary'
+type Tab = 'overview' | 'leave' | 'reviews' | 'disciplinary'
 
 const REVIEW_TYPE_LABELS: Record<string, string> = {
   PROBATION: '90-Day Probation',
@@ -112,9 +119,13 @@ export default function EmployeeViewPage() {
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [reviews, setReviews] = useState<PerformanceReview[]>([])
   const [disciplinary, setDisciplinary] = useState<DisciplinaryAction[]>([])
+  const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [reviewsLoading, setReviewsLoading] = useState(false)
   const [disciplinaryLoading, setDisciplinaryLoading] = useState(false)
+  const [leaveLoading, setLeaveLoading] = useState(false)
+  const [showLeaveForm, setShowLeaveForm] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -164,6 +175,48 @@ export default function EmployeeViewPage() {
     loadDisciplinary()
   }, [activeTab, id])
 
+  useEffect(() => {
+    async function loadLeave() {
+      if (activeTab !== 'leave') return
+      try {
+        setLeaveLoading(true)
+        const [balanceData, requestsData] = await Promise.all([
+          LeavesApi.getBalance({ employeeId: id }),
+          LeavesApi.list({ employeeId: id }),
+        ])
+        setLeaveBalances(balanceData.balances || [])
+        setLeaveRequests(requestsData.items || [])
+      } catch (e) {
+        console.error('Failed to load leave data', e)
+      } finally {
+        setLeaveLoading(false)
+      }
+    }
+    loadLeave()
+  }, [activeTab, id])
+
+  const handleLeaveRequestSuccess = async () => {
+    setShowLeaveForm(false)
+    // Reload leave data
+    const [balanceData, requestsData] = await Promise.all([
+      LeavesApi.getBalance({ employeeId: id }),
+      LeavesApi.list({ employeeId: id }),
+    ])
+    setLeaveBalances(balanceData.balances || [])
+    setLeaveRequests(requestsData.items || [])
+  }
+
+  const handleCancelLeave = async (requestId: string) => {
+    await LeavesApi.update(requestId, { status: 'CANCELLED' })
+    // Reload leave data
+    const [balanceData, requestsData] = await Promise.all([
+      LeavesApi.getBalance({ employeeId: id }),
+      LeavesApi.list({ employeeId: id }),
+    ])
+    setLeaveBalances(balanceData.balances || [])
+    setLeaveRequests(requestsData.items || [])
+  }
+
   if (loading) {
     return (
       <>
@@ -171,7 +224,7 @@ export default function EmployeeViewPage() {
           title="Employee Details"
           description="People"
           icon={<UsersIcon className="h-6 w-6 text-white" />}
-          backHref="/employees"
+          showBack
         />
         <Card padding="lg">
           <div className="animate-pulse space-y-6">
@@ -195,7 +248,7 @@ export default function EmployeeViewPage() {
           title="Employee Details"
           description="People"
           icon={<UsersIcon className="h-6 w-6 text-white" />}
-          backHref="/employees"
+          showBack
         />
         <Card padding="lg">
           <Alert variant="error">{error || 'Employee not found'}</Alert>
@@ -216,7 +269,7 @@ export default function EmployeeViewPage() {
         title={`${employee.firstName} ${employee.lastName}`}
         description="People"
         icon={<UsersIcon className="h-6 w-6 text-white" />}
-        backHref="/employees"
+        showBack
         actions={
           <Button href={`/employees/${id}/edit`} icon={<PencilIcon className="h-4 w-4" />}>
             Edit
@@ -250,6 +303,13 @@ export default function EmployeeViewPage() {
             icon={UsersIcon}
           >
             Overview
+          </TabButton>
+          <TabButton
+            active={activeTab === 'leave'}
+            onClick={() => setActiveTab('leave')}
+            icon={CalendarDaysIcon}
+          >
+            Leave
           </TabButton>
           <TabButton
             active={activeTab === 'reviews'}

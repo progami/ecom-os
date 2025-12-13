@@ -14,8 +14,8 @@ export interface StorageLedgerColumnFilters {
  description: string
  batch: string
  status: Array<'CALCULATED' | 'PENDING'>
- cartonsMin: string
- cartonsMax: string
+ palletDaysMin: string
+ palletDaysMax: string
  rateMin: string
  rateMax: string
  totalCostMin: string
@@ -283,8 +283,8 @@ export function StorageLedgerTable({
  </th>
  <th className="px-3 py-2 text-right font-semibold">
  <div className="flex items-center justify-end gap-1">
- <span>Cartons</span>
- {renderNumericFilter('Cartons', 'cartonsMin', 'cartonsMax')}
+ <span>Pallet Days</span>
+ {renderNumericFilter('Pallet days', 'palletDaysMin', 'palletDaysMax')}
  </div>
  </th>
  <th className="px-3 py-2 text-right font-semibold">
@@ -377,11 +377,11 @@ export function StorageLedgerTable({
  {entry.batchLot}
  </td>
  <td className="px-3 py-2 text-sm font-semibold text-foreground text-right whitespace-nowrap">
- {entry.closingBalance.toLocaleString()}
+ {entry.palletDays.toLocaleString()}
  </td>
  <td className="px-3 py-2 text-sm text-right text-foreground whitespace-nowrap">
- {entry.storageRatePerCarton
- ? `$${Number(entry.storageRatePerCarton).toFixed(4)}`
+ {entry.storageRatePerPalletDay
+ ? `$${Number(entry.storageRatePerPalletDay).toFixed(4)}`
  : <span className="text-muted-foreground">—</span>
  }
  </td>

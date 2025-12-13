@@ -112,7 +112,7 @@ export default function EditPolicyPage() {
           title="Edit Policy"
           description="Company Policies"
           icon={<DocumentIcon className="h-6 w-6 text-white" />}
-          backHref="/policies"
+          showBack
         />
         <div className="max-w-3xl">
           <Card padding="lg">
@@ -135,7 +135,7 @@ export default function EditPolicyPage() {
           title="Edit Policy"
           description="Company Policies"
           icon={<DocumentIcon className="h-6 w-6 text-white" />}
-          backHref="/policies"
+          showBack
         />
         <div className="max-w-3xl">
           <Card padding="lg">
@@ -154,7 +154,7 @@ export default function EditPolicyPage() {
         title="Edit Policy"
         description="Company Policies"
         icon={<DocumentIcon className="h-6 w-6 text-white" />}
-        backHref={`/policies/${id}`}
+        showBack
       />
 
       <div className="max-w-3xl">

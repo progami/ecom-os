@@ -59,99 +59,77 @@ export async function PUT(
  { params }: { params: Promise<{ id: string }> }
 ) {
  try {
- const { id: rateId } = await params
- const session = await auth()
- 
- if (!session || session.user.role !== 'admin') {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+  const { id: rateId } = await params
+  const session = await auth()
 
- const body = await request.json()
- const { costValue, unitOfMeasure, endDate, costName: rawCostName } = body
-
-// Validate required fields
- if (costValue === undefined || !unitOfMeasure) {
- return NextResponse.json(
- { error: 'Missing required fields' },
- { status: 400 }
- )
- }
-
- // Get existing rate to check category
- const existingRate = await prisma.costRate.findUnique({
- where: { id: rateId }
-})
-
- if (!existingRate) {
- return NextResponse.json({ error: 'Rate not found' }, { status: 404 })
- }
-
- // Don't HTML-encode costName - just trim
- const sanitizedCostName =
- typeof rawCostName === 'string' && rawCostName.trim().length > 0
-  ? rawCostName.trim()
-  : existingRate.costName
-
- if (sanitizedCostName !== existingRate.costName) {
- const existingName = await prisma.costRate.findFirst({
-  where: {
-   warehouseId: existingRate.warehouseId,
-   costName: sanitizedCostName,
-   effectiveDate: existingRate.effectiveDate,
-   id: { not: rateId }
+  if (!session || session.user.role !== 'admin') {
+   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
- })
 
-  if (existingName) {
-   return NextResponse.json(
-    {
-     error: `Another rate named "${sanitizedCostName}" already exists for this warehouse on ${existingRate.effectiveDate.toISOString().slice(0, 10)}.`
+  const body = await request.json()
+  const { costValue, endDate } = body as {
+   costValue?: number
+   endDate?: string | null
+  }
+
+  if (costValue === undefined && endDate === undefined) {
+   return NextResponse.json({ error: 'Missing fields to update' }, { status: 400 })
+  }
+
+  if (costValue !== undefined && (typeof costValue !== 'number' || Number.isNaN(costValue) || costValue < 0)) {
+   return NextResponse.json({ error: 'Invalid cost value' }, { status: 400 })
+  }
+
+  const existingRate = await prisma.costRate.findUnique({
+   where: { id: rateId },
+  })
+
+  if (!existingRate) {
+   return NextResponse.json({ error: 'Rate not found' }, { status: 404 })
+  }
+
+  const endOn = endDate !== undefined ? (endDate ? new Date(endDate) : null) : undefined
+  if (endOn && Number.isNaN(endOn.getTime())) {
+   return NextResponse.json({ error: 'Invalid end date' }, { status: 400 })
+  }
+
+  if (endOn && endOn < existingRate.effectiveDate) {
+   return NextResponse.json({ error: 'End date must be on or after effective date' }, { status: 400 })
+  }
+
+  const updatedRate = await prisma.costRate.update({
+   where: { id: rateId },
+   data: {
+    ...(costValue !== undefined ? { costValue } : {}),
+    ...(endDate !== undefined ? { endDate: endOn } : {}),
+   },
+   include: {
+    warehouse: {
+     select: {
+      id: true,
+      name: true,
+      code: true,
+     },
     },
-    { status: 400 }
- )
- }
-}
+   },
+  })
 
- const updatedRate = await prisma.costRate.update({
-where: { id: rateId },
-data: {
-  costName: sanitizedCostName,
-  unitOfMeasure,
-  costValue,
- endDate: endDate ? new Date(endDate) : null,
- updatedAt: new Date()
- },
- include: {
- warehouse: {
- select: {
- id: true,
- name: true,
- code: true
- }
- }
- }
- })
+  const formattedRate = {
+   id: updatedRate.id,
+   warehouseId: updatedRate.warehouseId,
+   warehouse: updatedRate.warehouse,
+   costCategory: updatedRate.costCategory,
+   costName: updatedRate.costName,
+   costValue: parseFloat(updatedRate.costValue.toString()),
+   unitOfMeasure: updatedRate.unitOfMeasure,
+   effectiveDate: updatedRate.effectiveDate.toISOString(),
+   endDate: updatedRate.endDate?.toISOString() || null,
+  }
 
- const formattedRate = {
- id: updatedRate.id,
- warehouseId: updatedRate.warehouseId,
- warehouse: updatedRate.warehouse,
- costCategory: updatedRate.costCategory,
- costName: updatedRate.costName,
- costValue: parseFloat(updatedRate.costValue.toString()),
- unitOfMeasure: updatedRate.unitOfMeasure,
- effectiveDate: updatedRate.effectiveDate.toISOString(),
- endDate: updatedRate.endDate?.toISOString() || null
- }
-
- return NextResponse.json(formattedRate)
+  return NextResponse.json(formattedRate)
  } catch (_error) {
- // console.error('Error updating rate:', error)
- return NextResponse.json(
- { error: 'Failed to update rate' },
- { status: 500 }
- )
-}
+  return NextResponse.json({ error: 'Failed to update rate' }, { status: 500 })
+ }
 }
 
 export async function DELETE(
@@ -159,35 +137,30 @@ export async function DELETE(
  { params }: { params: Promise<{ id: string }> }
 ) {
  try {
- const { id: rateId } = await params
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+  const { id: rateId } = await params
+  const session = await auth()
 
- // Check if user has permission to delete rates
- if (session.user.role !== 'admin') {
- return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
- }
+  if (!session) {
+   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
- await prisma.$transaction(async tx => {
-  await tx.storageLedger.updateMany({
-   where: { costRateId: rateId },
-   data: { costRateId: null },
+  if (session.user.role !== 'admin') {
+   return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  await prisma.$transaction(async (tx) => {
+   await tx.storageLedger.updateMany({
+    where: { costRateId: rateId },
+    data: { costRateId: null },
+   })
+
+   await tx.costRate.delete({
+    where: { id: rateId },
+   })
   })
 
-  await tx.costRate.delete({
-   where: { id: rateId },
-  })
- })
-
- return NextResponse.json({ success: true })
+  return NextResponse.json({ success: true })
  } catch (_error) {
- // console.error('Error deleting rate:', error)
- return NextResponse.json(
- { error: 'Failed to delete rate' },
- { status: 500 }
- )
+  return NextResponse.json({ error: 'Failed to delete rate' }, { status: 500 })
  }
 }

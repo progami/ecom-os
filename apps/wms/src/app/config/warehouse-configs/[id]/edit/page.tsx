@@ -74,7 +74,7 @@ export default function EditWarehouseConfigPage() {
  }
  } catch (_error) {
  toast.error('Failed to load configuration')
- router.push('/admin/settings/warehouse-configs')
+ router.push('/config/warehouse-configs')
  } finally {
  setLoading(false)
  }
@@ -116,7 +116,7 @@ export default function EditWarehouseConfigPage() {
  }
 
  const handleCancel = () => {
- router.push('/admin/settings/warehouse-configs')
+ router.push('/config/warehouse-configs')
  }
 
  if (loading || !config) {

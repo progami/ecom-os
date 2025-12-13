@@ -110,7 +110,7 @@ export default function NewWarehouseConfigPage() {
  }
 
  const handleCancel = () => {
- router.push('/admin/settings/warehouse-configs')
+ router.push('/config/warehouse-configs')
  }
 
  return (

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { BellIcon, DocumentIcon, XIcon } from './Icons'
 import { NotificationsApi, type Notification } from '@/lib/api-client'
@@ -36,6 +37,8 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 })
+  const buttonRef = useRef<HTMLButtonElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const loadNotifications = async () => {
@@ -53,20 +56,36 @@ export function NotificationBell() {
 
   useEffect(() => {
     loadNotifications()
-    // Refresh every 60 seconds
     const interval = setInterval(loadNotifications, 60000)
     return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(target) &&
+        buttonRef.current &&
+        !buttonRef.current.contains(target)
+      ) {
         setIsOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Calculate dropdown position when opening
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setDropdownPosition({
+        top: rect.bottom + 8,
+        left: rect.left,
+      })
+    }
+  }, [isOpen])
 
   const handleMarkAllRead = async () => {
     try {
@@ -93,9 +112,112 @@ export function NotificationBell() {
     setIsOpen(false)
   }
 
+  const dropdown = isOpen && typeof document !== 'undefined' ? createPortal(
+    <div
+      ref={dropdownRef}
+      className="fixed w-80 sm:w-96 bg-white rounded-lg shadow-xl border border-slate-200 z-[9999]"
+      style={{ top: dropdownPosition.top, left: dropdownPosition.left }}
+    >
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+        <h3 className="font-semibold text-slate-900">Notifications</h3>
+        <div className="flex items-center gap-2">
+          {unreadCount > 0 && (
+            <button
+              onClick={handleMarkAllRead}
+              className="text-xs text-cyan-600 hover:text-cyan-700 font-medium"
+            >
+              Mark all read
+            </button>
+          )}
+          <button
+            onClick={() => setIsOpen(false)}
+            className="p-1 hover:bg-slate-100 rounded"
+          >
+            <XIcon className="h-4 w-4 text-slate-400" />
+          </button>
+        </div>
+      </div>
+
+      <div className="max-h-96 overflow-y-auto">
+        {loading && notifications.length === 0 ? (
+          <div className="p-4 text-center text-slate-500 text-sm">Loading...</div>
+        ) : notifications.length === 0 ? (
+          <div className="p-8 text-center">
+            <BellIcon className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+            <p className="text-slate-500 text-sm">No notifications yet</p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-slate-100">
+            {notifications.map((notification) => (
+              <li key={notification.id}>
+                {notification.link ? (
+                  <Link
+                    href={notification.link}
+                    onClick={() => handleNotificationClick(notification)}
+                    className={`flex gap-3 px-4 py-3 hover:bg-slate-50 transition-colors ${
+                      !notification.isRead ? 'bg-cyan-50/50' : ''
+                    }`}
+                  >
+                    <div className="flex-shrink-0 mt-0.5">
+                      {getNotificationIcon(notification.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm ${!notification.isRead ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
+                        {notification.title}
+                      </p>
+                      <p className="text-sm text-slate-500 mt-0.5 line-clamp-2">
+                        {notification.message}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        {formatTimeAgo(notification.createdAt)}
+                      </p>
+                    </div>
+                    {!notification.isRead && (
+                      <div className="flex-shrink-0">
+                        <span className="h-2 w-2 rounded-full bg-cyan-500 block" />
+                      </div>
+                    )}
+                  </Link>
+                ) : (
+                  <div
+                    className={`flex gap-3 px-4 py-3 ${
+                      !notification.isRead ? 'bg-cyan-50/50' : ''
+                    }`}
+                  >
+                    <div className="flex-shrink-0 mt-0.5">
+                      {getNotificationIcon(notification.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm ${!notification.isRead ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
+                        {notification.title}
+                      </p>
+                      <p className="text-sm text-slate-500 mt-0.5 line-clamp-2">
+                        {notification.message}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        {formatTimeAgo(notification.createdAt)}
+                      </p>
+                    </div>
+                    {!notification.isRead && (
+                      <div className="flex-shrink-0">
+                        <span className="h-2 w-2 rounded-full bg-cyan-500 block" />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>,
+    document.body
+  ) : null
+
   return (
-    <div className="relative" ref={dropdownRef}>
+    <>
       <button
+        ref={buttonRef}
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
       >
@@ -106,103 +228,7 @@ export function NotificationBell() {
           </span>
         )}
       </button>
-
-      {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-lg shadow-lg border border-slate-200 z-50">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
-            <h3 className="font-semibold text-slate-900">Notifications</h3>
-            <div className="flex items-center gap-2">
-              {unreadCount > 0 && (
-                <button
-                  onClick={handleMarkAllRead}
-                  className="text-xs text-cyan-600 hover:text-cyan-700 font-medium"
-                >
-                  Mark all read
-                </button>
-              )}
-              <button
-                onClick={() => setIsOpen(false)}
-                className="p-1 hover:bg-slate-100 rounded"
-              >
-                <XIcon className="h-4 w-4 text-slate-400" />
-              </button>
-            </div>
-          </div>
-
-          <div className="max-h-96 overflow-y-auto">
-            {loading && notifications.length === 0 ? (
-              <div className="p-4 text-center text-slate-500 text-sm">Loading...</div>
-            ) : notifications.length === 0 ? (
-              <div className="p-8 text-center">
-                <BellIcon className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-slate-500 text-sm">No notifications yet</p>
-              </div>
-            ) : (
-              <ul className="divide-y divide-slate-100">
-                {notifications.map((notification) => (
-                  <li key={notification.id}>
-                    {notification.link ? (
-                      <Link
-                        href={notification.link}
-                        onClick={() => handleNotificationClick(notification)}
-                        className={`flex gap-3 px-4 py-3 hover:bg-slate-50 transition-colors ${
-                          !notification.isRead ? 'bg-cyan-50/50' : ''
-                        }`}
-                      >
-                        <div className="flex-shrink-0 mt-0.5">
-                          {getNotificationIcon(notification.type)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm ${!notification.isRead ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
-                            {notification.title}
-                          </p>
-                          <p className="text-sm text-slate-500 mt-0.5 line-clamp-2">
-                            {notification.message}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-1">
-                            {formatTimeAgo(notification.createdAt)}
-                          </p>
-                        </div>
-                        {!notification.isRead && (
-                          <div className="flex-shrink-0">
-                            <span className="h-2 w-2 rounded-full bg-cyan-500 block" />
-                          </div>
-                        )}
-                      </Link>
-                    ) : (
-                      <div
-                        className={`flex gap-3 px-4 py-3 ${
-                          !notification.isRead ? 'bg-cyan-50/50' : ''
-                        }`}
-                      >
-                        <div className="flex-shrink-0 mt-0.5">
-                          {getNotificationIcon(notification.type)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-sm ${!notification.isRead ? 'font-medium text-slate-900' : 'text-slate-700'}`}>
-                            {notification.title}
-                          </p>
-                          <p className="text-sm text-slate-500 mt-0.5 line-clamp-2">
-                            {notification.message}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-1">
-                            {formatTimeAgo(notification.createdAt)}
-                          </p>
-                        </div>
-                        {!notification.isRead && (
-                          <div className="flex-shrink-0">
-                            <span className="h-2 w-2 rounded-full bg-cyan-500 block" />
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+      {dropdown}
+    </>
   )
 }

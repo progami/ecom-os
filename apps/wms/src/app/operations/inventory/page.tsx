@@ -963,9 +963,9 @@ function InventoryPage() {
  ? balance.currentUnits
  : movementMultiplier * Math.abs(balance.currentUnits)
  const movementLabel = movementType === 'positive'
-   ? 'Receive'
+   ? 'Inbound'
    : movementType === 'negative'
-   ? 'Ship'
+   ? 'Outbound'
    : 'Flat'
  const movementBadgeVariant = movementType === 'positive'
    ? 'success' as const

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
-import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
+import { withRateLimit } from '@/lib/api-helpers'
+import { getCurrentUser } from '@/lib/current-user'
 
 export async function GET(req: Request) {
   // Rate limiting
@@ -8,50 +9,159 @@ export async function GET(req: Request) {
   if (rateLimitError) return rateLimitError
 
   // Default fallback data when database is unavailable
-  const fallbackStats = [
-    { label: 'Total Employees', value: 0, trend: 'neutral' as const, change: '—' },
-    { label: 'Active Policies', value: 0, trend: 'neutral' as const, change: '—' },
-    { label: 'Providers', value: 0, trend: 'neutral' as const, change: '—' },
-  ]
-
-  const fallbackActivity: unknown[] = []
-  const fallbackEvents: unknown[] = []
+  const fallbackData = {
+    user: null,
+    isManager: false,
+    currentEmployee: null,
+    directReports: [],
+    notifications: [],
+    unreadNotificationCount: 0,
+    pendingReviews: [],
+    pendingLeaveRequests: [],
+    myLeaveBalance: [],
+    upcomingLeaves: [],
+    stats: [
+      { label: 'Direct Reports', value: 0 },
+      { label: 'Pending Reviews', value: 0 },
+      { label: 'Unread Notifications', value: 0 },
+    ],
+  }
 
   try {
-    const [employeeCount, activePolicies, providerCount] = await Promise.all([
-      prisma.employee.count(),
-      prisma.policy.count({ where: { status: 'ACTIVE' } }),
-      prisma.resource.count(),
+    const currentUser = await getCurrentUser()
+    const employeeId = currentUser?.employee?.id
+
+    if (!employeeId) {
+      return NextResponse.json(fallbackData)
+    }
+
+    // Fetch personalized data
+    const [
+      currentEmployee,
+      directReports,
+      notifications,
+      pendingReviews,
+    ] = await Promise.all([
+      // Get current employee's full profile
+      prisma.employee.findUnique({
+        where: { id: employeeId },
+        select: {
+          id: true,
+          employeeId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+          department: true,
+          position: true,
+          avatar: true,
+          status: true,
+          employmentType: true,
+          joinDate: true,
+          reportsToId: true,
+          manager: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      }),
+      // Get direct reports
+      prisma.employee.findMany({
+        where: {
+          reportsToId: employeeId,
+          status: 'ACTIVE',
+        },
+        select: {
+          id: true,
+          employeeId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          department: true,
+          position: true,
+          avatar: true,
+        },
+        orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+        take: 10,
+      }),
+      // Get user's notifications (personal + broadcast)
+      prisma.notification.findMany({
+        where: {
+          OR: [{ employeeId }, { employeeId: null }],
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
+      // Get pending reviews for direct reports
+      prisma.performanceReview.findMany({
+        where: {
+          employee: { reportsToId: employeeId },
+          status: { in: ['DRAFT', 'PENDING_REVIEW'] },
+        },
+        select: {
+          id: true,
+          reviewType: true,
+          reviewPeriod: true,
+          reviewDate: true,
+          status: true,
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeId: true,
+            },
+          },
+        },
+        orderBy: { reviewDate: 'asc' },
+        take: 5,
+      }),
     ])
 
-    const stats = [
-      { label: 'Total Employees', value: employeeCount, trend: 'neutral' as const, change: '—' },
-      { label: 'Active Policies', value: activePolicies, trend: 'neutral' as const, change: '—' },
-      { label: 'Providers', value: providerCount, trend: 'neutral' as const, change: '—' },
-    ]
+    // Determine if user is a manager (has direct reports)
+    const isManager = directReports.length > 0
 
-    const recentActivity = [
-      {
-        id: 'act_1',
-        type: 'employee',
-        description: 'System ready',
-        timestamp: new Date().toISOString(),
-        status: 'completed' as const,
+    // Get unread notification count
+    const unreadNotificationCount = await prisma.notification.count({
+      where: {
+        isRead: false,
+        OR: [{ employeeId }, { employeeId: null }],
       },
+    })
+
+    const stats = [
+      { label: 'Direct Reports', value: directReports.length },
+      { label: 'Pending Reviews', value: pendingReviews.length },
+      { label: 'Unread Notifications', value: unreadNotificationCount },
     ]
 
-    const upcomingEvents: unknown[] = []
+    // Map manager to reportsTo for frontend compatibility
+    const currentEmployeeFormatted = currentEmployee ? {
+      ...currentEmployee,
+      reportsTo: (currentEmployee as any).manager || null,
+    } : null
 
-    return NextResponse.json({ stats, recentActivity, upcomingEvents })
+    return NextResponse.json({
+      user: currentUser?.employee,
+      isManager,
+      currentEmployee: currentEmployeeFormatted,
+      directReports,
+      notifications,
+      unreadNotificationCount,
+      pendingReviews,
+      pendingLeaveRequests: [], // TODO: Add when leave models exist
+      myLeaveBalance: [], // TODO: Add when leave models exist
+      upcomingLeaves: [], // TODO: Add when leave models exist
+      stats,
+    })
   } catch (e) {
     // Log error server-side but return fallback data to keep UI functional
     console.error('[HRMS Dashboard] Database error:', e instanceof Error ? e.message : e)
 
     // Return fallback data instead of error so UI renders
-    return NextResponse.json({
-      stats: fallbackStats,
-      recentActivity: fallbackActivity,
-      upcomingEvents: fallbackEvents,
-    })
+    return NextResponse.json(fallbackData)
   }
 }
