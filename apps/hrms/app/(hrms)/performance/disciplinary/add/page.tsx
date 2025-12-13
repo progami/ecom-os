@@ -15,6 +15,7 @@ import {
   FormSection,
   FormActions,
 } from '@/components/ui/FormField'
+import { useNavigationHistory } from '@/lib/navigation-history'
 
 const violationTypeOptions = [
   { value: 'ATTENDANCE', label: 'Attendance' },
@@ -109,6 +110,7 @@ const statusOptions = [
 
 function AddDisciplinaryForm() {
   const router = useRouter()
+  const { goBack } = useNavigationHistory()
   const searchParams = useSearchParams()
   const preselectedEmployeeId = searchParams.get('employeeId')
 
@@ -320,7 +322,7 @@ function AddDisciplinaryForm() {
         </FormSection>
 
         <FormActions>
-          <Button variant="secondary" href="/performance/disciplinary">
+          <Button variant="secondary" onClick={goBack}>
             Cancel
           </Button>
           <Button type="submit" loading={submitting}>
@@ -339,7 +341,7 @@ export default function AddDisciplinaryPage() {
         title="Report Violation"
         description="Disciplinary"
         icon={<ShieldExclamationIcon className="h-6 w-6 text-white" />}
-        backHref="/performance/disciplinary"
+        showBack
       />
 
       <div className="max-w-3xl">
