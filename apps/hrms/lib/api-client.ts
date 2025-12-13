@@ -241,12 +241,79 @@ export type DashboardStat = {
   value: number
 }
 
+export type DashboardCurrentEmployee = {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  email: string
+  phone?: string | null
+  department?: string | null
+  position: string
+  avatar?: string | null
+  status: string
+  employmentType: string
+  joinDate?: string | null
+  reportsToId?: string | null
+  reportsTo?: {
+    id: string
+    firstName: string
+    lastName: string
+  } | null
+}
+
+export type DashboardPendingLeaveRequest = {
+  id: string
+  leaveType: string
+  startDate: string
+  endDate: string
+  totalDays: number
+  reason?: string | null
+  status: string
+  createdAt: string
+  employee: {
+    id: string
+    firstName: string
+    lastName: string
+    employeeId: string
+    avatar?: string | null
+  }
+}
+
+export type DashboardUpcomingLeave = {
+  id: string
+  leaveType: string
+  startDate: string
+  endDate: string
+  totalDays: number
+  employee: {
+    id: string
+    firstName: string
+    lastName: string
+    avatar?: string | null
+  }
+}
+
+export type LeaveBalance = {
+  leaveType: string
+  year?: number
+  allocated: number
+  used: number
+  pending: number
+  available: number
+}
+
 export type DashboardData = {
   user: DashboardUser | null
+  isManager: boolean
+  currentEmployee: DashboardCurrentEmployee | null
   directReports: DashboardDirectReport[]
   notifications: Notification[]
   unreadNotificationCount: number
   pendingReviews: DashboardPendingReview[]
+  pendingLeaveRequests: DashboardPendingLeaveRequest[]
+  myLeaveBalance: LeaveBalance[]
+  upcomingLeaves: DashboardUpcomingLeave[]
   stats: DashboardStat[]
 }
 
@@ -585,5 +652,94 @@ export const HierarchyApi = {
       managerChainIds: string[]
       directReportIds: string[]
     }>(`/api/hierarchy?type=full`)
+  },
+}
+
+// Leave Requests
+export type LeaveRequest = {
+  id: string
+  employeeId: string
+  employee?: {
+    id: string
+    firstName: string
+    lastName: string
+    employeeId: string
+    avatar: string | null
+  }
+  leaveType: string
+  startDate: string
+  endDate: string
+  totalDays: number
+  reason?: string | null
+  status: string
+  reviewedById?: string | null
+  reviewedBy?: {
+    id: string
+    firstName: string
+    lastName: string
+  } | null
+  reviewedAt?: string | null
+  reviewNotes?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export const LeavesApi = {
+  list(params: {
+    employeeId?: string
+    status?: string
+    startDate?: string
+    endDate?: string
+    take?: number
+    skip?: number
+  } = {}) {
+    const qp = new URLSearchParams()
+    if (params.employeeId) qp.set('employeeId', params.employeeId)
+    if (params.status) qp.set('status', params.status)
+    if (params.startDate) qp.set('startDate', params.startDate)
+    if (params.endDate) qp.set('endDate', params.endDate)
+    if (params.take != null) qp.set('take', String(params.take))
+    if (params.skip != null) qp.set('skip', String(params.skip))
+    const qs = qp.toString()
+    return request<{ items: LeaveRequest[]; total: number }>(`/api/leaves${qs ? `?${qs}` : ''}`)
+  },
+  get(id: string) {
+    return request<LeaveRequest>(`/api/leaves/${encodeURIComponent(id)}`)
+  },
+  create(payload: {
+    employeeId: string
+    leaveType: string
+    startDate: string
+    endDate: string
+    totalDays: number
+    reason?: string
+  }) {
+    return request<LeaveRequest>(`/api/leaves`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  update(id: string, payload: Partial<{
+    status: string
+    reviewNotes?: string
+  }>) {
+    return request<LeaveRequest>(`/api/leaves/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  delete(id: string) {
+    return request<{ ok: boolean }>(`/api/leaves/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  },
+  getBalance(params: { employeeId: string; year?: number } = { employeeId: '' }) {
+    const qp = new URLSearchParams()
+    if (params.employeeId) qp.set('employeeId', params.employeeId)
+    if (params.year != null) qp.set('year', String(params.year))
+    const qs = qp.toString()
+    return request<{ balances: LeaveBalance[] }>(`/api/leaves/balance${qs ? `?${qs}` : ''}`)
   },
 }

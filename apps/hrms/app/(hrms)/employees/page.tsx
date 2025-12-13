@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { EmployeesApi, type Employee } from '@/lib/api-client'
-import { UsersIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon } from '@/components/ui/Icons'
+import { EmployeesApi, DashboardApi, type Employee } from '@/lib/api-client'
+import { UsersIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon, SpinnerIcon } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -103,10 +103,39 @@ export default function EmployeesPage() {
   const [items, setItems] = useState<Employee[]>([])
   const [q, setQ] = useState('')
   const [loading, setLoading] = useState(true)
+  const [accessChecking, setAccessChecking] = useState(true)
+  const [hasAccess, setHasAccess] = useState(false)
   const [sortField, setSortField] = useState<SortField>('employeeId')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
 
+  // Check if user has access (is a manager with direct reports)
+  useEffect(() => {
+    async function checkAccess() {
+      try {
+        const dashboardData = await DashboardApi.get()
+        if (!dashboardData.isManager) {
+          // Not a manager - redirect to their own profile
+          const employeeId = dashboardData.currentEmployee?.id
+          if (employeeId) {
+            router.replace(`/employees/${employeeId}`)
+          } else {
+            router.replace('/')
+          }
+          return
+        }
+        setHasAccess(true)
+      } catch (err) {
+        console.error('Error checking access:', err)
+        router.replace('/')
+      } finally {
+        setAccessChecking(false)
+      }
+    }
+    checkAccess()
+  }, [router])
+
   const load = useCallback(async () => {
+    if (!hasAccess) return
     try {
       setLoading(true)
       const data = await EmployeesApi.list({ q })
@@ -117,11 +146,13 @@ export default function EmployeesPage() {
     } finally {
       setLoading(false)
     }
-  }, [q])
+  }, [q, hasAccess])
 
   useEffect(() => {
-    load()
-  }, [load])
+    if (hasAccess) {
+      load()
+    }
+  }, [load, hasAccess])
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -153,6 +184,27 @@ export default function EmployeesPage() {
         return 0
     }
   })
+
+  // Show loading while checking access
+  if (accessChecking) {
+    return (
+      <>
+        <ListPageHeader
+          title="Employees"
+          description="Manage your team members"
+          icon={<UsersIcon className="h-6 w-6 text-white" />}
+        />
+        <div className="flex items-center justify-center h-64">
+          <SpinnerIcon className="h-8 w-8 animate-spin text-cyan-600" />
+        </div>
+      </>
+    )
+  }
+
+  // Don't render content if user doesn't have access (will redirect)
+  if (!hasAccess) {
+    return null
+  }
 
   return (
     <>

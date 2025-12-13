@@ -12,12 +12,17 @@ import {
   CheckIcon,
   ChevronRightIcon,
   ExclamationCircleIcon,
+  CalendarDaysIcon,
+  EnvelopeIcon,
+  PhoneIcon,
+  BuildingIcon,
 } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { Avatar } from '@/components/ui/Avatar'
+import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
 
 function formatDate(dateString: string) {
   const date = new Date(dateString)
@@ -125,9 +130,13 @@ export default function Dashboard() {
   }
 
   const greeting = data?.user ? `Welcome back, ${data.user.firstName}` : 'Welcome'
+  const isManager = data?.isManager ?? false
   const hasDirectReports = data?.directReports && data.directReports.length > 0
   const hasNotifications = data?.notifications && data.notifications.length > 0
   const unreadCount = data?.unreadNotificationCount ?? 0
+  const hasPendingLeaves = data?.pendingLeaveRequests && data.pendingLeaveRequests.length > 0
+  const myLeaveBalance = data?.myLeaveBalance || []
+  const currentEmployee = data?.currentEmployee
 
   return (
     <>
@@ -142,75 +151,205 @@ export default function Dashboard() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Main Content - My Team */}
-        <div className="lg:col-span-3">
-          <Card padding="none" className="h-full">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                <UsersIcon className="h-5 w-5 text-cyan-600" />
-                My Team
-                {hasDirectReports && (
-                  <span className="text-sm font-normal text-slate-400">
-                    ({data.directReports.length})
-                  </span>
-                )}
-              </h2>
-              {hasDirectReports && (
-                <Link
-                  href="/employees"
-                  className="text-sm text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
-                >
-                  All employees
-                  <ChevronRightIcon className="h-4 w-4" />
-                </Link>
-              )}
-            </div>
-
-            <div className="p-5">
-              {hasDirectReports ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {data.directReports.map((report) => (
+        {/* Main Content - Manager sees My Team, Regular users see My Profile */}
+        <div className="lg:col-span-3 space-y-6">
+          {isManager ? (
+            <>
+              {/* Manager View: My Team */}
+              <Card padding="none">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                    <UsersIcon className="h-5 w-5 text-cyan-600" />
+                    My Team
+                    {hasDirectReports && (
+                      <span className="text-sm font-normal text-slate-400">
+                        ({data.directReports.length})
+                      </span>
+                    )}
+                  </h2>
+                  {hasDirectReports && (
                     <Link
-                      key={report.id}
-                      href={`/employees/${report.id}`}
-                      className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-cyan-200 hover:bg-cyan-50/30 transition-all group"
+                      href="/employees"
+                      className="text-sm text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
                     >
-                      <Avatar
-                        src={report.avatar}
-                        alt={`${report.firstName} ${report.lastName}`}
-                        size="md"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-slate-900 group-hover:text-cyan-700 truncate">
-                          {report.firstName} {report.lastName}
-                        </p>
-                        <p className="text-sm text-slate-500 truncate">
-                          {report.position}
-                        </p>
-                      </div>
+                      All employees
+                      <ChevronRightIcon className="h-4 w-4" />
                     </Link>
-                  ))}
+                  )}
                 </div>
-              ) : (
-                <div className="text-center py-12">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 mb-4">
-                    <UserIcon className="h-8 w-8 text-slate-400" />
+
+                <div className="p-5">
+                  {hasDirectReports ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {data.directReports.map((report) => (
+                        <Link
+                          key={report.id}
+                          href={`/employees/${report.id}`}
+                          className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-cyan-200 hover:bg-cyan-50/30 transition-all group"
+                        >
+                          <Avatar
+                            src={report.avatar}
+                            alt={`${report.firstName} ${report.lastName}`}
+                            size="md"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-slate-900 group-hover:text-cyan-700 truncate">
+                              {report.firstName} {report.lastName}
+                            </p>
+                            <p className="text-sm text-slate-500 truncate">
+                              {report.position}
+                            </p>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <UserIcon className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                      <p className="text-slate-500 text-sm">No direct reports</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              {/* Manager View: Pending Leave Approvals */}
+              {hasPendingLeaves && (
+                <Card padding="none">
+                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                      <CalendarDaysIcon className="h-5 w-5 text-amber-500" />
+                      Pending Leave Approvals
+                      <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-600 rounded-full">
+                        {data.pendingLeaveRequests.length}
+                      </span>
+                    </h2>
                   </div>
-                  <p className="text-slate-600 font-medium">No direct reports</p>
-                  <p className="text-slate-400 text-sm mt-1">
-                    Team members will appear here once assigned
-                  </p>
-                  <Link
-                    href="/organogram"
-                    className="inline-flex items-center gap-1 text-sm text-cyan-600 hover:text-cyan-700 mt-4"
-                  >
-                    View org chart
-                    <ChevronRightIcon className="h-4 w-4" />
-                  </Link>
-                </div>
+                  <div className="divide-y divide-slate-100">
+                    {data.pendingLeaveRequests.map((request) => (
+                      <div key={request.id} className="px-5 py-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Avatar
+                            src={request.employee?.avatar}
+                            alt={`${request.employee?.firstName} ${request.employee?.lastName}`}
+                            size="sm"
+                          />
+                          <div>
+                            <p className="font-medium text-slate-900">
+                              {request.employee?.firstName} {request.employee?.lastName}
+                            </p>
+                            <p className="text-sm text-slate-500">
+                              {request.leaveType.replace('_', ' ')} · {request.totalDays} day{request.totalDays !== 1 ? 's' : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <Link
+                          href={`/employees/${request.employee?.id}`}
+                          className="text-sm text-cyan-600 hover:text-cyan-700"
+                        >
+                          Review
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
               )}
-            </div>
-          </Card>
+            </>
+          ) : (
+            <>
+              {/* Regular User View: My Profile */}
+              <Card padding="none">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                    <UserIcon className="h-5 w-5 text-cyan-600" />
+                    My Profile
+                  </h2>
+                  {currentEmployee && (
+                    <Link
+                      href={`/employees/${currentEmployee.id}`}
+                      className="text-sm text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
+                    >
+                      View full profile
+                      <ChevronRightIcon className="h-4 w-4" />
+                    </Link>
+                  )}
+                </div>
+
+                <div className="p-5">
+                  {currentEmployee ? (
+                    <div className="flex flex-col sm:flex-row gap-6">
+                      <div className="flex items-center gap-4">
+                        <Avatar
+                          src={currentEmployee.avatar}
+                          alt={`${currentEmployee.firstName} ${currentEmployee.lastName}`}
+                          size="lg"
+                        />
+                        <div>
+                          <h3 className="text-lg font-semibold text-slate-900">
+                            {currentEmployee.firstName} {currentEmployee.lastName}
+                          </h3>
+                          <p className="text-slate-600">{currentEmployee.position}</p>
+                          <p className="text-sm text-slate-500">{currentEmployee.employeeId}</p>
+                        </div>
+                      </div>
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="flex items-center gap-2 text-sm">
+                          <EnvelopeIcon className="h-4 w-4 text-slate-400" />
+                          <span className="text-slate-600 truncate">{currentEmployee.email}</span>
+                        </div>
+                        {currentEmployee.phone && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <PhoneIcon className="h-4 w-4 text-slate-400" />
+                            <span className="text-slate-600">{currentEmployee.phone}</span>
+                          </div>
+                        )}
+                        {currentEmployee.department && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <BuildingIcon className="h-4 w-4 text-slate-400" />
+                            <span className="text-slate-600">{currentEmployee.department}</span>
+                          </div>
+                        )}
+                        {currentEmployee.reportsTo && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <UsersIcon className="h-4 w-4 text-slate-400" />
+                            <span className="text-slate-600">
+                              Reports to {currentEmployee.reportsTo.firstName} {currentEmployee.reportsTo.lastName}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <UserIcon className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                      <p className="text-slate-500 text-sm">Profile not available</p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+
+              {/* Regular User View: My Leave Balance */}
+              <Card padding="none">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                  <h2 className="font-semibold text-slate-900 flex items-center gap-2">
+                    <CalendarDaysIcon className="h-5 w-5 text-cyan-600" />
+                    My Leave Balance
+                  </h2>
+                  {currentEmployee && (
+                    <Link
+                      href={`/employees/${currentEmployee.id}`}
+                      className="text-sm text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
+                    >
+                      Request leave
+                      <ChevronRightIcon className="h-4 w-4" />
+                    </Link>
+                  )}
+                </div>
+                <div className="p-5">
+                  <LeaveBalanceCards balances={myLeaveBalance} />
+                </div>
+              </Card>
+            </>
+          )}
         </div>
 
         {/* Sidebar - Notifications */}
