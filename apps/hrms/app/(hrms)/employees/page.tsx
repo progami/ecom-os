@@ -108,22 +108,22 @@ export default function EmployeesPage() {
   const [sortField, setSortField] = useState<SortField>('employeeId')
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
 
-  // Check if user has access (is a manager with direct reports)
+  // Check if user has access
+  // For now, all authenticated users can access the employees list
+  // TODO: Implement proper RBAC when reporting hierarchy is fully set up
   useEffect(() => {
     async function checkAccess() {
       try {
         const dashboardData = await DashboardApi.get()
-        if (!dashboardData.isManager) {
-          // Not a manager - redirect to their own profile
-          const employeeId = dashboardData.currentEmployee?.id
-          if (employeeId) {
-            router.replace(`/employees/${employeeId}`)
-          } else {
-            router.replace('/')
-          }
+        // Allow access for all authenticated users
+        // In future, can restrict to managers only: if (!dashboardData.isManager) { redirect }
+        if (dashboardData.currentEmployee) {
+          setHasAccess(true)
+        } else {
+          // No employee profile - redirect to home
+          router.replace('/')
           return
         }
-        setHasAccess(true)
       } catch (err) {
         console.error('Error checking access:', err)
         router.replace('/')

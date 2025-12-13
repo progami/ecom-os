@@ -743,3 +743,61 @@ export const LeavesApi = {
     return request<{ balances: LeaveBalance[] }>(`/api/leaves/balance${qs ? `?${qs}` : ''}`)
   },
 }
+
+// Departments
+export type DepartmentHead = {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  email: string
+  position: string
+  avatar?: string | null
+}
+
+export type Department = {
+  id: string
+  name: string
+  code?: string | null
+  kpi?: string | null
+  headId?: string | null
+  head?: DepartmentHead | null
+  parentId?: string | null
+  parent?: { id: string; name: string } | null
+  children?: { id: string; name: string }[]
+  _count?: {
+    employees: number
+    children?: number
+  }
+}
+
+export const DepartmentsApi = {
+  list() {
+    return request<{ items: Department[] }>('/api/departments')
+  },
+  get(id: string) {
+    return request<Department>(`/api/departments/${encodeURIComponent(id)}`)
+  },
+  getHierarchy() {
+    return request<{ items: Department[] }>('/api/departments/hierarchy')
+  },
+  create(payload: { name: string; code?: string; kpi?: string; headId?: string; parentId?: string }) {
+    return request<Department>('/api/departments', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  update(id: string, payload: Partial<{ name: string; code: string; kpi: string; headId: string; parentId: string }>) {
+    return request<Department>(`/api/departments/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  delete(id: string) {
+    return request<{ success: boolean }>(`/api/departments/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  },
+}

@@ -2,13 +2,14 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { HierarchyApi, HierarchyEmployee } from '@/lib/api-client'
+import { HierarchyApi, DepartmentsApi, HierarchyEmployee, Department } from '@/lib/api-client'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
-import { OrgChartIcon, SpinnerIcon, SearchIcon, XIcon } from '@/components/ui/Icons'
+import { OrgChartIcon, SpinnerIcon, SearchIcon, XIcon, UsersIcon, BuildingIcon } from '@/components/ui/Icons'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { OrgChart } from '@/components/organogram/OrgChart'
+import { DepartmentOrgChart } from '@/components/organogram/DepartmentOrgChart'
 
 interface HierarchyData {
   items: HierarchyEmployee[]
@@ -17,15 +18,25 @@ interface HierarchyData {
   directReportIds: string[]
 }
 
+type ViewMode = 'person' | 'department'
+
 function OrganogramContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [data, setData] = useState<HierarchyData | null>(null)
+  const [hierarchyData, setHierarchyData] = useState<HierarchyData | null>(null)
+  const [departmentData, setDepartmentData] = useState<Department[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Get search query from URL for persistence
+  // Get view mode and search query from URL
+  const viewMode = (searchParams.get('view') as ViewMode) || 'person'
   const searchQuery = searchParams.get('q') ?? ''
+
+  const setViewMode = (mode: ViewMode) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('view', mode)
+    router.replace(`/organogram?${params.toString()}`, { scroll: false })
+  }
 
   const setSearchQuery = (query: string) => {
     const params = new URLSearchParams(searchParams.toString())
@@ -38,15 +49,22 @@ function OrganogramContent() {
   }
 
   useEffect(() => {
-    fetchHierarchy()
+    fetchData()
   }, [])
 
-  const fetchHierarchy = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true)
       setError(null)
-      const hierarchyData = await HierarchyApi.getFull()
-      setData(hierarchyData)
+
+      // Fetch both hierarchy and department data in parallel
+      const [hierarchy, departments] = await Promise.all([
+        HierarchyApi.getFull(),
+        DepartmentsApi.getHierarchy(),
+      ])
+
+      setHierarchyData(hierarchy)
+      setDepartmentData(departments.items)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load org chart'
       setError(message)
@@ -56,7 +74,7 @@ function OrganogramContent() {
   }
 
   // Filter employees based on search query
-  const filteredEmployees = data?.items.filter((emp) => {
+  const filteredEmployees = hierarchyData?.items.filter((emp) => {
     if (!searchQuery.trim()) return true
     const query = searchQuery.toLowerCase()
     return (
@@ -66,6 +84,17 @@ function OrganogramContent() {
       emp.department.toLowerCase().includes(query) ||
       emp.position.toLowerCase().includes(query) ||
       emp.employeeId.toLowerCase().includes(query)
+    )
+  }) ?? []
+
+  // Filter departments based on search query
+  const filteredDepartments = departmentData?.filter((dept) => {
+    if (!searchQuery.trim()) return true
+    const query = searchQuery.toLowerCase()
+    return (
+      dept.name.toLowerCase().includes(query) ||
+      (dept.kpi && dept.kpi.toLowerCase().includes(query)) ||
+      (dept.head && `${dept.head.firstName} ${dept.head.lastName}`.toLowerCase().includes(query))
     )
   }) ?? []
 
@@ -83,20 +112,50 @@ function OrganogramContent() {
         <Alert variant="error" className="max-w-md mb-4">
           {error}
         </Alert>
-        <Button onClick={fetchHierarchy}>Retry</Button>
+        <Button onClick={fetchData}>Retry</Button>
       </div>
     )
   }
 
   return (
     <Card>
-      {/* Search */}
-      <div className="mb-6">
+      {/* View Toggle & Search */}
+      <div className="mb-6 space-y-4">
+        {/* View Mode Toggle */}
+        <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-lg w-fit">
+          <button
+            onClick={() => setViewMode('person')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              viewMode === 'person'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <UsersIcon className="h-4 w-4" />
+            By Person
+          </button>
+          <button
+            onClick={() => setViewMode('department')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              viewMode === 'department'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <BuildingIcon className="h-4 w-4" />
+            By Department
+          </button>
+        </div>
+
+        {/* Search */}
         <div className="relative">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by name, department, position..."
+            placeholder={viewMode === 'person'
+              ? "Search by name, department, position..."
+              : "Search by department, KPI, head..."
+            }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
@@ -111,19 +170,27 @@ function OrganogramContent() {
           )}
         </div>
         {searchQuery && (
-          <p className="text-sm text-slate-500 mt-2">
-            Showing {filteredEmployees.length} of {data?.items.length ?? 0} employees
+          <p className="text-sm text-slate-500">
+            Showing {viewMode === 'person' ? filteredEmployees.length : filteredDepartments.length} of{' '}
+            {viewMode === 'person' ? hierarchyData?.items.length : departmentData?.length} {viewMode === 'person' ? 'employees' : 'departments'}
           </p>
         )}
       </div>
 
-      {/* Org Chart */}
-      <OrgChart
-        employees={filteredEmployees}
-        currentEmployeeId={data?.currentEmployeeId ?? null}
-        managerChainIds={data?.managerChainIds ?? []}
-        directReportIds={data?.directReportIds ?? []}
-      />
+      {/* Org Chart based on view mode */}
+      {viewMode === 'person' ? (
+        <OrgChart
+          employees={filteredEmployees}
+          currentEmployeeId={hierarchyData?.currentEmployeeId ?? null}
+          managerChainIds={hierarchyData?.managerChainIds ?? []}
+          directReportIds={hierarchyData?.directReportIds ?? []}
+        />
+      ) : (
+        <DepartmentOrgChart
+          departments={filteredDepartments}
+          allEmployees={hierarchyData?.items ?? []}
+        />
+      )}
     </Card>
   )
 }
@@ -133,7 +200,7 @@ export default function OrganogramPage() {
     <>
       <ListPageHeader
         title="Organization Chart"
-        description="View company structure and reporting hierarchy"
+        description="View company structure by person or department"
         icon={<OrgChartIcon className="h-6 w-6 text-white" />}
       />
 
