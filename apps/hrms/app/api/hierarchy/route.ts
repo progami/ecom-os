@@ -11,6 +11,7 @@ type HierarchyEmployee = {
   email: string
   department: string
   position: string
+  employmentType: string
   avatar: string | null
   reportsToId: string | null
   status: string
@@ -45,6 +46,7 @@ export async function GET(req: Request) {
           email: true,
           department: true,
           position: true,
+          employmentType: true,
           avatar: true,
           reportsToId: true,
           status: true,
@@ -75,6 +77,7 @@ export async function GET(req: Request) {
             email: true,
             department: true,
             position: true,
+            employmentType: true,
             avatar: true,
             reportsToId: true,
             status: true,
@@ -106,6 +109,7 @@ export async function GET(req: Request) {
           email: true,
           department: true,
           position: true,
+          employmentType: true,
           avatar: true,
           reportsToId: true,
           status: true,

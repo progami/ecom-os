@@ -65,30 +65,33 @@ function DepartmentCard({
 }) {
   const hasHead = !!node.head
 
-  // Different styling for root vs child departments
-  const cardStyles = isRoot
-    ? 'border-2 border-cyan-400 bg-gradient-to-br from-cyan-50 via-white to-slate-50 shadow-lg shadow-cyan-100/50'
-    : hasHead
-      ? 'border border-slate-200 bg-white shadow-md hover:shadow-lg hover:border-slate-300'
-      : 'border border-dashed border-amber-300 bg-gradient-to-br from-amber-50/50 to-white shadow-sm'
-
   return (
     <div
-      className={`relative flex flex-col rounded-2xl p-5 min-w-[220px] max-w-[260px] transition-all duration-300 ${cardStyles}`}
+      className={`relative flex flex-col rounded-xl p-4 min-w-[200px] max-w-[240px] transition-all duration-200 ${
+        isRoot
+          ? 'border-2 border-cyan-500 bg-gradient-to-br from-cyan-50 to-white shadow-md ring-4 ring-cyan-100'
+          : hasHead
+            ? 'border border-slate-200 bg-white shadow-sm hover:shadow-md'
+            : 'border border-dashed border-slate-300 bg-slate-50'
+      }`}
       data-department-id={node.id}
     >
+      {/* Root badge */}
+      {isRoot && (
+        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-cyan-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
+          Company
+        </div>
+      )}
+
       {/* Department Name */}
-      <div className="flex items-center justify-center gap-2 mb-3">
-        <div className={`w-2 h-2 rounded-full ${isRoot ? 'bg-cyan-500' : hasHead ? 'bg-emerald-500' : 'bg-amber-400'}`} />
-        <h3 className={`font-bold text-center leading-tight ${isRoot ? 'text-cyan-900 text-base' : 'text-slate-800 text-sm'}`}>
-          {node.name}
-        </h3>
-      </div>
+      <h3 className={`font-semibold text-center leading-tight mb-2 ${isRoot ? 'text-cyan-900 text-base mt-1' : 'text-slate-800 text-sm'}`}>
+        {node.name}
+      </h3>
 
       {/* KPI Badge */}
       {node.kpi && (
-        <div className="flex justify-center mb-3">
-          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600">
+        <div className="flex justify-center mb-2">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500">
             {node.kpi}
           </span>
         </div>
@@ -96,51 +99,45 @@ function DepartmentCard({
 
       {/* Department Head */}
       {node.head ? (
-        <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
+        <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
           <Avatar
             src={node.head.avatar}
             alt={`${node.head.firstName} ${node.head.lastName}`}
-            size="md"
+            size="sm"
           />
           <div className="flex-1 min-w-0">
             <Link
               href={`/employees/${node.head.id}`}
-              className="text-sm font-semibold text-slate-900 hover:text-cyan-600 truncate block transition-colors"
+              className="text-xs font-semibold text-slate-900 hover:text-cyan-600 truncate block"
             >
               {node.head.firstName} {node.head.lastName}
             </Link>
-            <p className="text-xs text-slate-500 truncate mt-0.5">{node.head.position}</p>
+            <p className="text-[10px] text-slate-500 truncate">{node.head.position}</p>
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-center gap-2 p-3 bg-amber-50 rounded-xl border border-amber-200">
-          <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
-            <UsersIcon className="h-4 w-4 text-amber-500" />
-          </div>
-          <span className="text-xs text-amber-700 font-medium">No head assigned</span>
+        <div className="flex items-center justify-center gap-1.5 p-2 text-slate-400 text-xs">
+          <UsersIcon className="h-3.5 w-3.5" />
+          <span>No head assigned</span>
         </div>
       )}
 
       {/* Employee count */}
-      <div className="flex items-center justify-center gap-1.5 mt-3 py-2 px-3 bg-slate-50 rounded-lg">
-        <UsersIcon className="h-4 w-4 text-slate-400" />
-        <span className="text-xs font-medium text-slate-600">
-          {employeeCount} {employeeCount === 1 ? 'member' : 'members'}
-        </span>
+      <div className="flex items-center justify-center gap-1 mt-2 text-[11px] text-slate-500">
+        <UsersIcon className="h-3.5 w-3.5" />
+        <span>{employeeCount} {employeeCount === 1 ? 'member' : 'members'}</span>
       </div>
 
       {/* Expand/collapse button */}
       {hasChildren && (
         <button
           onClick={onToggle}
-          className={`absolute -bottom-4 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-white border-2 shadow-md flex items-center justify-center hover:scale-110 transition-all duration-200 z-10 ${
-            isExpanded ? 'border-cyan-400 text-cyan-600' : 'border-slate-300 text-slate-500 hover:border-cyan-400 hover:text-cyan-600'
-          }`}
+          className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center hover:bg-slate-50 hover:border-slate-300 transition-colors z-10"
         >
           {isExpanded ? (
-            <MinusIcon className="h-4 w-4" />
+            <MinusIcon className="h-3 w-3 text-slate-500" />
           ) : (
-            <PlusIcon className="h-4 w-4" />
+            <PlusIcon className="h-3 w-3 text-slate-500" />
           )}
         </button>
       )}
@@ -286,47 +283,28 @@ export function DepartmentOrgChart({ departments, allEmployees }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Controls */}
-      <div className="flex items-center justify-between flex-wrap gap-4 pb-4 border-b border-slate-100">
-        {/* Legend */}
-        <div className="flex flex-wrap gap-6 text-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-cyan-500" />
-            <span className="text-slate-600 font-medium">Root Department</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-emerald-500" />
-            <span className="text-slate-600 font-medium">Has Head</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-amber-400" />
-            <span className="text-slate-600 font-medium">No Head</span>
-          </div>
-        </div>
-
-        {/* Expand/Collapse buttons */}
-        <div className="flex gap-2">
-          <button
-            onClick={expandAll}
-            className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-cyan-700 hover:bg-cyan-50 rounded-lg transition-all duration-200 flex items-center gap-2 border border-transparent hover:border-cyan-200"
-          >
-            <PlusIcon className="h-4 w-4" />
-            Expand All
-          </button>
-          <button
-            onClick={collapseAll}
-            className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all duration-200 flex items-center gap-2 border border-transparent hover:border-slate-200"
-          >
-            <MinusIcon className="h-4 w-4" />
-            Collapse All
-          </button>
-        </div>
+      <div className="flex items-center justify-end gap-2">
+        <button
+          onClick={expandAll}
+          className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1"
+        >
+          <PlusIcon className="h-4 w-4" />
+          Expand All
+        </button>
+        <button
+          onClick={collapseAll}
+          className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1"
+        >
+          <MinusIcon className="h-4 w-4" />
+          Collapse All
+        </button>
       </div>
 
-      {/* Scrollable chart container */}
-      <div className="overflow-x-auto pb-8 -mx-6 px-6">
-        <div className="inline-flex flex-col items-center min-w-full py-8">
+      {/* Chart container - no inner scroll, page scrolls */}
+      <div className="pb-8 -mx-6 px-6">
+        <div className="inline-flex flex-col items-center min-w-full py-6">
           {/* Handle multiple roots */}
           {tree.length === 1 ? (
             <DeptTreeNode
@@ -352,11 +330,6 @@ export function DepartmentOrgChart({ departments, allEmployees }: Props) {
           )}
         </div>
       </div>
-
-      {/* Hint */}
-      <p className="text-xs text-slate-400 text-center pt-2">
-        Scroll horizontally to see more • Click + or - buttons to expand/collapse departments
-      </p>
     </div>
   )
 }
