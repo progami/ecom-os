@@ -8,10 +8,12 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, hideBreadcrumb = false, customBreadcrumb }: DashboardLayoutProps) {
- // Use Next.js injected version from package.json
- const version = process.env.NEXT_PUBLIC_VERSION || '1.1.0'
- const releaseTag = `wms-${version}`
- const releaseUrl = `https://github.com/progami/ecom-os/releases/tag/${releaseTag}`
+ const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0'
+ const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
+ const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
+ const commitUrl = commitSha ? `https://github.com/progami/ecom-os/commit/${commitSha}` : undefined
+ const inferredReleaseUrl = `https://github.com/progami/ecom-os/releases/tag/v${version}`
+ const href = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl
  
  return (
  <>
@@ -29,14 +31,18 @@ export function DashboardLayout({ children, hideBreadcrumb = false, customBreadc
  <div className="px-4 sm:px-6 md:px-8 py-4">
  <p className="text-xs text-slate-500 text-center">
  WMS{' '}
+ {href ? (
  <a
- href={releaseUrl}
+ href={href}
  target="_blank"
  rel="noopener noreferrer"
  className="hover:text-cyan-600 underline transition-colors"
  >
  v{version}
  </a>
+ ) : (
+ <span>v{version}</span>
+ )}
  {' '}• © 2025 Warehouse Management System
  </p>
  </div>

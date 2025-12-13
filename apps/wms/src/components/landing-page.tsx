@@ -19,6 +19,12 @@ import { portalUrl, redirectToPortal } from '@/lib/portal'
 
 export default function LandingPage() {
  const [isLoading, setIsLoading] = useState(false)
+ const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0'
+ const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
+ const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
+ const commitUrl = commitSha ? `https://github.com/progami/ecom-os/commit/${commitSha}` : undefined
+ const inferredReleaseUrl = `https://github.com/progami/ecom-os/releases/tag/v${version}`
+ const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl
 
  const handleTryDemo = async () => {
  setIsLoading(true)
@@ -226,6 +232,17 @@ export default function LandingPage() {
  </div>
  <p className="text-slate-600 ">
  Modern warehouse management for the digital age
+ </p>
+ <p className="mt-4 text-xs text-slate-500">
+ WMS{' '}
+ <a
+ href={versionHref}
+ target="_blank"
+ rel="noopener noreferrer"
+ className="underline hover:text-cyan-600 transition-colors"
+ >
+ v{version}
+ </a>
  </p>
  </div>
  </footer>
