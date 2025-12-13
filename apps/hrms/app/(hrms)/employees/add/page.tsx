@@ -14,6 +14,7 @@ import {
   FormSection,
   FormActions,
 } from '@/components/ui/FormField'
+import { useNavigationHistory } from '@/lib/navigation-history'
 
 const employmentTypeOptions = [
   { value: 'FULL_TIME', label: 'Full Time' },
@@ -31,6 +32,7 @@ const statusOptions = [
 
 export default function AddEmployeePage() {
   const router = useRouter()
+  const { goBack } = useNavigationHistory()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -67,7 +69,7 @@ export default function AddEmployeePage() {
         title="Add Employee"
         description="People"
         icon={<UsersIcon className="h-6 w-6 text-white" />}
-        backHref="/employees"
+        showBack
       />
 
       <div className="max-w-3xl">
@@ -152,7 +154,7 @@ export default function AddEmployeePage() {
 
             {/* Actions */}
             <FormActions>
-              <Button variant="secondary" href="/employees">
+              <Button variant="secondary" onClick={goBack}>
                 Cancel
               </Button>
               <Button type="submit" loading={submitting}>
