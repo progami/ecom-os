@@ -132,10 +132,7 @@ const baseAuthOptions: NextAuthConfig = {
           return false
         }
 
-        let portalUser = await getUserByEmail(email)
-        if (!portalUser && !isProd) {
-          portalUser = buildDevPortalUser(email)
-        }
+        const portalUser = await getUserByEmail(email)
         if (!portalUser) {
           throw new Error('PortalUserMissing')
         }
@@ -226,34 +223,6 @@ export const authOptions: NextAuthConfig = withSharedAuth(baseAuthOptions, {
 
 // Initialize NextAuth with config and export handlers + auth function
 export const { handlers, auth, signIn, signOut } = NextAuth(authOptions)
-
-function buildDevPortalUser(email: string) {
-  const normalized = email.trim().toLowerCase()
-  const [localPart] = normalized.split('@')
-  const displayName = localPart
-    ? localPart
-        .split(/[.\-_]+/)
-        .filter(Boolean)
-        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-        .join(' ')
-    : normalized
-
-  const entitlements = {
-    wms: { role: 'admin', departments: ['Ops'] },
-    fcc: { role: 'admin', departments: ['Finance'] },
-    hrms: { role: 'admin', departments: ['People Ops'] },
-    'margin-master': { role: 'admin', departments: ['Product'] },
-  }
-
-  return {
-    id: `dev-${normalized}`,
-    email: normalized,
-    username: localPart || null,
-    fullName: displayName || normalized,
-    roles: ['admin'],
-    entitlements,
-  }
-}
 
 type AllowedEmailConfig = {
   addresses: Set<string>
