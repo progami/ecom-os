@@ -40,6 +40,13 @@ const socialLinks = [
 ]
 
 export default function SiteFooter() {
+  const version = process.env.NEXT_PUBLIC_VERSION ?? "0.0.0"
+  const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
+  const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
+  const commitUrl = commitSha ? `https://github.com/progami/ecom-os/commit/${commitSha}` : undefined
+  const inferredReleaseUrl = `https://github.com/progami/ecom-os/releases/tag/v${version}`
+  const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl
+
   return (
     <footer className="site-footer bg-brand-accent text-brand-primary w-full">
       <div className="mx-auto w-full max-w-[1440px] px-6 py-10 sm:px-10 lg:px-16 lg:py-14">
@@ -78,17 +85,30 @@ export default function SiteFooter() {
         </div>
 
         <div className="mt-8 lg:mt-12 border-t border-brand-primary/30 pt-6">
-          <div className="flex items-center justify-center gap-4 lg:justify-end">
-            {socialLinks.map(({ href, icon: Icon, label }) => (
+          <div className="flex flex-col items-center justify-center gap-4 lg:flex-row lg:justify-between">
+            <p className="text-xs tracking-wide text-brand-primary/80">
+              Website{" "}
               <Link
-                key={href}
-                href={href}
-                aria-label={label}
-                className="flex h-10 w-10 items-center justify-center rounded-full border border-brand-primary/60 transition hover:border-brand-primary"
+                href={versionHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-white transition-colors"
               >
-                <Icon className="h-5 w-5" />
+                v{version}
               </Link>
-            ))}
+            </p>
+            <div className="flex items-center justify-center gap-4 lg:justify-end">
+              {socialLinks.map(({ href, icon: Icon, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-label={label}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-brand-primary/60 transition hover:border-brand-primary"
+                >
+                  <Icon className="h-5 w-5" />
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </div>

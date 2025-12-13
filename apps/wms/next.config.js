@@ -8,6 +8,7 @@
 
 // Get version from package.json
 const { version } = require('./package.json')
+const resolvedVersion = process.env.NEXT_PUBLIC_VERSION || version
 
 const basePath = process.env.BASE_PATH || ''
 const assetPrefix = basePath || ''
@@ -144,7 +145,7 @@ const nextConfig = {
   env: {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_BUILD_TIME: process.env.BUILD_TIME || new Date().toISOString(),
-    NEXT_PUBLIC_VERSION: version,
+    NEXT_PUBLIC_VERSION: resolvedVersion,
     NEXT_PUBLIC_BASE_PATH: process.env.NEXT_PUBLIC_BASE_PATH || basePath,
   },
   
