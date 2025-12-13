@@ -1,7 +1,7 @@
 'use client'
 
 // React imports
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 // Next.js imports
 import { useRouter } from 'next/navigation'
@@ -14,12 +14,10 @@ import { useSession } from '@/hooks/usePortalSession'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
-import { ShipCostsTab, CostsTabRef } from '@/components/operations/ship-costs-tab'
 import { CargoTab } from '@/components/operations/ship-cargo-tab'
 import { AttachmentsTab } from '@/components/operations/ship-attachments-tab'
 
 // Internal utilities
-import { sumBy } from '@/lib/utils/calculations'
 type ValidationErrorItem = { field: string; message?: string }
 type ValidationResult = { isValid: boolean; errors: ValidationErrorItem[] }
 
@@ -39,7 +37,7 @@ const _getFieldError = (errors: ValidationErrorItem[], field: string) =>
  errors.find(error => error.field === field)?.message
 
 // Icons
-import { Package2, FileText, DollarSign, Paperclip, Save, X, PackageX } from '@/lib/lucide-icons'
+import { Package2, FileText, Paperclip, Save, X, PackageX } from '@/lib/lucide-icons'
 
 // Types
 interface WarehouseOption {
@@ -47,6 +45,8 @@ interface WarehouseOption {
  name: string
  code: string
 }
+
+type ShipMode = 'PALLETS' | 'CARTONS'
 
 interface InventoryItem {
  id: string
@@ -96,6 +96,7 @@ interface ShipmentFormData {
  destination: string
  trackingNumber: string
  pickupDate: string
+ shipMode: ShipMode | ''
  notes: string
  warehouseId: string
 }
@@ -103,7 +104,6 @@ interface ShipmentFormData {
 interface ValidationErrors {
  details: boolean
  lineItems: boolean
- costs: boolean
 }
 
 // Helper to get current datetime in local timezone for input
@@ -119,14 +119,14 @@ const initialFormData: ShipmentFormData = {
  destination: '',
  trackingNumber: '',
  pickupDate: '',
+ shipMode: '',
  notes: '',
  warehouseId: ''
 }
 
 const initialValidationErrors: ValidationErrors = {
  details: false,
- lineItems: false,
- costs: false
+ lineItems: false
 }
 
 // Tab configuration (removed - will be dynamic based on warehouse selection)
@@ -135,7 +135,6 @@ export default function ShipTabbedPage() {
  const router = useRouter()
 const PURCHASE_ORDERS_PATH = '/operations/orders'
  const { data: session } = useSession()
- const costsTabRef = useRef<CostsTabRef>(null)
  
  // Core state
  const [isSubmitting, setIsSubmitting] = useState(false)
@@ -231,10 +230,6 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  }
 
  const validateForm = (): boolean => {
- // Get costs from the costs tab
- const costsResult = costsTabRef.current?.getValidatedCosts()
- const costs = (!costsResult || 'error' in costsResult) ? [] : costsResult
-
  // Prepare data for validation
  const validationData = {
  transactionType: 'SHIP' as const,
@@ -250,13 +245,7 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  shippingPalletsOut: item.pallets,
  unitsPerCarton: item.unitsPerCarton,
  shippingCartonsPerPallet: item.shippingCartonsPerPallet
- })),
-  costs: costs.map(cost => ({
-  costType: cost.costType,
-  quantity: cost.quantity,
-  unitRate: cost.unitRate,
-  totalCost: cost.totalCost
-  }))
+ }))
  }
 
  // Run validation
@@ -266,7 +255,6 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  const errors: ValidationErrors = {
  details: validationResult.errors.some(e => ['transactionDate', 'warehouseId', 'referenceNumber', 'pickupDate'].includes(e.field)),
  lineItems: validationResult.errors.some(e => e.field.startsWith('items')),
- costs: validationResult.errors.some(e => e.field.startsWith('costs'))
  }
  setValidationErrors(errors)
 
@@ -279,17 +267,8 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  setActiveTab('details')
  } else if (errors.lineItems) {
  setActiveTab('cargo')
- } else if (errors.costs) {
- setActiveTab('costs')
  }
  
- return false
- }
-
- // Additional check for costs from ref
- if (!costsResult || 'error' in costsResult) {
- toast.error((costsResult && 'error' in costsResult ? costsResult.error : null) || 'Please review and complete the Costs tab')
- setActiveTab('costs')
  return false
  }
 
@@ -297,6 +276,12 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  }
 
  const handleSubmit = async () => {
+	 if (!formData.shipMode) {
+	 toast.error('Please select an outbound mode')
+	 setActiveTab('details')
+	 return
+	 }
+
  if (!validateForm()) return
 
  setIsSubmitting(true)
@@ -327,13 +312,6 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  }
  }),
  attachments,
- costs: (() => {
- const costsResult = costsTabRef.current?.getValidatedCosts()
- if (!costsResult || 'error' in costsResult) {
- return []
- }
- return costsResult
- })()
  }
 
  const response = await fetch('/api/transactions', {
@@ -379,7 +357,6 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  { id: 'details', label: 'Transaction Details', icon: <FileText className="h-4 w-4" /> },
  ...(formData.warehouseId ? [
  { id: 'cargo', label: 'Cargo', icon: <Package2 className="h-4 w-4" /> },
- { id: 'costs', label: 'Costs', icon: <DollarSign className="h-4 w-4" /> },
  { id: 'attachments', label: 'Attachments', icon: <Paperclip className="h-4 w-4" /> }
  ] : [])
  ]
@@ -388,7 +365,7 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  <DashboardLayout>
  <PageContainer>
  <PageHeaderSection
- title="Ship Inventory"
+	 title="Outbound Inventory"
  description="Operations"
  icon={PackageX}
  actions={
@@ -424,7 +401,7 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  <div className="bg-white rounded-lg border border-slate-200">
  <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
  <h3 className="text-base font-semibold text-slate-900">Transaction Information</h3>
- <p className="text-sm text-slate-600 mt-1">Enter the basic details for this shipment transaction</p>
+	 <p className="text-sm text-slate-600 mt-1">Enter the basic details for this outbound transaction</p>
  </div>
 
  <div className="p-6">
@@ -494,6 +471,21 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
 
  <div>
  <label className="block text-sm font-medium text-slate-700 mb-2">
+	 Outbound Mode *
+ </label>
+ <select
+ value={formData.shipMode}
+ onChange={(e) => updateFormField('shipMode', e.target.value as ShipmentFormData['shipMode'])}
+ className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+ >
+	 <option value="">Select outbound mode</option>
+ <option value="PALLETS">Pallets</option>
+ <option value="CARTONS">Cartons</option>
+ </select>
+ </div>
+
+ <div>
+ <label className="block text-sm font-medium text-slate-700 mb-2">
  Tracking Number
  </label>
  <input
@@ -529,16 +521,6 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  inventory={inventory}
  inventoryLoading={isLoadingInventory}
  onItemsChange={setLineItems}
- />
- </TabPanel>
-
- {/* Costs Tab */}
- <TabPanel>
- <ShipCostsTab
- ref={costsTabRef}
- warehouseId={formData.warehouseId}
- totalCartons={sumBy(lineItems, 'cartons')}
- totalPallets={sumBy(lineItems, 'pallets')}
  />
  </TabPanel>
 

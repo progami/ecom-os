@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma'
 import { NotFoundError, ConflictError, ValidationError } from '@/lib/api'
 import {
  Prisma,
+ InboundReceiveType,
+ OutboundShipMode,
  PurchaseOrder,
  PurchaseOrderLineStatus,
  PurchaseOrderStatus,
@@ -12,6 +14,8 @@ import {
   MovementNoteStatus,
 } from '@ecom-os/prisma-wms'
 import { auditLog } from '@/lib/security/audit-logger'
+import { buildTacticalCostLedgerEntries } from '@/lib/costing/tactical-costing'
+import { recordStorageCostEntry } from '@/services/storageCost.service'
 
 export interface UserContext {
  id?: string | null
@@ -24,6 +28,8 @@ export interface EnsurePurchaseOrderForTransactionInput {
   warehouseCode: string
   warehouseName: string
   counterpartyName?: string | null
+  receiveType?: InboundReceiveType | null
+  shipMode?: OutboundShipMode | null
   transactionDate: Date
   expectedDate?: Date | null
   skuCode: string
@@ -89,10 +95,6 @@ const ORDER_NUMBER_SEPARATOR = '::'
 export function toPublicOrderNumber(orderNumber: string): string {
  const [publicValue] = orderNumber.split(ORDER_NUMBER_SEPARATOR)
  return publicValue
-}
-
-function withOrderNumberSuffix(base: string, suffix: string) {
- return `${base}${ORDER_NUMBER_SEPARATOR}${suffix}`
 }
 
 function normalizeNullable(value?: string | null): string | null {
@@ -310,7 +312,7 @@ export async function ensurePurchaseOrderForTransaction(
 ): Promise<EnsurePurchaseOrderResult> {
   const orderType = mapTransactionToOrderType(input.transactionType)
   const orderNumber = normalizeOrderNumber(input.orderNumber)
- const transactionDate = input.transactionDate
+  const transactionDate = input.transactionDate
  const hasExpectedDateUpdate = Object.prototype.hasOwnProperty.call(input, 'expectedDate')
  const providedExpectedDate = hasExpectedDateUpdate ? input.expectedDate ?? null : undefined
  const defaultExpectedDate = providedExpectedDate ?? transactionDate
@@ -328,30 +330,80 @@ export async function ensurePurchaseOrderForTransaction(
  })
  const absoluteQuantity = Math.abs(input.quantity)
  const isOutbound = input.transactionType === 'SHIP' || input.transactionType === 'ADJUST_OUT'
- const signedQuantity = isOutbound ? -absoluteQuantity : absoluteQuantity
 
-  let order: PurchaseOrder | null = null
-  if (input.purchaseOrderId) {
-    order = await client.purchaseOrder.findUnique({
-      where: { id: input.purchaseOrderId },
-    })
-    if (order && (order.status === PurchaseOrderStatus.CANCELLED || order.status === PurchaseOrderStatus.CLOSED)) {
-      throw new ConflictError('Transactions cannot be linked to a closed or cancelled purchase order')
+ let order: PurchaseOrder | null = null
+ if (input.purchaseOrderId) {
+   order = await client.purchaseOrder.findUnique({
+     where: { id: input.purchaseOrderId },
+   })
+   if (order && (order.status === PurchaseOrderStatus.CANCELLED || order.status === PurchaseOrderStatus.CLOSED)) {
+     throw new ConflictError('Transactions cannot be linked to a closed or cancelled purchase order')
+   }
+  }
+
+ if (!order) {
+  order = await client.purchaseOrder.findFirst({
+   where: {
+    warehouseCode: input.warehouseCode,
+    OR: [
+     { orderNumber },
+     { orderNumber: { startsWith: `${orderNumber}${ORDER_NUMBER_SEPARATOR}` } },
+    ],
+    },
+   orderBy: { createdAt: 'asc' },
+  })
+
+  if (order && (order.status === PurchaseOrderStatus.CANCELLED || order.status === PurchaseOrderStatus.CLOSED)) {
+   throw new ConflictError('Transactions cannot be linked to a closed or cancelled purchase order')
+  }
+ }
+
+ if (order && order.type !== orderType) {
+  throw new ConflictError('Order type does not match existing order configuration')
+ }
+
+ if (!order) {
+  order = await createPurchaseOrderRecord(client, {
+   orderNumber,
+   orderType,
+   warehouseCode: input.warehouseCode,
+   warehouseName: input.warehouseName,
+   counterparty,
+   receiveType: input.receiveType ?? null,
+   shipMode: input.shipMode ?? null,
+   expectedDate: defaultExpectedDate,
+   notes,
+   createdById: normalizeNullable(input.createdById),
+   createdByName: normalizeNullable(input.createdByName),
+  })
+ }
+
+ if (order.type !== orderType) {
+  throw new ConflictError('Order type does not match existing order configuration')
+ }
+
+  if (input.receiveType) {
+    if (order.receiveType && order.receiveType !== input.receiveType) {
+      throw new ConflictError('Inbound type does not match existing order configuration')
+    }
+    if (!order.receiveType) {
+      order = await client.purchaseOrder.update({
+        where: { id: order.id },
+        data: { receiveType: input.receiveType },
+      })
     }
   }
 
-  if (!order) {
-    order = await createPurchaseOrderRecord(client, {
-      orderNumber,
-      orderType,
-      warehouseCode: input.warehouseCode,
-      warehouseName: input.warehouseName,
-      counterparty,
-      expectedDate: defaultExpectedDate,
-      notes,
-      createdById: normalizeNullable(input.createdById),
-      createdByName: normalizeNullable(input.createdByName),
-    })
+  if (input.shipMode) {
+    if (order.shipMode && order.shipMode !== input.shipMode) {
+      throw new ConflictError('Outbound mode does not match existing order configuration')
+    }
+    if (!order.shipMode) {
+      order = await client.purchaseOrder.update({
+        where: { id: order.id },
+        data: { shipMode: input.shipMode },
+      })
+    }
   }
 
  const lineKey = {
@@ -372,10 +424,8 @@ export async function ensurePurchaseOrderForTransaction(
  skuDescription,
  batchLot,
  quantity: absoluteQuantity,
- postedQuantity: signedQuantity,
- status: Math.abs(signedQuantity) >= absoluteQuantity
- ? PurchaseOrderLineStatus.POSTED
- : PurchaseOrderLineStatus.PENDING,
+ postedQuantity: absoluteQuantity,
+ status: PurchaseOrderLineStatus.POSTED,
  },
  })
 
@@ -400,8 +450,8 @@ export async function ensurePurchaseOrderForTransaction(
  nextQuantity = Math.max(existingLine.quantity, absoluteQuantity)
  }
 
- const nextPostedQuantity = existingLine.postedQuantity + signedQuantity
- const lineStatus = Math.abs(nextPostedQuantity) >= nextQuantity
+ const nextPostedQuantity = Math.abs(existingLine.postedQuantity) + absoluteQuantity
+ const lineStatus = nextPostedQuantity >= nextQuantity
  ? PurchaseOrderLineStatus.POSTED
  : PurchaseOrderLineStatus.PENDING
 
@@ -453,13 +503,22 @@ export async function transitionPurchaseOrderStatus(
       throw new Error('Only purchase orders in review can be posted')
     }
 
-    return prisma.$transaction(async (tx) => {
+    const { postedOrder, createdTransactions } = await prisma.$transaction(async (tx) => {
       const freshOrder = await tx.purchaseOrder.findUnique({
         where: { id },
         include: { lines: true },
       })
 
       if (!freshOrder) throw new Error('Purchase order not found')
+
+      const warehouse = await tx.warehouse.findFirst({
+        where: { code: freshOrder.warehouseCode },
+        select: { id: true },
+      })
+
+      if (!warehouse) {
+        throw new NotFoundError('Warehouse not found for purchase order')
+      }
 
       const movementNotes = await tx.movementNote.findMany({
         where: { purchaseOrderId: id, status: MovementNoteStatus.POSTED },
@@ -490,8 +549,28 @@ export async function transitionPurchaseOrderStatus(
 
       const isInbound = transactionType === TransactionType.RECEIVE || transactionType === TransactionType.ADJUST_IN
 
+      const created: Array<{
+        id: string
+        warehouseCode: string
+        warehouseName: string
+        skuCode: string
+        skuDescription: string
+        batchLot: string
+        cartonsIn: number
+        cartonsOut: number
+        storagePalletsIn: number
+        shippingPalletsOut: number
+        cartonDimensionsCm: string | null
+        transactionDate: Date
+      }> = []
+
+      let costingDate: Date | null = null
+
       for (const note of movementNotes) {
         const transactionDate = note.receivedAt ?? new Date()
+        if (!costingDate || transactionDate < costingDate) {
+          costingDate = transactionDate
+        }
         for (const line of note.lines) {
           const poLine = freshOrder.lines.find(l => l.id === line.purchaseOrderLineId)
           if (!poLine) {
@@ -508,7 +587,7 @@ export async function transitionPurchaseOrderStatus(
             transactionDate,
           })
 
-          await tx.inventoryTransaction.create({
+          const createdTx = await tx.inventoryTransaction.create({
             data: {
               warehouseCode: freshOrder.warehouseCode,
               warehouseName: freshOrder.warehouseName,
@@ -547,11 +626,85 @@ export async function transitionPurchaseOrderStatus(
               isReconciled: false,
               isDemo: false,
             },
+            select: {
+              id: true,
+              warehouseCode: true,
+              warehouseName: true,
+              skuCode: true,
+              skuDescription: true,
+              batchLot: true,
+              cartonsIn: true,
+              cartonsOut: true,
+              storagePalletsIn: true,
+              shippingPalletsOut: true,
+              cartonDimensionsCm: true,
+              transactionDate: true,
+            },
+          })
+
+          created.push({
+            ...createdTx,
+            cartonsIn: Number(createdTx.cartonsIn || 0),
+            cartonsOut: Number(createdTx.cartonsOut || 0),
+            storagePalletsIn: Number(createdTx.storagePalletsIn || 0),
+            shippingPalletsOut: Number(createdTx.shippingPalletsOut || 0),
           })
         }
       }
 
-      return tx.purchaseOrder.update({
+      if (transactionType === TransactionType.RECEIVE || transactionType === TransactionType.SHIP) {
+        const effectiveAt = costingDate ?? new Date()
+        const rates = await tx.costRate.findMany({
+          where: {
+            warehouseId: warehouse.id,
+            isActive: true,
+            effectiveDate: { lte: effectiveAt },
+            OR: [{ endDate: null }, { endDate: { gte: effectiveAt } }],
+          },
+          orderBy: [{ costName: 'asc' }, { effectiveDate: 'desc' }],
+        })
+
+        const ratesByCostName = new Map<string, { costName: string; costValue: number; unitOfMeasure: string }>()
+        for (const rate of rates) {
+          if (!ratesByCostName.has(rate.costName)) {
+            ratesByCostName.set(rate.costName, {
+              costName: rate.costName,
+              costValue: Number(rate.costValue),
+              unitOfMeasure: rate.unitOfMeasure,
+            })
+          }
+        }
+
+        let ledgerEntries: Prisma.CostLedgerCreateManyInput[] = []
+        try {
+          ledgerEntries = buildTacticalCostLedgerEntries({
+            transactionType,
+            receiveType: transactionType === TransactionType.RECEIVE ? freshOrder.receiveType : null,
+            shipMode: transactionType === TransactionType.SHIP ? freshOrder.shipMode : null,
+            ratesByCostName,
+            lines: created.map((t) => ({
+              transactionId: t.id,
+              skuCode: t.skuCode,
+              cartons: transactionType === TransactionType.RECEIVE ? t.cartonsIn : t.cartonsOut,
+              pallets: transactionType === TransactionType.SHIP ? t.shippingPalletsOut : t.storagePalletsIn,
+              cartonDimensionsCm: t.cartonDimensionsCm,
+            })),
+            warehouseCode: freshOrder.warehouseCode,
+            warehouseName: freshOrder.warehouseName,
+            createdAt: effectiveAt,
+            createdByName: SYSTEM_FALLBACK_NAME,
+          })
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Cost calculation failed'
+          throw new ValidationError(message)
+        }
+
+        if (ledgerEntries.length > 0) {
+          await tx.costLedger.createMany({ data: ledgerEntries })
+        }
+      }
+
+      const updatedOrder = await tx.purchaseOrder.update({
         where: { id },
         data: {
           status: PurchaseOrderStatus.POSTED,
@@ -559,7 +712,27 @@ export async function transitionPurchaseOrderStatus(
         },
         include: { lines: true },
       })
+
+      return { postedOrder: updatedOrder, createdTransactions: created }
     })
+
+    await Promise.all(
+      createdTransactions.map((t) =>
+        recordStorageCostEntry({
+          warehouseCode: t.warehouseCode,
+          warehouseName: t.warehouseName,
+          skuCode: t.skuCode,
+          skuDescription: t.skuDescription,
+          batchLot: t.batchLot,
+          transactionDate: t.transactionDate,
+        }).catch((storageError) => {
+          const message = storageError instanceof Error ? storageError.message : 'Unknown error'
+          console.error(`Storage cost recording failed for ${t.warehouseCode}/${t.skuCode}/${t.batchLot}:`, message)
+        })
+      )
+    )
+
+    return postedOrder
  }
 
  const allowedTransitions: Record<PurchaseOrderStatus, PurchaseOrderStatus[]> = {
@@ -600,49 +773,48 @@ async function createPurchaseOrderRecord(
    warehouseCode: string
    warehouseName: string
    counterparty: string | null
+   receiveType: InboundReceiveType | null
+   shipMode: OutboundShipMode | null
    expectedDate: Date | null
    notes: string | null
    createdById?: string | null
    createdByName?: string | null
  }
 ): Promise<PurchaseOrder> {
- let attempt = 0
-
- while (attempt < 5) {
-   const candidateNumber =
-     attempt === 0
-       ? params.orderNumber
-       : withOrderNumberSuffix(params.orderNumber, `${Date.now()}-${attempt}`)
-
-   try {
-     const created = await client.purchaseOrder.create({
-      data: {
-        orderNumber: candidateNumber,
-        type: params.orderType,
-        status: PurchaseOrderStatus.DRAFT,
-        warehouseCode: params.warehouseCode,
-        warehouseName: params.warehouseName,
-        counterpartyName: params.counterparty,
-        expectedDate: params.expectedDate ?? undefined,
-        notes: params.notes,
-         createdById: params.createdById ?? undefined,
-         createdByName: params.createdByName ?? undefined,
-       },
-     })
-     return created
-   } catch (error) {
-     if (
-       error instanceof Prisma.PrismaClientKnownRequestError &&
-       error.code === 'P2002'
-     ) {
-       attempt += 1
-       continue
-     }
-     throw error
+ try {
+  return await client.purchaseOrder.create({
+   data: {
+    orderNumber: params.orderNumber,
+    type: params.orderType,
+    status: PurchaseOrderStatus.DRAFT,
+    warehouseCode: params.warehouseCode,
+    warehouseName: params.warehouseName,
+    counterpartyName: params.counterparty,
+    expectedDate: params.expectedDate ?? undefined,
+    notes: params.notes,
+    receiveType: params.receiveType ?? undefined,
+    shipMode: params.shipMode ?? undefined,
+    createdById: params.createdById ?? undefined,
+    createdByName: params.createdByName ?? undefined,
+   },
+  })
+ } catch (error) {
+  if (
+   error instanceof Prisma.PrismaClientKnownRequestError &&
+   error.code === 'P2002'
+  ) {
+   const existing = await client.purchaseOrder.findFirst({
+    where: {
+     warehouseCode: params.warehouseCode,
+     orderNumber: params.orderNumber,
+    },
+   })
+   if (existing) {
+    return existing
    }
+  }
+  throw error
  }
-
- throw new ConflictError('Unable to create purchase order with a unique reference')
 }
 
 export async function voidPurchaseOrder(

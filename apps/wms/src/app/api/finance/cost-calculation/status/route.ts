@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
  _count: { id: true },
  _sum: {
  totalStorageCost: true,
- closingBalance: true
+ palletDays: true
  }
  }),
  prisma.storageLedger.groupBy({
@@ -141,7 +141,7 @@ export async function GET(request: NextRequest) {
  count: storageAggregate._count.id,
  totalCost: Number(storageAggregate._sum.totalStorageCost || 0),
  ledgerEntries: storageAggregate._count.id,
- totalPalletsCharged: Number(storageAggregate._sum.closingBalance || 0),
+ totalPalletDaysCharged: Number(storageAggregate._sum.palletDays || 0),
  totalWeeklyCost: averageWeeklyCost
  },
  recentCalculations: recentCosts.map(cost => ({

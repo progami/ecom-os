@@ -1,60 +1,82 @@
 import { prisma } from '@/lib/prisma'
 
 export interface StorageRateResult {
- ratePerCarton: number
+ ratePerPalletDay: number
  costRateId: string
  effectiveDate: Date
+}
+
+export type StorageTier = 'STANDARD' | 'SIX_PLUS'
+
+function storageCostNameForTier(tier: StorageTier) {
+ return tier === 'SIX_PLUS' ? 'Warehouse Storage (6+ Months)' : 'Warehouse Storage'
 }
 
 /**
  * Get the active storage rate for a warehouse on a specific date
  * @param warehouseCode - The warehouse code to lookup rates for
  * @param effectiveDate - The date to find the rate for (defaults to current date)
+ * @param tier - Storage tier for age-based pricing
  * @returns Storage rate information or null if not found
  */
 export async function getStorageRate(
  warehouseCode: string, 
- effectiveDate: Date = new Date()
+ effectiveDate: Date = new Date(),
+ tier: StorageTier = 'STANDARD'
 ): Promise<StorageRateResult | null> {
+ const requestedCostName = storageCostNameForTier(tier)
  
  // Get active storage rate for warehouse
  const costRate = await prisma.costRate.findFirst({
  where: {
  warehouse: { code: warehouseCode },
  costCategory: 'Storage',
+ costName: requestedCostName,
  effectiveDate: { lte: effectiveDate },
- OR: [
- { endDate: null },
- { endDate: { gte: effectiveDate }}
- ],
- isActive: true
+ OR: [{ endDate: null }, { endDate: { gte: effectiveDate } }],
+ isActive: true,
  },
- orderBy: { effectiveDate: 'desc' }
+ orderBy: { effectiveDate: 'desc' },
  })
 
- if (!costRate) {
+ const resolved =
+ costRate ??
+ (tier === 'SIX_PLUS'
+ ? await prisma.costRate.findFirst({
+ where: {
+ warehouse: { code: warehouseCode },
+ costCategory: 'Storage',
+ costName: storageCostNameForTier('STANDARD'),
+ effectiveDate: { lte: effectiveDate },
+ OR: [{ endDate: null }, { endDate: { gte: effectiveDate } }],
+ isActive: true,
+ },
+ orderBy: { effectiveDate: 'desc' },
+ })
+ : null)
+
+ if (!resolved) {
  return null
  }
 
  return {
- ratePerCarton: Number(costRate.costValue),
- costRateId: costRate.id,
- effectiveDate: costRate.effectiveDate
+ ratePerPalletDay: Number(resolved.costValue),
+ costRateId: resolved.id,
+ effectiveDate: resolved.effectiveDate
  }
 }
 
 /**
  * Calculate weekly storage cost
- * @param cartonCount - Number of cartons to calculate cost for
- * @param ratePerCarton - Rate per carton per week
+ * @param palletDays - Sum of daily pallet counts
+ * @param ratePerPalletDay - Rate per pallet per day
  * @returns Total weekly storage cost
  */
 export async function calculateStorageCost(
- cartonCount: number, 
- ratePerCarton: number
+ palletDays: number,
+ ratePerPalletDay: number
 ): Promise<number> {
- // Weekly storage cost = cartons × rate per carton per week
- return cartonCount * ratePerCarton
+ return palletDays * ratePerPalletDay
 }
 
 /**

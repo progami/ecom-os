@@ -115,8 +115,8 @@ function createDefaultFilters(): StorageLedgerColumnFilters {
  description: '',
  batch: '',
  status: [],
- cartonsMin: '',
- cartonsMax: '',
+ palletDaysMin: '',
+ palletDaysMax: '',
  rateMin: '',
  rateMax: '',
  totalCostMin: '',
@@ -132,8 +132,8 @@ function filterEntries(entries: ReturnType<typeof useStorageLedger>['entries'], 
  return Number.isNaN(parsed) ? null : parsed
  }
 
- const cartonsMin = parseNumber(filters.cartonsMin)
- const cartonsMax = parseNumber(filters.cartonsMax)
+ const palletDaysMin = parseNumber(filters.palletDaysMin)
+ const palletDaysMax = parseNumber(filters.palletDaysMax)
  const rateMin = parseNumber(filters.rateMin)
  const rateMax = parseNumber(filters.rateMax)
  const totalCostMin = parseNumber(filters.totalCostMin)
@@ -175,14 +175,14 @@ function filterEntries(entries: ReturnType<typeof useStorageLedger>['entries'], 
  }
  }
 
- if (cartonsMin !== null && entry.closingBalance < cartonsMin) {
+ if (palletDaysMin !== null && entry.palletDays < palletDaysMin) {
  return false
  }
- if (cartonsMax !== null && entry.closingBalance > cartonsMax) {
+ if (palletDaysMax !== null && entry.palletDays > palletDaysMax) {
  return false
  }
 
- const rate = entry.storageRatePerCarton ? Number(entry.storageRatePerCarton) : null
+ const rate = entry.storageRatePerPalletDay ? Number(entry.storageRatePerPalletDay) : null
  if (rateMin !== null && (rate ?? 0) < rateMin) {
  return false
  }

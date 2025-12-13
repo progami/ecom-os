@@ -67,7 +67,7 @@ export function QuickStartGuide({ userRole }: QuickStartGuideProps) {
  },
  {
  title: 'Process Transactions',
- description: 'Receive shipments and ship orders',
+ description: 'Process inbound shipments and outbound orders',
  icon: Package,
  link: '/operations/receive'
  },

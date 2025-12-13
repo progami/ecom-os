@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, type FormEvent } from 'react'
 import {
   Package,
   Warehouse as WarehouseIcon,
@@ -45,6 +45,8 @@ const RATE_TEMPLATES = {
     { costName: "45' HQ Container Handling", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 950 },
     { costName: "LCL Handling", costCategory: 'Inbound', unitOfMeasure: 'per_carton', defaultValue: 0.95 },
     { costName: "Additional SKU Fee", costCategory: 'Inbound', unitOfMeasure: 'per_sku', defaultValue: 10 },
+    { costName: "Cartons Over 1200", costCategory: 'Inbound', unitOfMeasure: 'per_carton', defaultValue: 0.05 },
+    { costName: "Pallet & Shrink Wrap Fee", costCategory: 'Inbound', unitOfMeasure: 'per_pallet', defaultValue: 13.75 },
     { costName: "Pallet Shortage - 20' Container", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 0 },
     { costName: "Pallet Shortage - 40' Container", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 0 },
     { costName: "Pallet Shortage - 40' HQ Container", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 0 },
@@ -52,6 +54,7 @@ const RATE_TEMPLATES = {
   ],
   storage: [
     { costName: "Warehouse Storage", costCategory: 'Storage', unitOfMeasure: 'per_pallet_day', defaultValue: 0.69 },
+    { costName: "Warehouse Storage (6+ Months)", costCategory: 'Storage', unitOfMeasure: 'per_pallet_day', defaultValue: 0 },
   ],
   outbound: [
     { costName: "FBA Trucking - Up to 8 Pallets", costCategory: 'Outbound', unitOfMeasure: 'flat', defaultValue: 0 },
@@ -63,11 +66,7 @@ const RATE_TEMPLATES = {
     { costName: "Replenishment Handling", costCategory: 'Outbound', unitOfMeasure: 'per_carton', defaultValue: 1.00 },
     { costName: "Replenishment Minimum", costCategory: 'Outbound', unitOfMeasure: 'per_shipment', defaultValue: 15 },
   ],
-  forwarding: [
-    { costName: "Pier Pass 2.0 - 40'/45'", costCategory: 'Forwarding', unitOfMeasure: 'flat', defaultValue: 68.42 },
-    { costName: "Pier Pass 2.0 - 20'", costCategory: 'Forwarding', unitOfMeasure: 'flat', defaultValue: 34.52 },
-    { costName: "Pre-Pull / Night Pull", costCategory: 'Forwarding', unitOfMeasure: 'flat', defaultValue: 175 },
-  ],
+  forwarding: [],
 }
 
 export function WarehouseRatesPanel({
@@ -88,7 +87,9 @@ export function WarehouseRatesPanel({
     { key: 'inbound', label: 'Inbound', icon: <Package className="h-4 w-4" /> },
     { key: 'storage', label: 'Storage', icon: <WarehouseIcon className="h-4 w-4" /> },
     { key: 'outbound', label: 'Outbound', icon: <Package className="h-4 w-4" /> },
-    { key: 'forwarding', label: 'Forwarding', icon: <Ship className="h-4 w-4" /> },
+    ...(RATE_TEMPLATES.forwarding.length > 0
+      ? [{ key: 'forwarding' as const, label: 'Forwarding', icon: <Ship className="h-4 w-4" /> }]
+      : []),
   ]
 
   const loadRates = useCallback(async () => {
@@ -133,7 +134,6 @@ export function WarehouseRatesPanel({
         method: 'PUT',
         body: JSON.stringify({
           costValue: parseFloat(editValue),
-          unitOfMeasure: rate.unitOfMeasure,
         })
       })
 
@@ -142,8 +142,8 @@ export function WarehouseRatesPanel({
         await loadRates()
         cancelEditing()
       } else {
-        const error = await response.json()
-        toast.error(error.error || 'Failed to update rate')
+        const error = await response.json().catch(() => null)
+        toast.error(error?.error || 'Failed to update rate')
       }
     } catch (_error) {
       toast.error('Failed to update rate')
@@ -188,8 +188,8 @@ export function WarehouseRatesPanel({
         await loadRates()
         closeAddRateModal()
       } else {
-        const error = await response.json()
-        toast.error(error.error || 'Failed to create rate')
+        const error = await response.json().catch(() => null)
+        toast.error(error?.error || 'Failed to create rate')
       }
     } catch (_error) {
       toast.error('Failed to create rate')
@@ -228,27 +228,34 @@ export function WarehouseRatesPanel({
                   onClick={() => saveRate(rate)}
                   disabled={saving}
                   className="p-1 text-green-600 hover:bg-green-50 rounded"
+                  title="Save"
                 >
                   <Save className="h-4 w-4" />
                 </button>
                 <button
                   onClick={cancelEditing}
                   className="p-1 text-slate-400 hover:bg-slate-100 rounded"
+                  title="Cancel"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
             ) : (
               <div className="flex items-center justify-end gap-2">
-                <span className="font-semibold text-slate-900">
-                  ${rate.costValue.toFixed(2)}
-                </span>
+                <span className="font-semibold text-slate-900">${rate.costValue.toFixed(2)}</span>
                 <button
                   onClick={() => startEditing(rate)}
                   className="p-1 text-slate-300 hover:text-cyan-600 hover:bg-cyan-50 rounded transition-colors"
                   title="Edit rate"
                 >
                   <Edit className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => openAddRateModal(template)}
+                  className="p-1 text-slate-300 hover:text-cyan-600 hover:bg-cyan-50 rounded transition-colors"
+                  title="New effective rate"
+                >
+                  <Plus className="h-3.5 w-3.5" />
                 </button>
               </div>
             )
@@ -262,7 +269,10 @@ export function WarehouseRatesPanel({
             </button>
           )}
         </td>
-        <td className="py-2 px-3 text-slate-500 text-sm">
+        <td className="py-2 px-3 text-slate-500 text-sm whitespace-nowrap">
+          {rate ? rate.effectiveDate.slice(0, 10) : '—'}
+        </td>
+        <td className="py-2 px-3 text-slate-500 text-sm whitespace-nowrap">
           {formatUnit(template.unitOfMeasure)}
         </td>
       </tr>
@@ -273,6 +283,7 @@ export function WarehouseRatesPanel({
     const unitLabels: Record<string, string> = {
       per_container: 'per container',
       per_carton: 'per carton',
+      per_pallet: 'per pallet',
       per_pallet_day: 'per pallet/day',
       per_sku: 'per SKU',
       per_hour: 'per hour',
@@ -379,6 +390,8 @@ function InboundTab({ templates, renderRateRow }: TabProps) {
   const containerRates = templates.filter(t => t.costName.includes('Container Handling'))
   const lclRates = templates.filter(t => t.costName === 'LCL Handling')
   const skuRates = templates.filter(t => t.costName === 'Additional SKU Fee')
+  const cartonOverageRates = templates.filter(t => t.costName === 'Cartons Over 1200')
+  const palletWrapRates = templates.filter(t => t.costName === 'Pallet & Shrink Wrap Fee')
   const palletShortageRates = templates.filter(t => t.costName.includes('Pallet Shortage'))
 
   return (
@@ -397,6 +410,7 @@ function InboundTab({ templates, renderRateRow }: TabProps) {
             <tr className="border-b border-slate-100">
               <th className="text-left py-2 px-3 font-medium text-slate-600">Container Type</th>
               <th className="text-right py-2 px-3 font-medium text-slate-600">Rate</th>
+              <th className="text-left py-2 px-3 font-medium text-slate-600">Effective</th>
               <th className="text-left py-2 px-3 font-medium text-slate-600">Unit</th>
             </tr>
           </thead>
@@ -418,6 +432,27 @@ function InboundTab({ templates, renderRateRow }: TabProps) {
         </table>
       </div>
 
+      {/* Carton Overage */}
+      <div>
+        <h3 className="text-sm font-semibold text-slate-900 mb-3">Carton Overage</h3>
+        <p className="text-xs text-slate-500 mb-3">Up to 1200 cartons per container included.</p>
+        <table className="w-full text-sm [&_tr]:group">
+          <tbody className="divide-y divide-slate-50">
+            {cartonOverageRates.map(t => renderRateRow(t))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pallet & Shrink Wrap */}
+      <div>
+        <h3 className="text-sm font-semibold text-slate-900 mb-3">Pallet &amp; Shrink Wrap</h3>
+        <table className="w-full text-sm [&_tr]:group">
+          <tbody className="divide-y divide-slate-50">
+            {palletWrapRates.map(t => renderRateRow(t))}
+          </tbody>
+        </table>
+      </div>
+
       {/* Pallet Shortage */}
       <div>
         <h3 className="text-sm font-semibold text-slate-900 mb-3">Pallet Shortage Fee</h3>
@@ -426,6 +461,7 @@ function InboundTab({ templates, renderRateRow }: TabProps) {
             <tr className="border-b border-slate-100">
               <th className="text-left py-2 px-3 font-medium text-slate-600">Container Type</th>
               <th className="text-right py-2 px-3 font-medium text-slate-600">Fee</th>
+              <th className="text-left py-2 px-3 font-medium text-slate-600">Effective</th>
               <th className="text-left py-2 px-3 font-medium text-slate-600">Unit</th>
             </tr>
           </thead>
@@ -448,6 +484,7 @@ function StorageTab({ templates, renderRateRow }: TabProps) {
             <tr className="border-b border-slate-100">
               <th className="text-left py-2 px-3 font-medium text-slate-600">Description</th>
               <th className="text-right py-2 px-3 font-medium text-slate-600">Rate</th>
+              <th className="text-left py-2 px-3 font-medium text-slate-600">Effective</th>
               <th className="text-left py-2 px-3 font-medium text-slate-600">Unit</th>
             </tr>
           </thead>
@@ -483,6 +520,7 @@ function OutboundTab({ templates, renderRateRow }: TabProps) {
             <tr className="border-b border-slate-100">
               <th className="text-left py-2 px-3 font-medium text-slate-600">Pallet Range</th>
               <th className="text-right py-2 px-3 font-medium text-slate-600">Rate</th>
+              <th className="text-left py-2 px-3 font-medium text-slate-600">Effective</th>
               <th className="text-left py-2 px-3 font-medium text-slate-600">Unit</th>
             </tr>
           </thead>
@@ -537,6 +575,7 @@ function ForwardingTab({ templates, renderRateRow }: TabProps) {
             <tr className="border-b border-slate-100">
               <th className="text-left py-2 px-3 font-medium text-slate-600">Service</th>
               <th className="text-right py-2 px-3 font-medium text-slate-600">Rate</th>
+              <th className="text-left py-2 px-3 font-medium text-slate-600">Effective</th>
               <th className="text-left py-2 px-3 font-medium text-slate-600">Unit</th>
             </tr>
           </thead>
@@ -549,12 +588,11 @@ function ForwardingTab({ templates, renderRateRow }: TabProps) {
   )
 }
 
-// Add Rate Modal Component
 interface AddRateModalProps {
   template: typeof RATE_TEMPLATES.inbound[0]
   warehouseName: string
   onClose: () => void
-  onSubmit: (formData: { costValue: number; effectiveDate: string; endDate: string | null }) => Promise<void>
+  onSubmit: (formData: { costValue: number; effectiveDate: string; endDate: string | null }) => Promise<void> | void
 }
 
 function AddRateModal({ template, warehouseName, onClose, onSubmit }: AddRateModalProps) {
@@ -565,7 +603,7 @@ function AddRateModal({ template, warehouseName, onClose, onSubmit }: AddRateMod
   })
   const [submitting, setSubmitting] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
 
     if (!formData.costValue || !formData.effectiveDate) {
@@ -573,12 +611,18 @@ function AddRateModal({ template, warehouseName, onClose, onSubmit }: AddRateMod
       return
     }
 
+    const numericValue = parseFloat(formData.costValue)
+    if (Number.isNaN(numericValue) || numericValue < 0) {
+      toast.error('Rate must be a valid number')
+      return
+    }
+
     setSubmitting(true)
     try {
       await onSubmit({
-        costValue: parseFloat(formData.costValue),
+        costValue: numericValue,
         effectiveDate: formData.effectiveDate,
-        endDate: formData.endDate || null
+        endDate: formData.endDate || null,
       })
     } finally {
       setSubmitting(false)
@@ -594,7 +638,6 @@ function AddRateModal({ template, warehouseName, onClose, onSubmit }: AddRateMod
         />
 
         <div className="relative w-full max-w-lg transform rounded-xl bg-white shadow-2xl transition-all">
-          {/* Header */}
           <div className="border-b border-slate-200 bg-gradient-to-r from-cyan-50 to-blue-50 px-6 py-5">
             <div className="flex items-start justify-between">
               <div>
@@ -611,15 +654,14 @@ function AddRateModal({ template, warehouseName, onClose, onSubmit }: AddRateMod
               <button
                 onClick={onClose}
                 className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-600 transition-colors"
+                type="button"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="p-6 space-y-5">
-            {/* Rate Details - Read Only */}
             <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-slate-50 border border-slate-200">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Category</label>
@@ -627,11 +669,10 @@ function AddRateModal({ template, warehouseName, onClose, onSubmit }: AddRateMod
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Unit of Measure</label>
-                <p className="text-sm font-medium text-slate-900">{template.unitOfMeasure.replace(/_/g, ' ')}</p>
+                <p className="text-sm font-medium text-slate-900">{formatUnitLabel(template.unitOfMeasure)}</p>
               </div>
             </div>
 
-            {/* Cost Value */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Rate (USD) <span className="text-red-500">*</span>
@@ -652,10 +693,8 @@ function AddRateModal({ template, warehouseName, onClose, onSubmit }: AddRateMod
                   autoFocus
                 />
               </div>
-              <p className="text-xs text-slate-500 mt-1.5">Default: ${template.defaultValue.toFixed(2)}</p>
             </div>
 
-            {/* Effective Date */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 Effective Date <span className="text-red-500">*</span>
@@ -669,7 +708,6 @@ function AddRateModal({ template, warehouseName, onClose, onSubmit }: AddRateMod
               />
             </div>
 
-            {/* End Date */}
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-2">
                 End Date <span className="text-slate-400 text-xs font-normal">(optional)</span>
@@ -681,10 +719,8 @@ function AddRateModal({ template, warehouseName, onClose, onSubmit }: AddRateMod
                 min={formData.effectiveDate}
                 className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-shadow"
               />
-              <p className="text-xs text-slate-500 mt-1.5">Leave blank for indefinite rates</p>
             </div>
 
-            {/* Actions */}
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
               <button
                 type="button"
@@ -717,4 +753,19 @@ function AddRateModal({ template, warehouseName, onClose, onSubmit }: AddRateMod
       </div>
     </div>
   )
+}
+
+function formatUnitLabel(unit: string) {
+  const unitLabels: Record<string, string> = {
+    per_container: 'per container',
+    per_carton: 'per carton',
+    per_pallet: 'per pallet',
+    per_pallet_day: 'per pallet/day',
+    per_sku: 'per SKU',
+    per_hour: 'per hour',
+    per_delivery: 'per delivery',
+    per_shipment: 'per shipment',
+    flat: 'flat',
+  }
+  return unitLabels[unit] || unit
 }

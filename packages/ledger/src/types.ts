@@ -97,13 +97,10 @@ export interface CostLedgerDetail {
 }
 
 export interface CostLedgerBucketTotals {
+  inbound: number
+  outbound: number
+  forwarding: number
   storage: number
-  container: number
-  pallet: number
-  carton: number
-  unit: number
-  transportation: number
-  accessorial: number
   other: number
   total: number
 }

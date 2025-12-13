@@ -75,7 +75,7 @@ export function DeleteTransactionDialog({
  Confirm Delete Transaction
  </h2>
  <p className="text-sm text-slate-600 mt-0.5">
- {isReceive ? 'Receive' : isShip ? 'Shipment' : 'Adjustment'} • {quantity} cartons
+ {isReceive ? 'Inbound' : isShip ? 'Outbound' : 'Adjustment'} • {quantity} cartons
  </p>
  </div>
  </div>

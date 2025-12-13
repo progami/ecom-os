@@ -1,6 +1,6 @@
 import { withAuth, ApiResponses } from '@/lib/api'
 import { prisma } from '@/lib/prisma'
-import { Prisma, PurchaseOrderStatus } from '@ecom-os/prisma-wms'
+import { Prisma } from '@ecom-os/prisma-wms'
 import { aggregateCostLedger } from '@ecom-os/ledger'
 
 export const dynamic = 'force-dynamic'
@@ -45,13 +45,10 @@ export const GET = withAuth(async (request, _session) => {
  return ApiResponses.success({
  groups: [],
  totals: {
+ inbound: 0,
+ outbound: 0,
+ forwarding: 0,
  storage: 0,
- container: 0,
- pallet: 0,
- carton: 0,
- unit: 0,
- transportation: 0,
- accessorial: 0,
  other: 0,
  total: 0
  },
@@ -62,10 +59,6 @@ export const GET = withAuth(async (request, _session) => {
  const validTransactions = await prisma.inventoryTransaction.findMany({
  where: {
  id: { in: transactionIds },
- OR: [
- { purchaseOrderId: null },
- { purchaseOrder: { status: { in: [PurchaseOrderStatus.POSTED, PurchaseOrderStatus.CLOSED] } } }
- ],
  ...(warehouseCode ? { warehouseCode } : {})
  },
  select: {
