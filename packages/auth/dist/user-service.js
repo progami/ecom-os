@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getPortalAuthPrisma } from './db.js';
 const DEFAULT_DEMO_USERNAME = 'demo-admin';
 const DEFAULT_DEMO_PASSWORD = 'demo-password';
+const DEMO_ADMIN_UUID = '00000000-0000-4000-a000-000000000001';
 const credentialsSchema = z.object({
     emailOrUsername: z.string().min(1),
     password: z.string().min(1),
@@ -83,7 +84,7 @@ function buildDemoUser() {
         'margin-master': { role: 'admin', departments: ['Product'] },
     };
     return {
-        id: 'dev-demo-admin',
+        id: DEMO_ADMIN_UUID,
         email: process.env.DEMO_ADMIN_EMAIL || 'dev-admin@targonglobal.com',
         username: demoUsername,
         fullName: 'Development Admin',

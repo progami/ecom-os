@@ -20,29 +20,25 @@ const normalizeRole = (role?: unknown): UserRole => {
 }
 
 const ensureWmsUser = async (session: Session) => {
- const id = session.user?.id
  const email = session.user?.email
 
- if (!id || !email) {
-  throw new Error('Missing session user identifier')
+ if (!email) {
+  throw new Error('Missing session user email')
  }
 
- const usernameSource = email || id
  const fullName = session.user?.name || email
  const role = normalizeRole((session.user as { role?: string })?.role)
 
  const user = await prisma.user.upsert({
-  where: { id },
+  where: { email },
   update: {
-   email,
    fullName,
    role,
    isActive: true,
   },
   create: {
-   id,
    email,
-   username: usernameSource,
+   username: email,
    passwordHash: PLACEHOLDER_PASSWORD_HASH,
    fullName,
    role,
