@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
-import { Department, HierarchyEmployee } from '@/lib/api-client'
+import { Department } from '@/lib/api-client'
 import { Avatar } from '@/components/ui/Avatar'
 import { MinusIcon, PlusIcon, UsersIcon } from '@/components/ui/Icons'
 
@@ -12,7 +12,6 @@ type DeptNode = Department & {
 
 type Props = {
   departments: Department[]
-  allEmployees: HierarchyEmployee[]
 }
 
 function buildDeptTree(departments: Department[]): DeptNode[] {
@@ -87,15 +86,6 @@ function DepartmentCard({
       <h3 className={`font-semibold text-center leading-tight mb-2 ${isRoot ? 'text-cyan-900 text-base mt-1' : 'text-slate-800 text-sm'}`}>
         {node.name}
       </h3>
-
-      {/* KPI Badge */}
-      {node.kpi && (
-        <div className="flex justify-center mb-2">
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500">
-            {node.kpi}
-          </span>
-        </div>
-      )}
 
       {/* Department Head */}
       {node.head ? (
@@ -215,18 +205,17 @@ function DeptTreeNode({
   )
 }
 
-export function DepartmentOrgChart({ departments, allEmployees }: Props) {
+export function DepartmentOrgChart({ departments }: Props) {
   const tree = useMemo(() => buildDeptTree(departments), [departments])
 
-  // Count employees per department
+  // Get employee counts from API response
   const employeeCounts = useMemo(() => {
     const counts = new Map<string, number>()
     for (const dept of departments) {
-      const count = allEmployees.filter(emp => emp.department === dept.name).length
-      counts.set(dept.id, count)
+      counts.set(dept.id, dept._count?.employees ?? 0)
     }
     return counts
-  }, [departments, allEmployees])
+  }, [departments])
 
   // Initialize expanded nodes - expand first 2 levels
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
