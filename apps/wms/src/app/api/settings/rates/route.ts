@@ -20,11 +20,13 @@ const normalizeRole = (role?: unknown): UserRole => {
 }
 
 const ensureWmsUser = async (session: Session) => {
- const email = session.user?.email
+ const rawEmail = session.user?.email
 
- if (!email) {
+ if (!rawEmail) {
   throw new Error('Missing session user email')
  }
+
+ const email = rawEmail.trim().toLowerCase()
 
  const fullName = session.user?.name || email
  const role = normalizeRole((session.user as { role?: string })?.role)
