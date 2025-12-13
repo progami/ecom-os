@@ -1,105 +1,117 @@
 # HRMS App
 
-Next.js 14 + Prisma + Postgres app.
+Human Resources Management System built with Next.js 16, Prisma, and PostgreSQL.
 
-## Local Development (match production)
+## Features
 
-- Requirements:
-  - Node.js 20+
-  - pnpm 9+
-  - Postgres 16+ installed natively (no Docker)
+- Employee directory and profiles
+- Organization chart (by person or department)
+- Performance reviews and disciplinary tracking
+- Company policies and resources
+- HR calendar with Google Calendar integration
+- Google Workspace Admin sync (auto-import employees)
+- Notification system
 
-- Install Postgres
-  - macOS (Homebrew):
-    - `brew install postgresql@16`
-    - `brew services start postgresql@16`
-  - Ubuntu/Debian:
-    - `sudo apt-get update && sudo apt-get install -y postgresql postgresql-contrib`
-    - `sudo systemctl enable --now postgresql`
+## Requirements
 
-- Create DB and user (matches prod-style provisioning):
-  - macOS (superuser often `postgres` with local trust):
-    - `psql -U postgres -c "CREATE ROLE hrms WITH LOGIN PASSWORD 'hrms';" || true`
-    - `psql -U postgres -c "CREATE DATABASE hrms OWNER hrms;" || true`
-  - Linux (if peer auth requires):
-    - `sudo -u postgres psql -c "CREATE ROLE hrms WITH LOGIN PASSWORD 'hrms';" || true`
-    - `sudo -u postgres psql -c "CREATE DATABASE hrms OWNER hrms;" || true`
+- Node.js 20+
+- pnpm 9+
+- PostgreSQL 16+
 
-- Configure env:
-  - Copy `.env.example` to `.env.local` (and `.env` for Prisma CLI)
-  - Default connection: `postgresql://hrms:hrms@localhost:5432/hrms?schema=public`
+## Local Development
 
-- Initialize Prisma:
-  - `pnpm -F @ecom-os/hrms db:generate`
-  - First time: create and commit migrations
-    - `pnpm -F @ecom-os/hrms db:migrate:dev -- --name init`
-  - If you hit permission errors, bootstrap local DB privileges:
-    - macOS: `psql -v ON_ERROR_STOP=1 -h localhost -U postgres -f apps/hrms/scripts/bootstrap-db.sql`
-    - Linux: `sudo -u postgres psql -v ON_ERROR_STOP=1 -f apps/hrms/scripts/bootstrap-db.sql`
-    - Then rerun: `pnpm -F @ecom-os/hrms db:migrate:dev`
+### Database Setup
+
+```bash
+# macOS
+brew install postgresql@16
+brew services start postgresql@16
+psql -U postgres -c "CREATE DATABASE hrms;"
+
+# Ubuntu/Debian
+sudo apt-get install -y postgresql postgresql-contrib
+sudo systemctl enable --now postgresql
+sudo -u postgres psql -c "CREATE DATABASE hrms;"
+```
+
+### Environment
+
+Copy `.env.dev.ci` to `.env.local` and update values:
+
+```bash
+cp .env.dev.ci .env.local
+```
+
+Key variables:
+- `DATABASE_URL` - PostgreSQL connection string
+- `NEXTAUTH_SECRET` - Auth secret (must match portal)
+- `PORTAL_AUTH_URL` - Portal auth endpoint
+- `PORTAL_AUTH_SECRET` - Shared auth secret
+
+### Prisma
+
+HRMS uses `@ecom-os/prisma-hrms` workspace package for the Prisma client.
+
+```bash
+# Generate client
+pnpm -F @ecom-os/hrms db:generate
+
+# Run migrations
+pnpm -F @ecom-os/hrms db:migrate:dev
+
+# Open Prisma Studio
+pnpm -F @ecom-os/hrms db:studio
+```
+
+### Run
+
+```bash
+pnpm -F @ecom-os/hrms dev
+```
+
+Default port: 3006 (main), 3106 (dev branch)
 
 ## Seeding Data
 
-- Place JSON files under `apps/hrms/prisma/seed/`:
-  - `employees.json` (see `employees.sample.json` for shape)
-  - `resources.json` (see `resources.sample.json`)
-  - `policies.json` (see `policies.sample.json`)
+Place JSON files in `prisma/seed/`:
+- `employees.json`
+- `resources.json`
+- `policies.json`
 
-- Run seed locally:
-  - `pnpm -F @ecom-os/hrms db:seed`
+See `*.sample.json` files for schema.
 
-- Idempotent behavior:
-  - Employees upsert by `email` (fallback `employeeId`)
-  - Resources match by `website` if provided; otherwise create
-  - Policies match by `title`
+```bash
+pnpm -F @ecom-os/hrms db:seed
+```
 
-- Production (one-time during cutover):
-  - Add a step to infra deploy for HRMS to run:
-    - `pnpm -C apps/hrms exec prisma generate && pnpm -C apps/hrms exec prisma db migrate deploy`
-    - `pnpm -C apps/hrms exec prisma db seed`
-  - Or call the package script from the app dir:
-    - `pnpm -C apps/hrms run db:seed`
+## Google Workspace Integration
 
-- Run app:
-  - `pnpm -F @ecom-os/hrms dev`
-  - http://localhost:3006
+### Google Admin Sync
 
-- Utilities:
-  - `pnpm -F @ecom-os/hrms db:studio`
-  - `pnpm -F @ecom-os/hrms db:reset`
+Syncs employees from Google Workspace directory. Runs automatically on startup and every 30 minutes.
 
-## Production
+Required env vars:
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_ADMIN_REFRESH_TOKEN` - OAuth token with Admin SDK scope
+- `GOOGLE_ADMIN_DOMAIN` - Workspace domain (default: targonglobal.com)
 
-- We deploy manually on the EC2 host; provision Postgres yourself (managed RDS or native service).
-- Provide `DATABASE_URL` via environment (no files committed).
-- Deployment sequence:
-  - Install deps
-  - `pnpm -F @ecom-os/hrms db:generate`
-  - `pnpm -F @ecom-os/hrms db:migrate:deploy` (never `db push` in prod)
-  - Build + start app
+Manual sync: `POST /api/google-admin/sync`
 
-## Notes
+### Google Calendar
 
-- Migrations are tracked (see `prisma/migrations`) to avoid drift between environments.
-- `.env.local` is gitignored and only for local development.
+For calendar integration:
+- `GOOGLE_CALENDAR_ID`
+- `GOOGLE_REFRESH_TOKEN` - OAuth token with Calendar scope
+- `NEXT_PUBLIC_GOOGLE_CALENDAR_EMBED_URL` - Public calendar embed URL
 
-## Google Calendar Integration
+## Production Deployment
 
-- Two modes:
-  - Embed (read-only view): set `NEXT_PUBLIC_GOOGLE_CALENDAR_EMBED_URL` to a public/embed URL and open `/hrms/calendar`.
-  - API (read/write): set these server env vars and use the Calendar UI or API:
-    - `GOOGLE_CALENDAR_ID`
-    - `GOOGLE_CLIENT_ID`
-    - `GOOGLE_CLIENT_SECRET`
-    - `GOOGLE_REFRESH_TOKEN`
+```bash
+pnpm -F @ecom-os/hrms db:generate
+pnpm -F @ecom-os/hrms db:migrate:deploy
+pnpm -F @ecom-os/hrms build
+pnpm -F @ecom-os/hrms start
+```
 
-- Getting a refresh token (one-time):
-  - Create an OAuth Client (Web) in Google Cloud Console.
-  - Run a small CLI or use a temporary route to perform OAuth consent with `access_type=offline` and grant Calendar scopes.
-  - Capture the refresh token and place it in `.env`.
-  - Share the target Google Calendar with the account whose refresh token you used.
-
-- Endpoints:
-  - `GET /api/calendar/events` → upcoming events (server-side Google API)
-  - `POST /api/calendar/events` → create event (summary, start.dateTime, end.dateTime)
-  - UI: `/hrms/calendar`
+Provide `DATABASE_URL` and auth secrets via environment variables.
