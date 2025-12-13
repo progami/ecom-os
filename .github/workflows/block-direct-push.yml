@@ -10,22 +10,28 @@ jobs:
   prevent-direct-push:
     runs-on: ubuntu-latest
     steps:
-      - name: Check actor or merge commit
-        env:
-          ALLOWED_ACTORS: "web-flow,github-actions[bot]"
+      - name: Check if PR merge or direct push
         run: |
-          actor="${GITHUB_ACTOR}"
           message="$(jq -r '.head_commit.message // ""' "$GITHUB_EVENT_PATH")"
+
+          # Allow merge commits (regular merge)
           if [[ "$message" == Merge\ pull\ request* ]]; then
-            echo "Detected merge commit ($message); exiting successfully."
+            echo "Regular merge commit detected; allowed."
             exit 0
           fi
-          IFS=',' read -ra allowed <<< "$ALLOWED_ACTORS"
-          for entry in "${allowed[@]}"; do
-            if [[ "$actor" == "$entry" ]]; then
-              echo "Push from $actor (allowed); exiting successfully."
-              exit 0
-            fi
-          done
+
+          # Allow squash merges (contain PR number like "(#123)" anywhere)
+          if [[ "$message" =~ \(#[0-9]+\) ]]; then
+            echo "Squash merge detected; allowed."
+            exit 0
+          fi
+
+          # Allow rebase merges from GitHub (pusher is web-flow)
+          pusher="$(jq -r '.pusher.name // ""' "$GITHUB_EVENT_PATH")"
+          if [[ "$pusher" == "web-flow" ]]; then
+            echo "GitHub web merge detected; allowed."
+            exit 0
+          fi
+
           echo "::error::Direct pushes to protected branches are not allowed. Open a pull request instead."
           exit 1
