@@ -2,13 +2,25 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { withRateLimit } from '@/lib/api-helpers'
 
+// Departments to exclude from the organogram hierarchy view
+const EXCLUDED_DEPARTMENTS = ['executive', 'executive supervision', 'general']
+
 export async function GET(req: Request) {
   const rateLimitError = withRateLimit(req)
   if (rateLimitError) return rateLimitError
 
   try {
     // Fetch all departments with their heads and parent relationships
+    // Exclude administrative/placeholder departments from the hierarchy
     const departments = await prisma.department.findMany({
+      where: {
+        NOT: {
+          name: {
+            in: EXCLUDED_DEPARTMENTS,
+            mode: 'insensitive',
+          },
+        },
+      },
       select: {
         id: true,
         name: true,
@@ -34,6 +46,14 @@ export async function GET(req: Request) {
           },
         },
         children: {
+          where: {
+            NOT: {
+              name: {
+                in: EXCLUDED_DEPARTMENTS,
+                mode: 'insensitive',
+              },
+            },
+          },
           select: {
             id: true,
             name: true,
