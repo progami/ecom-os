@@ -37,6 +37,7 @@ type TabKey = 'inbound' | 'storage' | 'outbound' | 'forwarding'
 
 // Rate templates define expected rates with their categories and units
 // Categories: Inbound, Storage, Outbound, Forwarding (matches the supply chain stage)
+// Tactical Logistics CWH Rate Sheet (from actual invoices)
 const RATE_TEMPLATES = {
   inbound: [
     { costName: "20' Container Handling", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 650 },
@@ -47,26 +48,23 @@ const RATE_TEMPLATES = {
     { costName: "Additional SKU Fee", costCategory: 'Inbound', unitOfMeasure: 'per_sku', defaultValue: 10 },
     { costName: "Cartons Over 1200", costCategory: 'Inbound', unitOfMeasure: 'per_carton', defaultValue: 0.05 },
     { costName: "Pallet & Shrink Wrap Fee", costCategory: 'Inbound', unitOfMeasure: 'per_pallet', defaultValue: 13.75 },
-    { costName: "Pallet Shortage - 20' Container", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 0 },
-    { costName: "Pallet Shortage - 40' Container", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 0 },
-    { costName: "Pallet Shortage - 40' HQ Container", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 0 },
-    { costName: "Pallet Shortage - 45' HQ Container", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 0 },
   ],
   storage: [
     { costName: "Warehouse Storage", costCategory: 'Storage', unitOfMeasure: 'per_pallet_day', defaultValue: 0.69 },
-    { costName: "Warehouse Storage (6+ Months)", costCategory: 'Storage', unitOfMeasure: 'per_pallet_day', defaultValue: 0 },
+    { costName: "Warehouse Storage (6+ Months)", costCategory: 'Storage', unitOfMeasure: 'per_pallet_day', defaultValue: 0.69 },
   ],
   outbound: [
+    { costName: "Replenishment Handling", costCategory: 'Outbound', unitOfMeasure: 'per_carton', defaultValue: 1.00 },
+    { costName: "Replenishment Minimum", costCategory: 'Outbound', unitOfMeasure: 'per_shipment', defaultValue: 15 },
     { costName: "FBA Trucking - Up to 8 Pallets", costCategory: 'Outbound', unitOfMeasure: 'flat', defaultValue: 0 },
     { costName: "FBA Trucking - 9-12 Pallets", costCategory: 'Outbound', unitOfMeasure: 'flat', defaultValue: 0 },
     { costName: "FBA Trucking - 13-28 Pallets (FTL)", costCategory: 'Outbound', unitOfMeasure: 'flat', defaultValue: 0 },
-    { costName: "Waiting Time (after 4 hrs)", costCategory: 'Outbound', unitOfMeasure: 'per_hour', defaultValue: 0 },
-    { costName: "Weekend Delivery Fee", costCategory: 'Outbound', unitOfMeasure: 'per_delivery', defaultValue: 0 },
-    { costName: "Rush Fee (24-hour)", costCategory: 'Outbound', unitOfMeasure: 'per_delivery', defaultValue: 0 },
-    { costName: "Replenishment Handling", costCategory: 'Outbound', unitOfMeasure: 'per_carton', defaultValue: 1.00 },
-    { costName: "Replenishment Minimum", costCategory: 'Outbound', unitOfMeasure: 'per_shipment', defaultValue: 15 },
   ],
-  forwarding: [],
+  forwarding: [
+    { costName: "Pre-pull", costCategory: 'Forwarding', unitOfMeasure: 'flat', defaultValue: 175 },
+    { costName: "Pierpass 20'", costCategory: 'Forwarding', unitOfMeasure: 'per_container', defaultValue: 34.52 },
+    { costName: "Pierpass 40'", costCategory: 'Forwarding', unitOfMeasure: 'per_container', defaultValue: 68.42 },
+  ],
 }
 
 export function WarehouseRatesPanel({

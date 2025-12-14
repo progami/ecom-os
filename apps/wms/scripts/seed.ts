@@ -270,43 +270,41 @@ async function createCostRates() {
     return
   }
   
-  const costRatesByWarehouse = {
-    'FMC': [
-      { category: 'Container', name: 'Terminal Handling Charges', costValue: 185, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Port Processing Fee', costValue: 24.5, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Documentation Fee', costValue: 65, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Container Inspection', costValue: 20, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Customs Clearance', costValue: 20, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Port Charges', costValue: 32, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Deferment Fee', costValue: 30, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Haulage', costValue: 835, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Container Unloading', costValue: 500, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Freight', costValue: 2000, unitOfMeasure: 'container' },
-      { category: 'Carton', name: 'Carton Handling Cost', costValue: 1.3, unitOfMeasure: 'carton' },
-      { category: 'Carton', name: 'Carton Unloading Cost', costValue: 1.75, unitOfMeasure: 'carton' },
-      { category: 'Storage', name: 'Storage cost per pallet / week', costValue: 3.9, unitOfMeasure: 'pallet/week' },
-      { category: 'Pallet', name: 'Pallet handling', costValue: 6.75, unitOfMeasure: 'pallet' },
-      { category: 'transportation', name: 'LTL', costValue: 50, unitOfMeasure: 'shipment' },
-      { category: 'transportation', name: 'FTL', costValue: 500, unitOfMeasure: 'shipment' }
-    ],
-    'VGLOBAL': [
-      { category: 'Container', name: 'Terminal Handling Charges', costValue: 185, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Port Processing Fee', costValue: 24.5, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Documentation Fee', costValue: 65, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Container Inspection', costValue: 20, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Customs Clearance', costValue: 20, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Port Charges', costValue: 32, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Deferment Fee', costValue: 30, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Haulage', costValue: 835, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Container Unloading', costValue: 390, unitOfMeasure: 'container' },
-      { category: 'Container', name: 'Freight', costValue: 2000, unitOfMeasure: 'container' },
-      { category: 'Carton', name: 'Carton Handling Cost', costValue: 1.4, unitOfMeasure: 'carton' },
-      { category: 'Pallet', name: 'Pallet Unloading Cost', costValue: 11.7, unitOfMeasure: 'pallet' },
-      { category: 'Storage', name: 'Storage cost per pallet / week', costValue: 2.6, unitOfMeasure: 'pallet/week' },
-      { category: 'Pallet', name: 'Pallet handling', costValue: 6.95, unitOfMeasure: 'pallet' },
-      { category: 'transportation', name: 'LTL', costValue: 50, unitOfMeasure: 'shipment' },
-      { category: 'transportation', name: 'FTL', costValue: 350, unitOfMeasure: 'shipment' }
-    ]
+  // Tactical Logistics Rate Sheet (CWH rates from actual invoices)
+  // These rates must match the costNames expected by tactical-costing.ts
+  const tacticalRates = [
+    // INBOUND - Warehouse Handling and Carton Labeling (per container type)
+    { category: 'Inbound', name: "20' Container Handling", costValue: 650, unitOfMeasure: 'per_container' },
+    { category: 'Inbound', name: "40' Container Handling", costValue: 825, unitOfMeasure: 'per_container' },
+    { category: 'Inbound', name: "40' HQ Container Handling", costValue: 875, unitOfMeasure: 'per_container' },
+    { category: 'Inbound', name: "45' HQ Container Handling", costValue: 950, unitOfMeasure: 'per_container' },
+    { category: 'Inbound', name: "LCL Handling", costValue: 0.95, unitOfMeasure: 'per_carton' },
+    // INBOUND - Overage fees
+    { category: 'Inbound', name: "Additional SKU Fee", costValue: 10.00, unitOfMeasure: 'per_sku' },
+    { category: 'Inbound', name: "Cartons Over 1200", costValue: 0.05, unitOfMeasure: 'per_carton' },
+    { category: 'Inbound', name: "Pallet & Shrink Wrap Fee", costValue: 13.75, unitOfMeasure: 'per_pallet' },
+    // STORAGE - Warehouse Storage ($0.69/pallet/day)
+    { category: 'Storage', name: "Warehouse Storage", costValue: 0.69, unitOfMeasure: 'per_pallet_day' },
+    { category: 'Storage', name: "Warehouse Storage (6+ Months)", costValue: 0.69, unitOfMeasure: 'per_pallet_day' },
+    // OUTBOUND - Replenishment/Shipping
+    { category: 'Outbound', name: "Replenishment Handling", costValue: 1.00, unitOfMeasure: 'per_carton' },
+    { category: 'Outbound', name: "Replenishment Minimum", costValue: 15.00, unitOfMeasure: 'per_shipment' },
+    // OUTBOUND - FBA Trucking (quoted per shipment - placeholder values)
+    { category: 'Outbound', name: "FBA Trucking - Up to 8 Pallets", costValue: 0, unitOfMeasure: 'flat' },
+    { category: 'Outbound', name: "FBA Trucking - 9-12 Pallets", costValue: 0, unitOfMeasure: 'flat' },
+    { category: 'Outbound', name: "FBA Trucking - 13-28 Pallets (FTL)", costValue: 0, unitOfMeasure: 'flat' },
+    // FORWARDING - Drayage (Pier Pass fees)
+    { category: 'Forwarding', name: "Pre-pull", costValue: 175, unitOfMeasure: 'flat' },
+    { category: 'Forwarding', name: "Pierpass 20'", costValue: 34.52, unitOfMeasure: 'per_container' },
+    { category: 'Forwarding', name: "Pierpass 40'", costValue: 68.42, unitOfMeasure: 'per_container' },
+  ]
+
+  // All warehouses get the same Tactical rates
+  const costRatesByWarehouse: Record<string, typeof tacticalRates> = {
+    'FMC': tacticalRates,
+    'VGLOBAL': tacticalRates,
+    'CHINO': tacticalRates,
+    'PERRIS': tacticalRates,
   }
   
   const today = new Date()
