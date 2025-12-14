@@ -47,6 +47,7 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
     }
 
     const body = await req.json()
+    console.error('[DEBUG] Received body:', JSON.stringify(body, null, 2))
 
     // Validate input with whitelist schema
     const validation = validateBody(UpdateEmployeeSchema, body)
@@ -128,7 +129,10 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
 
     return NextResponse.json(e)
   } catch (e) {
-    return safeErrorResponse(e, 'Failed to update employee')
+    console.error('[DEBUG] Update employee error:', e)
+    // Temporarily expose error for debugging
+    const errorMsg = e instanceof Error ? e.message : 'Unknown error'
+    return NextResponse.json({ error: `Failed to update employee: ${errorMsg}` }, { status: 500 })
   }
 }
 
