@@ -9,6 +9,8 @@ import {
   DisciplinaryStatusEnum,
 } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
+import { getCurrentEmployeeId } from '@/lib/current-user'
+import { canManageEmployee } from '@/lib/permissions'
 
 export async function GET(req: Request) {
   const rateLimitError = withRateLimit(req)
@@ -115,6 +117,20 @@ export async function POST(req: Request) {
     })
     if (!employee) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
+    }
+
+    // Check if current user has permission to manage this employee
+    const currentEmployeeId = await getCurrentEmployeeId()
+    if (!currentEmployeeId) {
+      return NextResponse.json({ error: 'Unauthorized - not logged in' }, { status: 401 })
+    }
+
+    const permissionCheck = await canManageEmployee(currentEmployeeId, data.employeeId)
+    if (!permissionCheck.canManage) {
+      return NextResponse.json(
+        { error: `Permission denied: ${permissionCheck.reason}` },
+        { status: 403 }
+      )
     }
 
     const item = await prisma.disciplinaryAction.create({

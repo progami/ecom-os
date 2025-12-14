@@ -34,6 +34,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
 import { LeaveHistoryTable } from '@/components/leave/LeaveHistoryTable'
 import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
+import { employmentTypeLabels } from '@/lib/constants'
 
 type Tab = 'overview' | 'leave' | 'reviews' | 'disciplinary'
 
@@ -127,6 +128,7 @@ export default function EmployeeViewPage() {
   const [leaveLoading, setLeaveLoading] = useState(false)
   const [showLeaveForm, setShowLeaveForm] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [canManage, setCanManage] = useState(false)
 
   useEffect(() => {
     async function loadEmployee() {
@@ -134,6 +136,10 @@ export default function EmployeeViewPage() {
         setLoading(true)
         const data = await EmployeesApi.get(id)
         setEmployee(data)
+
+        // Check if current user can manage this employee
+        const permissionCheck = await EmployeesApi.checkCanManage(id)
+        setCanManage(permissionCheck.canManage)
       } catch (e: any) {
         setError(e.message || 'Failed to load employee')
       } finally {
@@ -347,7 +353,7 @@ export default function EmployeeViewPage() {
                   <UsersIcon className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-xs text-slate-500">Employment Type</p>
-                    <p className="text-sm text-slate-900 font-medium">{employee.employmentType.replace('_', ' ')}</p>
+                    <p className="text-sm text-slate-900 font-medium">{employmentTypeLabels[employee.employmentType] || employee.employmentType}</p>
                   </div>
                 </div>
               </div>
@@ -359,12 +365,14 @@ export default function EmployeeViewPage() {
           <Card padding="lg">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-900">Performance Reviews</h3>
-              <Button
-                size="sm"
-                href={`/performance/reviews/add?employeeId=${id}`}
-              >
-                Add Review
-              </Button>
+              {canManage && (
+                <Button
+                  size="sm"
+                  href={`/performance/reviews/add?employeeId=${id}`}
+                >
+                  Add Review
+                </Button>
+              )}
             </div>
 
             {reviewsLoading ? (
@@ -415,12 +423,14 @@ export default function EmployeeViewPage() {
           <Card padding="lg">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-900">Disciplinary Actions</h3>
-              <Button
-                size="sm"
-                href={`/performance/disciplinary/add?employeeId=${id}`}
-              >
-                Report Violation
-              </Button>
+              {canManage && (
+                <Button
+                  size="sm"
+                  href={`/performance/disciplinary/add?employeeId=${id}`}
+                >
+                  Report Violation
+                </Button>
+              )}
             </div>
 
             {disciplinaryLoading ? (

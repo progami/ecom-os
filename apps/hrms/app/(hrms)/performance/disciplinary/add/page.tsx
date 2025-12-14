@@ -123,10 +123,11 @@ function AddDisciplinaryForm() {
   useEffect(() => {
     async function loadEmployees() {
       try {
-        const data = await EmployeesApi.list({ take: 100 })
+        // Only load employees the current user can manage
+        const data = await EmployeesApi.listManageable()
         setEmployees(data.items || [])
       } catch (e) {
-        console.error('Failed to load employees:', e)
+        console.error('Failed to load manageable employees:', e)
       } finally {
         setLoadingEmployees(false)
       }

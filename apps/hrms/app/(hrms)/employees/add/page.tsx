@@ -1,8 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { EmployeesApi } from '@/lib/api-client'
+import { EmployeesApi, DepartmentsApi, type Department } from '@/lib/api-client'
 import { UsersIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardDivider } from '@/components/ui/Card'
@@ -15,26 +15,29 @@ import {
   FormActions,
 } from '@/components/ui/FormField'
 import { useNavigationHistory } from '@/lib/navigation-history'
-
-const employmentTypeOptions = [
-  { value: 'FULL_TIME', label: 'Full Time' },
-  { value: 'PART_TIME', label: 'Part Time' },
-  { value: 'CONTRACT', label: 'Contract' },
-  { value: 'INTERN', label: 'Intern' },
-]
-
-const statusOptions = [
-  { value: 'ACTIVE', label: 'Active' },
-  { value: 'ON_LEAVE', label: 'On Leave' },
-  { value: 'TERMINATED', label: 'Terminated' },
-  { value: 'RESIGNED', label: 'Resigned' },
-]
+import { employmentTypeOptions, statusOptions } from '@/lib/constants'
 
 export default function AddEmployeePage() {
   const router = useRouter()
   const { goBack } = useNavigationHistory()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [loadingDepts, setLoadingDepts] = useState(true)
+
+  useEffect(() => {
+    async function loadDepartments() {
+      try {
+        const data = await DepartmentsApi.list()
+        setDepartments(data.items)
+      } catch (e) {
+        console.error('Failed to load departments:', e)
+      } finally {
+        setLoadingDepts(false)
+      }
+    }
+    loadDepartments()
+  }, [])
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -117,11 +120,15 @@ export default function AddEmployeePage() {
             {/* Work Info */}
             <FormSection title="Work Information" description="Job-related details">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <FormField
+                <SelectField
                   label="Department"
                   name="department"
                   required
-                  placeholder="e.g., Engineering"
+                  options={departments.map((dept) => ({
+                    value: dept.name,
+                    label: dept.name,
+                  }))}
+                  placeholder={loadingDepts ? 'Loading departments...' : 'Select department...'}
                 />
                 <FormField
                   label="Position"
