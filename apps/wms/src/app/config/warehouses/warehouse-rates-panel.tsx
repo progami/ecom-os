@@ -80,31 +80,6 @@ export function WarehouseRatesPanel({
   const [saving, setSaving] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [newRateTemplate, setNewRateTemplate] = useState<typeof RATE_TEMPLATES.inbound[0] | null>(null)
-  const [initializing, setInitializing] = useState(false)
-
-  const initializeAllRates = async () => {
-    if (!confirm('This will initialize all missing rates and update existing rates with default values. Continue?')) {
-      return
-    }
-    setInitializing(true)
-    try {
-      const response = await fetchWithCSRF(`/api/warehouses/${warehouseId}/initialize-rates`, {
-        method: 'POST'
-      })
-      if (response.ok) {
-        const data = await response.json()
-        toast.success(data.message)
-        await loadRates()
-      } else {
-        const error = await response.json().catch(() => null)
-        toast.error(error?.error || 'Failed to initialize rates')
-      }
-    } catch (_error) {
-      toast.error('Failed to initialize rates')
-    } finally {
-      setInitializing(false)
-    }
-  }
 
   const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'inbound', label: 'Inbound', icon: <Package className="h-4 w-4" /> },
@@ -334,28 +309,9 @@ export function WarehouseRatesPanel({
             <h2 className="text-xl font-semibold text-slate-900">{warehouseName}</h2>
             <p className="text-sm text-slate-500">Rate Sheet • {warehouseCode} • USD</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={initializeAllRates}
-              disabled={initializing}
-              className="px-3 py-1.5 text-sm font-medium text-cyan-700 bg-cyan-50 border border-cyan-200 rounded-lg hover:bg-cyan-100 disabled:opacity-50 transition-colors flex items-center gap-2"
-            >
-              {initializing ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  Initializing...
-                </>
-              ) : (
-                <>
-                  <DollarSign className="h-4 w-4" />
-                  Initialize All Rates
-                </>
-              )}
-            </button>
-            <Badge className="bg-green-50 text-green-700 border-green-200">
-              {rates.length} rates configured
-            </Badge>
-          </div>
+          <Badge className="bg-green-50 text-green-700 border-green-200">
+            {rates.length} rates configured
+          </Badge>
         </div>
 
       {/* Tabs */}
@@ -434,7 +390,6 @@ function InboundTab({ templates, renderRateRow }: TabProps) {
   const skuRates = templates.filter(t => t.costName === 'Additional SKU Fee')
   const cartonOverageRates = templates.filter(t => t.costName === 'Cartons Over 1200')
   const palletWrapRates = templates.filter(t => t.costName === 'Pallet & Shrink Wrap Fee')
-  const palletShortageRates = templates.filter(t => t.costName.includes('Pallet Shortage'))
 
   return (
     <div className="space-y-6">
@@ -495,23 +450,6 @@ function InboundTab({ templates, renderRateRow }: TabProps) {
         </table>
       </div>
 
-      {/* Pallet Shortage */}
-      <div>
-        <h3 className="text-sm font-semibold text-slate-900 mb-3">Pallet Shortage Fee</h3>
-        <table className="w-full text-sm [&_tr]:group">
-          <thead>
-            <tr className="border-b border-slate-100">
-              <th className="text-left py-2 px-3 font-medium text-slate-600">Container Type</th>
-              <th className="text-right py-2 px-3 font-medium text-slate-600">Fee</th>
-              <th className="text-left py-2 px-3 font-medium text-slate-600">Effective</th>
-              <th className="text-left py-2 px-3 font-medium text-slate-600">Unit</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {palletShortageRates.map(t => renderRateRow(t))}
-          </tbody>
-        </table>
-      </div>
     </div>
   )
 }
@@ -542,9 +480,6 @@ function StorageTab({ templates, renderRateRow }: TabProps) {
 function OutboundTab({ templates, renderRateRow }: TabProps) {
   // Filter by costName since all are now 'Outbound' category
   const truckingRates = templates.filter(t => t.costName.includes('FBA Trucking'))
-  const accessorialRates = templates.filter(t =>
-    ['Waiting Time (after 4 hrs)', 'Weekend Delivery Fee', 'Rush Fee (24-hour)'].includes(t.costName)
-  )
   const replenishmentRates = templates.filter(t =>
     t.costName === 'Replenishment Handling' || t.costName === 'Replenishment Minimum'
   )
@@ -568,16 +503,6 @@ function OutboundTab({ templates, renderRateRow }: TabProps) {
           </thead>
           <tbody className="divide-y divide-slate-50">
             {truckingRates.map(t => renderRateRow(t))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Additional Charges */}
-      <div>
-        <h3 className="text-sm font-semibold text-slate-900 mb-3">Additional Charges</h3>
-        <table className="w-full text-sm [&_tr]:group">
-          <tbody className="divide-y divide-slate-50">
-            {accessorialRates.map(t => renderRateRow(t))}
           </tbody>
         </table>
       </div>
