@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { UpdatePerformanceReviewSchema } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
+import { getCurrentEmployeeId } from '@/lib/current-user'
+import { canManageEmployee } from '@/lib/permissions'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -52,6 +54,28 @@ export async function PATCH(req: Request, context: RouteContext) {
 
     if (!id || id.length > 100) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
+    }
+
+    // Check if current user has permission to manage this employee
+    const existing = await prisma.performanceReview.findUnique({
+      where: { id },
+      select: { employeeId: true },
+    })
+    if (!existing) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    const currentEmployeeId = await getCurrentEmployeeId()
+    if (!currentEmployeeId) {
+      return NextResponse.json({ error: 'Unauthorized - not logged in' }, { status: 401 })
+    }
+
+    const permissionCheck = await canManageEmployee(currentEmployeeId, existing.employeeId)
+    if (!permissionCheck.canManage) {
+      return NextResponse.json(
+        { error: `Permission denied: ${permissionCheck.reason}` },
+        { status: 403 }
+      )
     }
 
     const body = await req.json()
@@ -111,6 +135,28 @@ export async function DELETE(req: Request, context: RouteContext) {
 
     if (!id || id.length > 100) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
+    }
+
+    // Check if current user has permission to manage this employee
+    const existing = await prisma.performanceReview.findUnique({
+      where: { id },
+      select: { employeeId: true },
+    })
+    if (!existing) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    const currentEmployeeId = await getCurrentEmployeeId()
+    if (!currentEmployeeId) {
+      return NextResponse.json({ error: 'Unauthorized - not logged in' }, { status: 401 })
+    }
+
+    const permissionCheck = await canManageEmployee(currentEmployeeId, existing.employeeId)
+    if (!permissionCheck.canManage) {
+      return NextResponse.json(
+        { error: `Permission denied: ${permissionCheck.reason}` },
+        { status: 403 }
+      )
     }
 
     await prisma.performanceReview.delete({ where: { id } })

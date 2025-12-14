@@ -244,6 +244,7 @@ enum EmploymentType {
   PART_TIME
   CONTRACT
   INTERN
+  WORKING_PARTNER
 }
 
 enum EmployeeStatus {
