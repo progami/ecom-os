@@ -246,7 +246,7 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
               <tr>
                 <td colSpan={3} className="px-4 py-12 text-center">
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    No products yet. Click "Add Product" to get started.
+                    No products yet. Click &ldquo;Add Product&rdquo; to get started.
                   </p>
                 </td>
               </tr>
