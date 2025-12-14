@@ -104,6 +104,114 @@ jobs:
             echo "any_app=$ANY_APP" >> "$GITHUB_OUTPUT"
           fi
 
+  build-metadata:
+    needs: detect-changes
+    if: github.event_name == 'push' && needs.detect-changes.outputs.any_app == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      version_url: ${{ steps.meta.outputs.version_url }}
+      commit_sha: ${{ steps.meta.outputs.commit_sha }}
+      build_time: ${{ steps.meta.outputs.build_time }}
+      tag: ${{ steps.meta.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute build metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          build_time="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          commit_sha="$(git rev-parse --short=8 HEAD)"
+
+          exact_tag="$(git describe --tags --exact-match --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || true)"
+          base_tag="$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || true)"
+          create_release="false"
+
+          if [[ -n "$exact_tag" ]]; then
+            version="${exact_tag#v}"
+            tag="$exact_tag"
+          elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            if [[ -n "$base_tag" ]]; then
+              range="${base_tag}..HEAD"
+              base_version="${base_tag#v}"
+            else
+              range="HEAD"
+              base_version="0.0.0"
+            fi
+
+            bump="patch"
+            commit_messages="$(git log "$range" --pretty=%s%n%b)"
+
+            if echo "$commit_messages" | grep -qE 'BREAKING CHANGE|^[a-zA-Z]+(\\(.+\\))?!:'; then
+              bump="major"
+            elif echo "$commit_messages" | grep -qE '^feat(\\(.+\\))?:'; then
+              bump="minor"
+            elif echo "$commit_messages" | grep -qE '^fix(\\(.+\\))?:'; then
+              bump="patch"
+            fi
+
+            IFS='.' read -r major minor patch <<< "$base_version"
+            major="${major:-0}"
+            minor="${minor:-0}"
+            patch="${patch:-0}"
+
+            case "$bump" in
+              major)
+                major=$((major + 1))
+                minor=0
+                patch=0
+                ;;
+              minor)
+                minor=$((minor + 1))
+                patch=0
+                ;;
+              patch)
+                patch=$((patch + 1))
+                ;;
+            esac
+
+            version="${major}.${minor}.${patch}"
+            tag="v${version}"
+            create_release="true"
+          else
+            if [[ -n "$base_tag" ]]; then
+              base_version="${base_tag#v}"
+            else
+              base_version="0.0.0"
+            fi
+
+            version="${base_version}-dev.${commit_sha}"
+            tag="v${base_version}"
+          fi
+
+          if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            version_url="https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}"
+          else
+            version_url="https://github.com/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA}"
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version_url=$version_url" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$commit_sha" >> "$GITHUB_OUTPUT"
+          echo "build_time=$build_time" >> "$GITHUB_OUTPUT"
+          echo "create_release=$create_release" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release (main only)
+        if: github.ref_name == 'main' && steps.meta.outputs.create_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: Release ${{ steps.meta.outputs.tag }}
+          generate_release_notes: true
+
   # ===========================================
   # BUILD CHECK - Runs on PRs (blocks merge if fails)
   # ===========================================
@@ -167,48 +275,73 @@ jobs:
   # DEPLOY - Only runs after merge (push event)
   # ===========================================
   deploy-ecomos:
-    needs: detect-changes
+    needs: [detect-changes, build-metadata]
     if: github.event_name == 'push' && (needs.detect-changes.outputs.ecomos == 'true' || needs.detect-changes.outputs.packages == 'true')
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Deploy ecomos
+        env:
+          NEXT_PUBLIC_VERSION: ${{ needs.build-metadata.outputs.version }}
+          NEXT_PUBLIC_RELEASE_URL: ${{ needs.build-metadata.outputs.version_url }}
+          NEXT_PUBLIC_COMMIT_SHA: ${{ needs.build-metadata.outputs.commit_sha }}
+          BUILD_TIME: ${{ needs.build-metadata.outputs.build_time }}
         run: bash "${{ github.workspace }}/scripts/deploy-app.sh" ecomos "${{ github.ref_name }}"
 
   deploy-wms:
-    needs: detect-changes
+    needs: [detect-changes, build-metadata]
     if: github.event_name == 'push' && (needs.detect-changes.outputs.wms == 'true' || needs.detect-changes.outputs.packages == 'true')
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Deploy wms
+        env:
+          NEXT_PUBLIC_VERSION: ${{ needs.build-metadata.outputs.version }}
+          NEXT_PUBLIC_RELEASE_URL: ${{ needs.build-metadata.outputs.version_url }}
+          NEXT_PUBLIC_COMMIT_SHA: ${{ needs.build-metadata.outputs.commit_sha }}
+          BUILD_TIME: ${{ needs.build-metadata.outputs.build_time }}
         run: bash "${{ github.workspace }}/scripts/deploy-app.sh" wms "${{ github.ref_name }}"
 
   deploy-website:
-    needs: detect-changes
+    needs: [detect-changes, build-metadata]
     if: github.event_name == 'push' && (needs.detect-changes.outputs.website == 'true' || needs.detect-changes.outputs.packages == 'true')
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Deploy website
+        env:
+          NEXT_PUBLIC_VERSION: ${{ needs.build-metadata.outputs.version }}
+          NEXT_PUBLIC_RELEASE_URL: ${{ needs.build-metadata.outputs.version_url }}
+          NEXT_PUBLIC_COMMIT_SHA: ${{ needs.build-metadata.outputs.commit_sha }}
+          BUILD_TIME: ${{ needs.build-metadata.outputs.build_time }}
         run: bash "${{ github.workspace }}/scripts/deploy-app.sh" website "${{ github.ref_name }}"
 
   deploy-xplan:
-    needs: detect-changes
+    needs: [detect-changes, build-metadata]
     if: github.event_name == 'push' && (needs.detect-changes.outputs.xplan == 'true' || needs.detect-changes.outputs.packages == 'true')
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Deploy x-plan
+        env:
+          NEXT_PUBLIC_VERSION: ${{ needs.build-metadata.outputs.version }}
+          NEXT_PUBLIC_RELEASE_URL: ${{ needs.build-metadata.outputs.version_url }}
+          NEXT_PUBLIC_COMMIT_SHA: ${{ needs.build-metadata.outputs.commit_sha }}
+          BUILD_TIME: ${{ needs.build-metadata.outputs.build_time }}
         run: bash "${{ github.workspace }}/scripts/deploy-app.sh" xplan "${{ github.ref_name }}"
 
   deploy-hrms:
-    needs: detect-changes
+    needs: [detect-changes, build-metadata]
     if: github.event_name == 'push' && (needs.detect-changes.outputs.hrms == 'true' || needs.detect-changes.outputs.packages == 'true')
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
       - name: Deploy hrms
+        env:
+          NEXT_PUBLIC_VERSION: ${{ needs.build-metadata.outputs.version }}
+          NEXT_PUBLIC_RELEASE_URL: ${{ needs.build-metadata.outputs.version_url }}
+          NEXT_PUBLIC_COMMIT_SHA: ${{ needs.build-metadata.outputs.commit_sha }}
+          BUILD_TIME: ${{ needs.build-metadata.outputs.build_time }}
         run: bash "${{ github.workspace }}/scripts/deploy-app.sh" hrms "${{ github.ref_name }}"
 
   # ===========================================

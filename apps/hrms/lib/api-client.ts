@@ -802,3 +802,76 @@ export const DepartmentsApi = {
     })
   },
 }
+
+// Projects
+export type ProjectLead = {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  email: string
+  position: string
+  avatar?: string | null
+}
+
+export type ProjectMember = {
+  id: string
+  role?: string | null
+  employee: {
+    id: string
+    employeeId: string
+    firstName: string
+    lastName: string
+    email: string
+    position: string
+    department: string
+    avatar?: string | null
+  }
+}
+
+export type Project = {
+  id: string
+  name: string
+  code?: string | null
+  description?: string | null
+  status: string
+  leadId?: string | null
+  lead?: ProjectLead | null
+  members?: ProjectMember[]
+  startDate?: string | null
+  endDate?: string | null
+  _count?: {
+    members: number
+  }
+}
+
+export const ProjectsApi = {
+  list() {
+    return request<{ items: Project[] }>('/api/projects')
+  },
+  get(id: string) {
+    return request<Project>(`/api/projects/${encodeURIComponent(id)}`)
+  },
+  getHierarchy() {
+    return request<{ items: Project[] }>('/api/projects/hierarchy')
+  },
+  create(payload: { name: string; code?: string; description?: string; status?: string; leadId?: string; startDate?: string; endDate?: string }) {
+    return request<Project>('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  update(id: string, payload: Partial<{ name: string; code: string; description: string; status: string; leadId: string; startDate: string; endDate: string }>) {
+    return request<Project>(`/api/projects/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  delete(id: string) {
+    return request<{ success: boolean }>(`/api/projects/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    })
+  },
+}

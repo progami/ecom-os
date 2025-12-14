@@ -2,14 +2,15 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { HierarchyApi, DepartmentsApi, HierarchyEmployee, Department } from '@/lib/api-client'
+import { HierarchyApi, DepartmentsApi, ProjectsApi, HierarchyEmployee, Department, Project } from '@/lib/api-client'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
-import { OrgChartIcon, SpinnerIcon, SearchIcon, XIcon, UsersIcon, BuildingIcon } from '@/components/ui/Icons'
+import { OrgChartIcon, SpinnerIcon, SearchIcon, XIcon, UsersIcon, BuildingIcon, FolderIcon } from '@/components/ui/Icons'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { OrgChart } from '@/components/organogram/OrgChart'
 import { DepartmentOrgChart } from '@/components/organogram/DepartmentOrgChart'
+import { ProjectOrgChart } from '@/components/organogram/ProjectOrgChart'
 
 interface HierarchyData {
   items: HierarchyEmployee[]
@@ -18,13 +19,14 @@ interface HierarchyData {
   directReportIds: string[]
 }
 
-type ViewMode = 'person' | 'department'
+type ViewMode = 'person' | 'department' | 'project'
 
 function OrganogramContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [hierarchyData, setHierarchyData] = useState<HierarchyData | null>(null)
   const [departmentData, setDepartmentData] = useState<Department[] | null>(null)
+  const [projectData, setProjectData] = useState<Project[] | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -57,14 +59,16 @@ function OrganogramContent() {
       setLoading(true)
       setError(null)
 
-      // Fetch both hierarchy and department data in parallel
-      const [hierarchy, departments] = await Promise.all([
+      // Fetch hierarchy, department, and project data in parallel
+      const [hierarchy, departments, projects] = await Promise.all([
         HierarchyApi.getFull(),
         DepartmentsApi.getHierarchy(),
+        ProjectsApi.getHierarchy(),
       ])
 
       setHierarchyData(hierarchy)
       setDepartmentData(departments.items)
+      setProjectData(projects.items)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load org chart'
       setError(message)
@@ -95,6 +99,22 @@ function OrganogramContent() {
       dept.name.toLowerCase().includes(query) ||
       (dept.kpi && dept.kpi.toLowerCase().includes(query)) ||
       (dept.head && `${dept.head.firstName} ${dept.head.lastName}`.toLowerCase().includes(query))
+    )
+  }) ?? []
+
+  // Filter projects based on search query
+  const filteredProjects = projectData?.filter((proj) => {
+    if (!searchQuery.trim()) return true
+    const query = searchQuery.toLowerCase()
+    return (
+      proj.name.toLowerCase().includes(query) ||
+      (proj.code && proj.code.toLowerCase().includes(query)) ||
+      (proj.description && proj.description.toLowerCase().includes(query)) ||
+      (proj.lead && `${proj.lead.firstName} ${proj.lead.lastName}`.toLowerCase().includes(query)) ||
+      (proj.members?.some(m =>
+        `${m.employee.firstName} ${m.employee.lastName}`.toLowerCase().includes(query) ||
+        (m.role && m.role.toLowerCase().includes(query))
+      ))
     )
   }) ?? []
 
@@ -145,6 +165,17 @@ function OrganogramContent() {
             <BuildingIcon className="h-4 w-4" />
             By Department
           </button>
+          <button
+            onClick={() => setViewMode('project')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              viewMode === 'project'
+                ? 'bg-white text-slate-900 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <FolderIcon className="h-4 w-4" />
+            By Project
+          </button>
         </div>
 
         {/* Search */}
@@ -152,9 +183,12 @@ function OrganogramContent() {
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
           <input
             type="text"
-            placeholder={viewMode === 'person'
-              ? "Search by name, department, position..."
-              : "Search by department, KPI, head..."
+            placeholder={
+              viewMode === 'person'
+                ? "Search by name, department, position..."
+                : viewMode === 'department'
+                  ? "Search by department, head..."
+                  : "Search by project, lead, member..."
             }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -171,8 +205,19 @@ function OrganogramContent() {
         </div>
         {searchQuery && (
           <p className="text-sm text-slate-500">
-            Showing {viewMode === 'person' ? filteredEmployees.length : filteredDepartments.length} of{' '}
-            {viewMode === 'person' ? hierarchyData?.items.length : departmentData?.length} {viewMode === 'person' ? 'employees' : 'departments'}
+            Showing{' '}
+            {viewMode === 'person'
+              ? filteredEmployees.length
+              : viewMode === 'department'
+                ? filteredDepartments.length
+                : filteredProjects.length}{' '}
+            of{' '}
+            {viewMode === 'person'
+              ? hierarchyData?.items.length
+              : viewMode === 'department'
+                ? departmentData?.length
+                : projectData?.length}{' '}
+            {viewMode === 'person' ? 'employees' : viewMode === 'department' ? 'departments' : 'projects'}
           </p>
         )}
       </div>
@@ -185,10 +230,13 @@ function OrganogramContent() {
           managerChainIds={hierarchyData?.managerChainIds ?? []}
           directReportIds={hierarchyData?.directReportIds ?? []}
         />
-      ) : (
+      ) : viewMode === 'department' ? (
         <DepartmentOrgChart
           departments={filteredDepartments}
-          allEmployees={hierarchyData?.items ?? []}
+        />
+      ) : (
+        <ProjectOrgChart
+          projects={filteredProjects}
         />
       )}
     </Card>

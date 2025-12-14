@@ -22,10 +22,26 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0'
+  const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
+  const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
+  const commitUrl = commitSha ? `https://github.com/progami/ecom-os/commit/${commitSha}` : undefined
+  const inferredReleaseUrl = `https://github.com/progami/ecom-os/releases/tag/v${version}`
+  const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={clsx('min-h-screen bg-slate-50 font-sans antialiased dark:bg-slate-950', inter.variable)}>
         <Providers>{children}</Providers>
+        <a
+          href={versionHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="fixed bottom-3 right-3 z-50 rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs text-slate-600 shadow-sm backdrop-blur transition-colors hover:text-slate-900 dark:border-slate-800 dark:bg-slate-950/60 dark:text-slate-400 dark:hover:text-slate-100"
+          aria-label={`X-Plan version v${version}`}
+        >
+          X-Plan v{version}
+        </a>
       </body>
     </html>
   )
