@@ -19,6 +19,18 @@ export type Employee = {
   manager?: { id: string; firstName: string; lastName: string; position: string } | null
 }
 
+export type EmployeeProjectMembership = {
+  id: string
+  role?: string | null
+  joinedAt: string
+  project: {
+    id: string
+    name: string
+    code?: string | null
+    status: string
+  }
+}
+
 export type Resource = {
   id: string
   name: string
@@ -151,6 +163,16 @@ export const EmployeesApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ employeeId }),
+    })
+  },
+  getProjectMemberships(employeeId: string) {
+    return request<{ items: EmployeeProjectMembership[] }>(`/api/employees/${encodeURIComponent(employeeId)}/projects`)
+  },
+  updateProjectMemberships(employeeId: string, memberships: { projectId: string; role?: string }[]) {
+    return request<{ items: EmployeeProjectMembership[] }>(`/api/employees/${encodeURIComponent(employeeId)}/projects`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberships }),
     })
   },
 }
