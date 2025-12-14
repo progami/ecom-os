@@ -37,6 +37,7 @@ type TabKey = 'inbound' | 'storage' | 'outbound' | 'forwarding'
 
 // Rate templates define expected rates with their categories and units
 // Categories: Inbound, Storage, Outbound, Forwarding (matches the supply chain stage)
+// Tactical Logistics CWH Rate Sheet (from actual invoices)
 const RATE_TEMPLATES = {
   inbound: [
     { costName: "20' Container Handling", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 650 },
@@ -47,26 +48,23 @@ const RATE_TEMPLATES = {
     { costName: "Additional SKU Fee", costCategory: 'Inbound', unitOfMeasure: 'per_sku', defaultValue: 10 },
     { costName: "Cartons Over 1200", costCategory: 'Inbound', unitOfMeasure: 'per_carton', defaultValue: 0.05 },
     { costName: "Pallet & Shrink Wrap Fee", costCategory: 'Inbound', unitOfMeasure: 'per_pallet', defaultValue: 13.75 },
-    { costName: "Pallet Shortage - 20' Container", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 0 },
-    { costName: "Pallet Shortage - 40' Container", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 0 },
-    { costName: "Pallet Shortage - 40' HQ Container", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 0 },
-    { costName: "Pallet Shortage - 45' HQ Container", costCategory: 'Inbound', unitOfMeasure: 'per_container', defaultValue: 0 },
   ],
   storage: [
     { costName: "Warehouse Storage", costCategory: 'Storage', unitOfMeasure: 'per_pallet_day', defaultValue: 0.69 },
-    { costName: "Warehouse Storage (6+ Months)", costCategory: 'Storage', unitOfMeasure: 'per_pallet_day', defaultValue: 0 },
+    { costName: "Warehouse Storage (6+ Months)", costCategory: 'Storage', unitOfMeasure: 'per_pallet_day', defaultValue: 0.69 },
   ],
   outbound: [
+    { costName: "Replenishment Handling", costCategory: 'Outbound', unitOfMeasure: 'per_carton', defaultValue: 1.00 },
+    { costName: "Replenishment Minimum", costCategory: 'Outbound', unitOfMeasure: 'per_shipment', defaultValue: 15 },
     { costName: "FBA Trucking - Up to 8 Pallets", costCategory: 'Outbound', unitOfMeasure: 'flat', defaultValue: 0 },
     { costName: "FBA Trucking - 9-12 Pallets", costCategory: 'Outbound', unitOfMeasure: 'flat', defaultValue: 0 },
     { costName: "FBA Trucking - 13-28 Pallets (FTL)", costCategory: 'Outbound', unitOfMeasure: 'flat', defaultValue: 0 },
-    { costName: "Waiting Time (after 4 hrs)", costCategory: 'Outbound', unitOfMeasure: 'per_hour', defaultValue: 0 },
-    { costName: "Weekend Delivery Fee", costCategory: 'Outbound', unitOfMeasure: 'per_delivery', defaultValue: 0 },
-    { costName: "Rush Fee (24-hour)", costCategory: 'Outbound', unitOfMeasure: 'per_delivery', defaultValue: 0 },
-    { costName: "Replenishment Handling", costCategory: 'Outbound', unitOfMeasure: 'per_carton', defaultValue: 1.00 },
-    { costName: "Replenishment Minimum", costCategory: 'Outbound', unitOfMeasure: 'per_shipment', defaultValue: 15 },
   ],
-  forwarding: [],
+  forwarding: [
+    { costName: "Pre-pull", costCategory: 'Forwarding', unitOfMeasure: 'flat', defaultValue: 175 },
+    { costName: "Pierpass 20'", costCategory: 'Forwarding', unitOfMeasure: 'per_container', defaultValue: 34.52 },
+    { costName: "Pierpass 40'", costCategory: 'Forwarding', unitOfMeasure: 'per_container', defaultValue: 68.42 },
+  ],
 }
 
 export function WarehouseRatesPanel({
@@ -82,6 +80,31 @@ export function WarehouseRatesPanel({
   const [saving, setSaving] = useState(false)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [newRateTemplate, setNewRateTemplate] = useState<typeof RATE_TEMPLATES.inbound[0] | null>(null)
+  const [initializing, setInitializing] = useState(false)
+
+  const initializeAllRates = async () => {
+    if (!confirm('This will initialize all missing rates and update existing rates with default values. Continue?')) {
+      return
+    }
+    setInitializing(true)
+    try {
+      const response = await fetchWithCSRF(`/api/warehouses/${warehouseId}/initialize-rates`, {
+        method: 'POST'
+      })
+      if (response.ok) {
+        const data = await response.json()
+        toast.success(data.message)
+        await loadRates()
+      } else {
+        const error = await response.json().catch(() => null)
+        toast.error(error?.error || 'Failed to initialize rates')
+      }
+    } catch (_error) {
+      toast.error('Failed to initialize rates')
+    } finally {
+      setInitializing(false)
+    }
+  }
 
   const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'inbound', label: 'Inbound', icon: <Package className="h-4 w-4" /> },
@@ -311,9 +334,28 @@ export function WarehouseRatesPanel({
             <h2 className="text-xl font-semibold text-slate-900">{warehouseName}</h2>
             <p className="text-sm text-slate-500">Rate Sheet • {warehouseCode} • USD</p>
           </div>
-          <Badge className="bg-green-50 text-green-700 border-green-200">
-            {rates.length} rates configured
-          </Badge>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={initializeAllRates}
+              disabled={initializing}
+              className="px-3 py-1.5 text-sm font-medium text-cyan-700 bg-cyan-50 border border-cyan-200 rounded-lg hover:bg-cyan-100 disabled:opacity-50 transition-colors flex items-center gap-2"
+            >
+              {initializing ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Initializing...
+                </>
+              ) : (
+                <>
+                  <DollarSign className="h-4 w-4" />
+                  Initialize All Rates
+                </>
+              )}
+            </button>
+            <Badge className="bg-green-50 text-green-700 border-green-200">
+              {rates.length} rates configured
+            </Badge>
+          </div>
         </div>
 
       {/* Tabs */}

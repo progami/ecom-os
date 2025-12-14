@@ -46,7 +46,9 @@ export function NavigationHistoryProvider({ children }: { children: ReactNode })
       // Get previous path
       const previousPath = historyRef.current[historyRef.current.length - 1]
       if (previousPath) {
-        window.location.href = previousPath
+        // Add basePath if configured
+        const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
+        window.location.href = `${basePath}${previousPath}`
       }
     } else {
       // Fallback to browser history
