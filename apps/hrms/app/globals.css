@@ -2,10 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Prevent body scrolling */
+/* Full height layout */
 html, body {
   height: 100%;
-  overflow: hidden;
+}
+
+/* Main scrollable area */
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* Disable autofill styling on login form */
