@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { EmployeesApi, DepartmentsApi, type Employee, type Department } from '@/lib/api-client'
-import { UsersIcon } from '@/components/ui/Icons'
+import { EmployeesApi, DepartmentsApi, ProjectsApi, type Employee, type Department, type Project, type EmployeeProjectMembership } from '@/lib/api-client'
+import { UsersIcon, PlusIcon, XIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardDivider } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -26,6 +26,8 @@ export default function EditEmployeePage() {
   const [employee, setEmployee] = useState<Employee | null>(null)
   const [allEmployees, setAllEmployees] = useState<Employee[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [projectMemberships, setProjectMemberships] = useState<{ projectId: string; role: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,14 +35,23 @@ export default function EditEmployeePage() {
   useEffect(() => {
     async function load() {
       try {
-        const [data, employeesRes, deptsRes] = await Promise.all([
+        const [data, employeesRes, deptsRes, projectsRes, membershipsRes] = await Promise.all([
           EmployeesApi.get(id),
           EmployeesApi.list({ take: 200 }),
           DepartmentsApi.list(),
+          ProjectsApi.list(),
+          EmployeesApi.getProjectMemberships(id),
         ])
         setEmployee(data)
         setAllEmployees(employeesRes.items)
         setDepartments(deptsRes.items)
+        setProjects(projectsRes.items)
+        setProjectMemberships(
+          membershipsRes.items.map((m) => ({
+            projectId: m.project.id,
+            role: m.role || '',
+          }))
+        )
       } catch (e: any) {
         setError(e.message || 'Failed to load employee')
       } finally {
@@ -58,6 +69,7 @@ export default function EditEmployeePage() {
     const payload = Object.fromEntries(fd.entries()) as any
 
     try {
+      // Update employee info
       await EmployeesApi.update(id, {
         firstName: String(payload.firstName),
         lastName: String(payload.lastName),
@@ -70,12 +82,46 @@ export default function EditEmployeePage() {
         status: String(payload.status || 'ACTIVE'),
         reportsToId: payload.reportsToId ? String(payload.reportsToId) : null,
       })
+
+      // Update project memberships
+      await EmployeesApi.updateProjectMemberships(
+        id,
+        projectMemberships
+          .filter((m) => m.projectId) // Only include valid memberships
+          .map((m) => ({
+            projectId: m.projectId,
+            role: m.role || undefined,
+          }))
+      )
+
       router.push(`/employees/${id}`)
     } catch (e: any) {
       setError(e.message || 'Failed to update employee')
     } finally {
       setSubmitting(false)
     }
+  }
+
+  function addProjectMembership() {
+    setProjectMemberships([...projectMemberships, { projectId: '', role: '' }])
+  }
+
+  function removeProjectMembership(index: number) {
+    setProjectMemberships(projectMemberships.filter((_, i) => i !== index))
+  }
+
+  function updateProjectMembership(index: number, field: 'projectId' | 'role', value: string) {
+    const updated = [...projectMemberships]
+    updated[index] = { ...updated[index], [field]: value }
+    setProjectMemberships(updated)
+  }
+
+  // Get projects not already assigned
+  const availableProjects = (index: number) => {
+    const assignedProjectIds = projectMemberships
+      .filter((_, i) => i !== index)
+      .map((m) => m.projectId)
+    return projects.filter((p) => !assignedProjectIds.includes(p.id))
   }
 
   if (loading) {
@@ -234,6 +280,91 @@ export default function EditEmployeePage() {
                   ]}
                   defaultValue={employee.reportsToId || ''}
                 />
+              </div>
+            </FormSection>
+
+            <CardDivider />
+
+            {/* Project Assignments */}
+            <FormSection title="Project Assignments" description="Assign this employee to projects">
+              <div className="space-y-4">
+                {projectMemberships.map((membership, index) => (
+                  <div key={index} className="flex items-start gap-3 p-4 bg-slate-50 rounded-lg">
+                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Project
+                        </label>
+                        <select
+                          value={membership.projectId}
+                          onChange={(e) => updateProjectMembership(index, 'projectId', e.target.value)}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                        >
+                          <option value="">Select project...</option>
+                          {availableProjects(index).map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name} {p.code ? `(${p.code})` : ''}
+                            </option>
+                          ))}
+                          {/* Include current selection even if filtered out */}
+                          {membership.projectId && !availableProjects(index).find((p) => p.id === membership.projectId) && (
+                            <option value={membership.projectId}>
+                              {projects.find((p) => p.id === membership.projectId)?.name || membership.projectId}
+                            </option>
+                          )}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Role in Project
+                        </label>
+                        <input
+                          type="text"
+                          value={membership.role}
+                          onChange={(e) => updateProjectMembership(index, 'role', e.target.value)}
+                          placeholder="e.g., Developer, Designer, Lead"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeProjectMembership(index)}
+                      className="mt-6 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Remove project"
+                    >
+                      <XIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                ))}
+
+                {projects.length > 0 && projectMemberships.length < projects.length && (
+                  <button
+                    type="button"
+                    onClick={addProjectMembership}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors"
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                    Add Project Assignment
+                  </button>
+                )}
+
+                {projects.length === 0 && (
+                  <p className="text-sm text-slate-500">No projects available. Create projects first.</p>
+                )}
+
+                {projectMemberships.length === 0 && projects.length > 0 && (
+                  <p className="text-sm text-slate-500">
+                    No projects assigned.{' '}
+                    <button
+                      type="button"
+                      onClick={addProjectMembership}
+                      className="text-cyan-600 hover:text-cyan-700 font-medium"
+                    >
+                      Add one
+                    </button>
+                  </p>
+                )}
               </div>
             </FormSection>
 
