@@ -143,6 +143,16 @@ export const EmployeesApi = {
       method: 'DELETE',
     })
   },
+  listManageable() {
+    return request<{ items: Employee[]; total: number }>(`/api/employees/manageable`)
+  },
+  checkCanManage(employeeId: string) {
+    return request<{ canManage: boolean; reason?: string }>(`/api/employees/manageable`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ employeeId }),
+    })
+  },
 }
 
 // Resources

@@ -5,7 +5,7 @@ export const MAX_PAGINATION_LIMIT = 100
 export const DEFAULT_PAGINATION_LIMIT = 50
 
 // Employee schemas
-export const EmploymentTypeEnum = z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN'])
+export const EmploymentTypeEnum = z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN', 'WORKING_PARTNER'])
 export const EmployeeStatusEnum = z.enum(['ACTIVE', 'ON_LEAVE', 'TERMINATED', 'RESIGNED'])
 
 export const CreateEmployeeSchema = z.object({

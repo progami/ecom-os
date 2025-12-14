@@ -15,20 +15,7 @@ import {
   FormActions,
 } from '@/components/ui/FormField'
 import { useNavigationHistory } from '@/lib/navigation-history'
-
-const employmentTypeOptions = [
-  { value: 'FULL_TIME', label: 'Full Time' },
-  { value: 'PART_TIME', label: 'Part Time' },
-  { value: 'CONTRACT', label: 'Contract' },
-  { value: 'INTERN', label: 'Intern' },
-]
-
-const statusOptions = [
-  { value: 'ACTIVE', label: 'Active' },
-  { value: 'ON_LEAVE', label: 'On Leave' },
-  { value: 'TERMINATED', label: 'Terminated' },
-  { value: 'RESIGNED', label: 'Resigned' },
-]
+import { employmentTypeOptions, statusOptions } from '@/lib/constants'
 
 export default function EditEmployeePage() {
   const router = useRouter()
@@ -196,10 +183,14 @@ export default function EditEmployeePage() {
             {/* Work Info */}
             <FormSection title="Work Information" description="Job-related details">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <FormField
+                <SelectField
                   label="Department"
                   name="department"
                   required
+                  options={departments.map((dept) => ({
+                    value: dept.name,
+                    label: dept.name,
+                  }))}
                   defaultValue={employee.department || ''}
                 />
                 <FormField
