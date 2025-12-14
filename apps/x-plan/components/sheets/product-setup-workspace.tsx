@@ -65,33 +65,10 @@ export function ProductSetupWorkspace({
 
   const tabPanels = useMemo(() => {
     return {
-      catalogue: (
-        <ProductSetupGrid products={products} />
-      ),
-      operations: (
-        <ProductSetupParametersPanel
-          title="Operations Defaults"
-          description="Set default lead times for your supply chain stages"
-          parameterType="ops"
-          parameters={operationsParameters}
-        />
-      ),
-      sales: (
-        <ProductSetupParametersPanel
-          title="Sales Defaults"
-          description="Configure inventory warning thresholds"
-          parameterType="sales"
-          parameters={salesParameters}
-        />
-      ),
-      finance: (
-        <ProductSetupParametersPanel
-          title="Finance Defaults"
-          description="Set up cash flow and payment parameters"
-          parameterType="finance"
-          parameters={financeParameters}
-        />
-      ),
+      catalogue: <ProductSetupGrid products={products} />,
+      operations: <ProductSetupParametersPanel parameterType="ops" parameters={operationsParameters} />,
+      sales: <ProductSetupParametersPanel parameterType="sales" parameters={salesParameters} />,
+      finance: <ProductSetupParametersPanel parameterType="finance" parameters={financeParameters} />,
     } satisfies Record<TabKey, ReactNode>
   }, [financeParameters, operationsParameters, products, salesParameters])
 
@@ -158,9 +135,7 @@ export function ProductSetupWorkspace({
 
       {/* Right content area */}
       <div className="min-w-0 flex-1">
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-[#041324]">
-          {tabPanels[activeTab]}
-        </div>
+        {tabPanels[activeTab]}
       </div>
     </div>
   )

@@ -42,8 +42,6 @@ function getDefaults(type: 'ops' | 'sales' | 'finance') {
 }
 
 export interface ProductSetupParametersPanelProps {
-  title: string
-  description?: string
   parameterType: 'ops' | 'sales' | 'finance'
   parameters: BusinessParameter[]
   className?: string
@@ -73,8 +71,6 @@ function initializeRecords(parameters: BusinessParameter[], type: 'ops' | 'sales
 }
 
 export function ProductSetupParametersPanel({
-  title,
-  description,
   parameterType,
   parameters,
   className,
@@ -250,75 +246,66 @@ export function ProductSetupParametersPanel({
   }, [flushUpdates])
 
   return (
-    <div className={clsx('space-y-4', className)}>
-      <div>
-        <h3 className="text-base font-semibold text-slate-900 dark:text-white">{title}</h3>
-        {description && (
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{description}</p>
-        )}
-      </div>
+    <div className={clsx('overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-[#041324]', className)}>
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
+            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Parameter
+            </th>
+            <th className="w-32 px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Value
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+          {items.map((item) => {
+            const isError = item.status === 'error'
+            const isSaving = item.status === 'saving'
+            const isDirty = item.status === 'dirty'
+            const key = item.id || item.label
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-white/10">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
-              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Parameter
-              </th>
-              <th className="w-36 px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Value
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-            {items.map((item) => {
-              const isError = item.status === 'error'
-              const isSaving = item.status === 'saving'
-              const isDirty = item.status === 'dirty'
-              const key = item.id || item.label
-
-              return (
-                <tr key={key} className="bg-white dark:bg-transparent">
-                  <td className="px-4 py-3">
-                    <label htmlFor={`param-${key}`} className="text-sm text-slate-700 dark:text-slate-200">
-                      {item.label}
-                    </label>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="relative">
-                      <input
-                        id={`param-${key}`}
-                        value={item.value}
-                        onChange={(event) => handleValueChange(key, event.target.value)}
-                        onBlur={handleBlur}
-                        inputMode="decimal"
-                        aria-invalid={isError}
-                        disabled={isSaving}
-                        className={clsx(
-                          'w-full rounded-lg border px-3 py-2 text-right text-sm font-medium tabular-nums transition focus:outline-none focus:ring-2 disabled:cursor-not-allowed disabled:opacity-70',
-                          isError
-                            ? 'border-rose-300 bg-rose-50 text-rose-900 focus:border-rose-400 focus:ring-rose-200 dark:border-rose-500/50 dark:bg-rose-900/20 dark:text-rose-100'
-                            : isDirty
-                              ? 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-400 focus:ring-amber-200 dark:border-amber-500/50 dark:bg-amber-900/20 dark:text-slate-100'
-                              : 'border-slate-200 bg-white text-slate-900 focus:border-cyan-400 focus:ring-cyan-100 dark:border-white/15 dark:bg-white/5 dark:text-slate-100 dark:focus:border-cyan-400 dark:focus:ring-cyan-400/20'
-                        )}
-                      />
-                      {isSaving && (
-                        <div className="absolute inset-y-0 right-3 flex items-center">
-                          <svg className="h-4 w-4 animate-spin text-cyan-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                        </div>
+            return (
+              <tr key={key} className="bg-white dark:bg-transparent">
+                <td className="px-3 py-2">
+                  <label htmlFor={`param-${key}`} className="text-sm text-slate-700 dark:text-slate-200">
+                    {item.label}
+                  </label>
+                </td>
+                <td className="px-3 py-2">
+                  <div className="relative">
+                    <input
+                      id={`param-${key}`}
+                      value={item.value}
+                      onChange={(event) => handleValueChange(key, event.target.value)}
+                      onBlur={handleBlur}
+                      inputMode="decimal"
+                      aria-invalid={isError}
+                      disabled={isSaving}
+                      className={clsx(
+                        'w-full rounded border px-2 py-1.5 text-right text-sm font-medium tabular-nums transition focus:outline-none focus:ring-1 disabled:cursor-not-allowed disabled:opacity-70',
+                        isError
+                          ? 'border-rose-300 bg-rose-50 text-rose-900 focus:border-rose-400 focus:ring-rose-200 dark:border-rose-500/50 dark:bg-rose-900/20 dark:text-rose-100'
+                          : isDirty
+                            ? 'border-amber-300 bg-amber-50 text-slate-900 focus:border-amber-400 focus:ring-amber-200 dark:border-amber-500/50 dark:bg-amber-900/20 dark:text-slate-100'
+                            : 'border-slate-200 bg-white text-slate-900 focus:border-cyan-400 focus:ring-cyan-100 dark:border-white/15 dark:bg-white/5 dark:text-slate-100 dark:focus:border-cyan-400 dark:focus:ring-cyan-400/20'
                       )}
-                    </div>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+                    />
+                    {isSaving && (
+                      <div className="absolute inset-y-0 right-2 flex items-center">
+                        <svg className="h-3.5 w-3.5 animate-spin text-cyan-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }
