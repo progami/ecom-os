@@ -15,6 +15,8 @@ export type Employee = {
   joinDate: string
   status: string
   roles?: { id: string; name: string }[]
+  reportsToId?: string | null
+  manager?: { id: string; firstName: string; lastName: string; position: string } | null
 }
 
 export type Resource = {

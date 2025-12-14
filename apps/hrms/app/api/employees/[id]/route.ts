@@ -21,7 +21,7 @@ export async function GET(req: Request, context: EmployeeRouteContext) {
 
     const e = await prisma.employee.findFirst({
       where: { OR: [{ id }, { employeeId: id }] },
-      include: { roles: true, dept: true },
+      include: { roles: true, dept: true, manager: { select: { id: true, firstName: true, lastName: true, position: true } } },
     })
 
     if (!e) {
@@ -120,7 +120,7 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
     const e = await prisma.employee.update({
       where: { id },
       data: updates,
-      include: { roles: true, dept: true },
+      include: { roles: true, dept: true, manager: { select: { id: true, firstName: true, lastName: true, position: true } } },
     })
 
     // Re-check profile completion after update
