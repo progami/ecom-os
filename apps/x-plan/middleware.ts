@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { hasPortalSession } from '@ecom-os/auth'
+import { getCandidateSessionCookieNames, decodePortalSession, getAppEntitlement } from '@ecom-os/auth'
 import { portalUrl } from '@/lib/portal'
 
 const PUBLIC_PREFIXES = ['/api/auth/', '/api/v1/', '/_next', '/favicon.ico', '/health']
@@ -46,14 +46,31 @@ export async function middleware(request: NextRequest) {
 
   if (!isPublicRoute) {
     const debug = process.env.NODE_ENV !== 'production'
-    const hasSession = await hasPortalSession({
-      request,
-      appId: 'x-plan',
-      portalUrl: process.env.PORTAL_AUTH_URL,
+    const cookieNames = getCandidateSessionCookieNames('x-plan')
+    const cookieHeader = request.headers.get('cookie')
+    const sharedSecret = process.env.PORTAL_AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
+
+    const decoded = await decodePortalSession({
+      cookieHeader,
+      cookieNames,
+      secret: sharedSecret,
       debug,
     })
 
-    if (!hasSession) {
+    const hasSession = !!decoded
+    const xplanEntitlement = decoded ? getAppEntitlement(decoded.roles, 'x-plan') : undefined
+    const hasAccess = hasSession && !!xplanEntitlement
+
+    if (!hasAccess) {
+      // User has session but no X-Plan access
+      if (hasSession && !xplanEntitlement) {
+        const redirect = portalUrl('/', request)
+        redirect.searchParams.set('error', 'no_access')
+        redirect.searchParams.set('app', 'x-plan')
+        return NextResponse.redirect(redirect)
+      }
+
+      // No session at all
       const login = portalUrl('/login', request)
       if (debug) {
         console.log('[x-plan middleware] no session, redirecting to portal login', login.toString())

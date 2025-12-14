@@ -45,10 +45,8 @@ async function main() {
   const apps = [
     { slug: 'wms', name: 'Warehouse Management' },
     { slug: 'hrms', name: 'HRMS' },
-    { slug: 'fcc', name: 'Finance Console' },
-    { slug: 'margin-master', name: 'Margin Master' },
     { slug: 'website', name: 'Website CMS' },
-    { slug: 'legal-suite', name: 'Legal Suite' },
+    { slug: 'x-plan', name: 'X-Plan' },
   ]
 
   await Promise.all(

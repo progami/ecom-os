@@ -1,31 +1,30 @@
 import { redirect } from 'next/navigation'
-import { ALL_APPS, resolveAppUrl } from '@/lib/apps'
+import { filterAppsForUser, resolveAppUrl, ALL_APPS } from '@/lib/apps'
 import { getSafeServerSession } from '@/lib/safe-session'
 import PortalClient from './PortalClient'
 
-export default async function PortalHome() {
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
+
+export default async function PortalHome({ searchParams }: { searchParams: SearchParams }) {
   const session = await getSafeServerSession()
   if (!session) {
     redirect('/login')
   }
 
-  const rolesClaim = (session as any).roles as Record<string, { role: string; depts?: string[] }> | undefined
+  const params = await searchParams
+  const errorCode = typeof params.error === 'string' ? params.error : undefined
+  const errorApp = typeof params.app === 'string' ? params.app : undefined
 
-  const normalizedRoles = rolesClaim ? { ...rolesClaim } : undefined
-  const userRole = (session.user as { role?: string } | undefined)?.role
-  if (normalizedRoles && userRole === 'admin') {
-    if (!normalizedRoles['margin-master']) {
-      normalizedRoles['margin-master'] = { role: 'admin', depts: ['Product'] }
-    }
-    if (!normalizedRoles['x-plan']) {
-      normalizedRoles['x-plan'] = { role: 'admin', depts: ['Product'] }
-    }
-    if (!normalizedRoles['legal-suite']) {
-      normalizedRoles['legal-suite'] = { role: 'admin', depts: ['Legal'] }
-    }
+  let accessError: string | undefined
+  if (errorCode === 'no_access' && errorApp) {
+    const appDef = ALL_APPS.find(a => a.id === errorApp)
+    const appName = appDef?.name ?? errorApp
+    accessError = `You don't have access to ${appName}. Contact an administrator if you need access.`
   }
 
-  const apps = normalizedRoles ? ALL_APPS.filter((a) => normalizedRoles[a.id] && a.lifecycle !== 'archive') : []
+  const rolesClaim = (session as any).roles as Record<string, { role: string; depts?: string[] }> | undefined
+  const allowedAppIds = rolesClaim ? Object.keys(rolesClaim) : []
+  const apps = filterAppsForUser(allowedAppIds)
 
   // Resolve URLs on the server side so the client never sees placeholder slugs or stale hosts
   const appsWithUrls = apps.map(app => ({
@@ -37,7 +36,8 @@ export default async function PortalHome() {
     <PortalClient
       session={session}
       apps={appsWithUrls}
-      roles={normalizedRoles}
+      roles={rolesClaim}
+      accessError={accessError}
     />
   )
 }
