@@ -47,7 +47,6 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
     }
 
     const body = await req.json()
-    console.error('[DEBUG] Received body:', JSON.stringify(body, null, 2))
 
     // Validate input with whitelist schema
     const validation = validateBody(UpdateEmployeeSchema, body)
@@ -75,8 +74,14 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
     if (data.status !== undefined) updates.status = data.status as EmployeeStatus
     if (data.joinDate !== undefined) updates.joinDate = new Date(data.joinDate)
 
-    // Hierarchy
-    if (data.reportsToId !== undefined) updates.reportsToId = data.reportsToId
+    // Hierarchy - use manager relation instead of reportsToId directly
+    if (data.reportsToId !== undefined) {
+      if (data.reportsToId) {
+        updates.manager = { connect: { id: data.reportsToId } }
+      } else {
+        updates.manager = { disconnect: true }
+      }
+    }
 
     // Personal info
     if (data.dateOfBirth !== undefined) updates.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : null
@@ -129,10 +134,7 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
 
     return NextResponse.json(e)
   } catch (e) {
-    console.error('[DEBUG] Update employee error:', e)
-    // Temporarily expose error for debugging
-    const errorMsg = e instanceof Error ? e.message : 'Unknown error'
-    return NextResponse.json({ error: `Failed to update employee: ${errorMsg}` }, { status: 500 })
+    return safeErrorResponse(e, 'Failed to update employee')
   }
 }
 
