@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { EmployeesApi, type Employee } from '@/lib/api-client'
+import { EmployeesApi, DepartmentsApi, type Employee, type Department } from '@/lib/api-client'
 import { UsersIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardDivider } from '@/components/ui/Card'
@@ -37,6 +37,8 @@ export default function EditEmployeePage() {
   const id = params.id as string
 
   const [employee, setEmployee] = useState<Employee | null>(null)
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -44,8 +46,14 @@ export default function EditEmployeePage() {
   useEffect(() => {
     async function load() {
       try {
-        const data = await EmployeesApi.get(id)
+        const [data, employeesRes, deptsRes] = await Promise.all([
+          EmployeesApi.get(id),
+          EmployeesApi.list({ take: 200 }),
+          DepartmentsApi.list(),
+        ])
         setEmployee(data)
+        setAllEmployees(employeesRes.items)
+        setDepartments(deptsRes.items)
       } catch (e: any) {
         setError(e.message || 'Failed to load employee')
       } finally {
@@ -73,6 +81,7 @@ export default function EditEmployeePage() {
         joinDate: String(payload.joinDate),
         employmentType: String(payload.employmentType || 'FULL_TIME'),
         status: String(payload.status || 'ACTIVE'),
+        reportsToId: payload.reportsToId ? String(payload.reportsToId) : null,
       })
       router.push(`/employees/${id}`)
     } catch (e: any) {
@@ -219,6 +228,20 @@ export default function EditEmployeePage() {
                   required
                   options={statusOptions}
                   defaultValue={employee.status}
+                />
+                <SelectField
+                  label="Reports To"
+                  name="reportsToId"
+                  options={[
+                    { value: '', label: 'No Manager (Top Level)' },
+                    ...allEmployees
+                      .filter((emp) => emp.id !== id)
+                      .map((emp) => ({
+                        value: emp.id,
+                        label: `${emp.firstName} ${emp.lastName} (${emp.position})`,
+                      })),
+                  ]}
+                  defaultValue={employee.reportsToId || ''}
                 />
               </div>
             </FormSection>
