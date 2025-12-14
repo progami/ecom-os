@@ -161,177 +161,165 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
   }
 
   return (
-    <div className={clsx('space-y-4', className)}>
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-base font-semibold text-slate-900 dark:text-white">Product Catalog</h3>
-          <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-            Manage products for your planning sheets
-          </p>
-        </div>
-        {!isAdding && (
-          <button
-            type="button"
-            onClick={() => setIsAdding(true)}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-600"
-          >
-            <Plus className="h-4 w-4" />
-            Add Product
-          </button>
-        )}
-      </div>
-
-      <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-white/10">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
-              <th className="w-32 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                SKU
-              </th>
-              <th className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Product Name
-              </th>
-              <th className="w-24 px-4 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Actions
-              </th>
+    <div className={clsx('overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-[#041324]', className)}>
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
+            <th className="w-28 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              SKU
+            </th>
+            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Product Name
+            </th>
+            <th className="w-28 px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              {!isAdding && (
+                <button
+                  type="button"
+                  onClick={() => setIsAdding(true)}
+                  className="inline-flex items-center gap-1 rounded bg-cyan-600 px-2 py-1 text-xs font-medium text-white transition hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-600"
+                >
+                  <Plus className="h-3 w-3" />
+                  Add
+                </button>
+              )}
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+          {isAdding && (
+            <tr className="bg-cyan-50/50 dark:bg-cyan-900/10">
+              <td className="px-3 py-2">
+                <input
+                  value={creatingSku}
+                  onChange={(event) => setCreatingSku(event.target.value)}
+                  placeholder="SKU"
+                  autoFocus
+                  className="w-full rounded border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-white/15 dark:bg-white/5 dark:text-slate-100 dark:placeholder-slate-500"
+                />
+              </td>
+              <td className="px-3 py-2">
+                <input
+                  value={creatingName}
+                  onChange={(event) => setCreatingName(event.target.value)}
+                  placeholder="Product name"
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') handleCreateProduct()
+                    if (event.key === 'Escape') handleCancelCreate()
+                  }}
+                  className="w-full rounded border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-white/15 dark:bg-white/5 dark:text-slate-100 dark:placeholder-slate-500"
+                />
+              </td>
+              <td className="px-3 py-2">
+                <div className="flex justify-end gap-0.5">
+                  <button
+                    type="button"
+                    onClick={handleCreateProduct}
+                    disabled={isCreating}
+                    className="rounded p-1.5 text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
+                  >
+                    <Check className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelCreate}
+                    disabled={isCreating}
+                    className="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5 dark:hover:text-slate-300"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </td>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-            {isAdding && (
-              <tr className="bg-cyan-50/50 dark:bg-cyan-900/10">
-                <td className="px-4 py-3">
-                  <input
-                    value={creatingSku}
-                    onChange={(event) => setCreatingSku(event.target.value)}
-                    placeholder="SKU"
-                    autoFocus
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-100 dark:border-white/15 dark:bg-white/5 dark:text-slate-100 dark:placeholder-slate-500"
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  <input
-                    value={creatingName}
-                    onChange={(event) => setCreatingName(event.target.value)}
-                    placeholder="Product name"
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter') handleCreateProduct()
-                      if (event.key === 'Escape') handleCancelCreate()
-                    }}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-100 dark:border-white/15 dark:bg-white/5 dark:text-slate-100 dark:placeholder-slate-500"
-                  />
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex justify-end gap-1">
-                    <button
-                      type="button"
-                      onClick={handleCreateProduct}
-                      disabled={isCreating}
-                      className="rounded-lg p-2 text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
-                    >
-                      <Check className="h-4 w-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCancelCreate}
-                      disabled={isCreating}
-                      className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5 dark:hover:text-slate-300"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            )}
-            {rows.length === 0 && !isAdding ? (
-              <tr>
-                <td colSpan={3} className="px-4 py-12 text-center">
-                  <p className="text-sm text-slate-500 dark:text-slate-400">
-                    No products yet. Click &ldquo;Add Product&rdquo; to get started.
-                  </p>
-                </td>
-              </tr>
-            ) : (
-              rows.map((row) => {
-                const isEditing = editingId === row.id
-                const isSaving = savingId === row.id
-                const isDeleting = deletingId === row.id
+          )}
+          {rows.length === 0 && !isAdding ? (
+            <tr>
+              <td colSpan={3} className="px-3 py-8 text-center">
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  No products yet. Click &ldquo;Add&rdquo; to get started.
+                </p>
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => {
+              const isEditing = editingId === row.id
+              const isSaving = savingId === row.id
+              const isDeleting = deletingId === row.id
 
-                return (
-                  <tr key={row.id} className="bg-white dark:bg-transparent">
-                    <td className="px-4 py-3">
+              return (
+                <tr key={row.id} className="bg-white dark:bg-transparent">
+                  <td className="px-3 py-2">
+                    {isEditing ? (
+                      <input
+                        value={editDraftSku}
+                        onChange={(event) => setEditDraftSku(event.target.value)}
+                        className="w-full rounded border border-cyan-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-cyan-500/50 dark:bg-white/5 dark:text-slate-100"
+                      />
+                    ) : (
+                      <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{row.sku}</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    {isEditing ? (
+                      <input
+                        value={editDraftName}
+                        onChange={(event) => setEditDraftName(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter') handleSaveEdit(row)
+                          if (event.key === 'Escape') handleCancelEdit()
+                        }}
+                        className="w-full rounded border border-cyan-300 bg-white px-2 py-1.5 text-sm text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-cyan-500/50 dark:bg-white/5 dark:text-slate-100"
+                      />
+                    ) : (
+                      <span className="text-sm text-slate-700 dark:text-slate-300">{row.name}</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2">
+                    <div className="flex justify-end gap-0.5">
                       {isEditing ? (
-                        <input
-                          value={editDraftSku}
-                          onChange={(event) => setEditDraftSku(event.target.value)}
-                          className="w-full rounded-lg border border-cyan-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-100 dark:border-cyan-500/50 dark:bg-white/5 dark:text-slate-100"
-                        />
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveEdit(row)}
+                            disabled={isSaving}
+                            className="rounded p-1.5 text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
+                          >
+                            <Check className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleCancelEdit}
+                            className="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5 dark:hover:text-slate-300"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </>
                       ) : (
-                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{row.sku}</span>
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(row)}
+                            className="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5 dark:hover:text-slate-300"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(row)}
+                            disabled={isDeleting}
+                            className="rounded p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50 dark:hover:bg-rose-900/20 dark:hover:text-rose-400"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </>
                       )}
-                    </td>
-                    <td className="px-4 py-3">
-                      {isEditing ? (
-                        <input
-                          value={editDraftName}
-                          onChange={(event) => setEditDraftName(event.target.value)}
-                          onKeyDown={(event) => {
-                            if (event.key === 'Enter') handleSaveEdit(row)
-                            if (event.key === 'Escape') handleCancelEdit()
-                          }}
-                          className="w-full rounded-lg border border-cyan-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-100 dark:border-cyan-500/50 dark:bg-white/5 dark:text-slate-100"
-                        />
-                      ) : (
-                        <span className="text-sm text-slate-700 dark:text-slate-300">{row.name}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-1">
-                        {isEditing ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleSaveEdit(row)}
-                              disabled={isSaving}
-                              className="rounded-lg p-2 text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
-                            >
-                              <Check className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={handleCancelEdit}
-                              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5 dark:hover:text-slate-300"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleStartEdit(row)}
-                              className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5 dark:hover:text-slate-300"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(row)}
-                              disabled={isDeleting}
-                              className="rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50 dark:hover:bg-rose-900/20 dark:hover:text-rose-400"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })
-            )}
-          </tbody>
-        </table>
-      </div>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })
+          )}
+        </tbody>
+      </table>
     </div>
   )
 }
