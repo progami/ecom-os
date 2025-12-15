@@ -77,7 +77,7 @@ function ProjectCard({
             >
               {project.lead.firstName} {project.lead.lastName}
             </Link>
-            <p className="text-[10px] text-slate-500 truncate">{project.lead.position}</p>
+            <p className="text-[10px] text-cyan-600 font-medium truncate">Lead</p>
           </div>
         </div>
       ) : (
@@ -129,7 +129,7 @@ function MemberCard({
       >
         {member.employee.firstName} {member.employee.lastName}
       </Link>
-      <p className="text-[10px] text-slate-500 text-center">{member.employee.position}</p>
+      <p className="text-[10px] text-cyan-600 font-medium text-center">{member.role || 'Member'}</p>
     </div>
   )
 }
