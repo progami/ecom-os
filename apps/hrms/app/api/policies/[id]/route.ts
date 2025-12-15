@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { UpdatePolicySchema, bumpVersion } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
+import { publish } from '@/lib/notification-service'
 
 type PolicyRouteContext = { params: Promise<{ id: string }> }
 
@@ -97,17 +98,21 @@ export async function PATCH(req: Request, context: PolicyRouteContext) {
       data: updates,
     })
 
-    // Create company-wide notification for policy update
-    await prisma.notification.create({
-      data: {
+    // Check if status changed to ARCHIVED
+    if (data.status === 'ARCHIVED') {
+      await publish({
+        type: 'POLICY_ARCHIVED',
+        policyId: p.id,
+        policyTitle: p.title,
+      })
+    } else {
+      // Publish policy updated event (creates company-wide notification)
+      await publish({
         type: 'POLICY_UPDATED',
-        title: 'Policy Updated',
-        message: `"${p.title}" has been updated to version ${p.version}. Please review the changes.`,
-        link: `/policies/${p.id}`,
-        relatedId: p.id,
-        relatedType: 'POLICY',
-      },
-    })
+        policyId: p.id,
+        policyTitle: p.title,
+      })
+    }
 
     return NextResponse.json(p)
   } catch (e) {
