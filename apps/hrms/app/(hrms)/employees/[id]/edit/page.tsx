@@ -219,6 +219,13 @@ export default function EditEmployeePage() {
     )
   }
 
+  // If not editing self and not a manager/admin, redirect to view page
+  const hasAnyEditPermission = permissions.editableFields.length > 0
+  if (!permissions.isEditingSelf && !permissions.isManager && !permissions.isSuperAdmin && !hasAnyEditPermission) {
+    router.replace(`/employees/${id}`)
+    return null
+  }
+
   const joinDateFormatted = employee.joinDate ? employee.joinDate.split('T')[0] : ''
 
   return (
