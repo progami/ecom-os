@@ -3,7 +3,7 @@ import prisma from '../../../../lib/prisma'
 import { UpdateEmployeeSchema } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { EmploymentType, EmployeeStatus } from '@/lib/hrms-prisma-types'
-import { checkAndNotifyMissingFields } from '@/lib/notification-service'
+import { checkAndNotifyMissingFields, publish } from '@/lib/notification-service'
 
 type EmployeeRouteContext = { params: Promise<{ id: string }> }
 
@@ -57,6 +57,13 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
     const data = validation.data
     const departmentName = data.department || data.departmentName
     const roles = data.roles
+
+    // Get current employee data to detect hierarchy changes
+    const currentEmployee = await prisma.employee.findUnique({
+      where: { id },
+      select: { reportsToId: true }
+    })
+    const oldManagerId = currentEmployee?.reportsToId ?? null
 
     // Build update object with explicit field whitelist
     const updates: Record<string, unknown> = {}
@@ -131,6 +138,23 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
 
     // Re-check profile completion after update
     await checkAndNotifyMissingFields(id)
+
+    // Publish employee updated event
+    await publish({
+      type: 'EMPLOYEE_UPDATED',
+      employeeId: id,
+    })
+
+    // Check if hierarchy changed and publish event
+    const newManagerId = e.reportsToId ?? null
+    if (data.reportsToId !== undefined && oldManagerId !== newManagerId) {
+      await publish({
+        type: 'HIERARCHY_CHANGED',
+        employeeId: id,
+        oldManagerId,
+        newManagerId,
+      })
+    }
 
     return NextResponse.json(e)
   } catch (e) {

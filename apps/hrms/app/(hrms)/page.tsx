@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { Avatar } from '@/components/ui/Avatar'
 import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
+import { CulturalHealthWidget } from '@/components/dashboard/CulturalHealthWidget'
 
 function formatDate(dateString: string) {
   const date = new Date(dateString)
@@ -155,6 +156,9 @@ export default function Dashboard() {
         <div className="lg:col-span-3 space-y-6">
           {isManager ? (
             <>
+              {/* Manager View: Cultural Health */}
+              <CulturalHealthWidget />
+
               {/* Manager View: My Team */}
               <Card padding="none">
                 <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
