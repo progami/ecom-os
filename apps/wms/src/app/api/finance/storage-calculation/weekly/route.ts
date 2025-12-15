@@ -3,7 +3,6 @@ import type { Session } from 'next-auth'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
-import { validateCSRFToken } from '@/lib/security/csrf-protection'
 import { auditLog } from '@/lib/security/audit-logger'
 import { endOfWeek } from 'date-fns'
 import { z } from 'zod'
@@ -23,12 +22,6 @@ export async function POST(request: NextRequest) {
  // Rate limiting
  const rateLimitResponse = await checkRateLimit(request, rateLimitConfigs.api)
  if (rateLimitResponse) return rateLimitResponse
-
- // CSRF protection
- const csrfValid = await validateCSRFToken(request)
- if (!csrfValid) {
- return NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 })
- }
 
  session = await auth()
  if (!session?.user) {

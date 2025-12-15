@@ -25,15 +25,10 @@ export function StorageLedgerHeader({
 
  setIsCalculating(true)
  try {
- // Get CSRF token from NextAuth
- const csrfResponse = await fetch('/api/auth/csrf')
- const { csrfToken } = await csrfResponse.json()
-
  const response = await fetch('/api/finance/storage-calculation/weekly', {
  method: 'POST',
  headers: {
  'Content-Type': 'application/json',
- 'x-csrf-token': csrfToken,
  },
  body: JSON.stringify({
  weekEndingDate: new Date().toISOString(),
