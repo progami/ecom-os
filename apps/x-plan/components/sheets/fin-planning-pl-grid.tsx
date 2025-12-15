@@ -50,6 +50,7 @@ type UpdatePayload = {
 }
 
 interface ProfitAndLossGridProps {
+  strategyId: string
   weekly: WeeklyRow[]
   monthlySummary: SummaryRow[]
   quarterlySummary: SummaryRow[]
@@ -78,7 +79,7 @@ function normalizeEditable(value: unknown) {
   return formatNumericInput(value, 2)
 }
 
-export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: ProfitAndLossGridProps) {
+export function ProfitAndLossGrid({ strategyId, weekly, monthlySummary, quarterlySummary }: ProfitAndLossGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
 
   const data = useMemo(() => weekly, [weekly])
@@ -173,7 +174,7 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
       const res = await fetch(withAppBasePath('/api/v1/x-plan/profit-and-loss'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates: payload }),
+        body: JSON.stringify({ strategyId, updates: payload }),
       })
       if (!res.ok) throw new Error('Failed to update P&L')
       toast.success('P&L updated')
@@ -181,7 +182,7 @@ export function ProfitAndLossGrid({ weekly, monthlySummary, quarterlySummary }: 
       console.error(error)
       toast.error('Unable to save P&L changes')
     }
-  }, [])
+  }, [strategyId])
 
   const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<number, UpdatePayload>({
     debounceMs: 600,
