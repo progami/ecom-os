@@ -623,14 +623,13 @@ function InventoryPage() {
  />
  </StatsCardGrid>
 
- <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-soft ">
- {/* Reserve space for filters/stats before the table scroll area */}
+ <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-soft overflow-x-auto">
+ {/* Scrollable table area */}
  <div
- className="relative min-h-0 overflow-x-auto overflow-y-auto"
+ className="relative min-h-0 overflow-y-auto flex-1"
  style={{
- maxHeight: 'calc(100vh - 320px)',
- height: 'calc(100vh - 320px)',
- minHeight: 320
+ maxHeight: 'calc(100vh - 380px)',
+ minHeight: 280
  }}
  >
  <table className="w-full min-w-[1200px] table-auto text-sm">
@@ -1029,9 +1028,12 @@ function InventoryPage() {
  })}
  </tbody>
  </table>
- <div className="sticky bottom-0 left-0 right-0 border-t bg-muted/80 backdrop-blur supports-[backdrop-filter]:bg-muted/60">
- <div className="grid grid-cols-[repeat(6,minmax(0,1fr))] md:grid-cols-[repeat(11,minmax(0,1fr))] text-xs uppercase tracking-wide text-muted-foreground">
- <div className="col-span-6 md:col-span-6 px-3 py-2 font-semibold text-left">
+ </div>
+ {/* Totals bar - fixed at bottom outside scroll area */}
+ <div className="border-t bg-muted/80 backdrop-blur supports-[backdrop-filter]:bg-muted/60 flex-shrink-0">
+ <div className="min-w-[1200px]">
+ <div className="grid grid-cols-[repeat(11,minmax(0,1fr))] text-xs uppercase tracking-wide text-muted-foreground">
+ <div className="col-span-6 px-3 py-2 font-semibold text-left">
  Totals
  </div>
  <div className="col-span-1 px-3 py-2 text-right font-semibold text-primary whitespace-nowrap">
@@ -1043,7 +1045,7 @@ function InventoryPage() {
  <div className="col-span-1 px-3 py-2 text-right font-semibold whitespace-nowrap">
  {tableTotals.units.toLocaleString()}
  </div>
- <div className="hidden md:block col-span-2" />
+ <div className="col-span-2" />
  </div>
  </div>
  </div>
