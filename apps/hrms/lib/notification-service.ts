@@ -1,5 +1,5 @@
 import { prisma } from './prisma'
-import { NotificationType } from '@prisma/client'
+import { NotificationType } from '@ecom-os/prisma-hrms'
 
 // ============ PUB/SUB EVENT SYSTEM ============
 
