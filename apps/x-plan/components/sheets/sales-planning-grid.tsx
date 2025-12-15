@@ -101,6 +101,7 @@ type BatchAllocationMeta = {
 }
 
 interface SalesPlanningGridProps {
+  strategyId: string
   rows: SalesRow[]
   columnMeta: ColumnMeta
   nestedHeaders: NestedHeaderCell[][]
@@ -110,7 +111,7 @@ interface SalesPlanningGridProps {
   batchAllocations: Map<string, BatchAllocationMeta[]>
 }
 
-export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys, productOptions, stockWarningWeeks, batchAllocations }: SalesPlanningGridProps) {
+export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders, columnKeys, productOptions, stockWarningWeeks, batchAllocations }: SalesPlanningGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const focusContext = useContext(SalesPlanningFocusContext)
   const [activeStockMetric, setActiveStockMetric] = usePersistentState<StockMetricId>('xplan:sales-grid:metric', 'stockWeeks')
@@ -463,7 +464,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         const response = await fetch(withAppBasePath('/api/v1/x-plan/sales-weeks'), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ updates: payload }),
+          body: JSON.stringify({ strategyId, updates: payload }),
         })
         if (!response.ok) throw new Error('Failed to update sales planning')
         toast.success('Sales planning updated')
@@ -473,7 +474,7 @@ export function SalesPlanningGrid({ rows, columnMeta, nestedHeaders, columnKeys,
         toast.error('Unable to save sales planning changes')
       }
     },
-    [router],
+    [strategyId, router],
   )
 
   const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<string, SalesUpdate>({
