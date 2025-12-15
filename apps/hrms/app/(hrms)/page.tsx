@@ -43,7 +43,7 @@ import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
 import { StandingCard } from '@/components/employee/StandingCard'
 import { employmentTypeLabels } from '@/lib/constants'
 
-type Tab = 'overview' | 'leave' | 'reviews' | 'disciplinary'
+type Tab = 'overview' | 'leave' | 'reviews' | 'violations'
 
 const REVIEW_TYPE_LABELS: Record<string, string> = {
   PROBATION: '90-Day Probation',
@@ -197,10 +197,10 @@ export default function Dashboard() {
     loadReviews()
   }, [activeTab, data?.currentEmployee?.id])
 
-  // Load disciplinary when tab is selected
+  // Load violations when tab is selected
   useEffect(() => {
     async function loadDisciplinary() {
-      if (activeTab !== 'disciplinary' || !data?.currentEmployee?.id) return
+      if (activeTab !== 'violations' || !data?.currentEmployee?.id) return
       try {
         setDisciplinaryLoading(true)
         const result = await DisciplinaryActionsApi.list({ employeeId: data.currentEmployee.id })
@@ -419,11 +419,11 @@ export default function Dashboard() {
             Reviews
           </TabButton>
           <TabButton
-            active={activeTab === 'disciplinary'}
-            onClick={() => setActiveTab('disciplinary')}
+            active={activeTab === 'violations'}
+            onClick={() => setActiveTab('violations')}
             icon={ShieldExclamationIcon}
           >
-            Disciplinary
+            Violations
           </TabButton>
         </div>
 
@@ -589,57 +589,103 @@ export default function Dashboard() {
             </Card>
           )}
 
-          {activeTab === 'disciplinary' && (
-            <Card padding="lg">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4">Disciplinary Actions</h3>
+          {activeTab === 'violations' && (
+            <div className="space-y-6">
+              {/* Violation Policy Summary */}
+              <Card padding="lg">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-slate-900">Violation Policy</h3>
+                  <Link
+                    href="/policies?category=conduct"
+                    className="text-xs text-cyan-600 hover:text-cyan-700 font-medium"
+                  >
+                    View Full Policy →
+                  </Link>
+                </div>
+                <p className="text-sm text-slate-600 mb-4">
+                  Violations are categorized by severity. Each level has specific consequences designed to correct behavior while maintaining workplace standards.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="p-3 rounded-lg bg-yellow-50 border border-yellow-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">Minor</span>
+                    </div>
+                    <p className="text-xs text-slate-600">Verbal warning. Documented but no formal action.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-orange-50 border border-orange-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-orange-100 text-orange-800">Moderate</span>
+                    </div>
+                    <p className="text-xs text-slate-600">Written warning. Goes on permanent record.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-red-50 border border-red-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">Major</span>
+                    </div>
+                    <p className="text-xs text-slate-600">Final warning or suspension. Serious impact on standing.</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-red-100 border border-red-300">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-200 text-red-900">Critical</span>
+                    </div>
+                    <p className="text-xs text-slate-600">Termination consideration. Immediate HR review.</p>
+                  </div>
+                </div>
+              </Card>
 
-              {disciplinaryLoading ? (
-                <div className="animate-pulse space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-20 bg-slate-100 rounded-lg" />
-                  ))}
-                </div>
-              ) : disciplinary.length === 0 ? (
-                <div className="text-center py-8">
-                  <ShieldExclamationIcon className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-                  <p className="text-slate-500 text-sm">No disciplinary records</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {disciplinary.map((action) => (
-                    <Link
-                      key={action.id}
-                      href={`/performance/disciplinary/${action.id}`}
-                      className="block p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-slate-900">
-                              {action.violationType.replace(/_/g, ' ')}
-                            </span>
-                            <span
-                              className={`px-2 py-0.5 rounded text-xs font-medium ${SEVERITY_COLORS[action.severity] || 'bg-slate-100 text-slate-700'}`}
-                            >
-                              {SEVERITY_LABELS[action.severity] || action.severity}
-                            </span>
+              {/* Your Violations */}
+              <Card padding="lg">
+                <h3 className="text-sm font-semibold text-slate-900 mb-4">Your Violations</h3>
+
+                {disciplinaryLoading ? (
+                  <div className="animate-pulse space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-20 bg-slate-100 rounded-lg" />
+                    ))}
+                  </div>
+                ) : disciplinary.length === 0 ? (
+                  <div className="text-center py-8">
+                    <CheckIcon className="h-10 w-10 text-green-400 mx-auto mb-2" />
+                    <p className="text-slate-500 text-sm">No violations on record</p>
+                    <p className="text-xs text-slate-400 mt-1">Keep up the good work!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {disciplinary.map((action) => (
+                      <Link
+                        key={action.id}
+                        href={`/performance/disciplinary/${action.id}`}
+                        className="block p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-slate-900">
+                                {action.violationType.replace(/_/g, ' ')}
+                              </span>
+                              <span
+                                className={`px-2 py-0.5 rounded text-xs font-medium ${SEVERITY_COLORS[action.severity] || 'bg-slate-100 text-slate-700'}`}
+                              >
+                                {SEVERITY_LABELS[action.severity] || action.severity}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-600">
+                              {action.violationReason.replace(/_/g, ' ')}
+                            </p>
+                            <p className="text-xs text-slate-500 mt-1">
+                              Incident: {new Date(action.incidentDate).toLocaleDateString()}
+                            </p>
                           </div>
-                          <p className="text-sm text-slate-600">
-                            {action.violationReason.replace(/_/g, ' ')}
-                          </p>
-                          <p className="text-xs text-slate-500 mt-1">
-                            Incident: {new Date(action.incidentDate).toLocaleDateString()}
-                          </p>
+                          <div>
+                            <StatusBadge status={action.status.replace(/_/g, ' ')} />
+                          </div>
                         </div>
-                        <div>
-                          <StatusBadge status={action.status.replace(/_/g, ' ')} />
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </Card>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            </div>
           )}
 
         {/* Notifications - Only in Overview mode */}
