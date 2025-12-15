@@ -1,7 +1,8 @@
 "use client"
 
-import { Suspense, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { signIn } from 'next-auth/react'
 import './login.css'
 
 export default function LoginPage() {
@@ -16,8 +17,10 @@ function LoginPageInner() {
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || '/'
   const error = searchParams.get('error') || ''
+  const autoSignIn = searchParams.get('autoSignIn')
 
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const autoSignInTriggered = useRef(false)
 
   const errorMessage = useMemo(() => {
     if (!error) return ''
@@ -25,9 +28,19 @@ function LoginPageInner() {
       AccessDenied: 'Your account is not allowed to sign in. Please contact an administrator.',
       PortalUserMissing: 'Your account is not provisioned in the portal directory.',
       OAuthCallback: 'Google rejected the sign-in request. Please try again.',
+      Configuration: 'There was a problem with the authentication configuration. Please try again.',
     }
     return messages[error] || 'Unable to sign in right now. Please try again or reach out to support.'
   }, [error])
+
+  // Auto sign-in when redirected from reset route with autoSignIn param
+  useEffect(() => {
+    if (autoSignIn === 'google' && !autoSignInTriggered.current && !error) {
+      autoSignInTriggered.current = true
+      setIsGoogleLoading(true)
+      signIn('google', { callbackUrl })
+    }
+  }, [autoSignIn, callbackUrl, error])
 
   const handleGoogleSignIn = () => {
     setIsGoogleLoading(true)
