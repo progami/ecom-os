@@ -27,9 +27,14 @@ model Employee {
   country          String?
   postalCode       String?
 
+  // Primary department (backward compatible)
   department       String
   departmentId     String?
   dept             Department?    @relation(fields: [departmentId], references: [id])
+
+  // Additional departments (many-to-many)
+  departments      EmployeeDepartment[]
+
   position         String
   employmentType   EmploymentType  @default(FULL_TIME)
   joinDate         DateTime
@@ -105,10 +110,26 @@ model Department {
 
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
-  employees   Employee[]
+  employees   Employee[]                // Primary department relationship
+  members     EmployeeDepartment[]      // Additional department memberships
 
   @@index([headId])
   @@index([parentId])
+}
+
+// Many-to-many: Employee can belong to multiple departments
+model EmployeeDepartment {
+  id           String     @id @default(cuid())
+  employeeId   String
+  employee     Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  isPrimary    Boolean    @default(false)  // Is this the primary department?
+  joinedAt     DateTime   @default(now())
+
+  @@unique([employeeId, departmentId])
+  @@index([employeeId])
+  @@index([departmentId])
 }
 
 model Project {

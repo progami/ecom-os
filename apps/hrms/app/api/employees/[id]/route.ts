@@ -5,6 +5,8 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { EmploymentType, EmployeeStatus } from '@/lib/hrms-prisma-types'
 import { checkAndNotifyMissingFields, publish } from '@/lib/notification-service'
 import { patchUser, isAdminConfigured } from '@/lib/google-admin'
+import { getCurrentEmployeeId } from '@/lib/current-user'
+import { filterAllowedFields, canReassignEmployee, isSuperAdmin } from '@/lib/permissions'
 
 type EmployeeRouteContext = { params: Promise<{ id: string }> }
 
@@ -22,7 +24,12 @@ export async function GET(req: Request, context: EmployeeRouteContext) {
 
     const e = await prisma.employee.findFirst({
       where: { OR: [{ id }, { employeeId: id }] },
-      include: { roles: true, dept: true, manager: { select: { id: true, firstName: true, lastName: true, position: true } } },
+      include: {
+        roles: true,
+        dept: true,
+        manager: { select: { id: true, firstName: true, lastName: true, position: true } },
+        departments: { include: { department: { select: { id: true, name: true } } } },
+      },
     })
 
     if (!e) {
@@ -47,6 +54,12 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
+    // Get current user for permission checks
+    const actorId = await getCurrentEmployeeId()
+    if (!actorId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await req.json()
 
     // Validate input with whitelist schema
@@ -55,9 +68,33 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
       return validation.error
     }
 
-    const data = validation.data
-    const departmentName = data.department || data.departmentName
-    const roles = data.roles
+    const rawData = validation.data
+
+    // Filter fields based on permissions
+    const { allowed: data, denied } = await filterAllowedFields(actorId, id, rawData)
+
+    // If all fields were denied, return error
+    if (Object.keys(data).length === 0 && denied.length > 0) {
+      return NextResponse.json({
+        error: 'Permission denied',
+        deniedFields: denied,
+      }, { status: 403 })
+    }
+
+    // Special check for hierarchy changes
+    if (rawData.reportsToId !== undefined) {
+      const reassignCheck = await canReassignEmployee(actorId, id, rawData.reportsToId)
+      if (!reassignCheck.allowed) {
+        return NextResponse.json({
+          error: reassignCheck.reason,
+        }, { status: 403 })
+      }
+      // If allowed, include reportsToId in data
+      data.reportsToId = rawData.reportsToId
+    }
+
+    const departmentName = (data.department || data.departmentName) as string | undefined
+    const roles = data.roles as string[] | undefined
 
     // Get current employee data to detect hierarchy changes
     const currentEmployee = await prisma.employee.findUnique({
@@ -88,7 +125,7 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
     }
     if (data.employmentType !== undefined) updates.employmentType = data.employmentType as EmploymentType
     if (data.status !== undefined) updates.status = data.status as EmployeeStatus
-    if (data.joinDate !== undefined) updates.joinDate = new Date(data.joinDate)
+    if (data.joinDate !== undefined) updates.joinDate = new Date(data.joinDate as string)
 
     // Hierarchy - use manager relation instead of reportsToId directly
     if (data.reportsToId !== undefined) {
@@ -100,7 +137,7 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
     }
 
     // Personal info
-    if (data.dateOfBirth !== undefined) updates.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth) : null
+    if (data.dateOfBirth !== undefined) updates.dateOfBirth = data.dateOfBirth ? new Date(data.dateOfBirth as string) : null
     if (data.gender !== undefined) updates.gender = data.gender
     if (data.maritalStatus !== undefined) updates.maritalStatus = data.maritalStatus
     if (data.nationality !== undefined) updates.nationality = data.nationality
@@ -129,7 +166,7 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
     }
 
     // Handle roles relationship
-    if (roles !== undefined) {
+    if (roles !== undefined && Array.isArray(roles)) {
       updates.roles = {
         set: [],
         connectOrCreate: roles.map((name) => ({
