@@ -1,4 +1,5 @@
 import { prisma } from './prisma'
+import { NotificationType } from '@prisma/client'
 
 // ============ PUB/SUB EVENT SYSTEM ============
 
