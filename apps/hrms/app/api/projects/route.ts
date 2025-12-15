@@ -73,6 +73,15 @@ export async function POST(req: Request) {
         leadId: leadId || null,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
+        // Automatically add lead as a member if leadId is provided
+        ...(leadId && {
+          members: {
+            create: {
+              employeeId: leadId,
+              role: 'Lead',
+            },
+          },
+        }),
       },
       include: {
         lead: {
