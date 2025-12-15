@@ -9,11 +9,40 @@ import {
   EmploymentTypeEnum,
 } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
+import { syncGoogleAdminUsers } from '@/lib/google-admin-sync'
+import { isAdminConfigured } from '@/lib/google-admin'
+
+// Cache for sync status - 5 minute cache
+const SYNC_CACHE_MS = 5 * 60 * 1000
+let lastSyncTime: number | null = null
+let syncInProgress = false
+
+async function triggerBackgroundSync() {
+  if (syncInProgress || !isAdminConfigured()) return
+
+  const now = Date.now()
+  if (lastSyncTime && (now - lastSyncTime) < SYNC_CACHE_MS) return
+
+  syncInProgress = true
+  try {
+    console.log('[Employees API] Starting background Google Admin sync...')
+    const result = await syncGoogleAdminUsers()
+    lastSyncTime = Date.now()
+    console.log(`[Employees API] Sync complete: ${result.created} created, ${result.updated} updated, ${result.deactivated} deactivated`)
+  } catch (e) {
+    console.error('[Employees API] Background sync failed:', e)
+  } finally {
+    syncInProgress = false
+  }
+}
 
 export async function GET(req: Request) {
   // Rate limiting
   const rateLimitError = withRateLimit(req)
   if (rateLimitError) return rateLimitError
+
+  // Trigger background sync (non-blocking)
+  triggerBackgroundSync()
 
   try {
     const { searchParams } = new URL(req.url)

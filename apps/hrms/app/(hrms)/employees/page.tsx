@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { EmployeesApi, DashboardApi, type Employee } from '@/lib/api-client'
-import { UsersIcon, PlusIcon, ChevronUpIcon, ChevronDownIcon, SpinnerIcon } from '@/components/ui/Icons'
+import { UsersIcon, ChevronUpIcon, ChevronDownIcon, SpinnerIcon, RefreshIcon } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
-import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
 import { SearchForm } from '@/components/ui/SearchForm'
@@ -212,12 +211,17 @@ export default function EmployeesPage() {
     <>
       <ListPageHeader
         title="Employees"
-        description="Manage your team members"
+        description="Synced from Google Admin"
         icon={<UsersIcon className="h-6 w-6 text-white" />}
         action={
-          <Button href="/employees/add" icon={<PlusIcon className="h-4 w-4" />}>
-            Add Employee
-          </Button>
+          <button
+            onClick={() => load()}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors disabled:opacity-50"
+          >
+            <RefreshIcon className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            {loading ? 'Refreshing...' : 'Refresh'}
+          </button>
         }
       />
 
@@ -294,11 +298,7 @@ export default function EmployeesPage() {
               <TableEmptyState
                 colSpan={7}
                 icon={<UsersIcon className="h-10 w-10" />}
-                title="No employees found"
-                action={{
-                  label: 'Add your first employee',
-                  href: '/employees/add',
-                }}
+                title="No employees found - click Refresh to sync from Google Admin"
               />
             ) : (
               sortedItems.map((e) => (

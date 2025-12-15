@@ -2,7 +2,8 @@ import { google } from 'googleapis'
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || ''
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || ''
-const ADMIN_REFRESH_TOKEN = process.env.GOOGLE_ADMIN_REFRESH_TOKEN || ''
+// Use GOOGLE_ADMIN_REFRESH_TOKEN if set, otherwise fall back to GOOGLE_REFRESH_TOKEN
+const ADMIN_REFRESH_TOKEN = process.env.GOOGLE_ADMIN_REFRESH_TOKEN || process.env.GOOGLE_REFRESH_TOKEN || ''
 const ADMIN_DOMAIN = process.env.GOOGLE_ADMIN_DOMAIN || 'targonglobal.com'
 
 const REQUEST_TIMEOUT = 15000 // 15 seconds timeout
