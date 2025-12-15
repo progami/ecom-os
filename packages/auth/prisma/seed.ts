@@ -113,6 +113,49 @@ async function main() {
     )
   )
 
+  // Additional admin users (Google OAuth - no password needed)
+  const additionalAdmins = [
+    { email: 'gondalshoaib3333@gmail.com', firstName: 'Shoaib', lastName: 'Gondal' },
+  ]
+
+  for (const admin of additionalAdmins) {
+    const user = await prisma.user.upsert({
+      where: { email: admin.email },
+      update: {
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        isActive: true,
+      },
+      create: {
+        email: admin.email,
+        username: admin.email.split('@')[0],
+        passwordHash: 'GOOGLE_OAUTH_USER',
+        firstName: admin.firstName,
+        lastName: admin.lastName,
+        isActive: true,
+        isDemo: false,
+      },
+    })
+
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: user.id, roleId: adminRole.id } },
+      update: {},
+      create: { userId: user.id, roleId: adminRole.id },
+    })
+
+    await Promise.all(
+      appRecords.map(app =>
+        prisma.userApp.upsert({
+          where: { userId_appId: { userId: user.id, appId: app.id } },
+          update: { accessLevel: 'admin' },
+          create: { userId: user.id, appId: app.id, accessLevel: 'admin' },
+        })
+      )
+    )
+
+    console.log('Added admin user:', admin.email)
+  }
+
   console.log('Seed completed. Portal admin:', portalAdminEmail)
 }
 
