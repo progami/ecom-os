@@ -52,21 +52,22 @@ function DepartmentCard({
   hasChildren,
   isExpanded,
   onToggle,
-  employeeCount,
   isRoot,
 }: {
   node: DeptNode
   hasChildren: boolean
   isExpanded: boolean
   onToggle: () => void
-  employeeCount: number
   isRoot?: boolean
 }) {
   const hasHead = !!node.head
+  const members = node.employees || []
+  // Filter out the head from members list to avoid duplication
+  const otherMembers = members.filter(emp => emp.id !== node.headId)
 
   return (
     <div
-      className={`relative flex flex-col rounded-xl p-4 min-w-[200px] max-w-[240px] transition-all duration-200 ${
+      className={`relative flex flex-col rounded-xl p-4 min-w-[220px] max-w-[280px] transition-all duration-200 ${
         isRoot
           ? 'border-2 border-cyan-500 bg-gradient-to-br from-cyan-50 to-white shadow-md ring-4 ring-cyan-100'
           : hasHead
@@ -83,13 +84,13 @@ function DepartmentCard({
       )}
 
       {/* Department Name */}
-      <h3 className={`font-semibold text-center leading-tight mb-2 ${isRoot ? 'text-cyan-900 text-base mt-1' : 'text-slate-800 text-sm'}`}>
+      <h3 className={`font-semibold text-center leading-tight mb-3 ${isRoot ? 'text-cyan-900 text-base mt-1' : 'text-slate-800 text-sm'}`}>
         {node.name}
       </h3>
 
       {/* Department Head */}
       {node.head ? (
-        <div className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg">
+        <div className="flex items-center gap-2 p-2 bg-cyan-50 rounded-lg border border-cyan-100 mb-2">
           <Avatar
             src={node.head.avatar}
             alt={`${node.head.firstName} ${node.head.lastName}`}
@@ -102,21 +103,47 @@ function DepartmentCard({
             >
               {node.head.firstName} {node.head.lastName}
             </Link>
-            <p className="text-[10px] text-slate-500 truncate">{node.head.position}</p>
+            <p className="text-[10px] text-cyan-600 font-medium truncate">Head · {node.head.position}</p>
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-center gap-1.5 p-2 text-slate-400 text-xs">
+        <div className="flex items-center justify-center gap-1.5 p-2 text-slate-400 text-xs mb-2">
           <UsersIcon className="h-3.5 w-3.5" />
           <span>No head assigned</span>
         </div>
       )}
 
-      {/* Employee count */}
-      <div className="flex items-center justify-center gap-1 mt-2 text-[11px] text-slate-500">
-        <UsersIcon className="h-3.5 w-3.5" />
-        <span>{employeeCount} {employeeCount === 1 ? 'member' : 'members'}</span>
-      </div>
+      {/* Team Members */}
+      {otherMembers.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Team Members</p>
+          <div className="space-y-1">
+            {otherMembers.map((emp) => (
+              <Link
+                key={emp.id}
+                href={`/employees/${emp.id}`}
+                className="flex items-center gap-2 p-1.5 rounded-md hover:bg-slate-50 transition-colors group"
+              >
+                <Avatar
+                  src={emp.avatar}
+                  alt={`${emp.firstName} ${emp.lastName}`}
+                  size="sm"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-medium text-slate-700 group-hover:text-cyan-600 truncate">
+                    {emp.firstName} {emp.lastName}
+                  </p>
+                  <p className="text-[9px] text-slate-400 truncate">{emp.position}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {members.length === 0 && !node.head && (
+        <p className="text-[10px] text-slate-400 text-center py-2">No members yet</p>
+      )}
 
       {/* Expand/collapse button */}
       {hasChildren && (
@@ -140,18 +167,15 @@ function DeptTreeNode({
   node,
   expandedNodes,
   toggleNode,
-  employeeCounts,
   level = 0,
 }: {
   node: DeptNode
   expandedNodes: Set<string>
   toggleNode: (id: string) => void
-  employeeCounts: Map<string, number>
   level?: number
 }) {
   const hasChildren = node.childDepts.length > 0
   const isExpanded = expandedNodes.has(node.id)
-  const employeeCount = employeeCounts.get(node.id) || 0
   const isRoot = level === 0
 
   return (
@@ -162,7 +186,6 @@ function DeptTreeNode({
         hasChildren={hasChildren}
         isExpanded={isExpanded}
         onToggle={() => toggleNode(node.id)}
-        employeeCount={employeeCount}
         isRoot={isRoot}
       />
 
@@ -193,7 +216,6 @@ function DeptTreeNode({
                   node={child}
                   expandedNodes={expandedNodes}
                   toggleNode={toggleNode}
-                  employeeCounts={employeeCounts}
                   level={level + 1}
                 />
               </div>
@@ -207,15 +229,6 @@ function DeptTreeNode({
 
 export function DepartmentOrgChart({ departments }: Props) {
   const tree = useMemo(() => buildDeptTree(departments), [departments])
-
-  // Get employee counts from API response
-  const employeeCounts = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const dept of departments) {
-      counts.set(dept.id, dept._count?.employees ?? 0)
-    }
-    return counts
-  }, [departments])
 
   // Initialize expanded nodes - expand first 2 levels
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => {
@@ -300,7 +313,6 @@ export function DepartmentOrgChart({ departments }: Props) {
               node={tree[0]}
               expandedNodes={expandedNodes}
               toggleNode={toggleNode}
-              employeeCounts={employeeCounts}
             />
           ) : (
             <div className="flex flex-col items-center">
@@ -311,7 +323,6 @@ export function DepartmentOrgChart({ departments }: Props) {
                     node={root}
                     expandedNodes={expandedNodes}
                     toggleNode={toggleNode}
-                    employeeCounts={employeeCounts}
                   />
                 ))}
               </div>
