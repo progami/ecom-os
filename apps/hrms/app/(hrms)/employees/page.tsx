@@ -19,6 +19,7 @@ import {
   ResultsCount,
 } from '@/components/ui/Table'
 import { TableEmptyState } from '@/components/ui/EmptyState'
+import { StandingBadge } from '@/components/ui/StandingBadge'
 
 type SortField = 'employeeId' | 'name' | 'department' | 'joinDate'
 type SortDirection = 'asc' | 'desc'
@@ -90,6 +91,7 @@ function TableRowSkeleton() {
           </td>
           <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-20" /></td>
           <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-28" /></td>
+          <td className="px-4 py-4"><div className="h-5 bg-slate-200 rounded w-16" /></td>
           <td className="px-4 py-4"><div className="h-5 bg-slate-200 rounded w-16" /></td>
           <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-24" /></td>
         </tr>
@@ -272,6 +274,7 @@ export default function EmployeesPage() {
               </SortableHeader>
             </TableHead>
             <TableHead>Position</TableHead>
+            <TableHead>Standing</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>
               <SortableHeader
@@ -289,7 +292,7 @@ export default function EmployeesPage() {
               <TableRowSkeleton />
             ) : sortedItems.length === 0 ? (
               <TableEmptyState
-                colSpan={6}
+                colSpan={7}
                 icon={<UsersIcon className="h-10 w-10" />}
                 title="No employees found"
                 action={{
@@ -317,6 +320,9 @@ export default function EmployeesPage() {
                   </TableCell>
                   <TableCell className="text-slate-600">{e.department || '—'}</TableCell>
                   <TableCell className="text-slate-600">{e.position}</TableCell>
+                  <TableCell>
+                    <StandingBadge employeeId={e.id} size="sm" />
+                  </TableCell>
                   <TableCell>
                     <StatusBadge status={e.status.replace('_', ' ')} />
                   </TableCell>

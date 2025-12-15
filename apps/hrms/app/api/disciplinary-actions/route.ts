@@ -11,6 +11,7 @@ import {
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canManageEmployee } from '@/lib/permissions'
+import { publish } from '@/lib/notification-service'
 
 export async function GET(req: Request) {
   const rateLimitError = withRateLimit(req)
@@ -162,6 +163,14 @@ export async function POST(req: Request) {
           },
         },
       },
+    })
+
+    // Publish notification for disciplinary action creation
+    await publish({
+      type: 'DISCIPLINARY_CREATED',
+      actionId: item.id,
+      employeeId: data.employeeId,
+      severity: data.severity,
     })
 
     return NextResponse.json(item, { status: 201 })

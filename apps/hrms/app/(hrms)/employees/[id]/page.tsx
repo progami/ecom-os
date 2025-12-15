@@ -35,6 +35,7 @@ import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
 import { LeaveHistoryTable } from '@/components/leave/LeaveHistoryTable'
 import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
 import { employmentTypeLabels } from '@/lib/constants'
+import { StandingCard } from '@/components/employee/StandingCard'
 
 type Tab = 'overview' | 'leave' | 'reviews' | 'disciplinary'
 
@@ -335,29 +336,34 @@ export default function EmployeeViewPage() {
 
         {/* Tab Content */}
         {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card padding="lg">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4">Contact Information</h3>
-              <div className="space-y-4">
-                <InfoItem icon={EnvelopeIcon} label="Email" value={employee.email} />
-                <InfoItem icon={PhoneIcon} label="Phone" value={employee.phone || '—'} />
-              </div>
-            </Card>
+          <div className="space-y-6">
+            {/* Standing Card */}
+            <StandingCard employeeId={id} />
 
-            <Card padding="lg">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4">Work Information</h3>
-              <div className="space-y-4">
-                <InfoItem icon={BuildingIcon} label="Department" value={employee.department || '—'} />
-                <InfoItem icon={CalendarIcon} label="Join Date" value={joinDate} />
-                <div className="flex items-start gap-3">
-                  <UsersIcon className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-slate-500">Employment Type</p>
-                    <p className="text-sm text-slate-900 font-medium">{employmentTypeLabels[employee.employmentType] || employee.employmentType}</p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card padding="lg">
+                <h3 className="text-sm font-semibold text-slate-900 mb-4">Contact Information</h3>
+                <div className="space-y-4">
+                  <InfoItem icon={EnvelopeIcon} label="Email" value={employee.email} />
+                  <InfoItem icon={PhoneIcon} label="Phone" value={employee.phone || '—'} />
+                </div>
+              </Card>
+
+              <Card padding="lg">
+                <h3 className="text-sm font-semibold text-slate-900 mb-4">Work Information</h3>
+                <div className="space-y-4">
+                  <InfoItem icon={BuildingIcon} label="Department" value={employee.department || '—'} />
+                  <InfoItem icon={CalendarIcon} label="Join Date" value={joinDate} />
+                  <div className="flex items-start gap-3">
+                    <UsersIcon className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs text-slate-500">Employment Type</p>
+                      <p className="text-sm text-slate-900 font-medium">{employmentTypeLabels[employee.employmentType] || employee.employmentType}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Card>
+              </Card>
+            </div>
           </div>
         )}
 
