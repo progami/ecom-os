@@ -59,6 +59,17 @@ export async function GET(req: Request) {
             name: true,
           },
         },
+        employees: {
+          select: {
+            id: true,
+            employeeId: true,
+            firstName: true,
+            lastName: true,
+            position: true,
+            avatar: true,
+          },
+          orderBy: { firstName: 'asc' },
+        },
         _count: {
           select: {
             employees: true,
