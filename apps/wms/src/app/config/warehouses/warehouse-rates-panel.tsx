@@ -202,24 +202,24 @@ export function WarehouseRatesPanel({
     const isEditing = rate && editingRateId === rate.id
 
     return (
-      <tr key={template.costName} className="hover:bg-slate-50/50">
-        <td className="py-2 px-3 text-slate-900">
+      <tr key={template.costName} className="odd:bg-muted/20 hover:bg-primary/5 transition-colors">
+        <td className="px-3 py-2 text-foreground whitespace-nowrap">
           {template.costName}
           {showCategory && (
-            <span className="ml-2 text-xs text-slate-400">({template.costCategory})</span>
+            <span className="ml-2 text-xs text-muted-foreground">({template.costCategory})</span>
           )}
         </td>
-        <td className="py-2 px-3 text-right">
+        <td className="px-3 py-2 text-right">
           {rate ? (
             isEditing ? (
               <div className="flex items-center justify-end gap-2">
-                <span className="text-slate-500">$</span>
+                <span className="text-muted-foreground">$</span>
                 <input
                   type="number"
                   step="0.01"
                   value={editValue}
                   onChange={(e) => setEditValue(e.target.value)}
-                  className="w-24 px-2 py-1 text-right border rounded focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                  className="w-24 px-2 py-1 text-right border rounded focus:outline-none focus:ring-2 focus:ring-primary"
                   autoFocus
                 />
                 <button
@@ -232,7 +232,7 @@ export function WarehouseRatesPanel({
                 </button>
                 <button
                   onClick={cancelEditing}
-                  className="p-1 text-slate-400 hover:bg-slate-100 rounded"
+                  className="p-1 text-muted-foreground hover:bg-muted rounded"
                   title="Cancel"
                 >
                   <X className="h-4 w-4" />
@@ -240,17 +240,17 @@ export function WarehouseRatesPanel({
               </div>
             ) : (
               <div className="flex items-center justify-end gap-2">
-                <span className="font-semibold text-slate-900">${rate.costValue.toFixed(2)}</span>
+                <span className="font-semibold text-foreground">${rate.costValue.toFixed(2)}</span>
                 <button
                   onClick={() => startEditing(rate)}
-                  className="p-1 text-slate-300 hover:text-cyan-600 hover:bg-cyan-50 rounded transition-colors"
+                  className="p-1 text-muted-foreground/50 hover:text-primary hover:bg-primary/10 rounded transition-colors"
                   title="Edit rate"
                 >
                   <Edit className="h-3.5 w-3.5" />
                 </button>
                 <button
                   onClick={() => openAddRateModal(template)}
-                  className="p-1 text-slate-300 hover:text-cyan-600 hover:bg-cyan-50 rounded transition-colors"
+                  className="p-1 text-muted-foreground/50 hover:text-primary hover:bg-primary/10 rounded transition-colors"
                   title="New effective rate"
                 >
                   <Plus className="h-3.5 w-3.5" />
@@ -260,17 +260,17 @@ export function WarehouseRatesPanel({
           ) : (
             <button
               onClick={() => openAddRateModal(template)}
-              className="inline-flex items-center gap-1 text-sm text-cyan-600 hover:text-cyan-700 font-medium transition-colors"
+              className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               Add
             </button>
           )}
         </td>
-        <td className="py-2 px-3 text-slate-500 text-sm whitespace-nowrap">
+        <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
           {rate ? rate.effectiveDate.slice(0, 10) : '—'}
         </td>
-        <td className="py-2 px-3 text-slate-500 text-sm whitespace-nowrap">
+        <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
           {formatUnit(template.unitOfMeasure)}
         </td>
       </tr>
@@ -306,8 +306,8 @@ export function WarehouseRatesPanel({
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-slate-900">{warehouseName}</h2>
-            <p className="text-sm text-slate-500">Rate Sheet • {warehouseCode} • USD</p>
+            <h2 className="text-xl font-semibold text-foreground">{warehouseName}</h2>
+            <p className="text-sm text-muted-foreground">Rate Sheet • {warehouseCode} • USD</p>
           </div>
           <Badge className="bg-green-50 text-green-700 border-green-200">
             {rates.length} rates configured
@@ -315,7 +315,7 @@ export function WarehouseRatesPanel({
         </div>
 
       {/* Tabs */}
-      <div className="border-b border-slate-200">
+      <div className="border-b border-border">
         <nav className="flex gap-1 -mb-px">
           {tabs.map((tab) => (
             <button
@@ -324,8 +324,8 @@ export function WarehouseRatesPanel({
               className={`
                 flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors
                 ${activeTab === tab.key
-                  ? 'border-cyan-500 text-cyan-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                 }
               `}
             >
@@ -396,22 +396,22 @@ function InboundTab({ templates, renderRateRow }: TabProps) {
       {/* Container Handling */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-slate-900">Warehouse Handling and Carton Labeling</h3>
+          <h3 className="text-sm font-semibold text-foreground">Warehouse Handling and Carton Labeling</h3>
           <Badge className="bg-blue-50 text-blue-700 border-blue-200">Per Container</Badge>
         </div>
-        <p className="text-xs text-slate-500 mb-4">
+        <p className="text-xs text-muted-foreground mb-4">
           Covers unloading, sorting, labeling, palletizing, shrink-wrapping, FBA pallet labels, and delivery arrangement.
         </p>
-        <table className="w-full text-sm [&_tr]:group">
-          <thead>
-            <tr className="border-b border-slate-100">
-              <th className="text-left py-2 px-3 font-medium text-slate-600">Container Type</th>
-              <th className="text-right py-2 px-3 font-medium text-slate-600">Rate</th>
-              <th className="text-left py-2 px-3 font-medium text-slate-600">Effective</th>
-              <th className="text-left py-2 px-3 font-medium text-slate-600">Unit</th>
+        <table className="w-full table-auto text-sm">
+          <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left font-semibold">Container Type</th>
+              <th className="px-3 py-2 text-right font-semibold">Rate</th>
+              <th className="px-3 py-2 text-left font-semibold">Effective</th>
+              <th className="px-3 py-2 text-left font-semibold">Unit</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
+          <tbody>
             {containerRates.map(t => renderRateRow(t))}
             {lclRates.map(t => renderRateRow(t))}
           </tbody>
@@ -420,10 +420,10 @@ function InboundTab({ templates, renderRateRow }: TabProps) {
 
       {/* Additional SKU */}
       <div>
-        <h3 className="text-sm font-semibold text-slate-900 mb-3">Additional SKU Charges</h3>
-        <p className="text-xs text-slate-500 mb-3">Up to 10 SKUs per container included.</p>
-        <table className="w-full text-sm [&_tr]:group">
-          <tbody className="divide-y divide-slate-50">
+        <h3 className="text-sm font-semibold text-foreground mb-3">Additional SKU Charges</h3>
+        <p className="text-xs text-muted-foreground mb-3">Up to 10 SKUs per container included.</p>
+        <table className="w-full table-auto text-sm">
+          <tbody>
             {skuRates.map(t => renderRateRow(t))}
           </tbody>
         </table>
@@ -431,10 +431,10 @@ function InboundTab({ templates, renderRateRow }: TabProps) {
 
       {/* Carton Overage */}
       <div>
-        <h3 className="text-sm font-semibold text-slate-900 mb-3">Carton Overage</h3>
-        <p className="text-xs text-slate-500 mb-3">Up to 1200 cartons per container included.</p>
-        <table className="w-full text-sm [&_tr]:group">
-          <tbody className="divide-y divide-slate-50">
+        <h3 className="text-sm font-semibold text-foreground mb-3">Carton Overage</h3>
+        <p className="text-xs text-muted-foreground mb-3">Up to 1200 cartons per container included.</p>
+        <table className="w-full table-auto text-sm">
+          <tbody>
             {cartonOverageRates.map(t => renderRateRow(t))}
           </tbody>
         </table>
@@ -442,9 +442,9 @@ function InboundTab({ templates, renderRateRow }: TabProps) {
 
       {/* Pallet & Shrink Wrap */}
       <div>
-        <h3 className="text-sm font-semibold text-slate-900 mb-3">Pallet &amp; Shrink Wrap</h3>
-        <table className="w-full text-sm [&_tr]:group">
-          <tbody className="divide-y divide-slate-50">
+        <h3 className="text-sm font-semibold text-foreground mb-3">Pallet &amp; Shrink Wrap</h3>
+        <table className="w-full table-auto text-sm">
+          <tbody>
             {palletWrapRates.map(t => renderRateRow(t))}
           </tbody>
         </table>
@@ -458,17 +458,17 @@ function StorageTab({ templates, renderRateRow }: TabProps) {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-semibold text-slate-900 mb-3">Warehouse Storage</h3>
-        <table className="w-full text-sm [&_tr]:group">
-          <thead>
-            <tr className="border-b border-slate-100">
-              <th className="text-left py-2 px-3 font-medium text-slate-600">Description</th>
-              <th className="text-right py-2 px-3 font-medium text-slate-600">Rate</th>
-              <th className="text-left py-2 px-3 font-medium text-slate-600">Effective</th>
-              <th className="text-left py-2 px-3 font-medium text-slate-600">Unit</th>
+        <h3 className="text-sm font-semibold text-foreground mb-3">Warehouse Storage</h3>
+        <table className="w-full table-auto text-sm">
+          <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left font-semibold">Description</th>
+              <th className="px-3 py-2 text-right font-semibold">Rate</th>
+              <th className="px-3 py-2 text-left font-semibold">Effective</th>
+              <th className="px-3 py-2 text-left font-semibold">Unit</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
+          <tbody>
             {templates.map(t => renderRateRow(t))}
           </tbody>
         </table>
@@ -488,20 +488,20 @@ function OutboundTab({ templates, renderRateRow }: TabProps) {
     <div className="space-y-6">
       {/* FBA Trucking */}
       <div>
-        <h3 className="text-sm font-semibold text-slate-900 mb-3">Trucking and Delivery to Amazon FBA</h3>
-        <p className="text-xs text-slate-500 mb-4">
+        <h3 className="text-sm font-semibold text-foreground mb-3">Trucking and Delivery to Amazon FBA</h3>
+        <p className="text-xs text-muted-foreground mb-4">
           Tactical Logistics will schedule appointments and handle delivery to Amazon.
         </p>
-        <table className="w-full text-sm [&_tr]:group">
-          <thead>
-            <tr className="border-b border-slate-100">
-              <th className="text-left py-2 px-3 font-medium text-slate-600">Pallet Range</th>
-              <th className="text-right py-2 px-3 font-medium text-slate-600">Rate</th>
-              <th className="text-left py-2 px-3 font-medium text-slate-600">Effective</th>
-              <th className="text-left py-2 px-3 font-medium text-slate-600">Unit</th>
+        <table className="w-full table-auto text-sm">
+          <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left font-semibold">Pallet Range</th>
+              <th className="px-3 py-2 text-right font-semibold">Rate</th>
+              <th className="px-3 py-2 text-left font-semibold">Effective</th>
+              <th className="px-3 py-2 text-left font-semibold">Unit</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
+          <tbody>
             {truckingRates.map(t => renderRateRow(t))}
           </tbody>
         </table>
@@ -509,9 +509,9 @@ function OutboundTab({ templates, renderRateRow }: TabProps) {
 
       {/* Replenishment */}
       <div>
-        <h3 className="text-sm font-semibold text-slate-900 mb-3">Additional Replenishment Shipments to Amazon FBA</h3>
-        <table className="w-full text-sm [&_tr]:group">
-          <tbody className="divide-y divide-slate-50">
+        <h3 className="text-sm font-semibold text-foreground mb-3">Additional Replenishment Shipments to Amazon FBA</h3>
+        <table className="w-full table-auto text-sm">
+          <tbody>
             {replenishmentRates.map(t => renderRateRow(t))}
           </tbody>
         </table>
@@ -525,28 +525,28 @@ function ForwardingTab({ templates, renderRateRow }: TabProps) {
     <div className="space-y-6">
       {/* Ocean Freight */}
       <div>
-        <h3 className="text-sm font-semibold text-slate-900 mb-3">Ocean Freight</h3>
-        <p className="text-sm text-slate-600">
+        <h3 className="text-sm font-semibold text-foreground mb-3">Ocean Freight</h3>
+        <p className="text-sm text-muted-foreground">
           Ask for current rates. Tactical will handle freight forwarding from point of manufacture to point of sale.
         </p>
       </div>
 
       {/* Drayage */}
       <div>
-        <h3 className="text-sm font-semibold text-slate-900 mb-3">Port Pickup and Deliver to Tactical Warehouse (Drayage)</h3>
-        <p className="text-xs text-slate-500 mb-4">
+        <h3 className="text-sm font-semibold text-foreground mb-3">Port Pickup and Deliver to Tactical Warehouse (Drayage)</h3>
+        <p className="text-xs text-muted-foreground mb-4">
           Covers drayage to Tactical warehouse and includes all chassis fees.
         </p>
-        <table className="w-full text-sm [&_tr]:group">
-          <thead>
-            <tr className="border-b border-slate-100">
-              <th className="text-left py-2 px-3 font-medium text-slate-600">Service</th>
-              <th className="text-right py-2 px-3 font-medium text-slate-600">Rate</th>
-              <th className="text-left py-2 px-3 font-medium text-slate-600">Effective</th>
-              <th className="text-left py-2 px-3 font-medium text-slate-600">Unit</th>
+        <table className="w-full table-auto text-sm">
+          <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2 text-left font-semibold">Service</th>
+              <th className="px-3 py-2 text-right font-semibold">Rate</th>
+              <th className="px-3 py-2 text-left font-semibold">Effective</th>
+              <th className="px-3 py-2 text-left font-semibold">Unit</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
+          <tbody>
             {templates.map(t => renderRateRow(t))}
           </tbody>
         </table>

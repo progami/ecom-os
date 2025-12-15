@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { getCandidateSessionCookieNames, hasPortalSession } from '@ecom-os/auth'
+import { getCandidateSessionCookieNames, decodePortalSession, getAppEntitlement } from '@ecom-os/auth'
 import { withBasePath, withoutBasePath } from '@/lib/utils/base-path'
 import { portalUrl } from '@/lib/portal'
 
@@ -40,6 +40,7 @@ export async function middleware(request: NextRequest) {
  '/',
  '/auth/login',
  '/auth/error',
+ '/no-access',
  '/api/health',
  '/api/logs',
  '/api/demo/setup',
@@ -73,37 +74,47 @@ export async function middleware(request: NextRequest) {
  return NextResponse.next()
  }
 
- // Check for session using shared cookie naming scheme
-const cookieNames = Array.from(new Set([
-  ...getCandidateSessionCookieNames('ecomos'),
-  ...getCandidateSessionCookieNames('wms'),
-]))
-const sharedSecret = process.env.PORTAL_AUTH_SECRET ?? 'dev_portal_auth_secret_2025'
-const authDebugFlag =
-  typeof process.env.NEXTAUTH_DEBUG === 'string' &&
-  ['1', 'true', 'yes', 'on'].includes(process.env.NEXTAUTH_DEBUG.toLowerCase())
-const hasSession = await hasPortalSession({
-  request,
-  appId: 'ecomos',
-  cookieNames,
-  secret: sharedSecret,
-  portalUrl: process.env.PORTAL_AUTH_URL,
-  debug: authDebugFlag,
-})
+ // Check for session and app entitlement
+ const cookieNames = Array.from(new Set([
+   ...getCandidateSessionCookieNames('ecomos'),
+   ...getCandidateSessionCookieNames('wms'),
+ ]))
+ const sharedSecret = process.env.PORTAL_AUTH_SECRET ?? 'dev_portal_auth_secret_2025'
+ const authDebugFlag =
+   typeof process.env.NEXTAUTH_DEBUG === 'string' &&
+   ['1', 'true', 'yes', 'on'].includes(process.env.NEXTAUTH_DEBUG.toLowerCase())
 
- // If no token and trying to access protected route, redirect to portal login
- if (!hasSession && !normalizedPath.startsWith('/auth/')) {
- // Build callback URL from forwarded headers (from Nginx proxy) instead of request.nextUrl
- // request.nextUrl gives us the internal host (for example localhost:3001), but we need the public-facing URL
- const forwardedProto = request.headers.get('x-forwarded-proto') || 'http'
- const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host
- // Next.js strips basePath before middleware runs, so manually prepend it
- const basePath = process.env.BASE_PATH || ''
- const callbackUrl = `${forwardedProto}://${forwardedHost}${basePath}${pathname}${request.nextUrl.search}`
+ const cookieHeader = request.headers.get('cookie')
+ const decoded = await decodePortalSession({
+   cookieHeader,
+   cookieNames,
+   secret: sharedSecret,
+   debug: authDebugFlag,
+ })
 
- const redirect = portalUrl('/login', request, `${forwardedProto}://${forwardedHost}`)
- redirect.searchParams.set('callbackUrl', callbackUrl)
- return NextResponse.redirect(redirect)
+ const hasSession = !!decoded
+ const wmsEntitlement = decoded ? getAppEntitlement(decoded.roles, 'wms') : undefined
+ const hasAccess = hasSession && !!wmsEntitlement
+
+ // If no token or no WMS entitlement, redirect to portal
+ if (!hasAccess && !normalizedPath.startsWith('/auth/')) {
+   const forwardedProto = request.headers.get('x-forwarded-proto') || 'http'
+   const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host
+   const basePath = process.env.BASE_PATH || ''
+   const callbackUrl = `${forwardedProto}://${forwardedHost}${basePath}${pathname}${request.nextUrl.search}`
+
+   // User has session but no WMS access - redirect to no-access page
+   if (hasSession && !wmsEntitlement) {
+     const url = request.nextUrl.clone()
+     url.pathname = withBasePath('/no-access')
+     url.search = ''
+     return NextResponse.redirect(url)
+   }
+
+   // No session at all
+   const redirect = portalUrl('/login', request, `${forwardedProto}://${forwardedHost}`)
+   redirect.searchParams.set('callbackUrl', callbackUrl)
+   return NextResponse.redirect(redirect)
  }
 
  return NextResponse.next()

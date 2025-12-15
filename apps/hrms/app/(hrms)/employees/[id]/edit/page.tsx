@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { EmployeesApi, DepartmentsApi, ProjectsApi, type Employee, type Department, type Project, type EmployeeProjectMembership } from '@/lib/api-client'
-import { UsersIcon, PlusIcon, XIcon } from '@/components/ui/Icons'
+import { EmployeesApi, DepartmentsApi, ProjectsApi, type Employee, type Department, type Project } from '@/lib/api-client'
+import { UsersIcon, PlusIcon, XIcon, LockClosedIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardDivider } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -17,6 +17,17 @@ import {
 import { useNavigationHistory } from '@/lib/navigation-history'
 import { employmentTypeOptions, statusOptions } from '@/lib/constants'
 
+type FieldPermissions = Record<string, { canEdit: boolean; permission: string; reason?: string }>
+
+function LockedFieldBadge({ reason }: { reason?: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-slate-500 ml-2" title={reason}>
+      <LockClosedIcon className="h-3 w-3" />
+      {reason === 'This field is synced from Google Admin and cannot be edited' ? 'Google' : 'Locked'}
+    </span>
+  )
+}
+
 export default function EditEmployeePage() {
   const router = useRouter()
   const { goBack } = useNavigationHistory()
@@ -28,19 +39,30 @@ export default function EditEmployeePage() {
   const [departments, setDepartments] = useState<Department[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [projectMemberships, setProjectMemberships] = useState<{ projectId: string }[]>([])
+  const [additionalDepartments, setAdditionalDepartments] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Permission state
+  const [permissions, setPermissions] = useState<{
+    isEditingSelf: boolean
+    isManager: boolean
+    isSuperAdmin: boolean
+    fieldPermissions: FieldPermissions
+    editableFields: string[]
+  } | null>(null)
+
   useEffect(() => {
     async function load() {
       try {
-        const [data, employeesRes, deptsRes, projectsRes, membershipsRes] = await Promise.all([
+        const [data, employeesRes, deptsRes, projectsRes, membershipsRes, permsRes] = await Promise.all([
           EmployeesApi.get(id),
           EmployeesApi.list({ take: 200 }),
           DepartmentsApi.list(),
           ProjectsApi.list(),
           EmployeesApi.getProjectMemberships(id),
+          EmployeesApi.getPermissions(id),
         ])
         setEmployee(data)
         setAllEmployees(employeesRes.items)
@@ -51,6 +73,13 @@ export default function EditEmployeePage() {
             projectId: m.project.id,
           }))
         )
+        setPermissions({
+          isEditingSelf: permsRes.isEditingSelf,
+          isManager: permsRes.isManager,
+          isSuperAdmin: permsRes.isSuperAdmin,
+          fieldPermissions: permsRes.fieldPermissions,
+          editableFields: permsRes.editableFields,
+        })
       } catch (e: any) {
         setError(e.message || 'Failed to load employee')
       } finally {
@@ -60,38 +89,63 @@ export default function EditEmployeePage() {
     load()
   }, [id])
 
+  const canEdit = (field: string) => permissions?.fieldPermissions[field]?.canEdit ?? false
+  const getFieldReason = (field: string) => permissions?.fieldPermissions[field]?.reason
+
+  // Check if user can edit any fields in a group
+  const canEditGroup = (fields: string[]) => fields.some(f => canEdit(f))
+
+  // Organization fields: department, reportsToId
+  const canEditOrganization = canEdit('department') || canEdit('reportsToId')
+  // Employment fields: position, joinDate, employmentType, status
+  const canEditEmployment = canEdit('position') || canEdit('joinDate') || canEdit('employmentType') || canEdit('status')
+  // Personal fields: phone, address, etc.
+  const canEditPersonal = canEdit('phone') || canEdit('address') || canEdit('dateOfBirth')
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setSubmitting(true)
     setError(null)
     const fd = new FormData(e.currentTarget)
-    const payload = Object.fromEntries(fd.entries()) as any
+    const payload: Record<string, any> = {}
+
+    // Only include fields the user can edit
+    if (canEdit('phone')) payload.phone = fd.get('phone') ? String(fd.get('phone')) : undefined
+    if (canEdit('address')) payload.address = fd.get('address') ? String(fd.get('address')) : undefined
+    if (canEdit('city')) payload.city = fd.get('city') ? String(fd.get('city')) : undefined
+    if (canEdit('country')) payload.country = fd.get('country') ? String(fd.get('country')) : undefined
+    if (canEdit('postalCode')) payload.postalCode = fd.get('postalCode') ? String(fd.get('postalCode')) : undefined
+    if (canEdit('emergencyContact')) payload.emergencyContact = fd.get('emergencyContact') ? String(fd.get('emergencyContact')) : undefined
+    if (canEdit('emergencyPhone')) payload.emergencyPhone = fd.get('emergencyPhone') ? String(fd.get('emergencyPhone')) : undefined
+    if (canEdit('dateOfBirth')) payload.dateOfBirth = fd.get('dateOfBirth') ? String(fd.get('dateOfBirth')) : undefined
+
+    // Organization/Employment fields (manager only)
+    if (canEdit('department')) payload.department = fd.get('department') ? String(fd.get('department')) : undefined
+    if (canEdit('position')) payload.position = fd.get('position') ? String(fd.get('position')) : undefined
+    if (canEdit('joinDate')) payload.joinDate = fd.get('joinDate') ? String(fd.get('joinDate')) : undefined
+    if (canEdit('employmentType')) payload.employmentType = fd.get('employmentType') ? String(fd.get('employmentType')) : undefined
+    if (canEdit('status')) payload.status = fd.get('status') ? String(fd.get('status')) : undefined
+    if (canEdit('reportsToId')) {
+      const reportsToId = fd.get('reportsToId')
+      payload.reportsToId = reportsToId ? String(reportsToId) : null
+    }
 
     try {
       // Update employee info
-      await EmployeesApi.update(id, {
-        firstName: String(payload.firstName),
-        lastName: String(payload.lastName),
-        email: String(payload.email),
-        phone: payload.phone ? String(payload.phone) : undefined,
-        department: String(payload.department || ''),
-        position: String(payload.position),
-        joinDate: String(payload.joinDate),
-        employmentType: String(payload.employmentType || 'FULL_TIME'),
-        status: String(payload.status || 'ACTIVE'),
-        reportsToId: payload.reportsToId ? String(payload.reportsToId) : null,
-      })
+      await EmployeesApi.update(id, payload)
 
-      // Update project memberships - use employee's position as role
-      await EmployeesApi.updateProjectMemberships(
-        id,
-        projectMemberships
-          .filter((m) => m.projectId) // Only include valid memberships
-          .map((m) => ({
-            projectId: m.projectId,
-            role: String(payload.position), // Use employee's position
-          }))
-      )
+      // Update project memberships if user can manage
+      if (canEditOrganization) {
+        await EmployeesApi.updateProjectMemberships(
+          id,
+          projectMemberships
+            .filter((m) => m.projectId)
+            .map((m) => ({
+              projectId: m.projectId,
+              role: String(fd.get('position') || employee?.position),
+            }))
+        )
+      }
 
       router.push(`/employees/${id}`)
     } catch (e: any) {
@@ -115,7 +169,6 @@ export default function EditEmployeePage() {
     setProjectMemberships(updated)
   }
 
-  // Get projects not already assigned
   const availableProjects = (index: number) => {
     const assignedProjectIds = projectMemberships
       .filter((_, i) => i !== index)
@@ -146,7 +199,7 @@ export default function EditEmployeePage() {
     )
   }
 
-  if (!employee) {
+  if (!employee || !permissions) {
     return (
       <>
         <PageHeader
@@ -170,7 +223,7 @@ export default function EditEmployeePage() {
     <>
       <PageHeader
         title="Edit Employee"
-        description="People"
+        description={`${employee.firstName} ${employee.lastName}`}
         icon={<UsersIcon className="h-6 w-6 text-white" />}
         showBack
       />
@@ -184,183 +237,299 @@ export default function EditEmployeePage() {
           )}
 
           <form onSubmit={onSubmit} className="space-y-8">
-            {/* Basic Info */}
-            <FormSection title="Basic Information" description="Personal details of the employee">
+            {/* Identity (Google Controlled - Always Read Only) */}
+            <FormSection
+              title="Identity"
+              description="Synced from Google Workspace - cannot be edited here"
+            >
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <FormField
-                  label="Employee ID"
+                  label={<>Employee ID <LockedFieldBadge reason="Auto-generated" /></>}
                   name="employeeId"
                   defaultValue={employee.employeeId}
                   disabled
-                  hint="Auto-generated, cannot be changed"
                 />
                 <FormField
-                  label="Email"
+                  label={<>Email <LockedFieldBadge reason={getFieldReason('email')} /></>}
                   name="email"
                   type="email"
-                  required
                   defaultValue={employee.email}
+                  disabled
                 />
                 <FormField
-                  label="First Name"
+                  label={<>First Name <LockedFieldBadge reason={getFieldReason('firstName')} /></>}
                   name="firstName"
-                  required
                   defaultValue={employee.firstName}
+                  disabled
                 />
                 <FormField
-                  label="Last Name"
+                  label={<>Last Name <LockedFieldBadge reason={getFieldReason('lastName')} /></>}
                   name="lastName"
-                  required
                   defaultValue={employee.lastName}
-                />
-                <FormField
-                  label="Phone"
-                  name="phone"
-                  type="tel"
-                  defaultValue={employee.phone || ''}
-                  placeholder="+1 (555) 000-0000"
+                  disabled
                 />
               </div>
             </FormSection>
 
-            <CardDivider />
-
-            {/* Work Info */}
-            <FormSection title="Work Information" description="Job-related details">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <SelectField
-                  label="Department"
-                  name="department"
-                  required
-                  options={departments.map((dept) => ({
-                    value: dept.name,
-                    label: dept.name,
-                  }))}
-                  defaultValue={employee.department || ''}
-                />
-                <FormField
-                  label="Position"
-                  name="position"
-                  required
-                  defaultValue={employee.position}
-                />
-                <FormField
-                  label="Join Date"
-                  name="joinDate"
-                  type="date"
-                  required
-                  defaultValue={joinDateFormatted}
-                />
-                <SelectField
-                  label="Employment Type"
-                  name="employmentType"
-                  required
-                  options={employmentTypeOptions}
-                  defaultValue={employee.employmentType}
-                />
-                <SelectField
-                  label="Status"
-                  name="status"
-                  required
-                  options={statusOptions}
-                  defaultValue={employee.status}
-                />
-                <SelectField
-                  label="Reports To"
-                  name="reportsToId"
-                  options={[
-                    { value: '', label: 'No Manager (Top Level)' },
-                    ...allEmployees
-                      .filter((emp) => emp.id !== id)
-                      .map((emp) => ({
-                        value: emp.id,
-                        label: `${emp.firstName} ${emp.lastName} (${emp.position})`,
-                      })),
-                  ]}
-                  defaultValue={employee.reportsToId || ''}
-                />
-              </div>
-            </FormSection>
-
-            <CardDivider />
-
-            {/* Project Assignments */}
-            <FormSection title="Project Assignments" description="Assign this employee to projects">
-              <div className="space-y-4">
-                {projectMemberships.map((membership, index) => (
-                  <div key={index} className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg">
-                    <div className="flex-1">
-                      <label className="block text-sm font-medium text-slate-700 mb-1">
-                        Project
-                      </label>
-                      <select
-                        value={membership.projectId}
-                        onChange={(e) => updateProjectMembership(index, e.target.value)}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                      >
-                        <option value="">Select project...</option>
-                        {availableProjects(index).map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name} {p.code ? `(${p.code})` : ''}
-                          </option>
-                        ))}
-                        {/* Include current selection even if filtered out */}
-                        {membership.projectId && !availableProjects(index).find((p) => p.id === membership.projectId) && (
-                          <option value={membership.projectId}>
-                            {projects.find((p) => p.id === membership.projectId)?.name || membership.projectId}
-                          </option>
-                        )}
-                      </select>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeProjectMembership(index)}
-                      className="mt-6 p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Remove project"
-                    >
-                      <XIcon className="h-5 w-5" />
-                    </button>
+            {/* Organization Structure (Manager Editable) */}
+            {canEditOrganization && (
+              <>
+                <CardDivider />
+                <FormSection
+                  title="Organization Structure"
+                  description="Department assignments, projects, and reporting hierarchy"
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {canEdit('department') && (
+                      <SelectField
+                        label="Primary Department"
+                        name="department"
+                        required
+                        options={departments.map((dept) => ({
+                          value: dept.name,
+                          label: dept.name,
+                        }))}
+                        defaultValue={employee.department || ''}
+                      />
+                    )}
+                    {canEdit('reportsToId') && (
+                      <SelectField
+                        label="Reports To"
+                        name="reportsToId"
+                        options={[
+                          { value: '', label: 'No Manager (Top Level)' },
+                          ...allEmployees
+                            .filter((emp) => emp.id !== id)
+                            .map((emp) => ({
+                              value: emp.id,
+                              label: `${emp.firstName} ${emp.lastName} (${emp.position})`,
+                            })),
+                        ]}
+                        defaultValue={employee.reportsToId || ''}
+                      />
+                    )}
                   </div>
-                ))}
 
-                {projects.length > 0 && projectMemberships.length < projects.length && (
-                  <button
-                    type="button"
-                    onClick={addProjectMembership}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors"
-                  >
-                    <PlusIcon className="h-4 w-4" />
-                    Add Project Assignment
-                  </button>
-                )}
+                  {/* Project Assignments */}
+                  <div className="mt-6">
+                    <h4 className="text-sm font-medium text-slate-700 mb-3">Project Assignments</h4>
+                    <div className="space-y-3">
+                      {projectMemberships.map((membership, index) => (
+                        <div key={index} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                          <div className="flex-1">
+                            <select
+                              value={membership.projectId}
+                              onChange={(e) => updateProjectMembership(index, e.target.value)}
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                            >
+                              <option value="">Select project...</option>
+                              {availableProjects(index).map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.name} {p.code ? `(${p.code})` : ''}
+                                </option>
+                              ))}
+                              {membership.projectId && !availableProjects(index).find((p) => p.id === membership.projectId) && (
+                                <option value={membership.projectId}>
+                                  {projects.find((p) => p.id === membership.projectId)?.name || membership.projectId}
+                                </option>
+                              )}
+                            </select>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeProjectMembership(index)}
+                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Remove project"
+                          >
+                            <XIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
 
-                {projects.length === 0 && (
-                  <p className="text-sm text-slate-500">No projects available. Create projects first.</p>
-                )}
+                      {projects.length > 0 && projectMemberships.length < projects.length && (
+                        <button
+                          type="button"
+                          onClick={addProjectMembership}
+                          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors"
+                        >
+                          <PlusIcon className="h-4 w-4" />
+                          Add Project
+                        </button>
+                      )}
 
-                {projectMemberships.length === 0 && projects.length > 0 && (
-                  <p className="text-sm text-slate-500">
-                    No projects assigned.{' '}
-                    <button
-                      type="button"
-                      onClick={addProjectMembership}
-                      className="text-cyan-600 hover:text-cyan-700 font-medium"
-                    >
-                      Add one
-                    </button>
-                  </p>
-                )}
-              </div>
-            </FormSection>
+                      {projectMemberships.length === 0 && projects.length > 0 && (
+                        <p className="text-sm text-slate-500">
+                          No projects assigned.{' '}
+                          <button
+                            type="button"
+                            onClick={addProjectMembership}
+                            className="text-cyan-600 hover:text-cyan-700 font-medium"
+                          >
+                            Add one
+                          </button>
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </FormSection>
+              </>
+            )}
+
+            {/* Employment Details (Manager Editable) */}
+            {canEditEmployment && (
+              <>
+                <CardDivider />
+                <FormSection
+                  title="Employment Details"
+                  description="Job position and employment status"
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {canEdit('position') && (
+                      <FormField
+                        label="Position"
+                        name="position"
+                        required
+                        defaultValue={employee.position}
+                      />
+                    )}
+                    {canEdit('joinDate') && (
+                      <FormField
+                        label="Join Date"
+                        name="joinDate"
+                        type="date"
+                        required
+                        defaultValue={joinDateFormatted}
+                      />
+                    )}
+                    {canEdit('employmentType') && (
+                      <SelectField
+                        label="Employment Type"
+                        name="employmentType"
+                        required
+                        options={employmentTypeOptions}
+                        defaultValue={employee.employmentType}
+                      />
+                    )}
+                    {canEdit('status') && (
+                      <SelectField
+                        label="Status"
+                        name="status"
+                        required
+                        options={statusOptions}
+                        defaultValue={employee.status}
+                      />
+                    )}
+                  </div>
+                </FormSection>
+              </>
+            )}
+
+            {/* Personal Information (Self Editable) */}
+            {canEditPersonal && (
+              <>
+                <CardDivider />
+                <FormSection
+                  title="Personal Information"
+                  description="Contact details and personal information"
+                >
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    {canEdit('phone') && (
+                      <FormField
+                        label="Phone"
+                        name="phone"
+                        type="tel"
+                        defaultValue={(employee as any).phone || ''}
+                        placeholder="+1 (555) 000-0000"
+                      />
+                    )}
+                    {canEdit('dateOfBirth') && (
+                      <FormField
+                        label="Date of Birth"
+                        name="dateOfBirth"
+                        type="date"
+                        defaultValue={(employee as any).dateOfBirth?.split('T')[0] || ''}
+                      />
+                    )}
+                    {canEdit('address') && (
+                      <div className="sm:col-span-2">
+                        <FormField
+                          label="Address"
+                          name="address"
+                          defaultValue={(employee as any).address || ''}
+                        />
+                      </div>
+                    )}
+                    {canEdit('city') && (
+                      <FormField
+                        label="City"
+                        name="city"
+                        defaultValue={(employee as any).city || ''}
+                      />
+                    )}
+                    {canEdit('country') && (
+                      <FormField
+                        label="Country"
+                        name="country"
+                        defaultValue={(employee as any).country || ''}
+                      />
+                    )}
+                    {canEdit('postalCode') && (
+                      <FormField
+                        label="Postal Code"
+                        name="postalCode"
+                        defaultValue={(employee as any).postalCode || ''}
+                      />
+                    )}
+                  </div>
+
+                  {/* Emergency Contact */}
+                  {(canEdit('emergencyContact') || canEdit('emergencyPhone')) && (
+                    <div className="mt-6">
+                      <h4 className="text-sm font-medium text-slate-700 mb-3">Emergency Contact</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        {canEdit('emergencyContact') && (
+                          <FormField
+                            label="Contact Name"
+                            name="emergencyContact"
+                            defaultValue={(employee as any).emergencyContact || ''}
+                          />
+                        )}
+                        {canEdit('emergencyPhone') && (
+                          <FormField
+                            label="Contact Phone"
+                            name="emergencyPhone"
+                            type="tel"
+                            defaultValue={(employee as any).emergencyPhone || ''}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </FormSection>
+              </>
+            )}
+
+            {/* No editable fields message */}
+            {!canEditOrganization && !canEditEmployment && !canEditPersonal && (
+              <>
+                <CardDivider />
+                <div className="py-8 text-center">
+                  <LockClosedIcon className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-500">You don't have permission to edit this employee's profile.</p>
+                </div>
+              </>
+            )}
 
             {/* Actions */}
             <FormActions>
               <Button variant="secondary" onClick={goBack}>
                 Cancel
               </Button>
-              <Button type="submit" loading={submitting}>
-                {submitting ? 'Saving...' : 'Save Changes'}
-              </Button>
+              {(canEditOrganization || canEditEmployment || canEditPersonal) && (
+                <Button type="submit" loading={submitting}>
+                  {submitting ? 'Saving...' : 'Save Changes'}
+                </Button>
+              )}
             </FormActions>
           </form>
         </Card>

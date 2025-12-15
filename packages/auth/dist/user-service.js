@@ -79,9 +79,9 @@ function buildDemoUser() {
     const demoUsername = (process.env.DEMO_ADMIN_USERNAME || DEFAULT_DEMO_USERNAME).toLowerCase();
     const entitlements = {
         wms: { role: 'admin', departments: ['Ops'] },
-        fcc: { role: 'admin', departments: ['Finance'] },
         hrms: { role: 'admin', departments: ['People Ops'] },
-        'margin-master': { role: 'admin', departments: ['Product'] },
+        website: { role: 'admin', departments: [] },
+        'x-plan': { role: 'admin', departments: ['Product'] },
     };
     return {
         id: DEMO_ADMIN_UUID,

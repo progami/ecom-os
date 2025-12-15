@@ -122,6 +122,17 @@
   overflow: hidden;
 }
 
+.accessError {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  padding: 14px 18px;
+  border-radius: 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-top: 16px;
+}
+
 .intro {
   height: 4px;
 }
