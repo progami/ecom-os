@@ -375,6 +375,14 @@ export async function POST(request: NextRequest) {
 const rawItemsInput = Array.isArray(items) ? items : Array.isArray(lineItems) ? lineItems : []
 let itemsArray: MutableTransactionLine[] = rawItemsInput.map(normalizeTransactionLine)
 
+// Require at least one line item
+if (itemsArray.length === 0) {
+  return NextResponse.json(
+    { error: 'At least one cargo line item is required' },
+    { status: 400 }
+  )
+}
+
 const attachmentList: AttachmentPayload[] = Array.isArray(attachments)
 ? attachments
 .map(normalizeAttachmentInput)
