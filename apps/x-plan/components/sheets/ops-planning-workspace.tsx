@@ -159,6 +159,7 @@ export type OpsPlanningCalculatorPayload = {
 }
 
 interface OpsPlanningWorkspaceProps {
+  strategyId: string
   poTableRows: OpsInputRow[]
   batchTableRows: OpsBatchRow[]
   timeline: OpsTimelineRow[]
@@ -629,6 +630,7 @@ type PaymentUpdatePayload = {
 }
 
 export function OpsPlanningWorkspace({
+  strategyId,
   poTableRows,
   batchTableRows,
   timeline,
@@ -1429,7 +1431,7 @@ useEffect(() => {
 
     startTransition(async () => {
       try {
-        const basePayload: Record<string, unknown> = { productId: defaultProductId }
+        const basePayload: Record<string, unknown> = { strategyId, productId: defaultProductId }
         const requestPayload = trimmedCode.length
           ? { ...basePayload, orderCode: trimmedCode }
           : basePayload
@@ -1468,7 +1470,7 @@ useEffect(() => {
         toast.error(error instanceof Error ? error.message : 'Unable to create purchase order')
       }
     })
-  }, [newOrderCode, productOptions, router, startTransition])
+  }, [strategyId, newOrderCode, productOptions, router, startTransition])
 
   return (
     <div className="space-y-8">

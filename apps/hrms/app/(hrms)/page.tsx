@@ -373,77 +373,6 @@ export default function Dashboard() {
         }
       />
 
-      {/* Notifications - Horizontal Banner */}
-      {hasNotifications && (
-        <Card padding="none" className="mb-6">
-          <div className="px-4 py-3 flex items-center justify-between border-b border-slate-100">
-            <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-              <BellIcon className="h-4 w-4 text-cyan-600" />
-              Notifications
-              {unreadCount > 0 && (
-                <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-red-100 text-red-600 rounded-full">
-                  {unreadCount}
-                </span>
-              )}
-            </h2>
-            {unreadCount > 0 && (
-              <button
-                onClick={markAllRead}
-                className="text-xs text-slate-500 hover:text-cyan-600 transition-colors"
-              >
-                Mark all read
-              </button>
-            )}
-          </div>
-          <div className="px-4 py-3 overflow-x-auto">
-            <div className="flex gap-3">
-              {data.notifications.slice(0, 5).map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`flex-shrink-0 w-72 p-3 rounded-lg border transition-colors ${
-                    notification.isRead
-                      ? 'bg-white border-slate-200'
-                      : 'bg-amber-50 border-amber-200'
-                  }`}
-                >
-                  <div className="flex items-start gap-2">
-                    <div className={`mt-0.5 flex-shrink-0 ${notification.isRead ? 'text-slate-400' : 'text-amber-500'}`}>
-                      {notification.isRead ? (
-                        <CheckIcon className="h-3.5 w-3.5" />
-                      ) : (
-                        <ExclamationCircleIcon className="h-3.5 w-3.5" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-xs leading-tight ${notification.isRead ? 'text-slate-600' : 'text-slate-900 font-medium'}`}>
-                        {notification.title}
-                      </p>
-                      <p className="text-[10px] text-slate-500 mt-1 line-clamp-2">{notification.message}</p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[10px] text-slate-400">{formatDate(notification.createdAt)}</span>
-                        {notification.link && (
-                          <Link href={notification.link} className="text-[10px] text-cyan-600 hover:text-cyan-700">
-                            View
-                          </Link>
-                        )}
-                        {!notification.isRead && (
-                          <button
-                            onClick={() => markNotificationRead(notification.id)}
-                            className="text-[10px] text-slate-500 hover:text-slate-700"
-                          >
-                            Dismiss
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Card>
-      )}
-
       <div className="space-y-6">
         {/* Employee Header Card */}
         <Card padding="lg">
@@ -712,6 +641,73 @@ export default function Dashboard() {
               )}
             </Card>
           )}
+
+        {/* Notifications - Bottom Section */}
+        {hasNotifications && (
+          <Card padding="none">
+            <div className="px-5 py-3 flex items-center justify-between border-b border-slate-100">
+              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                <BellIcon className="h-4 w-4 text-cyan-600" />
+                Notifications
+                {unreadCount > 0 && (
+                  <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-red-100 text-red-600 rounded-full">
+                    {unreadCount}
+                  </span>
+                )}
+              </h2>
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllRead}
+                  className="text-xs text-slate-500 hover:text-cyan-600 transition-colors"
+                >
+                  Mark all read
+                </button>
+              )}
+            </div>
+            <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+              {data.notifications.map((notification) => (
+                <div
+                  key={notification.id}
+                  className={`px-5 py-3 transition-colors ${
+                    notification.isRead ? 'bg-white' : 'bg-amber-50/50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-0.5 flex-shrink-0 ${notification.isRead ? 'text-slate-400' : 'text-amber-500'}`}>
+                      {notification.isRead ? (
+                        <CheckIcon className="h-4 w-4" />
+                      ) : (
+                        <ExclamationCircleIcon className="h-4 w-4" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm ${notification.isRead ? 'text-slate-600' : 'text-slate-900 font-medium'}`}>
+                        {notification.title}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{notification.message}</p>
+                      <div className="flex items-center gap-3 mt-1.5">
+                        <span className="text-[11px] text-slate-400">{formatDate(notification.createdAt)}</span>
+                        {notification.link && (
+                          <Link href={notification.link} className="text-[11px] text-cyan-600 hover:text-cyan-700">
+                            View details
+                          </Link>
+                        )}
+                        {!notification.isRead && (
+                          <button
+                            onClick={() => markNotificationRead(notification.id)}
+                            className="text-[11px] text-slate-500 hover:text-slate-700"
+                          >
+                            Dismiss
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
       </div>
     </>
   )
