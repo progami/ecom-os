@@ -11,7 +11,6 @@ type Strategy = {
   id: string
   name: string
   description: string | null
-  status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED'
   isDefault: boolean
   createdAt: string
   updatedAt: string
@@ -129,25 +128,7 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
     }
   }
 
-  const handleSelectStrategy = async (id: string) => {
-    // Set this strategy as ACTIVE (API will set others to DRAFT)
-    try {
-      const response = await fetch(withAppBasePath('/api/v1/x-plan/strategies'), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status: 'ACTIVE' }),
-      })
-      if (!response.ok) throw new Error('Failed to activate strategy')
-
-      // Update local state
-      setStrategies((prev) =>
-        prev.map((s) => ({ ...s, status: s.id === id ? 'ACTIVE' : 'DRAFT' }))
-      )
-    } catch (error) {
-      console.error(error)
-      // Still navigate even if status update fails
-    }
-
+  const handleSelectStrategy = (id: string) => {
     router.push(`/1-product-setup?strategy=${id}`)
   }
 
@@ -161,17 +142,6 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
     setEditingId(null)
     setEditName('')
     setEditDescription('')
-  }
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-      case 'ARCHIVED':
-        return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-      default:
-        return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-    }
   }
 
   return (
@@ -202,9 +172,6 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Strategy
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Status
-              </th>
               <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Products
               </th>
@@ -219,7 +186,7 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
           <tbody className="divide-y divide-slate-100 dark:divide-white/5">
             {isAdding && (
               <tr className="bg-cyan-50/50 dark:bg-cyan-900/10">
-                <td className="px-4 py-3" colSpan={2}>
+                <td className="px-4 py-3">
                   <div className="space-y-2">
                     <input
                       value={newName}
@@ -266,7 +233,7 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
             )}
             {strategies.length === 0 && !isAdding ? (
               <tr>
-                <td colSpan={5} className="px-4 py-12 text-center">
+                <td colSpan={4} className="px-4 py-12 text-center">
                   <p className="text-sm text-slate-500 dark:text-slate-400">
                     No strategies yet. Create your first planning strategy to get started.
                   </p>
@@ -276,14 +243,15 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
               strategies.map((strategy) => (
                 <tr
                   key={strategy.id}
+                  onClick={() => editingId !== strategy.id && handleSelectStrategy(strategy.id)}
                   className={clsx(
-                    'bg-white transition hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5',
+                    'cursor-pointer bg-white transition hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5',
                     strategy.isDefault && 'bg-cyan-50/30 dark:bg-cyan-950/20'
                   )}
                 >
                   <td className="px-4 py-3">
                     {editingId === strategy.id ? (
-                      <div className="space-y-2">
+                      <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
                         <input
                           value={editName}
                           onChange={(e) => setEditName(e.target.value)}
@@ -301,36 +269,20 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
                         />
                       </div>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleSelectStrategy(strategy.id)}
-                        className="group text-left"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-slate-900 group-hover:text-cyan-600 dark:text-slate-100 dark:group-hover:text-cyan-400">
-                            {strategy.name}
-                          </span>
-                          {strategy.isDefault && (
-                            <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
-                          )}
-                        </div>
-                        {strategy.description && (
-                          <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                            {strategy.description}
-                          </p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
+                          {strategy.name}
+                        </span>
+                        {strategy.isDefault && (
+                          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
                         )}
-                      </button>
+                        {strategy.description && (
+                          <span className="text-xs text-slate-500 dark:text-slate-400">
+                            — {strategy.description}
+                          </span>
+                        )}
+                      </div>
                     )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={clsx(
-                        'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
-                        getStatusBadge(strategy.status)
-                      )}
-                    >
-                      {strategy.status}
-                    </span>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className="text-sm tabular-nums text-slate-700 dark:text-slate-300">
@@ -342,7 +294,7 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
                       {strategy._count.purchaseOrders}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex justify-end gap-1">
                       {editingId === strategy.id ? (
                         <>
