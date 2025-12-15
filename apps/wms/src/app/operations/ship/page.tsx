@@ -547,6 +547,7 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  <TabPanel>
  <ShipCostsTab
    warehouseId={formData.warehouseId}
+   warehouseCode={warehouses.find(w => w.id === formData.warehouseId)?.code}
    shipMode={formData.shipMode}
    totalCartons={totalCartons}
    totalPallets={totalPallets}
