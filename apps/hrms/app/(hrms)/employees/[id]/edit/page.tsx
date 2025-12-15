@@ -15,7 +15,7 @@ import {
   FormActions,
 } from '@/components/ui/FormField'
 import { useNavigationHistory } from '@/lib/navigation-history'
-import { employmentTypeOptions, statusOptions } from '@/lib/constants'
+import { employmentTypeOptions, statusOptions, regionOptions } from '@/lib/constants'
 
 type FieldPermissions = Record<string, { canEdit: boolean; permission: string; reason?: string }>
 
@@ -98,8 +98,8 @@ export default function EditEmployeePage() {
 
   // Organization fields: department, reportsToId
   const canEditOrganization = canEdit('department') || canEdit('reportsToId')
-  // Employment fields: position, joinDate, employmentType, status
-  const canEditEmployment = canEdit('position') || canEdit('joinDate') || canEdit('employmentType') || canEdit('status')
+  // Employment fields: position, joinDate, employmentType, status, region
+  const canEditEmployment = canEdit('position') || canEdit('joinDate') || canEdit('employmentType') || canEdit('status') || canEdit('region')
   // Personal fields: phone, address, etc.
   const canEditPersonal = canEdit('phone') || canEdit('address') || canEdit('dateOfBirth')
 
@@ -126,6 +126,7 @@ export default function EditEmployeePage() {
     if (canEdit('joinDate')) payload.joinDate = fd.get('joinDate') ? String(fd.get('joinDate')) : undefined
     if (canEdit('employmentType')) payload.employmentType = fd.get('employmentType') ? String(fd.get('employmentType')) : undefined
     if (canEdit('status')) payload.status = fd.get('status') ? String(fd.get('status')) : undefined
+    if (canEdit('region')) payload.region = fd.get('region') ? String(fd.get('region')) : undefined
     if (canEdit('reportsToId')) {
       const reportsToId = fd.get('reportsToId')
       payload.reportsToId = reportsToId ? String(reportsToId) : null
@@ -501,6 +502,15 @@ export default function EditEmployeePage() {
                         required
                         options={statusOptions}
                         defaultValue={employee.status}
+                      />
+                    )}
+                    {canEdit('region') && (
+                      <SelectField
+                        label="Region"
+                        name="region"
+                        required
+                        options={regionOptions}
+                        defaultValue={(employee as any).region || 'PAKISTAN'}
                       />
                     )}
                   </div>

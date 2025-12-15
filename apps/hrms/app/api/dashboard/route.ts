@@ -144,6 +144,55 @@ export async function GET(req: Request) {
       reportsTo: (currentEmployee as any).manager || null,
     } : null
 
+    // Fetch leave data
+    const year = new Date().getFullYear()
+    const [leaveBalances, pendingLeaveRequestsData, upcomingLeavesData] = await Promise.all([
+      // Get current employee's leave balances
+      prisma.leaveBalance.findMany({
+        where: { employeeId, year },
+      }),
+      // Get pending leave requests for direct reports (if manager)
+      isManager ? prisma.leaveRequest.findMany({
+        where: {
+          employee: { reportsToId: employeeId },
+          status: 'PENDING',
+        },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeId: true,
+              department: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }) : [],
+      // Get upcoming approved leaves
+      prisma.leaveRequest.findMany({
+        where: {
+          employeeId,
+          status: 'APPROVED',
+          startDate: { gte: new Date() },
+        },
+        orderBy: { startDate: 'asc' },
+        take: 5,
+      }),
+    ])
+
+    // Format leave balances
+    const myLeaveBalance = leaveBalances.map(b => ({
+      leaveType: b.leaveType,
+      year: b.year,
+      allocated: b.allocated,
+      used: b.used,
+      pending: b.pending,
+      available: Math.max(0, b.allocated + b.carriedOver - b.used - b.pending),
+    }))
+
     return NextResponse.json({
       user: currentUser?.employee,
       isManager,
@@ -152,9 +201,9 @@ export async function GET(req: Request) {
       notifications,
       unreadNotificationCount,
       pendingReviews,
-      pendingLeaveRequests: [], // TODO: Add when leave models exist
-      myLeaveBalance: [], // TODO: Add when leave models exist
-      upcomingLeaves: [], // TODO: Add when leave models exist
+      pendingLeaveRequests: pendingLeaveRequestsData,
+      myLeaveBalance,
+      upcomingLeaves: upcomingLeavesData,
       stats,
     })
   } catch (e) {

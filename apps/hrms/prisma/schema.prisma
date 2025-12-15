@@ -61,6 +61,9 @@ model Employee {
   emergencyContact String?
   emergencyPhone   String?
 
+  // Region for leave policy determination
+  region           EmployeeRegion  @default(PAKISTAN)
+
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
 
@@ -72,6 +75,8 @@ model Employee {
   departmentsLed   Department[]    @relation("DepartmentHead")
   projectsLed      Project[]       @relation("ProjectLead")
   projectMemberships ProjectMember[]
+  leaveBalances    LeaveBalance[]
+  leaveRequests    LeaveRequest[]
 
   @@index([email])
   @@index([employeeId])
@@ -339,6 +344,90 @@ enum Region {
   ALL
   KANSAS_US
   PAKISTAN
+}
+
+enum EmployeeRegion {
+  PAKISTAN
+  KANSAS_USA
+}
+
+// ============ LEAVE MANAGEMENT ============
+
+model LeavePolicy {
+  id              String         @id @default(cuid())
+  region          EmployeeRegion
+  leaveType       LeaveType
+  daysPerYear     Int
+  isPaid          Boolean        @default(true)
+  requiresApproval Boolean       @default(true)
+  maxCarryover    Int            @default(0)  // Max days that can roll over to next year
+  description     String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([region, leaveType])
+  @@index([region])
+}
+
+model LeaveBalance {
+  id              String         @id @default(cuid())
+  employee        Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId      String
+  leaveType       LeaveType
+  year            Int
+  allocated       Int            // Total days allocated for the year
+  used            Int            @default(0)  // Days used (approved requests)
+  pending         Int            @default(0)  // Days in pending requests
+  carriedOver     Int            @default(0)  // Days carried from previous year
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([employeeId, leaveType, year])
+  @@index([employeeId])
+  @@index([year])
+}
+
+model LeaveRequest {
+  id              String         @id @default(cuid())
+  employee        Employee       @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId      String
+  leaveType       LeaveType
+  startDate       DateTime
+  endDate         DateTime
+  totalDays       Float          // Can be 0.5 for half days
+  reason          String?
+  status          LeaveStatus    @default(PENDING)
+
+  // Approval tracking
+  reviewedById    String?
+  reviewedAt      DateTime?
+  reviewNotes     String?
+
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+}
+
+enum LeaveType {
+  PTO              // Vacation + Personal + Sick combined
+  MATERNITY
+  PATERNITY
+  PARENTAL         // Generic parental (for Kansas)
+  BEREAVEMENT_IMMEDIATE
+  BEREAVEMENT_EXTENDED
+  JURY_DUTY
+  UNPAID
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
 }
 
 // ============ PERFORMANCE MANAGEMENT ============
