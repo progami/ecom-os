@@ -1,7 +1,7 @@
 'use client'
 
 // React imports
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 
 // Next.js imports
 import { useRouter } from 'next/navigation'
@@ -16,6 +16,7 @@ import { PageContainer, PageHeaderSection, PageContent } from '@/components/layo
 import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
 import { CargoTab } from '@/components/operations/ship-cargo-tab'
 import { AttachmentsTab } from '@/components/operations/ship-attachments-tab'
+import { ShipCostsTab, CostEstimationItem } from '@/components/operations/ship-costs-tab'
 
 // Internal utilities
 type ValidationErrorItem = { field: string; message?: string }
@@ -37,7 +38,7 @@ const _getFieldError = (errors: ValidationErrorItem[], field: string) =>
  errors.find(error => error.field === field)?.message
 
 // Icons
-import { Package2, FileText, Paperclip, Save, X, PackageX } from '@/lib/lucide-icons'
+import { Package2, FileText, Paperclip, Save, X, PackageX, DollarSign } from '@/lib/lucide-icons'
 
 // Types
 interface WarehouseOption {
@@ -152,6 +153,8 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  const [inventory, setInventory] = useState<InventoryItem[]>([])
  const [lineItems, setLineItems] = useState<ShipmentLineItem[]>([])
  const [attachments, setAttachments] = useState<FileAttachment[]>([])
+ const [_estimatedCosts, setEstimatedCosts] = useState<CostEstimationItem[]>([])
+ const [_totalEstimatedCost, setTotalEstimatedCost] = useState<number>(0)
  
  // Loading states
  const [isLoadingInventory, setIsLoadingInventory] = useState(false)
@@ -161,10 +164,25 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
 
  // Helper function to update form data
  const updateFormField = useCallback(<K extends keyof ShipmentFormData>(
- field: K, 
+ field: K,
  value: ShipmentFormData[K]
  ) => {
  setFormData(prev => ({ ...prev, [field]: value }))
+ }, [])
+
+ // Calculate totals from line items
+ const totalCartons = useMemo(() => {
+   return lineItems.reduce((sum, item) => sum + (item.cartons || 0), 0)
+ }, [lineItems])
+
+ const totalPallets = useMemo(() => {
+   return lineItems.reduce((sum, item) => sum + (item.pallets || 0), 0)
+ }, [lineItems])
+
+ // Callback for costs changes
+ const handleCostsChange = useCallback((costs: CostEstimationItem[], total: number) => {
+   setEstimatedCosts(costs)
+   setTotalEstimatedCost(total)
  }, [])
 
  // Fetch warehouses on mount
@@ -357,6 +375,7 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  { id: 'details', label: 'Transaction Details', icon: <FileText className="h-4 w-4" /> },
  ...(formData.warehouseId ? [
  { id: 'cargo', label: 'Cargo', icon: <Package2 className="h-4 w-4" /> },
+ { id: 'costs', label: 'Costs', icon: <DollarSign className="h-4 w-4" /> },
  { id: 'attachments', label: 'Attachments', icon: <Paperclip className="h-4 w-4" /> }
  ] : [])
  ]
@@ -521,6 +540,17 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  inventory={inventory}
  inventoryLoading={isLoadingInventory}
  onItemsChange={setLineItems}
+ />
+ </TabPanel>
+
+ {/* Costs Tab */}
+ <TabPanel>
+ <ShipCostsTab
+   warehouseId={formData.warehouseId}
+   shipMode={formData.shipMode}
+   totalCartons={totalCartons}
+   totalPallets={totalPallets}
+   onCostsChange={handleCostsChange}
  />
  </TabPanel>
 

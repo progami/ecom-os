@@ -183,6 +183,12 @@ model PurchaseOrder {
   createdByName    String?                @map("created_by_name")
   createdAt        DateTime               @default(now()) @map("created_at")
   updatedAt        DateTime               @updatedAt @map("updated_at")
+  // Cost estimation fields
+  expectedCartons    Int?                 @map("expected_cartons")
+  expectedPallets    Int?                 @map("expected_pallets")
+  expectedSkuCount   Int?                 @map("expected_sku_count")
+  estimatedTotalCost Decimal?             @map("estimated_total_cost") @db.Decimal(12, 2)
+  actualTotalCost    Decimal?             @map("actual_total_cost") @db.Decimal(12, 2)
   lines            PurchaseOrderLine[]
   transactions     InventoryTransaction[] @relation("TransactionPurchaseOrder")
   movementNotes    MovementNote[]
