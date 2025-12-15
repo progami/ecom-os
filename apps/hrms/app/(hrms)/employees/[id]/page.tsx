@@ -367,6 +367,44 @@ export default function EmployeeViewPage() {
           </div>
         )}
 
+        {activeTab === 'leave' && (
+          <div className="space-y-6">
+            <LeaveBalanceCards balances={leaveBalances} />
+
+            <Card padding="lg">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-slate-900">Leave Requests</h3>
+                <Button
+                  size="sm"
+                  onClick={() => setShowLeaveForm(!showLeaveForm)}
+                >
+                  {showLeaveForm ? 'Cancel' : 'Request Leave'}
+                </Button>
+              </div>
+
+              {showLeaveForm && (
+                <div className="mb-6 p-4 bg-slate-50 rounded-lg">
+                  <LeaveRequestForm
+                    employeeId={id}
+                    onSuccess={handleLeaveRequestSuccess}
+                    onCancel={() => setShowLeaveForm(false)}
+                  />
+                </div>
+              )}
+
+              {leaveLoading ? (
+                <div className="animate-pulse space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-16 bg-slate-100 rounded-lg" />
+                  ))}
+                </div>
+              ) : (
+                <LeaveHistoryTable requests={leaveRequests} />
+              )}
+            </Card>
+          </div>
+        )}
+
         {activeTab === 'reviews' && (
           <Card padding="lg">
             <div className="flex items-center justify-between mb-4">
