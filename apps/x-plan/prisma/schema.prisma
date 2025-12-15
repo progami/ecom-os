@@ -8,11 +8,40 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+/// Planning strategy - each strategy represents an isolated planning session (e.g., "Q4 2025 Planning")
+model Strategy {
+  id          String         @id @default(cuid())
+  name        String
+  description String?
+  status      StrategyStatus @default(DRAFT)
+  isDefault   Boolean        @default(false)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  products           Product[]
+  businessParameters BusinessParameter[]
+  purchaseOrders     PurchaseOrder[]
+  salesWeeks         SalesWeek[]
+  profitAndLossWeeks ProfitAndLossWeek[]
+  cashFlowWeeks      CashFlowWeek[]
+  monthlySummaries   MonthlySummary[]
+  quarterlySummaries QuarterlySummary[]
+
+  @@index([status])
+}
+
+enum StrategyStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
 /// Represents a SKU in the Cross Plan workbook ("1. Product Setup")
 model Product {
   id                 String             @id @default(cuid())
+  strategyId         String
   name               String
-  sku                String             @unique
+  sku                String
   sellingPrice       Decimal            @db.Decimal(10, 2)
   manufacturingCost  Decimal            @db.Decimal(10, 2)
   freightCost        Decimal            @db.Decimal(10, 2)
@@ -24,11 +53,14 @@ model Product {
   isActive           Boolean            @default(true)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
+  strategy           Strategy           @relation(fields: [strategyId], references: [id], onDelete: Cascade)
   leadTimeOverrides  LeadTimeOverride[]
   purchaseOrders     PurchaseOrder[]
   batchTableRows     BatchTableRow[]
   salesWeeks         SalesWeek[]
 
+  @@unique([strategyId, sku])
+  @@index([strategyId])
   @@index([name])
 }
 
@@ -57,21 +89,27 @@ model LeadTimeOverride {
   @@unique([productId, stageTemplateId])
 }
 
-/// Global business parameters (single row)
+/// Business parameters per strategy
 model BusinessParameter {
   id           String   @id @default(cuid())
-  label        String   @unique
+  strategyId   String
+  label        String
   valueNumeric Decimal? @db.Decimal(14, 2)
   valueText    String?
   description  String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  strategy     Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+
+  @@unique([strategyId, label])
+  @@index([strategyId])
 }
 
 /// Operations planning rows ("2. Ops Planning")
 model PurchaseOrder {
   id                        String                 @id @default(cuid())
-  orderCode                 String                 @unique
+  strategyId                String
+  orderCode                 String
   productId                 String
   poDate                    DateTime?
   quantity                  Int
@@ -112,11 +150,14 @@ model PurchaseOrder {
   overrideFbaFee            Decimal?               @db.Decimal(10, 2)
   overrideReferralRate      Decimal?               @db.Decimal(5, 4)
   overrideStoragePerMonth   Decimal?               @db.Decimal(10, 2)
+  strategy                  Strategy               @relation(fields: [strategyId], references: [id], onDelete: Cascade)
   logisticsEvents           LogisticsEvent[]
   product                   Product                @relation(fields: [productId], references: [id])
   batchTableRows            BatchTableRow[]
   payments                  PurchaseOrderPayment[]
 
+  @@unique([strategyId, orderCode])
+  @@index([strategyId])
   @@index([orderCode])
   @@index([status])
 }
@@ -185,6 +226,7 @@ model LogisticsEvent {
 /// Weekly sales & inventory positions ("3. Sales Planning")
 model SalesWeek {
   id            String   @id @default(cuid())
+  strategyId    String
   productId     String
   weekNumber    Int
   weekDate      DateTime
@@ -196,16 +238,19 @@ model SalesWeek {
   stockEnd      Int?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  strategy      Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
   product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
-  @@unique([productId, weekNumber])
+  @@unique([strategyId, productId, weekNumber])
+  @@index([strategyId])
   @@index([weekDate])
 }
 
 /// Weekly P&L metrics ("4. Fin Planning P&L")
 model ProfitAndLossWeek {
   id          String   @id @default(cuid())
-  weekNumber  Int      @unique
+  strategyId  String
+  weekNumber  Int
   weekDate    DateTime
   units       Int?
   revenue     Decimal? @db.Decimal(14, 2)
@@ -220,14 +265,18 @@ model ProfitAndLossWeek {
   periodLabel String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  strategy    Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
 
+  @@unique([strategyId, weekNumber])
+  @@index([strategyId])
   @@index([weekDate])
 }
 
 /// Weekly cash flow metrics ("5. Fin Planning Cash Flow")
 model CashFlowWeek {
   id             String   @id @default(cuid())
-  weekNumber     Int      @unique
+  strategyId     String
+  weekNumber     Int
   weekDate       DateTime
   amazonPayout   Decimal? @db.Decimal(14, 2)
   inventorySpend Decimal? @db.Decimal(14, 2)
@@ -237,13 +286,17 @@ model CashFlowWeek {
   periodLabel    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  strategy       Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
 
+  @@unique([strategyId, weekNumber])
+  @@index([strategyId])
   @@index([weekDate])
 }
 
 /// Monthly summary metrics (derived from sheets 4 & 5)
 model MonthlySummary {
   id             String   @id @default(cuid())
+  strategyId     String
   periodLabel    String
   year           Int
   month          Int
@@ -261,13 +314,16 @@ model MonthlySummary {
   closingCash    Decimal? @db.Decimal(14, 2)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  strategy       Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
 
-  @@unique([year, month, periodLabel])
+  @@unique([strategyId, year, month, periodLabel])
+  @@index([strategyId])
 }
 
 /// Quarterly summary metrics
 model QuarterlySummary {
   id             String   @id @default(cuid())
+  strategyId     String
   periodLabel    String
   year           Int
   quarter        Int
@@ -285,8 +341,10 @@ model QuarterlySummary {
   closingCash    Decimal? @db.Decimal(14, 2)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  strategy       Strategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
 
-  @@unique([year, quarter, periodLabel])
+  @@unique([strategyId, year, quarter, periodLabel])
+  @@index([strategyId])
 }
 
 /// Workbook snapshots (future scenarios)

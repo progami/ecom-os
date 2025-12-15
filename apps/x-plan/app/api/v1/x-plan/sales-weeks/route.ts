@@ -7,6 +7,7 @@ import { getCalendarDateForWeek } from '@/lib/calculations/calendar'
 const allowedFields = ['actualSales', 'forecastSales', 'finalSales'] as const
 
 const updateSchema = z.object({
+  strategyId: z.string().min(1),
   updates: z.array(
     z.object({
       productId: z.string().min(1),
@@ -31,6 +32,7 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
+  const { strategyId } = parsed.data
   const planning = await loadPlanningCalendar()
   const calendar = planning.calendar
 
@@ -47,7 +49,7 @@ export async function PUT(request: Request) {
       }
 
       if (Object.keys(data).length === 0) {
-        return prisma.salesWeek.findFirst({ where: { productId, weekNumber } })
+        return prisma.salesWeek.findFirst({ where: { strategyId, productId, weekNumber } })
       }
 
       if (touchedAutoField && !('finalSales' in values)) {
@@ -60,9 +62,10 @@ export async function PUT(request: Request) {
       }
 
       return prisma.salesWeek.upsert({
-        where: { productId_weekNumber: { productId, weekNumber } },
+        where: { strategyId_productId_weekNumber: { strategyId, productId, weekNumber } },
         update: data,
         create: {
+          strategyId,
           productId,
           weekNumber,
           weekDate,
