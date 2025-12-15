@@ -50,6 +50,8 @@ export default function StorageLedgerPage() {
 }
 
 function StorageLedgerContent() {
+ const { data: session } = useSession()
+ const isAdmin = session?.user?.role === 'admin'
  const [aggregationView, setAggregationView] = useState<'weekly' | 'monthly'>('weekly')
  const [filters, setFilters] = useState<StorageLedgerColumnFilters>(createDefaultFilters)
  const [dateRange] = useState({
@@ -71,6 +73,7 @@ function StorageLedgerContent() {
  onAggregationChange={setAggregationView}
  onExport={exportData}
  onRefresh={refetch}
+ isAdmin={isAdmin}
  />
  )
 
