@@ -19,7 +19,10 @@ export async function middleware(request: NextRequest) {
 
   if (!isPublic) {
     const debug = process.env.NODE_ENV !== 'production'
-    const cookieNames = getCandidateSessionCookieNames('hrms')
+    const cookieNames = Array.from(new Set([
+      ...getCandidateSessionCookieNames('ecomos'),
+      ...getCandidateSessionCookieNames('hrms'),
+    ]))
     const cookieHeader = request.headers.get('cookie')
     const sharedSecret = process.env.PORTAL_AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
 
