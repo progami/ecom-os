@@ -2,28 +2,71 @@
 
 import Link from 'next/link'
 import { useState, useEffect } from 'react'
-import { DashboardApi, NotificationsApi, type DashboardData } from '@/lib/api-client'
+import {
+  DashboardApi,
+  NotificationsApi,
+  PerformanceReviewsApi,
+  DisciplinaryActionsApi,
+  LeavesApi,
+  type DashboardData,
+  type PerformanceReview,
+  type DisciplinaryAction,
+  type LeaveBalance,
+  type LeaveRequest,
+} from '@/lib/api-client'
 import {
   HomeIcon,
   UsersIcon,
   BellIcon,
   SpinnerIcon,
-  UserIcon,
   CheckIcon,
-  ChevronRightIcon,
   ExclamationCircleIcon,
   CalendarDaysIcon,
   EnvelopeIcon,
   PhoneIcon,
   BuildingIcon,
+  CalendarIcon,
+  ClipboardDocumentCheckIcon,
+  ShieldExclamationIcon,
+  StarFilledIcon,
+  PencilIcon,
 } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { Avatar } from '@/components/ui/Avatar'
+import { StatusBadge } from '@/components/ui/Badge'
 import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
-import { CulturalHealthWidget } from '@/components/dashboard/CulturalHealthWidget'
+import { LeaveHistoryTable } from '@/components/leave/LeaveHistoryTable'
+import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
+import { StandingCard } from '@/components/employee/StandingCard'
+import { employmentTypeLabels } from '@/lib/constants'
+
+type Tab = 'overview' | 'leave' | 'reviews' | 'disciplinary'
+
+const REVIEW_TYPE_LABELS: Record<string, string> = {
+  PROBATION: '90-Day Probation',
+  QUARTERLY: 'Quarterly',
+  SEMI_ANNUAL: 'Semi-Annual',
+  ANNUAL: 'Annual',
+  PROMOTION: 'Promotion',
+  PIP: 'Performance Improvement',
+}
+
+const SEVERITY_LABELS: Record<string, string> = {
+  MINOR: 'Minor',
+  MODERATE: 'Moderate',
+  MAJOR: 'Major',
+  CRITICAL: 'Critical',
+}
+
+const SEVERITY_COLORS: Record<string, string> = {
+  MINOR: 'bg-yellow-100 text-yellow-800',
+  MODERATE: 'bg-orange-100 text-orange-800',
+  MAJOR: 'bg-red-100 text-red-800',
+  CRITICAL: 'bg-red-200 text-red-900',
+}
 
 function formatDate(dateString: string) {
   const date = new Date(dateString)
@@ -40,10 +83,80 @@ function formatDate(dateString: string) {
   return date.toLocaleDateString()
 }
 
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <StarFilledIcon
+          key={star}
+          className={`h-4 w-4 ${star <= rating ? 'text-amber-400' : 'text-slate-200'}`}
+        />
+      ))}
+    </div>
+  )
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+  icon: Icon,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+  icon: React.ComponentType<{ className?: string }>
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
+        active
+          ? 'bg-cyan-50 text-cyan-700'
+          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+      }`}
+    >
+      <Icon className="h-4 w-4" />
+      {children}
+    </button>
+  )
+}
+
+function InfoItem({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  value: string
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <Icon className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" />
+      <div>
+        <p className="text-xs text-slate-500">{label}</p>
+        <p className="text-sm text-slate-900 font-medium">{value || '—'}</p>
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<Tab>('overview')
+
+  // Tab-specific data
+  const [reviews, setReviews] = useState<PerformanceReview[]>([])
+  const [disciplinary, setDisciplinary] = useState<DisciplinaryAction[]>([])
+  const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [disciplinaryLoading, setDisciplinaryLoading] = useState(false)
+  const [leaveLoading, setLeaveLoading] = useState(false)
+  const [showLeaveForm, setShowLeaveForm] = useState(false)
 
   useEffect(() => {
     fetchDashboardData()
@@ -55,12 +168,95 @@ export default function Dashboard() {
       setError(null)
       const dashboardData = await DashboardApi.get()
       setData(dashboardData)
+      // Initialize leave balances from dashboard data
+      if (dashboardData.myLeaveBalance) {
+        setLeaveBalances(dashboardData.myLeaveBalance)
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load dashboard'
       setError(message)
     } finally {
       setLoading(false)
     }
+  }
+
+  // Load reviews when tab is selected
+  useEffect(() => {
+    async function loadReviews() {
+      if (activeTab !== 'reviews' || !data?.currentEmployee?.id) return
+      try {
+        setReviewsLoading(true)
+        const result = await PerformanceReviewsApi.list({ employeeId: data.currentEmployee.id })
+        setReviews(result.items || [])
+      } catch (e) {
+        console.error('Failed to load reviews', e)
+      } finally {
+        setReviewsLoading(false)
+      }
+    }
+    loadReviews()
+  }, [activeTab, data?.currentEmployee?.id])
+
+  // Load disciplinary when tab is selected
+  useEffect(() => {
+    async function loadDisciplinary() {
+      if (activeTab !== 'disciplinary' || !data?.currentEmployee?.id) return
+      try {
+        setDisciplinaryLoading(true)
+        const result = await DisciplinaryActionsApi.list({ employeeId: data.currentEmployee.id })
+        setDisciplinary(result.items || [])
+      } catch (e) {
+        console.error('Failed to load disciplinary actions', e)
+      } finally {
+        setDisciplinaryLoading(false)
+      }
+    }
+    loadDisciplinary()
+  }, [activeTab, data?.currentEmployee?.id])
+
+  // Load leave data when tab is selected
+  useEffect(() => {
+    async function loadLeave() {
+      if (activeTab !== 'leave' || !data?.currentEmployee?.id) return
+      try {
+        setLeaveLoading(true)
+        const [balanceData, requestsData] = await Promise.all([
+          LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
+          LeavesApi.list({ employeeId: data.currentEmployee.id }),
+        ])
+        setLeaveBalances(balanceData.balances || [])
+        setLeaveRequests(requestsData.items || [])
+      } catch (e) {
+        console.error('Failed to load leave data', e)
+      } finally {
+        setLeaveLoading(false)
+      }
+    }
+    loadLeave()
+  }, [activeTab, data?.currentEmployee?.id])
+
+  const handleLeaveRequestSuccess = async () => {
+    setShowLeaveForm(false)
+    if (!data?.currentEmployee?.id) return
+    // Reload leave data
+    const [balanceData, requestsData] = await Promise.all([
+      LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
+      LeavesApi.list({ employeeId: data.currentEmployee.id }),
+    ])
+    setLeaveBalances(balanceData.balances || [])
+    setLeaveRequests(requestsData.items || [])
+  }
+
+  const handleCancelLeave = async (requestId: string) => {
+    if (!data?.currentEmployee?.id) return
+    await LeavesApi.update(requestId, { status: 'CANCELLED' })
+    // Reload leave data
+    const [balanceData, requestsData] = await Promise.all([
+      LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
+      LeavesApi.list({ employeeId: data.currentEmployee.id }),
+    ])
+    setLeaveBalances(balanceData.balances || [])
+    setLeaveRequests(requestsData.items || [])
   }
 
   const markNotificationRead = async (id: string) => {
@@ -82,7 +278,7 @@ export default function Dashboard() {
 
   const markAllRead = async () => {
     if (!data) return
-    const unreadIds = data.notifications.filter(n => !n.isRead).map(n => n.id)
+    const unreadIds = data.notifications.filter((n) => !n.isRead).map((n) => n.id)
     if (unreadIds.length === 0) return
 
     try {
@@ -101,7 +297,7 @@ export default function Dashboard() {
     return (
       <>
         <ListPageHeader
-          title="Dashboard"
+          title="My Profile"
           description="Welcome to your HR management system"
           icon={<HomeIcon className="h-6 w-6 text-white" />}
         />
@@ -116,7 +312,7 @@ export default function Dashboard() {
     return (
       <>
         <ListPageHeader
-          title="Dashboard"
+          title="My Profile"
           description="Welcome to your HR management system"
           icon={<HomeIcon className="h-6 w-6 text-white" />}
         />
@@ -130,229 +326,322 @@ export default function Dashboard() {
     )
   }
 
-  const greeting = data?.user ? `Welcome back, ${data.user.firstName}` : 'Welcome'
-  const isManager = data?.isManager ?? false
-  const hasDirectReports = data?.directReports && data.directReports.length > 0
+  const currentEmployee = data?.currentEmployee
   const hasNotifications = data?.notifications && data.notifications.length > 0
   const unreadCount = data?.unreadNotificationCount ?? 0
-  const hasPendingLeaves = data?.pendingLeaveRequests && data.pendingLeaveRequests.length > 0
-  const myLeaveBalance = data?.myLeaveBalance || []
-  const currentEmployee = data?.currentEmployee
+
+  if (!currentEmployee) {
+    return (
+      <>
+        <ListPageHeader
+          title="My Profile"
+          description="Welcome to your HR management system"
+          icon={<HomeIcon className="h-6 w-6 text-white" />}
+        />
+        <Card padding="lg">
+          <Alert variant="error">Your employee profile was not found</Alert>
+        </Card>
+      </>
+    )
+  }
+
+  const joinDate = currentEmployee.joinDate
+    ? new Date(currentEmployee.joinDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    : '—'
 
   return (
     <>
       <ListPageHeader
-        title={greeting}
+        title="My Profile"
         description={
           data?.user
             ? `${data.user.position} • ${data.user.department}`
             : 'Your HR management dashboard'
         }
         icon={<HomeIcon className="h-6 w-6 text-white" />}
+        action={
+          <Button
+            href={`/employees/${currentEmployee.id}/edit`}
+            icon={<PencilIcon className="h-4 w-4" />}
+          >
+            Edit Profile
+          </Button>
+        }
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Main Content - Manager sees My Team, Regular users see My Profile */}
+        {/* Main Content - Employee Profile */}
         <div className="lg:col-span-3 space-y-6">
-          {isManager ? (
-            <>
-              {/* Manager View: Cultural Health */}
-              <CulturalHealthWidget />
-
-              {/* Manager View: My Team */}
-              <Card padding="none">
-                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                  <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                    <UsersIcon className="h-5 w-5 text-cyan-600" />
-                    My Team
-                    {hasDirectReports && (
-                      <span className="text-sm font-normal text-slate-400">
-                        ({data.directReports.length})
-                      </span>
-                    )}
+          {/* Employee Header Card */}
+          <Card padding="lg">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+              <Avatar
+                src={currentEmployee.avatar}
+                alt={`${currentEmployee.firstName} ${currentEmployee.lastName}`}
+                size="lg"
+              />
+              <div className="flex-1">
+                <div className="flex items-center gap-3 mb-1">
+                  <h2 className="text-xl font-semibold text-slate-900">
+                    {currentEmployee.firstName} {currentEmployee.lastName}
                   </h2>
-                  {hasDirectReports && (
-                    <Link
-                      href="/employees"
-                      className="text-sm text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
-                    >
-                      All employees
-                      <ChevronRightIcon className="h-4 w-4" />
-                    </Link>
-                  )}
+                  <StatusBadge status={currentEmployee.status.replace('_', ' ')} />
                 </div>
+                <p className="text-slate-600">{currentEmployee.position}</p>
+                <p className="text-sm text-slate-500 mt-1">{currentEmployee.employeeId}</p>
+              </div>
+            </div>
+          </Card>
 
-                <div className="p-5">
-                  {hasDirectReports ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {data.directReports.map((report) => (
-                        <Link
-                          key={report.id}
-                          href={`/employees/${report.id}`}
-                          className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-cyan-200 hover:bg-cyan-50/30 transition-all group"
-                        >
-                          <Avatar
-                            src={report.avatar}
-                            alt={`${report.firstName} ${report.lastName}`}
-                            size="md"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-slate-900 group-hover:text-cyan-700 truncate">
-                              {report.firstName} {report.lastName}
-                            </p>
-                            <p className="text-sm text-slate-500 truncate">
-                              {report.position}
-                            </p>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <UserIcon className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                      <p className="text-slate-500 text-sm">No direct reports</p>
-                    </div>
-                  )}
-                </div>
-              </Card>
+          {/* Tabs */}
+          <div className="flex gap-2 overflow-x-auto pb-2">
+            <TabButton
+              active={activeTab === 'overview'}
+              onClick={() => setActiveTab('overview')}
+              icon={UsersIcon}
+            >
+              Overview
+            </TabButton>
+            <TabButton
+              active={activeTab === 'leave'}
+              onClick={() => setActiveTab('leave')}
+              icon={CalendarDaysIcon}
+            >
+              Leave
+            </TabButton>
+            <TabButton
+              active={activeTab === 'reviews'}
+              onClick={() => setActiveTab('reviews')}
+              icon={ClipboardDocumentCheckIcon}
+            >
+              Reviews
+            </TabButton>
+            <TabButton
+              active={activeTab === 'disciplinary'}
+              onClick={() => setActiveTab('disciplinary')}
+              icon={ShieldExclamationIcon}
+            >
+              Disciplinary
+            </TabButton>
+          </div>
 
-              {/* Manager View: Pending Leave Approvals */}
-              {hasPendingLeaves && (
-                <Card padding="none">
-                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                    <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                      <CalendarDaysIcon className="h-5 w-5 text-amber-500" />
-                      Pending Leave Approvals
-                      <span className="px-2 py-0.5 text-xs font-semibold bg-amber-100 text-amber-600 rounded-full">
-                        {data.pendingLeaveRequests.length}
-                      </span>
-                    </h2>
-                  </div>
-                  <div className="divide-y divide-slate-100">
-                    {data.pendingLeaveRequests.map((request) => (
-                      <div key={request.id} className="px-5 py-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Avatar
-                            src={request.employee?.avatar}
-                            alt={`${request.employee?.firstName} ${request.employee?.lastName}`}
-                            size="sm"
-                          />
-                          <div>
-                            <p className="font-medium text-slate-900">
-                              {request.employee?.firstName} {request.employee?.lastName}
-                            </p>
-                            <p className="text-sm text-slate-500">
-                              {request.leaveType.replace('_', ' ')} · {request.totalDays} day{request.totalDays !== 1 ? 's' : ''}
-                            </p>
-                          </div>
-                        </div>
-                        <Link
-                          href={`/employees/${request.employee?.id}`}
-                          className="text-sm text-cyan-600 hover:text-cyan-700"
-                        >
-                          Review
-                        </Link>
-                      </div>
-                    ))}
+          {/* Tab Content */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* Standing Card */}
+              <StandingCard employeeId={currentEmployee.id} />
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <Card padding="lg">
+                  <h3 className="text-sm font-semibold text-slate-900 mb-4">
+                    Contact Information
+                  </h3>
+                  <div className="space-y-4">
+                    <InfoItem icon={EnvelopeIcon} label="Email" value={currentEmployee.email} />
+                    <InfoItem
+                      icon={PhoneIcon}
+                      label="Phone"
+                      value={currentEmployee.phone || '—'}
+                    />
                   </div>
                 </Card>
-              )}
-            </>
-          ) : (
-            <>
-              {/* Regular User View: My Profile */}
-              <Card padding="none">
-                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                  <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                    <UserIcon className="h-5 w-5 text-cyan-600" />
-                    My Profile
-                  </h2>
-                  {currentEmployee && (
-                    <Link
-                      href={`/employees/${currentEmployee.id}`}
-                      className="text-sm text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
-                    >
-                      View full profile
-                      <ChevronRightIcon className="h-4 w-4" />
-                    </Link>
-                  )}
-                </div>
 
-                <div className="p-5">
-                  {currentEmployee ? (
-                    <div className="flex flex-col sm:flex-row gap-6">
-                      <div className="flex items-center gap-4">
-                        <Avatar
-                          src={currentEmployee.avatar}
-                          alt={`${currentEmployee.firstName} ${currentEmployee.lastName}`}
-                          size="lg"
-                        />
+                <Card padding="lg">
+                  <h3 className="text-sm font-semibold text-slate-900 mb-4">Work Information</h3>
+                  <div className="space-y-4">
+                    <InfoItem
+                      icon={BuildingIcon}
+                      label="Department"
+                      value={currentEmployee.department || '—'}
+                    />
+                    <InfoItem icon={CalendarIcon} label="Join Date" value={joinDate} />
+                    <div className="flex items-start gap-3">
+                      <UsersIcon className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-xs text-slate-500">Employment Type</p>
+                        <p className="text-sm text-slate-900 font-medium">
+                          {employmentTypeLabels[currentEmployee.employmentType] ||
+                            currentEmployee.employmentType}
+                        </p>
+                      </div>
+                    </div>
+                    {currentEmployee.reportsTo && (
+                      <div className="flex items-start gap-3">
+                        <UsersIcon className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" />
                         <div>
-                          <h3 className="text-lg font-semibold text-slate-900">
-                            {currentEmployee.firstName} {currentEmployee.lastName}
-                          </h3>
-                          <p className="text-slate-600">{currentEmployee.position}</p>
-                          <p className="text-sm text-slate-500">{currentEmployee.employeeId}</p>
+                          <p className="text-xs text-slate-500">Reports To</p>
+                          <p className="text-sm text-slate-900 font-medium">
+                            {currentEmployee.reportsTo.firstName} {currentEmployee.reportsTo.lastName}
+                          </p>
                         </div>
                       </div>
-                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="flex items-center gap-2 text-sm">
-                          <EnvelopeIcon className="h-4 w-4 text-slate-400" />
-                          <span className="text-slate-600 truncate">{currentEmployee.email}</span>
+                    )}
+                  </div>
+                </Card>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'leave' && (
+            <div className="space-y-6">
+              {/* Leave Balance */}
+              <Card padding="lg">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-slate-900">Leave Balance</h3>
+                  <Button size="sm" onClick={() => setShowLeaveForm(!showLeaveForm)}>
+                    {showLeaveForm ? 'Cancel' : 'Request Leave'}
+                  </Button>
+                </div>
+
+                {showLeaveForm && (
+                  <div className="mb-6 p-4 bg-slate-50 rounded-lg">
+                    <LeaveRequestForm
+                      employeeId={currentEmployee.id}
+                      onSuccess={handleLeaveRequestSuccess}
+                      onCancel={() => setShowLeaveForm(false)}
+                    />
+                  </div>
+                )}
+
+                {leaveLoading ? (
+                  <div className="animate-pulse space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-16 bg-slate-100 rounded-lg" />
+                    ))}
+                  </div>
+                ) : (
+                  <LeaveBalanceCards balances={leaveBalances} />
+                )}
+              </Card>
+
+              {/* Leave History */}
+              <Card padding="lg">
+                <h3 className="text-sm font-semibold text-slate-900 mb-4">Leave History</h3>
+                {leaveLoading ? (
+                  <div className="animate-pulse space-y-3">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="h-12 bg-slate-100 rounded-lg" />
+                    ))}
+                  </div>
+                ) : leaveRequests.length === 0 ? (
+                  <div className="text-center py-8">
+                    <CalendarDaysIcon className="h-10 w-10 text-slate-300 mx-auto mb-2" />
+                    <p className="text-slate-500 text-sm">No leave requests yet</p>
+                  </div>
+                ) : (
+                  <LeaveHistoryTable
+                    requests={leaveRequests}
+                    onCancel={handleCancelLeave}
+                  />
+                )}
+              </Card>
+            </div>
+          )}
+
+          {activeTab === 'reviews' && (
+            <Card padding="lg">
+              <h3 className="text-sm font-semibold text-slate-900 mb-4">Performance Reviews</h3>
+
+              {reviewsLoading ? (
+                <div className="animate-pulse space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-20 bg-slate-100 rounded-lg" />
+                  ))}
+                </div>
+              ) : reviews.length === 0 ? (
+                <div className="text-center py-8">
+                  <ClipboardDocumentCheckIcon className="h-10 w-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-slate-500 text-sm">No performance reviews yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {reviews.map((review) => (
+                    <Link
+                      key={review.id}
+                      href={`/performance/reviews/${review.id}`}
+                      className="block p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-slate-900">
+                              {REVIEW_TYPE_LABELS[review.reviewType] || review.reviewType}
+                            </span>
+                            <StatusBadge status={review.status} />
+                          </div>
+                          <p className="text-sm text-slate-600">{review.reviewPeriod}</p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Reviewed by {review.reviewerName} on{' '}
+                            {new Date(review.reviewDate).toLocaleDateString()}
+                          </p>
                         </div>
-                        {currentEmployee.phone && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <PhoneIcon className="h-4 w-4 text-slate-400" />
-                            <span className="text-slate-600">{currentEmployee.phone}</span>
-                          </div>
-                        )}
-                        {currentEmployee.department && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <BuildingIcon className="h-4 w-4 text-slate-400" />
-                            <span className="text-slate-600">{currentEmployee.department}</span>
-                          </div>
-                        )}
-                        {currentEmployee.reportsTo && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <UsersIcon className="h-4 w-4 text-slate-400" />
-                            <span className="text-slate-600">
-                              Reports to {currentEmployee.reportsTo.firstName} {currentEmployee.reportsTo.lastName}
+                        <div className="text-right">
+                          <StarRating rating={review.overallRating} />
+                          <p className="text-xs text-slate-500 mt-1">{review.overallRating}/5</p>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
+
+          {activeTab === 'disciplinary' && (
+            <Card padding="lg">
+              <h3 className="text-sm font-semibold text-slate-900 mb-4">Disciplinary Actions</h3>
+
+              {disciplinaryLoading ? (
+                <div className="animate-pulse space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-20 bg-slate-100 rounded-lg" />
+                  ))}
+                </div>
+              ) : disciplinary.length === 0 ? (
+                <div className="text-center py-8">
+                  <ShieldExclamationIcon className="h-10 w-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-slate-500 text-sm">No disciplinary records</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {disciplinary.map((action) => (
+                    <Link
+                      key={action.id}
+                      href={`/performance/disciplinary/${action.id}`}
+                      className="block p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-medium text-slate-900">
+                              {action.violationType.replace(/_/g, ' ')}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded text-xs font-medium ${SEVERITY_COLORS[action.severity] || 'bg-slate-100 text-slate-700'}`}
+                            >
+                              {SEVERITY_LABELS[action.severity] || action.severity}
                             </span>
                           </div>
-                        )}
+                          <p className="text-sm text-slate-600">
+                            {action.violationReason.replace(/_/g, ' ')}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Incident: {new Date(action.incidentDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div>
+                          <StatusBadge status={action.status.replace(/_/g, ' ')} />
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <UserIcon className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                      <p className="text-slate-500 text-sm">Profile not available</p>
-                    </div>
-                  )}
-                </div>
-              </Card>
-
-              {/* Regular User View: My Leave Balance */}
-              <Card padding="none">
-                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                  <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-                    <CalendarDaysIcon className="h-5 w-5 text-cyan-600" />
-                    My Leave Balance
-                  </h2>
-                  {currentEmployee && (
-                    <Link
-                      href={`/employees/${currentEmployee.id}`}
-                      className="text-sm text-cyan-600 hover:text-cyan-700 flex items-center gap-1"
-                    >
-                      Request leave
-                      <ChevronRightIcon className="h-4 w-4" />
                     </Link>
-                  )}
+                  ))}
                 </div>
-                <div className="p-5">
-                  <LeaveBalanceCards balances={myLeaveBalance} />
-                </div>
-              </Card>
-            </>
+              )}
+            </Card>
           )}
         </div>
 
@@ -390,9 +679,11 @@ export default function Dashboard() {
                       }`}
                     >
                       <div className="flex items-start gap-3">
-                        <div className={`mt-0.5 flex-shrink-0 ${
-                          notification.isRead ? 'text-slate-400' : 'text-amber-500'
-                        }`}>
+                        <div
+                          className={`mt-0.5 flex-shrink-0 ${
+                            notification.isRead ? 'text-slate-400' : 'text-amber-500'
+                          }`}
+                        >
                           {notification.isRead ? (
                             <CheckIcon className="h-4 w-4" />
                           ) : (
@@ -400,9 +691,13 @@ export default function Dashboard() {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-sm ${
-                            notification.isRead ? 'text-slate-600' : 'text-slate-900 font-medium'
-                          }`}>
+                          <p
+                            className={`text-sm ${
+                              notification.isRead
+                                ? 'text-slate-600'
+                                : 'text-slate-900 font-medium'
+                            }`}
+                          >
                             {notification.title}
                           </p>
                           <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">
