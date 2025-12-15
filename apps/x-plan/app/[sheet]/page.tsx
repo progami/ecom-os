@@ -1510,6 +1510,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       wrapLayout = (node) => <SalesPlanningFocusProvider>{node}</SalesPlanningFocusProvider>
       tabularContent = (
         <SalesPlanningGrid
+          strategyId={strategyId}
           rows={view.rows}
           columnMeta={view.columnMeta}
           columnKeys={view.columnKeys}
