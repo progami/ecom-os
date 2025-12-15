@@ -373,7 +373,7 @@ export default function Dashboard() {
         }
       />
 
-      <div className="space-y-6">
+      <div className="space-y-6 flex flex-col min-h-[calc(100vh-180px)]">
         {/* Employee Header Card */}
         <Card padding="lg">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
@@ -644,8 +644,8 @@ export default function Dashboard() {
 
         {/* Notifications - Only in Overview mode */}
         {activeTab === 'overview' && hasNotifications && (
-          <Card padding="none">
-            <div className="px-5 py-3 flex items-center justify-between border-b border-slate-100">
+          <Card padding="none" className="flex-1 min-h-0 flex flex-col">
+            <div className="px-5 py-3 flex items-center justify-between border-b border-slate-100 flex-shrink-0">
               <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                 <BellIcon className="h-4 w-4 text-cyan-600" />
                 Notifications
@@ -664,7 +664,7 @@ export default function Dashboard() {
                 </button>
               )}
             </div>
-            <div className="divide-y divide-slate-100">
+            <div className="divide-y divide-slate-100 flex-1 overflow-y-auto min-h-0">
               {data.notifications.map((notification) => (
                 <div
                   key={notification.id}
