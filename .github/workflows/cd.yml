@@ -187,7 +187,7 @@ jobs:
               base_version="0.0.0"
             fi
 
-            version="${base_version}-dev.${commit_sha}"
+            version="${base_version}"
             tag="v${base_version}"
           fi
 
