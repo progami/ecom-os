@@ -4,7 +4,6 @@ import { toast } from 'react-hot-toast'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { PageTabs } from '@/components/ui/page-tabs'
-import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 
 interface StorageLedgerHeaderProps {
  aggregationView: 'weekly' | 'monthly'
@@ -26,8 +25,16 @@ export function StorageLedgerHeader({
 
  setIsCalculating(true)
  try {
- const response = await fetchWithCSRF('/api/finance/storage-calculation/weekly', {
+ // Get CSRF token from NextAuth
+ const csrfResponse = await fetch('/api/auth/csrf')
+ const { csrfToken } = await csrfResponse.json()
+
+ const response = await fetch('/api/finance/storage-calculation/weekly', {
  method: 'POST',
+ headers: {
+ 'Content-Type': 'application/json',
+ 'x-csrf-token': csrfToken,
+ },
  body: JSON.stringify({
  weekEndingDate: new Date().toISOString(),
  forceRecalculate: false
