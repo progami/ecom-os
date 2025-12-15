@@ -157,6 +157,46 @@ async function createNotificationFromEvent(event: HRMSEvent): Promise<void> {
       break
     }
 
+    case 'DISCIPLINARY_UPDATED': {
+      // Handle appeal notifications
+      const employee = await prisma.employee.findUnique({
+        where: { id: event.employeeId },
+        select: { reportsToId: true, email: true, firstName: true, lastName: true }
+      })
+
+      if (event.status === 'APPEALED') {
+        // Employee submitted an appeal - notify manager/HR
+        if (employee?.reportsToId) {
+          await prisma.notification.create({
+            data: {
+              type: 'DISCIPLINARY_UPDATED' as NotificationType,
+              title: 'Violation Appeal Submitted',
+              message: `${employee.firstName} ${employee.lastName} has appealed a violation. Please review.`,
+              link: `/performance/disciplinary/${event.actionId}`,
+              employeeId: employee.reportsToId,
+              relatedId: event.actionId,
+              relatedType: 'DISCIPLINARY',
+            },
+          })
+        }
+      } else if (event.status.startsWith('APPEAL_')) {
+        // Appeal was resolved - notify employee
+        const resolution = event.status.replace('APPEAL_', '').toLowerCase()
+        await prisma.notification.create({
+          data: {
+            type: 'DISCIPLINARY_UPDATED' as NotificationType,
+            title: 'Appeal Decision',
+            message: `Your appeal has been ${resolution}. Click to view the decision.`,
+            link: `/performance/disciplinary/${event.actionId}`,
+            employeeId: event.employeeId,
+            relatedId: event.actionId,
+            relatedType: 'DISCIPLINARY',
+          },
+        })
+      }
+      break
+    }
+
     case 'HIERARCHY_CHANGED': {
       // Notify the employee about their new manager
       const newManager = event.newManagerId ? await prisma.employee.findUnique({
@@ -267,13 +307,12 @@ export async function queueEmailNotification(
 }
 
 // ============ PROFILE COMPLETION CHECK ============
+// Only includes fields that EMPLOYEES can control themselves
+// Manager, Department, Position are set by HR/managers, not the employee
 
 type EmployeeProfileFields = {
   id: string
   firstName: string
-  reportsToId: string | null
-  department: string
-  position: string
   phone: string | null
   dateOfBirth: Date | null
   address: string | null
@@ -286,13 +325,9 @@ type EmployeeProfileFields = {
 type RequiredField = {
   field: keyof EmployeeProfileFields
   label: string
-  skipValue?: string
 }
 
 const REQUIRED_FIELDS: RequiredField[] = [
-  { field: 'reportsToId', label: 'Manager' },
-  { field: 'department', label: 'Department', skipValue: 'General' },
-  { field: 'position', label: 'Position', skipValue: 'Employee' },
   { field: 'phone', label: 'Phone Number' },
   { field: 'dateOfBirth', label: 'Date of Birth' },
   { field: 'address', label: 'Address' },
@@ -305,17 +340,11 @@ const REQUIRED_FIELDS: RequiredField[] = [
 export function getMissingFields(employee: EmployeeProfileFields): string[] {
   const missing: string[] = []
 
-  for (const { field, label, skipValue } of REQUIRED_FIELDS) {
+  for (const { field, label } of REQUIRED_FIELDS) {
     const value = employee[field as keyof EmployeeProfileFields]
 
     // Check if field is null, undefined, or empty string
     if (value === null || value === undefined || value === '') {
-      missing.push(label)
-      continue
-    }
-
-    // Check if value matches a "default" value we should treat as incomplete
-    if (skipValue && value === skipValue) {
       missing.push(label)
     }
   }
@@ -329,9 +358,6 @@ export async function checkAndNotifyMissingFields(employeeId: string): Promise<v
     select: {
       id: true,
       firstName: true,
-      reportsToId: true,
-      department: true,
-      position: true,
       phone: true,
       dateOfBirth: true,
       address: true,
@@ -400,9 +426,6 @@ export async function runProfileCompletionCheckForAll(): Promise<{ checked: numb
       select: {
         id: true,
         firstName: true,
-        reportsToId: true,
-        department: true,
-        position: true,
         phone: true,
         dateOfBirth: true,
         address: true,

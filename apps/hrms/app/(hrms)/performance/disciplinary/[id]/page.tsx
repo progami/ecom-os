@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { DisciplinaryActionsApi, type DisciplinaryAction } from '@/lib/api-client'
-import { ShieldExclamationIcon, PencilIcon, TrashIcon, CheckCircleIcon, ClockIcon } from '@/components/ui/Icons'
+import { ShieldExclamationIcon, PencilIcon, TrashIcon, CheckCircleIcon, ClockIcon, ExclamationTriangleIcon, XCircleIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardDivider } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -86,6 +86,20 @@ const STATUS_LABELS: Record<string, string> = {
   DISMISSED: 'Dismissed',
 }
 
+const APPEAL_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Pending Review',
+  UPHELD: 'Appeal Denied - Decision Upheld',
+  OVERTURNED: 'Appeal Granted - Violation Dismissed',
+  MODIFIED: 'Appeal Partially Granted - Action Modified',
+}
+
+const APPEAL_STATUS_COLORS: Record<string, string> = {
+  PENDING: 'bg-amber-100 text-amber-800',
+  UPHELD: 'bg-red-100 text-red-800',
+  OVERTURNED: 'bg-green-100 text-green-800',
+  MODIFIED: 'bg-blue-100 text-blue-800',
+}
+
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
   if (!value) return null
   return (
@@ -115,6 +129,18 @@ type AcknowledgmentStatus = {
   fullyAcknowledged: boolean
 }
 
+type AppealStatus = {
+  appealReason: string | null
+  appealedAt: string | null
+  appealStatus: string | null
+  appealResolution: string | null
+  appealResolvedAt: string | null
+  canAppeal: boolean
+  canResolveAppeal: boolean
+  hasAppealed: boolean
+  appealResolved: boolean
+}
+
 export default function ViewDisciplinaryPage() {
   const router = useRouter()
   const params = useParams()
@@ -123,9 +149,18 @@ export default function ViewDisciplinaryPage() {
   const [action, setAction] = useState<DisciplinaryAction | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [ackStatus, setAckStatus] = useState<AcknowledgmentStatus | null>(null)
+  const [appealStatus, setAppealStatus] = useState<AppealStatus | null>(null)
   const [acknowledging, setAcknowledging] = useState(false)
+  const [appealing, setAppealing] = useState(false)
+  const [resolving, setResolving] = useState(false)
+  const [showAppealForm, setShowAppealForm] = useState(false)
+  const [showResolveForm, setShowResolveForm] = useState(false)
+  const [appealReason, setAppealReason] = useState('')
+  const [appealResolutionStatus, setAppealResolutionStatus] = useState('UPHELD')
+  const [appealResolutionText, setAppealResolutionText] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -136,8 +171,13 @@ export default function ViewDisciplinaryPage() {
         // Load acknowledgment status
         const ackRes = await fetch(`/api/disciplinary-actions/${id}/acknowledge`)
         if (ackRes.ok) {
-          const ackData = await ackRes.json()
-          setAckStatus(ackData)
+          setAckStatus(await ackRes.json())
+        }
+
+        // Load appeal status
+        const appealRes = await fetch(`/api/disciplinary-actions/${id}/appeal`)
+        if (appealRes.ok) {
+          setAppealStatus(await appealRes.json())
         }
       } catch (e: any) {
         setError(e.message || 'Failed to load record')
@@ -150,6 +190,7 @@ export default function ViewDisciplinaryPage() {
 
   async function handleAcknowledge() {
     setAcknowledging(true)
+    setError(null)
     try {
       const res = await fetch(`/api/disciplinary-actions/${id}/acknowledge`, {
         method: 'POST',
@@ -160,16 +201,90 @@ export default function ViewDisciplinaryPage() {
       }
       const data = await res.json()
       setAction(data)
+      setSuccess('Violation acknowledged successfully')
 
-      // Reload acknowledgment status
+      // Reload statuses
       const ackRes = await fetch(`/api/disciplinary-actions/${id}/acknowledge`)
-      if (ackRes.ok) {
-        setAckStatus(await ackRes.json())
-      }
+      if (ackRes.ok) setAckStatus(await ackRes.json())
+      const appealRes = await fetch(`/api/disciplinary-actions/${id}/appeal`)
+      if (appealRes.ok) setAppealStatus(await appealRes.json())
     } catch (e: any) {
       setError(e.message)
     } finally {
       setAcknowledging(false)
+    }
+  }
+
+  async function handleSubmitAppeal() {
+    if (appealReason.trim().length < 10) {
+      setError('Appeal reason must be at least 10 characters')
+      return
+    }
+    setAppealing(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/disciplinary-actions/${id}/appeal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ appealReason: appealReason.trim() }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to submit appeal')
+      }
+      const data = await res.json()
+      setAction(data)
+      setSuccess('Appeal submitted successfully. HR will review your appeal.')
+      setShowAppealForm(false)
+      setAppealReason('')
+
+      // Reload statuses
+      const ackRes = await fetch(`/api/disciplinary-actions/${id}/acknowledge`)
+      if (ackRes.ok) setAckStatus(await ackRes.json())
+      const appealRes = await fetch(`/api/disciplinary-actions/${id}/appeal`)
+      if (appealRes.ok) setAppealStatus(await appealRes.json())
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setAppealing(false)
+    }
+  }
+
+  async function handleResolveAppeal() {
+    if (!appealResolutionText.trim()) {
+      setError('Resolution explanation is required')
+      return
+    }
+    setResolving(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/disciplinary-actions/${id}/appeal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appealStatus: appealResolutionStatus,
+          appealResolution: appealResolutionText.trim(),
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to resolve appeal')
+      }
+      const data = await res.json()
+      setAction(data)
+      setSuccess('Appeal resolved successfully')
+      setShowResolveForm(false)
+      setAppealResolutionText('')
+
+      // Reload statuses
+      const ackRes = await fetch(`/api/disciplinary-actions/${id}/acknowledge`)
+      if (ackRes.ok) setAckStatus(await ackRes.json())
+      const appealRes = await fetch(`/api/disciplinary-actions/${id}/appeal`)
+      if (appealRes.ok) setAppealStatus(await appealRes.json())
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setResolving(false)
     }
   }
 
@@ -247,6 +362,11 @@ export default function ViewDisciplinaryPage() {
         {error && (
           <Alert variant="error" onDismiss={() => setError(null)}>
             {error}
+          </Alert>
+        )}
+        {success && (
+          <Alert variant="success" onDismiss={() => setSuccess(null)}>
+            {success}
           </Alert>
         )}
 
@@ -332,84 +452,217 @@ export default function ViewDisciplinaryPage() {
           </Card>
         )}
 
-        {/* Acknowledgment Status Card */}
+        {/* Employee Response Card - Acknowledge OR Appeal */}
         <Card padding="lg">
-          <h3 className="text-lg font-medium text-slate-900 mb-4">Acknowledgment Status</h3>
-          {ackStatus ? (
-            <div className="space-y-4">
-              {/* Employee Acknowledgment */}
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  {ackStatus.employeeAcknowledged ? (
-                    <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                  ) : (
-                    <ClockIcon className="h-5 w-5 text-amber-500" />
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">Employee Acknowledgment</p>
-                    <p className="text-xs text-slate-500">
-                      {ackStatus.employeeAcknowledged
-                        ? `Acknowledged on ${formatDate(ackStatus.employeeAcknowledgedAt)}`
-                        : 'Pending acknowledgment'}
-                    </p>
-                  </div>
-                </div>
-                {ackStatus.canAcknowledgeAsEmployee && (
-                  <Button
-                    size="sm"
-                    onClick={handleAcknowledge}
-                    loading={acknowledging}
-                    icon={<CheckCircleIcon className="h-4 w-4" />}
-                  >
-                    Acknowledge
-                  </Button>
-                )}
-              </div>
+          <h3 className="text-lg font-medium text-slate-900 mb-4">Employee Response</h3>
 
-              {/* Manager Acknowledgment */}
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  {ackStatus.managerAcknowledged ? (
-                    <CheckCircleIcon className="h-5 w-5 text-green-500" />
-                  ) : (
-                    <ClockIcon className="h-5 w-5 text-amber-500" />
-                  )}
-                  <div>
-                    <p className="text-sm font-medium text-slate-900">Manager Acknowledgment</p>
-                    <p className="text-xs text-slate-500">
-                      {ackStatus.managerAcknowledged
-                        ? `Acknowledged on ${formatDate(ackStatus.managerAcknowledgedAt)}`
-                        : 'Pending acknowledgment'}
-                    </p>
-                  </div>
-                </div>
-                {ackStatus.canAcknowledgeAsManager && (
-                  <Button
-                    size="sm"
-                    onClick={handleAcknowledge}
-                    loading={acknowledging}
-                    icon={<CheckCircleIcon className="h-4 w-4" />}
-                  >
-                    Acknowledge
-                  </Button>
-                )}
-              </div>
-
-              {/* Overall Status */}
-              {ackStatus.fullyAcknowledged && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+          {/* Show appeal info if appealed */}
+          {appealStatus?.hasAppealed && (
+            <div className="mb-6">
+              <div className={`p-4 rounded-lg border ${appealStatus.appealResolved ? 'bg-slate-50 border-slate-200' : 'bg-amber-50 border-amber-200'}`}>
+                <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <CheckCircleIcon className="h-5 w-5 text-green-600" />
-                    <p className="text-sm font-medium text-green-800">
-                      Fully acknowledged by both employee and manager
-                    </p>
+                    <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
+                    <span className="font-medium text-slate-900">Appeal Submitted</span>
+                  </div>
+                  {appealStatus.appealStatus && (
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${APPEAL_STATUS_COLORS[appealStatus.appealStatus] || 'bg-slate-100 text-slate-700'}`}>
+                      {APPEAL_STATUS_LABELS[appealStatus.appealStatus] || appealStatus.appealStatus}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-slate-500 mb-2">Submitted on {formatDate(appealStatus.appealedAt)}</p>
+                <div className="bg-white p-3 rounded border border-slate-200">
+                  <p className="text-sm font-medium text-slate-700 mb-1">Employee&apos;s Appeal:</p>
+                  <p className="text-sm text-slate-900 whitespace-pre-wrap">{appealStatus.appealReason}</p>
+                </div>
+
+                {/* Appeal Resolution */}
+                {appealStatus.appealResolved && appealStatus.appealResolution && (
+                  <div className="mt-4 bg-white p-3 rounded border border-slate-200">
+                    <p className="text-sm font-medium text-slate-700 mb-1">HR Decision ({formatDate(appealStatus.appealResolvedAt)}):</p>
+                    <p className="text-sm text-slate-900 whitespace-pre-wrap">{appealStatus.appealResolution}</p>
+                  </div>
+                )}
+
+                {/* Resolve Appeal Form */}
+                {appealStatus.canResolveAppeal && !showResolveForm && (
+                  <Button
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => setShowResolveForm(true)}
+                  >
+                    Resolve Appeal
+                  </Button>
+                )}
+
+                {showResolveForm && (
+                  <div className="mt-4 p-4 bg-white rounded-lg border border-slate-200 space-y-4">
+                    <h4 className="font-medium text-slate-900">Resolve Appeal</h4>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Decision</label>
+                      <select
+                        value={appealResolutionStatus}
+                        onChange={(e) => setAppealResolutionStatus(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                      >
+                        <option value="UPHELD">Upheld - Original decision stands</option>
+                        <option value="MODIFIED">Modified - Reduce action/severity</option>
+                        <option value="OVERTURNED">Overturned - Dismiss violation</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Explanation</label>
+                      <textarea
+                        value={appealResolutionText}
+                        onChange={(e) => setAppealResolutionText(e.target.value)}
+                        rows={4}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                        placeholder="Explain the decision and reasoning..."
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setShowResolveForm(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleResolveAppeal}
+                        loading={resolving}
+                      >
+                        Submit Decision
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Show acknowledge/appeal options if employee hasn't responded yet */}
+          {!appealStatus?.hasAppealed && ackStatus && (
+            <div className="space-y-4">
+              {/* Employee can acknowledge OR appeal */}
+              {ackStatus.canAcknowledgeAsEmployee && appealStatus?.canAppeal && (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-center gap-2 mb-3">
+                    <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
+                    <span className="font-medium text-slate-900">Action Required</span>
+                  </div>
+                  <p className="text-sm text-slate-600 mb-4">
+                    You must respond to this violation. You can either acknowledge the violation or submit an appeal if you believe it is incorrect.
+                  </p>
+
+                  {!showAppealForm ? (
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={handleAcknowledge}
+                        loading={acknowledging}
+                        icon={<CheckCircleIcon className="h-4 w-4" />}
+                      >
+                        Acknowledge
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={() => setShowAppealForm(true)}
+                        icon={<XCircleIcon className="h-4 w-4" />}
+                      >
+                        Appeal
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                          Why are you appealing this violation?
+                        </label>
+                        <textarea
+                          value={appealReason}
+                          onChange={(e) => setAppealReason(e.target.value)}
+                          rows={4}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                          placeholder="Explain why you believe this violation is incorrect or unfair. Provide any relevant context or evidence..."
+                        />
+                        <p className="text-xs text-slate-500 mt-1">Minimum 10 characters required</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setShowAppealForm(false)
+                            setAppealReason('')
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={handleSubmitAppeal}
+                          loading={appealing}
+                        >
+                          Submit Appeal
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Employee has acknowledged */}
+              {ackStatus.employeeAcknowledged && (
+                <div className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">Employee Acknowledged</p>
+                      <p className="text-xs text-slate-500">
+                        Acknowledged on {formatDate(ackStatus.employeeAcknowledgedAt)}
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
-          ) : (
-            <p className="text-sm text-slate-500">Loading acknowledgment status...</p>
           )}
+
+          {/* Manager Acknowledgment Section */}
+          <div className="mt-6 pt-6 border-t border-slate-200">
+            <h4 className="text-sm font-medium text-slate-900 mb-4">Manager Acknowledgment</h4>
+            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+              <div className="flex items-center gap-3">
+                {ackStatus?.managerAcknowledged ? (
+                  <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                ) : (
+                  <ClockIcon className="h-5 w-5 text-amber-500" />
+                )}
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    {ackStatus?.managerAcknowledged ? 'Acknowledged' : 'Pending'}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {ackStatus?.managerAcknowledged
+                      ? `Acknowledged on ${formatDate(ackStatus?.managerAcknowledgedAt)}`
+                      : 'Awaiting manager review'}
+                  </p>
+                </div>
+              </div>
+              {ackStatus?.canAcknowledgeAsManager && (
+                <Button
+                  size="sm"
+                  onClick={handleAcknowledge}
+                  loading={acknowledging}
+                  icon={<CheckCircleIcon className="h-4 w-4" />}
+                >
+                  Acknowledge
+                </Button>
+              )}
+            </div>
+          </div>
         </Card>
 
         <div className="flex justify-end gap-3">

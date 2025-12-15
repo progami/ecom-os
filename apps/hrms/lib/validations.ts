@@ -245,6 +245,21 @@ export const DisciplinaryStatusEnum = z.enum([
   'OPEN', 'UNDER_INVESTIGATION', 'ACTION_TAKEN', 'APPEALED', 'CLOSED', 'DISMISSED'
 ])
 
+export const AppealStatusEnum = z.enum([
+  'PENDING', 'UPHELD', 'OVERTURNED', 'MODIFIED'
+])
+
+// Schema for employee to submit an appeal
+export const SubmitAppealSchema = z.object({
+  appealReason: z.string().min(10, 'Appeal reason must be at least 10 characters').max(5000).trim(),
+})
+
+// Schema for HR to resolve an appeal
+export const ResolveAppealSchema = z.object({
+  appealStatus: AppealStatusEnum,
+  appealResolution: z.string().min(1, 'Resolution is required').max(5000).trim(),
+})
+
 // Core Values breach mapping
 export const ValueBreachEnum = z.enum([
   'BREACH_OF_DETAIL',     // Recurring mistakes, sloppy work - Training issue
