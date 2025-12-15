@@ -7,14 +7,16 @@ export async function GET(request: NextRequest) {
   const cookieDomain = process.env.COOKIE_DOMAIN || '.targonglobal.com'
   const baseUrl = process.env.NEXTAUTH_URL || 'https://ecomos.targonglobal.com'
 
-  // Get the next URL to redirect to after clearing cookies
-  const nextPath = request.nextUrl.searchParams.get('next')
+  // Get provider and callbackUrl for direct signin flow
+  const provider = request.nextUrl.searchParams.get('provider')
+  const callbackUrl = request.nextUrl.searchParams.get('callbackUrl') || '/'
+
   let redirectUrl: URL
 
-  if (nextPath && nextPath.startsWith('/api/auth/signin')) {
-    // If redirecting back to signin, add clean param to skip middleware redirect
-    redirectUrl = new URL(nextPath, baseUrl)
-    redirectUrl.searchParams.set('clean', '1')
+  if (provider) {
+    // Redirect directly to signin endpoint after clearing cookies
+    redirectUrl = new URL(`/api/auth/signin/${provider}`, baseUrl)
+    redirectUrl.searchParams.set('callbackUrl', callbackUrl)
   } else {
     // Default to login page
     redirectUrl = new URL('/login', baseUrl)
@@ -22,7 +24,7 @@ export async function GET(request: NextRequest) {
 
   const response = NextResponse.redirect(redirectUrl)
 
-  // Get all cookies from request and clear auth-related ones
+  // Clear ALL auth-related cookies
   const cookies = request.cookies.getAll()
 
   for (const cookie of cookies) {
