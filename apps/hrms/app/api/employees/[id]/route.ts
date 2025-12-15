@@ -4,6 +4,7 @@ import { UpdateEmployeeSchema } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { EmploymentType, EmployeeStatus } from '@/lib/hrms-prisma-types'
 import { checkAndNotifyMissingFields, publish } from '@/lib/notification-service'
+import { patchUser, isAdminConfigured } from '@/lib/google-admin'
 
 type EmployeeRouteContext = { params: Promise<{ id: string }> }
 
@@ -135,6 +136,33 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
       data: updates,
       include: { roles: true, dept: true, manager: { select: { id: true, firstName: true, lastName: true, position: true } } },
     })
+
+    // Two-way sync: push changes back to Google Admin
+    if (isAdminConfigured() && e.email) {
+      const googleUpdates: { department?: string; title?: string; phone?: string } = {}
+
+      // Only sync fields that were explicitly changed and have local override
+      if (data.department !== undefined || data.departmentName !== undefined) {
+        googleUpdates.department = e.department
+      }
+      if (data.position !== undefined) {
+        googleUpdates.title = e.position
+      }
+      if (data.phone !== undefined) {
+        googleUpdates.phone = e.phone ?? undefined
+      }
+
+      // Only call Google Admin if there are changes to sync
+      if (Object.keys(googleUpdates).length > 0) {
+        try {
+          await patchUser(e.email, googleUpdates)
+          console.log(`[Two-way Sync] Updated Google Admin for ${e.email}:`, googleUpdates)
+        } catch (err) {
+          // Log but don't fail the request if Google sync fails
+          console.error(`[Two-way Sync] Failed to update Google Admin for ${e.email}:`, err)
+        }
+      }
+    }
 
     // Re-check profile completion after update
     await checkAndNotifyMissingFields(id)

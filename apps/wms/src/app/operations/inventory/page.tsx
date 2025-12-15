@@ -597,8 +597,8 @@ function InventoryPage() {
  icon={BookOpen}
  actions={headerActions}
  />
- <PageContent className="flex-1 overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
- <div className="flex flex-col gap-6">
+ <PageContent className="flex-1 overflow-hidden px-4 py-6 sm:px-6 lg:px-8 flex flex-col">
+ <div className="flex flex-col gap-6 flex-1 min-h-0">
  <StatsCardGrid cols={3}>
  <StatsCard
  title="Total Cartons"
@@ -623,14 +623,10 @@ function InventoryPage() {
  />
  </StatsCardGrid>
 
- <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-soft overflow-x-auto">
+ <div className="flex min-h-0 flex-col rounded-xl border border-slate-200 bg-white shadow-soft overflow-x-auto flex-1">
  {/* Scrollable table area */}
  <div
  className="relative min-h-0 overflow-y-auto flex-1"
- style={{
- maxHeight: 'calc(100vh - 380px)',
- minHeight: 280
- }}
  >
  <table className="w-full min-w-[1200px] table-auto text-sm">
  <thead>
