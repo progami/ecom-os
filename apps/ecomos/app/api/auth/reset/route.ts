@@ -11,15 +11,12 @@ export async function GET(request: NextRequest) {
   const provider = request.nextUrl.searchParams.get('provider')
   const callbackUrl = request.nextUrl.searchParams.get('callbackUrl') || '/'
 
-  let redirectUrl: URL
-
+  // Always redirect to login page - it will handle the OAuth flow properly
+  // using next-auth/react signIn() which POSTs with CSRF token
+  const redirectUrl = new URL('/login', baseUrl)
+  redirectUrl.searchParams.set('callbackUrl', callbackUrl)
   if (provider) {
-    // Redirect directly to signin endpoint after clearing cookies
-    redirectUrl = new URL(`/api/auth/signin/${provider}`, baseUrl)
-    redirectUrl.searchParams.set('callbackUrl', callbackUrl)
-  } else {
-    // Default to login page
-    redirectUrl = new URL('/login', baseUrl)
+    redirectUrl.searchParams.set('autoSignIn', provider)
   }
 
   const response = NextResponse.redirect(redirectUrl)
