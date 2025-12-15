@@ -412,6 +412,13 @@ model DisciplinaryAction {
   status          DisciplinaryStatus  @default(OPEN)
   resolution      String?
 
+  // Acknowledgment tracking - both employee and manager must acknowledge
+  employeeAcknowledged     Boolean   @default(false)
+  employeeAcknowledgedAt   DateTime?
+  managerAcknowledged      Boolean   @default(false)
+  managerAcknowledgedAt    DateTime?
+  managerAcknowledgerId    String?   // Which manager acknowledged
+
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
