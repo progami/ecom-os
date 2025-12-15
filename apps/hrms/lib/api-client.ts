@@ -175,6 +175,19 @@ export const EmployeesApi = {
       body: JSON.stringify({ memberships }),
     })
   },
+  getPermissions(employeeId: string) {
+    return request<{
+      actorId: string
+      targetEmployeeId: string
+      isEditingSelf: boolean
+      isManager: boolean
+      isSuperAdmin: boolean
+      fieldPermissions: Record<string, { canEdit: boolean; permission: string; reason?: string }>
+      editableFields: string[]
+      readOnlyFields: string[]
+      fieldGroups: Record<string, string[]>
+    }>(`/api/employees/${encodeURIComponent(employeeId)}/permissions`)
+  },
 }
 
 // Resources

@@ -1,5 +1,5 @@
 type FormFieldProps = {
-  label: string
+  label: React.ReactNode
   name: string
   type?: string
   required?: boolean
@@ -66,7 +66,7 @@ export function FormField({
 
 // Select field
 type SelectFieldProps = {
-  label: string
+  label: React.ReactNode
   name: string
   required?: boolean
   defaultValue?: string
