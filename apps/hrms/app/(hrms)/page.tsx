@@ -642,8 +642,8 @@ export default function Dashboard() {
             </Card>
           )}
 
-        {/* Notifications - Bottom Section */}
-        {hasNotifications && (
+        {/* Notifications - Only in Overview mode */}
+        {activeTab === 'overview' && hasNotifications && (
           <Card padding="none">
             <div className="px-5 py-3 flex items-center justify-between border-b border-slate-100">
               <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
@@ -664,7 +664,7 @@ export default function Dashboard() {
                 </button>
               )}
             </div>
-            <div className="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+            <div className="divide-y divide-slate-100">
               {data.notifications.map((notification) => (
                 <div
                   key={notification.id}
