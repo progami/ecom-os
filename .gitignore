@@ -39,3 +39,4 @@ logs/
 # Personal notes (do not commit)
 Pers/
 .env.local
+.todo*

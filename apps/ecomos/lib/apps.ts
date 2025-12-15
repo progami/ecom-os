@@ -57,7 +57,6 @@ type AppBase = {
   url: string
   category: string
   icon?: string
-  roles?: string[] // allowed roles (optional). If omitted, all roles allowed
   devPath?: string
   devUrl?: string
 }
@@ -89,7 +88,6 @@ const BASE_APPS: AppBase[] = [
     description: 'Inbound, outbound, inventory and reporting.',
     url: joinBaseUrl(PORTAL_BASE_URL, '/wms'),
     category: 'Ops',
-    roles: ['admin', 'manager', 'staff']
   },
   {
     id: 'hrms',
@@ -98,15 +96,6 @@ const BASE_APPS: AppBase[] = [
     url: joinBaseUrl(PORTAL_BASE_URL, '/hrms'),
     devPath: '/hrms',
     category: 'HR / Admin',
-    roles: ['admin', 'hr']
-  },
-  {
-    id: 'fcc',
-    name: 'Finance Console',
-    description: 'Financial data, reports and integrations.',
-    url: joinBaseUrl(PORTAL_BASE_URL, '/fcc'),
-    category: 'Finance',
-    roles: ['admin', 'finance']
   },
   {
     id: 'website',
@@ -122,24 +111,6 @@ const BASE_APPS: AppBase[] = [
     url: joinBaseUrl(PORTAL_BASE_URL, '/x-plan'),
     category: 'Product',
     devUrl: 'http://localhost:3008',
-  },
-  {
-    id: 'margin-master',
-    name: 'Margin Master',
-    description: 'Profitability analytics and sales performance insights.',
-    url: joinBaseUrl(PORTAL_BASE_URL, '/margin-master'),
-    category: 'Product',
-    devUrl: 'http://localhost:3007',
-    roles: ['admin', 'marketing', 'viewer'],
-  },
-  {
-    id: 'legal-suite',
-    name: 'Legal Suite',
-    description: 'Contract repository and compliance workflows.',
-    url: joinBaseUrl(PORTAL_BASE_URL, '/legal'),
-    category: 'Legal',
-    devUrl: 'http://localhost:3015',
-    roles: ['admin', 'legal'],
   },
 ]
 
@@ -242,15 +213,13 @@ export const ALL_APPS: AppDef[] = SOURCE_APPS.map((app) => ({
   lifecycle: resolveLifecycle(app.id),
 }))
 
-export function filterAppsForUser(role: string | undefined, allowedAppIds?: string[]) {
-  const set = new Set(allowedAppIds ?? [])
+export function filterAppsForUser(allowedAppIds: string[]) {
+  const set = new Set(allowedAppIds)
   return ALL_APPS.filter(app => {
     if (app.lifecycle === 'archive') {
       return false
     }
-    const roleOk = !app.roles || (role ? app.roles.includes(role) : true)
-    const allowedOk = set.size === 0 || set.has(app.id)
-    return roleOk && allowedOk
+    return set.has(app.id)
   })
 }
 

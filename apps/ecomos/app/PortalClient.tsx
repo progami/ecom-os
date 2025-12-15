@@ -147,9 +147,10 @@ type PortalClientProps = {
   session: Session
   apps: AppDef[]
   roles?: PortalRoleMap
+  accessError?: string
 }
 
-export default function PortalClient({ session, apps, roles }: PortalClientProps) {
+export default function PortalClient({ session, apps, roles, accessError }: PortalClientProps) {
   const roleMap = roles ?? {}
   const hasApps = apps.length > 0
   const [allowDevApps] = useState(envAllowDevFlag)
@@ -231,6 +232,12 @@ export default function PortalClient({ session, apps, roles }: PortalClientProps
       </div>
 
       <main className={styles.main}>
+          {accessError && (
+            <div className={styles.accessError} role="alert">
+              {accessError}
+            </div>
+          )}
+
           <section className={styles.intro}>
             <span className={styles.introSpacer} aria-hidden="true" />
           </section>

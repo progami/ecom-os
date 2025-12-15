@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { hasPortalSession } from '@ecom-os/auth'
+import { getCandidateSessionCookieNames, decodePortalSession, getAppEntitlement } from '@ecom-os/auth'
 import { portalUrl } from '@/lib/portal'
 
 export async function middleware(request: NextRequest) {
@@ -12,29 +12,50 @@ export async function middleware(request: NextRequest) {
 
   // Public routes - only specific endpoints, NOT all /api/ routes
   const PUBLIC_PREFIXES = ['/_next', '/favicon.ico']
-  const PUBLIC_ROUTES = ['/', '/health', '/api/health', '/api/setup/departments']
+  const PUBLIC_ROUTES = ['/', '/health', '/api/health', '/api/setup/departments', '/no-access']
   const isPublic =
     PUBLIC_ROUTES.includes(normalizedPath) ||
     PUBLIC_PREFIXES.some((p) => normalizedPath.startsWith(p))
 
   if (!isPublic) {
     const debug = process.env.NODE_ENV !== 'production'
-    const hasSession = await hasPortalSession({
-      request,
-      appId: 'hrms',
-      portalUrl: process.env.PORTAL_AUTH_URL,
+    const cookieNames = Array.from(new Set([
+      ...getCandidateSessionCookieNames('ecomos'),
+      ...getCandidateSessionCookieNames('hrms'),
+    ]))
+    const cookieHeader = request.headers.get('cookie')
+    const sharedSecret = process.env.PORTAL_AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
+
+    const decoded = await decodePortalSession({
+      cookieHeader,
+      cookieNames,
+      secret: sharedSecret,
       debug,
     })
 
-    if (!hasSession) {
-      // For API routes, return 401 instead of redirect
+    const hasSession = !!decoded
+    const hrmsEntitlement = decoded ? getAppEntitlement(decoded.roles, 'hrms') : undefined
+    const hasAccess = hasSession && !!hrmsEntitlement
+
+    if (!hasAccess) {
+      // For API routes, return 401/403 instead of redirect
       if (normalizedPath.startsWith('/api/')) {
+        const errorMsg = hasSession ? 'No access to HRMS' : 'Authentication required'
         return NextResponse.json(
-          { error: 'Authentication required' },
-          { status: 401 }
+          { error: errorMsg },
+          { status: hasSession ? 403 : 401 }
         )
       }
 
+      // User has session but no HRMS access - redirect to no-access page
+      if (hasSession && !hrmsEntitlement) {
+        const url = request.nextUrl.clone()
+        url.pathname = basePath ? `${basePath}/no-access` : '/no-access'
+        url.search = ''
+        return NextResponse.redirect(url)
+      }
+
+      // No session at all
       const login = portalUrl('/login', request)
       if (debug) {
         console.log('[hrms middleware] missing session, redirecting to', login.toString())
