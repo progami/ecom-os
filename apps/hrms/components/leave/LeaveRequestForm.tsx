@@ -6,14 +6,14 @@ import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 
 const LEAVE_TYPES = [
-  { value: 'ANNUAL', label: 'Annual Leave' },
-  { value: 'SICK', label: 'Sick Leave' },
-  { value: 'PERSONAL', label: 'Personal Leave' },
-  { value: 'UNPAID', label: 'Unpaid Leave' },
+  { value: 'PTO', label: 'PTO (Paid Time Off)' },
   { value: 'MATERNITY', label: 'Maternity Leave' },
   { value: 'PATERNITY', label: 'Paternity Leave' },
-  { value: 'BEREAVEMENT', label: 'Bereavement Leave' },
-  { value: 'COMP_TIME', label: 'Compensatory Time' },
+  { value: 'PARENTAL', label: 'Parental Leave' },
+  { value: 'BEREAVEMENT_IMMEDIATE', label: 'Bereavement (Immediate Family)' },
+  { value: 'BEREAVEMENT_EXTENDED', label: 'Bereavement (Extended Family)' },
+  { value: 'JURY_DUTY', label: 'Jury Duty' },
+  { value: 'UNPAID', label: 'Unpaid Leave' },
 ]
 
 function calculateBusinessDays(startDate: string, endDate: string): number {
@@ -42,7 +42,7 @@ type LeaveRequestFormProps = {
 }
 
 export function LeaveRequestForm({ employeeId, onSuccess, onCancel }: LeaveRequestFormProps) {
-  const [leaveType, setLeaveType] = useState('ANNUAL')
+  const [leaveType, setLeaveType] = useState('PTO')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [reason, setReason] = useState('')
