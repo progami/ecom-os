@@ -7,39 +7,6 @@ import { Prisma } from '@ecom-os/prisma-wms'
 
 export const dynamic = 'force-dynamic'
 
-// DELETE all storage ledger entries (admin only)
-export async function DELETE(request: NextRequest) {
-  try {
-    const rateLimitResponse = await checkRateLimit(request, rateLimitConfigs.api)
-    if (rateLimitResponse) return rateLimitResponse
-
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Only admin can delete storage ledger entries
-    if (session.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Access denied' }, { status: 403 })
-    }
-
-    // Delete all storage ledger entries
-    const result = await prisma.storageLedger.deleteMany({})
-
-    return NextResponse.json({
-      success: true,
-      deletedCount: result.count,
-      message: `Deleted ${result.count} storage ledger entries`
-    })
-  } catch (error) {
-    console.error('Storage ledger DELETE error:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete storage ledger entries' },
-      { status: 500 }
-    )
-  }
-}
-
 export async function GET(request: NextRequest) {
  try {
  // Rate limiting
