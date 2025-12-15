@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { DisciplinaryActionsApi, type DisciplinaryAction } from '@/lib/api-client'
-import { ShieldExclamationIcon, PencilIcon, TrashIcon } from '@/components/ui/Icons'
+import { ShieldExclamationIcon, PencilIcon, TrashIcon, CheckCircleIcon, ClockIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardDivider } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -105,6 +105,16 @@ function SeverityBadge({ severity }: { severity: string }) {
   )
 }
 
+type AcknowledgmentStatus = {
+  employeeAcknowledged: boolean
+  employeeAcknowledgedAt: string | null
+  managerAcknowledged: boolean
+  managerAcknowledgedAt: string | null
+  canAcknowledgeAsEmployee: boolean
+  canAcknowledgeAsManager: boolean
+  fullyAcknowledged: boolean
+}
+
 export default function ViewDisciplinaryPage() {
   const router = useRouter()
   const params = useParams()
@@ -114,12 +124,21 @@ export default function ViewDisciplinaryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [ackStatus, setAckStatus] = useState<AcknowledgmentStatus | null>(null)
+  const [acknowledging, setAcknowledging] = useState(false)
 
   useEffect(() => {
     async function load() {
       try {
         const data = await DisciplinaryActionsApi.get(id)
         setAction(data)
+
+        // Load acknowledgment status
+        const ackRes = await fetch(`/api/disciplinary-actions/${id}/acknowledge`)
+        if (ackRes.ok) {
+          const ackData = await ackRes.json()
+          setAckStatus(ackData)
+        }
       } catch (e: any) {
         setError(e.message || 'Failed to load record')
       } finally {
@@ -128,6 +147,31 @@ export default function ViewDisciplinaryPage() {
     }
     load()
   }, [id])
+
+  async function handleAcknowledge() {
+    setAcknowledging(true)
+    try {
+      const res = await fetch(`/api/disciplinary-actions/${id}/acknowledge`, {
+        method: 'POST',
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to acknowledge')
+      }
+      const data = await res.json()
+      setAction(data)
+
+      // Reload acknowledgment status
+      const ackRes = await fetch(`/api/disciplinary-actions/${id}/acknowledge`)
+      if (ackRes.ok) {
+        setAckStatus(await ackRes.json())
+      }
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setAcknowledging(false)
+    }
+  }
 
   async function handleDelete() {
     if (!confirm('Are you sure you want to delete this disciplinary record?')) return
@@ -287,6 +331,86 @@ export default function ViewDisciplinaryPage() {
             </dl>
           </Card>
         )}
+
+        {/* Acknowledgment Status Card */}
+        <Card padding="lg">
+          <h3 className="text-lg font-medium text-slate-900 mb-4">Acknowledgment Status</h3>
+          {ackStatus ? (
+            <div className="space-y-4">
+              {/* Employee Acknowledgment */}
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  {ackStatus.employeeAcknowledged ? (
+                    <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <ClockIcon className="h-5 w-5 text-amber-500" />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">Employee Acknowledgment</p>
+                    <p className="text-xs text-slate-500">
+                      {ackStatus.employeeAcknowledged
+                        ? `Acknowledged on ${formatDate(ackStatus.employeeAcknowledgedAt)}`
+                        : 'Pending acknowledgment'}
+                    </p>
+                  </div>
+                </div>
+                {ackStatus.canAcknowledgeAsEmployee && (
+                  <Button
+                    size="sm"
+                    onClick={handleAcknowledge}
+                    loading={acknowledging}
+                    icon={<CheckCircleIcon className="h-4 w-4" />}
+                  >
+                    Acknowledge
+                  </Button>
+                )}
+              </div>
+
+              {/* Manager Acknowledgment */}
+              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  {ackStatus.managerAcknowledged ? (
+                    <CheckCircleIcon className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <ClockIcon className="h-5 w-5 text-amber-500" />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">Manager Acknowledgment</p>
+                    <p className="text-xs text-slate-500">
+                      {ackStatus.managerAcknowledged
+                        ? `Acknowledged on ${formatDate(ackStatus.managerAcknowledgedAt)}`
+                        : 'Pending acknowledgment'}
+                    </p>
+                  </div>
+                </div>
+                {ackStatus.canAcknowledgeAsManager && (
+                  <Button
+                    size="sm"
+                    onClick={handleAcknowledge}
+                    loading={acknowledging}
+                    icon={<CheckCircleIcon className="h-4 w-4" />}
+                  >
+                    Acknowledge
+                  </Button>
+                )}
+              </div>
+
+              {/* Overall Status */}
+              {ackStatus.fullyAcknowledged && (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <CheckCircleIcon className="h-5 w-5 text-green-600" />
+                    <p className="text-sm font-medium text-green-800">
+                      Fully acknowledged by both employee and manager
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-slate-500">Loading acknowledgment status...</p>
+          )}
+        </Card>
 
         <div className="flex justify-end gap-3">
           <Button

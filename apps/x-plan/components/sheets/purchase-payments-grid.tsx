@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { HotTable } from '@handsontable/react'
+import { HotTable } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
 import Flatpickr from 'react-flatpickr'
 import 'flatpickr/dist/themes/light.css'

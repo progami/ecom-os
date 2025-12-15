@@ -3,7 +3,7 @@ import prisma from '../../../../lib/prisma'
 import { withRateLimit } from '@/lib/api-helpers'
 
 // Departments to exclude from the organogram hierarchy view
-const EXCLUDED_DEPARTMENTS = ['executive', 'executive supervision', 'general']
+const EXCLUDED_DEPARTMENTS = ['executive supervision', 'general']
 
 export async function GET(req: Request) {
   const rateLimitError = withRateLimit(req)

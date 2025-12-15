@@ -25,14 +25,15 @@ function ProjectCard({
   hasMembers,
   isExpanded,
   onToggle,
+  memberCount,
 }: {
   project: Project
   hasMembers: boolean
   isExpanded: boolean
   onToggle: () => void
+  memberCount: number
 }) {
   const hasLead = !!project.lead
-  const memberCount = project._count?.members ?? 0
   const statusStyle = statusColors[project.status] ?? statusColors.ACTIVE
 
   return (
@@ -128,11 +129,7 @@ function MemberCard({
       >
         {member.employee.firstName} {member.employee.lastName}
       </Link>
-      {member.role && (
-        <p className="text-[10px] text-cyan-600 text-center mt-0.5 font-medium">{member.role}</p>
-      )}
       <p className="text-[10px] text-slate-500 text-center">{member.employee.position}</p>
-      <p className="text-[10px] text-slate-400 text-center">{member.employee.department}</p>
     </div>
   )
 }
@@ -147,7 +144,9 @@ function ProjectNode({
   expandedNodes: Set<string>
   toggleNode: (id: string) => void
 }) {
-  const hasMembers = (project.members?.length ?? 0) > 0
+  // Filter out the lead from members to avoid duplication
+  const otherMembers = project.members?.filter(m => m.employee.id !== project.leadId) ?? []
+  const hasOtherMembers = otherMembers.length > 0
   const isExpanded = expandedNodes.has(project.id)
 
   return (
@@ -155,23 +154,24 @@ function ProjectNode({
       {/* Project Card */}
       <ProjectCard
         project={project}
-        hasMembers={hasMembers}
+        hasMembers={hasOtherMembers}
         isExpanded={isExpanded}
         onToggle={() => toggleNode(project.id)}
+        memberCount={otherMembers.length}
       />
 
       {/* Members */}
-      {hasMembers && isExpanded && (
+      {hasOtherMembers && isExpanded && (
         <div className="flex flex-col items-center mt-10">
           {/* Vertical line down from project */}
           <div className="w-0.5 h-8 bg-gradient-to-b from-cyan-300 to-slate-300 rounded-full" />
 
           {/* Horizontal connector line */}
-          {(project.members?.length ?? 0) > 1 && (
+          {otherMembers.length > 1 && (
             <div
               className="h-0.5 bg-slate-300 rounded-full"
               style={{
-                width: `calc(${((project.members?.length ?? 1) - 1) * 180}px)`,
+                width: `calc(${(otherMembers.length - 1) * 180}px)`,
                 marginBottom: '-1px'
               }}
             />
@@ -179,7 +179,7 @@ function ProjectNode({
 
           {/* Members row */}
           <div className="flex gap-4 flex-wrap justify-center">
-            {project.members?.map((member) => (
+            {otherMembers.map((member) => (
               <div key={member.id} className="flex flex-col items-center">
                 {/* Vertical line to member */}
                 <div className="w-0.5 h-8 bg-slate-300 rounded-full mb-2" />
