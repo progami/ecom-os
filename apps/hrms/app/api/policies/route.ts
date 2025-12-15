@@ -9,6 +9,7 @@ import {
   RegionEnum,
 } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
+import { publish } from '@/lib/notification-service'
 
 export async function GET(req: Request) {
   // Rate limiting
@@ -122,6 +123,13 @@ export async function POST(req: Request) {
         effectiveDate: data.effectiveDate ? new Date(data.effectiveDate) : null,
         status: data.status,
       },
+    })
+
+    // Publish policy created event (creates company-wide notification)
+    await publish({
+      type: 'POLICY_CREATED',
+      policyId: item.id,
+      policyTitle: item.title,
     })
 
     return NextResponse.json(item, { status: 201 })
