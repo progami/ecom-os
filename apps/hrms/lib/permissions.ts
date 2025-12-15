@@ -276,7 +276,7 @@ export async function getManagerChain(employeeId: string): Promise<string[]> {
     if (visited.has(currentId)) break
     visited.add(currentId)
 
-    const employee = await prisma.employee.findUnique({
+    const employee: { reportsToId: string | null } | null = await prisma.employee.findUnique({
       where: { id: currentId },
       select: { reportsToId: true }
     })
