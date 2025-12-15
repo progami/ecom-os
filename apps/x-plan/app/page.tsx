@@ -7,5 +7,5 @@ export default async function HomePage({
 }) {
   const params = await searchParams
   const query = params?.year ? `?year=${params.year}` : ''
-  redirect(`/1-product-setup${query}`)
+  redirect(`/0-strategies${query}`)
 }

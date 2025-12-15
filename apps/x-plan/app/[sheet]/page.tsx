@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { OpsPlanningWorkspace } from '@/components/sheets/ops-planning-workspace'
 import { ProductSetupWorkspace } from '@/components/sheets/product-setup-workspace'
+import { StrategiesWorkspace } from '@/components/sheets/strategies-workspace'
 import { SalesPlanningGrid, SalesPlanningFocusControl, SalesPlanningFocusProvider } from '@/components/sheets/sales-planning-grid'
 import { SalesPlanningVisual } from '@/components/sheets/sales-planning-visual'
 import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
@@ -1395,6 +1396,35 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   const getFinancialData = () => loadFinancialData(planningCalendar)
 
   switch (config.slug) {
+    case '0-strategies': {
+      // Type assertion for strategy model (Prisma types are generated but not resolved correctly at build time)
+      const prismaAnyLocal = prisma as unknown as Record<string, any>
+      const strategiesData = await prismaAnyLocal.strategy.findMany({
+        orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
+        include: {
+          _count: {
+            select: {
+              products: true,
+              purchaseOrders: true,
+              salesWeeks: true,
+            },
+          },
+        },
+      })
+      const strategies = strategiesData.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        description: s.description,
+        status: s.status,
+        isDefault: s.isDefault,
+        createdAt: s.createdAt.toISOString(),
+        updatedAt: s.updatedAt.toISOString(),
+        _count: s._count,
+      }))
+      tabularContent = <StrategiesWorkspace strategies={strategies} />
+      visualContent = null
+      break
+    }
     case '1-product-setup': {
       const view = await getProductSetupView()
       tabularContent = (

@@ -90,6 +90,7 @@ const updateSchema = z.object({
 })
 
 const createSchema = z.object({
+  strategyId: z.string().min(1),
   productId: z.string().min(1),
   orderCode: z.string().trim().min(1).optional(),
   poDate: z.string().trim().optional(),
@@ -172,17 +173,29 @@ export async function PUT(request: Request) {
       .map(({ id, values }) => ({ id, orderCode: values.orderCode!.trim() }))
 
     if (orderCodeUpdates.length > 0) {
+      // Get the strategyId from one of the orders being updated
+      const ordersBeingUpdated = await prisma.purchaseOrder.findMany({
+        where: { id: { in: orderCodeUpdates.map((u) => u.id) } },
+        select: { id: true, strategyId: true },
+      }) as unknown as Array<{ id: string; strategyId: string }>
+      const strategyIds = [...new Set(ordersBeingUpdated.map((o) => o.strategyId))]
+
       const existingOrders = await prisma.purchaseOrder.findMany({
         where: {
+          strategyId: { in: strategyIds },
           orderCode: { in: orderCodeUpdates.map((u) => u.orderCode) },
         },
-        select: { id: true, orderCode: true },
-      })
+        select: { id: true, orderCode: true, strategyId: true },
+      }) as unknown as Array<{ id: string; orderCode: string; strategyId: string }>
 
-      // Check if any orderCode would conflict with a different PO
+      // Check if any orderCode would conflict with a different PO in the same strategy
       for (const update of orderCodeUpdates) {
+        const orderBeingUpdated = ordersBeingUpdated.find((o) => o.id === update.id)
         const conflict = existingOrders.find(
-          (existing) => existing.orderCode === update.orderCode && existing.id !== update.id
+          (existing) =>
+            existing.orderCode === update.orderCode &&
+            existing.id !== update.id &&
+            existing.strategyId === orderBeingUpdated?.strategyId
         )
         if (conflict) {
           const errorMessage = `Order code "${update.orderCode}" is already in use by another purchase order.`
@@ -254,9 +267,11 @@ function generateOrderCode() {
   return `PO-${random}`
 }
 
-async function resolveOrderCode(requested?: string) {
+async function resolveOrderCode(strategyId: string, requested?: string) {
   if (requested) {
-    const existing = await prisma.purchaseOrder.findUnique({ where: { orderCode: requested } })
+    const existing = await prisma.purchaseOrder.findUnique({
+      where: { strategyId_orderCode: { strategyId, orderCode: requested } },
+    })
     if (existing) {
       return { error: 'A purchase order with this code already exists.', status: 409 as const }
     }
@@ -265,7 +280,9 @@ async function resolveOrderCode(requested?: string) {
 
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const candidate = generateOrderCode()
-    const conflict = await prisma.purchaseOrder.findUnique({ where: { orderCode: candidate } })
+    const conflict = await prisma.purchaseOrder.findUnique({
+      where: { strategyId_orderCode: { strategyId, orderCode: candidate } },
+    })
     if (!conflict) {
       return { orderCode: candidate }
     }
@@ -282,26 +299,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
-  const { productId, orderCode, quantity, poDate } = parsed.data
+  const { strategyId, productId, orderCode, quantity, poDate } = parsed.data
 
   const productExists = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } })
   if (!productExists) {
     return NextResponse.json({ error: 'Product not found' }, { status: 404 })
   }
 
-  const orderCodeResult = await resolveOrderCode(orderCode)
+  const orderCodeResult = await resolveOrderCode(strategyId, orderCode)
   if ('error' in orderCodeResult) {
     return NextResponse.json({ error: orderCodeResult.error }, { status: orderCodeResult.status })
   }
 
   const stageDefaultsRows = await prisma.businessParameter.findMany({
-    where: { label: { in: STAGE_DEFAULT_LABEL_SET } },
+    where: { strategyId, label: { in: STAGE_DEFAULT_LABEL_SET } },
     select: { label: true, valueNumeric: true },
   })
   const stageDefaults = buildStageDefaultsMap(stageDefaultsRows)
 
   const safeQuantity = quantity ?? 0
   const data = {
+    strategyId,
     productId,
     orderCode: orderCodeResult.orderCode,
     quantity: safeQuantity,

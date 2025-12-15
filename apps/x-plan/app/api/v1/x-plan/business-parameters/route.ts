@@ -9,6 +9,7 @@ type UpdatePayload = {
 }
 
 type CreatePayload = {
+  strategyId: string
   label: string
   valueNumeric?: number
   valueText?: string
@@ -18,6 +19,10 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const payload = body as CreatePayload
+
+    if (!payload?.strategyId) {
+      return NextResponse.json({ error: 'strategyId is required' }, { status: 400 })
+    }
 
     if (!payload?.label) {
       return NextResponse.json({ error: 'Label is required' }, { status: 400 })
@@ -31,12 +36,13 @@ export async function POST(request: Request) {
     const textValue = 'valueText' in payload && payload.valueText != null ? payload.valueText : undefined
 
     const parameter = await prisma.businessParameter.upsert({
-      where: { label: payload.label },
+      where: { strategyId_label: { strategyId: payload.strategyId, label: payload.label } },
       update: {
         ...(numericValue !== undefined ? { valueNumeric: numericValue } : {}),
         ...(textValue !== undefined ? { valueText: textValue } : {}),
       },
       create: {
+        strategyId: payload.strategyId,
         label: payload.label,
         ...(numericValue !== undefined ? { valueNumeric: numericValue } : {}),
         ...(textValue !== undefined ? { valueText: textValue } : {}),
