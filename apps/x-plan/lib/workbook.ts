@@ -2,6 +2,9 @@ import { formatDistanceToNow } from 'date-fns'
 import { SHEETS, type SheetConfig, type SheetSlug } from './sheets'
 import prisma from './prisma'
 
+// Type assertion for models (Prisma types are generated but not resolved correctly at build time)
+const prismaAny = prisma as unknown as Record<string, any>
+
 type AggregateSummary = {
   _count: { id: number }
   _max: { updatedAt: Date | null }
@@ -42,7 +45,11 @@ function latestDate(dates: Array<Date | null | undefined>): Date | undefined {
 
 export async function getWorkbookStatus(): Promise<WorkbookStatus> {
   try {
-    const [productAgg, purchaseOrderAgg, salesAgg, profitAgg, cashAgg, businessAgg] = (await Promise.all([
+    const [strategyAgg, productAgg, purchaseOrderAgg, salesAgg, profitAgg, cashAgg, businessAgg] = (await Promise.all([
+      prismaAny.strategy.aggregate({
+        _count: { id: true },
+        _max: { updatedAt: true },
+      }),
       prisma.product.aggregate({
         _count: { id: true },
         _max: { updatedAt: true },
@@ -74,6 +81,15 @@ export async function getWorkbookStatus(): Promise<WorkbookStatus> {
     const cashUpdatedAt = latestDate([cashAgg._max.updatedAt, businessAgg._max.updatedAt])
 
     const sheetStatus: Record<SheetSlug, WorkbookSheetStatus> = {
+      '0-strategies': {
+        slug: '0-strategies',
+        label: 'Strategies',
+        description: '',
+        recordCount: strategyAgg._count.id,
+        lastUpdated: formatIso(strategyAgg._max.updatedAt),
+        relativeUpdatedAt: formatRelative(strategyAgg._max.updatedAt),
+        status: strategyAgg._count.id > 0 ? 'complete' : 'todo',
+      },
       '1-product-setup': {
         slug: '1-product-setup',
         label: 'Product Setup',

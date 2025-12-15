@@ -1,7 +1,8 @@
 import type { LucideIcon } from 'lucide-react'
-import { ClipboardList, FileSpreadsheet, LineChart, Package, Wallet2 } from 'lucide-react'
+import { ClipboardList, FileSpreadsheet, LineChart, Package, Target, Wallet2 } from 'lucide-react'
 
 export type SheetSlug =
+  | '0-strategies'
   | '1-product-setup'
   | '2-ops-planning'
   | '3-sales-planning'
@@ -16,6 +17,12 @@ export interface SheetConfig {
 }
 
 export const SHEETS: SheetConfig[] = [
+  {
+    slug: '0-strategies',
+    label: 'Strategies',
+    description: '',
+    icon: Target,
+  },
   {
     slug: '1-product-setup',
     label: 'Product Setup',

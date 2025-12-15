@@ -30,6 +30,7 @@ const updateSchema = z.object({
 })
 
 const createSchema = z.object({
+  strategyId: z.string().min(1),
   name: z.string().min(1),
   sku: z.string().min(1),
 })
@@ -53,16 +54,16 @@ function parseNumeric(value: string | null | undefined) {
   return parsed
 }
 
-async function seedSalesWeeksForProduct(productId: string, client: TransactionClient) {
+async function seedSalesWeeksForProduct(productId: string, strategyId: string, client: TransactionClient) {
   const templateProduct = await client.product.findFirst({
-    where: { id: { not: productId } },
+    where: { id: { not: productId }, strategyId },
     orderBy: { createdAt: 'asc' },
     select: { id: true },
   })
 
   let templateWeeks: TemplateWeek[] = templateProduct
     ? ((await client.salesWeek.findMany({
-        where: { productId: templateProduct.id },
+        where: { productId: templateProduct.id, strategyId },
         select: { weekNumber: true, weekDate: true },
         orderBy: { weekNumber: 'asc' },
       })) as TemplateWeek[])
@@ -89,6 +90,7 @@ async function seedSalesWeeksForProduct(productId: string, client: TransactionCl
   await client.salesWeek.createMany({
     data: templateWeeks.map((week) => ({
       productId,
+      strategyId,
       weekNumber: week.weekNumber,
       weekDate: week.weekDate,
     })),
@@ -96,8 +98,18 @@ async function seedSalesWeeksForProduct(productId: string, client: TransactionCl
   })
 }
 
-export async function GET() {
-  const products = await prisma.product.findMany({ orderBy: { name: 'asc' } })
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const strategyId = searchParams.get('strategyId')
+
+  if (!strategyId) {
+    return NextResponse.json({ error: 'strategyId is required' }, { status: 400 })
+  }
+
+  const products = await prisma.product.findMany({
+    where: { strategyId },
+    orderBy: { name: 'asc' },
+  })
   return NextResponse.json({ products })
 }
 
@@ -112,6 +124,7 @@ export async function POST(request: Request) {
   const result = await prisma.$transaction(async (tx: TransactionClient) => {
     const product = await tx.product.create({
       data: {
+        strategyId: parsed.data.strategyId,
         name: parsed.data.name.trim(),
         sku: parsed.data.sku.trim(),
         sellingPrice: new Prisma.Decimal(0),
@@ -125,7 +138,7 @@ export async function POST(request: Request) {
       },
     })
 
-    await seedSalesWeeksForProduct(product.id, tx)
+    await seedSalesWeeksForProduct(product.id, parsed.data.strategyId, tx)
 
     return product
   })

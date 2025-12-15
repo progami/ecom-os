@@ -13,8 +13,9 @@
  */
 
 import { Prisma } from '@ecom-os/prisma-x-plan'
-import type { LogisticsEventType } from '@ecom-os/prisma-x-plan'
 import prisma from '@/lib/prisma'
+
+type LogisticsEventType = 'PRODUCTION_START' | 'PRODUCTION_COMPLETE' | 'INBOUND_DEPARTURE' | 'PORT_ARRIVAL' | 'WAREHOUSE_ARRIVAL' | 'CUSTOM'
 
 const LogisticsEventType = {
   PRODUCTION_START: 'PRODUCTION_START',

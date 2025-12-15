@@ -7,6 +7,7 @@ import { getCalendarDateForWeek } from '@/lib/calculations/calendar'
 const editableFields = ['units', 'revenue', 'cogs', 'amazonFees', 'ppcSpend', 'fixedCosts'] as const
 
 const updateSchema = z.object({
+  strategyId: z.string().min(1),
   updates: z.array(
     z.object({
       weekNumber: z.number().int().min(1),
@@ -46,6 +47,8 @@ export async function PUT(request: Request) {
     )
   }
 
+  const { strategyId } = parsed.data
+
   await prisma.$transaction(
     parsed.data.updates.map(({ weekNumber, values }) => {
       const data: Record<string, number | null> = {}
@@ -54,13 +57,13 @@ export async function PUT(request: Request) {
         data[field] = parseNumber(values[field])
       }
       if (Object.keys(data).length === 0) {
-        return prisma.profitAndLossWeek.findFirst({ where: { weekNumber } })
+        return prisma.profitAndLossWeek.findFirst({ where: { strategyId, weekNumber } })
       }
       const weekDate = getCalendarDateForWeek(weekNumber, planning.calendar)
       return prisma.profitAndLossWeek.upsert({
-        where: { weekNumber },
+        where: { strategyId_weekNumber: { strategyId, weekNumber } },
         update: data,
-        create: { weekNumber, weekDate, ...data }
+        create: { strategyId, weekNumber, weekDate, ...data }
       })
     })
   )
