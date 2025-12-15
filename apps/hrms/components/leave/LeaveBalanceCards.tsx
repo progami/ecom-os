@@ -30,7 +30,10 @@ type LeaveBalanceCardsProps = {
 }
 
 export function LeaveBalanceCards({ balances }: LeaveBalanceCardsProps) {
-  if (!balances || balances.length === 0) {
+  // Filter out UNPAID since it's unlimited and not a real "balance"
+  const filteredBalances = balances.filter(b => b.leaveType !== 'UNPAID')
+
+  if (!filteredBalances || filteredBalances.length === 0) {
     return (
       <div className="text-center py-8">
         <CalendarDaysIcon className="h-10 w-10 text-slate-300 mx-auto mb-2" />
@@ -41,7 +44,7 @@ export function LeaveBalanceCards({ balances }: LeaveBalanceCardsProps) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {balances.map((balance) => {
+      {filteredBalances.map((balance) => {
         const colors = LEAVE_TYPE_COLORS[balance.leaveType] || LEAVE_TYPE_COLORS.UNPAID
         const label = LEAVE_TYPE_LABELS[balance.leaveType] || balance.leaveType.replace(/_/g, ' ')
         const available = balance.available
