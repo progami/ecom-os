@@ -152,7 +152,7 @@ model PurchaseOrder {
   overrideStoragePerMonth   Decimal?               @db.Decimal(10, 2)
   strategy                  Strategy               @relation(fields: [strategyId], references: [id], onDelete: Cascade)
   logisticsEvents           LogisticsEvent[]
-  product                   Product                @relation(fields: [productId], references: [id])
+  product                   Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
   batchTableRows            BatchTableRow[]
   payments                  PurchaseOrderPayment[]
 
@@ -178,7 +178,7 @@ model BatchTableRow {
   overrideStoragePerMonth   Decimal?      @db.Decimal(10, 2)
   createdAt                 DateTime      @default(now())
   updatedAt                 DateTime      @updatedAt
-  product                   Product       @relation(fields: [productId], references: [id])
+  product                   Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
   purchaseOrder             PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
 
   @@index([purchaseOrderId])
