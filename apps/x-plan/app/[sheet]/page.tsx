@@ -1465,6 +1465,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       const view = await getProductSetupView(strategyId)
       tabularContent = (
         <ProductSetupWorkspace
+          strategyId={strategyId}
           products={view.products}
           operationsParameters={view.operationsParameters}
           salesParameters={view.salesParameters}
