@@ -7,6 +7,7 @@ import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 import { withAppBasePath } from '@/lib/base-path'
 
 interface ProductSetupGridProps {
+  strategyId: string
   products: Array<{ id: string; sku: string; name: string }>
   className?: string
 }
@@ -27,7 +28,7 @@ function normalizeProducts(products: ProductSetupGridProps['products']): Product
     .sort((a, b) => a.name.localeCompare(b.name))
 }
 
-export function ProductSetupGrid({ products, className }: ProductSetupGridProps) {
+export function ProductSetupGrid({ strategyId, products, className }: ProductSetupGridProps) {
   const initialRows = useMemo(() => normalizeProducts(products), [products])
   const [rows, setRows] = useState<ProductRow[]>(initialRows)
   const [creatingSku, setCreatingSku] = useState('')
@@ -62,7 +63,7 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
       const response = await fetch(withAppBasePath('/api/v1/x-plan/products'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sku, name }),
+        body: JSON.stringify({ strategyId, sku, name }),
       })
       if (!response.ok) throw new Error('Failed to create product')
       const payload = await response.json()

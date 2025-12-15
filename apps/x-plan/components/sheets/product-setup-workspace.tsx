@@ -15,6 +15,7 @@ import { usePersistentState } from '@/hooks/usePersistentState'
 type ParameterList = ProductSetupParametersPanelProps['parameters']
 
 type ProductSetupWorkspaceProps = {
+  strategyId: string
   products: Array<{ id: string; sku: string; name: string }>
   operationsParameters: ParameterList
   salesParameters: ParameterList
@@ -56,6 +57,7 @@ const TAB_CONFIG: Array<{
 ]
 
 export function ProductSetupWorkspace({
+  strategyId,
   products,
   operationsParameters,
   salesParameters,
@@ -65,12 +67,12 @@ export function ProductSetupWorkspace({
 
   const tabPanels = useMemo(() => {
     return {
-      catalogue: <ProductSetupGrid products={products} />,
+      catalogue: <ProductSetupGrid strategyId={strategyId} products={products} />,
       operations: <ProductSetupParametersPanel parameterType="ops" parameters={operationsParameters} />,
       sales: <ProductSetupParametersPanel parameterType="sales" parameters={salesParameters} />,
       finance: <ProductSetupParametersPanel parameterType="finance" parameters={financeParameters} />,
     } satisfies Record<TabKey, ReactNode>
-  }, [financeParameters, operationsParameters, products, salesParameters])
+  }, [strategyId, financeParameters, operationsParameters, products, salesParameters])
 
   return (
     <div className="flex gap-6">
