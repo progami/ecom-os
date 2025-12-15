@@ -80,6 +80,14 @@ export async function PUT(request: Request) {
     })
   }
 
+  // If setting this as ACTIVE, set others to DRAFT
+  if (data.status === 'ACTIVE') {
+    await prismaAny.strategy.updateMany({
+      where: { status: 'ACTIVE', id: { not: id } },
+      data: { status: 'DRAFT' },
+    })
+  }
+
   const strategy = await prismaAny.strategy.update({
     where: { id },
     data: {

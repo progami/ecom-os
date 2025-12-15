@@ -3,7 +3,7 @@
 import clsx from 'clsx'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Check, X, Pencil, Trash2, Star, Play, Archive } from 'lucide-react'
+import { Plus, Check, X, Pencil, Trash2, Star } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { withAppBasePath } from '@/lib/base-path'
 
@@ -129,25 +129,25 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
     }
   }
 
-  const handleSetStatus = async (id: string, status: 'DRAFT' | 'ACTIVE' | 'ARCHIVED') => {
+  const handleSelectStrategy = async (id: string) => {
+    // Set this strategy as ACTIVE (API will set others to DRAFT)
     try {
       const response = await fetch(withAppBasePath('/api/v1/x-plan/strategies'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, status }),
+        body: JSON.stringify({ id, status: 'ACTIVE' }),
       })
-      if (!response.ok) throw new Error('Failed to update status')
+      if (!response.ok) throw new Error('Failed to activate strategy')
+
+      // Update local state
       setStrategies((prev) =>
-        prev.map((s) => (s.id === id ? { ...s, status } : s))
+        prev.map((s) => ({ ...s, status: s.id === id ? 'ACTIVE' : 'DRAFT' }))
       )
-      toast.success('Status updated')
     } catch (error) {
       console.error(error)
-      toast.error('Failed to update status')
+      // Still navigate even if status update fails
     }
-  }
 
-  const handleSelectStrategy = (id: string) => {
     router.push(`/1-product-setup?strategy=${id}`)
   }
 
@@ -371,26 +371,6 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
                               className="rounded p-1.5 text-slate-400 transition hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
                             >
                               <Star className="h-4 w-4" />
-                            </button>
-                          )}
-                          {strategy.status === 'DRAFT' && (
-                            <button
-                              type="button"
-                              onClick={() => handleSetStatus(strategy.id, 'ACTIVE')}
-                              title="Activate"
-                              className="rounded p-1.5 text-slate-400 transition hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400"
-                            >
-                              <Play className="h-4 w-4" />
-                            </button>
-                          )}
-                          {strategy.status === 'ACTIVE' && (
-                            <button
-                              type="button"
-                              onClick={() => handleSetStatus(strategy.id, 'ARCHIVED')}
-                              title="Archive"
-                              className="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5"
-                            >
-                              <Archive className="h-4 w-4" />
                             </button>
                           )}
                           <button
