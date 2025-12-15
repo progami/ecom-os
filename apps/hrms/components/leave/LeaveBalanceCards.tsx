@@ -4,25 +4,25 @@ import { type LeaveBalance } from '@/lib/api-client'
 import { CalendarDaysIcon } from '@/components/ui/Icons'
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
-  ANNUAL: 'Annual Leave',
-  SICK: 'Sick Leave',
-  PERSONAL: 'Personal Leave',
-  UNPAID: 'Unpaid Leave',
-  MATERNITY: 'Maternity Leave',
-  PATERNITY: 'Paternity Leave',
-  BEREAVEMENT: 'Bereavement',
-  COMP_TIME: 'Comp Time',
+  PTO: 'PTO',
+  MATERNITY: 'Maternity',
+  PATERNITY: 'Paternity',
+  PARENTAL: 'Parental',
+  BEREAVEMENT_IMMEDIATE: 'Bereavement (Immediate)',
+  BEREAVEMENT_EXTENDED: 'Bereavement (Extended)',
+  JURY_DUTY: 'Jury Duty',
+  UNPAID: 'Unpaid',
 }
 
 const LEAVE_TYPE_COLORS: Record<string, { bg: string; text: string; progress: string }> = {
-  ANNUAL: { bg: 'bg-cyan-50', text: 'text-cyan-700', progress: 'bg-cyan-500' },
-  SICK: { bg: 'bg-rose-50', text: 'text-rose-700', progress: 'bg-rose-500' },
-  PERSONAL: { bg: 'bg-violet-50', text: 'text-violet-700', progress: 'bg-violet-500' },
-  UNPAID: { bg: 'bg-slate-50', text: 'text-slate-700', progress: 'bg-slate-500' },
+  PTO: { bg: 'bg-cyan-50', text: 'text-cyan-700', progress: 'bg-cyan-500' },
   MATERNITY: { bg: 'bg-pink-50', text: 'text-pink-700', progress: 'bg-pink-500' },
   PATERNITY: { bg: 'bg-blue-50', text: 'text-blue-700', progress: 'bg-blue-500' },
-  BEREAVEMENT: { bg: 'bg-amber-50', text: 'text-amber-700', progress: 'bg-amber-500' },
-  COMP_TIME: { bg: 'bg-emerald-50', text: 'text-emerald-700', progress: 'bg-emerald-500' },
+  PARENTAL: { bg: 'bg-violet-50', text: 'text-violet-700', progress: 'bg-violet-500' },
+  BEREAVEMENT_IMMEDIATE: { bg: 'bg-amber-50', text: 'text-amber-700', progress: 'bg-amber-500' },
+  BEREAVEMENT_EXTENDED: { bg: 'bg-orange-50', text: 'text-orange-700', progress: 'bg-orange-500' },
+  JURY_DUTY: { bg: 'bg-slate-50', text: 'text-slate-700', progress: 'bg-slate-500' },
+  UNPAID: { bg: 'bg-slate-50', text: 'text-slate-600', progress: 'bg-slate-400' },
 }
 
 type LeaveBalanceCardsProps = {
@@ -30,7 +30,10 @@ type LeaveBalanceCardsProps = {
 }
 
 export function LeaveBalanceCards({ balances }: LeaveBalanceCardsProps) {
-  if (!balances || balances.length === 0) {
+  // Filter out UNPAID since it's unlimited and not a real "balance"
+  const filteredBalances = balances.filter(b => b.leaveType !== 'UNPAID')
+
+  if (!filteredBalances || filteredBalances.length === 0) {
     return (
       <div className="text-center py-8">
         <CalendarDaysIcon className="h-10 w-10 text-slate-300 mx-auto mb-2" />
@@ -41,7 +44,7 @@ export function LeaveBalanceCards({ balances }: LeaveBalanceCardsProps) {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {balances.map((balance) => {
+      {filteredBalances.map((balance) => {
         const colors = LEAVE_TYPE_COLORS[balance.leaveType] || LEAVE_TYPE_COLORS.UNPAID
         const label = LEAVE_TYPE_LABELS[balance.leaveType] || balance.leaveType.replace(/_/g, ' ')
         const available = balance.available
