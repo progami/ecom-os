@@ -39,7 +39,6 @@ const navigation: NavSection[] = [
   {
     title: 'People',
     items: [
-      { name: 'Employees', href: '/employees', icon: UsersIcon },
       { name: 'Org Chart', href: '/organogram', icon: OrgChartIcon },
     ]
   },
