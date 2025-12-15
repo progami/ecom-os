@@ -1534,6 +1534,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       const view = getProfitAndLossView(data, activeSegment, activeYear)
       tabularContent = (
         <ProfitAndLossGrid
+          strategyId={strategyId}
           weekly={view.weekly}
           monthlySummary={view.monthlySummary}
           quarterlySummary={view.quarterlySummary}
@@ -1586,7 +1587,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       const data = await getFinancialData()
       const view = getCashFlowView(data, activeSegment, activeYear)
       tabularContent = (
-        <CashFlowGrid weekly={view.weekly} />
+        <CashFlowGrid strategyId={strategyId} weekly={view.weekly} />
       )
 
       const cashWeekly = limitRows(data.cash.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment)), 52)

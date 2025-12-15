@@ -29,6 +29,7 @@ type UpdatePayload = {
 }
 
 interface CashFlowGridProps {
+  strategyId: string
   weekly: WeeklyRow[]
 }
 
@@ -50,7 +51,7 @@ function normalizeEditable(value: unknown) {
   return formatNumericInput(value, 2)
 }
 
-export function CashFlowGrid({ weekly }: CashFlowGridProps) {
+export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
 
   const data = useMemo(() => weekly, [weekly])
@@ -133,7 +134,7 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
       const res = await fetch(withAppBasePath('/api/v1/x-plan/cash-flow'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates: payload }),
+        body: JSON.stringify({ strategyId, updates: payload }),
       })
       if (!res.ok) throw new Error('Failed to update cash flow')
       toast.success('Cash flow updated')
@@ -141,7 +142,7 @@ export function CashFlowGrid({ weekly }: CashFlowGridProps) {
       console.error(error)
       toast.error('Unable to save cash flow changes')
     }
-  }, [])
+  }, [strategyId])
 
   const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<number, UpdatePayload>({
     debounceMs: 600,
