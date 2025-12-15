@@ -364,6 +364,35 @@ function isHiddenParameterLabel(label: string) {
   return HIDDEN_PARAMETER_LABELS.has(label.trim().toLowerCase())
 }
 
+async function resolveStrategyId(searchParamStrategy: string | string[] | undefined): Promise<string> {
+  const prismaAny = prisma as unknown as Record<string, any>
+
+  // If strategyId is provided in URL, validate it exists
+  if (typeof searchParamStrategy === 'string' && searchParamStrategy) {
+    const exists = await prismaAny.strategy.findUnique({ where: { id: searchParamStrategy } })
+    if (exists) return searchParamStrategy
+  }
+
+  // Otherwise get the default strategy
+  const defaultStrategy = await prismaAny.strategy.findFirst({
+    where: { isDefault: true },
+    select: { id: true },
+  })
+
+  if (defaultStrategy) return defaultStrategy.id
+
+  // If no default, get the first strategy
+  const firstStrategy = await prismaAny.strategy.findFirst({
+    orderBy: { createdAt: 'asc' },
+    select: { id: true },
+  })
+
+  if (firstStrategy) return firstStrategy.id
+
+  // This should not happen if the database has been migrated
+  throw new Error('No strategies found. Please create a strategy first.')
+}
+
 function columnKey(productIndex: number, metric: SalesMetric) {
   return `p${productIndex}_${metric}`
 }
@@ -396,7 +425,7 @@ function metricHeader(metric: SalesMetric): NestedHeaderCell {
   }
 }
 
-async function getProductSetupView() {
+async function getProductSetupView(strategyId: string) {
   const prismaAny = prisma as unknown as Record<string, unknown>
   const productDelegate = prismaAny.product as { findMany: (args?: unknown) => Promise<Product[]> } | undefined
   const businessParameterDelegate = prismaAny.businessParameter as {
@@ -404,10 +433,10 @@ async function getProductSetupView() {
   } | undefined
 
   const [products, businessParameters] = await Promise.all([
-    safeFindMany<Product[]>(productDelegate, { orderBy: { name: 'asc' } }, [], 'product'),
+    safeFindMany<Product[]>(productDelegate, { where: { strategyId }, orderBy: { name: 'asc' } }, [], 'product'),
     safeFindMany<BusinessParameter[]>(
       businessParameterDelegate,
-      { orderBy: { label: 'asc' } },
+      { where: { strategyId }, orderBy: { label: 'asc' } },
       [],
       'businessParameter',
     ),
@@ -480,7 +509,7 @@ async function getProductSetupView() {
   }
 }
 
-async function loadOperationsContext() {
+async function loadOperationsContext(strategyId: string) {
   const prismaAny = prisma as unknown as Record<string, unknown>
   const productDelegate = prismaAny.product as { findMany: (args?: unknown) => Promise<Product[]> } | undefined
   const leadStageDelegate = prismaAny.leadStageTemplate as {
@@ -504,7 +533,7 @@ async function loadOperationsContext() {
 
   const products = await safeFindMany<Product[]>(
     productDelegate,
-    { orderBy: { name: 'asc' } },
+    { where: { strategyId }, orderBy: { name: 'asc' } },
     [],
     'product',
   )
@@ -525,7 +554,7 @@ async function loadOperationsContext() {
 
   const businessParameters = await safeFindMany<BusinessParameter[]>(
     businessParameterDelegate,
-    { orderBy: { label: 'asc' } },
+    { where: { strategyId }, orderBy: { label: 'asc' } },
     [],
     'businessParameter',
   )
@@ -535,6 +564,7 @@ async function loadOperationsContext() {
   >(
     purchaseOrderDelegate,
     {
+      where: { strategyId },
       orderBy: { orderCode: 'asc' },
       include: {
         payments: { orderBy: { paymentIndex: 'asc' } },
@@ -863,8 +893,8 @@ function deriveOrders(context: Awaited<ReturnType<typeof loadOperationsContext>>
     )
 }
 
-async function loadFinancialData(planning: PlanningCalendar) {
-  const operations = await loadOperationsContext()
+async function loadFinancialData(planning: PlanningCalendar, strategyId: string) {
+  const operations = await loadOperationsContext(strategyId)
   const derivedOrders = deriveOrders(operations)
   const salesPlan = computeSalesPlan(planning.salesWeeks, derivedOrders.map((item) => item.derived), {
     productIds: operations.productInputs.map((product) => product.id),
@@ -880,13 +910,13 @@ async function loadFinancialData(planning: PlanningCalendar) {
 
   const profitOverrideRows = await safeFindMany<ProfitAndLossWeek[]>(
     profitDelegate,
-    { orderBy: { weekNumber: 'asc' } },
+    { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
     [],
     'profitAndLossWeek',
   )
   const cashOverrideRows = await safeFindMany<CashFlowWeek[]>(
     cashDelegate,
-    { orderBy: { weekNumber: 'asc' } },
+    { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
     [],
     'cashFlowWeek',
   )
@@ -913,7 +943,7 @@ async function loadFinancialData(planning: PlanningCalendar) {
 
 type FinancialData = Awaited<ReturnType<typeof loadFinancialData>>
 
-async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: YearSegment | null): Promise<{
+async function getOpsPlanningView(strategyId: string, planning?: PlanningCalendar, activeSegment?: YearSegment | null): Promise<{
   poTableRows: OpsInputRow[]
   batchTableRows: Array<{
     id: string
@@ -938,7 +968,7 @@ async function getOpsPlanningView(planning?: PlanningCalendar, activeSegment?: Y
   calculator: OpsPlanningCalculatorPayload
   timelineMonths: { start: string; end: string; label: string }[]
 }> {
-  const context = await loadOperationsContext()
+  const context = await loadOperationsContext(strategyId)
   const { rawPurchaseOrders } = context
 
   const derivedOrders = deriveOrders(context)
@@ -1377,12 +1407,18 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   const config = getSheetConfig(routeParams.sheet)
   if (!config) notFound()
 
+  const parsedSearch = rawSearchParams as Record<string, string | string[] | undefined>
+
+  // Resolve strategyId from URL or get default (skip for strategies page itself)
+  const strategyId = config.slug === '0-strategies'
+    ? ''
+    : await resolveStrategyId(parsedSearch.strategy)
+
   const [workbookStatus, planningCalendar] = await Promise.all([
     getWorkbookStatus(),
     loadPlanningCalendar(),
   ])
   const sheetStatus = workbookStatus.sheets.find((item) => item.slug === config.slug)
-  const parsedSearch = rawSearchParams as Record<string, string | string[] | undefined>
   const activeYear = resolveActiveYear(parsedSearch.year, planningCalendar.yearSegments)
   const activeSegment = findYearSegment(activeYear, planningCalendar.yearSegments)
   const viewMode = resolveViewMode(parsedSearch.view)
@@ -1393,7 +1429,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   let tabularContent: React.ReactNode = null
   let visualContent: React.ReactNode = null
 
-  const getFinancialData = () => loadFinancialData(planningCalendar)
+  const getFinancialData = () => loadFinancialData(planningCalendar, strategyId)
 
   switch (config.slug) {
     case '0-strategies': {
@@ -1426,7 +1462,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       break
     }
     case '1-product-setup': {
-      const view = await getProductSetupView()
+      const view = await getProductSetupView(strategyId)
       tabularContent = (
         <ProductSetupWorkspace
           products={view.products}
@@ -1440,7 +1476,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       break
     }
     case '2-ops-planning': {
-      const view = await getOpsPlanningView(planningCalendar, activeSegment)
+      const view = await getOpsPlanningView(strategyId, planningCalendar, activeSegment)
       tabularContent = (
         <OpsPlanningWorkspace
           poTableRows={view.poTableRows}
