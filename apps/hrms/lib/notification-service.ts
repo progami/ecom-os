@@ -1,5 +1,6 @@
 import { prisma } from './prisma'
 import { NotificationType } from '@ecom-os/prisma-hrms'
+import { sendNotificationEmail } from './email-service'
 
 // ============ PUB/SUB EVENT SYSTEM ============
 
@@ -99,14 +100,14 @@ async function createNotificationFromEvent(event: HRMSEvent): Promise<void> {
       // Notify the employee and their manager
       const employee = await prisma.employee.findUnique({
         where: { id: event.employeeId },
-        select: { reportsToId: true }
+        select: { reportsToId: true, email: true, firstName: true }
       })
 
       await prisma.notification.create({
         data: {
           type: 'DISCIPLINARY_CREATED' as NotificationType,
-          title: 'Disciplinary Action Recorded',
-          message: `A ${event.severity.toLowerCase()} disciplinary action has been recorded.`,
+          title: 'Violation Recorded - Acknowledgment Required',
+          message: `A ${event.severity.toLowerCase()} violation has been recorded. Please acknowledge this record.`,
           link: `/performance/disciplinary/${event.actionId}`,
           employeeId: event.employeeId,
           relatedId: event.actionId,
@@ -114,19 +115,44 @@ async function createNotificationFromEvent(event: HRMSEvent): Promise<void> {
         },
       })
 
+      // Send email to employee
+      if (employee?.email) {
+        await sendNotificationEmail(
+          employee.email,
+          employee.firstName,
+          'VIOLATION_RECORDED',
+          `/performance/disciplinary/${event.actionId}`
+        )
+      }
+
       // Also notify manager if exists
       if (employee?.reportsToId) {
+        const manager = await prisma.employee.findUnique({
+          where: { id: employee.reportsToId },
+          select: { email: true, firstName: true }
+        })
+
         await prisma.notification.create({
           data: {
             type: 'DISCIPLINARY_CREATED' as NotificationType,
-            title: 'Team Member Disciplinary Action',
-            message: `A disciplinary action has been recorded for a team member.`,
+            title: 'Team Member Violation - Acknowledgment Required',
+            message: `A violation has been recorded for a team member. Please review and acknowledge.`,
             link: `/performance/disciplinary/${event.actionId}`,
             employeeId: employee.reportsToId,
             relatedId: event.actionId,
             relatedType: 'DISCIPLINARY',
           },
         })
+
+        // Send email to manager
+        if (manager?.email) {
+          await sendNotificationEmail(
+            manager.email,
+            manager.firstName,
+            'VIOLATION_ACKNOWLEDGE_REQUIRED',
+            `/performance/disciplinary/${event.actionId}`
+          )
+        }
       }
       break
     }
