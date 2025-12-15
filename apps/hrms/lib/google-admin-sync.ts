@@ -35,6 +35,7 @@ export async function syncGoogleAdminUsers(): Promise<SyncResult> {
       googleId: string | null
       email: string
       employeeId: string
+      nameLocalOverride: boolean
       departmentLocalOverride: boolean
       positionLocalOverride: boolean
     }
@@ -44,6 +45,7 @@ export async function syncGoogleAdminUsers(): Promise<SyncResult> {
         googleId: true,
         email: true,
         employeeId: true,
+        nameLocalOverride: true,
         departmentLocalOverride: true,
         positionLocalOverride: true,
       }
@@ -71,11 +73,9 @@ export async function syncGoogleAdminUsers(): Promise<SyncResult> {
         const existingByEmail = employeeByEmail.get(email)
         const existing = existingByGoogleId || existingByEmail
 
-        // Base data that always syncs from Google
-        const baseData = {
+        // Base data that always syncs from Google (except overridden fields)
+        const baseData: Record<string, unknown> = {
           googleId: gUser.id,
-          firstName: gUser.name?.givenName || gUser.primaryEmail.split('@')[0],
-          lastName: gUser.name?.familyName || '',
           email: gUser.primaryEmail,
           phone: gUser.phones?.[0]?.value || null,
           avatar: gUser.thumbnailPhotoUrl || null,
@@ -86,6 +86,12 @@ export async function syncGoogleAdminUsers(): Promise<SyncResult> {
           const updateData: Record<string, unknown> = {
             ...baseData,
             status: 'ACTIVE',
+          }
+
+          // Only update name if local override is NOT set
+          if (!existing.nameLocalOverride) {
+            updateData.firstName = gUser.name?.givenName || gUser.primaryEmail.split('@')[0]
+            updateData.lastName = gUser.name?.familyName || ''
           }
 
           // Only update department if local override is NOT set AND Google has a value
@@ -108,13 +114,19 @@ export async function syncGoogleAdminUsers(): Promise<SyncResult> {
           maxEmployeeNum++
           await prisma.employee.create({
             data: {
-              ...baseData,
+              googleId: gUser.id,
+              email: gUser.primaryEmail,
+              phone: gUser.phones?.[0]?.value || null,
+              avatar: gUser.thumbnailPhotoUrl || null,
+              firstName: gUser.name?.givenName || gUser.primaryEmail.split('@')[0],
+              lastName: gUser.name?.familyName || '',
               department: gUser.organizations?.[0]?.department || '',
               position: gUser.organizations?.[0]?.title || 'Employee',
               employeeId: generateEmployeeId(maxEmployeeNum),
               employmentType: 'FULL_TIME',
               joinDate: new Date(gUser.creationTime),
               status: 'ACTIVE',
+              nameLocalOverride: false,
               departmentLocalOverride: false,
               positionLocalOverride: false,
             },

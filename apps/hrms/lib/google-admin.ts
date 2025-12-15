@@ -129,6 +129,8 @@ export async function updateUser(
 export async function patchUser(
   userKey: string,
   updates: {
+    firstName?: string
+    lastName?: string
     department?: string
     title?: string
     phone?: string
@@ -140,9 +142,18 @@ export async function patchUser(
   // Build the patch payload - only include fields that are provided
   const requestBody: Record<string, unknown> = {}
 
+  // Update name if provided
+  if (updates.firstName !== undefined || updates.lastName !== undefined) {
+    const currentUser = await getUser(userKey)
+    requestBody.name = {
+      givenName: updates.firstName ?? currentUser.name?.givenName ?? '',
+      familyName: updates.lastName ?? currentUser.name?.familyName ?? '',
+    }
+  }
+
   if (updates.department !== undefined || updates.title !== undefined) {
     // First get current org info to preserve existing values
-    const currentUser = await getUser(userKey)
+    const currentUser = requestBody.name ? { organizations: (await getUser(userKey)).organizations } : await getUser(userKey)
     const currentOrg = currentUser.organizations?.[0] || {}
 
     requestBody.organizations = [{
