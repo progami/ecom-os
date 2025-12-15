@@ -294,6 +294,13 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  }
 
  const handleSubmit = async () => {
+	 // Check if we have line items
+	 if (!lineItems || lineItems.length === 0) {
+	   toast.error('Please add at least one line item in the Cargo tab')
+	   setActiveTab('cargo')
+	   return
+	 }
+
 	 if (!formData.shipMode) {
 	 toast.error('Please select an outbound mode')
 	 setActiveTab('details')

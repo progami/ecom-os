@@ -13,7 +13,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ items: [] })
     }
 
-    // Fetch all projects with their leads and member details
+    // Fetch all projects with member details (lead is derived from members with role="Lead")
     const projects = await projectModel.findMany({
       where: {
         status: {
@@ -26,20 +26,8 @@ export async function GET(req: Request) {
         code: true,
         description: true,
         status: true,
-        leadId: true,
         startDate: true,
         endDate: true,
-        lead: {
-          select: {
-            id: true,
-            employeeId: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            position: true,
-            avatar: true,
-          },
-        },
         members: {
           select: {
             id: true,
@@ -67,7 +55,19 @@ export async function GET(req: Request) {
       orderBy: { name: 'asc' },
     })
 
-    return NextResponse.json({ items: projects })
+    // Derive lead from members - find member with role="Lead" (case-insensitive)
+    const projectsWithDerivedLead = projects.map((project: any) => {
+      const leadMember = project.members.find((m: any) =>
+        m.role?.toLowerCase() === 'lead'
+      )
+      return {
+        ...project,
+        leadId: leadMember?.employee?.id || null,
+        lead: leadMember?.employee || null,
+      }
+    })
+
+    return NextResponse.json({ items: projectsWithDerivedLead })
   } catch (e: any) {
     // Handle case where Project table doesn't exist yet
     if (e.code === 'P2021' || e.message?.includes('does not exist')) {
