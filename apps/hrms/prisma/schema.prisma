@@ -41,6 +41,7 @@ model Employee {
   directReports    Employee[]     @relation("EmployeeHierarchy")
 
   // Local override flags for Google sync
+  nameLocalOverride        Boolean @default(false)
   departmentLocalOverride  Boolean @default(false)
   positionLocalOverride    Boolean @default(false)
 

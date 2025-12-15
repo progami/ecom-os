@@ -69,8 +69,16 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
     // Build update object with explicit field whitelist
     const updates: Record<string, unknown> = {}
 
-    if (data.firstName !== undefined) updates.firstName = data.firstName
-    if (data.lastName !== undefined) updates.lastName = data.lastName
+    if (data.firstName !== undefined) {
+      updates.firstName = data.firstName
+      // Auto-set local override flag when name is manually updated
+      updates.nameLocalOverride = true
+    }
+    if (data.lastName !== undefined) {
+      updates.lastName = data.lastName
+      // Auto-set local override flag when name is manually updated
+      updates.nameLocalOverride = true
+    }
     if (data.email !== undefined) updates.email = data.email
     if (data.phone !== undefined) updates.phone = data.phone
     if (data.position !== undefined) {
@@ -139,9 +147,15 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
 
     // Two-way sync: push changes back to Google Admin
     if (isAdminConfigured() && e.email) {
-      const googleUpdates: { department?: string; title?: string; phone?: string } = {}
+      const googleUpdates: { firstName?: string; lastName?: string; department?: string; title?: string; phone?: string } = {}
 
-      // Only sync fields that were explicitly changed and have local override
+      // Only sync fields that were explicitly changed
+      if (data.firstName !== undefined) {
+        googleUpdates.firstName = e.firstName
+      }
+      if (data.lastName !== undefined) {
+        googleUpdates.lastName = e.lastName
+      }
       if (data.department !== undefined || data.departmentName !== undefined) {
         googleUpdates.department = e.department
       }
