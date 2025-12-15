@@ -10,6 +10,8 @@ import {
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canManageEmployee } from '@/lib/permissions'
+import { getReviewWeights, calculateValuesScore, applyValuesVeto } from '@/lib/standing'
+import { publish } from '@/lib/notification-service'
 
 export async function GET(req: Request) {
   const rateLimitError = withRateLimit(req)
@@ -124,6 +126,28 @@ export async function POST(req: Request) {
       )
     }
 
+    // Calculate values score if values-based ratings are provided
+    let valuesScore: number | null = null
+    let valuesVetoApplied = false
+    let valuesVetoReason: string | null = null
+
+    if (data.ratingPrecision || data.ratingTransparency || data.ratingReliability || data.ratingInitiative) {
+      const weights = await getReviewWeights(data.employeeId)
+      const rawScore = calculateValuesScore({
+        ratingPrecision: data.ratingPrecision,
+        ratingTransparency: data.ratingTransparency,
+        ratingReliability: data.ratingReliability,
+        ratingInitiative: data.ratingInitiative,
+      }, weights)
+
+      if (rawScore !== null) {
+        const vetoResult = applyValuesVeto(rawScore, data.ratingTransparency, data.ratingReliability)
+        valuesScore = vetoResult.score
+        valuesVetoApplied = vetoResult.vetoApplied
+        valuesVetoReason = vetoResult.reason || null
+      }
+    }
+
     const item = await prisma.performanceReview.create({
       data: {
         employeeId: data.employeeId,
@@ -138,6 +162,23 @@ export async function POST(req: Request) {
         teamwork: data.teamwork ?? null,
         initiative: data.initiative ?? null,
         attendance: data.attendance ?? null,
+        // Values-based ratings
+        ratingPrecision: data.ratingPrecision ?? null,
+        ratingTransparency: data.ratingTransparency ?? null,
+        ratingReliability: data.ratingReliability ?? null,
+        ratingInitiative: data.ratingInitiative ?? null,
+        // Self-assessment ratings
+        selfRatingPrecision: data.selfRatingPrecision ?? null,
+        selfRatingTransparency: data.selfRatingTransparency ?? null,
+        selfRatingReliability: data.selfRatingReliability ?? null,
+        selfRatingInitiative: data.selfRatingInitiative ?? null,
+        // Computed values
+        valuesScore,
+        valuesVetoApplied,
+        valuesVetoReason,
+        // Justifications
+        lowHonestyJustification: data.lowHonestyJustification ?? null,
+        lowIntegrityJustification: data.lowIntegrityJustification ?? null,
         strengths: data.strengths ?? null,
         areasToImprove: data.areasToImprove ?? null,
         goals: data.goals ?? null,
@@ -155,6 +196,16 @@ export async function POST(req: Request) {
         },
       },
     })
+
+    // Publish notification if review is completed
+    if (data.status === 'COMPLETED' || data.status === 'PENDING_REVIEW') {
+      await publish({
+        type: 'REVIEW_SUBMITTED',
+        reviewId: item.id,
+        employeeId: data.employeeId,
+        reviewerName: data.reviewerName,
+      })
+    }
 
     return NextResponse.json(item, { status: 201 })
   } catch (e) {

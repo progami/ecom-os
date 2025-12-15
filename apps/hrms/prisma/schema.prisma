@@ -44,6 +44,11 @@ model Employee {
   departmentLocalOverride  Boolean @default(false)
   positionLocalOverride    Boolean @default(false)
 
+  // Permission level: 0=regular, 50=manager, 100=super admin (root)
+  permissionLevel  Int             @default(0)
+  // Whether this employee is the super admin (root of the tree)
+  isSuperAdmin     Boolean         @default(false)
+
   salary           Float?
   currency         String          @default("USD")
 
@@ -68,6 +73,7 @@ model Employee {
   @@index([departmentId])
   @@index([status])
   @@index([reportsToId])
+  @@index([isSuperAdmin])
 }
 
 model EmployeeFile {
@@ -237,6 +243,34 @@ enum NotificationType {
   ANNOUNCEMENT
   SYSTEM
   PROFILE_INCOMPLETE
+  REVIEW_SUBMITTED
+  REVIEW_ACKNOWLEDGED
+  DISCIPLINARY_CREATED
+  DISCIPLINARY_UPDATED
+  HIERARCHY_CHANGED
+  STANDING_CHANGED
+}
+
+// ============ CORE VALUES SYSTEM ============
+
+enum CoreValue {
+  ATTENTION_TO_DETAIL  // Quality & Precision (40%)
+  HONESTY              // Communication & Transparency (20%)
+  INTEGRITY            // Reliability & Ethics (20%)
+  COURAGE              // Ownership & Initiative (20%)
+}
+
+enum ValueBreach {
+  BREACH_OF_DETAIL     // Recurring mistakes, sloppy work - Training issue
+  BREACH_OF_HONESTY    // Lying, falsifying records - Character issue
+  BREACH_OF_INTEGRITY  // Theft, harassment, toxic behavior - Zero tolerance
+  BREACH_OF_COURAGE    // Avoiding difficult tasks, hiding bad news - Coaching issue
+}
+
+enum EmployeeStanding {
+  GREEN   // Role Model - No violations, review > 3.5, Honesty/Integrity > 3
+  YELLOW  // Misaligned/Coaching - Minor violation or review 2.5-3.5
+  RED     // Cultural Mismatch - Honesty/Integrity violation or review < 2.5
 }
 
 enum EmploymentType {
@@ -296,7 +330,7 @@ model PerformanceReview {
   reviewDate      DateTime
   reviewerName    String
 
-  // Ratings (1-5 scale)
+  // Legacy ratings (1-5 scale) - kept for backwards compatibility
   overallRating   Int                 // 1-5
   qualityOfWork   Int?                // 1-5
   productivity    Int?                // 1-5
@@ -304,6 +338,28 @@ model PerformanceReview {
   teamwork        Int?                // 1-5
   initiative      Int?                // 1-5
   attendance      Int?                // 1-5
+
+  // Values-based ratings (1-5 scale) - Core Values System
+  ratingPrecision     Int?            // Attention to Detail (40% weight)
+  ratingTransparency  Int?            // Honesty - Communication & Transparency (20% weight)
+  ratingReliability   Int?            // Integrity - Reliability & Ethics (20% weight)
+  ratingInitiative    Int?            // Courage - Ownership & Initiative (20% weight)
+
+  // Self-assessment ratings (employee fills these)
+  selfRatingPrecision     Int?
+  selfRatingTransparency  Int?
+  selfRatingReliability   Int?
+  selfRatingInitiative    Int?
+
+  // Computed values score (weighted average, may be capped by Values Veto)
+  valuesScore         Float?
+  // Whether the Values Veto was applied (Honesty/Integrity < 3)
+  valuesVetoApplied   Boolean         @default(false)
+  valuesVetoReason    String?         // Explanation if veto applied
+
+  // Required justification for low core values scores
+  lowHonestyJustification    String?  // Required if ratingTransparency < 3
+  lowIntegrityJustification  String?  // Required if ratingReliability < 3
 
   strengths       String?
   areasToImprove  String?
@@ -329,6 +385,13 @@ model DisciplinaryAction {
   violationType   ViolationType
   violationReason ViolationReason
   severity        ViolationSeverity
+
+  // Core Values breach tracking
+  primaryValueBreached    ValueBreach?        // Which core value was primarily compromised
+  employeeTookOwnership   Boolean?            // Did the employee take ownership of the issue?
+  // Auto-escalation: If ownership=false AND value=HONESTY, severity escalates
+  severityEscalated       Boolean             @default(false)
+  originalSeverity        ViolationSeverity?  // Original severity before escalation
 
   incidentDate    DateTime
   reportedDate    DateTime            @default(now())
@@ -356,6 +419,7 @@ model DisciplinaryAction {
   @@index([severity])
   @@index([status])
   @@index([incidentDate])
+  @@index([primaryValueBreached])
 }
 
 model HRCalendarEvent {
