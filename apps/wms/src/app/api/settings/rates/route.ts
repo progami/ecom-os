@@ -3,7 +3,6 @@ import type { Session } from 'next-auth'
 import bcrypt from 'bcryptjs'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 import { UserRole } from '@ecom-os/prisma-wms'
 export const dynamic = 'force-dynamic'
 
@@ -132,11 +131,10 @@ export async function POST(request: NextRequest) {
    return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
-  const costNameCandidate =
+  const costName =
    typeof rawCostName === 'string' && rawCostName.trim().length > 0
     ? rawCostName.trim()
     : String(costCategory)
-  const costName = sanitizeForDisplay(costNameCandidate)
 
   const effectiveOn = new Date(effectiveDate)
   if (Number.isNaN(effectiveOn.getTime())) {
