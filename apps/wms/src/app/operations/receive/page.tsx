@@ -1,7 +1,7 @@
 'use client'
 
 // React imports
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 
 // Next.js imports
 import { useRouter } from 'next/navigation'
@@ -16,6 +16,7 @@ import { PageContainer, PageHeaderSection, PageContent } from '@/components/layo
 import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
 import { CargoTab } from '@/components/operations/receive-cargo-tab'
 import { AttachmentsTab } from '@/components/operations/receive-attachments-tab'
+import { ReceiveCostsTab, CostEstimationItem } from '@/components/operations/receive-costs-tab'
 
 // Internal utilities
 // Temporary validation functions
@@ -43,7 +44,7 @@ const displayValidationErrors = (errors: Array<{ field?: string; message: string
 const _getFieldError = (errors: Record<string, string>, field: string) => errors[field]
 
 // Icons
-import { Package2, FileText, Paperclip, Save, X, PackageCheck } from '@/lib/lucide-icons'
+import { Package2, FileText, Paperclip, Save, X, PackageCheck, DollarSign } from '@/lib/lucide-icons'
 
 // Types
 interface WarehouseOption {
@@ -185,16 +186,38 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  const [skus, setSkus] = useState<Sku[]>([])
  const [lineItems, setLineItems] = useState<ReceiveLineItem[]>([])
  const [attachments, setAttachments] = useState<FileAttachment[]>([])
+ const [_estimatedCosts, setEstimatedCosts] = useState<CostEstimationItem[]>([])
+ const [_totalEstimatedCost, setTotalEstimatedCost] = useState<number>(0)
  
  // Validation
  const [_validationErrors, setValidationErrors] = useState<ValidationErrors>(initialValidationErrors)
 
  // Helper function to update form data
  const updateFormField = useCallback(<K extends keyof ReceiveFormData>(
- field: K, 
+ field: K,
  value: ReceiveFormData[K]
  ) => {
  setFormData(prev => ({ ...prev, [field]: value }))
+ }, [])
+
+ // Calculate totals from line items
+ const totalCartons = useMemo(() => {
+   return lineItems.reduce((sum, item) => sum + (item.cartons || 0), 0)
+ }, [lineItems])
+
+ const totalPallets = useMemo(() => {
+   return lineItems.reduce((sum, item) => sum + (item.storagePalletsIn || 0), 0)
+ }, [lineItems])
+
+ const totalSkuCount = useMemo(() => {
+   const uniqueSkus = new Set(lineItems.map(item => item.skuCode).filter(Boolean))
+   return uniqueSkus.size
+ }, [lineItems])
+
+ // Callback for costs changes
+ const handleCostsChange = useCallback((costs: CostEstimationItem[], total: number) => {
+   setEstimatedCosts(costs)
+   setTotalEstimatedCost(total)
  }, [])
 
  // Fetch warehouses on mount
@@ -521,6 +544,7 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  { id: 'details', label: 'Transaction Details', icon: <FileText className="h-4 w-4" /> },
  ...(formData.warehouseId ? [
  { id: 'cargo', label: 'Cargo', icon: <Package2 className="h-4 w-4" /> },
+ { id: 'costs', label: 'Costs', icon: <DollarSign className="h-4 w-4" /> },
  { id: 'attachments', label: 'Attachments', icon: <Paperclip className="h-4 w-4" /> }
  ] : [])
  ]
@@ -700,6 +724,18 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  warehouseId={formData.warehouseId}
  skus={skus}
  onItemsChange={setLineItems}
+ />
+ </TabPanel>
+
+ {/* Costs Tab */}
+ <TabPanel>
+ <ReceiveCostsTab
+   warehouseId={formData.warehouseId}
+   receiveType={formData.receiveType}
+   totalCartons={totalCartons}
+   totalPallets={totalPallets}
+   totalSkuCount={totalSkuCount}
+   onCostsChange={handleCostsChange}
  />
  </TabPanel>
 
