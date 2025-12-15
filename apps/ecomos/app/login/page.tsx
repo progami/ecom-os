@@ -1,7 +1,6 @@
 "use client"
 
 import { Suspense, useMemo, useState } from 'react'
-import { signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import './login.css'
 
@@ -30,30 +29,16 @@ function LoginPageInner() {
     return messages[error] || 'Unable to sign in right now. Please try again or reach out to support.'
   }, [error])
 
-  const handleGoogleSignIn = async () => {
+  const handleGoogleSignIn = () => {
     setIsGoogleLoading(true)
-    try {
-      if (typeof window !== 'undefined') {
-        try {
-          const target = new URL(callbackUrl, window.location.origin)
-          const hostnameDiffers = target.hostname !== window.location.hostname
-          const bothPortalHosts =
-            target.hostname.endsWith('.ecomos.targonglobal.com') &&
-            window.location.hostname.endsWith('.ecomos.targonglobal.com')
-          if (hostnameDiffers && bothPortalHosts) {
-            const redirect = new URL('/login', `${target.protocol}//${target.hostname}`)
-            redirect.searchParams.set('callbackUrl', target.toString())
-            window.location.href = redirect.toString()
-            return
-          }
-        } catch {
-          // ignore malformed URLs; fall through to default signIn
-        }
-      }
-      await signIn('google', { callbackUrl })
-    } catch {
-      setIsGoogleLoading(false)
-    }
+
+    // Always go through reset route to clear any stale cookies first
+    // This prevents CSRF/JWT errors from old sessions
+    const resetUrl = new URL('/api/auth/reset', window.location.origin)
+    resetUrl.searchParams.set('provider', 'google')
+    resetUrl.searchParams.set('callbackUrl', callbackUrl)
+
+    window.location.href = resetUrl.toString()
   }
 
   return (
