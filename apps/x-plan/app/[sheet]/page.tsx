@@ -1480,6 +1480,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       const view = await getOpsPlanningView(strategyId, planningCalendar, activeSegment)
       tabularContent = (
         <OpsPlanningWorkspace
+          strategyId={strategyId}
           poTableRows={view.poTableRows}
           batchTableRows={view.batchTableRows}
           timeline={view.timelineRows}
@@ -1492,6 +1493,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       )
       visualContent = (
         <OpsPlanningWorkspace
+          strategyId={strategyId}
           poTableRows={view.poTableRows}
           batchTableRows={view.batchTableRows}
           timeline={view.timelineRows}
