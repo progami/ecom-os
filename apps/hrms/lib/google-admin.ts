@@ -77,3 +77,92 @@ export async function getUser(userKey: string): Promise<GoogleUser> {
 
   return res.data as GoogleUser
 }
+
+/**
+ * Update user in Google Admin
+ * Used for two-way sync when HRMS changes should propagate to Google
+ */
+export async function updateUser(
+  userKey: string,
+  updates: {
+    department?: string
+    title?: string // position/job title
+    phone?: string
+  }
+): Promise<GoogleUser> {
+  const auth = getOAuth2Client()
+  const admin = google.admin({ version: 'directory_v1', auth })
+
+  // Build the update payload
+  const requestBody: Record<string, unknown> = {}
+
+  // Update organization info (department, title)
+  if (updates.department || updates.title) {
+    requestBody.organizations = [{
+      primary: true,
+      department: updates.department,
+      title: updates.title,
+    }]
+  }
+
+  // Update phone
+  if (updates.phone) {
+    requestBody.phones = [{
+      value: updates.phone,
+      type: 'work',
+      primary: true,
+    }]
+  }
+
+  const res = await admin.users.update({
+    userKey,
+    requestBody,
+  }, { timeout: REQUEST_TIMEOUT })
+
+  return res.data as GoogleUser
+}
+
+/**
+ * Patch user in Google Admin (partial update)
+ */
+export async function patchUser(
+  userKey: string,
+  updates: {
+    department?: string
+    title?: string
+    phone?: string
+  }
+): Promise<GoogleUser> {
+  const auth = getOAuth2Client()
+  const admin = google.admin({ version: 'directory_v1', auth })
+
+  // Build the patch payload - only include fields that are provided
+  const requestBody: Record<string, unknown> = {}
+
+  if (updates.department !== undefined || updates.title !== undefined) {
+    // First get current org info to preserve existing values
+    const currentUser = await getUser(userKey)
+    const currentOrg = currentUser.organizations?.[0] || {}
+
+    requestBody.organizations = [{
+      primary: true,
+      department: updates.department ?? currentOrg.department,
+      title: updates.title ?? currentOrg.title,
+    }]
+  }
+
+  if (updates.phone !== undefined) {
+    requestBody.phones = [{
+      value: updates.phone,
+      type: 'work',
+      primary: true,
+    }]
+  }
+
+  const res = await admin.users.patch({
+    userKey,
+    requestBody,
+  }, { timeout: REQUEST_TIMEOUT })
+
+  return res.data as GoogleUser
+}

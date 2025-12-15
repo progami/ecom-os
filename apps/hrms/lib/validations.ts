@@ -166,6 +166,19 @@ export const CreatePerformanceReviewSchema = z.object({
   teamwork: RatingSchema.optional().nullable(),
   initiative: RatingSchema.optional().nullable(),
   attendance: RatingSchema.optional().nullable(),
+  // Values-based ratings (Core Values System)
+  ratingPrecision: RatingSchema.optional().nullable(),     // Attention to Detail (40%)
+  ratingTransparency: RatingSchema.optional().nullable(),  // Honesty (20%)
+  ratingReliability: RatingSchema.optional().nullable(),   // Integrity (20%)
+  ratingInitiative: RatingSchema.optional().nullable(),    // Courage (20%)
+  // Self-assessment ratings
+  selfRatingPrecision: RatingSchema.optional().nullable(),
+  selfRatingTransparency: RatingSchema.optional().nullable(),
+  selfRatingReliability: RatingSchema.optional().nullable(),
+  selfRatingInitiative: RatingSchema.optional().nullable(),
+  // Justifications for low core values scores
+  lowHonestyJustification: z.string().max(2000).trim().optional().nullable(),
+  lowIntegrityJustification: z.string().max(2000).trim().optional().nullable(),
   strengths: z.string().max(2000).trim().optional().nullable(),
   areasToImprove: z.string().max(2000).trim().optional().nullable(),
   goals: z.string().max(2000).trim().optional().nullable(),
@@ -185,6 +198,19 @@ export const UpdatePerformanceReviewSchema = z.object({
   teamwork: RatingSchema.optional().nullable(),
   initiative: RatingSchema.optional().nullable(),
   attendance: RatingSchema.optional().nullable(),
+  // Values-based ratings (Core Values System)
+  ratingPrecision: RatingSchema.optional().nullable(),
+  ratingTransparency: RatingSchema.optional().nullable(),
+  ratingReliability: RatingSchema.optional().nullable(),
+  ratingInitiative: RatingSchema.optional().nullable(),
+  // Self-assessment ratings
+  selfRatingPrecision: RatingSchema.optional().nullable(),
+  selfRatingTransparency: RatingSchema.optional().nullable(),
+  selfRatingReliability: RatingSchema.optional().nullable(),
+  selfRatingInitiative: RatingSchema.optional().nullable(),
+  // Justifications for low core values scores
+  lowHonestyJustification: z.string().max(2000).trim().optional().nullable(),
+  lowIntegrityJustification: z.string().max(2000).trim().optional().nullable(),
   strengths: z.string().max(2000).trim().optional().nullable(),
   areasToImprove: z.string().max(2000).trim().optional().nullable(),
   goals: z.string().max(2000).trim().optional().nullable(),
@@ -219,11 +245,22 @@ export const DisciplinaryStatusEnum = z.enum([
   'OPEN', 'UNDER_INVESTIGATION', 'ACTION_TAKEN', 'APPEALED', 'CLOSED', 'DISMISSED'
 ])
 
+// Core Values breach mapping
+export const ValueBreachEnum = z.enum([
+  'BREACH_OF_DETAIL',     // Recurring mistakes, sloppy work - Training issue
+  'BREACH_OF_HONESTY',    // Lying, falsifying records - Character issue
+  'BREACH_OF_INTEGRITY',  // Theft, harassment, toxic behavior - Zero tolerance
+  'BREACH_OF_COURAGE',    // Avoiding difficult tasks, hiding bad news - Coaching issue
+])
+
 export const CreateDisciplinaryActionSchema = z.object({
   employeeId: z.string().min(1).max(100),
   violationType: ViolationTypeEnum,
   violationReason: ViolationReasonEnum,
   severity: ViolationSeverityEnum,
+  // Core Values breach tracking
+  primaryValueBreached: ValueBreachEnum.optional().nullable(),
+  employeeTookOwnership: z.boolean().optional().nullable(),
   incidentDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid date format' }),
   reportedBy: z.string().min(1).max(100).trim(),
   description: z.string().min(1).max(5000).trim(),
@@ -242,6 +279,9 @@ export const UpdateDisciplinaryActionSchema = z.object({
   violationType: ViolationTypeEnum.optional(),
   violationReason: ViolationReasonEnum.optional(),
   severity: ViolationSeverityEnum.optional(),
+  // Core Values breach tracking
+  primaryValueBreached: ValueBreachEnum.optional().nullable(),
+  employeeTookOwnership: z.boolean().optional().nullable(),
   incidentDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid date format' }).optional(),
   reportedBy: z.string().min(1).max(100).trim().optional(),
   description: z.string().min(1).max(5000).trim().optional(),
