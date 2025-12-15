@@ -125,6 +125,7 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
     }
     if (data.employmentType !== undefined) updates.employmentType = data.employmentType as EmploymentType
     if (data.status !== undefined) updates.status = data.status as EmployeeStatus
+    if (data.region !== undefined) updates.region = data.region
     if (data.joinDate !== undefined) updates.joinDate = new Date(data.joinDate as string)
 
     // Hierarchy - use manager relation instead of reportsToId directly

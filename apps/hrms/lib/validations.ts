@@ -7,6 +7,11 @@ export const DEFAULT_PAGINATION_LIMIT = 50
 // Employee schemas
 export const EmploymentTypeEnum = z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN', 'WORKING_PARTNER'])
 export const EmployeeStatusEnum = z.enum(['ACTIVE', 'ON_LEAVE', 'TERMINATED', 'RESIGNED'])
+export const EmployeeRegionEnum = z.enum(['PAKISTAN', 'KANSAS_USA'])
+
+// Leave schemas
+export const LeaveTypeEnum = z.enum(['PTO', 'MATERNITY', 'PATERNITY', 'PARENTAL', 'BEREAVEMENT_IMMEDIATE', 'BEREAVEMENT_EXTENDED', 'JURY_DUTY', 'UNPAID'])
+export const LeaveStatusEnum = z.enum(['PENDING', 'APPROVED', 'REJECTED', 'CANCELLED'])
 
 export const CreateEmployeeSchema = z.object({
   employeeId: z.string().min(1).max(50).trim().optional(),
@@ -22,6 +27,7 @@ export const CreateEmployeeSchema = z.object({
     message: 'Invalid date format',
   }),
   status: EmployeeStatusEnum.default('ACTIVE'),
+  region: EmployeeRegionEnum.default('PAKISTAN'),
   roles: z.array(z.string().max(100)).max(20).optional(),
 })
 
@@ -57,6 +63,8 @@ export const UpdateEmployeeSchema = z.object({
   // Salary
   salary: z.number().min(0).optional().nullable(),
   currency: z.string().max(10).trim().optional(),
+  // Region for leave policy
+  region: EmployeeRegionEnum.optional(),
 })
 
 // Resource schemas

@@ -9,7 +9,7 @@ const FIELD_GROUPS = {
   identity: ['firstName', 'lastName', 'email', 'avatar', 'googleId'],
   personal: ['phone', 'address', 'city', 'country', 'postalCode', 'emergencyContact', 'emergencyPhone', 'dateOfBirth', 'gender', 'maritalStatus', 'nationality'],
   organization: ['department', 'departmentId', 'position', 'reportsToId'],
-  employment: ['employmentType', 'joinDate', 'status', 'salary', 'currency'],
+  employment: ['employmentType', 'joinDate', 'status', 'region', 'salary', 'currency'],
   admin: ['permissionLevel', 'isSuperAdmin'],
 }
 

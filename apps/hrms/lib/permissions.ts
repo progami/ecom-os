@@ -256,6 +256,7 @@ export const FIELD_PERMISSIONS: Record<string, AttributePermission> = {
   employmentType: 'MANAGER_EDITABLE',
   joinDate: 'MANAGER_EDITABLE',
   status: 'MANAGER_EDITABLE',
+  region: 'MANAGER_EDITABLE',
   reportsToId: 'MANAGER_EDITABLE',
   salary: 'MANAGER_EDITABLE',
   currency: 'MANAGER_EDITABLE',
