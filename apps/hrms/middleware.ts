@@ -12,7 +12,7 @@ export async function middleware(request: NextRequest) {
 
   // Public routes - only specific endpoints, NOT all /api/ routes
   const PUBLIC_PREFIXES = ['/_next', '/favicon.ico']
-  const PUBLIC_ROUTES = ['/', '/health', '/api/health', '/api/setup/departments']
+  const PUBLIC_ROUTES = ['/', '/health', '/api/health', '/api/setup/departments', '/no-access']
   const isPublic =
     PUBLIC_ROUTES.includes(normalizedPath) ||
     PUBLIC_PREFIXES.some((p) => normalizedPath.startsWith(p))
@@ -44,12 +44,12 @@ export async function middleware(request: NextRequest) {
         )
       }
 
-      // User has session but no HRMS access
+      // User has session but no HRMS access - redirect to no-access page
       if (hasSession && !hrmsEntitlement) {
-        const redirect = portalUrl('/', request)
-        redirect.searchParams.set('error', 'no_access')
-        redirect.searchParams.set('app', 'hrms')
-        return NextResponse.redirect(redirect)
+        const url = request.nextUrl.clone()
+        url.pathname = basePath ? `${basePath}/no-access` : '/no-access'
+        url.search = ''
+        return NextResponse.redirect(url)
       }
 
       // No session at all

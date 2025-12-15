@@ -4,7 +4,7 @@ import { getCandidateSessionCookieNames, decodePortalSession, getAppEntitlement 
 import { portalUrl } from '@/lib/portal'
 
 const PUBLIC_PREFIXES = ['/api/auth/', '/api/v1/', '/_next', '/favicon.ico', '/health']
-const PUBLIC_ROUTES = ['/', '/login']
+const PUBLIC_ROUTES = ['/', '/login', '/no-access']
 
 function resolveAppOrigin(request: NextRequest): string {
   const candidates = [
@@ -62,12 +62,13 @@ export async function middleware(request: NextRequest) {
     const hasAccess = hasSession && !!xplanEntitlement
 
     if (!hasAccess) {
-      // User has session but no X-Plan access
+      // User has session but no X-Plan access - redirect to no-access page
       if (hasSession && !xplanEntitlement) {
-        const redirect = portalUrl('/', request)
-        redirect.searchParams.set('error', 'no_access')
-        redirect.searchParams.set('app', 'x-plan')
-        return NextResponse.redirect(redirect)
+        const basePath = process.env.BASE_PATH || ''
+        const url = request.nextUrl.clone()
+        url.pathname = basePath ? `${basePath}/no-access` : '/no-access'
+        url.search = ''
+        return NextResponse.redirect(url)
       }
 
       // No session at all

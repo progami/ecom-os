@@ -40,6 +40,7 @@ export async function middleware(request: NextRequest) {
  '/',
  '/auth/login',
  '/auth/error',
+ '/no-access',
  '/api/health',
  '/api/logs',
  '/api/demo/setup',
@@ -102,12 +103,12 @@ export async function middleware(request: NextRequest) {
    const basePath = process.env.BASE_PATH || ''
    const callbackUrl = `${forwardedProto}://${forwardedHost}${basePath}${pathname}${request.nextUrl.search}`
 
-   // User has session but no WMS access
+   // User has session but no WMS access - redirect to no-access page
    if (hasSession && !wmsEntitlement) {
-     const redirect = portalUrl('/', request, `${forwardedProto}://${forwardedHost}`)
-     redirect.searchParams.set('error', 'no_access')
-     redirect.searchParams.set('app', 'wms')
-     return NextResponse.redirect(redirect)
+     const url = request.nextUrl.clone()
+     url.pathname = withBasePath('/no-access')
+     url.search = ''
+     return NextResponse.redirect(url)
    }
 
    // No session at all
