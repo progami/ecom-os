@@ -790,6 +790,15 @@ export type DepartmentHead = {
   avatar?: string | null
 }
 
+export type DepartmentEmployee = {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  position: string
+  avatar?: string | null
+}
+
 export type Department = {
   id: string
   name: string
@@ -800,6 +809,7 @@ export type Department = {
   parentId?: string | null
   parent?: { id: string; name: string } | null
   children?: { id: string; name: string }[]
+  employees?: DepartmentEmployee[]
   _count?: {
     employees: number
     children?: number

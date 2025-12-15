@@ -27,7 +27,7 @@ export default function EditEmployeePage() {
   const [allEmployees, setAllEmployees] = useState<Employee[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
   const [projects, setProjects] = useState<Project[]>([])
-  const [projectMemberships, setProjectMemberships] = useState<{ projectId: string; role: string }[]>([])
+  const [projectMemberships, setProjectMemberships] = useState<{ projectId: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -49,7 +49,6 @@ export default function EditEmployeePage() {
         setProjectMemberships(
           membershipsRes.items.map((m) => ({
             projectId: m.project.id,
-            role: m.role || '',
           }))
         )
       } catch (e: any) {
@@ -83,14 +82,14 @@ export default function EditEmployeePage() {
         reportsToId: payload.reportsToId ? String(payload.reportsToId) : null,
       })
 
-      // Update project memberships
+      // Update project memberships - use employee's position as role
       await EmployeesApi.updateProjectMemberships(
         id,
         projectMemberships
           .filter((m) => m.projectId) // Only include valid memberships
           .map((m) => ({
             projectId: m.projectId,
-            role: m.role || undefined,
+            role: String(payload.position), // Use employee's position
           }))
       )
 
@@ -103,16 +102,16 @@ export default function EditEmployeePage() {
   }
 
   function addProjectMembership() {
-    setProjectMemberships([...projectMemberships, { projectId: '', role: '' }])
+    setProjectMemberships([...projectMemberships, { projectId: '' }])
   }
 
   function removeProjectMembership(index: number) {
     setProjectMemberships(projectMemberships.filter((_, i) => i !== index))
   }
 
-  function updateProjectMembership(index: number, field: 'projectId' | 'role', value: string) {
+  function updateProjectMembership(index: number, projectId: string) {
     const updated = [...projectMemberships]
-    updated[index] = { ...updated[index], [field]: value }
+    updated[index] = { projectId }
     setProjectMemberships(updated)
   }
 
@@ -289,43 +288,29 @@ export default function EditEmployeePage() {
             <FormSection title="Project Assignments" description="Assign this employee to projects">
               <div className="space-y-4">
                 {projectMemberships.map((membership, index) => (
-                  <div key={index} className="flex items-start gap-3 p-4 bg-slate-50 rounded-lg">
-                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">
-                          Project
-                        </label>
-                        <select
-                          value={membership.projectId}
-                          onChange={(e) => updateProjectMembership(index, 'projectId', e.target.value)}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                        >
-                          <option value="">Select project...</option>
-                          {availableProjects(index).map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} {p.code ? `(${p.code})` : ''}
-                            </option>
-                          ))}
-                          {/* Include current selection even if filtered out */}
-                          {membership.projectId && !availableProjects(index).find((p) => p.id === membership.projectId) && (
-                            <option value={membership.projectId}>
-                              {projects.find((p) => p.id === membership.projectId)?.name || membership.projectId}
-                            </option>
-                          )}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1">
-                          Role in Project
-                        </label>
-                        <input
-                          type="text"
-                          value={membership.role}
-                          onChange={(e) => updateProjectMembership(index, 'role', e.target.value)}
-                          placeholder="e.g., Developer, Designer, Lead"
-                          className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                        />
-                      </div>
+                  <div key={index} className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        Project
+                      </label>
+                      <select
+                        value={membership.projectId}
+                        onChange={(e) => updateProjectMembership(index, e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                      >
+                        <option value="">Select project...</option>
+                        {availableProjects(index).map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} {p.code ? `(${p.code})` : ''}
+                          </option>
+                        ))}
+                        {/* Include current selection even if filtered out */}
+                        {membership.projectId && !availableProjects(index).find((p) => p.id === membership.projectId) && (
+                          <option value={membership.projectId}>
+                            {projects.find((p) => p.id === membership.projectId)?.name || membership.projectId}
+                          </option>
+                        )}
+                      </select>
                     </div>
                     <button
                       type="button"
