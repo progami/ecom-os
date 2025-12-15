@@ -67,62 +67,55 @@ function DepartmentCard({
 
   return (
     <div
-      className={`relative flex flex-col rounded-xl p-4 min-w-[220px] max-w-[280px] transition-all duration-200 ${
+      className={`relative flex flex-col rounded-lg p-3 min-w-[180px] max-w-[200px] transition-all duration-200 ${
         isRoot
-          ? 'border-2 border-cyan-500 bg-gradient-to-br from-cyan-50 to-white shadow-md ring-4 ring-cyan-100'
+          ? 'border-2 border-cyan-500 bg-gradient-to-br from-cyan-50 to-white shadow-md'
           : hasHead
             ? 'border border-slate-200 bg-white shadow-sm hover:shadow-md'
             : 'border border-dashed border-slate-300 bg-slate-50'
       }`}
       data-department-id={node.id}
     >
-      {/* Root badge */}
-      {isRoot && (
-        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-cyan-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
-          Company
-        </div>
-      )}
-
       {/* Department Name */}
-      <h3 className={`font-semibold text-center leading-tight mb-3 ${isRoot ? 'text-cyan-900 text-base mt-1' : 'text-slate-800 text-sm'}`}>
+      <h3 className={`font-semibold text-center leading-tight mb-2 ${isRoot ? 'text-cyan-900 text-sm' : 'text-slate-800 text-xs'}`}>
         {node.name}
       </h3>
 
       {/* Department Head */}
       {node.head ? (
-        <div className="flex items-center gap-2 p-2 bg-cyan-50 rounded-lg border border-cyan-100 mb-2">
+        <Link
+          href={`/employees/${node.head.id}`}
+          className="flex items-center gap-2 p-1.5 bg-cyan-50 rounded-md border border-cyan-100 mb-1.5 hover:bg-cyan-100 transition-colors"
+        >
           <Avatar
             src={node.head.avatar}
             alt={`${node.head.firstName} ${node.head.lastName}`}
             size="sm"
           />
           <div className="flex-1 min-w-0">
-            <Link
-              href={`/employees/${node.head.id}`}
-              className="text-xs font-semibold text-slate-900 hover:text-cyan-600 truncate block"
-            >
+            <p className="text-[11px] font-semibold text-slate-900 truncate">
               {node.head.firstName} {node.head.lastName}
-            </Link>
-            <p className="text-[10px] text-cyan-600 font-medium truncate">Head · {node.head.position}</p>
+            </p>
+            <p className="text-[9px] text-cyan-600 font-medium truncate">Head</p>
           </div>
-        </div>
+        </Link>
       ) : (
-        <div className="flex items-center justify-center gap-1.5 p-2 text-slate-400 text-xs mb-2">
-          <UsersIcon className="h-3.5 w-3.5" />
-          <span>No head assigned</span>
+        <div className="flex items-center justify-center gap-1 p-1.5 text-slate-400 text-[10px] mb-1.5">
+          <UsersIcon className="h-3 w-3" />
+          <span>No head</span>
         </div>
       )}
 
-      {/* Team Members */}
+      {/* Team Members - compact list */}
       {otherMembers.length > 0 && (
-        <div className="space-y-1.5">
-          <p className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Team Members</p>
-          <div className="space-y-1">
+        <div className="border-t border-slate-100 pt-1.5 mt-1">
+          <p className="text-[9px] text-slate-400 uppercase tracking-wider font-medium mb-1">Members</p>
+          <div className="space-y-0.5">
             {otherMembers.map((emp) => (
               <Link
                 key={emp.id}
                 href={`/employees/${emp.id}`}
-                className="flex items-center gap-2 p-1.5 rounded-md hover:bg-slate-50 transition-colors group"
+                className="flex items-center gap-1.5 p-1 rounded hover:bg-slate-50 transition-colors group"
               >
                 <Avatar
                   src={emp.avatar}
@@ -130,10 +123,10 @@ function DepartmentCard({
                   size="sm"
                 />
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-medium text-slate-700 group-hover:text-cyan-600 truncate">
+                  <p className="text-[10px] font-medium text-slate-700 group-hover:text-cyan-600 truncate">
                     {emp.firstName} {emp.lastName}
                   </p>
-                  <p className="text-[9px] text-slate-400 truncate">{emp.position}</p>
+                  <p className="text-[8px] text-slate-400 truncate">{emp.position}</p>
                 </div>
               </Link>
             ))}
@@ -142,19 +135,19 @@ function DepartmentCard({
       )}
 
       {members.length === 0 && !node.head && (
-        <p className="text-[10px] text-slate-400 text-center py-2">No members yet</p>
+        <p className="text-[9px] text-slate-400 text-center py-1">No members</p>
       )}
 
       {/* Expand/collapse button */}
       {hasChildren && (
         <button
           onClick={onToggle}
-          className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center hover:bg-slate-50 hover:border-slate-300 transition-colors z-10"
+          className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center hover:bg-slate-50 hover:border-slate-300 transition-colors z-10"
         >
           {isExpanded ? (
-            <MinusIcon className="h-3 w-3 text-slate-500" />
+            <MinusIcon className="h-2.5 w-2.5 text-slate-500" />
           ) : (
-            <PlusIcon className="h-3 w-3 text-slate-500" />
+            <PlusIcon className="h-2.5 w-2.5 text-slate-500" />
           )}
         </button>
       )}
@@ -200,7 +193,7 @@ function DeptTreeNode({
             <div
               className="h-0.5 bg-slate-300 rounded-full"
               style={{
-                width: `calc(${(node.childDepts.length - 1) * 280}px)`,
+                width: `calc(${(node.childDepts.length - 1) * 220}px)`,
                 marginBottom: '-1px'
               }}
             />
