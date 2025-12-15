@@ -15,7 +15,7 @@ export default function NoAccessPage() {
             No Access to X-Plan
           </h1>
           <p className="mt-3 text-base text-slate-600 dark:text-slate-400">
-            Your account doesn't have permission to access X-Plan.
+            Your account does not have permission to access X-Plan.
           </p>
         </div>
 
@@ -24,7 +24,7 @@ export default function NoAccessPage() {
           <ul className="text-sm text-slate-600 dark:text-slate-400 space-y-1.5">
             <li className="flex items-start gap-2">
               <span className="text-slate-400 dark:text-slate-500 mt-0.5">•</span>
-              <span>You're signed in but X-Plan access hasn't been granted to your account</span>
+              <span>You are signed in but X-Plan access has not been granted to your account</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="text-slate-400 dark:text-slate-500 mt-0.5">•</span>
