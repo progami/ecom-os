@@ -38,7 +38,7 @@ export default function EditEmployeePage() {
   const [allEmployees, setAllEmployees] = useState<Employee[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
   const [projects, setProjects] = useState<Project[]>([])
-  const [projectMemberships, setProjectMemberships] = useState<{ projectId: string }[]>([])
+  const [projectMemberships, setProjectMemberships] = useState<{ projectId: string; role: string }[]>([])
   const [additionalDepartments, setAdditionalDepartments] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -71,6 +71,7 @@ export default function EditEmployeePage() {
         setProjectMemberships(
           membershipsRes.items.map((m) => ({
             projectId: m.project.id,
+            role: m.role || '',
           }))
         )
         setPermissions({
@@ -142,7 +143,7 @@ export default function EditEmployeePage() {
             .filter((m) => m.projectId)
             .map((m) => ({
               projectId: m.projectId,
-              role: String(fd.get('position') || employee?.position),
+              role: m.role || undefined,
             }))
         )
       }
@@ -156,16 +157,16 @@ export default function EditEmployeePage() {
   }
 
   function addProjectMembership() {
-    setProjectMemberships([...projectMemberships, { projectId: '' }])
+    setProjectMemberships([...projectMemberships, { projectId: '', role: '' }])
   }
 
   function removeProjectMembership(index: number) {
     setProjectMemberships(projectMemberships.filter((_, i) => i !== index))
   }
 
-  function updateProjectMembership(index: number, projectId: string) {
+  function updateProjectMembership(index: number, field: 'projectId' | 'role', value: string) {
     const updated = [...projectMemberships]
-    updated[index] = { projectId }
+    updated[index] = { ...updated[index], [field]: value }
     setProjectMemberships(updated)
   }
 
@@ -390,7 +391,7 @@ export default function EditEmployeePage() {
                           <div className="flex-1">
                             <select
                               value={membership.projectId}
-                              onChange={(e) => updateProjectMembership(index, e.target.value)}
+                              onChange={(e) => updateProjectMembership(index, 'projectId', e.target.value)}
                               className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
                             >
                               <option value="">Select project...</option>
@@ -404,6 +405,18 @@ export default function EditEmployeePage() {
                                   {projects.find((p) => p.id === membership.projectId)?.name || membership.projectId}
                                 </option>
                               )}
+                            </select>
+                          </div>
+                          <div className="w-32">
+                            <select
+                              value={membership.role}
+                              onChange={(e) => updateProjectMembership(index, 'role', e.target.value)}
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
+                            >
+                              <option value="">Role...</option>
+                              <option value="Lead">Lead</option>
+                              <option value="Member">Member</option>
+                              <option value="Contributor">Contributor</option>
                             </select>
                           </div>
                           <button
