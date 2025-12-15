@@ -111,6 +111,21 @@ const baseAuthOptions: NextAuthConfig = {
     error: '/login',
   },
   providers,
+  jwt: {
+    async decode({ token, secret, salt }) {
+      if (!token) return null
+      try {
+        const { decode } = await import('next-auth/jwt')
+        return await decode({ token, secret, salt })
+      } catch (err) {
+        // Handle decryption failures (e.g., secret changed) - return null to force re-login
+        if (!isProd) {
+          console.warn('[auth] JWT decode failed, clearing invalid session:', (err as Error).message)
+        }
+        return null
+      }
+    },
+  },
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider === 'google') {
