@@ -176,9 +176,9 @@ export function ProductSetupGrid({ products, className }: ProductSetupGridProps)
                 <button
                   type="button"
                   onClick={() => setIsAdding(true)}
-                  className="inline-flex items-center gap-1 rounded bg-cyan-600 px-2 py-1 text-xs font-medium text-white transition hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-600"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-600"
                 >
-                  <Plus className="h-3 w-3" />
+                  <Plus className="h-4 w-4" />
                   Add
                 </button>
               )}
