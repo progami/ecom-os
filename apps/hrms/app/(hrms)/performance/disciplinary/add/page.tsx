@@ -340,7 +340,7 @@ export default function AddDisciplinaryPage() {
     <>
       <PageHeader
         title="Report Violation"
-        description="Disciplinary"
+        description="Violations"
         icon={<ShieldExclamationIcon className="h-6 w-6 text-white" />}
         showBack
       />

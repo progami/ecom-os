@@ -115,7 +115,7 @@ export default function DisciplinaryActionsPage() {
   return (
     <>
       <ListPageHeader
-        title="Disciplinary Actions"
+        title="Violations"
         description="Track violations and disciplinary records"
         icon={<ShieldExclamationIcon className="h-6 w-6 text-white" />}
         action={
@@ -157,7 +157,7 @@ export default function DisciplinaryActionsPage() {
               <TableEmptyState
                 colSpan={5}
                 icon={<ShieldExclamationIcon className="h-10 w-10" />}
-                title="No disciplinary records found"
+                title="No violation records found"
               />
             ) : (
               items.map((d) => (

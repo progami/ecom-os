@@ -154,7 +154,7 @@ export default function ViewDisciplinaryPage() {
     return (
       <>
         <PageHeader
-          title="Disciplinary Record"
+          title="Violation Record"
           description="Loading..."
           icon={<ShieldExclamationIcon className="h-6 w-6 text-white" />}
           showBack
@@ -176,7 +176,7 @@ export default function ViewDisciplinaryPage() {
     return (
       <>
         <PageHeader
-          title="Disciplinary Record"
+          title="Violation Record"
           description="Not Found"
           icon={<ShieldExclamationIcon className="h-6 w-6 text-white" />}
           showBack
@@ -193,7 +193,7 @@ export default function ViewDisciplinaryPage() {
   return (
     <>
       <PageHeader
-        title="Disciplinary Record"
+        title="Violation Record"
         description={`${action.employee?.firstName} ${action.employee?.lastName}`}
         icon={<ShieldExclamationIcon className="h-6 w-6 text-white" />}
         showBack

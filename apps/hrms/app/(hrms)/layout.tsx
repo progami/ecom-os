@@ -47,7 +47,7 @@ const navigation: NavSection[] = [
     title: 'Performance',
     items: [
       { name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon },
-      { name: 'Disciplinary', href: '/performance/disciplinary', icon: ShieldExclamationIcon },
+      { name: 'Violations', href: '/performance/disciplinary', icon: ShieldExclamationIcon },
     ]
   },
   {
