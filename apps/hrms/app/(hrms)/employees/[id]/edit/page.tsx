@@ -271,6 +271,77 @@ export default function EditEmployeePage() {
               </div>
             </FormSection>
 
+            {/* Personal Information - Always visible, editable based on permissions */}
+            <CardDivider />
+            <FormSection
+              title="Personal Information"
+              description={canEditPersonal ? "Contact details and personal information" : "Contact details and personal information (view only)"}
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <FormField
+                  label={<>Phone {!canEdit('phone') && <LockedFieldBadge reason={getFieldReason('phone')} />}</>}
+                  name="phone"
+                  type="tel"
+                  defaultValue={(employee as any).phone || ''}
+                  placeholder="+1 (555) 000-0000"
+                  disabled={!canEdit('phone')}
+                />
+                <FormField
+                  label={<>Date of Birth {!canEdit('dateOfBirth') && <LockedFieldBadge reason={getFieldReason('dateOfBirth')} />}</>}
+                  name="dateOfBirth"
+                  type="date"
+                  defaultValue={(employee as any).dateOfBirth?.split('T')[0] || ''}
+                  disabled={!canEdit('dateOfBirth')}
+                />
+                <div className="sm:col-span-2">
+                  <FormField
+                    label={<>Address {!canEdit('address') && <LockedFieldBadge reason={getFieldReason('address')} />}</>}
+                    name="address"
+                    defaultValue={(employee as any).address || ''}
+                    disabled={!canEdit('address')}
+                  />
+                </div>
+                <FormField
+                  label={<>City {!canEdit('city') && <LockedFieldBadge reason={getFieldReason('city')} />}</>}
+                  name="city"
+                  defaultValue={(employee as any).city || ''}
+                  disabled={!canEdit('city')}
+                />
+                <FormField
+                  label={<>Country {!canEdit('country') && <LockedFieldBadge reason={getFieldReason('country')} />}</>}
+                  name="country"
+                  defaultValue={(employee as any).country || ''}
+                  disabled={!canEdit('country')}
+                />
+                <FormField
+                  label={<>Postal Code {!canEdit('postalCode') && <LockedFieldBadge reason={getFieldReason('postalCode')} />}</>}
+                  name="postalCode"
+                  defaultValue={(employee as any).postalCode || ''}
+                  disabled={!canEdit('postalCode')}
+                />
+              </div>
+
+              {/* Emergency Contact */}
+              <div className="mt-6">
+                <h4 className="text-sm font-medium text-slate-700 mb-3">Emergency Contact</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                  <FormField
+                    label={<>Contact Name {!canEdit('emergencyContact') && <LockedFieldBadge reason={getFieldReason('emergencyContact')} />}</>}
+                    name="emergencyContact"
+                    defaultValue={(employee as any).emergencyContact || ''}
+                    disabled={!canEdit('emergencyContact')}
+                  />
+                  <FormField
+                    label={<>Contact Phone {!canEdit('emergencyPhone') && <LockedFieldBadge reason={getFieldReason('emergencyPhone')} />}</>}
+                    name="emergencyPhone"
+                    type="tel"
+                    defaultValue={(employee as any).emergencyPhone || ''}
+                    disabled={!canEdit('emergencyPhone')}
+                  />
+                </div>
+              </div>
+            </FormSection>
+
             {/* Organization Structure (Manager Editable) */}
             {canEditOrganization && (
               <>
@@ -420,91 +491,6 @@ export default function EditEmployeePage() {
                       />
                     )}
                   </div>
-                </FormSection>
-              </>
-            )}
-
-            {/* Personal Information (Self Editable) */}
-            {canEditPersonal && (
-              <>
-                <CardDivider />
-                <FormSection
-                  title="Personal Information"
-                  description="Contact details and personal information"
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    {canEdit('phone') && (
-                      <FormField
-                        label="Phone"
-                        name="phone"
-                        type="tel"
-                        defaultValue={(employee as any).phone || ''}
-                        placeholder="+1 (555) 000-0000"
-                      />
-                    )}
-                    {canEdit('dateOfBirth') && (
-                      <FormField
-                        label="Date of Birth"
-                        name="dateOfBirth"
-                        type="date"
-                        defaultValue={(employee as any).dateOfBirth?.split('T')[0] || ''}
-                      />
-                    )}
-                    {canEdit('address') && (
-                      <div className="sm:col-span-2">
-                        <FormField
-                          label="Address"
-                          name="address"
-                          defaultValue={(employee as any).address || ''}
-                        />
-                      </div>
-                    )}
-                    {canEdit('city') && (
-                      <FormField
-                        label="City"
-                        name="city"
-                        defaultValue={(employee as any).city || ''}
-                      />
-                    )}
-                    {canEdit('country') && (
-                      <FormField
-                        label="Country"
-                        name="country"
-                        defaultValue={(employee as any).country || ''}
-                      />
-                    )}
-                    {canEdit('postalCode') && (
-                      <FormField
-                        label="Postal Code"
-                        name="postalCode"
-                        defaultValue={(employee as any).postalCode || ''}
-                      />
-                    )}
-                  </div>
-
-                  {/* Emergency Contact */}
-                  {(canEdit('emergencyContact') || canEdit('emergencyPhone')) && (
-                    <div className="mt-6">
-                      <h4 className="text-sm font-medium text-slate-700 mb-3">Emergency Contact</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                        {canEdit('emergencyContact') && (
-                          <FormField
-                            label="Contact Name"
-                            name="emergencyContact"
-                            defaultValue={(employee as any).emergencyContact || ''}
-                          />
-                        )}
-                        {canEdit('emergencyPhone') && (
-                          <FormField
-                            label="Contact Phone"
-                            name="emergencyPhone"
-                            type="tel"
-                            defaultValue={(employee as any).emergencyPhone || ''}
-                          />
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </FormSection>
               </>
             )}
