@@ -1,5 +1,6 @@
 import { prisma } from './prisma'
-import { listAllUsers, isAdminConfigured, type GoogleUser } from './google-admin'
+import { listAllUsers, isAdminConfigured, patchUser, type GoogleUser } from './google-admin'
+import { publish } from './notification-service'
 
 export type SyncResult = {
   created: number
@@ -165,4 +166,109 @@ export async function syncGoogleAdminUsers(): Promise<SyncResult> {
     result.errors.push(e.message)
     return result
   }
+}
+
+/**
+ * Sync HRMS changes back to Google Admin (two-way sync)
+ * Only syncs fields that have local overrides enabled
+ */
+export async function syncEmployeeToGoogle(employeeId: string): Promise<{ success: boolean; error?: string }> {
+  if (!isAdminConfigured()) {
+    return { success: false, error: 'Google Admin not configured' }
+  }
+
+  try {
+    const employee = await prisma.employee.findUnique({
+      where: { id: employeeId },
+      select: {
+        googleId: true,
+        email: true,
+        department: true,
+        position: true,
+        phone: true,
+        departmentLocalOverride: true,
+        positionLocalOverride: true,
+      }
+    })
+
+    if (!employee) {
+      return { success: false, error: 'Employee not found' }
+    }
+
+    if (!employee.googleId) {
+      return { success: false, error: 'Employee not linked to Google account' }
+    }
+
+    // Build update payload - only include fields with local overrides
+    const updates: { department?: string; title?: string; phone?: string } = {}
+
+    if (employee.departmentLocalOverride && employee.department) {
+      updates.department = employee.department
+    }
+
+    if (employee.positionLocalOverride && employee.position) {
+      updates.title = employee.position
+    }
+
+    // Phone is always synced if present
+    if (employee.phone) {
+      updates.phone = employee.phone
+    }
+
+    // If no updates needed, skip
+    if (Object.keys(updates).length === 0) {
+      return { success: true }
+    }
+
+    // Patch Google Admin user
+    await patchUser(employee.googleId, updates)
+
+    console.log(`[Google Admin Sync] Pushed updates to Google for ${employee.email}:`, updates)
+    return { success: true }
+
+  } catch (e: any) {
+    console.error(`[Google Admin Sync] Failed to sync employee ${employeeId} to Google:`, e)
+    return { success: false, error: e.message }
+  }
+}
+
+/**
+ * Sync all employees with local overrides to Google Admin
+ */
+export async function syncAllOverridesToGoogle(): Promise<{
+  synced: number
+  failed: number
+  errors: string[]
+}> {
+  const result = { synced: 0, failed: 0, errors: [] as string[] }
+
+  if (!isAdminConfigured()) {
+    result.errors.push('Google Admin not configured')
+    return result
+  }
+
+  // Find employees with local overrides
+  const employees = await prisma.employee.findMany({
+    where: {
+      googleId: { not: null },
+      OR: [
+        { departmentLocalOverride: true },
+        { positionLocalOverride: true },
+      ]
+    },
+    select: { id: true, email: true }
+  })
+
+  for (const emp of employees) {
+    const syncResult = await syncEmployeeToGoogle(emp.id)
+    if (syncResult.success) {
+      result.synced++
+    } else {
+      result.failed++
+      result.errors.push(`${emp.email}: ${syncResult.error}`)
+    }
+  }
+
+  console.log(`[Google Admin Sync] Pushed overrides to Google: ${result.synced} synced, ${result.failed} failed`)
+  return result
 }

@@ -1,68 +1,56 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { EmployeesApi, DepartmentsApi, type Department } from '@/lib/api-client'
-import { UsersIcon } from '@/components/ui/Icons'
+import { UsersIcon, RefreshIcon, CheckIcon, ExclamationCircleIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, CardDivider } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
-import {
-  FormField,
-  SelectField,
-  FormSection,
-  FormActions,
-} from '@/components/ui/FormField'
 import { useNavigationHistory } from '@/lib/navigation-history'
-import { employmentTypeOptions, statusOptions } from '@/lib/constants'
+
+type SyncResult = {
+  created: number
+  updated: number
+  deactivated: number
+  errors: string[]
+}
 
 export default function AddEmployeePage() {
   const router = useRouter()
   const { goBack } = useNavigationHistory()
-  const [submitting, setSubmitting] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [departments, setDepartments] = useState<Department[]>([])
-  const [loadingDepts, setLoadingDepts] = useState(true)
 
-  useEffect(() => {
-    async function loadDepartments() {
-      try {
-        const data = await DepartmentsApi.list()
-        setDepartments(data.items)
-      } catch (e) {
-        console.error('Failed to load departments:', e)
-      } finally {
-        setLoadingDepts(false)
-      }
-    }
-    loadDepartments()
-  }, [])
-
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setSubmitting(true)
+  async function handleSync() {
+    setSyncing(true)
     setError(null)
-    const fd = new FormData(e.currentTarget)
-    const payload = Object.fromEntries(fd.entries()) as any
+    setSyncResult(null)
 
     try {
-      await EmployeesApi.create({
-        firstName: String(payload.firstName),
-        lastName: String(payload.lastName),
-        email: String(payload.email),
-        phone: payload.phone ? String(payload.phone) : undefined,
-        department: String(payload.department || ''),
-        position: String(payload.position),
-        joinDate: String(payload.joinDate),
-        employmentType: String(payload.employmentType || 'FULL_TIME'),
-        status: String(payload.status || 'ACTIVE'),
+      const response = await fetch('/api/google-admin/sync', {
+        method: 'POST',
       })
-      router.push('/employees')
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Sync failed')
+      }
+
+      const result = await response.json()
+      setSyncResult(result)
+
+      // If new employees were created, navigate to employees list after a delay
+      if (result.created > 0) {
+        setTimeout(() => {
+          router.push('/employees')
+        }, 2000)
+      }
     } catch (e: any) {
-      setError(e.message || 'Failed to create employee')
+      setError(e.message || 'Failed to sync with Google Admin')
     } finally {
-      setSubmitting(false)
+      setSyncing(false)
     }
   }
 
@@ -75,100 +63,76 @@ export default function AddEmployeePage() {
         showBack
       />
 
-      <div className="max-w-3xl">
+      <div className="max-w-2xl">
         <Card padding="lg">
-          {error && (
-            <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
-              {error}
-            </Alert>
-          )}
+          <div className="text-center py-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-cyan-100 mb-6">
+              <UsersIcon className="h-8 w-8 text-cyan-600" />
+            </div>
 
-          <form onSubmit={onSubmit} className="space-y-8">
-            {/* Basic Info */}
-            <FormSection title="Basic Information" description="Personal details of the employee">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <FormField
-                  label="First Name"
-                  name="firstName"
-                  required
-                  placeholder="John"
-                />
-                <FormField
-                  label="Last Name"
-                  name="lastName"
-                  required
-                  placeholder="Doe"
-                />
-                <FormField
-                  label="Email"
-                  name="email"
-                  type="email"
-                  required
-                  placeholder="employee@company.com"
-                />
-                <FormField
-                  label="Phone"
-                  name="phone"
-                  type="tel"
-                  placeholder="+1 (555) 000-0000"
-                />
+            <h2 className="text-xl font-semibold text-slate-900 mb-3">
+              Employees are synced from Google Admin
+            </h2>
+
+            <p className="text-slate-600 mb-6 max-w-md mx-auto">
+              To add a new employee, create their account in Google Admin.
+              Then sync to import them into HRMS. This ensures all employee
+              data stays consistent with your Google Workspace.
+            </p>
+
+            {error && (
+              <Alert variant="error" className="mb-6 text-left" onDismiss={() => setError(null)}>
+                {error}
+              </Alert>
+            )}
+
+            {syncResult && (
+              <div className="mb-6 p-4 bg-slate-50 rounded-lg text-left">
+                <div className="flex items-center gap-2 mb-3">
+                  {syncResult.errors.length === 0 ? (
+                    <CheckIcon className="h-5 w-5 text-green-500" />
+                  ) : (
+                    <ExclamationCircleIcon className="h-5 w-5 text-amber-500" />
+                  )}
+                  <span className="font-medium text-slate-900">Sync Complete</span>
+                </div>
+                <div className="space-y-1 text-sm text-slate-600">
+                  <p><span className="font-medium text-green-600">{syncResult.created}</span> new employees imported</p>
+                  <p><span className="font-medium text-blue-600">{syncResult.updated}</span> employees updated</p>
+                  {syncResult.deactivated > 0 && (
+                    <p><span className="font-medium text-amber-600">{syncResult.deactivated}</span> employees deactivated</p>
+                  )}
+                  {syncResult.errors.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-slate-200">
+                      <p className="font-medium text-red-600 mb-1">{syncResult.errors.length} errors:</p>
+                      <ul className="list-disc list-inside text-red-600 text-xs">
+                        {syncResult.errors.slice(0, 5).map((err, i) => (
+                          <li key={i}>{err}</li>
+                        ))}
+                        {syncResult.errors.length > 5 && (
+                          <li>...and {syncResult.errors.length - 5} more</li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               </div>
-            </FormSection>
+            )}
 
-            <CardDivider />
-
-            {/* Work Info */}
-            <FormSection title="Work Information" description="Job-related details">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <SelectField
-                  label="Department"
-                  name="department"
-                  required
-                  options={departments.map((dept) => ({
-                    value: dept.name,
-                    label: dept.name,
-                  }))}
-                  placeholder={loadingDepts ? 'Loading departments...' : 'Select department...'}
-                />
-                <FormField
-                  label="Position"
-                  name="position"
-                  required
-                  placeholder="e.g., Software Engineer"
-                />
-                <FormField
-                  label="Join Date"
-                  name="joinDate"
-                  type="date"
-                  required
-                />
-                <SelectField
-                  label="Employment Type"
-                  name="employmentType"
-                  required
-                  options={employmentTypeOptions}
-                  defaultValue="FULL_TIME"
-                />
-                <SelectField
-                  label="Status"
-                  name="status"
-                  required
-                  options={statusOptions}
-                  defaultValue="ACTIVE"
-                />
-              </div>
-            </FormSection>
-
-            {/* Actions */}
-            <FormActions>
+            <div className="flex items-center justify-center gap-3">
               <Button variant="secondary" onClick={goBack}>
                 Cancel
               </Button>
-              <Button type="submit" loading={submitting}>
-                {submitting ? 'Saving...' : 'Save Employee'}
+              <Button onClick={handleSync} loading={syncing}>
+                <RefreshIcon className={`h-4 w-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Syncing...' : 'Sync from Google Admin'}
               </Button>
-            </FormActions>
-          </form>
+            </div>
+
+            <p className="text-xs text-slate-400 mt-6">
+              Need help? Contact your Google Admin administrator to create new user accounts.
+            </p>
+          </div>
         </Card>
       </div>
     </>

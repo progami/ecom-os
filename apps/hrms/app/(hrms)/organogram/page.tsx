@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useCallback } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { HierarchyApi, DepartmentsApi, ProjectsApi, HierarchyEmployee, Department, Project } from '@/lib/api-client'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
-import { OrgChartIcon, SpinnerIcon, SearchIcon, XIcon, UsersIcon, BuildingIcon, FolderIcon } from '@/components/ui/Icons'
+import { OrgChartIcon, SpinnerIcon, SearchIcon, XIcon, UsersIcon, BuildingIcon, FolderIcon, RefreshIcon } from '@/components/ui/Icons'
 import { Alert } from '@/components/ui/Alert'
 import { Button } from '@/components/ui/Button'
 import { OrgChart } from '@/components/organogram/OrgChart'
@@ -21,6 +21,9 @@ interface HierarchyData {
 
 type ViewMode = 'person' | 'department' | 'project'
 
+// Auto-refresh interval in milliseconds (30 seconds)
+const AUTO_REFRESH_INTERVAL = 30000
+
 function OrganogramContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -28,7 +31,9 @@ function OrganogramContent() {
   const [departmentData, setDepartmentData] = useState<Department[] | null>(null)
   const [projectData, setProjectData] = useState<Project[] | null>(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
 
   // Get view mode and search query from URL
   const viewMode = (searchParams.get('view') as ViewMode) || 'person'
@@ -50,13 +55,13 @@ function OrganogramContent() {
     router.replace(`/organogram?${params.toString()}`, { scroll: false })
   }
 
-  useEffect(() => {
-    fetchData()
-  }, [])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async (isRefresh = false) => {
     try {
-      setLoading(true)
+      if (isRefresh) {
+        setRefreshing(true)
+      } else {
+        setLoading(true)
+      }
       setError(null)
 
       // Fetch hierarchy, department, and project data in parallel
@@ -69,13 +74,39 @@ function OrganogramContent() {
       setHierarchyData(hierarchy)
       setDepartmentData(departments.items)
       setProjectData(projects.items)
+      setLastUpdated(new Date())
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to load org chart'
       setError(message)
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
-  }
+  }, [])
+
+  // Initial fetch
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // Auto-refresh with interval
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchData(true)
+    }, AUTO_REFRESH_INTERVAL)
+
+    return () => clearInterval(interval)
+  }, [fetchData])
+
+  // Refresh on window focus (when user comes back to tab)
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchData(true)
+    }
+
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [fetchData])
 
   // Filter employees based on search query
   const filteredEmployees = hierarchyData?.items.filter((emp) => {
@@ -132,7 +163,7 @@ function OrganogramContent() {
         <Alert variant="error" className="max-w-md mb-4">
           {error}
         </Alert>
-        <Button onClick={fetchData}>Retry</Button>
+        <Button onClick={() => fetchData()}>Retry</Button>
       </div>
     )
   }
@@ -141,8 +172,9 @@ function OrganogramContent() {
     <Card>
       {/* View Toggle & Search */}
       <div className="mb-6 space-y-4">
-        {/* View Mode Toggle */}
-        <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-lg w-fit">
+        {/* View Mode Toggle & Refresh */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-lg w-fit">
           <button
             onClick={() => setViewMode('person')}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
@@ -176,6 +208,24 @@ function OrganogramContent() {
             <FolderIcon className="h-4 w-4" />
             By Project
           </button>
+          </div>
+
+          {/* Refresh Button */}
+          <div className="flex items-center gap-3">
+            {lastUpdated && (
+              <span className="text-xs text-slate-400">
+                Updated {lastUpdated.toLocaleTimeString()}
+              </span>
+            )}
+            <button
+              onClick={() => fetchData(true)}
+              disabled={refreshing}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors disabled:opacity-50"
+            >
+              <RefreshIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
         </div>
 
         {/* Search */}
