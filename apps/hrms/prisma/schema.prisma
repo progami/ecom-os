@@ -282,6 +282,7 @@ enum NotificationType {
   VIOLATION_PENDING_ADMIN     // Notify Super Admin of violation to approve
   VIOLATION_APPROVED          // Notify manager/employee of approval
   VIOLATION_REJECTED          // Notify manager of rejection
+  VIOLATION_ACKNOWLEDGED      // Notify HR/manager when employee acknowledges
   REVIEW_PENDING_HR           // Notify HR of new review to review
   REVIEW_PENDING_ADMIN        // Notify Super Admin of review to approve
   REVIEW_APPROVED             // Notify manager/employee of approval
@@ -289,6 +290,15 @@ enum NotificationType {
   APPEAL_PENDING_HR           // Notify HR of appeal to review
   APPEAL_PENDING_ADMIN        // Notify Super Admin of appeal to decide
   APPEAL_DECIDED              // Notify employee of appeal decision
+
+  // Leave notifications
+  LEAVE_REQUESTED             // Notify manager when employee requests leave
+  LEAVE_APPROVED              // Notify employee when leave is approved
+  LEAVE_REJECTED              // Notify employee when leave is rejected
+  LEAVE_CANCELLED             // Notify manager when employee cancels leave
+
+  // Resource notifications
+  RESOURCE_CREATED            // Notify relevant employees of new resource
 }
 
 // ============ CORE VALUES SYSTEM ============

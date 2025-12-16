@@ -7,6 +7,7 @@ import {
   ResourceCategoryEnum,
 } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
+import { getHREmployees } from '@/lib/permissions'
 
 export async function GET(req: Request) {
   // Rate limiting
@@ -114,6 +115,22 @@ export async function POST(req: Request) {
         rating: data.rating ?? null,
       },
     })
+
+    // Notify HR about the new resource
+    const hrEmployees = await getHREmployees()
+    for (const hr of hrEmployees) {
+      await prisma.notification.create({
+        data: {
+          type: 'RESOURCE_CREATED',
+          title: 'New Resource Added',
+          message: `A new ${data.category.toLowerCase()} resource "${data.name}" has been added.`,
+          link: `/resources`,
+          employeeId: hr.id,
+          relatedId: item.id,
+          relatedType: 'RESOURCE',
+        },
+      })
+    }
 
     return NextResponse.json(item, { status: 201 })
   } catch (e) {
