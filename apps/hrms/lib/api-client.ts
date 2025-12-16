@@ -327,6 +327,24 @@ export type DashboardPendingLeaveRequest = {
   }
 }
 
+export type DashboardLeaveApprovalHistory = {
+  id: string
+  leaveType: string
+  startDate: string
+  endDate: string
+  totalDays: number
+  reason?: string | null
+  status: string
+  reviewedAt: string
+  employee: {
+    id: string
+    firstName: string
+    lastName: string
+    employeeId: string
+    avatar?: string | null
+  }
+}
+
 export type DashboardUpcomingLeave = {
   id: string
   leaveType: string
@@ -359,6 +377,7 @@ export type DashboardData = {
   unreadNotificationCount: number
   pendingReviews: DashboardPendingReview[]
   pendingLeaveRequests: DashboardPendingLeaveRequest[]
+  leaveApprovalHistory: DashboardLeaveApprovalHistory[]
   myLeaveBalance: LeaveBalance[]
   upcomingLeaves: DashboardUpcomingLeave[]
   stats: DashboardStat[]
