@@ -80,33 +80,29 @@ const violationReasonOptions: Record<string, { value: string; label: string }[]>
   ],
 }
 
-const severityOptions = [
-  { value: 'MINOR', label: 'Minor - Verbal Warning' },
-  { value: 'MODERATE', label: 'Moderate - Written Warning' },
-  { value: 'MAJOR', label: 'Major - Final Warning/Suspension' },
-  { value: 'CRITICAL', label: 'Critical - Termination Consideration' },
+// Core Values - determines severity and action automatically
+const coreValueBreachedOptions = [
+  { value: 'BREACH_OF_DETAIL', label: 'Attention to Detail - Mistakes, sloppy work (Training Issue → Verbal Warning)' },
+  { value: 'BREACH_OF_COURAGE', label: 'Courage - Avoiding tasks, hiding bad news (Coaching Issue → Written Warning)' },
+  { value: 'BREACH_OF_HONESTY', label: 'Honesty - Lying, falsifying records (Character Issue → Final Warning)' },
+  { value: 'BREACH_OF_INTEGRITY', label: 'Integrity - Theft, harassment, toxic behavior (Zero Tolerance → Termination)' },
 ]
 
-const actionTypeOptions = [
-  { value: 'VERBAL_WARNING', label: 'Verbal Warning' },
-  { value: 'WRITTEN_WARNING', label: 'Written Warning' },
-  { value: 'FINAL_WARNING', label: 'Final Warning' },
-  { value: 'SUSPENSION', label: 'Suspension' },
-  { value: 'DEMOTION', label: 'Demotion' },
-  { value: 'TERMINATION', label: 'Termination' },
-  { value: 'PIP', label: 'Performance Improvement Plan' },
-  { value: 'TRAINING_REQUIRED', label: 'Training Required' },
-  { value: 'NO_ACTION', label: 'No Action (Investigation Only)' },
-]
+// Auto-derive severity from core value breached
+const severityFromValueBreach: Record<string, string> = {
+  BREACH_OF_DETAIL: 'MINOR',
+  BREACH_OF_COURAGE: 'MODERATE',
+  BREACH_OF_HONESTY: 'MAJOR',
+  BREACH_OF_INTEGRITY: 'CRITICAL',
+}
 
-const statusOptions = [
-  { value: 'OPEN', label: 'Open' },
-  { value: 'UNDER_INVESTIGATION', label: 'Under Investigation' },
-  { value: 'ACTION_TAKEN', label: 'Action Taken' },
-  { value: 'APPEALED', label: 'Appealed' },
-  { value: 'CLOSED', label: 'Closed' },
-  { value: 'DISMISSED', label: 'Dismissed' },
-]
+// Auto-derive action from severity
+const actionFromSeverity: Record<string, string> = {
+  MINOR: 'VERBAL_WARNING',
+  MODERATE: 'WRITTEN_WARNING',
+  MAJOR: 'FINAL_WARNING',
+  CRITICAL: 'TERMINATION',
+}
 
 function AddDisciplinaryForm() {
   const router = useRouter()
@@ -119,6 +115,7 @@ function AddDisciplinaryForm() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loadingEmployees, setLoadingEmployees] = useState(true)
   const [selectedViolationType, setSelectedViolationType] = useState('')
+  const [selectedCoreValue, setSelectedCoreValue] = useState('')
 
   useEffect(() => {
     async function loadEmployees() {
@@ -142,24 +139,24 @@ function AddDisciplinaryForm() {
     const fd = new FormData(e.currentTarget)
     const payload = Object.fromEntries(fd.entries()) as any
 
+    // Auto-calculate severity and action from core value breached
+    const primaryValueBreached = String(payload.primaryValueBreached)
+    const severity = severityFromValueBreach[primaryValueBreached]
+    const actionTaken = actionFromSeverity[severity]
+
     try {
       await DisciplinaryActionsApi.create({
         employeeId: String(payload.employeeId),
         violationType: String(payload.violationType),
         violationReason: String(payload.violationReason),
-        severity: String(payload.severity),
+        primaryValueBreached,
+        severity,
         incidentDate: String(payload.incidentDate),
         reportedBy: String(payload.reportedBy),
         description: String(payload.description),
         witnesses: payload.witnesses || null,
         evidence: payload.evidence || null,
-        actionTaken: String(payload.actionTaken),
-        actionDate: payload.actionDate || null,
-        actionDetails: payload.actionDetails || null,
-        followUpDate: payload.followUpDate || null,
-        followUpNotes: payload.followUpNotes || null,
-        status: String(payload.status),
-        resolution: payload.resolution || null,
+        actionTaken,
       })
       router.push('/performance/disciplinary')
     } catch (e: any) {
@@ -214,13 +211,23 @@ function AddDisciplinaryForm() {
               options={reasonOptions}
               placeholder="Select reason..."
             />
-            <SelectField
-              label="Severity"
-              name="severity"
-              required
-              options={severityOptions}
-              defaultValue="MODERATE"
-            />
+            <div className="sm:col-span-2">
+              <SelectField
+                label="Core Value Breached"
+                name="primaryValueBreached"
+                required
+                options={coreValueBreachedOptions}
+                placeholder="Select the core value that was breached..."
+                onChange={(e) => setSelectedCoreValue(e.target.value)}
+              />
+              {selectedCoreValue && (
+                <p className="mt-2 text-sm text-slate-500">
+                  Severity: <span className="font-medium">{severityFromValueBreach[selectedCoreValue]}</span>
+                  {' → '}
+                  Action: <span className="font-medium">{actionFromSeverity[severityFromValueBreach[selectedCoreValue]].replace(/_/g, ' ')}</span>
+                </p>
+              )}
+            </div>
             <FormField
               label="Incident Date"
               name="incidentDate"
@@ -232,13 +239,6 @@ function AddDisciplinaryForm() {
               name="reportedBy"
               required
               placeholder="Manager or witness name"
-            />
-            <SelectField
-              label="Status"
-              name="status"
-              required
-              options={statusOptions}
-              defaultValue="OPEN"
             />
           </div>
         </FormSection>
@@ -267,67 +267,12 @@ function AddDisciplinaryForm() {
           </div>
         </FormSection>
 
-        <CardDivider />
-
-        <FormSection title="Action Taken">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <SelectField
-              label="Action Type"
-              name="actionTaken"
-              required
-              options={actionTypeOptions}
-              defaultValue="VERBAL_WARNING"
-            />
-            <FormField
-              label="Action Date"
-              name="actionDate"
-              type="date"
-            />
-            <div className="sm:col-span-2">
-              <TextareaField
-                label="Action Details"
-                name="actionDetails"
-                rows={3}
-                placeholder="Details of the disciplinary action taken..."
-              />
-            </div>
-          </div>
-        </FormSection>
-
-        <CardDivider />
-
-        <FormSection title="Follow-up">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <FormField
-              label="Follow-up Date"
-              name="followUpDate"
-              type="date"
-            />
-            <div className="sm:col-span-2">
-              <TextareaField
-                label="Follow-up Notes"
-                name="followUpNotes"
-                rows={2}
-                placeholder="Notes for follow-up review..."
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <TextareaField
-                label="Resolution"
-                name="resolution"
-                rows={2}
-                placeholder="Final resolution (if closed)..."
-              />
-            </div>
-          </div>
-        </FormSection>
-
         <FormActions>
           <Button variant="secondary" onClick={goBack}>
             Cancel
           </Button>
           <Button type="submit" loading={submitting}>
-            {submitting ? 'Saving...' : 'Save Record'}
+            {submitting ? 'Submitting...' : 'Submit for Review'}
           </Button>
         </FormActions>
       </form>

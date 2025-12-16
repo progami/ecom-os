@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId, getCurrentUser } from '@/lib/current-user'
+import { sendNotificationEmail } from '@/lib/email-service'
 import { z } from 'zod'
 
 const CreateLeaveRequestSchema = z.object({
@@ -156,7 +157,7 @@ export async function POST(req: Request) {
     // Get the employee and their region
     const employee = await prisma.employee.findUnique({
       where: { id: employeeId },
-      select: { id: true, region: true },
+      select: { id: true, region: true, firstName: true, lastName: true, reportsToId: true },
     })
 
     if (!employee) {
@@ -246,6 +247,41 @@ export async function POST(req: Request) {
       where: { id: balance.id },
       data: { pending: { increment: Math.ceil(totalDays) } },
     })
+
+    // Notify the manager about the leave request
+    if (employee.reportsToId) {
+      const manager = await prisma.employee.findUnique({
+        where: { id: employee.reportsToId },
+        select: { id: true, email: true, firstName: true },
+      })
+
+      if (manager) {
+        const startDateStr = new Date(startDate).toLocaleDateString()
+        const endDateStr = new Date(endDate).toLocaleDateString()
+
+        await prisma.notification.create({
+          data: {
+            type: 'LEAVE_REQUESTED',
+            title: 'Leave Request Pending Approval',
+            message: `${employee.firstName} ${employee.lastName} has requested ${leaveType.replace(/_/g, ' ')} leave from ${startDateStr} to ${endDateStr} (${totalDays} days).`,
+            link: `/leaves/${leaveRequest.id}`,
+            employeeId: manager.id,
+            relatedId: leaveRequest.id,
+            relatedType: 'LEAVE',
+          },
+        })
+
+        // Send email notification
+        if (manager.email) {
+          await sendNotificationEmail(
+            manager.email,
+            manager.firstName,
+            'LEAVE_REQUESTED',
+            `/leaves/${leaveRequest.id}`
+          )
+        }
+      }
+    }
 
     return NextResponse.json(leaveRequest, { status: 201 })
   } catch (e) {

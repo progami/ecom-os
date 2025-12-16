@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../../lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
+import { getHREmployees } from '@/lib/permissions'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -128,6 +129,37 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
+      // Notify HR and manager that employee acknowledged
+      const hrEmployees = await getHREmployees()
+      for (const hr of hrEmployees) {
+        await prisma.notification.create({
+          data: {
+            type: 'VIOLATION_ACKNOWLEDGED',
+            title: 'Violation Acknowledged by Employee',
+            message: `${updated.employee.firstName} ${updated.employee.lastName} has acknowledged the violation record.`,
+            link: `/performance/disciplinary/${id}`,
+            employeeId: hr.id,
+            relatedId: id,
+            relatedType: 'DISCIPLINARY',
+          },
+        })
+      }
+
+      // Notify manager
+      if (action.employee.reportsToId) {
+        await prisma.notification.create({
+          data: {
+            type: 'VIOLATION_ACKNOWLEDGED',
+            title: 'Violation Acknowledged by Employee',
+            message: `${updated.employee.firstName} ${updated.employee.lastName} has acknowledged the violation record.`,
+            link: `/performance/disciplinary/${id}`,
+            employeeId: action.employee.reportsToId,
+            relatedId: id,
+            relatedType: 'DISCIPLINARY',
+          },
+        })
+      }
+
       return NextResponse.json({
         ...updated,
         acknowledgedAs: 'employee',
@@ -161,6 +193,22 @@ export async function POST(req: Request, context: RouteContext) {
           },
         },
       })
+
+      // Notify HR that manager acknowledged
+      const hrEmployees = await getHREmployees()
+      for (const hr of hrEmployees) {
+        await prisma.notification.create({
+          data: {
+            type: 'VIOLATION_ACKNOWLEDGED',
+            title: 'Violation Acknowledged by Manager',
+            message: `Manager has acknowledged the violation record for ${updated.employee.firstName} ${updated.employee.lastName}.`,
+            link: `/performance/disciplinary/${id}`,
+            employeeId: hr.id,
+            relatedId: id,
+            relatedType: 'DISCIPLINARY',
+          },
+        })
+      }
 
       return NextResponse.json({
         ...updated,

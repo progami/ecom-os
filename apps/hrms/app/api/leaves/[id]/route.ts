@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
+import { sendNotificationEmail } from '@/lib/email-service'
 import { z } from 'zod'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -110,6 +111,9 @@ export async function PATCH(req: Request, context: RouteContext) {
         employee: {
           select: {
             id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
             reportsToId: true,
             region: true,
           },
@@ -222,6 +226,71 @@ export async function PATCH(req: Request, context: RouteContext) {
           })
         }
       }
+    }
+
+    // Send notifications based on status change
+    const startDateStr = new Date(leaveRequest.startDate).toLocaleDateString()
+    const endDateStr = new Date(leaveRequest.endDate).toLocaleDateString()
+
+    if (status === 'APPROVED') {
+      // Notify the employee that their leave was approved
+      await prisma.notification.create({
+        data: {
+          type: 'LEAVE_APPROVED',
+          title: 'Leave Request Approved',
+          message: `Your ${leaveRequest.leaveType.replace(/_/g, ' ')} leave request from ${startDateStr} to ${endDateStr} has been approved.`,
+          link: `/leaves/${id}`,
+          employeeId: leaveRequest.employeeId,
+          relatedId: id,
+          relatedType: 'LEAVE',
+        },
+      })
+
+      // Send email
+      if (leaveRequest.employee.email) {
+        await sendNotificationEmail(
+          leaveRequest.employee.email,
+          leaveRequest.employee.firstName,
+          'LEAVE_APPROVED',
+          `/leaves/${id}`
+        )
+      }
+    } else if (status === 'REJECTED') {
+      // Notify the employee that their leave was rejected
+      await prisma.notification.create({
+        data: {
+          type: 'LEAVE_REJECTED',
+          title: 'Leave Request Rejected',
+          message: `Your ${leaveRequest.leaveType.replace(/_/g, ' ')} leave request from ${startDateStr} to ${endDateStr} has been rejected.${reviewNotes ? ` Reason: ${reviewNotes}` : ''}`,
+          link: `/leaves/${id}`,
+          employeeId: leaveRequest.employeeId,
+          relatedId: id,
+          relatedType: 'LEAVE',
+        },
+      })
+
+      // Send email
+      if (leaveRequest.employee.email) {
+        await sendNotificationEmail(
+          leaveRequest.employee.email,
+          leaveRequest.employee.firstName,
+          'LEAVE_REJECTED',
+          `/leaves/${id}`
+        )
+      }
+    } else if (status === 'CANCELLED' && leaveRequest.employee.reportsToId) {
+      // Notify the manager that the employee cancelled their leave
+      await prisma.notification.create({
+        data: {
+          type: 'LEAVE_CANCELLED',
+          title: 'Leave Request Cancelled',
+          message: `${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName} has cancelled their ${leaveRequest.leaveType.replace(/_/g, ' ')} leave request from ${startDateStr} to ${endDateStr}.`,
+          link: `/leaves/${id}`,
+          employeeId: leaveRequest.employee.reportsToId,
+          relatedId: id,
+          relatedType: 'LEAVE',
+        },
+      })
     }
 
     return NextResponse.json(updated)

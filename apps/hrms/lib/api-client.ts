@@ -504,6 +504,7 @@ export type DisciplinaryAction = {
   }
   violationType: string
   violationReason: string
+  primaryValueBreached: string
   severity: string
   incidentDate: string
   reportedDate: string
@@ -518,6 +519,18 @@ export type DisciplinaryAction = {
   followUpNotes?: string | null
   status: string
   resolution?: string | null
+  // Approval chain tracking
+  hrReviewedAt?: string | null
+  hrApproved?: boolean | null
+  superAdminApprovedAt?: string | null
+  superAdminApproved?: boolean | null
+  // Appeal tracking
+  appealReason?: string | null
+  appealedAt?: string | null
+  appealStatus?: string | null
+  // Acknowledgment tracking
+  employeeAcknowledged?: boolean
+  employeeAcknowledgedAt?: string | null
   createdAt?: string
   updatedAt?: string
 }
@@ -546,7 +559,19 @@ export const DisciplinaryActionsApi = {
   get(id: string) {
     return request<DisciplinaryAction>(`/api/disciplinary-actions/${encodeURIComponent(id)}`)
   },
-  create(payload: Omit<DisciplinaryAction, 'id' | 'employee' | 'reportedDate' | 'createdAt' | 'updatedAt'>) {
+  create(payload: {
+    employeeId: string
+    violationType: string
+    violationReason: string
+    primaryValueBreached: string
+    severity: string
+    incidentDate: string
+    reportedBy: string
+    description: string
+    witnesses?: string | null
+    evidence?: string | null
+    actionTaken: string
+  }) {
     return request<DisciplinaryAction>(`/api/disciplinary-actions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
