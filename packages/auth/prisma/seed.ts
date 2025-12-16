@@ -116,6 +116,7 @@ async function main() {
   // Additional admin users (Google OAuth - no password needed)
   const additionalAdmins = [
     { email: 'gondalshoaib3333@gmail.com', firstName: 'Shoaib', lastName: 'Gondal' },
+    { email: 'mehdi@targonglobal.com', firstName: 'Muhammad', lastName: 'Mehdi' },
   ]
 
   for (const admin of additionalAdmins) {
