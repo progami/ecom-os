@@ -343,8 +343,12 @@ export function getMissingFields(employee: EmployeeProfileFields): string[] {
   for (const { field, label } of REQUIRED_FIELDS) {
     const value = employee[field as keyof EmployeeProfileFields]
 
-    // Check if field is null, undefined, or empty string
-    if (value === null || value === undefined || value === '') {
+    // Check if field is null, undefined, empty string, or whitespace-only
+    const isEmpty = value === null ||
+                    value === undefined ||
+                    (typeof value === 'string' && value.trim() === '')
+
+    if (isEmpty) {
       missing.push(label)
     }
   }
