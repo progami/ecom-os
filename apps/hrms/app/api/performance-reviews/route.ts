@@ -9,7 +9,7 @@ import {
 } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { canManageEmployee } from '@/lib/permissions'
+import { canRaiseViolation, getHREmployees } from '@/lib/permissions'
 import { getReviewWeights, calculateValuesScore, applyValuesVeto } from '@/lib/standing'
 import { publish } from '@/lib/notification-service'
 
@@ -112,14 +112,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
     }
 
-    // Check if current user has permission to manage this employee
+    // Check if current user has permission to create review for this employee
+    // Uses same permission as raising violations (Manager for reports, HR/Admin for anyone)
     const currentEmployeeId = await getCurrentEmployeeId()
     if (!currentEmployeeId) {
       return NextResponse.json({ error: 'Unauthorized - not logged in' }, { status: 401 })
     }
 
-    const permissionCheck = await canManageEmployee(currentEmployeeId, data.employeeId)
-    if (!permissionCheck.canManage) {
+    const permissionCheck = await canRaiseViolation(currentEmployeeId, data.employeeId)
+    if (!permissionCheck.allowed) {
       return NextResponse.json(
         { error: `Permission denied: ${permissionCheck.reason}` },
         { status: 403 }
@@ -183,7 +184,8 @@ export async function POST(req: Request) {
         areasToImprove: data.areasToImprove ?? null,
         goals: data.goals ?? null,
         comments: data.comments ?? null,
-        status: data.status,
+        // If not DRAFT, start approval chain with PENDING_HR_REVIEW
+        status: data.status === 'DRAFT' ? 'DRAFT' : 'PENDING_HR_REVIEW',
       },
       include: {
         employee: {
@@ -197,8 +199,24 @@ export async function POST(req: Request) {
       },
     })
 
-    // Publish notification if review is completed
-    if (data.status === 'COMPLETED' || data.status === 'PENDING_REVIEW') {
+    // Notify HR if review is submitted for approval
+    if (data.status !== 'DRAFT') {
+      const hrEmployees = await getHREmployees()
+      for (const hr of hrEmployees) {
+        await prisma.notification.create({
+          data: {
+            type: 'REVIEW_PENDING_HR',
+            title: 'Performance Review Pending',
+            message: `A performance review for ${item.employee.firstName} ${item.employee.lastName} needs your review.`,
+            link: `/performance/reviews/${item.id}`,
+            employeeId: hr.id,
+            relatedId: item.id,
+            relatedType: 'REVIEW',
+          },
+        })
+      }
+
+      // Also publish legacy notification for backwards compatibility
       await publish({
         type: 'REVIEW_SUBMITTED',
         reviewId: item.id,
