@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, type FormEvent } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Package,
   Warehouse as WarehouseIcon,
@@ -10,7 +10,6 @@ import {
   Save,
   X,
   RefreshCw,
-  DollarSign,
 } from '@/lib/lucide-icons'
 import { Badge } from '@/components/ui/badge'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
@@ -34,6 +33,14 @@ interface WarehouseRatesPanelProps {
 }
 
 type TabKey = 'inbound' | 'storage' | 'outbound' | 'forwarding'
+
+interface InlineEditState {
+  rateId: string | null
+  templateName: string | null
+  field: 'rate' | 'effectiveDate' | 'new'
+  value: string
+  effectiveDate: string
+}
 
 // Rate templates define expected rates with their categories and units
 // Categories: Inbound, Storage, Outbound, Forwarding (matches the supply chain stage)
@@ -75,11 +82,8 @@ export function WarehouseRatesPanel({
   const [activeTab, setActiveTab] = useState<TabKey>('inbound')
   const [rates, setRates] = useState<CostRate[]>([])
   const [loading, setLoading] = useState(true)
-  const [editingRateId, setEditingRateId] = useState<string | null>(null)
-  const [editValue, setEditValue] = useState<string>('')
   const [saving, setSaving] = useState(false)
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [newRateTemplate, setNewRateTemplate] = useState<typeof RATE_TEMPLATES.inbound[0] | null>(null)
+  const [editState, setEditState] = useState<InlineEditState | null>(null)
 
   const tabs: { key: TabKey; label: string; icon: React.ReactNode }[] = [
     { key: 'inbound', label: 'Inbound', icon: <Package className="h-4 w-4" /> },
@@ -113,26 +117,55 @@ export function WarehouseRatesPanel({
     return rates.find(r => r.costName === template.costName)
   }
 
-  const startEditing = (rate: CostRate) => {
-    setEditingRateId(rate.id)
-    setEditValue(rate.costValue.toString())
+  const startEditingRate = (rate: CostRate) => {
+    setEditState({
+      rateId: rate.id,
+      templateName: rate.costName,
+      field: 'rate',
+      value: rate.costValue.toString(),
+      effectiveDate: rate.effectiveDate.slice(0, 10),
+    })
+  }
+
+  const startEditingEffectiveDate = (rate: CostRate) => {
+    setEditState({
+      rateId: rate.id,
+      templateName: rate.costName,
+      field: 'effectiveDate',
+      value: rate.costValue.toString(),
+      effectiveDate: rate.effectiveDate.slice(0, 10),
+    })
+  }
+
+  const startAddingRate = (template: typeof RATE_TEMPLATES.inbound[0]) => {
+    setEditState({
+      rateId: null,
+      templateName: template.costName,
+      field: 'new',
+      value: template.defaultValue.toString(),
+      effectiveDate: new Date().toISOString().split('T')[0],
+    })
   }
 
   const cancelEditing = () => {
-    setEditingRateId(null)
-    setEditValue('')
+    setEditState(null)
   }
 
   const saveRate = async (rate: CostRate) => {
-    if (!editValue) return
+    if (!editState) return
 
     setSaving(true)
     try {
+      const payload: Record<string, unknown> = {}
+      if (editState.field === 'rate') {
+        payload.costValue = parseFloat(editState.value)
+      } else if (editState.field === 'effectiveDate') {
+        payload.effectiveDate = new Date(editState.effectiveDate)
+      }
+
       const response = await fetchWithCSRF(`/api/settings/rates/${rate.id}`, {
         method: 'PUT',
-        body: JSON.stringify({
-          costValue: parseFloat(editValue),
-        })
+        body: JSON.stringify(payload)
       })
 
       if (response.ok) {
@@ -150,47 +183,42 @@ export function WarehouseRatesPanel({
     }
   }
 
-  const openAddRateModal = (template: typeof RATE_TEMPLATES.inbound[0]) => {
-    setNewRateTemplate(template)
-    setIsAddModalOpen(true)
-  }
+  const createRate = async (template: typeof RATE_TEMPLATES.inbound[0]) => {
+    if (!editState) return
 
-  const closeAddRateModal = () => {
-    setIsAddModalOpen(false)
-    setNewRateTemplate(null)
-  }
+    const numericValue = parseFloat(editState.value)
+    if (Number.isNaN(numericValue) || numericValue < 0) {
+      toast.error('Rate must be a valid number')
+      return
+    }
 
-  const createRate = async (formData: {
-    costValue: number
-    effectiveDate: string
-    endDate: string | null
-  }) => {
-    if (!newRateTemplate) return
-
+    setSaving(true)
     try {
       const response = await fetchWithCSRF('/api/settings/rates', {
         method: 'POST',
         body: JSON.stringify({
           warehouseId,
-          costCategory: newRateTemplate.costCategory,
-          costName: newRateTemplate.costName,
-          unitOfMeasure: newRateTemplate.unitOfMeasure,
-          costValue: formData.costValue,
-          effectiveDate: new Date(formData.effectiveDate),
-          endDate: formData.endDate ? new Date(formData.endDate) : null,
+          costCategory: template.costCategory,
+          costName: template.costName,
+          unitOfMeasure: template.unitOfMeasure,
+          costValue: numericValue,
+          effectiveDate: new Date(editState.effectiveDate),
+          endDate: null,
         })
       })
 
       if (response.ok) {
-        toast.success('Rate created successfully')
+        toast.success('Rate created')
         await loadRates()
-        closeAddRateModal()
+        cancelEditing()
       } else {
         const error = await response.json().catch(() => null)
         toast.error(error?.error || 'Failed to create rate')
       }
     } catch (_error) {
       toast.error('Failed to create rate')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -199,11 +227,14 @@ export function WarehouseRatesPanel({
     showCategory = false
   ) => {
     const rate = getRateForTemplate(template)
-    const isEditing = rate && editingRateId === rate.id
+    const isEditingThis = editState?.templateName === template.costName
+    const isEditingRate = isEditingThis && editState?.field === 'rate'
+    const isEditingDate = isEditingThis && editState?.field === 'effectiveDate'
+    const isAddingNew = isEditingThis && editState?.field === 'new'
 
     return (
       <tr key={template.costName} className="odd:bg-muted/20 hover:bg-primary/5 transition-colors">
-        <td className="px-3 py-2 text-foreground whitespace-nowrap w-[45%]">
+        <td className="px-3 py-2 text-foreground whitespace-nowrap w-[40%]">
           {template.costName}
           {showCategory && (
             <span className="ml-2 text-xs text-muted-foreground">({template.costCategory})</span>
@@ -211,14 +242,14 @@ export function WarehouseRatesPanel({
         </td>
         <td className="px-3 py-2 text-right w-[20%]">
           {rate ? (
-            isEditing ? (
+            isEditingRate ? (
               <div className="flex items-center justify-end gap-2">
                 <span className="text-muted-foreground">$</span>
                 <input
                   type="number"
                   step="0.01"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
+                  value={editState?.value || ''}
+                  onChange={(e) => setEditState(prev => prev ? { ...prev, value: e.target.value } : null)}
                   className="w-24 px-2 py-1 text-right border rounded focus:outline-none focus:ring-2 focus:ring-primary"
                   autoFocus
                 />
@@ -242,36 +273,111 @@ export function WarehouseRatesPanel({
               <div className="flex items-center justify-end gap-2">
                 <span className="font-semibold text-foreground">${rate.costValue.toFixed(2)}</span>
                 <button
-                  onClick={() => startEditing(rate)}
+                  onClick={() => startEditingRate(rate)}
                   className="p-1 text-muted-foreground/50 hover:text-primary hover:bg-primary/10 rounded transition-colors"
                   title="Edit rate"
                 >
                   <Edit className="h-3.5 w-3.5" />
                 </button>
+              </div>
+            )
+          ) : isAddingNew ? (
+            <div className="flex items-center justify-end gap-2">
+              <span className="text-muted-foreground">$</span>
+              <input
+                type="number"
+                step="0.01"
+                value={editState?.value || ''}
+                onChange={(e) => setEditState(prev => prev ? { ...prev, value: e.target.value } : null)}
+                className="w-24 px-2 py-1 text-right border rounded focus:outline-none focus:ring-2 focus:ring-primary"
+                autoFocus
+              />
+            </div>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </td>
+        <td className="px-3 py-2 w-[25%]">
+          {rate ? (
+            isEditingDate ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={editState?.effectiveDate || ''}
+                  onChange={(e) => setEditState(prev => prev ? { ...prev, effectiveDate: e.target.value } : null)}
+                  className="w-36 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                  autoFocus
+                />
                 <button
-                  onClick={() => openAddRateModal(template)}
-                  className="p-1 text-muted-foreground/50 hover:text-primary hover:bg-primary/10 rounded transition-colors"
-                  title="New effective rate"
+                  onClick={() => saveRate(rate)}
+                  disabled={saving}
+                  className="p-1 text-green-600 hover:bg-green-50 rounded"
+                  title="Save"
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  <Save className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={cancelEditing}
+                  className="p-1 text-muted-foreground hover:bg-muted rounded"
+                  title="Cancel"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-muted-foreground">{rate.effectiveDate.slice(0, 10)}</span>
+                <button
+                  onClick={() => startEditingEffectiveDate(rate)}
+                  className="p-1 text-muted-foreground/50 hover:text-primary hover:bg-primary/10 rounded transition-colors"
+                  title="Edit effective date"
+                >
+                  <Edit className="h-3.5 w-3.5" />
                 </button>
               </div>
             )
+          ) : isAddingNew ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={editState?.effectiveDate || ''}
+                onChange={(e) => setEditState(prev => prev ? { ...prev, effectiveDate: e.target.value } : null)}
+                className="w-36 px-2 py-1 border rounded focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+              />
+              <button
+                onClick={() => createRate(template)}
+                disabled={saving}
+                className="p-1 text-green-600 hover:bg-green-50 rounded"
+                title="Save"
+              >
+                <Save className="h-4 w-4" />
+              </button>
+              <button
+                onClick={cancelEditing}
+                className="p-1 text-muted-foreground hover:bg-muted rounded"
+                title="Cancel"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          )}
+        </td>
+        <td className="px-3 py-2 text-muted-foreground whitespace-nowrap w-[15%]">
+          {rate ? (
+            formatUnit(template.unitOfMeasure)
+          ) : isAddingNew ? (
+            formatUnit(template.unitOfMeasure)
           ) : (
             <button
-              onClick={() => openAddRateModal(template)}
+              onClick={() => startAddingRate(template)}
               className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 font-medium transition-colors"
             >
               <Plus className="h-3.5 w-3.5" />
               Add
             </button>
           )}
-        </td>
-        <td className="px-3 py-2 text-muted-foreground whitespace-nowrap w-[20%]">
-          {rate ? rate.effectiveDate.slice(0, 10) : '—'}
-        </td>
-        <td className="px-3 py-2 text-muted-foreground whitespace-nowrap w-[15%]">
-          {formatUnit(template.unitOfMeasure)}
         </td>
       </tr>
     )
@@ -301,18 +407,17 @@ export function WarehouseRatesPanel({
   }
 
   return (
-    <>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-semibold text-foreground">{warehouseName}</h2>
-            <p className="text-sm text-muted-foreground">Rate Sheet • {warehouseCode} • USD</p>
-          </div>
-          <Badge className="bg-green-50 text-green-700 border-green-200">
-            {rates.length} rates configured
-          </Badge>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-semibold text-foreground">{warehouseName}</h2>
+          <p className="text-sm text-muted-foreground">Rate Sheet • {warehouseCode} • USD</p>
         </div>
+        <Badge className="bg-green-50 text-green-700 border-green-200">
+          {rates.length} rates configured
+        </Badge>
+      </div>
 
       {/* Tabs */}
       <div className="border-b border-border">
@@ -364,17 +469,6 @@ export function WarehouseRatesPanel({
         )}
       </div>
     </div>
-
-      {/* Add Rate Modal */}
-      {isAddModalOpen && newRateTemplate && (
-        <AddRateModal
-          template={newRateTemplate}
-          warehouseName={warehouseName}
-          onClose={closeAddRateModal}
-          onSubmit={createRate}
-        />
-      )}
-    </>
   )
 }
 
@@ -555,184 +649,3 @@ function ForwardingTab({ templates, renderRateRow }: TabProps) {
   )
 }
 
-interface AddRateModalProps {
-  template: typeof RATE_TEMPLATES.inbound[0]
-  warehouseName: string
-  onClose: () => void
-  onSubmit: (formData: { costValue: number; effectiveDate: string; endDate: string | null }) => Promise<void> | void
-}
-
-function AddRateModal({ template, warehouseName, onClose, onSubmit }: AddRateModalProps) {
-  const [formData, setFormData] = useState({
-    costValue: template.defaultValue.toString(),
-    effectiveDate: new Date().toISOString().split('T')[0],
-    endDate: ''
-  })
-  const [submitting, setSubmitting] = useState(false)
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-
-    if (!formData.costValue || !formData.effectiveDate) {
-      toast.error('Please fill in all required fields')
-      return
-    }
-
-    const numericValue = parseFloat(formData.costValue)
-    if (Number.isNaN(numericValue) || numericValue < 0) {
-      toast.error('Rate must be a valid number')
-      return
-    }
-
-    setSubmitting(true)
-    try {
-      await onSubmit({
-        costValue: numericValue,
-        effectiveDate: formData.effectiveDate,
-        endDate: formData.endDate || null,
-      })
-    } finally {
-      setSubmitting(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div
-          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"
-          onClick={onClose}
-        />
-
-        <div className="relative w-full max-w-lg transform rounded-xl bg-white shadow-2xl transition-all">
-          <div className="border-b border-slate-200 bg-gradient-to-r from-cyan-50 to-blue-50 px-6 py-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white border border-cyan-200 shadow-sm">
-                    <DollarSign className="h-5 w-5 text-cyan-600" />
-                  </div>
-                  <h3 className="text-xl font-semibold text-slate-900">Add Cost Rate</h3>
-                </div>
-                <p className="text-sm text-slate-600 mt-2">
-                  {warehouseName} • {template.costName}
-                </p>
-              </div>
-              <button
-                onClick={onClose}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-600 transition-colors"
-                type="button"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="p-6 space-y-5">
-            <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-slate-50 border border-slate-200">
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Category</label>
-                <p className="text-sm font-medium text-slate-900">{template.costCategory}</p>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Unit of Measure</label>
-                <p className="text-sm font-medium text-slate-900">{formatUnitLabel(template.unitOfMeasure)}</p>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Rate (USD) <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">
-                  $
-                </span>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.costValue}
-                  onChange={(e) => setFormData({ ...formData, costValue: e.target.value })}
-                  className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-shadow"
-                  placeholder="0.00"
-                  required
-                  autoFocus
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                Effective Date <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                value={formData.effectiveDate}
-                onChange={(e) => setFormData({ ...formData, effectiveDate: e.target.value })}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-shadow"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-2">
-                End Date <span className="text-slate-400 text-xs font-normal">(optional)</span>
-              </label>
-              <input
-                type="date"
-                value={formData.endDate}
-                onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                min={formData.effectiveDate}
-                className="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-shadow"
-              />
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={submitting}
-                className="px-4 py-2.5 border border-slate-300 rounded-lg text-slate-700 font-medium hover:bg-slate-50 disabled:opacity-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="px-5 py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-medium rounded-lg hover:from-cyan-700 hover:to-blue-700 disabled:opacity-50 transition-all flex items-center gap-2"
-              >
-                {submitting ? (
-                  <>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4" />
-                    Create Rate
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function formatUnitLabel(unit: string) {
-  const unitLabels: Record<string, string> = {
-    per_container: 'per container',
-    per_carton: 'per carton',
-    per_pallet: 'per pallet',
-    per_pallet_day: 'per pallet/day',
-    per_sku: 'per SKU',
-    per_hour: 'per hour',
-    per_delivery: 'per delivery',
-    per_shipment: 'per shipment',
-    flat: 'flat',
-  }
-  return unitLabels[unit] || unit
-}
