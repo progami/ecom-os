@@ -174,19 +174,19 @@ export async function PUT(request: Request) {
 
     if (orderCodeUpdates.length > 0) {
       // Get the strategyId from one of the orders being updated
-      const ordersBeingUpdated = await prisma.purchaseOrder.findMany({
+      const ordersBeingUpdated = (await prisma.purchaseOrder.findMany({
         where: { id: { in: orderCodeUpdates.map((u) => u.id) } },
         select: { id: true, strategyId: true },
-      }) as unknown as Array<{ id: string; strategyId: string }>
+      })) as unknown as { id: string; strategyId: string }[]
       const strategyIds = [...new Set(ordersBeingUpdated.map((o) => o.strategyId))]
 
-      const existingOrders = await prisma.purchaseOrder.findMany({
+      const existingOrders = (await prisma.purchaseOrder.findMany({
         where: {
           strategyId: { in: strategyIds },
           orderCode: { in: orderCodeUpdates.map((u) => u.orderCode) },
         },
         select: { id: true, orderCode: true, strategyId: true },
-      }) as unknown as Array<{ id: string; orderCode: string; strategyId: string }>
+      })) as unknown as { id: string; orderCode: string; strategyId: string }[]
 
       // Check if any orderCode would conflict with a different PO in the same strategy
       for (const update of orderCodeUpdates) {
@@ -354,7 +354,8 @@ export async function POST(request: Request) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       return NextResponse.json({ error: 'A purchase order with this code already exists.' }, { status: 409 })
     }
-    throw error
+    console.error('[POST /purchase-orders] error:', error)
+    return NextResponse.json({ error: 'Unable to create purchase order' }, { status: 500 })
   }
 }
 

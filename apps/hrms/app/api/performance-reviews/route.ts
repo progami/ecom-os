@@ -20,6 +20,18 @@ export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
 
+    // Authentication check
+    const currentEmployeeId = await getCurrentEmployeeId()
+    if (!currentEmployeeId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Get current user's permission level
+    const currentEmployee = await prisma.employee.findUnique({
+      where: { id: currentEmployeeId },
+      select: { isSuperAdmin: true, permissionLevel: true },
+    })
+
     const paginationResult = PaginationSchema.safeParse({
       take: searchParams.get('take') || undefined,
       skip: searchParams.get('skip') || undefined,
@@ -32,6 +44,39 @@ export async function GET(req: Request) {
 
     const where: Record<string, unknown> = {}
 
+    // Access control: restrict what reviews can be viewed
+    const employeeIdParam = searchParams.get('employeeId')
+
+    if (employeeIdParam) {
+      // Requesting specific employee's reviews - check permission
+      const canView = currentEmployee?.isSuperAdmin ||
+                     (currentEmployee?.permissionLevel ?? 0) >= 50 ||
+                     employeeIdParam === currentEmployeeId
+
+      if (!canView) {
+        // Check if manager of the employee
+        const targetEmployee = await prisma.employee.findUnique({
+          where: { id: employeeIdParam },
+          select: { reportsToId: true },
+        })
+        if (targetEmployee?.reportsToId !== currentEmployeeId) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        }
+      }
+      where.employeeId = employeeIdParam
+    } else {
+      // No specific employee - restrict to own + direct reports unless admin/HR
+      if (!currentEmployee?.isSuperAdmin && (currentEmployee?.permissionLevel ?? 0) < 50) {
+        const directReportIds = await prisma.employee.findMany({
+          where: { reportsToId: currentEmployeeId },
+          select: { id: true },
+        })
+        where.employeeId = {
+          in: [currentEmployeeId, ...directReportIds.map(d => d.id)],
+        }
+      }
+    }
+
     if (q) {
       where.OR = [
         { reviewerName: { contains: q, mode: 'insensitive' } },
@@ -39,11 +84,6 @@ export async function GET(req: Request) {
         { employee: { firstName: { contains: q, mode: 'insensitive' } } },
         { employee: { lastName: { contains: q, mode: 'insensitive' } } },
       ]
-    }
-
-    const employeeIdParam = searchParams.get('employeeId')
-    if (employeeIdParam) {
-      where.employeeId = employeeIdParam
     }
 
     const reviewTypeParam = searchParams.get('reviewType')

@@ -5,6 +5,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-hot-toast'
 import { format } from 'date-fns'
 import { Badge } from '@/components/ui/badge'
+import {
+  PO_STATUS_BADGE_CLASSES,
+  PO_STATUS_LABELS,
+  PO_TYPE_BADGE_CLASSES,
+  type POStatus,
+  type POType,
+} from '@/lib/constants/status-mappings'
 
 export type PurchaseOrderTypeOption = 'PURCHASE' | 'FULFILLMENT' | 'ADJUSTMENT'
 export type PurchaseOrderStatusOption = 'DRAFT' | 'AWAITING_PROOF' | 'REVIEW' | 'POSTED' | 'CANCELLED' | 'CLOSED'
@@ -46,53 +53,18 @@ interface PurchaseOrdersPanelProps {
  typeFilter?: PurchaseOrderTypeOption
 }
 
+const DEFAULT_BADGE_CLASS = 'bg-muted text-muted-foreground border border-muted'
+
 function formatStatusLabel(status: PurchaseOrderStatusOption) {
- switch (status) {
- case 'DRAFT':
- return 'Draft'
- case 'AWAITING_PROOF':
- return 'Awaiting Proof'
- case 'REVIEW':
- return 'Review'
- case 'POSTED':
- return 'Posted'
- case 'CANCELLED':
- return 'Cancelled'
- case 'CLOSED':
- return 'Closed'
- default:
- return status
- }
+  return PO_STATUS_LABELS[status as POStatus] ?? status
 }
 
 function statusBadgeClasses(status: PurchaseOrderStatusOption) {
- switch (status) {
- case 'DRAFT':
- return 'bg-amber-50 text-amber-700 border border-amber-200'
- case 'AWAITING_PROOF':
- return 'bg-sky-50 text-sky-700 border border-sky-200'
- case 'REVIEW':
- return 'bg-brand-teal-50 text-brand-teal-700 border border-brand-teal-200'
- case 'POSTED':
- return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
- case 'CANCELLED':
- return 'bg-red-50 text-red-700 border border-red-200'
- case 'CLOSED':
- return 'bg-slate-100 text-slate-600 border border-slate-200'
- default:
- return 'bg-muted text-muted-foreground border border-muted'
- }
+  return PO_STATUS_BADGE_CLASSES[status as POStatus] ?? DEFAULT_BADGE_CLASS
 }
 
 function typeBadgeClasses(type: PurchaseOrderTypeOption) {
- switch (type) {
- case 'PURCHASE':
- return 'bg-emerald-50 text-emerald-700 border border-emerald-200'
- case 'FULFILLMENT':
- return 'bg-red-50 text-red-700 border border-red-200'
- default:
- return 'bg-muted text-muted-foreground border border-muted'
- }
+  return PO_TYPE_BADGE_CLASSES[type as POType] ?? DEFAULT_BADGE_CLASS
 }
 
 function formatDateDisplay(value: string | null) {
