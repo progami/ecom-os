@@ -18,6 +18,7 @@ export async function GET(req: Request) {
     unreadNotificationCount: 0,
     pendingReviews: [],
     pendingLeaveRequests: [],
+    leaveApprovalHistory: [],
     myLeaveBalance: [],
     upcomingLeaves: [],
     stats: [
@@ -146,7 +147,7 @@ export async function GET(req: Request) {
 
     // Fetch leave data
     const year = new Date().getFullYear()
-    const [leaveBalances, pendingLeaveRequestsData, upcomingLeavesData] = await Promise.all([
+    const [leaveBalances, pendingLeaveRequestsData, upcomingLeavesData, leaveApprovalHistoryData] = await Promise.all([
       // Get current employee's leave balances
       prisma.leaveBalance.findMany({
         where: { employeeId, year },
@@ -165,6 +166,7 @@ export async function GET(req: Request) {
               lastName: true,
               employeeId: true,
               department: true,
+              avatar: true,
             },
           },
         },
@@ -181,6 +183,26 @@ export async function GET(req: Request) {
         orderBy: { startDate: 'asc' },
         take: 5,
       }),
+      // Get leave requests reviewed by current employee (approval history)
+      isManager ? prisma.leaveRequest.findMany({
+        where: {
+          reviewedById: employeeId,
+          status: { in: ['APPROVED', 'REJECTED'] },
+        },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeId: true,
+              avatar: true,
+            },
+          },
+        },
+        orderBy: { reviewedAt: 'desc' },
+        take: 10,
+      }) : [],
     ])
 
     // Format leave balances
@@ -202,6 +224,7 @@ export async function GET(req: Request) {
       unreadNotificationCount,
       pendingReviews,
       pendingLeaveRequests: pendingLeaveRequestsData,
+      leaveApprovalHistory: leaveApprovalHistoryData,
       myLeaveBalance,
       upcomingLeaves: upcomingLeavesData,
       stats,
