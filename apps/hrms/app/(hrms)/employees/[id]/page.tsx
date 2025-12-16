@@ -130,17 +130,21 @@ export default function EmployeeViewPage() {
   const [showLeaveForm, setShowLeaveForm] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [canManage, setCanManage] = useState(false)
+  const [canEdit, setCanEdit] = useState(false)
 
   useEffect(() => {
     async function loadEmployee() {
       try {
         setLoading(true)
-        const data = await EmployeesApi.get(id)
+        const [data, permissionCheck, permissions] = await Promise.all([
+          EmployeesApi.get(id),
+          EmployeesApi.checkCanManage(id),
+          EmployeesApi.getPermissions(id),
+        ])
         setEmployee(data)
-
-        // Check if current user can manage this employee
-        const permissionCheck = await EmployeesApi.checkCanManage(id)
         setCanManage(permissionCheck.canManage)
+        // User can edit if they have any editable fields (self or manager)
+        setCanEdit(permissions.editableFields?.length > 0)
       } catch (e: any) {
         setError(e.message || 'Failed to load employee')
       } finally {
@@ -278,9 +282,11 @@ export default function EmployeeViewPage() {
         icon={<UsersIcon className="h-6 w-6 text-white" />}
         showBack
         actions={
-          <Button href={`/employees/${id}/edit`} icon={<PencilIcon className="h-4 w-4" />}>
-            Edit
-          </Button>
+          canEdit ? (
+            <Button href={`/employees/${id}/edit`} icon={<PencilIcon className="h-4 w-4" />}>
+              Edit
+            </Button>
+          ) : undefined
         }
       />
 
