@@ -59,7 +59,7 @@ export async function PUT(request: Request) {
       if (Object.keys(data).length === 0) {
         return prisma.profitAndLossWeek.findFirst({ where: { strategyId, weekNumber } })
       }
-      const weekDate = getCalendarDateForWeek(weekNumber, planning.calendar)
+      const weekDate = getCalendarDateForWeek(weekNumber, planning.calendar) ?? planning.calendar.calendarStart ?? new Date()
       return prisma.profitAndLossWeek.upsert({
         where: { strategyId_weekNumber: { strategyId, weekNumber } },
         update: data,
