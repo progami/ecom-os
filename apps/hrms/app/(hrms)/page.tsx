@@ -40,6 +40,7 @@ import { StatusBadge } from '@/components/ui/Badge'
 import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
 import { LeaveHistoryTable } from '@/components/leave/LeaveHistoryTable'
 import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
+import { PendingLeaveApprovals } from '@/components/leave/PendingLeaveApprovals'
 import { StandingCard } from '@/components/employee/StandingCard'
 import { employmentTypeLabels } from '@/lib/constants'
 
@@ -486,6 +487,19 @@ export default function Dashboard() {
 
           {activeTab === 'leave' && (
             <div className="space-y-6">
+              {/* Manager: Pending Approvals */}
+              {data?.isManager && data?.pendingLeaveRequests && data.pendingLeaveRequests.length > 0 && (
+                <Card padding="lg">
+                  <h3 className="text-sm font-semibold text-slate-900 mb-4">
+                    Pending Approvals ({data.pendingLeaveRequests.length})
+                  </h3>
+                  <PendingLeaveApprovals
+                    requests={data.pendingLeaveRequests}
+                    onUpdate={fetchDashboardData}
+                  />
+                </Card>
+              )}
+
               {/* Leave Balance */}
               <Card padding="lg">
                 <div className="flex items-center justify-between mb-4">
