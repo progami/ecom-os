@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+
 type AvatarProps = {
   src?: string | null
   alt?: string
@@ -14,6 +16,7 @@ const sizeClasses = {
 }
 
 export function Avatar({ src, alt = '', size = 'md', className = '' }: AvatarProps) {
+  const [imgError, setImgError] = useState(false)
   const sizeClass = sizeClasses[size]
 
   // Get initials from alt text
@@ -24,12 +27,14 @@ export function Avatar({ src, alt = '', size = 'md', className = '' }: AvatarPro
     .slice(0, 2)
     .toUpperCase()
 
-  if (src) {
+  if (src && !imgError) {
     return (
       <img
         src={src}
         alt={alt}
         className={`${sizeClass} rounded-full object-cover ${className}`}
+        onError={() => setImgError(true)}
+        referrerPolicy="no-referrer"
       />
     )
   }
