@@ -16,6 +16,11 @@ import {
 import { auditLog } from '@/lib/security/audit-logger'
 import { buildTacticalCostLedgerEntries } from '@/lib/costing/tactical-costing'
 import { recordStorageCostEntry } from '@/services/storageCost.service'
+import {
+  getRequiredDocuments,
+  getDocumentLabel,
+  type DocumentCategory,
+} from '@/lib/config/po-document-requirements'
 
 export interface UserContext {
  id?: string | null
@@ -473,6 +478,97 @@ export async function ensurePurchaseOrderForTransaction(
  }
 }
 
+export interface DocumentValidationResult {
+  valid: boolean
+  requiredDocuments: DocumentCategory[]
+  uploadedDocuments: DocumentCategory[]
+  missingDocuments: DocumentCategory[]
+}
+
+export async function validateDocumentsForTransition(
+  orderId: string,
+  fromStatus: PurchaseOrderStatus,
+  toStatus: PurchaseOrderStatus
+): Promise<DocumentValidationResult> {
+  const order = await prisma.purchaseOrder.findUnique({
+    where: { id: orderId },
+    select: { type: true },
+  })
+
+  if (!order) {
+    return {
+      valid: true,
+      requiredDocuments: [],
+      uploadedDocuments: [],
+      missingDocuments: [],
+    }
+  }
+
+  const requiredDocuments = getRequiredDocuments(order.type, fromStatus, toStatus)
+
+  if (requiredDocuments.length === 0) {
+    return {
+      valid: true,
+      requiredDocuments: [],
+      uploadedDocuments: [],
+      missingDocuments: [],
+    }
+  }
+
+  // Fetch movement notes with their attachments
+  const movementNotes = await prisma.movementNote.findMany({
+    where: { purchaseOrderId: orderId },
+    select: {
+      attachments: true,
+      lines: {
+        select: { attachments: true },
+      },
+    },
+  })
+
+  // Collect all uploaded document categories
+  const uploadedSet = new Set<DocumentCategory>()
+
+  // Check if there's at least one movement note (for 'movement_note' requirement)
+  if (movementNotes.length > 0) {
+    uploadedSet.add('movement_note')
+  }
+
+  // Extract document categories from movement note attachments
+  for (const note of movementNotes) {
+    if (note.attachments && typeof note.attachments === 'object' && !Array.isArray(note.attachments)) {
+      for (const category of Object.keys(note.attachments)) {
+        const value = (note.attachments as Record<string, unknown>)[category]
+        if (value && (typeof value === 'object' || Array.isArray(value))) {
+          uploadedSet.add(category as DocumentCategory)
+        }
+      }
+    }
+
+    // Also check line-level attachments
+    for (const line of note.lines) {
+      if (line.attachments && typeof line.attachments === 'object' && !Array.isArray(line.attachments)) {
+        for (const category of Object.keys(line.attachments)) {
+          const value = (line.attachments as Record<string, unknown>)[category]
+          if (value && (typeof value === 'object' || Array.isArray(value))) {
+            uploadedSet.add(category as DocumentCategory)
+          }
+        }
+      }
+    }
+  }
+
+  const uploadedDocuments = requiredDocuments.filter(doc => uploadedSet.has(doc))
+  const missingDocuments = requiredDocuments.filter(doc => !uploadedSet.has(doc))
+
+  return {
+    valid: missingDocuments.length === 0,
+    requiredDocuments,
+    uploadedDocuments,
+    missingDocuments,
+  }
+}
+
 export async function transitionPurchaseOrderStatus(
  id: string,
  targetStatus: PurchaseOrderStatus,
@@ -747,6 +843,15 @@ export async function transitionPurchaseOrderStatus(
  const nextStatuses = allowedTransitions[order.status] ?? []
  if (!nextStatuses.includes(targetStatus)) {
  throw new Error(`Cannot change purchase order status from ${order.status} to ${targetStatus}`)
+ }
+
+ // Validate required documents for AWAITING_PROOF → REVIEW transition
+ if (order.status === PurchaseOrderStatus.AWAITING_PROOF && targetStatus === PurchaseOrderStatus.REVIEW) {
+   const validation = await validateDocumentsForTransition(id, order.status, targetStatus)
+   if (!validation.valid) {
+     const missingLabels = validation.missingDocuments.map(doc => getDocumentLabel(doc)).join(', ')
+     throw new ValidationError(`Missing required documents: ${missingLabels}`)
+   }
  }
 
  return prisma.purchaseOrder.update({
