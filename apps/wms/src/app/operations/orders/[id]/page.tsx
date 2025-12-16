@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
 import { ATTACHMENT_CATEGORIES } from '@/components/operations/receive-attachments-tab'
-import { FileText, ArrowLeft, Loader2, Package2, Truck, Paperclip, Check, ChevronRight } from '@/lib/lucide-icons'
+import { FileText, ArrowLeft, Loader2, Package2, Truck, Paperclip, Check, ChevronRight, AlertCircle } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 
 interface PurchaseOrderLineSummary {
@@ -64,6 +64,13 @@ interface MovementNoteSummary {
  warehouseName: string
  lines: MovementNoteLineSummary[]
  attachments?: Record<string, unknown> | null
+}
+
+interface DocumentValidation {
+  canTransition: boolean
+  requiredDocuments: Array<{ id: string; label: string }>
+  uploadedDocuments: Array<{ id: string; label: string }>
+  missingDocuments: Array<{ id: string; label: string }>
 }
 
 function statusBadgeClasses(status: PurchaseOrderSummary['status']) {
@@ -139,6 +146,7 @@ export default function PurchaseOrderDetailPage() {
  expectedDate: '',
  notes: '',
  })
+ const [documentValidation, setDocumentValidation] = useState<DocumentValidation | null>(null)
 
  const attachmentSummary = useMemo(() => {
  const map: Record<string, Array<{ name: string; size: number; source: string; viewUrl?: string }>> = {}
@@ -307,6 +315,29 @@ export default function PurchaseOrderDetailPage() {
  fetchLinked()
  }, [order])
 
+ // Fetch document validation when order is in AWAITING_PROOF status
+ useEffect(() => {
+   if (!order || order.status !== 'AWAITING_PROOF') {
+     setDocumentValidation(null)
+     return
+   }
+
+   const fetchValidation = async () => {
+     try {
+       const response = await fetch(`/api/purchase-orders/${order.id}/validate-documents`)
+       if (response.ok) {
+         const data = await response.json()
+         setDocumentValidation(data)
+       }
+     } catch (_error) {
+       // Ignore validation fetch errors
+     }
+   }
+
+   fetchValidation()
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ }, [order?.id, order?.status, movementNotes])
+
  useEffect(() => {
  if (!order || isEditingDetails) return
 
@@ -464,7 +495,9 @@ export default function PurchaseOrderDetailPage() {
  : order.status === 'DRAFT'
  ? 'Prepare the order and submit for proof once documents are ready.'
  : order.status === 'AWAITING_PROOF'
- ? 'We are waiting on a delivery note or supporting documents.'
+ ? documentValidation?.missingDocuments?.length
+   ? `Missing required documents: ${documentValidation.missingDocuments.map(d => d.label).join(', ')}`
+   : 'We are waiting on a delivery note or supporting documents.'
  : order.status === 'REVIEW'
  ? 'Documents are in. Complete the review and decide to post or send back.'
  : order.status === 'POSTED'
@@ -590,8 +623,9 @@ export default function PurchaseOrderDetailPage() {
  <>
  <Button
  onClick={() => updateStatus('REVIEW')}
- disabled={actionBusy}
+ disabled={actionBusy || (documentValidation && !documentValidation.canTransition)}
  className="gap-2"
+ title={documentValidation && !documentValidation.canTransition ? `Missing: ${documentValidation.missingDocuments.map(d => d.label).join(', ')}` : undefined}
  >
  {statusUpdating ? 'Advancing…' : 'Mark Ready for Review'}
  </Button>
@@ -778,6 +812,49 @@ export default function PurchaseOrderDetailPage() {
 
  <TabPanel>
  <div className="space-y-6">
+ {/* Document Requirements Checklist */}
+ {documentValidation && documentValidation.requiredDocuments.length > 0 && order.status === 'AWAITING_PROOF' && (
+   <div className={`rounded-xl border p-4 ${documentValidation.canTransition ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'}`}>
+     <div className="flex items-start gap-3">
+       {documentValidation.canTransition ? (
+         <Check className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+       ) : (
+         <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+       )}
+       <div className="flex-1">
+         <h3 className="text-sm font-semibold text-foreground">
+           {documentValidation.canTransition ? 'All required documents uploaded' : 'Required Documents for Review'}
+         </h3>
+         <p className="text-xs text-muted-foreground mt-1">
+           {documentValidation.canTransition
+             ? 'You can now mark this order ready for review.'
+             : 'Upload the following documents before advancing to Review status.'}
+         </p>
+         <div className="mt-3 space-y-2">
+           {documentValidation.requiredDocuments.map(doc => {
+             const isUploaded = documentValidation.uploadedDocuments.some(u => u.id === doc.id)
+             return (
+               <div key={doc.id} className="flex items-center gap-2 text-sm">
+                 {isUploaded ? (
+                   <Check className="h-4 w-4 text-emerald-600" />
+                 ) : (
+                   <AlertCircle className="h-4 w-4 text-amber-600" />
+                 )}
+                 <span className={isUploaded ? 'text-emerald-700' : 'text-amber-700'}>
+                   {doc.label}
+                 </span>
+                 {isUploaded && (
+                   <Badge variant="outline" className="text-[10px] px-1.5 py-0">Uploaded</Badge>
+                 )}
+               </div>
+             )
+           })}
+         </div>
+       </div>
+     </div>
+   </div>
+ )}
+
  {attachmentCategoriesOrdered.map(category => {
  const items = attachmentSummary[category.id] ?? []
  return (
