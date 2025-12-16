@@ -232,7 +232,12 @@ export async function PUT(request: Request) {
     ordersToRecalc.add(existing.purchaseOrderId)
   }
 
-  await Promise.all(Array.from(ordersToRecalc).map((orderId) => recalcOrderQuantity(orderId)))
+  try {
+    await Promise.all(Array.from(ordersToRecalc).map((orderId) => recalcOrderQuantity(orderId)))
+  } catch (error) {
+    console.error('Failed to recalculate order quantities', error)
+    // Continue anyway - the batch updates succeeded, just quantity sync failed
+  }
 
   return NextResponse.json({ ok: true })
 }

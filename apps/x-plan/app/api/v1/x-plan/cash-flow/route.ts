@@ -50,43 +50,48 @@ export async function PUT(request: Request) {
 
   const { strategyId } = parsed.data
 
-  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    for (const { weekNumber, values } of parsed.data.updates) {
-      const data: Record<string, number | null> = {}
-      for (const field of editableFields) {
-        if (!(field in values)) continue
-        data[field] = parseNumber(values[field])
-      }
-      const decimalData = Object.fromEntries(
-        Object.entries(data).map(([key, value]) => [key, value == null ? null : new Prisma.Decimal(value)])
-      ) as Record<string, Prisma.Decimal | null>
-      if (Object.keys(data).length === 0) {
-        await tx.cashFlowWeek.findFirst({ where: { strategyId, weekNumber } })
-        continue
-      }
-      try {
-        await tx.cashFlowWeek.update({
-          where: { strategyId_weekNumber: { strategyId, weekNumber } },
-          data: decimalData,
-        })
-      } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-          const weekDate = getCalendarDateForWeek(weekNumber, planning.calendar) ?? planning.calendar.calendarStart ?? new Date()
-          await tx.cashFlowWeek.create({
-            data: {
-              strategyId,
-              weekNumber,
-              weekDate,
-              periodLabel: `Week ${weekNumber}`,
-              ...decimalData,
-            },
-          })
+  try {
+    await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      for (const { weekNumber, values } of parsed.data.updates) {
+        const data: Record<string, number | null> = {}
+        for (const field of editableFields) {
+          if (!(field in values)) continue
+          data[field] = parseNumber(values[field])
+        }
+        const decimalData = Object.fromEntries(
+          Object.entries(data).map(([key, value]) => [key, value == null ? null : new Prisma.Decimal(value)])
+        ) as Record<string, Prisma.Decimal | null>
+        if (Object.keys(data).length === 0) {
+          await tx.cashFlowWeek.findFirst({ where: { strategyId, weekNumber } })
           continue
         }
-        throw error
+        try {
+          await tx.cashFlowWeek.update({
+            where: { strategyId_weekNumber: { strategyId, weekNumber } },
+            data: decimalData,
+          })
+        } catch (error) {
+          if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+            const weekDate = getCalendarDateForWeek(weekNumber, planning.calendar) ?? planning.calendar.calendarStart ?? new Date()
+            await tx.cashFlowWeek.create({
+              data: {
+                strategyId,
+                weekNumber,
+                weekDate,
+                periodLabel: `Week ${weekNumber}`,
+                ...decimalData,
+              },
+            })
+            continue
+          }
+          throw error
+        }
       }
-    }
-  })
+    })
+  } catch (error) {
+    console.error('[cash-flow][PUT]', error)
+    return NextResponse.json({ error: 'Unable to update cash flow' }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }
