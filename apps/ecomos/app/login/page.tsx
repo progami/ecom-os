@@ -13,6 +13,24 @@ export default function LoginPage() {
   )
 }
 
+// Clear all auth cookies from browser
+function clearAuthCookies() {
+  const cookiePatterns = ['next-auth', 'authjs', '__Secure-', '__Host-', 'csrf', 'session', 'callback', 'ecomos']
+  const domains = ['.targonglobal.com', 'ecomos.targonglobal.com', '']
+
+  document.cookie.split(';').forEach(cookie => {
+    const name = cookie.split('=')[0].trim()
+    if (cookiePatterns.some(p => name.toLowerCase().includes(p.toLowerCase()))) {
+      // Clear for each domain variant
+      domains.forEach(domain => {
+        const domainPart = domain ? `; domain=${domain}` : ''
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/${domainPart}`
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/${domainPart}; secure`
+      })
+    }
+  })
+}
+
 function LoginPageInner() {
   const searchParams = useSearchParams()
   const callbackUrl = searchParams.get('callbackUrl') || '/'
@@ -21,6 +39,15 @@ function LoginPageInner() {
 
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const autoSignInTriggered = useRef(false)
+  const cookiesCleared = useRef(false)
+
+  // Clear stale cookies on page load to prevent JWT errors
+  useEffect(() => {
+    if (!cookiesCleared.current) {
+      cookiesCleared.current = true
+      clearAuthCookies()
+    }
+  }, [])
 
   const errorMessage = useMemo(() => {
     if (!error) return ''
