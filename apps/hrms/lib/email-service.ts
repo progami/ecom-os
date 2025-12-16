@@ -17,6 +17,9 @@ type EmailNotificationType =
   | 'REVIEW_SUBMITTED'
   | 'HIERARCHY_CHANGED'
   | 'PROFILE_INCOMPLETE'
+  | 'LEAVE_REQUESTED'
+  | 'LEAVE_APPROVED'
+  | 'LEAVE_REJECTED'
   | 'GENERAL'
 
 const SUBJECT_MAP: Record<EmailNotificationType, string> = {
@@ -26,6 +29,9 @@ const SUBJECT_MAP: Record<EmailNotificationType, string> = {
   REVIEW_SUBMITTED: 'Performance Review Submitted',
   HIERARCHY_CHANGED: 'Reporting Structure Changed',
   PROFILE_INCOMPLETE: 'Complete Your HRMS Profile',
+  LEAVE_REQUESTED: 'Leave Request Pending Approval',
+  LEAVE_APPROVED: 'Your Leave Request Has Been Approved',
+  LEAVE_REJECTED: 'Your Leave Request Has Been Declined',
   GENERAL: 'New HRMS Notification',
 }
 
