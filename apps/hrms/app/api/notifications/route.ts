@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentUser } from '@/lib/current-user'
+import { checkAndNotifyMissingFields } from '@/lib/notification-service'
 
 export async function GET(req: Request) {
   const rateLimitError = withRateLimit(req)
@@ -14,6 +15,11 @@ export async function GET(req: Request) {
 
     const user = await getCurrentUser()
     const employeeId = user?.employee?.id
+
+    // Self-healing: re-check profile completion to clean up stale notifications
+    if (employeeId) {
+      await checkAndNotifyMissingFields(employeeId)
+    }
 
     // Filter: show notifications targeted to this employee OR broadcast (employeeId = null)
     const whereClause = {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
 import { withRateLimit } from '@/lib/api-helpers'
 import { getCurrentUser } from '@/lib/current-user'
+import { checkAndNotifyMissingFields } from '@/lib/notification-service'
 
 export async function GET(req: Request) {
   // Rate limiting
@@ -125,6 +126,19 @@ export async function GET(req: Request) {
     // Determine if user is a manager (has direct reports)
     const isManager = directReports.length > 0
 
+    // Self-healing: re-check profile completion to clean up stale notifications
+    // This ensures PROFILE_INCOMPLETE notifications are deleted if profile is complete
+    await checkAndNotifyMissingFields(employeeId)
+
+    // Re-fetch notifications after potential cleanup
+    const freshNotifications = await prisma.notification.findMany({
+      where: {
+        OR: [{ employeeId }, { employeeId: null }],
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+    })
+
     // Get unread notification count
     const unreadNotificationCount = await prisma.notification.count({
       where: {
@@ -220,7 +234,7 @@ export async function GET(req: Request) {
       isManager,
       currentEmployee: currentEmployeeFormatted,
       directReports,
-      notifications,
+      notifications: freshNotifications,
       unreadNotificationCount,
       pendingReviews,
       pendingLeaveRequests: pendingLeaveRequestsData,
