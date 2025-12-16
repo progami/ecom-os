@@ -184,7 +184,7 @@ export async function PUT(request: Request) {
   for (const { id, values } of parsed.data.updates) {
     const existing = await delegate.findUnique({ where: { id }, select: { purchaseOrderId: true } })
     if (!existing) {
-      throw new Error('Batch not found')
+      return NextResponse.json({ error: `Batch ${id} not found` }, { status: 404 })
     }
     const data: Record<string, unknown> = {}
     for (const field of allowedFields) {
@@ -218,11 +218,16 @@ export async function PUT(request: Request) {
       await delegate.update({ where: { id }, data })
     } catch (error: any) {
       if (error?.code === 'P2021') {
-        throw new Error(
-          'Purchase order batches are not yet available. Run `prisma migrate dev --schema apps/x-plan/prisma/schema.prisma` (or `prisma db push`) and restart the dev server to create the new table.'
+        return NextResponse.json(
+          {
+            error:
+              'Purchase order batches are not yet available. Run `prisma migrate dev --schema apps/x-plan/prisma/schema.prisma` (or `prisma db push`) and restart the dev server to create the new table.',
+          },
+          { status: 503 }
         )
       }
-      throw error
+      console.error('Failed to update purchase order batch', error)
+      return NextResponse.json({ error: 'Failed to update batch' }, { status: 500 })
     }
     ordersToRecalc.add(existing.purchaseOrderId)
   }
