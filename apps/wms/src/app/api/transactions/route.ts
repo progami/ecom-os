@@ -10,11 +10,12 @@ import {
 } from '@ecom-os/prisma-wms'
 import { businessLogger, perfLogger } from '@/lib/logger/index'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
-// handleTransactionCosts removed - costs are handled via frontend pre-filling
 import { parseLocalDateTime } from '@/lib/utils/date-helpers'
 import { recordStorageCostEntry } from '@/services/storageCost.service'
 import { ensurePurchaseOrderForTransaction, resolveBatchLot } from '@/lib/services/purchase-order-service'
 import { buildTacticalCostLedgerEntries } from '@/lib/costing/tactical-costing'
+import { isRecord, asString, asNumber, asBoolean, asNumeric, parseDateValue } from '@/lib/utils/type-coercion'
+import { calculatePalletValues, type TransactionTypeForPallets } from '@/lib/utils/pallet-calculations'
 export const dynamic = 'force-dynamic'
 
 type NewSkuPayload = {
@@ -79,37 +80,7 @@ type AttachmentPayload = {
  name?: string
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
- typeof value === 'object' && value !== null
-
-const asString = (value: unknown): string | undefined =>
- typeof value === 'string' && value.trim().length > 0 ? value : undefined
-
-const asNumber = (value: unknown): number | undefined =>
- typeof value === 'number' && Number.isFinite(value) ? value : undefined
-
-const asBoolean = (value: unknown): boolean | undefined => {
- if (typeof value === 'boolean') {
- return value
- }
- if (typeof value === 'string') {
- const normalized = value.trim().toLowerCase()
- if (normalized === 'true') return true
- if (normalized === 'false') return false
- }
- return undefined
-}
-
-const asNumeric = (value: unknown): number | undefined => {
- if (typeof value === 'number' && Number.isFinite(value)) {
- return value
- }
- if (typeof value === 'string' && value.trim() !== '') {
- const parsed = Number(value)
- return Number.isFinite(parsed) ? parsed : undefined
- }
- return undefined
-}
+// Type coercion utilities imported from @/lib/utils/type-coercion
 
 const parseInboundReceiveType = (value: unknown): InboundReceiveType | null => {
  if (typeof value !== 'string') return null
@@ -168,11 +139,7 @@ const normalizeBatchData = (input: unknown): NewBatchPayload | undefined => {
  }
 }
 
-const parseDateValue = (value?: string | null): Date | null => {
- if (!value) return null
- const parsed = new Date(value)
- return Number.isNaN(parsed.getTime()) ? null : parsed
-}
+// parseDateValue imported from @/lib/utils/type-coercion
 
 function normalizeTransactionLine(input: unknown): MutableTransactionLine {
  if (!isRecord(input)) {
@@ -917,25 +884,15 @@ for (const item of validatedItems) {
  }
  }
 
- const calculatedStoragePalletsIn =
- (['RECEIVE', 'ADJUST_IN'].includes(txType) && (item.storageCartonsPerPallet ?? 0) > 0)
- ? Math.ceil(item.cartons / Math.max(1, item.storageCartonsPerPallet ?? 1))
- : 0
- const providedStoragePalletsIn = Number(item.storagePalletsIn ?? item.pallets ?? 0)
- const hasStoragePalletOverride = item.storagePalletsIn !== undefined || item.pallets !== undefined
- const finalStoragePalletsIn = ['RECEIVE', 'ADJUST_IN'].includes(txType)
- ? (hasStoragePalletOverride ? providedStoragePalletsIn : calculatedStoragePalletsIn)
- : 0
-
- const calculatedShippingPalletsOut =
- (['SHIP', 'ADJUST_OUT'].includes(txType) && (batchShippingCartonsPerPallet ?? 0) > 0)
- ? Math.ceil(item.cartons / Math.max(1, batchShippingCartonsPerPallet ?? 1))
- : 0
- const providedShippingPalletsOut = Number(item.shippingPalletsOut ?? item.pallets ?? 0)
- const hasShippingPalletOverride = item.shippingPalletsOut !== undefined || item.pallets !== undefined
- const finalShippingPalletsOut = ['SHIP', 'ADJUST_OUT'].includes(txType)
- ? (hasShippingPalletOverride ? providedShippingPalletsOut : calculatedShippingPalletsOut)
- : 0
+ const { storagePalletsIn: finalStoragePalletsIn, shippingPalletsOut: finalShippingPalletsOut } = calculatePalletValues({
+   transactionType: txType as TransactionTypeForPallets,
+   cartons: item.cartons,
+   storageCartonsPerPallet: item.storageCartonsPerPallet,
+   shippingCartonsPerPallet: batchShippingCartonsPerPallet,
+   providedStoragePallets: item.storagePalletsIn,
+   providedShippingPallets: item.shippingPalletsOut,
+   providedPallets: item.pallets,
+ })
 
  if (txType === 'RECEIVE') {
  totalStoragePalletsIn += finalStoragePalletsIn
