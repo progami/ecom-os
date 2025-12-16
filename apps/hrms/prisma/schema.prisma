@@ -276,6 +276,29 @@ enum NotificationType {
   DISCIPLINARY_UPDATED
   HIERARCHY_CHANGED
   STANDING_CHANGED
+
+  // Approval chain notifications
+  VIOLATION_PENDING_HR        // Notify HR of new violation to review
+  VIOLATION_PENDING_ADMIN     // Notify Super Admin of violation to approve
+  VIOLATION_APPROVED          // Notify manager/employee of approval
+  VIOLATION_REJECTED          // Notify manager of rejection
+  VIOLATION_ACKNOWLEDGED      // Notify HR/manager when employee acknowledges
+  REVIEW_PENDING_HR           // Notify HR of new review to review
+  REVIEW_PENDING_ADMIN        // Notify Super Admin of review to approve
+  REVIEW_APPROVED             // Notify manager/employee of approval
+  REVIEW_REJECTED             // Notify manager of rejection
+  APPEAL_PENDING_HR           // Notify HR of appeal to review
+  APPEAL_PENDING_ADMIN        // Notify Super Admin of appeal to decide
+  APPEAL_DECIDED              // Notify employee of appeal decision
+
+  // Leave notifications
+  LEAVE_REQUESTED             // Notify manager when employee requests leave
+  LEAVE_APPROVED              // Notify employee when leave is approved
+  LEAVE_REJECTED              // Notify employee when leave is rejected
+  LEAVE_CANCELLED             // Notify manager when employee cancels leave
+
+  // Resource notifications
+  RESOURCE_CREATED            // Notify relevant employees of new resource
 }
 
 // ============ CORE VALUES SYSTEM ============
@@ -479,6 +502,22 @@ model PerformanceReview {
 
   status          ReviewStatus        @default(DRAFT)
 
+  // ============ APPROVAL CHAIN TRACKING ============
+  // HR Review stage
+  hrReviewedAt             DateTime?
+  hrReviewedById           String?
+  hrReviewNotes            String?
+  hrApproved               Boolean?  // true=approved, false=rejected
+
+  // Super Admin Approval stage
+  superAdminApprovedAt     DateTime?
+  superAdminApprovedById   String?
+  superAdminNotes          String?
+  superAdminApproved       Boolean?  // true=approved, false=rejected
+
+  // Employee acknowledgment
+  acknowledgedAt           DateTime?
+
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
@@ -486,6 +525,8 @@ model PerformanceReview {
   @@index([reviewType])
   @@index([reviewDate])
   @@index([status])
+  @@index([hrReviewedById])
+  @@index([superAdminApprovedById])
 }
 
 model DisciplinaryAction {
@@ -537,6 +578,29 @@ model DisciplinaryAction {
   appealResolvedAt         DateTime? // When appeal was resolved
   appealResolvedById       String?   // Which HR person resolved the appeal
 
+  // ============ APPROVAL CHAIN TRACKING ============
+  // HR Review stage
+  hrReviewedAt             DateTime?
+  hrReviewedById           String?
+  hrReviewNotes            String?
+  hrApproved               Boolean?  // true=approved, false=rejected
+
+  // Super Admin Approval stage
+  superAdminApprovedAt     DateTime?
+  superAdminApprovedById   String?
+  superAdminNotes          String?
+  superAdminApproved       Boolean?  // true=approved, false=rejected
+
+  // Appeal HR Review stage (separate from initial HR review)
+  appealHrReviewedAt       DateTime?
+  appealHrReviewedById     String?
+  appealHrNotes            String?
+
+  // Appeal Super Admin Decision stage
+  appealSuperAdminDecidedAt    DateTime?
+  appealSuperAdminDecidedById  String?
+  appealSuperAdminNotes        String?
+
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
@@ -546,6 +610,8 @@ model DisciplinaryAction {
   @@index([status])
   @@index([incidentDate])
   @@index([primaryValueBreached])
+  @@index([hrReviewedById])
+  @@index([superAdminApprovedById])
 }
 
 model HRCalendarEvent {
@@ -584,9 +650,12 @@ enum ReviewType {
 
 enum ReviewStatus {
   DRAFT
-  PENDING_REVIEW
-  COMPLETED
+  PENDING_HR_REVIEW       // Manager submitted, waiting for HR
+  PENDING_SUPER_ADMIN     // HR approved, waiting for Super Admin
+  PENDING_ACKNOWLEDGMENT  // Super Admin approved, waiting for employee
+  PENDING_REVIEW          // Legacy: kept for backwards compatibility
   ACKNOWLEDGED
+  COMPLETED
 }
 
 enum ViolationType {
@@ -662,10 +731,21 @@ enum DisciplinaryActionType {
 }
 
 enum DisciplinaryStatus {
+  // Approval chain statuses
+  PENDING_HR_REVIEW       // Manager raised, waiting for HR
+  PENDING_SUPER_ADMIN     // HR approved, waiting for Super Admin
+  PENDING_ACKNOWLEDGMENT  // Super Admin approved, waiting for acks
+
+  // Legacy statuses (kept for backwards compatibility)
   OPEN
   UNDER_INVESTIGATION
   ACTION_TAKEN
+
+  // Active and resolution statuses
+  ACTIVE                  // Fully acknowledged
   APPEALED
+  APPEAL_PENDING_HR       // Employee appealed, waiting for HR
+  APPEAL_PENDING_SUPER_ADMIN // HR reviewed appeal, waiting for Super Admin
   CLOSED
   DISMISSED
 }

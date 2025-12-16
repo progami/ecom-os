@@ -10,7 +10,7 @@ import {
 } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { canManageEmployee } from '@/lib/permissions'
+import { canRaiseViolation, getHREmployees } from '@/lib/permissions'
 import { publish } from '@/lib/notification-service'
 
 export async function GET(req: Request) {
@@ -120,25 +120,27 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
     }
 
-    // Check if current user has permission to manage this employee
+    // Check if current user has permission to RAISE violation for this employee
     const currentEmployeeId = await getCurrentEmployeeId()
     if (!currentEmployeeId) {
       return NextResponse.json({ error: 'Unauthorized - not logged in' }, { status: 401 })
     }
 
-    const permissionCheck = await canManageEmployee(currentEmployeeId, data.employeeId)
-    if (!permissionCheck.canManage) {
+    const permissionCheck = await canRaiseViolation(currentEmployeeId, data.employeeId)
+    if (!permissionCheck.allowed) {
       return NextResponse.json(
         { error: `Permission denied: ${permissionCheck.reason}` },
         { status: 403 }
       )
     }
 
+    // Create violation with PENDING_HR_REVIEW status (approval chain starts here)
     const item = await prisma.disciplinaryAction.create({
       data: {
         employeeId: data.employeeId,
         violationType: data.violationType,
         violationReason: data.violationReason,
+        primaryValueBreached: data.primaryValueBreached,
         severity: data.severity,
         incidentDate: new Date(data.incidentDate),
         reportedBy: data.reportedBy,
@@ -146,12 +148,8 @@ export async function POST(req: Request) {
         witnesses: data.witnesses ?? null,
         evidence: data.evidence ?? null,
         actionTaken: data.actionTaken,
-        actionDate: data.actionDate ? new Date(data.actionDate) : null,
-        actionDetails: data.actionDetails ?? null,
-        followUpDate: data.followUpDate ? new Date(data.followUpDate) : null,
-        followUpNotes: data.followUpNotes ?? null,
-        status: data.status,
-        resolution: data.resolution ?? null,
+        // Always start with PENDING_HR_REVIEW - approval chain: Manager -> HR -> Super Admin
+        status: 'PENDING_HR_REVIEW',
       },
       include: {
         employee: {
@@ -165,7 +163,23 @@ export async function POST(req: Request) {
       },
     })
 
-    // Publish notification for disciplinary action creation
+    // Notify HR about pending violation review
+    const hrEmployees = await getHREmployees()
+    for (const hr of hrEmployees) {
+      await prisma.notification.create({
+        data: {
+          type: 'VIOLATION_PENDING_HR',
+          title: 'Violation Pending Review',
+          message: `A new violation has been raised for ${item.employee.firstName} ${item.employee.lastName}. Please review.`,
+          link: `/performance/disciplinary/${item.id}`,
+          employeeId: hr.id,
+          relatedId: item.id,
+          relatedType: 'DISCIPLINARY',
+        },
+      })
+    }
+
+    // Also publish legacy notification for backwards compatibility
     await publish({
       type: 'DISCIPLINARY_CREATED',
       actionId: item.id,

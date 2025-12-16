@@ -381,15 +381,26 @@ export async function canEditField(
     return { allowed: false, reason: 'You can only edit your own profile for this field' }
   }
 
-  // Manager editable: only manager chain or super admin
+  // Manager editable: only HR or super admin (NOT regular managers)
+  // Manager role is now purely for org chart visualization
   if (permission === 'MANAGER_EDITABLE') {
     if (actor.isSuperAdmin) {
       return { allowed: true }
     }
-    if (await isManagerOf(actorId, targetEmployeeId)) {
+    // Check if actor is HR
+    const actorWithRoles = await prisma.employee.findUnique({
+      where: { id: actorId },
+      select: {
+        roles: {
+          where: { name: { in: ['HR', 'HR_ADMIN', 'HR Admin', 'Human Resources'] } },
+          select: { name: true },
+        },
+      },
+    })
+    if (actor.permissionLevel >= 75 || (actorWithRoles?.roles?.length ?? 0) > 0) {
       return { allowed: true }
     }
-    return { allowed: false, reason: 'Only your manager or above can edit this field' }
+    return { allowed: false, reason: 'Only HR and Super Admin can edit this field' }
   }
 
   return { allowed: false, reason: 'Permission denied' }
@@ -516,4 +527,256 @@ export async function calculatePermissionLevel(employeeId: string): Promise<numb
 
   if (directReportsCount > 0) return 50 // Manager
   return 0 // Regular employee
+}
+
+// ============ APPROVAL CHAIN PERMISSION SYSTEM ============
+// Workflow: Employee -> Manager -> HR -> Super Admin
+
+/**
+ * Permission level constants
+ * Super Admin (100) > HR (75) > Manager (50) > Employee (0)
+ */
+export const PermissionLevel = {
+  SUPER_ADMIN: 100,
+  HR: 75,
+  MANAGER: 50,
+  EMPLOYEE: 0,
+} as const
+
+/**
+ * HR role names recognized by the system
+ */
+const HR_ROLE_NAMES = ['HR', 'HR_ADMIN', 'HR Admin', 'Human Resources']
+
+/**
+ * Check if user is HR (permission level >= 75 or has HR role)
+ */
+export async function isHR(userId: string): Promise<boolean> {
+  const user = await prisma.employee.findUnique({
+    where: { id: userId },
+    select: {
+      permissionLevel: true,
+      isSuperAdmin: true,
+      roles: {
+        where: { name: { in: HR_ROLE_NAMES } },
+        select: { name: true },
+      },
+    },
+  })
+
+  if (!user) return false
+  if (user.isSuperAdmin) return true
+  if (user.permissionLevel >= PermissionLevel.HR) return true
+  return (user.roles?.length ?? 0) > 0
+}
+
+/**
+ * Check if user is HR or above (HR or Super Admin)
+ */
+export async function isHROrAbove(userId: string): Promise<boolean> {
+  return isHR(userId)
+}
+
+/**
+ * Check if user can RAISE a violation/review for an employee
+ * - Manager can raise for their direct/indirect reports
+ * - HR can raise for anyone
+ * - Super Admin can raise for anyone
+ */
+export async function canRaiseViolation(
+  actorId: string,
+  targetEmployeeId: string
+): Promise<{ allowed: boolean; reason?: string }> {
+  if (actorId === targetEmployeeId) {
+    return { allowed: false, reason: 'Cannot raise violation against yourself' }
+  }
+
+  const actor = await prisma.employee.findUnique({
+    where: { id: actorId },
+    select: {
+      permissionLevel: true,
+      isSuperAdmin: true,
+      roles: {
+        where: { name: { in: HR_ROLE_NAMES } },
+        select: { name: true },
+      },
+    },
+  })
+
+  if (!actor) {
+    return { allowed: false, reason: 'Actor not found' }
+  }
+
+  // Super Admin can raise for anyone
+  if (actor.isSuperAdmin) {
+    return { allowed: true, reason: 'Super Admin' }
+  }
+
+  // HR can raise for anyone
+  if (actor.permissionLevel >= PermissionLevel.HR || (actor.roles?.length ?? 0) > 0) {
+    return { allowed: true, reason: 'HR' }
+  }
+
+  // Manager can only raise for their direct/indirect reports
+  if (actor.permissionLevel >= PermissionLevel.MANAGER) {
+    const isManager = await isManagerOf(actorId, targetEmployeeId)
+    if (isManager) {
+      return { allowed: true, reason: 'Manager of employee' }
+    }
+  }
+
+  return { allowed: false, reason: 'You can only raise violations for employees who report to you' }
+}
+
+/**
+ * Check if user can do HR-level review (HR or Super Admin)
+ */
+export async function canHRReview(actorId: string): Promise<{ allowed: boolean; reason?: string }> {
+  const actor = await prisma.employee.findUnique({
+    where: { id: actorId },
+    select: {
+      permissionLevel: true,
+      isSuperAdmin: true,
+      roles: {
+        where: { name: { in: HR_ROLE_NAMES } },
+        select: { name: true },
+      },
+    },
+  })
+
+  if (!actor) {
+    return { allowed: false, reason: 'Actor not found' }
+  }
+
+  if (actor.isSuperAdmin) {
+    return { allowed: true, reason: 'Super Admin' }
+  }
+
+  if (actor.permissionLevel >= PermissionLevel.HR || (actor.roles?.length ?? 0) > 0) {
+    return { allowed: true, reason: 'HR' }
+  }
+
+  return { allowed: false, reason: 'Only HR can perform this action' }
+}
+
+/**
+ * Check if user can do FINAL approval (Super Admin only)
+ */
+export async function canFinalApprove(actorId: string): Promise<{ allowed: boolean; reason?: string }> {
+  const actor = await prisma.employee.findUnique({
+    where: { id: actorId },
+    select: { isSuperAdmin: true },
+  })
+
+  if (!actor) {
+    return { allowed: false, reason: 'Actor not found' }
+  }
+
+  if (actor.isSuperAdmin) {
+    return { allowed: true, reason: 'Super Admin' }
+  }
+
+  return { allowed: false, reason: 'Only Super Admin can perform final approval' }
+}
+
+/**
+ * Check if user can edit employee records (HR or Super Admin only for org/employment fields)
+ * Note: This is different from canEditField which checks field-level permissions
+ */
+export async function canEditEmployeeRecord(
+  actorId: string,
+  targetEmployeeId: string
+): Promise<{ allowed: boolean; reason?: string }> {
+  // Self can edit own personal info (handled by field-level permissions)
+  if (actorId === targetEmployeeId) {
+    return { allowed: true, reason: 'Self' }
+  }
+
+  const actor = await prisma.employee.findUnique({
+    where: { id: actorId },
+    select: {
+      permissionLevel: true,
+      isSuperAdmin: true,
+      roles: {
+        where: { name: { in: HR_ROLE_NAMES } },
+        select: { name: true },
+      },
+    },
+  })
+
+  if (!actor) {
+    return { allowed: false, reason: 'Actor not found' }
+  }
+
+  // Super Admin can edit anyone
+  if (actor.isSuperAdmin) {
+    return { allowed: true, reason: 'Super Admin' }
+  }
+
+  // HR can edit anyone (for org/employment changes, will go through approval)
+  if (actor.permissionLevel >= PermissionLevel.HR || (actor.roles?.length ?? 0) > 0) {
+    return { allowed: true, reason: 'HR' }
+  }
+
+  return { allowed: false, reason: 'Only HR and Super Admin can edit employee records' }
+}
+
+/**
+ * Get the role/level of a user for display purposes
+ */
+export async function getUserRole(userId: string): Promise<'SUPER_ADMIN' | 'HR' | 'MANAGER' | 'EMPLOYEE'> {
+  const user = await prisma.employee.findUnique({
+    where: { id: userId },
+    select: {
+      permissionLevel: true,
+      isSuperAdmin: true,
+      roles: {
+        where: { name: { in: HR_ROLE_NAMES } },
+        select: { name: true },
+      },
+    },
+  })
+
+  if (!user) return 'EMPLOYEE'
+  if (user.isSuperAdmin) return 'SUPER_ADMIN'
+  if (user.permissionLevel >= PermissionLevel.HR || (user.roles?.length ?? 0) > 0) return 'HR'
+  if (user.permissionLevel >= PermissionLevel.MANAGER) return 'MANAGER'
+  return 'EMPLOYEE'
+}
+
+/**
+ * Get all HR employees (for notifications)
+ */
+export async function getHREmployees(): Promise<{ id: string; email: string; firstName: string }[]> {
+  return prisma.employee.findMany({
+    where: {
+      status: 'ACTIVE',
+      OR: [
+        { permissionLevel: { gte: PermissionLevel.HR } },
+        { roles: { some: { name: { in: HR_ROLE_NAMES } } } },
+      ],
+    },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+    },
+  })
+}
+
+/**
+ * Get all Super Admin employees (for notifications)
+ */
+export async function getSuperAdminEmployees(): Promise<{ id: string; email: string; firstName: string }[]> {
+  return prisma.employee.findMany({
+    where: {
+      status: 'ACTIVE',
+      isSuperAdmin: true,
+    },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+    },
+  })
 }
