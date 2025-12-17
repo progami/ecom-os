@@ -127,7 +127,7 @@ export async function GET(req: Request) {
       prisma.performanceReview.findMany({
         where: {
           assignedReviewerId: employeeId,
-          status: 'DRAFT',
+          status: { in: ['NOT_STARTED', 'IN_PROGRESS', 'DRAFT'] },
           quarterlyCycleId: { not: null },
         },
         select: {

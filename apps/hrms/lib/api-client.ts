@@ -432,9 +432,14 @@ export type PerformanceReview = {
     email?: string
   }
   reviewType: string
+  // Structured period data
+  periodType?: string | null
+  periodYear?: number | null
+  // Legacy period string
   reviewPeriod: string
   reviewDate: string
   reviewerName: string
+  assignedReviewerId?: string | null
   overallRating: number
   qualityOfWork?: number | null
   productivity?: number | null
@@ -447,6 +452,10 @@ export type PerformanceReview = {
   goals?: string | null
   comments?: string | null
   status: string
+  // Workflow timestamps
+  startedAt?: string | null
+  submittedAt?: string | null
+  acknowledgedAt?: string | null
   // Quarterly review fields
   quarterlyCycleId?: string | null
   deadline?: string | null
@@ -495,6 +504,22 @@ export const PerformanceReviewsApi = {
   delete(id: string) {
     return request<{ ok: boolean }>(`/api/performance-reviews/${encodeURIComponent(id)}`, {
       method: 'DELETE',
+    })
+  },
+  // Workflow methods
+  start(id: string) {
+    return request<PerformanceReview & { message: string }>(`/api/performance-reviews/${encodeURIComponent(id)}/start`, {
+      method: 'POST',
+    })
+  },
+  submit(id: string) {
+    return request<PerformanceReview & { message: string }>(`/api/performance-reviews/${encodeURIComponent(id)}/submit`, {
+      method: 'POST',
+    })
+  },
+  acknowledge(id: string) {
+    return request<PerformanceReview & { message: string }>(`/api/performance-reviews/${encodeURIComponent(id)}/acknowledge`, {
+      method: 'POST',
     })
   },
 }
