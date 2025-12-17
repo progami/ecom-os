@@ -26,14 +26,6 @@ export async function GET(req: Request) {
     })
 
     const isHROrAdmin = currentEmployee?.isSuperAdmin || (currentEmployee?.permissionLevel ?? 0) >= 50
-    const reviewerName = `${currentEmployee?.firstName} ${currentEmployee?.lastName}`
-
-    // Get direct reports for this manager
-    const directReports = await prisma.employee.findMany({
-      where: { reportsToId: currentEmployeeId },
-      select: { id: true },
-    })
-    const directReportIds = directReports.map(r => r.id)
 
     // Build where clause
     const where: Record<string, unknown> = {
@@ -41,27 +33,20 @@ export async function GET(req: Request) {
       quarterlyCycleId: { not: null },
     }
 
-    // If viewing all (HR/Admin) or just own reports
+    // If viewing all (HR/Admin) or just own assigned reviews
     const viewAll = searchParams.get('all') === 'true' && isHROrAdmin
 
     if (!viewAll) {
-      // Show only reviews where current user is the reviewer (their direct reports)
+      // Show only reviews assigned to this manager at cron time (immutable)
       // OR reviews assigned to "HR" if they're HR
-      if (directReportIds.length > 0) {
-        if (isHROrAdmin) {
-          where.OR = [
-            { employeeId: { in: directReportIds } },
-            { reviewerName: 'HR' },
-          ]
-        } else {
-          where.employeeId = { in: directReportIds }
-        }
-      } else if (isHROrAdmin) {
-        // HR with no direct reports - show HR-assigned reviews
-        where.reviewerName = 'HR'
+      if (isHROrAdmin) {
+        where.OR = [
+          { assignedReviewerId: currentEmployeeId },
+          { reviewerName: 'HR' },
+        ]
       } else {
-        // Manager with no direct reports
-        return NextResponse.json({ items: [], total: 0 })
+        // Regular manager - only see reviews assigned to them
+        where.assignedReviewerId = currentEmployeeId
       }
     }
 

@@ -123,10 +123,10 @@ export async function GET(req: Request) {
         orderBy: { reviewDate: 'asc' },
         take: 5,
       }),
-      // Get pending quarterly reviews for direct reports
+      // Get pending quarterly reviews assigned to this manager (locked at cron time)
       prisma.performanceReview.findMany({
         where: {
-          employee: { reportsToId: employeeId },
+          assignedReviewerId: employeeId,
           status: 'DRAFT',
           quarterlyCycleId: { not: null },
         },
