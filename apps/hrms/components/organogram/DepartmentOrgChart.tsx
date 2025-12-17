@@ -297,9 +297,9 @@ export function DepartmentOrgChart({ departments }: Props) {
         </button>
       </div>
 
-      {/* Chart container - no inner scroll, page scrolls */}
-      <div className="pb-8 -mx-6 px-6">
-        <div className="inline-flex flex-col items-center min-w-full py-6">
+      {/* Chart container - horizontal scroll for overflow */}
+      <div className="pb-8 overflow-x-auto">
+        <div className="flex justify-center min-w-fit py-6 px-8">
           {/* Handle multiple roots */}
           {tree.length === 1 ? (
             <DeptTreeNode
@@ -308,17 +308,15 @@ export function DepartmentOrgChart({ departments }: Props) {
               toggleNode={toggleNode}
             />
           ) : (
-            <div className="flex flex-col items-center">
-              <div className="flex gap-10 items-start">
-                {tree.map((root) => (
-                  <DeptTreeNode
-                    key={root.id}
-                    node={root}
-                    expandedNodes={expandedNodes}
-                    toggleNode={toggleNode}
-                  />
-                ))}
-              </div>
+            <div className="flex flex-wrap justify-center gap-12 items-start">
+              {tree.map((root) => (
+                <DeptTreeNode
+                  key={root.id}
+                  node={root}
+                  expandedNodes={expandedNodes}
+                  toggleNode={toggleNode}
+                />
+              ))}
             </div>
           )}
         </div>

@@ -289,14 +289,14 @@ export function OrgChart({ employees, currentEmployeeId, managerChainIds, direct
         </button>
       </div>
 
-      {/* Chart container - no inner scroll, page scrolls */}
+      {/* Chart container - horizontal scroll for overflow */}
       <div
         ref={containerRef}
-        className="pb-8 -mx-6 px-6"
+        className="pb-8 overflow-x-auto"
       >
         <div
           ref={chartRef}
-          className="inline-flex flex-col items-center min-w-full py-6"
+          className="flex justify-center min-w-fit py-6 px-8"
         >
           {/* Handle multiple roots (people without managers) */}
           {tree.length === 1 ? (
@@ -307,19 +307,16 @@ export function OrgChart({ employees, currentEmployeeId, managerChainIds, direct
               toggleNode={toggleNode}
             />
           ) : (
-            <div className="flex flex-col items-center">
-              {/* Multiple roots - show them in a row */}
-              <div className="flex gap-8 items-start">
-                {tree.map((root) => (
-                  <TreeNode
-                    key={root.id}
-                    node={root}
-                    currentEmployeeId={currentEmployeeId}
-                    expandedNodes={expandedNodes}
-                    toggleNode={toggleNode}
-                  />
-                ))}
-              </div>
+            <div className="flex flex-wrap justify-center gap-12 items-start">
+              {tree.map((root) => (
+                <TreeNode
+                  key={root.id}
+                  node={root}
+                  currentEmployeeId={currentEmployeeId}
+                  expandedNodes={expandedNodes}
+                  toggleNode={toggleNode}
+                />
+              ))}
             </div>
           )}
         </div>
