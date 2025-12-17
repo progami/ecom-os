@@ -2,9 +2,6 @@
   "name": "@ecom-os/hrms",
   "version": "1.1.0",
   "private": true,
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "scripts": {
     "dev": "node ../../scripts/run-dev-with-logs.js hrms -- next dev -p 3006",
     "build": "next build",
@@ -15,8 +12,7 @@
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:reset": "prisma migrate reset --force",
-    "db:studio": "prisma studio",
-    "db:seed": "prisma generate && prisma db seed"
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@ecom-os/auth": "workspace:*",
