@@ -71,14 +71,14 @@ function EmployeeCard({
     <div
       className={`relative flex flex-col items-center rounded-xl border p-4 min-w-[180px] max-w-[200px] hover:shadow-lg transition-all duration-200 ${
         isCurrentUser
-          ? 'border-cyan-500 border-2 bg-gradient-to-br from-cyan-50 to-white shadow-md shadow-cyan-100 ring-4 ring-cyan-100'
-          : 'border-slate-200 bg-white shadow-sm'
+          ? 'border-blue-500 border-2 bg-gradient-to-br from-blue-50 to-white shadow-md shadow-blue-100 ring-4 ring-blue-100'
+          : 'border-gray-200 bg-white shadow-sm'
       }`}
       data-employee-id={node.id}
     >
       {/* "YOU" badge for current user */}
       {isCurrentUser && (
-        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-cyan-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
+        <div className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-blue-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-full shadow-sm">
           You
         </div>
       )}
@@ -87,28 +87,28 @@ function EmployeeCard({
         src={node.avatar}
         alt={`${node.firstName} ${node.lastName}`}
         size="lg"
-        className={isCurrentUser ? 'ring-2 ring-cyan-400 ring-offset-2' : ''}
+        className={isCurrentUser ? 'ring-2 ring-blue-400 ring-offset-2' : ''}
       />
       <Link
         href={`/employees/${node.id}`}
         className={`mt-2 font-semibold text-center text-sm leading-tight ${
-          isCurrentUser ? 'text-cyan-700 hover:text-cyan-800' : 'text-slate-900 hover:text-cyan-600'
+          isCurrentUser ? 'text-blue-700 hover:text-blue-800' : 'text-gray-900 hover:text-blue-600'
         }`}
       >
         {node.firstName} {node.lastName}
       </Link>
-      <p className="text-xs text-slate-600 text-center mt-1 font-medium">{node.position}</p>
-      <p className="text-[11px] text-slate-400 text-center">{node.department}</p>
+      <p className="text-xs text-gray-600 text-center mt-1 font-medium">{node.position}</p>
+      <p className="text-[11px] text-gray-400 text-center">{node.department}</p>
 
       {hasChildren && (
         <button
           onClick={onToggle}
-          className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center hover:bg-slate-50 hover:border-slate-300 transition-colors z-10"
+          className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-sm flex items-center justify-center hover:bg-gray-50 hover:border-gray-300 transition-colors z-10"
         >
           {isExpanded ? (
-            <MinusIcon className="h-3 w-3 text-slate-500" />
+            <MinusIcon className="h-3 w-3 text-gray-500" />
           ) : (
-            <PlusIcon className="h-3 w-3 text-slate-500" />
+            <PlusIcon className="h-3 w-3 text-gray-500" />
           )}
         </button>
       )}
@@ -147,12 +147,12 @@ function TreeNode({
       {hasChildren && isExpanded && (
         <div className="flex flex-col items-center mt-8">
           {/* Vertical line down from parent */}
-          <div className="w-px h-6 bg-slate-300" />
+          <div className="w-px h-6 bg-gray-300" />
 
           {/* Horizontal connector line */}
           {node.children.length > 1 && (
             <div
-              className="h-px bg-slate-300"
+              className="h-px bg-gray-300"
               style={{
                 width: `calc(${(node.children.length - 1) * 220}px)`,
                 marginBottom: '-1px'
@@ -165,7 +165,7 @@ function TreeNode({
             {node.children.map((child) => (
               <div key={child.id} className="flex flex-col items-center">
                 {/* Vertical line to child */}
-                <div className="w-px h-6 bg-slate-300 mb-2" />
+                <div className="w-px h-6 bg-gray-300 mb-2" />
                 <TreeNode
                   node={child}
                   currentEmployeeId={currentEmployeeId}
@@ -263,7 +263,7 @@ export function OrgChart({ employees, currentEmployeeId, managerChainIds, direct
 
   if (employees.length === 0) {
     return (
-      <div className="text-center py-12 text-slate-500">
+      <div className="text-center py-12 text-gray-500">
         No employees found
       </div>
     )
@@ -275,14 +275,14 @@ export function OrgChart({ employees, currentEmployeeId, managerChainIds, direct
       <div className="flex items-center justify-end gap-2">
         <button
           onClick={expandAll}
-          className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1"
+          className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
         >
           <PlusIcon className="h-4 w-4" />
           Expand All
         </button>
         <button
           onClick={collapseAll}
-          className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1"
+          className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center gap-1"
         >
           <MinusIcon className="h-4 w-4" />
           Collapse All

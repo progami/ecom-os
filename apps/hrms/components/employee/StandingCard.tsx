@@ -86,7 +86,7 @@ export function StandingCard({ employeeId }: StandingCardProps) {
     return (
       <Card padding="lg">
         <div className="flex items-center justify-center h-24">
-          <SpinnerIcon className="h-6 w-6 animate-spin text-cyan-600" />
+          <SpinnerIcon className="h-6 w-6 animate-spin text-blue-600" />
         </div>
       </Card>
     )
@@ -114,9 +114,9 @@ export function StandingCard({ employeeId }: StandingCardProps) {
               </span>
             )}
           </div>
-          <p className="text-sm text-slate-600 mb-2">{data.reason}</p>
+          <p className="text-sm text-gray-600 mb-2">{data.reason}</p>
           {data.suggestedAction && (
-            <p className="text-xs font-medium text-slate-500">
+            <p className="text-xs font-medium text-gray-500">
               Suggested Action: {ACTION_LABELS[data.suggestedAction] || data.suggestedAction}
             </p>
           )}

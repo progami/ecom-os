@@ -5,7 +5,7 @@ type TableProps = {
 
 export function Table({ children, className = '' }: TableProps) {
   return (
-    <div className={`bg-white border border-slate-200 rounded-xl overflow-hidden ${className}`}>
+    <div className={`bg-white border border-gray-200 rounded-xl overflow-hidden ${className}`}>
       <div className="overflow-x-auto">
         <table className="w-full">
           {children}
@@ -18,7 +18,7 @@ export function Table({ children, className = '' }: TableProps) {
 export function TableHeader({ children }: { children: React.ReactNode }) {
   return (
     <thead>
-      <tr className="border-b border-slate-200 bg-slate-50">
+      <tr className="border-b border-gray-200 bg-gray-50">
         {children}
       </tr>
     </thead>
@@ -39,7 +39,7 @@ export function TableHead({ children, className = '', align = 'left' }: TableHea
   }[align]
 
   return (
-    <th className={`px-4 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wider ${alignClass} ${className}`}>
+    <th className={`px-6 py-4 text-xs font-semibold text-gray-600 uppercase tracking-wider ${alignClass} ${className}`}>
       {children}
     </th>
   )
@@ -47,7 +47,7 @@ export function TableHead({ children, className = '', align = 'left' }: TableHea
 
 export function TableBody({ children }: { children: React.ReactNode }) {
   return (
-    <tbody className="divide-y divide-slate-100">
+    <tbody className="divide-y divide-gray-100">
       {children}
     </tbody>
   )
@@ -61,7 +61,7 @@ type TableRowProps = {
 }
 
 export function TableRow({ children, onClick, className = '', hoverable = true }: TableRowProps) {
-  const hoverClass = hoverable ? 'hover:bg-slate-50' : ''
+  const hoverClass = hoverable ? 'hover:bg-gray-50' : ''
   const cursorClass = onClick ? 'cursor-pointer' : ''
 
   return (
@@ -88,7 +88,7 @@ export function TableCell({ children, className = '', align = 'left' }: TableCel
   }[align]
 
   return (
-    <td className={`px-4 py-4 text-sm ${alignClass} ${className}`}>
+    <td className={`px-6 py-4 text-sm ${alignClass} ${className}`}>
       {children}
     </td>
   )
@@ -106,8 +106,8 @@ export function TableSkeleton({ rows = 5, columns }: TableSkeletonProps) {
       {Array.from({ length: rows }).map((_, i) => (
         <tr key={i} className="animate-pulse">
           {Array.from({ length: columns }).map((_, j) => (
-            <td key={j} className="px-4 py-4">
-              <div className="h-4 bg-slate-200 rounded w-3/4" />
+            <td key={j} className="px-6 py-4">
+              <div className="h-4 bg-gray-200 rounded w-3/4" />
             </td>
           ))}
         </tr>
@@ -126,11 +126,11 @@ type ResultsCountProps = {
 
 export function ResultsCount({ count, singular, plural, loading = false }: ResultsCountProps) {
   if (loading) {
-    return <p className="text-sm text-slate-500">Loading...</p>
+    return <p className="text-sm text-gray-500">Loading...</p>
   }
 
   return (
-    <p className="text-sm text-slate-500">
+    <p className="text-sm text-gray-600">
       {count} {count === 1 ? singular : plural}
     </p>
   )

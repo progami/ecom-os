@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { EmployeesApi, DepartmentsApi, ProjectsApi, type Employee, type Department, type Project } from '@/lib/api-client'
-import { UsersIcon, PlusIcon, XIcon, LockClosedIcon } from '@/components/ui/Icons'
+import { UsersIcon, PlusIcon, XIcon, LockClosedIcon, BuildingIcon, FolderIcon, UserIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardDivider } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -21,10 +21,18 @@ type FieldPermissions = Record<string, { canEdit: boolean; permission: string; r
 
 function LockedFieldBadge({ reason }: { reason?: string }) {
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-slate-500 ml-2" title={reason}>
+    <span className="inline-flex items-center gap-1 text-xs text-gray-500 ml-2" title={reason}>
       <LockClosedIcon className="h-3 w-3" />
       {reason === 'This field is synced from Google Admin and cannot be edited' ? 'Google' : 'Locked'}
     </span>
+  )
+}
+
+function SectionIcon({ icon: Icon, color }: { icon: React.ComponentType<{ className?: string }>; color: string }) {
+  return (
+    <div className={`p-1.5 rounded-lg ${color}`}>
+      <Icon className="h-4 w-4 text-white" />
+    </div>
   )
 }
 
@@ -39,10 +47,16 @@ export default function EditEmployeePage() {
   const [departments, setDepartments] = useState<Department[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [projectMemberships, setProjectMemberships] = useState<{ projectId: string; role: string }[]>([])
-  const [additionalDepartments, setAdditionalDepartments] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Department head state
+  const [isDepartmentHead, setIsDepartmentHead] = useState(false)
+  const [selectedDepartment, setSelectedDepartment] = useState<string>('')
+
+  // Project lead state - track which projects this employee leads
+  const [projectLeadIds, setProjectLeadIds] = useState<Set<string>>(new Set())
 
   // Permission state
   const [permissions, setPermissions] = useState<{
@@ -81,6 +95,24 @@ export default function EditEmployeePage() {
           fieldPermissions: permsRes.fieldPermissions,
           editableFields: permsRes.editableFields,
         })
+
+        // Set initial department
+        setSelectedDepartment(data.department || '')
+
+        // Check if employee is department head
+        const empDept = deptsRes.items.find((d: Department) => d.name === data.department)
+        if (empDept && empDept.headId === id) {
+          setIsDepartmentHead(true)
+        }
+
+        // Check which projects this employee leads
+        const leadProjectIds = new Set<string>()
+        for (const proj of projectsRes.items) {
+          if (proj.leadId === id) {
+            leadProjectIds.add(proj.id)
+          }
+        }
+        setProjectLeadIds(leadProjectIds)
       } catch (e: any) {
         setError(e.message || 'Failed to load employee')
       } finally {
@@ -93,14 +125,10 @@ export default function EditEmployeePage() {
   const canEdit = (field: string) => permissions?.fieldPermissions[field]?.canEdit ?? false
   const getFieldReason = (field: string) => permissions?.fieldPermissions[field]?.reason
 
-  // Check if user can edit any fields in a group
-  const canEditGroup = (fields: string[]) => fields.some(f => canEdit(f))
-
-  // Organization fields: department, reportsToId
-  const canEditOrganization = canEdit('department') || canEdit('reportsToId')
-  // Employment fields: position, joinDate, employmentType, status, region
-  const canEditEmployment = canEdit('position') || canEdit('joinDate') || canEdit('employmentType') || canEdit('status') || canEdit('region')
-  // Personal fields: phone, address, etc.
+  // Permission checks
+  const canEditPersonHierarchy = canEdit('reportsToId') || canEdit('position') || canEdit('employmentType') || canEdit('status') || canEdit('joinDate') || canEdit('region')
+  const canEditDepartment = canEdit('department')
+  const canEditProjects = canEdit('department') || canEdit('reportsToId') // Use organization permission for projects
   const canEditPersonal = canEdit('phone') || canEdit('address') || canEdit('dateOfBirth')
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -110,7 +138,7 @@ export default function EditEmployeePage() {
     const fd = new FormData(e.currentTarget)
     const payload: Record<string, any> = {}
 
-    // Only include fields the user can edit
+    // Personal fields
     if (canEdit('phone')) payload.phone = fd.get('phone') ? String(fd.get('phone')) : undefined
     if (canEdit('address')) payload.address = fd.get('address') ? String(fd.get('address')) : undefined
     if (canEdit('city')) payload.city = fd.get('city') ? String(fd.get('city')) : undefined
@@ -120,8 +148,7 @@ export default function EditEmployeePage() {
     if (canEdit('emergencyPhone')) payload.emergencyPhone = fd.get('emergencyPhone') ? String(fd.get('emergencyPhone')) : undefined
     if (canEdit('dateOfBirth')) payload.dateOfBirth = fd.get('dateOfBirth') ? String(fd.get('dateOfBirth')) : undefined
 
-    // Organization/Employment fields (manager only)
-    if (canEdit('department')) payload.department = fd.get('department') ? String(fd.get('department')) : undefined
+    // Person hierarchy fields
     if (canEdit('position')) payload.position = fd.get('position') ? String(fd.get('position')) : undefined
     if (canEdit('joinDate')) payload.joinDate = fd.get('joinDate') ? String(fd.get('joinDate')) : undefined
     if (canEdit('employmentType')) payload.employmentType = fd.get('employmentType') ? String(fd.get('employmentType')) : undefined
@@ -132,12 +159,32 @@ export default function EditEmployeePage() {
       payload.reportsToId = reportsToId ? String(reportsToId) : null
     }
 
+    // Department
+    if (canEdit('department')) {
+      payload.department = selectedDepartment || undefined
+    }
+
     try {
       // Update employee info
       await EmployeesApi.update(id, payload)
 
-      // Update project memberships if user can manage
-      if (canEditOrganization) {
+      // Update department head if changed
+      if (canEditDepartment && selectedDepartment) {
+        const dept = departments.find(d => d.name === selectedDepartment)
+        if (dept) {
+          const currentlyHead = dept.headId === id
+          if (isDepartmentHead && !currentlyHead) {
+            // Make this employee the department head
+            await DepartmentsApi.update(dept.id, { headId: id })
+          } else if (!isDepartmentHead && currentlyHead) {
+            // Remove this employee as department head
+            await DepartmentsApi.update(dept.id, { headId: '' })
+          }
+        }
+      }
+
+      // Update project memberships
+      if (canEditProjects) {
         await EmployeesApi.updateProjectMemberships(
           id,
           projectMemberships
@@ -147,6 +194,21 @@ export default function EditEmployeePage() {
               role: m.role || undefined,
             }))
         )
+
+        // Update project leads
+        for (const proj of projects) {
+          const isMember = projectMemberships.some(m => m.projectId === proj.id)
+          const shouldBeLead = projectLeadIds.has(proj.id)
+          const currentlyLead = proj.leadId === id
+
+          if (isMember && shouldBeLead && !currentlyLead) {
+            // Make this employee the project lead
+            await ProjectsApi.update(proj.id, { leadId: id })
+          } else if (currentlyLead && !shouldBeLead) {
+            // Remove this employee as project lead
+            await ProjectsApi.update(proj.id, { leadId: '' })
+          }
+        }
       }
 
       router.push(`/employees/${id}`)
@@ -162,13 +224,44 @@ export default function EditEmployeePage() {
   }
 
   function removeProjectMembership(index: number) {
+    const membership = projectMemberships[index]
+    if (membership.projectId) {
+      // Remove from lead set if they were lead
+      setProjectLeadIds(prev => {
+        const next = new Set(prev)
+        next.delete(membership.projectId)
+        return next
+      })
+    }
     setProjectMemberships(projectMemberships.filter((_, i) => i !== index))
   }
 
   function updateProjectMembership(index: number, field: 'projectId' | 'role', value: string) {
     const updated = [...projectMemberships]
+    const oldProjectId = updated[index].projectId
     updated[index] = { ...updated[index], [field]: value }
     setProjectMemberships(updated)
+
+    // If project changed, remove old project from lead set
+    if (field === 'projectId' && oldProjectId !== value) {
+      setProjectLeadIds(prev => {
+        const next = new Set(prev)
+        next.delete(oldProjectId)
+        return next
+      })
+    }
+  }
+
+  function toggleProjectLead(projectId: string) {
+    setProjectLeadIds(prev => {
+      const next = new Set(prev)
+      if (next.has(projectId)) {
+        next.delete(projectId)
+      } else {
+        next.add(projectId)
+      }
+      return next
+    })
   }
 
   const availableProjects = (index: number) => {
@@ -177,6 +270,10 @@ export default function EditEmployeePage() {
       .map((m) => m.projectId)
     return projects.filter((p) => !assignedProjectIds.includes(p.id))
   }
+
+  // Get current department info
+  const currentDepartment = departments.find(d => d.name === selectedDepartment)
+  const currentDepartmentHead = currentDepartment?.head
 
   if (loading) {
     return (
@@ -190,10 +287,10 @@ export default function EditEmployeePage() {
         <div className="max-w-3xl">
           <Card padding="lg">
             <div className="animate-pulse space-y-6">
-              <div className="h-4 bg-slate-200 rounded w-1/4" />
-              <div className="h-10 bg-slate-200 rounded" />
-              <div className="h-4 bg-slate-200 rounded w-1/4" />
-              <div className="h-10 bg-slate-200 rounded" />
+              <div className="h-4 bg-gray-200 rounded w-1/4" />
+              <div className="h-10 bg-gray-200 rounded" />
+              <div className="h-4 bg-gray-200 rounded w-1/4" />
+              <div className="h-10 bg-gray-200 rounded" />
             </div>
           </Card>
         </div>
@@ -280,7 +377,7 @@ export default function EditEmployeePage() {
               </div>
             </FormSection>
 
-            {/* Personal Information - Always visible, editable based on permissions */}
+            {/* Personal Information */}
             <CardDivider />
             <FormSection
               title="Personal Information"
@@ -332,7 +429,7 @@ export default function EditEmployeePage() {
 
               {/* Emergency Contact */}
               <div className="mt-6">
-                <h4 className="text-sm font-medium text-slate-700 mb-3">Emergency Contact</h4>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Emergency Contact</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <FormField
                     label={<>Contact Name {!canEdit('emergencyContact') && <LockedFieldBadge reason={getFieldReason('emergencyContact')} />}</>}
@@ -351,27 +448,20 @@ export default function EditEmployeePage() {
               </div>
             </FormSection>
 
-            {/* Organization Structure (Manager Editable) */}
-            {canEditOrganization && (
+            {/* ========== BY PERSON (Person Hierarchy) ========== */}
+            {canEditPersonHierarchy && (
               <>
                 <CardDivider />
                 <FormSection
-                  title="Organization Structure"
-                  description="Department assignments, projects, and reporting hierarchy"
+                  title={
+                    <span className="flex items-center gap-2">
+                      <SectionIcon icon={UserIcon} color="bg-blue-600" />
+                      By Person
+                    </span>
+                  }
+                  description="Reporting hierarchy and employment details (as shown in Person view of Organogram)"
                 >
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                    {canEdit('department') && (
-                      <SelectField
-                        label="Primary Department"
-                        name="department"
-                        required
-                        options={departments.map((dept) => ({
-                          value: dept.name,
-                          label: dept.name,
-                        }))}
-                        defaultValue={employee.department || ''}
-                      />
-                    )}
                     {canEdit('reportsToId') && (
                       <SelectField
                         label="Reports To"
@@ -388,109 +478,12 @@ export default function EditEmployeePage() {
                         defaultValue={employee.reportsToId || ''}
                       />
                     )}
-                  </div>
-
-                  {/* Project Assignments */}
-                  <div className="mt-6">
-                    <h4 className="text-sm font-medium text-slate-700 mb-3">Project Assignments</h4>
-                    <div className="space-y-3">
-                      {projectMemberships.map((membership, index) => (
-                        <div key={index} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-                          <div className="flex-1">
-                            <select
-                              value={membership.projectId}
-                              onChange={(e) => updateProjectMembership(index, 'projectId', e.target.value)}
-                              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
-                            >
-                              <option value="">Select project...</option>
-                              {availableProjects(index).map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name} {p.code ? `(${p.code})` : ''}
-                                </option>
-                              ))}
-                              {membership.projectId && !availableProjects(index).find((p) => p.id === membership.projectId) && (
-                                <option value={membership.projectId}>
-                                  {projects.find((p) => p.id === membership.projectId)?.name || membership.projectId}
-                                </option>
-                              )}
-                            </select>
-                          </div>
-                          <div className="w-32">
-                            <select
-                              value={membership.role}
-                              onChange={(e) => updateProjectMembership(index, 'role', e.target.value)}
-                              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent text-sm"
-                            >
-                              <option value="">Role...</option>
-                              <option value="Lead">Lead</option>
-                              <option value="Member">Member</option>
-                              <option value="Contributor">Contributor</option>
-                            </select>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeProjectMembership(index)}
-                            className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Remove project"
-                          >
-                            <XIcon className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-
-                      {projects.length > 0 && projectMemberships.length < projects.length && (
-                        <button
-                          type="button"
-                          onClick={addProjectMembership}
-                          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-cyan-600 hover:text-cyan-700 hover:bg-cyan-50 rounded-lg transition-colors"
-                        >
-                          <PlusIcon className="h-4 w-4" />
-                          Add Project
-                        </button>
-                      )}
-
-                      {projectMemberships.length === 0 && projects.length > 0 && (
-                        <p className="text-sm text-slate-500">
-                          No projects assigned.{' '}
-                          <button
-                            type="button"
-                            onClick={addProjectMembership}
-                            className="text-cyan-600 hover:text-cyan-700 font-medium"
-                          >
-                            Add one
-                          </button>
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </FormSection>
-              </>
-            )}
-
-            {/* Employment Details (Manager Editable) */}
-            {canEditEmployment && (
-              <>
-                <CardDivider />
-                <FormSection
-                  title="Employment Details"
-                  description="Job position and employment status"
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     {canEdit('position') && (
                       <FormField
                         label="Position"
                         name="position"
                         required
                         defaultValue={employee.position}
-                      />
-                    )}
-                    {canEdit('joinDate') && (
-                      <FormField
-                        label="Join Date"
-                        name="joinDate"
-                        type="date"
-                        required
-                        defaultValue={joinDateFormatted}
                       />
                     )}
                     {canEdit('employmentType') && (
@@ -511,6 +504,15 @@ export default function EditEmployeePage() {
                         defaultValue={employee.status}
                       />
                     )}
+                    {canEdit('joinDate') && (
+                      <FormField
+                        label="Join Date"
+                        name="joinDate"
+                        type="date"
+                        required
+                        defaultValue={joinDateFormatted}
+                      />
+                    )}
                     {canEdit('region') && (
                       <SelectField
                         label="Region"
@@ -525,13 +527,206 @@ export default function EditEmployeePage() {
               </>
             )}
 
+            {/* ========== BY DEPARTMENT ========== */}
+            {canEditDepartment && (
+              <>
+                <CardDivider />
+                <FormSection
+                  title={
+                    <span className="flex items-center gap-2">
+                      <SectionIcon icon={BuildingIcon} color="bg-purple-600" />
+                      By Department
+                    </span>
+                  }
+                  description="Department assignment and leadership (as shown in Department view of Organogram)"
+                >
+                  <div className="space-y-5">
+                    <SelectField
+                      label="Department"
+                      name="department"
+                      required
+                      options={departments.map((dept) => ({
+                        value: dept.name,
+                        label: dept.name,
+                      }))}
+                      value={selectedDepartment}
+                      onChange={(e) => {
+                        setSelectedDepartment(e.target.value)
+                        // Reset department head status when department changes
+                        const newDept = departments.find(d => d.name === e.target.value)
+                        setIsDepartmentHead(newDept?.headId === id)
+                      }}
+                    />
+
+                    {selectedDepartment && (
+                      <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Department Head</label>
+                            {currentDepartmentHead && currentDepartmentHead.id !== id && (
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                Current: {currentDepartmentHead.firstName} {currentDepartmentHead.lastName}
+                              </p>
+                            )}
+                            {!currentDepartmentHead && !isDepartmentHead && (
+                              <p className="text-xs text-gray-500 mt-0.5">No head assigned</p>
+                            )}
+                          </div>
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={isDepartmentHead}
+                              onChange={(e) => setIsDepartmentHead(e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                            <span className="ml-2 text-sm font-medium text-gray-700">
+                              {isDepartmentHead ? 'Yes' : 'No'}
+                            </span>
+                          </label>
+                        </div>
+                        {isDepartmentHead && (
+                          <p className="text-xs text-purple-600">
+                            {employee.firstName} will be set as the head of {selectedDepartment}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </FormSection>
+              </>
+            )}
+
+            {/* ========== BY PROJECT ========== */}
+            {canEditProjects && (
+              <>
+                <CardDivider />
+                <FormSection
+                  title={
+                    <span className="flex items-center gap-2">
+                      <SectionIcon icon={FolderIcon} color="bg-amber-600" />
+                      By Project
+                    </span>
+                  }
+                  description="Project assignments and leadership (as shown in Project view of Organogram)"
+                >
+                  <div className="space-y-3">
+                    {projectMemberships.map((membership, index) => {
+                      const project = projects.find(p => p.id === membership.projectId)
+                      const isLead = projectLeadIds.has(membership.projectId)
+                      const currentLead = project?.lead
+
+                      return (
+                        <div key={index} className="p-4 bg-gray-50 rounded-lg space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1">
+                              <select
+                                value={membership.projectId}
+                                onChange={(e) => updateProjectMembership(index, 'projectId', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                              >
+                                <option value="">Select project...</option>
+                                {availableProjects(index).map((p) => (
+                                  <option key={p.id} value={p.id}>
+                                    {p.name} {p.code ? `(${p.code})` : ''}
+                                  </option>
+                                ))}
+                                {membership.projectId && !availableProjects(index).find((p) => p.id === membership.projectId) && (
+                                  <option value={membership.projectId}>
+                                    {projects.find((p) => p.id === membership.projectId)?.name || membership.projectId}
+                                  </option>
+                                )}
+                              </select>
+                            </div>
+                            <div className="w-32">
+                              <select
+                                value={membership.role}
+                                onChange={(e) => updateProjectMembership(index, 'role', e.target.value)}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
+                              >
+                                <option value="">Role...</option>
+                                <option value="Lead">Lead</option>
+                                <option value="Member">Member</option>
+                                <option value="Contributor">Contributor</option>
+                              </select>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeProjectMembership(index)}
+                              className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Remove project"
+                            >
+                              <XIcon className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          {membership.projectId && (
+                            <div className="flex items-center justify-between pt-2 border-t border-gray-200">
+                              <div>
+                                <span className="text-sm font-medium text-gray-700">Project Lead</span>
+                                {currentLead && currentLead.id !== id && (
+                                  <p className="text-xs text-gray-500">
+                                    Current: {currentLead.firstName} {currentLead.lastName}
+                                  </p>
+                                )}
+                              </div>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={isLead}
+                                  onChange={() => toggleProjectLead(membership.projectId)}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+                                <span className="ml-2 text-sm font-medium text-gray-700">
+                                  {isLead ? 'Yes' : 'No'}
+                                </span>
+                              </label>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+
+                    {projects.length > 0 && projectMemberships.length < projects.length && (
+                      <button
+                        type="button"
+                        onClick={addProjectMembership}
+                        className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
+                      >
+                        <PlusIcon className="h-4 w-4" />
+                        Add Project
+                      </button>
+                    )}
+
+                    {projectMemberships.length === 0 && projects.length > 0 && (
+                      <p className="text-sm text-gray-500">
+                        No projects assigned.{' '}
+                        <button
+                          type="button"
+                          onClick={addProjectMembership}
+                          className="text-amber-600 hover:text-amber-700 font-medium"
+                        >
+                          Add one
+                        </button>
+                      </p>
+                    )}
+
+                    {projects.length === 0 && (
+                      <p className="text-sm text-gray-500">No projects exist yet.</p>
+                    )}
+                  </div>
+                </FormSection>
+              </>
+            )}
+
             {/* No editable fields message */}
-            {!canEditOrganization && !canEditEmployment && !canEditPersonal && (
+            {!canEditPersonHierarchy && !canEditDepartment && !canEditProjects && !canEditPersonal && (
               <>
                 <CardDivider />
                 <div className="py-8 text-center">
-                  <LockClosedIcon className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                  <p className="text-slate-500">You don't have permission to edit this employee's profile.</p>
+                  <LockClosedIcon className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">You don't have permission to edit this employee's profile.</p>
                 </div>
               </>
             )}
@@ -541,7 +736,7 @@ export default function EditEmployeePage() {
               <Button variant="secondary" onClick={goBack}>
                 Cancel
               </Button>
-              {(canEditOrganization || canEditEmployment || canEditPersonal) && (
+              {(canEditPersonHierarchy || canEditDepartment || canEditProjects || canEditPersonal) && (
                 <Button type="submit" loading={submitting}>
                   {submitting ? 'Saving...' : 'Save Changes'}
                 </Button>

@@ -97,22 +97,22 @@ export default function ResourcesPage() {
             ) : (
               items.map((r) => (
                 <TableRow key={r.id} hoverable>
-                  <TableCell className="font-medium text-slate-900">{r.name}</TableCell>
-                  <TableCell className="text-slate-600">{r.category}</TableCell>
-                  <TableCell className="text-slate-500">{r.subcategory || '—'}</TableCell>
+                  <TableCell className="font-medium text-gray-900">{r.name}</TableCell>
+                  <TableCell className="text-gray-600">{r.category}</TableCell>
+                  <TableCell className="text-gray-500">{r.subcategory || '—'}</TableCell>
                   <TableCell>
                     {r.website ? (
                       <a
                         href={r.website}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 text-sm text-cyan-600 hover:text-cyan-700"
+                        className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700"
                       >
                         <span className="truncate max-w-[180px]">{r.website.replace(/^https?:\/\//, '')}</span>
                         <ExternalLinkIcon className="h-3.5 w-3.5 flex-shrink-0" />
                       </a>
                     ) : (
-                      <span className="text-slate-400">—</span>
+                      <span className="text-gray-400">—</span>
                     )}
                   </TableCell>
                 </TableRow>

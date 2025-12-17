@@ -33,26 +33,47 @@ input:-webkit-autofill:active {
 
 @layer base {
   :root {
+    /* Background & Foreground - Higher contrast */
     --background: 210 20% 98%;
-    --foreground: 222 47% 11%;
+    --foreground: 220 13% 13%;
+
+    /* Card */
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 220 13% 13%;
+
+    /* Popover */
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
-    --primary: 192 93% 37%;
+    --popover-foreground: 220 13% 13%;
+
+    /* Primary - Professional Blue */
+    --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
-    --accent: 177 100% 38%;
+
+    /* Secondary */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 13% 13%;
+
+    /* Muted - Better contrast for secondary text */
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 43%;
+
+    /* Accent - Deeper blue for emphasis */
+    --accent: 217 91% 60%;
     --accent-foreground: 0 0% 100%;
+
+    /* Destructive */
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 192 93% 37%;
-    --radius: 0.75rem;
+
+    /* Border & Input */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+
+    /* Ring - matches primary */
+    --ring: 217 91% 60%;
+
+    /* Border radius */
+    --radius: 0.5rem;
   }
 }
 
@@ -181,7 +202,7 @@ input:-webkit-autofill:active {
 }
 
 .dashboard-card {
-  @apply bg-white rounded-xl border border-slate-200 shadow-sm transition-all duration-200 hover:shadow-md hover:border-slate-300;
+  @apply bg-white rounded-xl border border-gray-200 shadow-sm transition-all duration-200 hover:shadow-md hover:border-gray-300;
 }
 
 /* Soft shadow utilities */

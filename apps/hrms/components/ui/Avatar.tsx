@@ -10,9 +10,9 @@ type AvatarProps = {
 }
 
 const sizeClasses = {
-  sm: 'h-8 w-8 text-xs',
-  md: 'h-10 w-10 text-sm',
-  lg: 'h-12 w-12 text-base',
+  sm: 'h-9 w-9 text-xs',
+  md: 'h-11 w-11 text-sm',
+  lg: 'h-14 w-14 text-base',
 }
 
 export function Avatar({ src, alt = '', size = 'md', className = '' }: AvatarProps) {
@@ -41,7 +41,7 @@ export function Avatar({ src, alt = '', size = 'md', className = '' }: AvatarPro
 
   return (
     <div
-      className={`${sizeClass} rounded-full bg-slate-200 flex items-center justify-center font-medium text-slate-600 ${className}`}
+      className={`${sizeClass} rounded-full bg-blue-100 flex items-center justify-center font-medium text-blue-700 ${className}`}
     >
       {initials || '?'}
     </div>

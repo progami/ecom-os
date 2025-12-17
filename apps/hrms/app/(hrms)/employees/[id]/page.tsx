@@ -65,7 +65,7 @@ const SEVERITY_COLORS: Record<string, string> = {
 function EmployeeAvatar({ firstName, lastName, size = 'lg' }: { firstName: string; lastName: string; size?: 'sm' | 'lg' }) {
   const sizeClasses = size === 'lg' ? 'h-20 w-20 text-2xl' : 'h-10 w-10 text-sm'
   return (
-    <div className={`${sizeClasses} rounded-full bg-cyan-100 text-cyan-700 flex items-center justify-center font-semibold`}>
+    <div className={`${sizeClasses} rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-semibold`}>
       {firstName?.charAt(0)}{lastName?.charAt(0)}
     </div>
   )
@@ -77,7 +77,7 @@ function StarRating({ rating }: { rating: number }) {
       {[1, 2, 3, 4, 5].map((star) => (
         <StarFilledIcon
           key={star}
-          className={`h-4 w-4 ${star <= rating ? 'text-amber-400' : 'text-slate-200'}`}
+          className={`h-4 w-4 ${star <= rating ? 'text-amber-400' : 'text-gray-200'}`}
         />
       ))}
     </div>
@@ -90,8 +90,8 @@ function TabButton({ active, onClick, children, icon: Icon }: { active: boolean;
       onClick={onClick}
       className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
         active
-          ? 'bg-cyan-50 text-cyan-700'
-          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+          ? 'bg-blue-50 text-blue-700'
+          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
       }`}
     >
       <Icon className="h-4 w-4" />
@@ -103,10 +103,10 @@ function TabButton({ active, onClick, children, icon: Icon }: { active: boolean;
 function InfoItem({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
   return (
     <div className="flex items-start gap-3">
-      <Icon className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" />
+      <Icon className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
       <div>
-        <p className="text-xs text-slate-500">{label}</p>
-        <p className="text-sm text-slate-900 font-medium">{value || '—'}</p>
+        <p className="text-xs text-gray-500">{label}</p>
+        <p className="text-sm text-gray-900 font-medium">{value || '—'}</p>
       </div>
     </div>
   )
@@ -240,10 +240,10 @@ export default function EmployeeViewPage() {
         <Card padding="lg">
           <div className="animate-pulse space-y-6">
             <div className="flex items-center gap-4">
-              <div className="h-20 w-20 rounded-full bg-slate-200" />
+              <div className="h-20 w-20 rounded-full bg-gray-200" />
               <div className="space-y-2">
-                <div className="h-6 bg-slate-200 rounded w-40" />
-                <div className="h-4 bg-slate-200 rounded w-24" />
+                <div className="h-6 bg-gray-200 rounded w-40" />
+                <div className="h-4 bg-gray-200 rounded w-24" />
               </div>
             </div>
           </div>
@@ -297,13 +297,13 @@ export default function EmployeeViewPage() {
             <EmployeeAvatar firstName={employee.firstName} lastName={employee.lastName} size="lg" />
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-1">
-                <h2 className="text-xl font-semibold text-slate-900">
+                <h2 className="text-xl font-semibold text-gray-900">
                   {employee.firstName} {employee.lastName}
                 </h2>
                 <StatusBadge status={employee.status.replace('_', ' ')} />
               </div>
-              <p className="text-slate-600">{employee.position}</p>
-              <p className="text-sm text-slate-500 mt-1">{employee.employeeId}</p>
+              <p className="text-gray-600">{employee.position}</p>
+              <p className="text-sm text-gray-500 mt-1">{employee.employeeId}</p>
             </div>
           </div>
         </Card>
@@ -348,7 +348,7 @@ export default function EmployeeViewPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card padding="lg">
-                <h3 className="text-sm font-semibold text-slate-900 mb-4">Contact Information</h3>
+                <h3 className="text-sm font-semibold text-gray-900 mb-4">Contact Information</h3>
                 <div className="space-y-4">
                   <InfoItem icon={EnvelopeIcon} label="Email" value={employee.email} />
                   <InfoItem icon={PhoneIcon} label="Phone" value={employee.phone || '—'} />
@@ -356,15 +356,15 @@ export default function EmployeeViewPage() {
               </Card>
 
               <Card padding="lg">
-                <h3 className="text-sm font-semibold text-slate-900 mb-4">Work Information</h3>
+                <h3 className="text-sm font-semibold text-gray-900 mb-4">Work Information</h3>
                 <div className="space-y-4">
                   <InfoItem icon={BuildingIcon} label="Department" value={employee.department || '—'} />
                   <InfoItem icon={CalendarIcon} label="Join Date" value={joinDate} />
                   <div className="flex items-start gap-3">
-                    <UsersIcon className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" />
+                    <UsersIcon className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="text-xs text-slate-500">Employment Type</p>
-                      <p className="text-sm text-slate-900 font-medium">{employmentTypeLabels[employee.employmentType] || employee.employmentType}</p>
+                      <p className="text-xs text-gray-500">Employment Type</p>
+                      <p className="text-sm text-gray-900 font-medium">{employmentTypeLabels[employee.employmentType] || employee.employmentType}</p>
                     </div>
                   </div>
                 </div>
@@ -379,7 +379,7 @@ export default function EmployeeViewPage() {
 
             <Card padding="lg">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-slate-900">Leave Requests</h3>
+                <h3 className="text-sm font-semibold text-gray-900">Leave Requests</h3>
                 <Button
                   size="sm"
                   onClick={() => setShowLeaveForm(!showLeaveForm)}
@@ -389,7 +389,7 @@ export default function EmployeeViewPage() {
               </div>
 
               {showLeaveForm && (
-                <div className="mb-6 p-4 bg-slate-50 rounded-lg">
+                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                   <LeaveRequestForm
                     employeeId={id}
                     onSuccess={handleLeaveRequestSuccess}
@@ -401,7 +401,7 @@ export default function EmployeeViewPage() {
               {leaveLoading ? (
                 <div className="animate-pulse space-y-3">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-16 bg-slate-100 rounded-lg" />
+                    <div key={i} className="h-16 bg-gray-100 rounded-lg" />
                   ))}
                 </div>
               ) : (
@@ -414,7 +414,7 @@ export default function EmployeeViewPage() {
         {activeTab === 'reviews' && (
           <Card padding="lg">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-900">Performance Reviews</h3>
+              <h3 className="text-sm font-semibold text-gray-900">Performance Reviews</h3>
               {canManage && (
                 <Button
                   size="sm"
@@ -428,13 +428,13 @@ export default function EmployeeViewPage() {
             {reviewsLoading ? (
               <div className="animate-pulse space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-20 bg-slate-100 rounded-lg" />
+                  <div key={i} className="h-20 bg-gray-100 rounded-lg" />
                 ))}
               </div>
             ) : reviews.length === 0 ? (
               <div className="text-center py-8">
-                <ClipboardDocumentCheckIcon className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-                <p className="text-slate-500 text-sm">No performance reviews yet</p>
+                <ClipboardDocumentCheckIcon className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">No performance reviews yet</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -442,24 +442,24 @@ export default function EmployeeViewPage() {
                   <Link
                     key={review.id}
                     href={`/performance/reviews/${review.id}`}
-                    className="block p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                    className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-slate-900">
+                          <span className="font-medium text-gray-900">
                             {REVIEW_TYPE_LABELS[review.reviewType] || review.reviewType}
                           </span>
                           <StatusBadge status={review.status} />
                         </div>
-                        <p className="text-sm text-slate-600">{review.reviewPeriod}</p>
-                        <p className="text-xs text-slate-500 mt-1">
+                        <p className="text-sm text-gray-600">{review.reviewPeriod}</p>
+                        <p className="text-xs text-gray-500 mt-1">
                           Reviewed by {review.reviewerName} on {new Date(review.reviewDate).toLocaleDateString()}
                         </p>
                       </div>
                       <div className="text-right">
                         <StarRating rating={review.overallRating} />
-                        <p className="text-xs text-slate-500 mt-1">{review.overallRating}/5</p>
+                        <p className="text-xs text-gray-500 mt-1">{review.overallRating}/5</p>
                       </div>
                     </div>
                   </Link>
@@ -472,7 +472,7 @@ export default function EmployeeViewPage() {
         {activeTab === 'disciplinary' && (
           <Card padding="lg">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-sm font-semibold text-slate-900">Disciplinary Actions</h3>
+              <h3 className="text-sm font-semibold text-gray-900">Disciplinary Actions</h3>
               {canManage && (
                 <Button
                   size="sm"
@@ -486,13 +486,13 @@ export default function EmployeeViewPage() {
             {disciplinaryLoading ? (
               <div className="animate-pulse space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-20 bg-slate-100 rounded-lg" />
+                  <div key={i} className="h-20 bg-gray-100 rounded-lg" />
                 ))}
               </div>
             ) : disciplinary.length === 0 ? (
               <div className="text-center py-8">
-                <ShieldExclamationIcon className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-                <p className="text-slate-500 text-sm">No disciplinary records</p>
+                <ShieldExclamationIcon className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-500 text-sm">No disciplinary records</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -500,20 +500,20 @@ export default function EmployeeViewPage() {
                   <Link
                     key={action.id}
                     href={`/performance/disciplinary/${action.id}`}
-                    className="block p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                    className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-slate-900">
+                          <span className="font-medium text-gray-900">
                             {action.violationType.replace(/_/g, ' ')}
                           </span>
-                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${SEVERITY_COLORS[action.severity] || 'bg-slate-100 text-slate-700'}`}>
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${SEVERITY_COLORS[action.severity] || 'bg-gray-100 text-gray-700'}`}>
                             {SEVERITY_LABELS[action.severity] || action.severity}
                           </span>
                         </div>
-                        <p className="text-sm text-slate-600">{action.violationReason.replace(/_/g, ' ')}</p>
-                        <p className="text-xs text-slate-500 mt-1">
+                        <p className="text-sm text-gray-600">{action.violationReason.replace(/_/g, ' ')}</p>
+                        <p className="text-xs text-gray-500 mt-1">
                           Incident: {new Date(action.incidentDate).toLocaleDateString()}
                         </p>
                       </div>

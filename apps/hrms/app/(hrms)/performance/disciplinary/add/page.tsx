@@ -221,7 +221,7 @@ function AddDisciplinaryForm() {
                 onChange={(e) => setSelectedCoreValue(e.target.value)}
               />
               {selectedCoreValue && (
-                <p className="mt-2 text-sm text-slate-500">
+                <p className="mt-2 text-sm text-gray-500">
                   Severity: <span className="font-medium">{severityFromValueBreach[selectedCoreValue]}</span>
                   {' → '}
                   Action: <span className="font-medium">{actionFromSeverity[severityFromValueBreach[selectedCoreValue]].replace(/_/g, ' ')}</span>
@@ -294,10 +294,10 @@ export default function AddDisciplinaryPage() {
         <Suspense fallback={
           <Card padding="lg">
             <div className="animate-pulse space-y-6">
-              <div className="h-4 bg-slate-200 rounded w-1/4" />
-              <div className="h-10 bg-slate-200 rounded" />
-              <div className="h-4 bg-slate-200 rounded w-1/4" />
-              <div className="h-10 bg-slate-200 rounded" />
+              <div className="h-4 bg-gray-200 rounded w-1/4" />
+              <div className="h-10 bg-gray-200 rounded" />
+              <div className="h-4 bg-gray-200 rounded w-1/4" />
+              <div className="h-10 bg-gray-200 rounded" />
             </div>
           </Card>
         }>

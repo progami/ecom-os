@@ -41,7 +41,7 @@ const SEVERITY_LABELS: Record<string, string> = {
 }
 
 const SEVERITY_COLORS: Record<string, string> = {
-  MINOR: 'bg-slate-100 text-slate-700',
+  MINOR: 'bg-gray-100 text-gray-700',
   MODERATE: 'bg-amber-100 text-amber-700',
   MAJOR: 'bg-orange-100 text-orange-700',
   CRITICAL: 'bg-red-100 text-red-700',
@@ -57,7 +57,7 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 function SeverityBadge({ severity }: { severity: string }) {
-  const colorClass = SEVERITY_COLORS[severity] || 'bg-slate-100 text-slate-700'
+  const colorClass = SEVERITY_COLORS[severity] || 'bg-gray-100 text-gray-700'
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${colorClass}`}>
       {SEVERITY_LABELS[severity] || severity}
@@ -70,11 +70,11 @@ function TableRowSkeleton() {
     <>
       {[...Array(5)].map((_, i) => (
         <tr key={i} className="animate-pulse">
-          <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-32" /></td>
-          <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-24" /></td>
-          <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-16" /></td>
-          <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-24" /></td>
-          <td className="px-4 py-4"><div className="h-5 bg-slate-200 rounded w-20" /></td>
+          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-32" /></td>
+          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-24" /></td>
+          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-16" /></td>
+          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-24" /></td>
+          <td className="px-4 py-4"><div className="h-5 bg-gray-200 rounded w-20" /></td>
         </tr>
       ))}
     </>
@@ -167,19 +167,19 @@ export default function DisciplinaryActionsPage() {
                 >
                   <TableCell>
                     <div>
-                      <p className="font-medium text-slate-900">
+                      <p className="font-medium text-gray-900">
                         {d.employee?.firstName} {d.employee?.lastName}
                       </p>
-                      <p className="text-xs text-slate-500">{d.employee?.department}</p>
+                      <p className="text-xs text-gray-500">{d.employee?.department}</p>
                     </div>
                   </TableCell>
-                  <TableCell className="text-slate-600">
+                  <TableCell className="text-gray-600">
                     {VIOLATION_TYPE_LABELS[d.violationType] || d.violationType}
                   </TableCell>
                   <TableCell>
                     <SeverityBadge severity={d.severity} />
                   </TableCell>
-                  <TableCell className="text-slate-500">{formatDate(d.incidentDate)}</TableCell>
+                  <TableCell className="text-gray-500">{formatDate(d.incidentDate)}</TableCell>
                   <TableCell>
                     <StatusBadge status={STATUS_LABELS[d.status] || d.status} />
                   </TableCell>

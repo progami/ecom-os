@@ -91,7 +91,7 @@ export default function AddResourcePage() {
           <input name="rating" type="number" step="0.1" min="0" max="5" className="w-full px-3 py-2 rounded-md border border-input" />
         </div>
         <div className="md:col-span-2 flex gap-3">
-          <button type="button" onClick={goBack} className="px-4 py-2 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-700">
+          <button type="button" onClick={goBack} className="px-4 py-2 rounded-md border border-gray-200 bg-white hover:bg-gray-50 text-gray-700">
             Cancel
           </button>
           <button disabled={submitting} className="px-4 py-2 rounded-md bg-primary text-primary-foreground disabled:opacity-50">

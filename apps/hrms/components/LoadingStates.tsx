@@ -3,9 +3,9 @@
 export function CardSkeleton() {
   return (
     <div className="dashboard-card p-6 animate-pulse">
-      <div className="h-4 bg-slate-200 rounded w-1/3 mb-4"></div>
-      <div className="h-8 bg-slate-200 rounded w-2/3 mb-2"></div>
-      <div className="h-4 bg-slate-200 rounded w-1/4"></div>
+      <div className="h-4 bg-gray-200 rounded w-1/3 mb-4"></div>
+      <div className="h-8 bg-gray-200 rounded w-2/3 mb-2"></div>
+      <div className="h-4 bg-gray-200 rounded w-1/4"></div>
     </div>
   )
 }
@@ -14,16 +14,16 @@ export function TableRowSkeleton() {
   return (
     <tr className="animate-pulse">
       <td className="px-4 py-4">
-        <div className="h-4 bg-slate-200 rounded w-3/4"></div>
+        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
       </td>
       <td className="px-4 py-4">
-        <div className="h-4 bg-slate-200 rounded w-1/2"></div>
+        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
       </td>
       <td className="px-4 py-4">
-        <div className="h-4 bg-slate-200 rounded w-2/3"></div>
+        <div className="h-4 bg-gray-200 rounded w-2/3"></div>
       </td>
       <td className="px-4 py-4">
-        <div className="h-6 bg-slate-200 rounded-full w-20"></div>
+        <div className="h-6 bg-gray-200 rounded-full w-20"></div>
       </td>
     </tr>
   )
@@ -36,9 +36,9 @@ export function PageSkeleton() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {[...Array(3)].map((_, i) => (
           <div key={i} className="dashboard-card p-6">
-            <div className="h-4 bg-slate-200 rounded w-24 mb-3"></div>
-            <div className="h-8 bg-slate-200 rounded w-16 mb-2"></div>
-            <div className="h-3 bg-slate-200 rounded w-20"></div>
+            <div className="h-4 bg-gray-200 rounded w-24 mb-3"></div>
+            <div className="h-8 bg-gray-200 rounded w-16 mb-2"></div>
+            <div className="h-3 bg-gray-200 rounded w-20"></div>
           </div>
         ))}
       </div>
@@ -46,23 +46,23 @@ export function PageSkeleton() {
       {/* Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 dashboard-card p-6">
-          <div className="h-5 bg-slate-200 rounded w-32 mb-4"></div>
+          <div className="h-5 bg-gray-200 rounded w-32 mb-4"></div>
           <div className="space-y-3">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="p-3 rounded-lg bg-slate-50">
-                <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
-                <div className="h-3 bg-slate-200 rounded w-1/4"></div>
+              <div key={i} className="p-3 rounded-lg bg-gray-50">
+                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/4"></div>
               </div>
             ))}
           </div>
         </div>
         <div className="dashboard-card p-6">
-          <div className="h-5 bg-slate-200 rounded w-28 mb-4"></div>
+          <div className="h-5 bg-gray-200 rounded w-28 mb-4"></div>
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="p-3 rounded-lg border border-slate-200">
-                <div className="h-4 bg-slate-200 rounded w-2/3 mb-2"></div>
-                <div className="h-3 bg-slate-200 rounded w-1/3"></div>
+              <div key={i} className="p-3 rounded-lg border border-gray-200">
+                <div className="h-4 bg-gray-200 rounded w-2/3 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/3"></div>
               </div>
             ))}
           </div>
@@ -78,29 +78,29 @@ export function TableSkeleton({ rows = 5 }: { rows?: number }) {
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
+            <tr className="border-b border-gray-200 bg-gray-50">
               <th className="text-left px-4 py-3">
-                <div className="h-3 bg-slate-200 rounded w-20"></div>
+                <div className="h-3 bg-gray-200 rounded w-20"></div>
               </th>
               <th className="text-left px-4 py-3">
-                <div className="h-3 bg-slate-200 rounded w-24"></div>
+                <div className="h-3 bg-gray-200 rounded w-24"></div>
               </th>
               <th className="text-left px-4 py-3">
-                <div className="h-3 bg-slate-200 rounded w-16"></div>
+                <div className="h-3 bg-gray-200 rounded w-16"></div>
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-200">
+          <tbody className="divide-y divide-gray-200">
             {[...Array(rows)].map((_, i) => (
               <tr key={i}>
                 <td className="px-4 py-4">
-                  <div className="h-4 bg-slate-200 rounded w-32"></div>
+                  <div className="h-4 bg-gray-200 rounded w-32"></div>
                 </td>
                 <td className="px-4 py-4">
-                  <div className="h-4 bg-slate-200 rounded w-24"></div>
+                  <div className="h-4 bg-gray-200 rounded w-24"></div>
                 </td>
                 <td className="px-4 py-4">
-                  <div className="h-6 bg-slate-200 rounded-full w-16"></div>
+                  <div className="h-6 bg-gray-200 rounded-full w-16"></div>
                 </td>
               </tr>
             ))}
@@ -120,17 +120,17 @@ export function Spinner({ size = 'md', className = '' }: { size?: 'sm' | 'md' | 
 
   return (
     <div
-      className={`animate-spin rounded-full border-cyan-600 border-t-transparent ${sizeClasses[size]} ${className}`}
+      className={`animate-spin rounded-full border-blue-600 border-t-transparent ${sizeClasses[size]} ${className}`}
     />
   )
 }
 
 export function LoadingOverlay({ message = 'Loading...' }: { message?: string }) {
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="bg-white rounded-lg p-6 shadow-soft-lg flex flex-col items-center gap-4">
         <Spinner size="lg" />
-        <p className="text-slate-900 font-medium">{message}</p>
+        <p className="text-gray-900 font-medium">{message}</p>
       </div>
     </div>
   )
@@ -140,7 +140,7 @@ export function FullPageLoader({ message = 'Loading...' }: { message?: string })
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px]">
       <Spinner size="lg" />
-      <p className="mt-4 text-sm text-slate-500">{message}</p>
+      <p className="mt-4 text-sm text-gray-500">{message}</p>
     </div>
   )
 }
