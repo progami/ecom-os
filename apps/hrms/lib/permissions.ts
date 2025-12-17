@@ -782,3 +782,93 @@ export async function getSuperAdminEmployees(): Promise<{ id: string; email: str
     },
   })
 }
+
+/**
+ * Get all employees who are authorized to report violations for a given target employee
+ * Authorized reporters are:
+ * 1. Super Admins - can report for anyone
+ * 2. HR employees (permissionLevel >= 75 or HR role) - can report for anyone
+ * 3. Managers in the target's management chain - can report for their reports
+ */
+export async function getAuthorizedReporters(targetEmployeeId: string): Promise<{
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  position: string
+}[]> {
+  const reporters = new Map<string, {
+    id: string
+    employeeId: string
+    firstName: string
+    lastName: string
+    position: string
+  }>()
+
+  // 1. Get all Super Admins
+  const superAdmins = await prisma.employee.findMany({
+    where: {
+      status: 'ACTIVE',
+      isSuperAdmin: true,
+      id: { not: targetEmployeeId }, // Cannot report yourself
+    },
+    select: {
+      id: true,
+      employeeId: true,
+      firstName: true,
+      lastName: true,
+      position: true,
+    },
+  })
+  for (const emp of superAdmins) {
+    reporters.set(emp.id, emp)
+  }
+
+  // 2. Get all HR employees
+  const hrEmployees = await prisma.employee.findMany({
+    where: {
+      status: 'ACTIVE',
+      id: { not: targetEmployeeId },
+      OR: [
+        { permissionLevel: { gte: PermissionLevel.HR } },
+        { roles: { some: { name: { in: HR_ROLE_NAMES } } } },
+      ],
+    },
+    select: {
+      id: true,
+      employeeId: true,
+      firstName: true,
+      lastName: true,
+      position: true,
+    },
+  })
+  for (const emp of hrEmployees) {
+    reporters.set(emp.id, emp)
+  }
+
+  // 3. Get all managers in the target's management chain
+  const managerChain = await getManagerChain(targetEmployeeId)
+  if (managerChain.length > 0) {
+    const managers = await prisma.employee.findMany({
+      where: {
+        id: { in: managerChain },
+        status: 'ACTIVE',
+      },
+      select: {
+        id: true,
+        employeeId: true,
+        firstName: true,
+        lastName: true,
+        position: true,
+      },
+    })
+    for (const emp of managers) {
+      reporters.set(emp.id, emp)
+    }
+  }
+
+  // Sort by name and return
+  return Array.from(reporters.values()).sort((a, b) =>
+    `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
+  )
+}
