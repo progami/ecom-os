@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardDivider } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
+import { StatusBadge } from '@/components/ui/Badge'
 import {
   FormField,
   SelectField,
@@ -26,17 +27,29 @@ const reviewTypeOptions = [
   { value: 'PIP', label: 'Performance Improvement Plan' },
 ]
 
-const statusOptions = [
-  { value: 'DRAFT', label: 'Draft' },
-  { value: 'PENDING_REVIEW', label: 'Pending Review' },
-  { value: 'COMPLETED', label: 'Completed' },
-  { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
-]
+const STATUS_LABELS: Record<string, string> = {
+  NOT_STARTED: 'Not Started',
+  IN_PROGRESS: 'In Progress',
+  DRAFT: 'Draft',
+  PENDING_HR_REVIEW: 'Pending HR Review',
+  PENDING_SUPER_ADMIN: 'Pending Admin Approval',
+  PENDING_ACKNOWLEDGMENT: 'Pending Acknowledgment',
+  ACKNOWLEDGED: 'Acknowledged',
+  COMPLETED: 'Completed',
+}
 
-function RatingInput({ name, label, value, onChange }: { name: string; label: string; value: number; onChange: (v: number) => void }) {
+function RatingInput({ name, label, value, onChange, required = false }: {
+  name: string
+  label: string
+  value: number
+  onChange: (v: number) => void
+  required?: boolean
+}) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
+      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+        {label}{required && <span className="text-red-500 ml-1">*</span>}
+      </label>
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
           <button
@@ -67,8 +80,10 @@ export default function EditReviewPage() {
 
   const [review, setReview] = useState<PerformanceReview | null>(null)
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   // Rating states
   const [overallRating, setOverallRating] = useState(3)
@@ -84,6 +99,7 @@ export default function EditReviewPage() {
       try {
         const data = await PerformanceReviewsApi.get(id)
         setReview(data)
+
         // Initialize rating states from loaded data
         setOverallRating(data.overallRating || 3)
         setQualityOfWork(data.qualityOfWork || 3)
@@ -92,6 +108,18 @@ export default function EditReviewPage() {
         setTeamwork(data.teamwork || 3)
         setInitiative(data.initiative || 3)
         setAttendance(data.attendance || 3)
+
+        // Auto-start review if NOT_STARTED
+        if (data.status === 'NOT_STARTED') {
+          try {
+            const started = await PerformanceReviewsApi.start(id)
+            setReview(started)
+            setSuccessMessage('Review started. Fill in the ratings and feedback below.')
+          } catch (e: any) {
+            console.error('Failed to auto-start review:', e)
+            // Non-fatal - continue with editing
+          }
+        }
       } catch (e: any) {
         setError(e.message || 'Failed to load review')
       } finally {
@@ -101,14 +129,61 @@ export default function EditReviewPage() {
     load()
   }, [id])
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  // Check if review is editable
+  const isEditable = review && ['NOT_STARTED', 'IN_PROGRESS', 'DRAFT'].includes(review.status)
+
+  async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setSubmitting(true)
+    if (!isEditable) return
+
+    setSaving(true)
     setError(null)
+    setSuccessMessage(null)
+
     const fd = new FormData(e.currentTarget)
     const payload = Object.fromEntries(fd.entries()) as any
 
     try {
+      const updated = await PerformanceReviewsApi.update(id, {
+        reviewType: String(payload.reviewType),
+        reviewPeriod: String(payload.reviewPeriod),
+        reviewDate: String(payload.reviewDate),
+        reviewerName: String(payload.reviewerName),
+        overallRating: parseInt(payload.overallRating, 10),
+        qualityOfWork: parseInt(payload.qualityOfWork, 10),
+        productivity: parseInt(payload.productivity, 10),
+        communication: parseInt(payload.communication, 10),
+        teamwork: parseInt(payload.teamwork, 10),
+        initiative: parseInt(payload.initiative, 10),
+        attendance: parseInt(payload.attendance, 10),
+        strengths: payload.strengths || null,
+        areasToImprove: payload.areasToImprove || null,
+        goals: payload.goals || null,
+        comments: payload.comments || null,
+      })
+      setReview(updated)
+      setSuccessMessage('Review saved as draft')
+    } catch (e: any) {
+      setError(e.message || 'Failed to save review')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleSubmit() {
+    if (!isEditable) return
+
+    // First save the current form state
+    const form = document.querySelector('form') as HTMLFormElement
+    const fd = new FormData(form)
+    const payload = Object.fromEntries(fd.entries()) as any
+
+    setSubmitting(true)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      // Save first
       await PerformanceReviewsApi.update(id, {
         reviewType: String(payload.reviewType),
         reviewPeriod: String(payload.reviewPeriod),
@@ -125,11 +200,18 @@ export default function EditReviewPage() {
         areasToImprove: payload.areasToImprove || null,
         goals: payload.goals || null,
         comments: payload.comments || null,
-        status: String(payload.status),
       })
+
+      // Then submit for review
+      await PerformanceReviewsApi.submit(id)
       router.push('/performance/reviews')
     } catch (e: any) {
-      setError(e.message || 'Failed to update review')
+      // Show validation errors if present
+      if (e.details && Array.isArray(e.details)) {
+        setError(e.details.join(', '))
+      } else {
+        setError(e.message || 'Failed to submit review')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -182,6 +264,43 @@ export default function EditReviewPage() {
     )
   }
 
+  // Non-editable state - show read-only view with status info
+  if (!isEditable) {
+    return (
+      <>
+        <PageHeader
+          title="Performance Review"
+          description={`${review.employee?.firstName} ${review.employee?.lastName}`}
+          icon={<ClipboardDocumentCheckIcon className="h-6 w-6 text-white" />}
+          showBack
+        />
+        <div className="max-w-3xl">
+          <Card padding="lg">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {review.employee?.firstName} {review.employee?.lastName}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {review.employee?.position} - {review.employee?.department}
+                </p>
+              </div>
+              <StatusBadge status={STATUS_LABELS[review.status] || review.status} />
+            </div>
+            <Alert variant="info">
+              This review is in &quot;{STATUS_LABELS[review.status] || review.status}&quot; status and cannot be edited.
+            </Alert>
+            <div className="mt-4">
+              <Button variant="secondary" onClick={goBack}>
+                Go Back
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </>
+    )
+  }
+
   return (
     <>
       <PageHeader
@@ -193,23 +312,34 @@ export default function EditReviewPage() {
 
       <div className="max-w-3xl">
         <Card padding="lg">
+          {/* Status indicator */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-lg font-medium text-gray-900">
+                {review.employee?.firstName} {review.employee?.lastName}
+              </h2>
+              <p className="text-sm text-gray-500">
+                {review.employee?.position} - {review.employee?.department}
+              </p>
+            </div>
+            <StatusBadge status={STATUS_LABELS[review.status] || review.status} />
+          </div>
+
           {error && (
             <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
               {error}
             </Alert>
           )}
 
-          <form onSubmit={onSubmit} className="space-y-8">
+          {successMessage && (
+            <Alert variant="success" className="mb-6" onDismiss={() => setSuccessMessage(null)}>
+              {successMessage}
+            </Alert>
+          )}
+
+          <form onSubmit={handleSave} className="space-y-8">
             <FormSection title="Review Details">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="sm:col-span-2">
-                  <FormField
-                    label="Employee"
-                    name="employeeName"
-                    value={`${review.employee?.firstName} ${review.employee?.lastName}`}
-                    disabled
-                  />
-                </div>
                 <SelectField
                   label="Review Type"
                   name="reviewType"
@@ -223,6 +353,7 @@ export default function EditReviewPage() {
                   required
                   placeholder="e.g., Q4 2025, Annual 2025"
                   defaultValue={review.reviewPeriod}
+                  disabled={!!review.periodType} // Disable if structured period exists
                 />
                 <FormField
                   label="Review Date"
@@ -238,35 +369,70 @@ export default function EditReviewPage() {
                   placeholder="Manager name"
                   defaultValue={review.reviewerName}
                 />
-                <SelectField
-                  label="Status"
-                  name="status"
-                  required
-                  options={statusOptions}
-                  defaultValue={review.status}
+              </div>
+            </FormSection>
+
+            <CardDivider />
+
+            <FormSection title="Performance Ratings" description="Rate the employee on a scale of 1-5. All ratings are required.">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="sm:col-span-2">
+                  <RatingInput
+                    name="overallRating"
+                    label="Overall Rating"
+                    value={overallRating}
+                    onChange={setOverallRating}
+                    required
+                  />
+                </div>
+                <RatingInput
+                  name="qualityOfWork"
+                  label="Quality of Work"
+                  value={qualityOfWork}
+                  onChange={setQualityOfWork}
+                  required={review.reviewType === 'QUARTERLY'}
+                />
+                <RatingInput
+                  name="productivity"
+                  label="Productivity"
+                  value={productivity}
+                  onChange={setProductivity}
+                  required={review.reviewType === 'QUARTERLY'}
+                />
+                <RatingInput
+                  name="communication"
+                  label="Communication"
+                  value={communication}
+                  onChange={setCommunication}
+                  required={review.reviewType === 'QUARTERLY'}
+                />
+                <RatingInput
+                  name="teamwork"
+                  label="Teamwork"
+                  value={teamwork}
+                  onChange={setTeamwork}
+                  required={review.reviewType === 'QUARTERLY'}
+                />
+                <RatingInput
+                  name="initiative"
+                  label="Initiative"
+                  value={initiative}
+                  onChange={setInitiative}
+                  required={review.reviewType === 'QUARTERLY'}
+                />
+                <RatingInput
+                  name="attendance"
+                  label="Attendance"
+                  value={attendance}
+                  onChange={setAttendance}
+                  required={review.reviewType === 'QUARTERLY'}
                 />
               </div>
             </FormSection>
 
             <CardDivider />
 
-            <FormSection title="Performance Ratings" description="Rate the employee on a scale of 1-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="sm:col-span-2">
-                  <RatingInput name="overallRating" label="Overall Rating" value={overallRating} onChange={setOverallRating} />
-                </div>
-                <RatingInput name="qualityOfWork" label="Quality of Work" value={qualityOfWork} onChange={setQualityOfWork} />
-                <RatingInput name="productivity" label="Productivity" value={productivity} onChange={setProductivity} />
-                <RatingInput name="communication" label="Communication" value={communication} onChange={setCommunication} />
-                <RatingInput name="teamwork" label="Teamwork" value={teamwork} onChange={setTeamwork} />
-                <RatingInput name="initiative" label="Initiative" value={initiative} onChange={setInitiative} />
-                <RatingInput name="attendance" label="Attendance" value={attendance} onChange={setAttendance} />
-              </div>
-            </FormSection>
-
-            <CardDivider />
-
-            <FormSection title="Feedback" description="Detailed comments and goals">
+            <FormSection title="Feedback" description="Provide detailed comments and goals">
               <div className="space-y-5">
                 <TextareaField
                   label="Strengths"
@@ -303,8 +469,15 @@ export default function EditReviewPage() {
               <Button variant="secondary" onClick={goBack}>
                 Cancel
               </Button>
-              <Button type="submit" loading={submitting}>
-                {submitting ? 'Saving...' : 'Save Review'}
+              <Button type="submit" variant="secondary" loading={saving}>
+                {saving ? 'Saving...' : 'Save Draft'}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleSubmit}
+                loading={submitting}
+              >
+                {submitting ? 'Submitting...' : 'Submit for Review'}
               </Button>
             </FormActions>
           </form>

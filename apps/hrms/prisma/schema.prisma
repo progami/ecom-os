@@ -493,7 +493,14 @@ model PerformanceReview {
   employee        Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   employeeId      String
   reviewType      ReviewType
+
+  // Structured period data (new)
+  periodType      ReviewPeriodType?   // Q1, Q2, Q3, Q4, H1, H2, ANNUAL, etc.
+  periodYear      Int?                // 2025, 2026, etc.
+
+  // Legacy period string (kept for backwards compatibility, auto-generated from periodType+periodYear)
   reviewPeriod    String              // e.g., "Q1 2025", "Annual 2024"
+
   reviewDate      DateTime
   reviewerName    String
 
@@ -533,7 +540,11 @@ model PerformanceReview {
   goals           String?
   comments        String?
 
-  status          ReviewStatus        @default(DRAFT)
+  status          ReviewStatus        @default(NOT_STARTED)
+
+  // ============ WORKFLOW TIMESTAMPS ============
+  startedAt       DateTime?           // When manager first opened/started the review
+  submittedAt     DateTime?           // When manager submitted the review
 
   // ============ APPROVAL CHAIN TRACKING ============
   // HR Review stage
@@ -581,6 +592,9 @@ model PerformanceReview {
   @@index([assignedReviewerId])
   @@index([deadline])
   @@index([escalatedToHR])
+  @@index([periodType])
+  @@index([periodYear])
+  @@index([periodType, periodYear])
 }
 
 model DisciplinaryAction {
@@ -702,12 +716,34 @@ enum ReviewType {
   PIP             // Performance Improvement Plan
 }
 
+// Review period type for structured period data
+enum ReviewPeriodType {
+  Q1              // Quarter 1 (Jan-Mar)
+  Q2              // Quarter 2 (Apr-Jun)
+  Q3              // Quarter 3 (Jul-Sep)
+  Q4              // Quarter 4 (Oct-Dec)
+  H1              // First half (Jan-Jun)
+  H2              // Second half (Jul-Dec)
+  ANNUAL          // Full year
+  PROBATION       // Probation period (custom dates)
+  CUSTOM          // Custom period
+}
+
 enum ReviewStatus {
-  DRAFT
+  // Workflow states
+  NOT_STARTED             // Auto-created, manager hasn't touched it yet
+  IN_PROGRESS             // Manager is actively working on it
+
+  // Legacy states (kept for backwards compatibility)
+  DRAFT                   // Alias for IN_PROGRESS
+  PENDING_REVIEW          // Legacy: kept for backwards compatibility
+
+  // Approval chain states
   PENDING_HR_REVIEW       // Manager submitted, waiting for HR
   PENDING_SUPER_ADMIN     // HR approved, waiting for Super Admin
   PENDING_ACKNOWLEDGMENT  // Super Admin approved, waiting for employee
-  PENDING_REVIEW          // Legacy: kept for backwards compatibility
+
+  // Final states
   ACKNOWLEDGED
   COMPLETED
 }
