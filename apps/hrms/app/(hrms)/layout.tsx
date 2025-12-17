@@ -9,6 +9,7 @@ import {
   FolderIcon,
   DocumentIcon,
   CalendarIcon,
+  CalendarDaysIcon,
   MenuIcon,
   XIcon,
   ClipboardDocumentCheckIcon,
@@ -43,6 +44,7 @@ const navigation: NavSection[] = [
     title: 'People',
     items: [
       { name: 'Org Chart', href: '/organogram', icon: OrgChartIcon },
+      { name: 'Leave', href: '/leave', icon: CalendarDaysIcon },
     ]
   },
   {
