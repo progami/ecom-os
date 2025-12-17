@@ -105,6 +105,14 @@ const actionOptions = [
   { value: 'TERMINATION', label: 'Termination' },
 ]
 
+type AuthorizedReporter = {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  position: string
+}
+
 function AddDisciplinaryForm() {
   const router = useRouter()
   const { goBack } = useNavigationHistory()
@@ -116,6 +124,9 @@ function AddDisciplinaryForm() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loadingEmployees, setLoadingEmployees] = useState(true)
   const [selectedViolationType, setSelectedViolationType] = useState('')
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(preselectedEmployeeId || '')
+  const [authorizedReporters, setAuthorizedReporters] = useState<AuthorizedReporter[]>([])
+  const [loadingReporters, setLoadingReporters] = useState(false)
 
   useEffect(() => {
     async function loadEmployees() {
@@ -131,6 +142,27 @@ function AddDisciplinaryForm() {
     }
     loadEmployees()
   }, [])
+
+  // Load authorized reporters when employee is selected
+  useEffect(() => {
+    async function loadAuthorizedReporters() {
+      if (!selectedEmployeeId) {
+        setAuthorizedReporters([])
+        return
+      }
+      setLoadingReporters(true)
+      try {
+        const data = await EmployeesApi.getAuthorizedReporters(selectedEmployeeId)
+        setAuthorizedReporters(data.items || [])
+      } catch (e) {
+        console.error('Failed to load authorized reporters:', e)
+        setAuthorizedReporters([])
+      } finally {
+        setLoadingReporters(false)
+      }
+    }
+    loadAuthorizedReporters()
+  }, [selectedEmployeeId])
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -170,6 +202,11 @@ function AddDisciplinaryForm() {
     ? violationReasonOptions[selectedViolationType] || [{ value: 'OTHER', label: 'Other' }]
     : [{ value: '', label: 'Select violation type first' }]
 
+  const reporterOptions = authorizedReporters.map((r) => ({
+    value: r.id,
+    label: `${r.firstName} ${r.lastName} (${r.position})`,
+  }))
+
   return (
     <Card padding="lg">
       {error && (
@@ -188,7 +225,8 @@ function AddDisciplinaryForm() {
                 required
                 options={employeeOptions}
                 placeholder={loadingEmployees ? 'Loading employees...' : 'Select employee...'}
-                defaultValue={preselectedEmployeeId || undefined}
+                value={selectedEmployeeId}
+                onChange={(e) => setSelectedEmployeeId(e.target.value)}
               />
             </div>
             <SelectField
@@ -235,11 +273,19 @@ function AddDisciplinaryForm() {
               type="date"
               required
             />
-            <FormField
+            <SelectField
               label="Reported By"
               name="reportedBy"
               required
-              placeholder="Manager or witness name"
+              options={reporterOptions}
+              placeholder={
+                !selectedEmployeeId
+                  ? 'Select employee first...'
+                  : loadingReporters
+                    ? 'Loading...'
+                    : 'Select reporter...'
+              }
+              disabled={!selectedEmployeeId || loadingReporters}
             />
           </div>
         </FormSection>

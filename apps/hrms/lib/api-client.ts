@@ -188,6 +188,11 @@ export const EmployeesApi = {
       fieldGroups: Record<string, string[]>
     }>(`/api/employees/${encodeURIComponent(employeeId)}/permissions`)
   },
+  getAuthorizedReporters(employeeId: string) {
+    return request<{ items: { id: string; employeeId: string; firstName: string; lastName: string; position: string }[]; total: number }>(
+      `/api/employees/${encodeURIComponent(employeeId)}/authorized-reporters`
+    )
+  },
 }
 
 // Resources
