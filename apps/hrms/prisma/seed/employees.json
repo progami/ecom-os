@@ -64,5 +64,16 @@
     "employmentType": "FULL_TIME",
     "joinDate": "2024-09-01",
     "status": "ACTIVE"
+  },
+  {
+    "employeeId": "EMP2007",
+    "firstName": "Shoaib",
+    "lastName": "Gondal",
+    "email": "gondalshoaib3333@gmail.com",
+    "department": "Operations",
+    "position": "Staff",
+    "employmentType": "FULL_TIME",
+    "joinDate": "2024-12-16",
+    "status": "ACTIVE"
   }
 ]
