@@ -144,10 +144,6 @@ export default function PerformanceReviewsPage() {
                 colSpan={6}
                 icon={<ClipboardDocumentCheckIcon className="h-10 w-10" />}
                 title="No reviews found"
-                action={{
-                  label: 'Create your first review',
-                  href: '/performance/reviews/add',
-                }}
               />
             ) : (
               items.map((r) => (
