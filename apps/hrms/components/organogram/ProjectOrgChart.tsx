@@ -259,11 +259,11 @@ export function ProjectOrgChart({ projects }: Props) {
         </button>
       </div>
 
-      {/* Chart container - no inner scroll, page scrolls */}
-      <div className="pb-8 -mx-6 px-6">
-        <div className="inline-flex flex-col items-center min-w-full py-6">
+      {/* Chart container - horizontal scroll for overflow */}
+      <div className="pb-8 overflow-x-auto">
+        <div className="flex justify-center min-w-fit py-6 px-8">
           {/* Projects grid */}
-          <div className="flex flex-wrap gap-10 justify-center items-start">
+          <div className="flex flex-wrap gap-12 justify-center items-start">
             {projects.map((project) => (
               <ProjectNode
                 key={project.id}
