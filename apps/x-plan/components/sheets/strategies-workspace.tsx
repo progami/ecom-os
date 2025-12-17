@@ -129,7 +129,7 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
   }
 
   const handleSelectStrategy = (id: string) => {
-    router.push(`/1-product-setup?strategy=${id}`)
+    router.push(withAppBasePath(`/1-product-setup?strategy=${id}`))
   }
 
   const startEdit = (strategy: Strategy) => {
