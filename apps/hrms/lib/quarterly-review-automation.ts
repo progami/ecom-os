@@ -131,6 +131,7 @@ export async function checkAndCreateQuarterlyReviews(): Promise<{
           reviewPeriod: cycle.reviewPeriod,
           reviewDate: quarterEndDate,
           reviewerName,
+          assignedReviewerId: employee.manager?.id || null,  // Lock in the reviewer at cron time
           overallRating: 3,  // Default placeholder - manager will update
           status: 'DRAFT',
           quarterlyCycleId: cycle.id,
@@ -456,6 +457,7 @@ export async function createQuarterlyReviewsForPeriod(
           reviewPeriod: cycle.reviewPeriod,
           reviewDate: quarterEndDate,
           reviewerName,
+          assignedReviewerId: employee.manager?.id || null,  // Lock in the reviewer at cron time
           overallRating: 3,
           status: 'DRAFT',
           quarterlyCycleId: cycle.id,
