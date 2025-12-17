@@ -55,6 +55,8 @@ export async function listAllUsers(): Promise<GoogleUser[]> {
       maxResults: 500,
       pageToken,
       projection: 'full',
+      showDeleted: 'false',
+      query: 'isSuspended=false',
     }, { timeout: REQUEST_TIMEOUT })
 
     if (res.data.users) {
