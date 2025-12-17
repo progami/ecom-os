@@ -42,7 +42,7 @@ function RatingStars({ rating }: { rating: number }) {
       {[1, 2, 3, 4, 5].map((star) => (
         <StarFilledIcon
           key={star}
-          className={`h-4 w-4 ${star <= rating ? 'text-amber-400' : 'text-slate-200'}`}
+          className={`h-4 w-4 ${star <= rating ? 'text-amber-400' : 'text-gray-200'}`}
         />
       ))}
     </div>
@@ -54,12 +54,12 @@ function TableRowSkeleton() {
     <>
       {[...Array(5)].map((_, i) => (
         <tr key={i} className="animate-pulse">
-          <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-32" /></td>
-          <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-24" /></td>
-          <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-20" /></td>
-          <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-24" /></td>
-          <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-16" /></td>
-          <td className="px-4 py-4"><div className="h-5 bg-slate-200 rounded w-20" /></td>
+          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-32" /></td>
+          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-24" /></td>
+          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-20" /></td>
+          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-24" /></td>
+          <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-16" /></td>
+          <td className="px-4 py-4"><div className="h-5 bg-gray-200 rounded w-20" /></td>
         </tr>
       ))}
     </>
@@ -153,17 +153,17 @@ export default function PerformanceReviewsPage() {
                 >
                   <TableCell>
                     <div>
-                      <p className="font-medium text-slate-900">
+                      <p className="font-medium text-gray-900">
                         {r.employee?.firstName} {r.employee?.lastName}
                       </p>
-                      <p className="text-xs text-slate-500">{r.employee?.department}</p>
+                      <p className="text-xs text-gray-500">{r.employee?.department}</p>
                     </div>
                   </TableCell>
-                  <TableCell className="text-slate-600">
+                  <TableCell className="text-gray-600">
                     {REVIEW_TYPE_LABELS[r.reviewType] || r.reviewType}
                   </TableCell>
-                  <TableCell className="text-slate-600">{r.reviewPeriod}</TableCell>
-                  <TableCell className="text-slate-500">{formatDate(r.reviewDate)}</TableCell>
+                  <TableCell className="text-gray-600">{r.reviewPeriod}</TableCell>
+                  <TableCell className="text-gray-500">{formatDate(r.reviewDate)}</TableCell>
                   <TableCell>
                     <RatingStars rating={r.overallRating} />
                   </TableCell>

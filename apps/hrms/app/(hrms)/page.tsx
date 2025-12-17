@@ -91,7 +91,7 @@ function StarRating({ rating }: { rating: number }) {
       {[1, 2, 3, 4, 5].map((star) => (
         <StarFilledIcon
           key={star}
-          className={`h-4 w-4 ${star <= rating ? 'text-amber-400' : 'text-slate-200'}`}
+          className={`h-4 w-4 ${star <= rating ? 'text-amber-400' : 'text-gray-200'}`}
         />
       ))}
     </div>
@@ -114,8 +114,8 @@ function TabButton({
       onClick={onClick}
       className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
         active
-          ? 'bg-cyan-50 text-cyan-700'
-          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+          ? 'bg-blue-50 text-blue-700'
+          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
       }`}
     >
       <Icon className="h-4 w-4" />
@@ -135,10 +135,10 @@ function InfoItem({
 }) {
   return (
     <div className="flex items-start gap-3">
-      <Icon className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" />
+      <Icon className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
       <div>
-        <p className="text-xs text-slate-500">{label}</p>
-        <p className="text-sm text-slate-900 font-medium">{value || '—'}</p>
+        <p className="text-xs text-gray-500">{label}</p>
+        <p className="text-sm text-gray-900 font-medium">{value || '—'}</p>
       </div>
     </div>
   )
@@ -304,7 +304,7 @@ export default function Dashboard() {
           icon={<HomeIcon className="h-6 w-6 text-white" />}
         />
         <div className="flex items-center justify-center h-64">
-          <SpinnerIcon className="h-8 w-8 animate-spin text-cyan-600" />
+          <SpinnerIcon className="h-8 w-8 animate-spin text-blue-600" />
         </div>
       </>
     )
@@ -386,13 +386,13 @@ export default function Dashboard() {
             />
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-1">
-                <h2 className="text-xl font-semibold text-slate-900">
+                <h2 className="text-xl font-semibold text-gray-900">
                   {currentEmployee.firstName} {currentEmployee.lastName}
                 </h2>
                 <StatusBadge status={currentEmployee.status.replace('_', ' ')} />
               </div>
-              <p className="text-slate-600">{currentEmployee.position}</p>
-              <p className="text-sm text-slate-500 mt-1">{currentEmployee.employeeId}</p>
+              <p className="text-gray-600">{currentEmployee.position}</p>
+              <p className="text-sm text-gray-500 mt-1">{currentEmployee.employeeId}</p>
             </div>
           </div>
         </Card>
@@ -437,7 +437,7 @@ export default function Dashboard() {
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Card padding="lg">
-                  <h3 className="text-sm font-semibold text-slate-900 mb-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-4">
                     Contact Information
                   </h3>
                   <div className="space-y-4">
@@ -451,7 +451,7 @@ export default function Dashboard() {
                 </Card>
 
                 <Card padding="lg">
-                  <h3 className="text-sm font-semibold text-slate-900 mb-4">Work Information</h3>
+                  <h3 className="text-sm font-semibold text-gray-900 mb-4">Work Information</h3>
                   <div className="space-y-4">
                     <InfoItem
                       icon={BuildingIcon}
@@ -460,10 +460,10 @@ export default function Dashboard() {
                     />
                     <InfoItem icon={CalendarIcon} label="Join Date" value={joinDate} />
                     <div className="flex items-start gap-3">
-                      <UsersIcon className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" />
+                      <UsersIcon className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
                       <div>
-                        <p className="text-xs text-slate-500">Employment Type</p>
-                        <p className="text-sm text-slate-900 font-medium">
+                        <p className="text-xs text-gray-500">Employment Type</p>
+                        <p className="text-sm text-gray-900 font-medium">
                           {employmentTypeLabels[currentEmployee.employmentType] ||
                             currentEmployee.employmentType}
                         </p>
@@ -471,10 +471,10 @@ export default function Dashboard() {
                     </div>
                     {currentEmployee.reportsTo && (
                       <div className="flex items-start gap-3">
-                        <UsersIcon className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" />
+                        <UsersIcon className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
                         <div>
-                          <p className="text-xs text-slate-500">Reports To</p>
-                          <p className="text-sm text-slate-900 font-medium">
+                          <p className="text-xs text-gray-500">Reports To</p>
+                          <p className="text-sm text-gray-900 font-medium">
                             {currentEmployee.reportsTo.firstName} {currentEmployee.reportsTo.lastName}
                           </p>
                         </div>
@@ -491,7 +491,7 @@ export default function Dashboard() {
               {/* Manager: Pending Approvals */}
               {data?.isManager && data?.pendingLeaveRequests && data.pendingLeaveRequests.length > 0 && (
                 <Card padding="lg">
-                  <h3 className="text-sm font-semibold text-slate-900 mb-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-4">
                     Pending Approvals ({data.pendingLeaveRequests.length})
                   </h3>
                   <PendingLeaveApprovals
@@ -504,7 +504,7 @@ export default function Dashboard() {
               {/* Manager: Approval History */}
               {data?.isManager && data?.leaveApprovalHistory && data.leaveApprovalHistory.length > 0 && (
                 <Card padding="lg">
-                  <h3 className="text-sm font-semibold text-slate-900 mb-4">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-4">
                     Your Approval History
                   </h3>
                   <LeaveApprovalHistory history={data.leaveApprovalHistory} />
@@ -514,14 +514,14 @@ export default function Dashboard() {
               {/* Leave Balance */}
               <Card padding="lg">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-slate-900">Leave Balance</h3>
+                  <h3 className="text-sm font-semibold text-gray-900">Leave Balance</h3>
                   <Button size="sm" onClick={() => setShowLeaveForm(!showLeaveForm)}>
                     {showLeaveForm ? 'Cancel' : 'Request Leave'}
                   </Button>
                 </div>
 
                 {showLeaveForm && (
-                  <div className="mb-6 p-4 bg-slate-50 rounded-lg">
+                  <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                     <LeaveRequestForm
                       employeeId={currentEmployee.id}
                       onSuccess={handleLeaveRequestSuccess}
@@ -533,7 +533,7 @@ export default function Dashboard() {
                 {leaveLoading ? (
                   <div className="animate-pulse space-y-3">
                     {[1, 2, 3].map((i) => (
-                      <div key={i} className="h-16 bg-slate-100 rounded-lg" />
+                      <div key={i} className="h-16 bg-gray-100 rounded-lg" />
                     ))}
                   </div>
                 ) : (
@@ -543,17 +543,17 @@ export default function Dashboard() {
 
               {/* Leave History */}
               <Card padding="lg">
-                <h3 className="text-sm font-semibold text-slate-900 mb-4">Leave History</h3>
+                <h3 className="text-sm font-semibold text-gray-900 mb-4">Leave History</h3>
                 {leaveLoading ? (
                   <div className="animate-pulse space-y-3">
                     {[1, 2, 3].map((i) => (
-                      <div key={i} className="h-12 bg-slate-100 rounded-lg" />
+                      <div key={i} className="h-12 bg-gray-100 rounded-lg" />
                     ))}
                   </div>
                 ) : leaveRequests.length === 0 ? (
                   <div className="text-center py-8">
-                    <CalendarDaysIcon className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-                    <p className="text-slate-500 text-sm">No leave requests yet</p>
+                    <CalendarDaysIcon className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                    <p className="text-gray-500 text-sm">No leave requests yet</p>
                   </div>
                 ) : (
                   <LeaveHistoryTable
@@ -567,18 +567,18 @@ export default function Dashboard() {
 
           {activeTab === 'reviews' && (
             <Card padding="lg">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4">Performance Reviews</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Performance Reviews</h3>
 
               {reviewsLoading ? (
                 <div className="animate-pulse space-y-3">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-20 bg-slate-100 rounded-lg" />
+                    <div key={i} className="h-20 bg-gray-100 rounded-lg" />
                   ))}
                 </div>
               ) : reviews.length === 0 ? (
                 <div className="text-center py-8">
-                  <ClipboardDocumentCheckIcon className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-                  <p className="text-slate-500 text-sm">No performance reviews yet</p>
+                  <ClipboardDocumentCheckIcon className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                  <p className="text-gray-500 text-sm">No performance reviews yet</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -586,25 +586,25 @@ export default function Dashboard() {
                     <Link
                       key={review.id}
                       href={`/performance/reviews/${review.id}`}
-                      className="block p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                      className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                     >
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-slate-900">
+                            <span className="font-medium text-gray-900">
                               {REVIEW_TYPE_LABELS[review.reviewType] || review.reviewType}
                             </span>
                             <StatusBadge status={review.status} />
                           </div>
-                          <p className="text-sm text-slate-600">{review.reviewPeriod}</p>
-                          <p className="text-xs text-slate-500 mt-1">
+                          <p className="text-sm text-gray-600">{review.reviewPeriod}</p>
+                          <p className="text-xs text-gray-500 mt-1">
                             Reviewed by {review.reviewerName} on{' '}
                             {new Date(review.reviewDate).toLocaleDateString()}
                           </p>
                         </div>
                         <div className="text-right">
                           <StarRating rating={review.overallRating} />
-                          <p className="text-xs text-slate-500 mt-1">{review.overallRating}/5</p>
+                          <p className="text-xs text-gray-500 mt-1">{review.overallRating}/5</p>
                         </div>
                       </div>
                     </Link>
@@ -616,19 +616,19 @@ export default function Dashboard() {
 
           {activeTab === 'violations' && (
             <Card padding="lg">
-              <h3 className="text-sm font-semibold text-slate-900 mb-4">Disciplinary Records</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Disciplinary Records</h3>
 
               {disciplinaryLoading ? (
                 <div className="animate-pulse space-y-3">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-20 bg-slate-100 rounded-lg" />
+                    <div key={i} className="h-20 bg-gray-100 rounded-lg" />
                   ))}
                 </div>
               ) : disciplinary.length === 0 ? (
                 <div className="text-center py-8">
                   <CheckIcon className="h-10 w-10 text-green-400 mx-auto mb-2" />
-                  <p className="text-slate-500 text-sm">No violations on record</p>
-                  <p className="text-xs text-slate-400 mt-1">Keep up the good work!</p>
+                  <p className="text-gray-500 text-sm">No violations on record</p>
+                  <p className="text-xs text-gray-400 mt-1">Keep up the good work!</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -636,24 +636,24 @@ export default function Dashboard() {
                     <Link
                       key={action.id}
                       href={`/performance/disciplinary/${action.id}`}
-                      className="block p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                      className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                     >
                       <div className="flex items-start justify-between">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="font-medium text-slate-900">
+                            <span className="font-medium text-gray-900">
                               {action.violationType.replace(/_/g, ' ')}
                             </span>
                             <span
-                              className={`px-2 py-0.5 rounded text-xs font-medium ${SEVERITY_COLORS[action.severity] || 'bg-slate-100 text-slate-700'}`}
+                              className={`px-2 py-0.5 rounded text-xs font-medium ${SEVERITY_COLORS[action.severity] || 'bg-gray-100 text-gray-700'}`}
                             >
                               {SEVERITY_LABELS[action.severity] || action.severity}
                             </span>
                           </div>
-                          <p className="text-sm text-slate-600">
+                          <p className="text-sm text-gray-600">
                             {action.violationReason.replace(/_/g, ' ')}
                           </p>
-                          <p className="text-xs text-slate-500 mt-1">
+                          <p className="text-xs text-gray-500 mt-1">
                             Incident: {new Date(action.incidentDate).toLocaleDateString()}
                           </p>
                         </div>
@@ -671,9 +671,9 @@ export default function Dashboard() {
         {/* Notifications - Only in Overview mode */}
         {activeTab === 'overview' && hasNotifications && (
           <Card padding="none">
-            <div className="px-5 py-3 flex items-center justify-between border-b border-slate-100">
-              <h2 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                <BellIcon className="h-4 w-4 text-cyan-600" />
+            <div className="px-5 py-3 flex items-center justify-between border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                <BellIcon className="h-4 w-4 text-blue-600" />
                 Notifications
                 {unreadCount > 0 && (
                   <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-red-100 text-red-600 rounded-full">
@@ -684,13 +684,13 @@ export default function Dashboard() {
               {unreadCount > 0 && (
                 <button
                   onClick={markAllRead}
-                  className="text-xs text-slate-500 hover:text-cyan-600 transition-colors"
+                  className="text-xs text-gray-500 hover:text-blue-600 transition-colors"
                 >
                   Mark all read
                 </button>
               )}
             </div>
-            <div className="divide-y divide-slate-100 max-h-[40vh] overflow-y-auto">
+            <div className="divide-y divide-gray-100 max-h-[40vh] overflow-y-auto">
               {data.notifications.map((notification) => (
                 <div
                   key={notification.id}
@@ -699,7 +699,7 @@ export default function Dashboard() {
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className={`mt-0.5 flex-shrink-0 ${notification.isRead ? 'text-slate-400' : 'text-amber-500'}`}>
+                    <div className={`mt-0.5 flex-shrink-0 ${notification.isRead ? 'text-gray-400' : 'text-amber-500'}`}>
                       {notification.isRead ? (
                         <CheckIcon className="h-4 w-4" />
                       ) : (
@@ -707,21 +707,21 @@ export default function Dashboard() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${notification.isRead ? 'text-slate-600' : 'text-slate-900 font-medium'}`}>
+                      <p className={`text-sm ${notification.isRead ? 'text-gray-600' : 'text-gray-900 font-medium'}`}>
                         {notification.title}
                       </p>
-                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{notification.message}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{notification.message}</p>
                       <div className="flex items-center gap-3 mt-1.5">
-                        <span className="text-[11px] text-slate-400">{formatDate(notification.createdAt)}</span>
+                        <span className="text-[11px] text-gray-400">{formatDate(notification.createdAt)}</span>
                         {notification.link && (
-                          <Link href={notification.link} className="text-[11px] text-cyan-600 hover:text-cyan-700">
+                          <Link href={notification.link} className="text-[11px] text-blue-600 hover:text-blue-700">
                             View details
                           </Link>
                         )}
                         {!notification.isRead && (
                           <button
                             onClick={() => markNotificationRead(notification.id)}
-                            className="text-[11px] text-slate-500 hover:text-slate-700"
+                            className="text-[11px] text-gray-500 hover:text-gray-700"
                           >
                             Dismiss
                           </button>

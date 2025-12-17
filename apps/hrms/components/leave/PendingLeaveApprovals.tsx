@@ -74,7 +74,7 @@ export function PendingLeaveApprovals({ requests, onUpdate }: PendingLeaveApprov
       {requests.map((request) => (
         <div
           key={request.id}
-          className="flex items-center gap-4 p-4 bg-white border border-slate-200 rounded-xl"
+          className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-xl"
         >
           <Avatar
             src={request.employee.avatar}
@@ -83,21 +83,21 @@ export function PendingLeaveApprovals({ requests, onUpdate }: PendingLeaveApprov
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className="font-medium text-slate-900">
+              <span className="font-medium text-gray-900">
                 {request.employee.firstName} {request.employee.lastName}
               </span>
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-gray-500">
                 {LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <CalendarDaysIcon className="h-4 w-4 text-slate-400" />
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <CalendarDaysIcon className="h-4 w-4 text-gray-400" />
               <span>{formatDateRange(request.startDate, request.endDate)}</span>
-              <span className="text-slate-400">·</span>
+              <span className="text-gray-400">·</span>
               <span>{request.totalDays} day{request.totalDays !== 1 ? 's' : ''}</span>
             </div>
             {request.reason && (
-              <p className="text-xs text-slate-500 mt-1 truncate">{request.reason}</p>
+              <p className="text-xs text-gray-500 mt-1 truncate">{request.reason}</p>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -106,7 +106,7 @@ export function PendingLeaveApprovals({ requests, onUpdate }: PendingLeaveApprov
               variant="ghost"
               onClick={() => handleReject(request.id)}
               disabled={processing === request.id}
-              className="text-slate-600 hover:text-red-600 hover:bg-red-50"
+              className="text-gray-600 hover:text-red-600 hover:bg-red-50"
             >
               <XIcon className="h-4 w-4" />
             </Button>

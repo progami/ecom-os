@@ -49,8 +49,8 @@ function getRegionLabel(region: string) {
 function MetaItem({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">{label}</p>
-      <div className="text-sm text-slate-900">{children}</div>
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">{label}</p>
+      <div className="text-sm text-gray-900">{children}</div>
     </div>
   )
 }
@@ -80,9 +80,9 @@ export default function ViewPolicyPage() {
   if (loading) {
     return (
       <div className="animate-pulse space-y-6">
-        <div className="h-8 bg-slate-200 rounded w-1/3" />
-        <div className="h-4 bg-slate-200 rounded w-1/4" />
-        <div className="h-64 bg-slate-200 rounded-xl" />
+        <div className="h-8 bg-gray-200 rounded w-1/3" />
+        <div className="h-4 bg-gray-200 rounded w-1/4" />
+        <div className="h-64 bg-gray-200 rounded-xl" />
       </div>
     )
   }
@@ -131,7 +131,7 @@ export default function ViewPolicyPage() {
               <StatusBadge status={policy.status} />
             </MetaItem>
             <MetaItem label="Version">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
                 v{policy.version}
               </span>
             </MetaItem>
@@ -144,16 +144,16 @@ export default function ViewPolicyPage() {
         {/* Summary */}
         {policy.summary && (
           <Card padding="md">
-            <h2 className="text-sm font-semibold text-slate-900 mb-3">Summary</h2>
-            <p className="text-sm text-slate-600 leading-relaxed">{policy.summary}</p>
+            <h2 className="text-sm font-semibold text-gray-900 mb-3">Summary</h2>
+            <p className="text-sm text-gray-600 leading-relaxed">{policy.summary}</p>
           </Card>
         )}
 
         {/* Content */}
         {policy.content && (
           <Card padding="md">
-            <h2 className="text-sm font-semibold text-slate-900 mb-4">Policy Content</h2>
-            <div className="prose prose-sm max-w-none prose-headings:text-cyan-700 prose-h1:text-xl prose-h1:font-bold prose-h2:text-lg prose-h2:font-semibold prose-h2:border-b prose-h2:border-cyan-200 prose-h2:pb-2 prose-h2:mt-6 prose-table:text-sm prose-th:bg-cyan-50 prose-th:text-cyan-900 prose-th:p-2 prose-th:border prose-th:border-cyan-200 prose-td:p-2 prose-td:border prose-td:border-slate-200 prose-strong:text-cyan-800 prose-a:text-cyan-600 hover:prose-a:text-cyan-800">
+            <h2 className="text-sm font-semibold text-gray-900 mb-4">Policy Content</h2>
+            <div className="prose prose-sm max-w-none prose-headings:text-blue-700 prose-h1:text-xl prose-h1:font-bold prose-h2:text-lg prose-h2:font-semibold prose-h2:border-b prose-h2:border-blue-200 prose-h2:pb-2 prose-h2:mt-6 prose-table:text-sm prose-th:bg-blue-50 prose-th:text-blue-900 prose-th:p-2 prose-th:border prose-th:border-blue-200 prose-td:p-2 prose-td:border prose-td:border-gray-200 prose-strong:text-blue-800 prose-a:text-blue-600 hover:prose-a:text-blue-800">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {policy.content}
               </ReactMarkdown>

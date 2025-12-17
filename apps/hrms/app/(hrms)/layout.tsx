@@ -72,21 +72,21 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
   }
 
   return (
-    <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-slate-200 bg-white px-6 pb-4">
+    <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6 pb-4">
       <div className="flex h-16 shrink-0 items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-600 shadow-md">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 shadow-md">
             <span className="text-sm font-bold text-white">HR</span>
           </div>
-          <span className="text-lg font-semibold text-slate-900">HRMS</span>
+          <span className="text-lg font-semibold text-gray-900">HRMS</span>
         </Link>
         <div className="flex items-center gap-2">
           <div className="hidden md:block">
             <NotificationBell />
           </div>
           {onClose && (
-            <button onClick={onClose} className="md:hidden p-2 hover:bg-slate-100 rounded-lg">
-              <XIcon className="h-5 w-5 text-slate-500" />
+            <button onClick={onClose} className="md:hidden p-2 hover:bg-gray-100 rounded-lg">
+              <XIcon className="h-5 w-5 text-gray-500" />
             </button>
           )}
         </div>
@@ -97,7 +97,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
           {navigation.map((section, sectionIdx) => (
             <li key={sectionIdx}>
               {section.title && (
-                <div className="px-3 pb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                <div className="px-3 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   {section.title}
                 </div>
               )}
@@ -109,16 +109,16 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
                       onClick={onClose}
                       className={cn(
                         matchesPath(item.href)
-                          ? 'bg-cyan-50 text-cyan-700'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50',
-                        'group flex gap-x-3 rounded-lg py-2.5 px-3 text-sm font-medium transition-colors'
+                          ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600 -ml-px'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
+                        'group flex gap-x-3 rounded-lg py-3 px-3 text-sm font-medium transition-colors'
                       )}
                     >
                       <item.icon
                         className={cn(
                           matchesPath(item.href)
-                            ? 'text-cyan-600'
-                            : 'text-slate-400 group-hover:text-slate-600',
+                            ? 'text-blue-600'
+                            : 'text-gray-400 group-hover:text-gray-600',
                           'h-5 w-5 shrink-0 transition-colors'
                         )}
                       />
@@ -140,7 +140,7 @@ function MobileNav({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
 
   return (
     <div className="relative z-50 md:hidden">
-      <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm" onClick={onClose} />
       <div className="fixed inset-0 flex">
         <div className="relative mr-16 flex w-full max-w-xs flex-1">
           <div className="absolute left-full top-0 flex w-16 justify-center pt-5">
@@ -172,11 +172,11 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
   }
 
   return (
-    <div className="sticky top-0 z-40 flex items-center gap-x-4 bg-white px-4 py-4 border-b border-slate-200 sm:px-6 md:hidden">
-      <button type="button" className="-m-2 p-2 text-slate-600 hover:text-slate-900" onClick={onMenuClick}>
+    <div className="sticky top-0 z-40 flex items-center gap-x-4 bg-white px-4 py-4 border-b border-gray-200 sm:px-6 md:hidden">
+      <button type="button" className="-m-2 p-2 text-gray-600 hover:text-gray-900" onClick={onMenuClick}>
         <MenuIcon className="h-6 w-6" />
       </button>
-      <div className="flex-1 text-base font-semibold text-slate-900">
+      <div className="flex-1 text-base font-semibold text-gray-900">
         {getCurrentPageName()}
       </div>
       <NotificationBell />
@@ -209,7 +209,7 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
       <MobileNav isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
 
       {/* Main Content */}
-      <div className="md:pl-64 min-h-screen flex flex-col bg-slate-50">
+      <div className="md:pl-64 min-h-screen flex flex-col bg-gray-50">
         <Header onMenuClick={() => setMobileMenuOpen(true)} />
 
         <main className="flex-1">
@@ -218,15 +218,15 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
           </div>
         </main>
 
-        <footer className="border-t border-slate-200 bg-white mt-auto">
+        <footer className="border-t border-gray-200 bg-white mt-auto">
           <div className="px-4 sm:px-6 lg:px-8 py-4">
-            <p className="text-xs text-slate-400 text-center">
+            <p className="text-xs text-gray-500 text-center">
               HRMS{' '}
               <a
                 href={versionHref}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline hover:text-slate-600 transition-colors"
+                className="underline hover:text-gray-700 transition-colors"
               >
                 v{version}
               </a>
