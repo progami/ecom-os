@@ -299,6 +299,12 @@ enum NotificationType {
 
   // Resource notifications
   RESOURCE_CREATED            // Notify relevant employees of new resource
+
+  // Quarterly review notifications
+  QUARTERLY_REVIEW_CREATED    // Notify manager: draft review assigned
+  QUARTERLY_REVIEW_REMINDER   // Notify manager: deadline approaching
+  QUARTERLY_REVIEW_OVERDUE    // Notify manager: past deadline
+  QUARTERLY_REVIEW_ESCALATED  // Notify HR: review needs attention
 }
 
 // ============ CORE VALUES SYSTEM ============
@@ -455,6 +461,33 @@ enum LeaveStatus {
 
 // ============ PERFORMANCE MANAGEMENT ============
 
+// Quarterly review cycle tracking
+model QuarterlyReviewCycle {
+  id              String       @id @default(cuid())
+  year            Int
+  quarter         Int          // 1, 2, 3, 4
+  reviewPeriod    String       // "Q1 2025", "Q2 2025", etc.
+  quarterEndDate  DateTime     // Mar 31, Jun 30, Sep 30, Dec 31
+  deadline        DateTime     // 14 days after quarterEndDate
+  status          CycleStatus  @default(ACTIVE)
+  totalReviews    Int          @default(0)
+  completedCount  Int          @default(0)
+  overdueCount    Int          @default(0)
+  createdAt       DateTime     @default(now())
+
+  reviews         PerformanceReview[]
+
+  @@unique([year, quarter])
+  @@index([status])
+  @@index([deadline])
+}
+
+enum CycleStatus {
+  ACTIVE      // Reviews being completed
+  COMPLETED   // All reviews done
+  CLOSED      // Cycle finalized
+}
+
 model PerformanceReview {
   id              String              @id @default(cuid())
   employee        Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -518,6 +551,20 @@ model PerformanceReview {
   // Employee acknowledgment
   acknowledgedAt           DateTime?
 
+  // ============ QUARTERLY CYCLE TRACKING ============
+  // Link to quarterly cycle (nullable for non-automated reviews)
+  quarterlyCycleId         String?
+  quarterlyCycle           QuarterlyReviewCycle? @relation(fields: [quarterlyCycleId], references: [id])
+
+  // Deadline tracking for automated reviews
+  deadline                 DateTime?
+
+  // Escalation tracking
+  remindersSent            Int       @default(0)  // Count of reminders sent
+  lastReminderAt           DateTime?
+  escalatedToHR            Boolean   @default(false)
+  escalatedAt              DateTime?
+
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
@@ -527,6 +574,9 @@ model PerformanceReview {
   @@index([status])
   @@index([hrReviewedById])
   @@index([superAdminApprovedById])
+  @@index([quarterlyCycleId])
+  @@index([deadline])
+  @@index([escalatedToHR])
 }
 
 model DisciplinaryAction {

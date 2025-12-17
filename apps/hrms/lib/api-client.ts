@@ -447,6 +447,11 @@ export type PerformanceReview = {
   goals?: string | null
   comments?: string | null
   status: string
+  // Quarterly review fields
+  quarterlyCycleId?: string | null
+  deadline?: string | null
+  escalatedToHR?: boolean
+  remindersSent?: number
   createdAt?: string
   updatedAt?: string
 }
