@@ -113,15 +113,16 @@ export async function checkAndCreateQuarterlyReviews(): Promise<{
     }
   })
 
-  // Create draft reviews for each employee
+  // Create draft reviews for each employee (skip those with no manager - top of hierarchy)
   for (const employee of employees) {
-    try {
-      // Determine reviewer - manager if exists, otherwise "HR"
-      let reviewerName = 'HR'
+    // Skip employees without a manager (super admin / top of hierarchy)
+    if (!employee.manager) {
+      console.log(`[Quarterly Reviews] Skipping ${employee.firstName} ${employee.lastName} - no manager (top of hierarchy)`)
+      continue
+    }
 
-      if (employee.manager) {
-        reviewerName = `${employee.manager.firstName} ${employee.manager.lastName}`
-      }
+    try {
+      const reviewerName = `${employee.manager.firstName} ${employee.manager.lastName}`
 
       // Create draft review
       await prisma.performanceReview.create({
@@ -444,11 +445,13 @@ export async function createQuarterlyReviewsForPeriod(
   })
 
   for (const employee of employees) {
+    // Skip employees without a manager (top of hierarchy)
+    if (!employee.manager) {
+      continue
+    }
+
     try {
-      let reviewerName = 'HR'
-      if (employee.manager) {
-        reviewerName = `${employee.manager.firstName} ${employee.manager.lastName}`
-      }
+      const reviewerName = `${employee.manager.firstName} ${employee.manager.lastName}`
 
       await prisma.performanceReview.create({
         data: {
@@ -457,7 +460,7 @@ export async function createQuarterlyReviewsForPeriod(
           reviewPeriod: cycle.reviewPeriod,
           reviewDate: quarterEndDate,
           reviewerName,
-          assignedReviewerId: employee.manager?.id || null,  // Lock in the reviewer at cron time
+          assignedReviewerId: employee.manager.id,
           overallRating: 3,
           status: 'DRAFT',
           quarterlyCycleId: cycle.id,
