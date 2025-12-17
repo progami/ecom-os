@@ -80,29 +80,30 @@ const violationReasonOptions: Record<string, { value: string; label: string }[]>
   ],
 }
 
-// Core Values - determines severity and action automatically
+// Core Values
 const coreValueBreachedOptions = [
-  { value: 'BREACH_OF_DETAIL', label: 'Attention to Detail - Mistakes, sloppy work (Training Issue → Verbal Warning)' },
-  { value: 'BREACH_OF_COURAGE', label: 'Courage - Avoiding tasks, hiding bad news (Coaching Issue → Written Warning)' },
-  { value: 'BREACH_OF_HONESTY', label: 'Honesty - Lying, falsifying records (Character Issue → Final Warning)' },
-  { value: 'BREACH_OF_INTEGRITY', label: 'Integrity - Theft, harassment, toxic behavior (Zero Tolerance → Termination)' },
+  { value: 'BREACH_OF_DETAIL', label: 'Attention to Detail - Mistakes, sloppy work' },
+  { value: 'BREACH_OF_COURAGE', label: 'Courage - Avoiding tasks, hiding bad news' },
+  { value: 'BREACH_OF_HONESTY', label: 'Honesty - Lying, falsifying records' },
+  { value: 'BREACH_OF_INTEGRITY', label: 'Integrity - Theft, harassment, toxic behavior' },
 ]
 
-// Auto-derive severity from core value breached
-const severityFromValueBreach: Record<string, string> = {
-  BREACH_OF_DETAIL: 'MINOR',
-  BREACH_OF_COURAGE: 'MODERATE',
-  BREACH_OF_HONESTY: 'MAJOR',
-  BREACH_OF_INTEGRITY: 'CRITICAL',
-}
+// Severity options
+const severityOptions = [
+  { value: 'MINOR', label: 'Minor' },
+  { value: 'MODERATE', label: 'Moderate' },
+  { value: 'MAJOR', label: 'Major' },
+  { value: 'CRITICAL', label: 'Critical' },
+]
 
-// Auto-derive action from severity
-const actionFromSeverity: Record<string, string> = {
-  MINOR: 'VERBAL_WARNING',
-  MODERATE: 'WRITTEN_WARNING',
-  MAJOR: 'FINAL_WARNING',
-  CRITICAL: 'TERMINATION',
-}
+// Action options
+const actionOptions = [
+  { value: 'VERBAL_WARNING', label: 'Verbal Warning' },
+  { value: 'WRITTEN_WARNING', label: 'Written Warning' },
+  { value: 'FINAL_WARNING', label: 'Final Warning' },
+  { value: 'SUSPENSION', label: 'Suspension' },
+  { value: 'TERMINATION', label: 'Termination' },
+]
 
 function AddDisciplinaryForm() {
   const router = useRouter()
@@ -115,7 +116,6 @@ function AddDisciplinaryForm() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loadingEmployees, setLoadingEmployees] = useState(true)
   const [selectedViolationType, setSelectedViolationType] = useState('')
-  const [selectedCoreValue, setSelectedCoreValue] = useState('')
 
   useEffect(() => {
     async function loadEmployees() {
@@ -139,24 +139,19 @@ function AddDisciplinaryForm() {
     const fd = new FormData(e.currentTarget)
     const payload = Object.fromEntries(fd.entries()) as any
 
-    // Auto-calculate severity and action from core value breached
-    const primaryValueBreached = String(payload.primaryValueBreached)
-    const severity = severityFromValueBreach[primaryValueBreached]
-    const actionTaken = actionFromSeverity[severity]
-
     try {
       await DisciplinaryActionsApi.create({
         employeeId: String(payload.employeeId),
         violationType: String(payload.violationType),
         violationReason: String(payload.violationReason),
-        primaryValueBreached,
-        severity,
+        primaryValueBreached: String(payload.primaryValueBreached),
+        severity: String(payload.severity),
         incidentDate: String(payload.incidentDate),
         reportedBy: String(payload.reportedBy),
         description: String(payload.description),
         witnesses: payload.witnesses || null,
         evidence: payload.evidence || null,
-        actionTaken,
+        actionTaken: String(payload.actionTaken),
       })
       router.push('/performance/disciplinary')
     } catch (e: any) {
@@ -218,16 +213,22 @@ function AddDisciplinaryForm() {
                 required
                 options={coreValueBreachedOptions}
                 placeholder="Select the core value that was breached..."
-                onChange={(e) => setSelectedCoreValue(e.target.value)}
               />
-              {selectedCoreValue && (
-                <p className="mt-2 text-sm text-gray-500">
-                  Severity: <span className="font-medium">{severityFromValueBreach[selectedCoreValue]}</span>
-                  {' → '}
-                  Action: <span className="font-medium">{actionFromSeverity[severityFromValueBreach[selectedCoreValue]].replace(/_/g, ' ')}</span>
-                </p>
-              )}
             </div>
+            <SelectField
+              label="Severity"
+              name="severity"
+              required
+              options={severityOptions}
+              placeholder="Select severity..."
+            />
+            <SelectField
+              label="Recommended Action"
+              name="actionTaken"
+              required
+              options={actionOptions}
+              placeholder="Select action..."
+            />
             <FormField
               label="Incident Date"
               name="incidentDate"
