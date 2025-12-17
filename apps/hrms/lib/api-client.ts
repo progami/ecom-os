@@ -981,3 +981,33 @@ export const ProjectsApi = {
     })
   },
 }
+
+// Access Management (Admin)
+export type EmployeeAccess = {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  email: string
+  department?: string
+  position: string
+  avatar?: string | null
+  isSuperAdmin: boolean
+  permissionLevel: number
+  roles: { id: string; name: string }[]
+  isHR: boolean
+  hrRoleId: string | null
+}
+
+export const AdminApi = {
+  getAccessList() {
+    return request<{ items: EmployeeAccess[]; total: number; currentUserId: string }>('/api/admin/access')
+  },
+  updateAccess(employeeId: string, payload: { isSuperAdmin?: boolean; isHR?: boolean }) {
+    return request<{ success: boolean; employee: EmployeeAccess }>(`/api/admin/access/${encodeURIComponent(employeeId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+}
