@@ -1,9 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { PerformanceReviewsApi, type PerformanceReview } from '@/lib/api-client'
-import { ClipboardDocumentCheckIcon, PlusIcon, StarFilledIcon } from '@/components/ui/Icons'
+import { ClipboardDocumentCheckIcon, PlusIcon, StarFilledIcon, ClockIcon, ExclamationTriangleIcon } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -27,6 +27,56 @@ const REVIEW_TYPE_LABELS: Record<string, string> = {
   ANNUAL: 'Annual',
   PROMOTION: 'Promotion',
   PIP: 'PIP',
+}
+
+function DeadlineBadge({ review }: { review: PerformanceReview }) {
+  const deadline = review.deadline || (review as any).quarterlyCycle?.deadline
+  if (!deadline) return null
+
+  const now = new Date()
+  const deadlineDate = new Date(deadline)
+  const daysUntil = Math.ceil((deadlineDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+
+  // Already completed - no badge needed
+  if (review.status !== 'DRAFT') return null
+
+  // Escalated
+  if (review.escalatedToHR) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+        <ExclamationTriangleIcon className="h-3 w-3" />
+        Escalated
+      </span>
+    )
+  }
+
+  // Overdue
+  if (daysUntil < 0) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+        <ClockIcon className="h-3 w-3" />
+        {Math.abs(daysUntil)}d overdue
+      </span>
+    )
+  }
+
+  // Due soon (1-3 days)
+  if (daysUntil <= 3) {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+        <ClockIcon className="h-3 w-3" />
+        {daysUntil}d left
+      </span>
+    )
+  }
+
+  // Normal (> 3 days)
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+      <ClockIcon className="h-3 w-3" />
+      {daysUntil}d left
+    </span>
+  )
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -59,6 +109,7 @@ function TableRowSkeleton() {
           <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-20" /></td>
           <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-24" /></td>
           <td className="px-4 py-4"><div className="h-4 bg-gray-200 rounded w-16" /></td>
+          <td className="px-4 py-4"><div className="h-5 bg-gray-200 rounded w-20" /></td>
           <td className="px-4 py-4"><div className="h-5 bg-gray-200 rounded w-20" /></td>
         </tr>
       ))}
@@ -135,13 +186,14 @@ export default function PerformanceReviewsPage() {
             <TableHead>Date</TableHead>
             <TableHead>Rating</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Deadline</TableHead>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRowSkeleton />
             ) : items.length === 0 ? (
               <TableEmptyState
-                colSpan={6}
+                colSpan={7}
                 icon={<ClipboardDocumentCheckIcon className="h-10 w-10" />}
                 title="No reviews found"
               />
@@ -169,6 +221,9 @@ export default function PerformanceReviewsPage() {
                   </TableCell>
                   <TableCell>
                     <StatusBadge status={STATUS_LABELS[r.status] || r.status} />
+                  </TableCell>
+                  <TableCell>
+                    <DeadlineBadge review={r} />
                   </TableCell>
                 </TableRow>
               ))

@@ -119,6 +119,13 @@ export async function GET(req: Request) {
               position: true,
             },
           },
+          quarterlyCycle: {
+            select: {
+              id: true,
+              reviewPeriod: true,
+              deadline: true,
+            },
+          },
         },
       }),
       prisma.performanceReview.count({ where }),
