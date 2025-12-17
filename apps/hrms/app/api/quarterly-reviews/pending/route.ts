@@ -27,9 +27,9 @@ export async function GET(req: Request) {
 
     const isHROrAdmin = currentEmployee?.isSuperAdmin || (currentEmployee?.permissionLevel ?? 0) >= 50
 
-    // Build where clause
+    // Build where clause - include NOT_STARTED and IN_PROGRESS
     const where: Record<string, unknown> = {
-      status: 'DRAFT',
+      status: { in: ['NOT_STARTED', 'IN_PROGRESS', 'DRAFT'] },
       quarterlyCycleId: { not: null },
     }
 

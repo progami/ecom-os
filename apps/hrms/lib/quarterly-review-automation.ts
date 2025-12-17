@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma'
+import { ReviewPeriodType } from '@ecom-os/prisma-hrms'
 import { getHREmployees } from './permissions'
 
 // Quarter end dates (month is 0-indexed)
@@ -7,6 +8,14 @@ const QUARTER_END_DATES: Record<number, { month: number; day: number }> = {
   2: { month: 5, day: 30 },  // June 30
   3: { month: 8, day: 30 },  // September 30
   4: { month: 11, day: 31 }, // December 31
+}
+
+// Map quarter number to ReviewPeriodType enum
+const QUARTER_TO_PERIOD_TYPE: Record<number, ReviewPeriodType> = {
+  1: 'Q1',
+  2: 'Q2',
+  3: 'Q3',
+  4: 'Q4',
 }
 
 // Configuration
@@ -124,17 +133,22 @@ export async function checkAndCreateQuarterlyReviews(): Promise<{
     try {
       const reviewerName = `${employee.manager.firstName} ${employee.manager.lastName}`
 
-      // Create draft review
+      // Create review in NOT_STARTED state - manager must actively start it
       await prisma.performanceReview.create({
         data: {
           employeeId: employee.id,
           reviewType: 'QUARTERLY',
+          // Structured period data
+          periodType: QUARTER_TO_PERIOD_TYPE[prevQuarter],
+          periodYear: prevYear,
+          // Legacy string for backward compatibility
           reviewPeriod: cycle.reviewPeriod,
           reviewDate: quarterEndDate,
           reviewerName,
-          assignedReviewerId: employee.manager?.id || null,  // Lock in the reviewer at cron time
-          overallRating: 3,  // Default placeholder - manager will update
-          status: 'DRAFT',
+          assignedReviewerId: employee.manager.id,
+          // No ratings set - manager fills these when they start
+          overallRating: 0,
+          status: 'NOT_STARTED',
           quarterlyCycleId: cycle.id,
           deadline: cycle.deadline,
         }
@@ -204,11 +218,11 @@ export async function processRemindersAndEscalations(): Promise<{
   })
 
   for (const cycle of activeCycles) {
-    // Get pending (DRAFT) reviews for this cycle
+    // Get pending reviews (NOT_STARTED or IN_PROGRESS) for this cycle
     const pendingReviews = await prisma.performanceReview.findMany({
       where: {
         quarterlyCycleId: cycle.id,
-        status: 'DRAFT',
+        status: { in: ['NOT_STARTED', 'IN_PROGRESS'] },
       },
       include: {
         employee: {
@@ -254,7 +268,7 @@ export async function processRemindersAndEscalations(): Promise<{
     const pendingCount = await prisma.performanceReview.count({
       where: {
         quarterlyCycleId: cycle.id,
-        status: 'DRAFT',
+        status: { in: ['NOT_STARTED', 'IN_PROGRESS'] },
       }
     })
 
@@ -457,12 +471,16 @@ export async function createQuarterlyReviewsForPeriod(
         data: {
           employeeId: employee.id,
           reviewType: 'QUARTERLY',
+          // Structured period data
+          periodType: QUARTER_TO_PERIOD_TYPE[quarter],
+          periodYear: year,
+          // Legacy string for backward compatibility
           reviewPeriod: cycle.reviewPeriod,
           reviewDate: quarterEndDate,
           reviewerName,
           assignedReviewerId: employee.manager.id,
-          overallRating: 3,
-          status: 'DRAFT',
+          overallRating: 0,
+          status: 'NOT_STARTED',
           quarterlyCycleId: cycle.id,
           deadline: cycle.deadline,
         }
@@ -489,7 +507,7 @@ export async function updateCycleStats(cycleId: string): Promise<void> {
   const completedCount = await prisma.performanceReview.count({
     where: {
       quarterlyCycleId: cycleId,
-      status: { not: 'DRAFT' },
+      status: { notIn: ['NOT_STARTED', 'IN_PROGRESS'] },
     }
   })
 
