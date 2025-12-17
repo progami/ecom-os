@@ -115,16 +115,16 @@ export default function PoliciesPage() {
                 >
                   <TableCell>
                     <div>
-                      <p className="font-medium text-slate-900">{p.title}</p>
+                      <p className="font-medium text-gray-900">{p.title}</p>
                       {p.summary && (
-                        <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{p.summary}</p>
+                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{p.summary}</p>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-slate-600">{p.category}</TableCell>
-                  <TableCell className="text-slate-600">{REGION_LABELS[p.region] || p.region}</TableCell>
+                  <TableCell className="text-gray-600">{p.category}</TableCell>
+                  <TableCell className="text-gray-600">{REGION_LABELS[p.region] || p.region}</TableCell>
                   <TableCell>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-700">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
                       v{p.version}
                     </span>
                   </TableCell>

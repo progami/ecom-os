@@ -69,7 +69,7 @@ const SEVERITY_LABELS: Record<string, string> = {
 }
 
 const SEVERITY_COLORS: Record<string, string> = {
-  MINOR: 'bg-slate-100 text-slate-700',
+  MINOR: 'bg-gray-100 text-gray-700',
   MODERATE: 'bg-amber-100 text-amber-700',
   MAJOR: 'bg-orange-100 text-orange-700',
   CRITICAL: 'bg-red-100 text-red-700',
@@ -111,11 +111,11 @@ const STATUS_COLORS: Record<string, string> = {
   PENDING_HR_REVIEW: 'bg-amber-100 text-amber-800',
   PENDING_SUPER_ADMIN: 'bg-purple-100 text-purple-800',
   PENDING_ACKNOWLEDGMENT: 'bg-blue-100 text-blue-800',
-  ACTIVE: 'bg-cyan-100 text-cyan-800',
+  ACTIVE: 'bg-blue-100 text-blue-800',
   APPEALED: 'bg-orange-100 text-orange-800',
   APPEAL_PENDING_HR: 'bg-orange-100 text-orange-800',
   APPEAL_PENDING_SUPER_ADMIN: 'bg-purple-100 text-purple-800',
-  CLOSED: 'bg-slate-100 text-slate-800',
+  CLOSED: 'bg-gray-100 text-gray-800',
   DISMISSED: 'bg-green-100 text-green-800',
 }
 
@@ -137,14 +137,14 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   if (!value) return null
   return (
     <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
-      <dt className="text-sm font-medium text-slate-500">{label}</dt>
-      <dd className="mt-1 text-sm text-slate-900 sm:col-span-2 sm:mt-0">{value}</dd>
+      <dt className="text-sm font-medium text-gray-500">{label}</dt>
+      <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{value}</dd>
     </div>
   )
 }
 
 function SeverityBadge({ severity }: { severity: string }) {
-  const colorClass = SEVERITY_COLORS[severity] || 'bg-slate-100 text-slate-700'
+  const colorClass = SEVERITY_COLORS[severity] || 'bg-gray-100 text-gray-700'
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>
       {SEVERITY_LABELS[severity] || severity}
@@ -153,7 +153,7 @@ function SeverityBadge({ severity }: { severity: string }) {
 }
 
 function CustomStatusBadge({ status }: { status: string }) {
-  const colorClass = STATUS_COLORS[status] || 'bg-slate-100 text-slate-700'
+  const colorClass = STATUS_COLORS[status] || 'bg-gray-100 text-gray-700'
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClass}`}>
       {STATUS_LABELS[status] || status.replace(/_/g, ' ')}
@@ -182,7 +182,7 @@ function WorkflowStepper({ status, appealStatus }: { status: string; appealStatu
 
     return (
       <div className="mb-6">
-        <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Appeal Progress</h4>
+        <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Appeal Progress</h4>
         <div className="flex items-center">
           {steps.map((step, idx) => {
             const isCompleted = idx < currentStep
@@ -193,22 +193,22 @@ function WorkflowStepper({ status, appealStatus }: { status: string; appealStatu
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
                   isCompleted ? 'bg-green-500 border-green-500' :
                   isCurrent ? 'bg-amber-500 border-amber-500' :
-                  'bg-white border-slate-300'
+                  'bg-white border-gray-300'
                 }`}>
                   {isCompleted ? (
                     <CheckIcon className="h-4 w-4 text-white" />
                   ) : (
-                    <Icon className={`h-4 w-4 ${isCurrent ? 'text-white' : 'text-slate-400'}`} />
+                    <Icon className={`h-4 w-4 ${isCurrent ? 'text-white' : 'text-gray-400'}`} />
                   )}
                 </div>
                 <span className={`ml-2 text-xs font-medium ${
-                  isCompleted || isCurrent ? 'text-slate-900' : 'text-slate-400'
+                  isCompleted || isCurrent ? 'text-gray-900' : 'text-gray-400'
                 }`}>
                   {step.label}
                 </span>
                 {idx < steps.length - 1 && (
                   <div className={`w-12 h-0.5 mx-2 ${
-                    isCompleted ? 'bg-green-500' : 'bg-slate-200'
+                    isCompleted ? 'bg-green-500' : 'bg-gray-200'
                   }`} />
                 )}
               </div>
@@ -236,7 +236,7 @@ function WorkflowStepper({ status, appealStatus }: { status: string; appealStatu
 
   return (
     <div className="mb-6">
-      <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wider mb-3">Approval Progress</h4>
+      <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Approval Progress</h4>
       {status === 'DISMISSED' ? (
         <div className="flex items-center gap-2 text-red-600">
           <XCircleIcon className="h-5 w-5" />
@@ -252,23 +252,23 @@ function WorkflowStepper({ status, appealStatus }: { status: string; appealStatu
               <div key={step.key} className="flex items-center">
                 <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${
                   isCompleted ? 'bg-green-500 border-green-500' :
-                  isCurrent ? 'bg-cyan-500 border-cyan-500' :
-                  'bg-white border-slate-300'
+                  isCurrent ? 'bg-blue-500 border-blue-500' :
+                  'bg-white border-gray-300'
                 }`}>
                   {isCompleted ? (
                     <CheckIcon className="h-4 w-4 text-white" />
                   ) : (
-                    <Icon className={`h-4 w-4 ${isCurrent ? 'text-white' : 'text-slate-400'}`} />
+                    <Icon className={`h-4 w-4 ${isCurrent ? 'text-white' : 'text-gray-400'}`} />
                   )}
                 </div>
                 <span className={`ml-2 text-xs font-medium ${
-                  isCompleted || isCurrent ? 'text-slate-900' : 'text-slate-400'
+                  isCompleted || isCurrent ? 'text-gray-900' : 'text-gray-400'
                 }`}>
                   {step.label}
                 </span>
                 {idx < steps.length - 1 && (
                   <div className={`w-8 h-0.5 mx-2 ${
-                    isCompleted ? 'bg-green-500' : 'bg-slate-200'
+                    isCompleted ? 'bg-green-500' : 'bg-gray-200'
                   }`} />
                 )}
               </div>
@@ -584,9 +584,9 @@ export default function ViewDisciplinaryPage() {
         <div className="max-w-3xl">
           <Card padding="lg">
             <div className="animate-pulse space-y-6">
-              <div className="h-6 bg-slate-200 rounded w-1/3" />
-              <div className="h-4 bg-slate-200 rounded w-2/3" />
-              <div className="h-4 bg-slate-200 rounded w-1/2" />
+              <div className="h-6 bg-gray-200 rounded w-1/3" />
+              <div className="h-4 bg-gray-200 rounded w-2/3" />
+              <div className="h-4 bg-gray-200 rounded w-1/2" />
             </div>
           </Card>
         </div>
@@ -644,10 +644,10 @@ export default function ViewDisciplinaryPage() {
 
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-gray-900">
                 {action.employee?.firstName} {action.employee?.lastName}
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-gray-500">
                 {action.employee?.position} • {action.employee?.department}
               </p>
             </div>
@@ -663,23 +663,23 @@ export default function ViewDisciplinaryPage() {
           <Card padding="lg" className="border-2 border-amber-200 bg-amber-50">
             <div className="flex items-center gap-2 mb-4">
               <ClockIcon className="h-5 w-5 text-amber-600" />
-              <h3 className="text-lg font-medium text-slate-900">HR Review Required</h3>
+              <h3 className="text-lg font-medium text-gray-900">HR Review Required</h3>
             </div>
-            <p className="text-sm text-slate-600 mb-4">
+            <p className="text-sm text-gray-600 mb-4">
               This violation requires your review. Please approve to forward to Super Admin for final approval, or reject to dismiss.
             </p>
 
             {!showHRReviewForm ? (
               <Button onClick={() => setShowHRReviewForm(true)}>Review Violation</Button>
             ) : (
-              <div className="space-y-4 p-4 bg-white rounded-lg border border-slate-200">
+              <div className="space-y-4 p-4 bg-white rounded-lg border border-gray-200">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes (Optional)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
                   <textarea
                     value={hrReviewNotes}
                     onChange={(e) => setHrReviewNotes(e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Add any notes about your review..."
                   />
                 </div>
@@ -711,23 +711,23 @@ export default function ViewDisciplinaryPage() {
           <Card padding="lg" className="border-2 border-purple-200 bg-purple-50">
             <div className="flex items-center gap-2 mb-4">
               <CheckCircleIcon className="h-5 w-5 text-purple-600" />
-              <h3 className="text-lg font-medium text-slate-900">Final Approval Required</h3>
+              <h3 className="text-lg font-medium text-gray-900">Final Approval Required</h3>
             </div>
-            <p className="text-sm text-slate-600 mb-4">
+            <p className="text-sm text-gray-600 mb-4">
               HR has approved this violation. As Super Admin, please provide final approval to notify the employee, or reject to dismiss.
             </p>
 
             {!showSAApprovalForm ? (
               <Button onClick={() => setShowSAApprovalForm(true)}>Review & Decide</Button>
             ) : (
-              <div className="space-y-4 p-4 bg-white rounded-lg border border-slate-200">
+              <div className="space-y-4 p-4 bg-white rounded-lg border border-gray-200">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Notes (Optional)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes (Optional)</label>
                   <textarea
                     value={saApprovalNotes}
                     onChange={(e) => setSaApprovalNotes(e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Add any notes about your decision..."
                   />
                 </div>
@@ -759,29 +759,29 @@ export default function ViewDisciplinaryPage() {
           <Card padding="lg" className="border-2 border-orange-200 bg-orange-50">
             <div className="flex items-center gap-2 mb-4">
               <ExclamationTriangleIcon className="h-5 w-5 text-orange-600" />
-              <h3 className="text-lg font-medium text-slate-900">Appeal Review Required</h3>
+              <h3 className="text-lg font-medium text-gray-900">Appeal Review Required</h3>
             </div>
-            <p className="text-sm text-slate-600 mb-2">
+            <p className="text-sm text-gray-600 mb-2">
               The employee has submitted an appeal. Please review and forward to Super Admin for final decision.
             </p>
             {appealStatus?.appealReason && (
-              <div className="bg-white p-3 rounded border border-slate-200 mb-4">
-                <p className="text-sm font-medium text-slate-700 mb-1">Employee&apos;s Appeal:</p>
-                <p className="text-sm text-slate-900 whitespace-pre-wrap">{appealStatus.appealReason}</p>
+              <div className="bg-white p-3 rounded border border-gray-200 mb-4">
+                <p className="text-sm font-medium text-gray-700 mb-1">Employee&apos;s Appeal:</p>
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">{appealStatus.appealReason}</p>
               </div>
             )}
 
             {!showResolveForm ? (
               <Button onClick={() => setShowResolveForm(true)}>Review Appeal</Button>
             ) : (
-              <div className="space-y-4 p-4 bg-white rounded-lg border border-slate-200">
+              <div className="space-y-4 p-4 bg-white rounded-lg border border-gray-200">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">HR Notes (Optional)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">HR Notes (Optional)</label>
                   <textarea
                     value={appealResolutionText}
                     onChange={(e) => setAppealResolutionText(e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Add notes for Super Admin..."
                   />
                 </div>
@@ -805,28 +805,28 @@ export default function ViewDisciplinaryPage() {
           <Card padding="lg" className="border-2 border-purple-200 bg-purple-50">
             <div className="flex items-center gap-2 mb-4">
               <CheckCircleIcon className="h-5 w-5 text-purple-600" />
-              <h3 className="text-lg font-medium text-slate-900">Appeal Final Decision Required</h3>
+              <h3 className="text-lg font-medium text-gray-900">Appeal Final Decision Required</h3>
             </div>
-            <p className="text-sm text-slate-600 mb-2">
+            <p className="text-sm text-gray-600 mb-2">
               HR has reviewed the appeal. As Super Admin, please make the final decision.
             </p>
             {appealStatus?.appealReason && (
-              <div className="bg-white p-3 rounded border border-slate-200 mb-4">
-                <p className="text-sm font-medium text-slate-700 mb-1">Employee&apos;s Appeal:</p>
-                <p className="text-sm text-slate-900 whitespace-pre-wrap">{appealStatus.appealReason}</p>
+              <div className="bg-white p-3 rounded border border-gray-200 mb-4">
+                <p className="text-sm font-medium text-gray-700 mb-1">Employee&apos;s Appeal:</p>
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">{appealStatus.appealReason}</p>
               </div>
             )}
 
             {!showResolveForm ? (
               <Button onClick={() => setShowResolveForm(true)}>Make Decision</Button>
             ) : (
-              <div className="space-y-4 p-4 bg-white rounded-lg border border-slate-200">
+              <div className="space-y-4 p-4 bg-white rounded-lg border border-gray-200">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Decision</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Decision</label>
                   <select
                     value={appealResolutionStatus}
                     onChange={(e) => setAppealResolutionStatus(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="UPHELD">Upheld - Original decision stands</option>
                     <option value="MODIFIED">Modified - Reduce action/severity</option>
@@ -834,12 +834,12 @@ export default function ViewDisciplinaryPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Explanation (Required)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Explanation (Required)</label>
                   <textarea
                     value={appealResolutionText}
                     onChange={(e) => setAppealResolutionText(e.target.value)}
                     rows={4}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Explain your decision..."
                   />
                 </div>
@@ -856,8 +856,8 @@ export default function ViewDisciplinaryPage() {
 
         {/* Violation Details */}
         <Card padding="lg">
-          <h3 className="text-lg font-medium text-slate-900 mb-4">Violation Details</h3>
-          <dl className="divide-y divide-slate-100">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Violation Details</h3>
+          <dl className="divide-y divide-gray-100">
             <DetailRow label="Violation Type" value={VIOLATION_TYPE_LABELS[action.violationType] || action.violationType} />
             <DetailRow label="Specific Reason" value={VIOLATION_REASON_LABELS[action.violationReason] || action.violationReason} />
             <DetailRow label="Incident Date" value={formatDate(action.incidentDate)} />
@@ -867,36 +867,36 @@ export default function ViewDisciplinaryPage() {
         </Card>
 
         <Card padding="lg">
-          <h3 className="text-lg font-medium text-slate-900 mb-4">Incident Details</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Incident Details</h3>
           <dl className="space-y-4">
             <div>
-              <dt className="text-sm font-medium text-slate-500 mb-1">Description</dt>
-              <dd className="text-sm text-slate-900 whitespace-pre-wrap bg-slate-50 p-3 rounded-lg">{action.description}</dd>
+              <dt className="text-sm font-medium text-gray-500 mb-1">Description</dt>
+              <dd className="text-sm text-gray-900 whitespace-pre-wrap bg-gray-50 p-3 rounded-lg">{action.description}</dd>
             </div>
             {action.witnesses && (
               <div>
-                <dt className="text-sm font-medium text-slate-500 mb-1">Witnesses</dt>
-                <dd className="text-sm text-slate-900">{action.witnesses}</dd>
+                <dt className="text-sm font-medium text-gray-500 mb-1">Witnesses</dt>
+                <dd className="text-sm text-gray-900">{action.witnesses}</dd>
               </div>
             )}
             {action.evidence && (
               <div>
-                <dt className="text-sm font-medium text-slate-500 mb-1">Evidence</dt>
-                <dd className="text-sm text-slate-900">{action.evidence}</dd>
+                <dt className="text-sm font-medium text-gray-500 mb-1">Evidence</dt>
+                <dd className="text-sm text-gray-900">{action.evidence}</dd>
               </div>
             )}
           </dl>
         </Card>
 
         <Card padding="lg">
-          <h3 className="text-lg font-medium text-slate-900 mb-4">Action Taken</h3>
-          <dl className="divide-y divide-slate-100">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Action Taken</h3>
+          <dl className="divide-y divide-gray-100">
             <DetailRow label="Action Type" value={ACTION_LABELS[action.actionTaken] || action.actionTaken} />
             <DetailRow label="Action Date" value={formatDate(action.actionDate)} />
             {action.actionDetails && (
               <div className="py-3">
-                <dt className="text-sm font-medium text-slate-500 mb-1">Action Details</dt>
-                <dd className="text-sm text-slate-900 whitespace-pre-wrap">{action.actionDetails}</dd>
+                <dt className="text-sm font-medium text-gray-500 mb-1">Action Details</dt>
+                <dd className="text-sm text-gray-900 whitespace-pre-wrap">{action.actionDetails}</dd>
               </div>
             )}
           </dl>
@@ -905,33 +905,33 @@ export default function ViewDisciplinaryPage() {
         {/* Employee Response Card - Only show when pending acknowledgment */}
         {action.status === 'PENDING_ACKNOWLEDGMENT' && (
           <Card padding="lg">
-            <h3 className="text-lg font-medium text-slate-900 mb-4">Employee Response</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Employee Response</h3>
 
             {/* Show appeal info if appealed */}
             {appealStatus?.hasAppealed && (
               <div className="mb-6">
-                <div className={`p-4 rounded-lg border ${appealStatus.appealResolved ? 'bg-slate-50 border-slate-200' : 'bg-amber-50 border-amber-200'}`}>
+                <div className={`p-4 rounded-lg border ${appealStatus.appealResolved ? 'bg-gray-50 border-gray-200' : 'bg-amber-50 border-amber-200'}`}>
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
-                      <span className="font-medium text-slate-900">Appeal Submitted</span>
+                      <span className="font-medium text-gray-900">Appeal Submitted</span>
                     </div>
                     {appealStatus.appealStatus && (
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${APPEAL_STATUS_COLORS[appealStatus.appealStatus] || 'bg-slate-100 text-slate-700'}`}>
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${APPEAL_STATUS_COLORS[appealStatus.appealStatus] || 'bg-gray-100 text-gray-700'}`}>
                         {APPEAL_STATUS_LABELS[appealStatus.appealStatus] || appealStatus.appealStatus}
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-slate-500 mb-2">Submitted on {formatDate(appealStatus.appealedAt)}</p>
-                  <div className="bg-white p-3 rounded border border-slate-200">
-                    <p className="text-sm font-medium text-slate-700 mb-1">Employee&apos;s Appeal:</p>
-                    <p className="text-sm text-slate-900 whitespace-pre-wrap">{appealStatus.appealReason}</p>
+                  <p className="text-sm text-gray-500 mb-2">Submitted on {formatDate(appealStatus.appealedAt)}</p>
+                  <div className="bg-white p-3 rounded border border-gray-200">
+                    <p className="text-sm font-medium text-gray-700 mb-1">Employee&apos;s Appeal:</p>
+                    <p className="text-sm text-gray-900 whitespace-pre-wrap">{appealStatus.appealReason}</p>
                   </div>
 
                   {appealStatus.appealResolved && appealStatus.appealResolution && (
-                    <div className="mt-4 bg-white p-3 rounded border border-slate-200">
-                      <p className="text-sm font-medium text-slate-700 mb-1">Decision ({formatDate(appealStatus.appealResolvedAt)}):</p>
-                      <p className="text-sm text-slate-900 whitespace-pre-wrap">{appealStatus.appealResolution}</p>
+                    <div className="mt-4 bg-white p-3 rounded border border-gray-200">
+                      <p className="text-sm font-medium text-gray-700 mb-1">Decision ({formatDate(appealStatus.appealResolvedAt)}):</p>
+                      <p className="text-sm text-gray-900 whitespace-pre-wrap">{appealStatus.appealResolution}</p>
                     </div>
                   )}
                 </div>
@@ -945,9 +945,9 @@ export default function ViewDisciplinaryPage() {
                   <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                     <div className="flex items-center gap-2 mb-3">
                       <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
-                      <span className="font-medium text-slate-900">Action Required</span>
+                      <span className="font-medium text-gray-900">Action Required</span>
                     </div>
-                    <p className="text-sm text-slate-600 mb-4">
+                    <p className="text-sm text-gray-600 mb-4">
                       You must respond to this violation. You can either acknowledge the violation or submit an appeal if you believe it is incorrect.
                     </p>
 
@@ -971,17 +971,17 @@ export default function ViewDisciplinaryPage() {
                     ) : (
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-slate-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
                             Why are you appealing this violation?
                           </label>
                           <textarea
                             value={appealReason}
                             onChange={(e) => setAppealReason(e.target.value)}
                             rows={4}
-                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             placeholder="Explain why you believe this violation is incorrect or unfair..."
                           />
-                          <p className="text-xs text-slate-500 mt-1">Minimum 10 characters required</p>
+                          <p className="text-xs text-gray-500 mt-1">Minimum 10 characters required</p>
                         </div>
                         <div className="flex gap-2">
                           <Button
@@ -1008,8 +1008,8 @@ export default function ViewDisciplinaryPage() {
                     <div className="flex items-center gap-3">
                       <CheckCircleIcon className="h-5 w-5 text-green-500" />
                       <div>
-                        <p className="text-sm font-medium text-slate-900">Employee Acknowledged</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-sm font-medium text-gray-900">Employee Acknowledged</p>
+                        <p className="text-xs text-gray-500">
                           Acknowledged on {formatDate(ackStatus.employeeAcknowledgedAt)}
                         </p>
                       </div>
@@ -1020,9 +1020,9 @@ export default function ViewDisciplinaryPage() {
             )}
 
             {/* Manager Acknowledgment Section */}
-            <div className="mt-6 pt-6 border-t border-slate-200">
-              <h4 className="text-sm font-medium text-slate-900 mb-4">Manager Acknowledgment</h4>
-              <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <h4 className="text-sm font-medium text-gray-900 mb-4">Manager Acknowledgment</h4>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   {ackStatus?.managerAcknowledged ? (
                     <CheckCircleIcon className="h-5 w-5 text-green-500" />
@@ -1030,10 +1030,10 @@ export default function ViewDisciplinaryPage() {
                     <ClockIcon className="h-5 w-5 text-amber-500" />
                   )}
                   <div>
-                    <p className="text-sm font-medium text-slate-900">
+                    <p className="text-sm font-medium text-gray-900">
                       {ackStatus?.managerAcknowledged ? 'Acknowledged' : 'Pending'}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-gray-500">
                       {ackStatus?.managerAcknowledged
                         ? `Acknowledged on ${formatDate(ackStatus?.managerAcknowledgedAt)}`
                         : 'Awaiting manager review'}
@@ -1058,29 +1058,29 @@ export default function ViewDisciplinaryPage() {
         {/* Show appeal info for appeal statuses */}
         {['APPEALED', 'APPEAL_PENDING_HR', 'APPEAL_PENDING_SUPER_ADMIN', 'CLOSED', 'DISMISSED'].includes(action.status) && appealStatus?.hasAppealed && (
           <Card padding="lg">
-            <h3 className="text-lg font-medium text-slate-900 mb-4">Appeal Information</h3>
-            <div className={`p-4 rounded-lg border ${appealStatus.appealResolved ? 'bg-slate-50 border-slate-200' : 'bg-amber-50 border-amber-200'}`}>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Appeal Information</h3>
+            <div className={`p-4 rounded-lg border ${appealStatus.appealResolved ? 'bg-gray-50 border-gray-200' : 'bg-amber-50 border-amber-200'}`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <ExclamationTriangleIcon className="h-5 w-5 text-amber-600" />
-                  <span className="font-medium text-slate-900">Appeal Submitted</span>
+                  <span className="font-medium text-gray-900">Appeal Submitted</span>
                 </div>
                 {appealStatus.appealStatus && (
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${APPEAL_STATUS_COLORS[appealStatus.appealStatus] || 'bg-slate-100 text-slate-700'}`}>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${APPEAL_STATUS_COLORS[appealStatus.appealStatus] || 'bg-gray-100 text-gray-700'}`}>
                     {APPEAL_STATUS_LABELS[appealStatus.appealStatus] || appealStatus.appealStatus}
                   </span>
                 )}
               </div>
-              <p className="text-sm text-slate-500 mb-2">Submitted on {formatDate(appealStatus.appealedAt)}</p>
-              <div className="bg-white p-3 rounded border border-slate-200">
-                <p className="text-sm font-medium text-slate-700 mb-1">Employee&apos;s Appeal:</p>
-                <p className="text-sm text-slate-900 whitespace-pre-wrap">{appealStatus.appealReason}</p>
+              <p className="text-sm text-gray-500 mb-2">Submitted on {formatDate(appealStatus.appealedAt)}</p>
+              <div className="bg-white p-3 rounded border border-gray-200">
+                <p className="text-sm font-medium text-gray-700 mb-1">Employee&apos;s Appeal:</p>
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">{appealStatus.appealReason}</p>
               </div>
 
               {appealStatus.appealResolved && appealStatus.appealResolution && (
-                <div className="mt-4 bg-white p-3 rounded border border-slate-200">
-                  <p className="text-sm font-medium text-slate-700 mb-1">Final Decision ({formatDate(appealStatus.appealResolvedAt)}):</p>
-                  <p className="text-sm text-slate-900 whitespace-pre-wrap">{appealStatus.appealResolution}</p>
+                <div className="mt-4 bg-white p-3 rounded border border-gray-200">
+                  <p className="text-sm font-medium text-gray-700 mb-1">Final Decision ({formatDate(appealStatus.appealResolvedAt)}):</p>
+                  <p className="text-sm text-gray-900 whitespace-pre-wrap">{appealStatus.appealResolution}</p>
                 </div>
               )}
             </div>
@@ -1089,19 +1089,19 @@ export default function ViewDisciplinaryPage() {
 
         {(action.followUpDate || action.followUpNotes || action.resolution) && (
           <Card padding="lg">
-            <h3 className="text-lg font-medium text-slate-900 mb-4">Follow-up & Resolution</h3>
-            <dl className="divide-y divide-slate-100">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Follow-up & Resolution</h3>
+            <dl className="divide-y divide-gray-100">
               <DetailRow label="Follow-up Date" value={formatDate(action.followUpDate)} />
               {action.followUpNotes && (
                 <div className="py-3">
-                  <dt className="text-sm font-medium text-slate-500 mb-1">Follow-up Notes</dt>
-                  <dd className="text-sm text-slate-900 whitespace-pre-wrap">{action.followUpNotes}</dd>
+                  <dt className="text-sm font-medium text-gray-500 mb-1">Follow-up Notes</dt>
+                  <dd className="text-sm text-gray-900 whitespace-pre-wrap">{action.followUpNotes}</dd>
                 </div>
               )}
               {action.resolution && (
                 <div className="py-3">
-                  <dt className="text-sm font-medium text-slate-500 mb-1">Resolution</dt>
-                  <dd className="text-sm text-slate-900 whitespace-pre-wrap">{action.resolution}</dd>
+                  <dt className="text-sm font-medium text-gray-500 mb-1">Resolution</dt>
+                  <dd className="text-sm text-gray-900 whitespace-pre-wrap">{action.resolution}</dd>
                 </div>
               )}
             </dl>

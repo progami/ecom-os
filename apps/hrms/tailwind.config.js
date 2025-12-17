@@ -51,45 +51,46 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Custom brand colors
-        navy: {
-          DEFAULT: "#002C51",
-          50: "#E6EEF4",
-          100: "#CCDDE9",
-          200: "#99BBD3",
-          300: "#6699BD",
-          400: "#3377A7",
-          500: "#005591",
-          600: "#004474",
-          700: "#003357",
-          800: "#002C51",
-          900: "#001629"
+        // Brand colors - Professional Blue
+        brand: {
+          DEFAULT: "#3B82F6",
+          50: "#EFF6FF",
+          100: "#DBEAFE",
+          200: "#BFDBFE",
+          300: "#93C5FD",
+          400: "#60A5FA",
+          500: "#3B82F6",
+          600: "#2563EB",
+          700: "#1D4ED8",
+          800: "#1E40AF",
+          900: "#1E3A8A"
         },
-        teal: {
-          DEFAULT: "#00C2B9",
-          50: "#E6FAF9",
-          100: "#CCF5F3",
-          200: "#99EBE7",
-          300: "#66E1DB",
-          400: "#33D7CF",
-          500: "#00C2B9",
-          600: "#009B94",
-          700: "#00746F",
-          800: "#004D4A",
-          900: "#002625"
+        // Override default gray with higher contrast values
+        gray: {
+          50: "#F9FAFB",
+          100: "#F3F4F6",
+          200: "#E5E7EB",
+          300: "#D1D5DB",
+          400: "#9CA3AF",
+          500: "#6B7280",
+          600: "#4B5563",
+          700: "#374151",
+          800: "#1F2937",
+          900: "#111827"
         },
+        // Keep slate for backwards compatibility but with better contrast
         slate: {
-          DEFAULT: "#6F7B8B",
-          50: "#F1F3F5",
-          100: "#E3E6EA",
-          200: "#C7CDD5",
-          300: "#ABB4C0",
-          400: "#8F9BAB",
-          500: "#6F7B8B",
-          600: "#59626F",
-          700: "#434A53",
-          800: "#2D3137",
-          900: "#17191C"
+          DEFAULT: "#64748B",
+          50: "#F8FAFC",
+          100: "#F1F5F9",
+          200: "#E2E8F0",
+          300: "#CBD5E1",
+          400: "#94A3B8",
+          500: "#64748B",
+          600: "#475569",
+          700: "#334155",
+          800: "#1E293B",
+          900: "#0F172A"
         }
       },
       borderRadius: {

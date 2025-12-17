@@ -15,7 +15,7 @@ type CulturalHealthData = {
 
 function StandingBar({ green, yellow, red }: { green: number; yellow: number; red: number }) {
   return (
-    <div className="flex h-3 rounded-full overflow-hidden bg-slate-100">
+    <div className="flex h-3 rounded-full overflow-hidden bg-gray-100">
       {green > 0 && (
         <div
           className="bg-emerald-500 transition-all duration-500"
@@ -48,8 +48,8 @@ function StandingLegend({ label, percentage, color }: { label: string; percentag
   return (
     <div className="flex items-center gap-2">
       <div className={`w-3 h-3 rounded-full ${colorClasses[color]}`} />
-      <span className="text-sm text-slate-600">{label}</span>
-      <span className="text-sm font-semibold text-slate-900">{percentage}%</span>
+      <span className="text-sm text-gray-600">{label}</span>
+      <span className="text-sm font-semibold text-gray-900">{percentage}%</span>
     </div>
   )
 }
@@ -82,14 +82,14 @@ export function CulturalHealthWidget() {
   if (loading) {
     return (
       <Card padding="none">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-            <UsersIcon className="h-5 w-5 text-cyan-600" />
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+            <UsersIcon className="h-5 w-5 text-blue-600" />
             Cultural Health
           </h2>
         </div>
         <div className="flex items-center justify-center h-40">
-          <SpinnerIcon className="h-6 w-6 animate-spin text-cyan-600" />
+          <SpinnerIcon className="h-6 w-6 animate-spin text-blue-600" />
         </div>
       </Card>
     )
@@ -98,13 +98,13 @@ export function CulturalHealthWidget() {
   if (error || !data) {
     return (
       <Card padding="none">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-            <UsersIcon className="h-5 w-5 text-cyan-600" />
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+            <UsersIcon className="h-5 w-5 text-blue-600" />
             Cultural Health
           </h2>
         </div>
-        <div className="p-5 text-center text-slate-500 text-sm">
+        <div className="p-5 text-center text-gray-500 text-sm">
           Unable to load cultural health data
         </div>
       </Card>
@@ -113,12 +113,12 @@ export function CulturalHealthWidget() {
 
   return (
     <Card padding="none">
-      <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-        <h2 className="font-semibold text-slate-900 flex items-center gap-2">
-          <UsersIcon className="h-5 w-5 text-cyan-600" />
+      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h2 className="font-semibold text-gray-900 flex items-center gap-2">
+          <UsersIcon className="h-5 w-5 text-blue-600" />
           Cultural Health
         </h2>
-        <span className="text-sm text-slate-500">{data.totalEmployees} employees</span>
+        <span className="text-sm text-gray-500">{data.totalEmployees} employees</span>
       </div>
 
       <div className="p-5 space-y-4">
@@ -140,7 +140,7 @@ export function CulturalHealthWidget() {
 
         {/* Red Alerts */}
         {data.redAlerts.length > 0 && (
-          <div className="pt-3 border-t border-slate-100">
+          <div className="pt-3 border-t border-gray-100">
             <div className="flex items-center gap-2 mb-3">
               <ExclamationCircleIcon className="h-4 w-4 text-red-500" />
               <span className="text-sm font-medium text-red-700">
@@ -155,14 +155,14 @@ export function CulturalHealthWidget() {
                   className="flex items-center justify-between p-2 rounded-lg bg-red-50 hover:bg-red-100 transition-colors group"
                 >
                   <div>
-                    <p className="text-sm font-medium text-slate-900 group-hover:text-red-700">
+                    <p className="text-sm font-medium text-gray-900 group-hover:text-red-700">
                       {alert.firstName} {alert.lastName}
                     </p>
-                    <p className="text-xs text-slate-500 truncate max-w-[200px]">
+                    <p className="text-xs text-gray-500 truncate max-w-[200px]">
                       {alert.reason}
                     </p>
                   </div>
-                  <ChevronRightIcon className="h-4 w-4 text-slate-400 group-hover:text-red-600" />
+                  <ChevronRightIcon className="h-4 w-4 text-gray-400 group-hover:text-red-600" />
                 </Link>
               ))}
               {data.redAlerts.length > 3 && (

@@ -15,18 +15,18 @@ export function EmptyState({ icon, title, description, action }: EmptyStateProps
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4">
       {icon && (
-        <div className="mb-4 text-slate-300">
+        <div className="mb-4 text-gray-400">
           {icon}
         </div>
       )}
-      <h3 className="text-sm font-medium text-slate-900 mb-1">{title}</h3>
+      <h3 className="text-sm font-medium text-gray-900 mb-1">{title}</h3>
       {description && (
-        <p className="text-sm text-slate-500 text-center max-w-sm mb-4">{description}</p>
+        <p className="text-sm text-gray-600 text-center max-w-sm mb-4">{description}</p>
       )}
       {action && (
         <Link
           href={action.href}
-          className="inline-flex items-center gap-1.5 text-cyan-600 hover:text-cyan-700 text-sm font-medium"
+          className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 text-sm font-medium"
         >
           <PlusIcon className="h-4 w-4" />
           {action.label}
@@ -50,18 +50,18 @@ type TableEmptyStateProps = {
 export function TableEmptyState({ colSpan, icon, title, action }: TableEmptyStateProps) {
   return (
     <tr>
-      <td colSpan={colSpan} className="px-4 py-16">
+      <td colSpan={colSpan} className="px-6 py-16">
         <div className="flex flex-col items-center justify-center">
           {icon && (
-            <div className="mb-3 text-slate-300">
+            <div className="mb-3 text-gray-400">
               {icon}
             </div>
           )}
-          <p className="text-sm text-slate-500 mb-2">{title}</p>
+          <p className="text-sm text-gray-600 mb-2">{title}</p>
           {action && (
             <Link
               href={action.href}
-              className="inline-flex items-center gap-1.5 text-cyan-600 hover:text-cyan-700 text-sm font-medium"
+              className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 text-sm font-medium"
             >
               <PlusIcon className="h-4 w-4" />
               {action.label}

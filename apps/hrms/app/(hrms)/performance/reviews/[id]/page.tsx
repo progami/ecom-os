@@ -30,15 +30,15 @@ function RatingDisplay({ label, value }: { label: string; value: number | null |
   if (value == null) return null
   return (
     <div className="flex items-center justify-between py-2">
-      <span className="text-sm text-slate-600">{label}</span>
+      <span className="text-sm text-gray-600">{label}</span>
       <div className="flex items-center gap-0.5">
         {[1, 2, 3, 4, 5].map((star) => (
           <StarFilledIcon
             key={star}
-            className={`h-4 w-4 ${star <= value ? 'text-amber-400' : 'text-slate-200'}`}
+            className={`h-4 w-4 ${star <= value ? 'text-amber-400' : 'text-gray-200'}`}
           />
         ))}
-        <span className="ml-2 text-sm font-medium text-slate-700">{value}/5</span>
+        <span className="ml-2 text-sm font-medium text-gray-700">{value}/5</span>
       </div>
     </div>
   )
@@ -48,8 +48,8 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
   if (!value) return null
   return (
     <div className="py-3 sm:grid sm:grid-cols-3 sm:gap-4">
-      <dt className="text-sm font-medium text-slate-500">{label}</dt>
-      <dd className="mt-1 text-sm text-slate-900 sm:col-span-2 sm:mt-0">{value}</dd>
+      <dt className="text-sm font-medium text-gray-500">{label}</dt>
+      <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">{value}</dd>
     </div>
   )
 }
@@ -111,9 +111,9 @@ export default function ViewReviewPage() {
         <div className="max-w-3xl">
           <Card padding="lg">
             <div className="animate-pulse space-y-6">
-              <div className="h-6 bg-slate-200 rounded w-1/3" />
-              <div className="h-4 bg-slate-200 rounded w-2/3" />
-              <div className="h-4 bg-slate-200 rounded w-1/2" />
+              <div className="h-6 bg-gray-200 rounded w-1/3" />
+              <div className="h-4 bg-gray-200 rounded w-2/3" />
+              <div className="h-4 bg-gray-200 rounded w-1/2" />
             </div>
           </Card>
         </div>
@@ -158,17 +158,17 @@ export default function ViewReviewPage() {
         <Card padding="lg">
           <div className="flex items-start justify-between mb-6">
             <div>
-              <h2 className="text-xl font-semibold text-slate-900">
+              <h2 className="text-xl font-semibold text-gray-900">
                 {review.employee?.firstName} {review.employee?.lastName}
               </h2>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-gray-500">
                 {review.employee?.position} • {review.employee?.department}
               </p>
             </div>
             <StatusBadge status={STATUS_LABELS[review.status] || review.status} />
           </div>
 
-          <dl className="divide-y divide-slate-100">
+          <dl className="divide-y divide-gray-100">
             <DetailRow label="Review Type" value={REVIEW_TYPE_LABELS[review.reviewType] || review.reviewType} />
             <DetailRow label="Review Period" value={review.reviewPeriod} />
             <DetailRow label="Review Date" value={formatDate(review.reviewDate)} />
@@ -177,22 +177,22 @@ export default function ViewReviewPage() {
         </Card>
 
         <Card padding="lg">
-          <h3 className="text-lg font-medium text-slate-900 mb-4">Performance Ratings</h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Performance Ratings</h3>
           <div className="bg-amber-50 rounded-lg p-4 mb-4">
             <div className="flex items-center justify-between">
-              <span className="font-medium text-slate-900">Overall Rating</span>
+              <span className="font-medium text-gray-900">Overall Rating</span>
               <div className="flex items-center gap-1">
                 {[1, 2, 3, 4, 5].map((star) => (
                   <StarFilledIcon
                     key={star}
-                    className={`h-6 w-6 ${star <= review.overallRating ? 'text-amber-400' : 'text-slate-200'}`}
+                    className={`h-6 w-6 ${star <= review.overallRating ? 'text-amber-400' : 'text-gray-200'}`}
                   />
                 ))}
-                <span className="ml-2 text-lg font-semibold text-slate-900">{review.overallRating}/5</span>
+                <span className="ml-2 text-lg font-semibold text-gray-900">{review.overallRating}/5</span>
               </div>
             </div>
           </div>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-gray-100">
             <RatingDisplay label="Quality of Work" value={review.qualityOfWork} />
             <RatingDisplay label="Productivity" value={review.productivity} />
             <RatingDisplay label="Communication" value={review.communication} />
@@ -204,30 +204,30 @@ export default function ViewReviewPage() {
 
         {(review.strengths || review.areasToImprove || review.goals || review.comments) && (
           <Card padding="lg">
-            <h3 className="text-lg font-medium text-slate-900 mb-4">Feedback</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Feedback</h3>
             <dl className="space-y-4">
               {review.strengths && (
                 <div>
-                  <dt className="text-sm font-medium text-slate-500 mb-1">Strengths</dt>
-                  <dd className="text-sm text-slate-900 whitespace-pre-wrap">{review.strengths}</dd>
+                  <dt className="text-sm font-medium text-gray-500 mb-1">Strengths</dt>
+                  <dd className="text-sm text-gray-900 whitespace-pre-wrap">{review.strengths}</dd>
                 </div>
               )}
               {review.areasToImprove && (
                 <div>
-                  <dt className="text-sm font-medium text-slate-500 mb-1">Areas to Improve</dt>
-                  <dd className="text-sm text-slate-900 whitespace-pre-wrap">{review.areasToImprove}</dd>
+                  <dt className="text-sm font-medium text-gray-500 mb-1">Areas to Improve</dt>
+                  <dd className="text-sm text-gray-900 whitespace-pre-wrap">{review.areasToImprove}</dd>
                 </div>
               )}
               {review.goals && (
                 <div>
-                  <dt className="text-sm font-medium text-slate-500 mb-1">Goals for Next Period</dt>
-                  <dd className="text-sm text-slate-900 whitespace-pre-wrap">{review.goals}</dd>
+                  <dt className="text-sm font-medium text-gray-500 mb-1">Goals for Next Period</dt>
+                  <dd className="text-sm text-gray-900 whitespace-pre-wrap">{review.goals}</dd>
                 </div>
               )}
               {review.comments && (
                 <div>
-                  <dt className="text-sm font-medium text-slate-500 mb-1">Additional Comments</dt>
-                  <dd className="text-sm text-slate-900 whitespace-pre-wrap">{review.comments}</dd>
+                  <dt className="text-sm font-medium text-gray-500 mb-1">Additional Comments</dt>
+                  <dd className="text-sm text-gray-900 whitespace-pre-wrap">{review.comments}</dd>
                 </div>
               )}
             </dl>

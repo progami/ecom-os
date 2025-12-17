@@ -119,10 +119,10 @@ export default function EditPolicyPage() {
         <div className="max-w-3xl">
           <Card padding="lg">
             <div className="animate-pulse space-y-6">
-              <div className="h-4 bg-slate-200 rounded w-1/4" />
-              <div className="h-10 bg-slate-200 rounded" />
-              <div className="h-4 bg-slate-200 rounded w-1/4" />
-              <div className="h-10 bg-slate-200 rounded" />
+              <div className="h-4 bg-gray-200 rounded w-1/4" />
+              <div className="h-10 bg-gray-200 rounded" />
+              <div className="h-4 bg-gray-200 rounded w-1/4" />
+              <div className="h-10 bg-gray-200 rounded" />
             </div>
           </Card>
         </div>
@@ -201,10 +201,10 @@ export default function EditPolicyPage() {
                   defaultValue={policy.status}
                 />
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
                     Current Version
                   </label>
-                  <div className="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-600">
+                  <div className="px-3 py-2 bg-gray-100 border border-gray-200 rounded-lg text-sm text-gray-600">
                     v{policy.version}
                   </div>
                 </div>

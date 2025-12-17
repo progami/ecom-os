@@ -54,8 +54,8 @@ export function LeaveApprovalHistory({ history }: LeaveApprovalHistoryProps) {
   if (!history || history.length === 0) {
     return (
       <div className="text-center py-6">
-        <CalendarDaysIcon className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-        <p className="text-slate-500 text-sm">No approval history yet</p>
+        <CalendarDaysIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+        <p className="text-gray-500 text-sm">No approval history yet</p>
       </div>
     )
   }
@@ -65,7 +65,7 @@ export function LeaveApprovalHistory({ history }: LeaveApprovalHistoryProps) {
       {history.map((item) => (
         <div
           key={item.id}
-          className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg"
+          className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
         >
           <Avatar
             src={item.employee.avatar}
@@ -74,16 +74,16 @@ export function LeaveApprovalHistory({ history }: LeaveApprovalHistoryProps) {
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-slate-900">
+              <span className="text-sm font-medium text-gray-900">
                 {item.employee.firstName} {item.employee.lastName}
               </span>
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-gray-500">
                 {LEAVE_TYPE_LABELS[item.leaveType] || item.leaveType}
               </span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-500">
+            <div className="flex items-center gap-2 text-xs text-gray-500">
               <span>{formatDateRange(item.startDate, item.endDate)}</span>
-              <span className="text-slate-300">·</span>
+              <span className="text-gray-300">·</span>
               <span>{item.totalDays} day{item.totalDays !== 1 ? 's' : ''}</span>
             </div>
           </div>
@@ -99,7 +99,7 @@ export function LeaveApprovalHistory({ history }: LeaveApprovalHistoryProps) {
                 Rejected
               </span>
             )}
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-gray-400">
               {formatRelativeTime(item.reviewedAt)}
             </span>
           </div>

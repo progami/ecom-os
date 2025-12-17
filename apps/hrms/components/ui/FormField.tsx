@@ -29,7 +29,7 @@ export function FormField({
 }: FormFieldProps) {
   return (
     <div>
-      <label htmlFor={name} className="block text-sm font-medium text-slate-700 mb-1.5">
+      <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-2">
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
@@ -44,21 +44,22 @@ export function FormField({
           value={value}
           onChange={onChange}
           disabled={disabled}
-          className={`w-full px-3 py-2.5 border rounded-lg text-sm transition-all duration-200
+          className={`w-full px-4 py-3 border rounded-lg text-sm transition-all duration-200
             ${error
               ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-              : 'border-slate-200 focus:ring-cyan-500 focus:border-cyan-500'
+              : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
             }
-            ${disabled ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white'}
+            ${disabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'bg-white'}
+            placeholder:text-gray-400
             focus:outline-none focus:ring-2 focus:ring-offset-0
           `}
         />
       )}
       {hint && !error && (
-        <p className="text-xs text-slate-500 mt-1.5">{hint}</p>
+        <p className="text-xs text-gray-500 mt-2">{hint}</p>
       )}
       {error && (
-        <p className="text-xs text-red-600 mt-1.5">{error}</p>
+        <p className="text-xs text-red-600 mt-2">{error}</p>
       )}
     </div>
   )
@@ -92,7 +93,7 @@ export function SelectField({
 }: SelectFieldProps) {
   return (
     <div>
-      <label htmlFor={name} className="block text-sm font-medium text-slate-700 mb-1.5">
+      <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-2">
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
@@ -104,12 +105,12 @@ export function SelectField({
         value={value}
         onChange={onChange}
         disabled={disabled}
-        className={`w-full px-3 py-2.5 border rounded-lg text-sm transition-all duration-200 bg-white
+        className={`w-full px-4 py-3 border rounded-lg text-sm transition-all duration-200 bg-white
           ${error
             ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-            : 'border-slate-200 focus:ring-cyan-500 focus:border-cyan-500'
+            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
           }
-          ${disabled ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}
+          ${disabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}
           focus:outline-none focus:ring-2 focus:ring-offset-0
         `}
       >
@@ -121,7 +122,7 @@ export function SelectField({
         ))}
       </select>
       {error && (
-        <p className="text-xs text-red-600 mt-1.5">{error}</p>
+        <p className="text-xs text-red-600 mt-2">{error}</p>
       )}
     </div>
   )
@@ -161,7 +162,7 @@ export function TextareaField({
 }: TextareaFieldProps) {
   return (
     <div>
-      <label htmlFor={name} className="block text-sm font-medium text-slate-700 mb-1.5">
+      <label htmlFor={name} className="block text-sm font-medium text-gray-700 mb-2">
         {label}
         {required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
@@ -175,22 +176,23 @@ export function TextareaField({
         onChange={onChange}
         disabled={disabled}
         rows={rows}
-        className={`w-full px-3 py-2.5 border rounded-lg text-sm transition-all duration-200
+        className={`w-full px-4 py-3 border rounded-lg text-sm transition-all duration-200
           ${error
             ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
-            : 'border-slate-200 focus:ring-cyan-500 focus:border-cyan-500'
+            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
           }
-          ${disabled ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white'}
+          ${disabled ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : 'bg-white'}
           ${monospace ? 'font-mono' : ''}
           ${resizable ? 'resize-y' : 'resize-none'}
+          placeholder:text-gray-400
           focus:outline-none focus:ring-2 focus:ring-offset-0
         `}
       />
       {hint && !error && (
-        <p className="text-xs text-slate-500 mt-1.5">{hint}</p>
+        <p className="text-xs text-gray-500 mt-2">{hint}</p>
       )}
       {error && (
-        <p className="text-xs text-red-600 mt-1.5">{error}</p>
+        <p className="text-xs text-red-600 mt-2">{error}</p>
       )}
     </div>
   )
@@ -198,18 +200,18 @@ export function TextareaField({
 
 // Form section with title
 type FormSectionProps = {
-  title: string
+  title: React.ReactNode
   description?: string
   children: React.ReactNode
 }
 
 export function FormSection({ title, description, children }: FormSectionProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+        <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
         {description && (
-          <p className="text-xs text-slate-500 mt-0.5">{description}</p>
+          <p className="text-xs text-gray-500 mt-1">{description}</p>
         )}
       </div>
       {children}
@@ -224,7 +226,7 @@ type FormActionsProps = {
 
 export function FormActions({ children }: FormActionsProps) {
   return (
-    <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-200">
+    <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">
       {children}
     </div>
   )
