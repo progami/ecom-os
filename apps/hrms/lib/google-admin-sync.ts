@@ -154,8 +154,10 @@ export async function syncGoogleAdminUsers(): Promise<SyncResult> {
     }
 
     // Delete employees without googleId that don't match any Google email (bogus users)
+    // Protected test users that should not be deleted by sync
+    const protectedEmails = new Set(['gondalshoaib3333@gmail.com'])
     for (const emp of existingEmployees) {
-      if (!emp.googleId && !googleEmails.has(emp.email.toLowerCase())) {
+      if (!emp.googleId && !googleEmails.has(emp.email.toLowerCase()) && !protectedEmails.has(emp.email.toLowerCase())) {
         try {
           await prisma.employee.delete({
             where: { id: emp.id },
