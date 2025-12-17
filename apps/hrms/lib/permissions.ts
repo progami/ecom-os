@@ -417,7 +417,8 @@ async function checkWouldCreateCycle(targetEmployeeId: string, newManagerId: str
 /**
  * Check if actor can reassign target employee to a new manager
  * Rules:
- * - Super admin can reassign anyone
+ * - Super admin can reassign anyone (including themselves)
+ * - Non-super-admins cannot reassign themselves
  * - Manager can only reassign employees in their subtree
  * - Peers cannot move each other
  * - Cannot create cycles in the hierarchy
@@ -427,10 +428,6 @@ export async function canReassignEmployee(
   targetEmployeeId: string,
   newManagerId: string | null
 ): Promise<{ allowed: boolean; reason?: string }> {
-  if (actorId === targetEmployeeId) {
-    return { allowed: false, reason: 'You cannot reassign yourself' }
-  }
-
   const actor = await prisma.employee.findUnique({
     where: { id: actorId },
     select: { id: true, isSuperAdmin: true, reportsToId: true }
@@ -440,7 +437,7 @@ export async function canReassignEmployee(
     return { allowed: false, reason: 'Actor not found' }
   }
 
-  // Super admin can reassign anyone (but still check for cycles)
+  // Super admin can reassign anyone including themselves (but still check for cycles)
   if (actor.isSuperAdmin) {
     if (newManagerId) {
       const wouldCreateCycle = await checkWouldCreateCycle(targetEmployeeId, newManagerId)
@@ -449,6 +446,11 @@ export async function canReassignEmployee(
       }
     }
     return { allowed: true }
+  }
+
+  // Non-super-admins cannot reassign themselves
+  if (actorId === targetEmployeeId) {
+    return { allowed: false, reason: 'You cannot reassign yourself' }
   }
 
   // Check if actor is above target in hierarchy
