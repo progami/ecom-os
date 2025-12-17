@@ -556,6 +556,9 @@ model PerformanceReview {
   quarterlyCycleId         String?
   quarterlyCycle           QuarterlyReviewCycle? @relation(fields: [quarterlyCycleId], references: [id])
 
+  // Assigned reviewer (manager at time of cron) - immutable once set
+  assignedReviewerId       String?
+
   // Deadline tracking for automated reviews
   deadline                 DateTime?
 
@@ -575,6 +578,7 @@ model PerformanceReview {
   @@index([hrReviewedById])
   @@index([superAdminApprovedById])
   @@index([quarterlyCycleId])
+  @@index([assignedReviewerId])
   @@index([deadline])
   @@index([escalatedToHR])
 }
