@@ -447,6 +447,11 @@ export type PerformanceReview = {
   goals?: string | null
   comments?: string | null
   status: string
+  // Quarterly review fields
+  quarterlyCycleId?: string | null
+  deadline?: string | null
+  escalatedToHR?: boolean
+  remindersSent?: number
   createdAt?: string
   updatedAt?: string
 }
@@ -978,6 +983,36 @@ export const ProjectsApi = {
   delete(id: string) {
     return request<{ success: boolean }>(`/api/projects/${encodeURIComponent(id)}`, {
       method: 'DELETE',
+    })
+  },
+}
+
+// Access Management (Admin)
+export type EmployeeAccess = {
+  id: string
+  employeeId: string
+  firstName: string
+  lastName: string
+  email: string
+  department?: string
+  position: string
+  avatar?: string | null
+  isSuperAdmin: boolean
+  permissionLevel: number
+  roles: { id: string; name: string }[]
+  isHR: boolean
+  hrRoleId: string | null
+}
+
+export const AdminApi = {
+  getAccessList() {
+    return request<{ items: EmployeeAccess[]; total: number; currentUserId: string }>('/api/admin/access')
+  },
+  updateAccess(employeeId: string, payload: { isSuperAdmin?: boolean; isHR?: boolean }) {
+    return request<{ success: boolean; employee: EmployeeAccess }>(`/api/admin/access/${encodeURIComponent(employeeId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     })
   },
 }

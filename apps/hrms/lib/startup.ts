@@ -1,8 +1,13 @@
 import { syncGoogleAdminUsers } from './google-admin-sync'
 import { isAdminConfigured } from './google-admin'
 import { runProfileCompletionCheckForAll } from './notification-service'
+import {
+  checkAndCreateQuarterlyReviews,
+  processRemindersAndEscalations
+} from './quarterly-review-automation'
 
 let syncInitialized = false
+let quarterlyReviewsInitialized = false
 
 export async function initializeGoogleAdminSync() {
   if (syncInitialized) return
@@ -56,5 +61,62 @@ export function stopPeriodicSync() {
   if (syncInterval) {
     clearInterval(syncInterval)
     syncInterval = null
+  }
+}
+
+// ============ QUARTERLY REVIEW AUTOMATION ============
+
+export async function initializeQuarterlyReviewAutomation() {
+  if (quarterlyReviewsInitialized) return
+  quarterlyReviewsInitialized = true
+
+  console.log('[Startup] Checking quarterly reviews...')
+  try {
+    const result = await checkAndCreateQuarterlyReviews()
+    if (result.cycleCreated) {
+      console.log(`[Startup] Created quarterly cycle with ${result.reviewsCreated} reviews`)
+    } else {
+      console.log('[Startup] No new quarterly cycle needed')
+    }
+    if (result.errors.length > 0) {
+      console.error('[Startup] Quarterly review errors:', result.errors)
+    }
+  } catch (e) {
+    console.error('[Startup] Quarterly review check failed:', e)
+  }
+}
+
+// Check reminders and escalations every 6 hours
+let quarterlyReviewInterval: NodeJS.Timeout | null = null
+
+export function startQuarterlyReviewReminders(intervalMs = 6 * 60 * 60 * 1000) {
+  if (quarterlyReviewInterval) return
+
+  quarterlyReviewInterval = setInterval(async () => {
+    console.log('[Quarterly Reviews] Running periodic check...')
+    try {
+      // Check if new quarter started (creates new cycle if needed)
+      const cycleResult = await checkAndCreateQuarterlyReviews()
+      if (cycleResult.cycleCreated) {
+        console.log(`[Quarterly Reviews] Created new cycle with ${cycleResult.reviewsCreated} reviews`)
+      }
+
+      // Process reminders and escalations
+      const reminderResult = await processRemindersAndEscalations()
+      if (reminderResult.remindersSent > 0 || reminderResult.escalations > 0) {
+        console.log(`[Quarterly Reviews] Reminders: ${reminderResult.remindersSent}, Escalations: ${reminderResult.escalations}`)
+      }
+    } catch (e) {
+      console.error('[Quarterly Reviews] Periodic check failed:', e)
+    }
+  }, intervalMs)
+
+  console.log(`[Startup] Quarterly review reminders scheduled every ${intervalMs / 3600000} hours`)
+}
+
+export function stopQuarterlyReviewReminders() {
+  if (quarterlyReviewInterval) {
+    clearInterval(quarterlyReviewInterval)
+    quarterlyReviewInterval = null
   }
 }

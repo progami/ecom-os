@@ -18,6 +18,7 @@ export async function GET(req: Request) {
     notifications: [],
     unreadNotificationCount: 0,
     pendingReviews: [],
+    pendingQuarterlyReviews: [],
     pendingLeaveRequests: [],
     leaveApprovalHistory: [],
     myLeaveBalance: [],
@@ -43,6 +44,7 @@ export async function GET(req: Request) {
       directReports,
       notifications,
       pendingReviews,
+      pendingQuarterlyReviewsRaw,
     ] = await Promise.all([
       // Get current employee's full profile
       prisma.employee.findUnique({
@@ -121,10 +123,66 @@ export async function GET(req: Request) {
         orderBy: { reviewDate: 'asc' },
         take: 5,
       }),
+      // Get pending quarterly reviews for direct reports
+      prisma.performanceReview.findMany({
+        where: {
+          employee: { reportsToId: employeeId },
+          status: 'DRAFT',
+          quarterlyCycleId: { not: null },
+        },
+        select: {
+          id: true,
+          reviewType: true,
+          reviewPeriod: true,
+          reviewDate: true,
+          status: true,
+          deadline: true,
+          escalatedToHR: true,
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeId: true,
+              avatar: true,
+            },
+          },
+          quarterlyCycle: {
+            select: {
+              id: true,
+              reviewPeriod: true,
+              deadline: true,
+            },
+          },
+        },
+        orderBy: { deadline: 'asc' },
+        take: 10,
+      }),
     ])
 
     // Determine if user is a manager (has direct reports)
     const isManager = directReports.length > 0
+
+    // Enrich quarterly reviews with deadline info
+    const now = new Date()
+    const pendingQuarterlyReviews = pendingQuarterlyReviewsRaw.map(review => {
+      const deadline = review.deadline || review.quarterlyCycle?.deadline
+      let daysUntilDeadline: number | null = null
+      let isOverdue = false
+
+      if (deadline) {
+        daysUntilDeadline = Math.ceil(
+          (deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        )
+        isOverdue = daysUntilDeadline < 0
+      }
+
+      return {
+        ...review,
+        daysUntilDeadline,
+        isOverdue,
+      }
+    })
 
     // Self-healing: re-check profile completion to clean up stale notifications
     // This ensures PROFILE_INCOMPLETE notifications are deleted if profile is complete
@@ -237,6 +295,7 @@ export async function GET(req: Request) {
       notifications: freshNotifications,
       unreadNotificationCount,
       pendingReviews,
+      pendingQuarterlyReviews,
       pendingLeaveRequests: pendingLeaveRequestsData,
       leaveApprovalHistory: leaveApprovalHistoryData,
       myLeaveBalance,

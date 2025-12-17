@@ -9,11 +9,13 @@ import {
   FolderIcon,
   DocumentIcon,
   CalendarIcon,
+  CalendarDaysIcon,
   MenuIcon,
   XIcon,
   ClipboardDocumentCheckIcon,
   ShieldExclamationIcon,
   OrgChartIcon,
+  LockClosedIcon,
 } from '@/components/ui/Icons'
 import { NotificationBell } from '@/components/ui/NotificationBell'
 import { NavigationHistoryProvider } from '@/lib/navigation-history'
@@ -22,11 +24,13 @@ interface NavItem {
   name: string
   href: string
   icon: React.ComponentType<{ className?: string }>
+  requireSuperAdmin?: boolean
 }
 
 interface NavSection {
   title: string
   items: NavItem[]
+  requireSuperAdmin?: boolean
 }
 
 const navigation: NavSection[] = [
@@ -40,6 +44,7 @@ const navigation: NavSection[] = [
     title: 'People',
     items: [
       { name: 'Org Chart', href: '/organogram', icon: OrgChartIcon },
+      { name: 'Leave', href: '/leave', icon: CalendarDaysIcon },
     ]
   },
   {
@@ -57,19 +62,31 @@ const navigation: NavSection[] = [
       { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
     ]
   },
+  {
+    title: 'Admin',
+    requireSuperAdmin: true,
+    items: [
+      { name: 'Access Management', href: '/admin/access', icon: LockClosedIcon, requireSuperAdmin: true },
+    ]
+  },
 ]
 
 function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(' ')
 }
 
-function Sidebar({ onClose }: { onClose?: () => void }) {
+function Sidebar({ onClose, isSuperAdmin }: { onClose?: () => void; isSuperAdmin: boolean }) {
   const pathname = usePathname()
 
   const matchesPath = (href: string) => {
     if (href === '/') return pathname === '/' || pathname === ''
     return pathname.startsWith(href)
   }
+
+  // Filter navigation based on permissions
+  const filteredNavigation = navigation.filter(
+    (section) => !section.requireSuperAdmin || isSuperAdmin
+  )
 
   return (
     <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6 pb-4">
@@ -94,7 +111,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
 
       <nav className="flex flex-1 flex-col">
         <ul role="list" className="flex flex-1 flex-col gap-y-6">
-          {navigation.map((section, sectionIdx) => (
+          {filteredNavigation.map((section, sectionIdx) => (
             <li key={sectionIdx}>
               {section.title && (
                 <div className="px-3 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -135,7 +152,7 @@ function Sidebar({ onClose }: { onClose?: () => void }) {
   )
 }
 
-function MobileNav({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+function MobileNav({ isOpen, onClose, isSuperAdmin }: { isOpen: boolean; onClose: () => void; isSuperAdmin: boolean }) {
   if (!isOpen) return null
 
   return (
@@ -148,7 +165,7 @@ function MobileNav({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }
               <XIcon className="h-6 w-6 text-white" />
             </button>
           </div>
-          <Sidebar onClose={onClose} />
+          <Sidebar onClose={onClose} isSuperAdmin={isSuperAdmin} />
         </div>
       </div>
     </div>
@@ -186,6 +203,7 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
 
 export default function HRMSLayout({ children }: { children: ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0'
   const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
   const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
@@ -198,15 +216,31 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
     setMobileMenuOpen(false)
   }, [pathname])
 
+  // Fetch current user permissions for navigation
+  useEffect(() => {
+    async function fetchUserPermissions() {
+      try {
+        const res = await fetch('/api/me')
+        if (res.ok) {
+          const data = await res.json()
+          setIsSuperAdmin(data.isSuperAdmin || false)
+        }
+      } catch (e) {
+        // Ignore errors, default to non-admin
+      }
+    }
+    fetchUserPermissions()
+  }, [])
+
   return (
     <NavigationHistoryProvider>
       {/* Desktop Sidebar */}
       <div className="hidden md:fixed md:inset-y-0 md:z-50 md:flex md:w-64 md:flex-col">
-        <Sidebar />
+        <Sidebar isSuperAdmin={isSuperAdmin} />
       </div>
 
       {/* Mobile Nav */}
-      <MobileNav isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
+      <MobileNav isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} isSuperAdmin={isSuperAdmin} />
 
       {/* Main Content */}
       <div className="md:pl-64 min-h-screen flex flex-col bg-gray-50">
