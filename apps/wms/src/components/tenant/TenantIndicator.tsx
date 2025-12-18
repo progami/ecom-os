@@ -24,8 +24,8 @@ export function TenantIndicator({ className, collapsed }: TenantIndicatorProps) 
     fetch('/api/tenant/current')
       .then((res) => res.json())
       .then((data) => {
-        if (data.current) {
-          setCurrent(TENANTS[data.current as TenantCode])
+        if (data.current?.code) {
+          setCurrent(TENANTS[data.current.code as TenantCode])
         }
       })
       .catch(console.error)
