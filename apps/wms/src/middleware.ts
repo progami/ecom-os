@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server'
 import { getCandidateSessionCookieNames, decodePortalSession, getAppEntitlement } from '@ecom-os/auth'
 import { withBasePath, withoutBasePath } from '@/lib/utils/base-path'
 import { portalUrl } from '@/lib/portal'
+import { TENANT_COOKIE_NAME, isValidTenantCode } from '@/lib/tenant/constants'
 
 if (typeof process !== 'undefined' && process.env) {
  const devSecret = 'dev_portal_auth_secret_2025'
@@ -49,6 +50,7 @@ export async function middleware(request: NextRequest) {
  // Routes that should be prefix-matched
  const publicPrefixes = [
  '/api/auth/', // NextAuth internal routes
+ '/api/tenant/', // Tenant selection routes
  ]
 
  // Check if the route is public using exact match
@@ -117,7 +119,26 @@ export async function middleware(request: NextRequest) {
    return NextResponse.redirect(redirect)
  }
 
- return NextResponse.next()
+ // Tenant handling for authenticated users
+ const tenantCookie = request.cookies.get(TENANT_COOKIE_NAME)?.value
+ const hasTenant = isValidTenantCode(tenantCookie)
+
+ // If no tenant selected and not on world map, redirect to world map
+ // Skip this for API routes - they should handle missing tenant themselves
+ if (!hasTenant && !normalizedPath.startsWith('/api/')) {
+   const url = request.nextUrl.clone()
+   url.pathname = withBasePath('/')
+   url.search = ''
+   return NextResponse.redirect(url)
+ }
+
+ // Inject tenant into headers for API routes
+ const response = NextResponse.next()
+ if (hasTenant) {
+   response.headers.set('x-tenant', tenantCookie)
+ }
+
+ return response
 }
 
 export const config = {
