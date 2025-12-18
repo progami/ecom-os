@@ -229,7 +229,6 @@ function LeavePageContent() {
   useEffect(() => {
     if (searchParams.get('request') === 'true') {
       setShowLeavePanel(true)
-      // Clear the query param from URL
       router.replace('/leave', { scroll: false })
     }
   }, [searchParams, router])
