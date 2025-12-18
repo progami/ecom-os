@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { withRateLimit } from '@/lib/api-helpers'
+import { getCurrentEmployeeId } from '@/lib/current-user'
+import { isHROrAbove } from '@/lib/permissions'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -69,6 +71,17 @@ export async function PATCH(req: Request, { params }: Params) {
   const { id } = await params
 
   try {
+    // Security: Only HR or super-admin can update departments
+    const actorId = await getCurrentEmployeeId()
+    if (!actorId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const hasPermission = await isHROrAbove(actorId)
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Only HR or super admin can update departments' }, { status: 403 })
+    }
+
     const body = await req.json()
     const { name, code, kpi, headId, parentId } = body
 
@@ -120,6 +133,17 @@ export async function DELETE(req: Request, { params }: Params) {
   const { id } = await params
 
   try {
+    // Security: Only HR or super-admin can delete departments
+    const actorId = await getCurrentEmployeeId()
+    if (!actorId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const hasPermission = await isHROrAbove(actorId)
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Only HR or super admin can delete departments' }, { status: 403 })
+    }
+
     await prisma.department.delete({ where: { id } })
     return NextResponse.json({ success: true })
   } catch (e: any) {

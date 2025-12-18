@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
 import { withRateLimit } from '@/lib/api-helpers'
+import { getCurrentEmployeeId } from '@/lib/current-user'
+import { isHROrAbove } from '@/lib/permissions'
 
 export async function GET(req: Request) {
   const rateLimitError = withRateLimit(req)
@@ -46,6 +48,17 @@ export async function POST(req: Request) {
   if (rateLimitError) return rateLimitError
 
   try {
+    // Security: Only HR or super-admin can create departments
+    const actorId = await getCurrentEmployeeId()
+    if (!actorId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const hasPermission = await isHROrAbove(actorId)
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Only HR or super admin can create departments' }, { status: 403 })
+    }
+
     const body = await req.json()
     const { name, code, kpi, headId, parentId } = body
 

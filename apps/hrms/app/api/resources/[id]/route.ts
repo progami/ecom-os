@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { UpdateResourceSchema } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
+import { isHROrAbove } from '@/lib/permissions'
+import { getCurrentEmployeeId } from '@/lib/current-user'
 
 type ResourceRouteContext = { params: Promise<{ id: string }> }
 
@@ -39,6 +41,17 @@ export async function PATCH(req: Request, context: ResourceRouteContext) {
 
     if (!id || id.length > 100) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
+    }
+
+    // Security: Only HR or super-admin can update resources
+    const actorId = await getCurrentEmployeeId()
+    if (!actorId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const hasPermission = await isHROrAbove(actorId)
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Only HR or super admin can update resources' }, { status: 403 })
     }
 
     const body = await req.json()
@@ -84,6 +97,17 @@ export async function DELETE(req: Request, context: ResourceRouteContext) {
 
     if (!id || id.length > 100) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
+    }
+
+    // Security: Only HR or super-admin can delete resources
+    const actorId = await getCurrentEmployeeId()
+    if (!actorId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const hasPermission = await isHROrAbove(actorId)
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Only HR or super admin can delete resources' }, { status: 403 })
     }
 
     await prisma.resource.delete({ where: { id } })

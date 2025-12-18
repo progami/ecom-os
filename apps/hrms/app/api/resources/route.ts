@@ -7,7 +7,8 @@ import {
   ResourceCategoryEnum,
 } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
-import { getHREmployees } from '@/lib/permissions'
+import { getHREmployees, isHROrAbove } from '@/lib/permissions'
+import { getCurrentEmployeeId } from '@/lib/current-user'
 
 export async function GET(req: Request) {
   // Rate limiting
@@ -80,6 +81,17 @@ export async function POST(req: Request) {
   if (rateLimitError) return rateLimitError
 
   try {
+    // Security: Only HR or super-admin can create resources
+    const actorId = await getCurrentEmployeeId()
+    if (!actorId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const hasPermission = await isHROrAbove(actorId)
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Only HR or super admin can create resources' }, { status: 403 })
+    }
+
     const body = await req.json()
 
     // Validate input

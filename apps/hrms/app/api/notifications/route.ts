@@ -14,12 +14,31 @@ export async function GET(req: Request) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100)
 
     const user = await getCurrentUser()
-    const employeeId = user?.employee?.id
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const employeeId = user.employee?.id
+
+    // Security: If user has session but no employee record, only show broadcast notifications
+    // This prevents data leaks when employeeId is undefined
+    if (!employeeId) {
+      const broadcastNotifications = await prisma.notification.findMany({
+        where: {
+          employeeId: null, // Only broadcast notifications
+          ...(unreadOnly ? { isRead: false } : {}),
+        },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+      })
+      const unreadCount = await prisma.notification.count({
+        where: { employeeId: null, isRead: false },
+      })
+      return NextResponse.json({ items: broadcastNotifications, unreadCount })
+    }
 
     // Self-healing: re-check profile completion to clean up stale notifications
-    if (employeeId) {
-      await checkAndNotifyMissingFields(employeeId)
-    }
+    await checkAndNotifyMissingFields(employeeId)
 
     // Filter: show notifications targeted to this employee OR broadcast (employeeId = null)
     const whereClause = {
@@ -27,7 +46,7 @@ export async function GET(req: Request) {
         unreadOnly ? { isRead: false } : {},
         {
           OR: [
-            { employeeId: employeeId ?? undefined },
+            { employeeId: employeeId },
             { employeeId: null },
           ],
         },
@@ -44,7 +63,7 @@ export async function GET(req: Request) {
       where: {
         isRead: false,
         OR: [
-          { employeeId: employeeId ?? undefined },
+          { employeeId: employeeId },
           { employeeId: null },
         ],
       },
@@ -65,17 +84,23 @@ export async function PATCH(req: Request) {
     const { markAllRead, ids } = body
 
     const user = await getCurrentUser()
-    const employeeId = user?.employee?.id
+    if (!user) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const employeeId = user.employee?.id
+
+    // Security: Build proper where clause that doesn't leak data
+    // If no employeeId, only allow marking broadcast notifications as read
+    const accessFilter = employeeId
+      ? { OR: [{ employeeId: employeeId }, { employeeId: null }] }
+      : { employeeId: null }
 
     if (markAllRead) {
-      // Only mark as read notifications that belong to this user or are broadcast
       await prisma.notification.updateMany({
         where: {
           isRead: false,
-          OR: [
-            { employeeId: employeeId ?? undefined },
-            { employeeId: null },
-          ],
+          ...accessFilter,
         },
         data: { isRead: true },
       })
@@ -83,14 +108,10 @@ export async function PATCH(req: Request) {
     }
 
     if (ids && Array.isArray(ids) && ids.length > 0) {
-      // Only update notifications the user has access to
       await prisma.notification.updateMany({
         where: {
           id: { in: ids },
-          OR: [
-            { employeeId: employeeId ?? undefined },
-            { employeeId: null },
-          ],
+          ...accessFilter,
         },
         data: { isRead: true },
       })
