@@ -1,17 +1,50 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { withRateLimit } from '@/lib/api-helpers'
+import { getCurrentEmployeeId } from '@/lib/current-user'
+import { isSuperAdmin } from '@/lib/permissions'
 
 /**
  * One-time setup endpoint to:
  * 1. Run department schema migration (add columns if missing)
  * 2. Seed department hierarchy with heads and KPIs
  *
+ * SECURITY: Requires super-admin + SETUP_TOKEN env variable
  * This is safe to run multiple times - it uses upserts and IF NOT EXISTS
  */
 export async function POST(req: Request) {
   const rateLimitError = withRateLimit(req)
   if (rateLimitError) return rateLimitError
+
+  // Security: Require SETUP_TOKEN environment variable
+  const setupToken = process.env.SETUP_TOKEN
+  if (!setupToken) {
+    return NextResponse.json(
+      { error: 'Setup endpoint disabled. Set SETUP_TOKEN env to enable.' },
+      { status: 403 }
+    )
+  }
+
+  // Verify token from Authorization header
+  const authHeader = req.headers.get('authorization')
+  const providedToken = authHeader?.replace('Bearer ', '')
+  if (providedToken !== setupToken) {
+    return NextResponse.json(
+      { error: 'Invalid or missing setup token' },
+      { status: 401 }
+    )
+  }
+
+  // Security: Require super-admin
+  const actorId = await getCurrentEmployeeId()
+  if (!actorId) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+  }
+
+  const isAdmin = await isSuperAdmin(actorId)
+  if (!isAdmin) {
+    return NextResponse.json({ error: 'Super admin access required' }, { status: 403 })
+  }
 
   const results: string[] = []
 

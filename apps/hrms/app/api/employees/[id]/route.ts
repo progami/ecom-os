@@ -254,6 +254,22 @@ export async function DELETE(req: Request, context: EmployeeRouteContext) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
+    // Security: Only super-admin can delete employees
+    const actorId = await getCurrentEmployeeId()
+    if (!actorId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const isAdmin = await isSuperAdmin(actorId)
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Only super admin can delete employees' }, { status: 403 })
+    }
+
+    // Prevent self-deletion
+    if (actorId === id) {
+      return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 })
+    }
+
     await prisma.employee.delete({ where: { id } })
     return NextResponse.json({ ok: true })
   } catch (e) {

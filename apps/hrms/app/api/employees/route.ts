@@ -11,6 +11,8 @@ import {
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { syncGoogleAdminUsers } from '@/lib/google-admin-sync'
 import { isAdminConfigured } from '@/lib/google-admin'
+import { getCurrentEmployeeId } from '@/lib/current-user'
+import { isHROrAbove } from '@/lib/permissions'
 
 // Cache for sync status - 5 minute cache
 const SYNC_CACHE_MS = 5 * 60 * 1000
@@ -116,6 +118,17 @@ export async function POST(req: Request) {
   if (rateLimitError) return rateLimitError
 
   try {
+    // Security: Only HR or super-admin can create employees
+    const actorId = await getCurrentEmployeeId()
+    if (!actorId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const hasPermission = await isHROrAbove(actorId)
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Only HR or super admin can create employees' }, { status: 403 })
+    }
+
     const body = await req.json()
 
     // Validate input
