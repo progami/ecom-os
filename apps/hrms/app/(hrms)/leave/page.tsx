@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import {
   DashboardApi,
   LeavesApi,
@@ -209,7 +210,9 @@ function RequestLeavePanel({
   )
 }
 
-export default function LeavePage() {
+function LeavePageContent() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -221,6 +224,15 @@ export default function LeavePage() {
   const [showLeavePanel, setShowLeavePanel] = useState(false)
   const [q, setQ] = useState('')
   const [processingId, setProcessingId] = useState<string | null>(null)
+
+  // Open panel if request=true query param is present
+  useEffect(() => {
+    if (searchParams.get('request') === 'true') {
+      setShowLeavePanel(true)
+      // Clear the query param from URL
+      router.replace('/leave', { scroll: false })
+    }
+  }, [searchParams, router])
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -678,5 +690,17 @@ export default function LeavePage() {
         )}
       </div>
     </>
+  )
+}
+
+export default function LeavePage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      </div>
+    }>
+      <LeavePageContent />
+    </Suspense>
   )
 }
