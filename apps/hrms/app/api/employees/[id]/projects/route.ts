@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../../../lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
+import { isHROrAbove, canManageEmployee } from '@/lib/permissions'
+import { getCurrentEmployeeId } from '@/lib/current-user'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -54,6 +56,17 @@ export async function PUT(req: Request, context: RouteContext) {
 
     if (!id || id.length > 100) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
+    }
+
+    // Security: Only HR/super-admin or direct manager can update employee projects
+    const actorId = await getCurrentEmployeeId()
+    if (!actorId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const canManage = await canManageEmployee(actorId, id)
+    if (!canManage) {
+      return NextResponse.json({ error: 'You do not have permission to manage this employee\'s projects' }, { status: 403 })
     }
 
     const body = await req.json()

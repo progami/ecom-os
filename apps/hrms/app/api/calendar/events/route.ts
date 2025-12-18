@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { isCalendarConfigured, listUpcomingEvents, createEvent } from '@/lib/google-calendar'
 import { CreateCalendarEventSchema } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
+import { isHROrAbove } from '@/lib/permissions'
+import { getCurrentEmployeeId } from '@/lib/current-user'
 
 export async function GET(req: Request) {
   // Rate limiting
@@ -38,6 +40,17 @@ export async function POST(req: Request) {
   if (rateLimitError) return rateLimitError
 
   try {
+    // Security: Only HR or super-admin can create calendar events
+    const actorId = await getCurrentEmployeeId()
+    if (!actorId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const hasPermission = await isHROrAbove(actorId)
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Only HR or super admin can create calendar events' }, { status: 403 })
+    }
+
     if (!isCalendarConfigured()) {
       return NextResponse.json({ error: 'Google Calendar not configured' }, { status: 400 })
     }
