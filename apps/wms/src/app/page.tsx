@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation'
+import { WorldMap } from '@/components/tenant/WorldMap'
 
 export default function HomePage() {
- redirect('/dashboard')
+  return <WorldMap />
 }

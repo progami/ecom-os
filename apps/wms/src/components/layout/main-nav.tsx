@@ -19,6 +19,7 @@ import {
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { portalUrl } from '@/lib/portal'
+import { TenantIndicator } from '@/components/tenant/TenantIndicator'
 
 interface NavSection {
  title: string
@@ -119,7 +120,7 @@ export function MainNav() {
  <span className={cn("text-xl font-bold text-slate-900 transition-all duration-300", isTabletCollapsed && "md:hidden lg:inline")}>WMS</span>
  </Link>
  </div>
- 
+
  {/* User info and tablet collapse */}
  <div className="flex items-center gap-2">
  {/* User avatar/menu */}
@@ -167,6 +168,15 @@ export function MainNav() {
  </button>
  </div>
  </div>
+
+ {/* Tenant/Region Indicator */}
+ <div className={cn(
+ "border-b border-slate-200 pb-3 -mx-2",
+ isTabletCollapsed && "md:hidden lg:block"
+ )}>
+ <TenantIndicator collapsed={isTabletCollapsed} />
+ </div>
+
  <nav className="flex flex-1 flex-col">
  <ul role="list" className="flex flex-1 flex-col gap-y-7">
  <li>
@@ -265,6 +275,12 @@ export function MainNav() {
  <span className="text-xl font-bold text-slate-900 ">WMS</span>
  </Link>
  </div>
+
+ {/* Tenant/Region Indicator - Mobile */}
+ <div className="border-b border-slate-200 pb-3 -mx-2">
+ <TenantIndicator />
+ </div>
+
  <nav className="flex flex-1 flex-col">
  <ul role="list" className="flex flex-1 flex-col gap-y-7">
  <li>
