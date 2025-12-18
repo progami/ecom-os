@@ -155,6 +155,212 @@ function TeamTableRowSkeleton() {
   )
 }
 
+type TeamFilter = 'pending' | 'all'
+
+// Team Leave Section with unified table
+function TeamLeaveSection({
+  pendingRequests,
+  approvalHistory,
+  loading,
+  processingId,
+  onApprove,
+  onReject,
+}: {
+  pendingRequests: Array<{
+    id: string
+    leaveType: string
+    startDate: string
+    endDate: string
+    totalDays: number
+    status: string
+    reason?: string | null
+    employee: { id: string; firstName: string; lastName: string; avatar?: string | null }
+  }>
+  approvalHistory: Array<{
+    id: string
+    leaveType: string
+    startDate: string
+    endDate: string
+    totalDays: number
+    status: string
+    reason?: string | null
+    employee: { id: string; firstName: string; lastName: string; avatar?: string | null }
+  }>
+  loading: boolean
+  processingId: string | null
+  onApprove: (id: string) => void
+  onReject: (id: string) => void
+}) {
+  const [filter, setFilter] = useState<TeamFilter>('pending')
+  const [q, setQ] = useState('')
+
+  // Combine and dedupe requests
+  const allRequests = [
+    ...pendingRequests,
+    ...approvalHistory.filter(h => !pendingRequests.find(p => p.id === h.id)),
+  ]
+
+  const displayRequests = filter === 'pending' ? pendingRequests : allRequests
+
+  const filteredRequests = displayRequests.filter((r) => {
+    if (!q) return true
+    const searchLower = q.toLowerCase()
+    const name = `${r.employee.firstName} ${r.employee.lastName}`.toLowerCase()
+    const leaveType = LEAVE_TYPE_LABELS[r.leaveType] || r.leaveType
+    return (
+      name.includes(searchLower) ||
+      leaveType.toLowerCase().includes(searchLower) ||
+      r.reason?.toLowerCase().includes(searchLower)
+    )
+  })
+
+  return (
+    <div className="space-y-4">
+      {/* Header with filter tabs and search */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg w-fit">
+          <button
+            onClick={() => setFilter('pending')}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              filter === 'pending'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Pending
+            {pendingRequests.length > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 rounded-full">
+                {pendingRequests.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setFilter('all')}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              filter === 'all'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            All Requests
+          </button>
+        </div>
+        <div className="flex-1 max-w-md">
+          <SearchForm
+            value={q}
+            onChange={setQ}
+            onSubmit={() => {}}
+            placeholder="Search by name or leave type..."
+          />
+        </div>
+      </div>
+
+      <ResultsCount
+        count={filteredRequests.length}
+        singular="request"
+        plural="requests"
+        loading={loading}
+      />
+
+      {/* Unified Table */}
+      <Table>
+        <TableHeader>
+          <TableHead className="w-14">{''}</TableHead>
+          <TableHead>Employee</TableHead>
+          <TableHead>Leave Type</TableHead>
+          <TableHead>Dates</TableHead>
+          <TableHead>Days</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Actions</TableHead>
+        </TableHeader>
+        <TableBody>
+          {loading ? (
+            <TeamTableRowSkeleton />
+          ) : filteredRequests.length === 0 ? (
+            <TableEmptyState
+              colSpan={7}
+              icon={<UsersIcon className="h-10 w-10" />}
+              title={
+                filter === 'pending'
+                  ? 'No pending requests. All team leave requests have been processed.'
+                  : 'No leave requests found.'
+              }
+            />
+          ) : (
+            filteredRequests.map((request) => (
+              <TableRow key={request.id}>
+                <TableCell>
+                  <Avatar
+                    src={request.employee.avatar}
+                    alt={`${request.employee.firstName} ${request.employee.lastName}`}
+                    size="sm"
+                  />
+                </TableCell>
+                <TableCell>
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {request.employee.firstName} {request.employee.lastName}
+                    </p>
+                    {request.reason && (
+                      <p className="text-xs text-gray-500 truncate max-w-[200px]">
+                        {request.reason}
+                      </p>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell className="text-gray-600">
+                  {LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType}
+                </TableCell>
+                <TableCell className="text-gray-600">
+                  {formatDateRange(request.startDate, request.endDate)}
+                </TableCell>
+                <TableCell className="text-gray-600">
+                  {request.totalDays} day{request.totalDays !== 1 ? 's' : ''}
+                </TableCell>
+                <TableCell>
+                  {request.status === 'PENDING' ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                      <ClockIcon className="h-3 w-3" />
+                      Pending
+                    </span>
+                  ) : (
+                    <StatusBadge status={STATUS_LABELS[request.status] || request.status} />
+                  )}
+                </TableCell>
+                <TableCell>
+                  {request.status === 'PENDING' ? (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onReject(request.id)}
+                        disabled={processingId === request.id}
+                        className="text-gray-600 hover:text-red-600 hover:bg-red-50"
+                      >
+                        <XIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => onApprove(request.id)}
+                        disabled={processingId === request.id}
+                      >
+                        <CheckIcon className="h-4 w-4 mr-1" />
+                        Approve
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-400">—</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  )
+}
+
 // Slide-over panel for Request Leave form
 function RequestLeavePanel({
   isOpen,
@@ -456,26 +662,35 @@ function LeavePageContent() {
           <div className="space-y-6">
             {/* Leave Balance Summary */}
             <Card padding="lg">
-              <h3 className="text-sm font-semibold text-gray-900 mb-4">Leave Balance</h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-gray-900">Leave Balance</h3>
+                <span className="text-xs text-gray-500">
+                  {leaveBalances.filter(b => b.leaveType !== 'UNPAID').length} types available
+                </span>
+              </div>
               <LeaveBalanceCards balances={leaveBalances} />
             </Card>
 
-            {/* Search */}
-            <Card padding="md">
+            {/* My Requests Section */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900">My Requests</h3>
+                <div className="flex items-center gap-3">
+                  <ResultsCount
+                    count={filteredRequests.length}
+                    singular="request"
+                    plural="requests"
+                    loading={leaveLoading}
+                  />
+                </div>
+              </div>
               <SearchForm
                 value={q}
                 onChange={setQ}
                 onSubmit={() => {}}
                 placeholder="Search by leave type, status, or reason..."
               />
-            </Card>
-
-            <ResultsCount
-              count={filteredRequests.length}
-              singular="request"
-              plural="requests"
-              loading={leaveLoading}
-            />
+            </div>
 
             {/* Leave Requests Table */}
             <Table>
@@ -550,142 +765,14 @@ function LeavePageContent() {
 
         {/* Team Tab */}
         {activeTab === 'team' && data?.isManager && (
-          <div className="space-y-6">
-            {/* Search */}
-            <Card padding="md">
-              <SearchForm
-                value={q}
-                onChange={setQ}
-                onSubmit={() => {}}
-                placeholder="Search by employee name, leave type..."
-              />
-            </Card>
-
-            <ResultsCount
-              count={filteredPendingRequests.length}
-              singular="pending request"
-              plural="pending requests"
-              loading={loading}
-            />
-
-            {/* Pending Approvals Table */}
-            <Table>
-              <TableHeader>
-                <TableHead className="w-14">{''}</TableHead>
-                <TableHead>Employee</TableHead>
-                <TableHead>Leave Type</TableHead>
-                <TableHead>Dates</TableHead>
-                <TableHead>Days</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TeamTableRowSkeleton />
-                ) : filteredPendingRequests.length === 0 ? (
-                  <TableEmptyState
-                    colSpan={7}
-                    icon={<UsersIcon className="h-10 w-10" />}
-                    title="No pending requests. All team leave requests have been processed."
-                  />
-                ) : (
-                  filteredPendingRequests.map((request) => (
-                    <TableRow key={request.id}>
-                      <TableCell>
-                        <Avatar
-                          src={request.employee.avatar}
-                          alt={`${request.employee.firstName} ${request.employee.lastName}`}
-                          size="sm"
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {request.employee.firstName} {request.employee.lastName}
-                          </p>
-                          {request.reason && (
-                            <p className="text-xs text-gray-500 truncate max-w-[200px]">
-                              {request.reason}
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-gray-600">
-                        {LEAVE_TYPE_LABELS[request.leaveType] || request.leaveType}
-                      </TableCell>
-                      <TableCell className="text-gray-600">
-                        {formatDateRange(request.startDate, request.endDate)}
-                      </TableCell>
-                      <TableCell className="text-gray-600">
-                        {request.totalDays} day{request.totalDays !== 1 ? 's' : ''}
-                      </TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
-                          <ClockIcon className="h-3 w-3" />
-                          Pending
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleReject(request.id)}
-                            disabled={processingId === request.id}
-                            className="text-gray-600 hover:text-red-600 hover:bg-red-50"
-                          >
-                            <XIcon className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={() => handleApprove(request.id)}
-                            disabled={processingId === request.id}
-                          >
-                            <CheckIcon className="h-4 w-4 mr-1" />
-                            Approve
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-
-            {/* Approval History */}
-            {data.leaveApprovalHistory && data.leaveApprovalHistory.length > 0 && (
-              <Card padding="lg">
-                <h3 className="text-sm font-semibold text-gray-900 mb-4">
-                  Recent Approval History
-                </h3>
-                <div className="space-y-3">
-                  {data.leaveApprovalHistory.slice(0, 5).map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Avatar
-                          src={item.employee.avatar}
-                          alt={`${item.employee.firstName} ${item.employee.lastName}`}
-                          size="sm"
-                        />
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            {item.employee.firstName} {item.employee.lastName}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {LEAVE_TYPE_LABELS[item.leaveType] || item.leaveType} · {item.totalDays} day{item.totalDays !== 1 ? 's' : ''}
-                          </p>
-                        </div>
-                      </div>
-                      <StatusBadge status={STATUS_LABELS[item.status] || item.status} />
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-          </div>
+          <TeamLeaveSection
+            pendingRequests={data.pendingLeaveRequests || []}
+            approvalHistory={data.leaveApprovalHistory || []}
+            loading={loading}
+            processingId={processingId}
+            onApprove={handleApprove}
+            onReject={handleReject}
+          />
         )}
       </div>
     </>

@@ -21,7 +21,7 @@ export const TENANTS: Record<TenantCode, TenantConfig> = {
   US: {
     code: 'US',
     name: 'United States',
-    displayName: 'US West',
+    displayName: 'US',
     flag: '🇺🇸',
     coordinates: [-118.2437, 34.0522], // Los Angeles
     timezone: 'America/Los_Angeles',
@@ -32,7 +32,7 @@ export const TENANTS: Record<TenantCode, TenantConfig> = {
   UK: {
     code: 'UK',
     name: 'United Kingdom',
-    displayName: 'Europe',
+    displayName: 'UK',
     flag: '🇬🇧',
     coordinates: [-0.1278, 51.5074], // London
     timezone: 'Europe/London',
