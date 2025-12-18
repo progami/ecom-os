@@ -53,9 +53,9 @@ export function WorldMap({ className }: WorldMapProps) {
         {/* Header */}
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold text-white mb-4 tracking-tight">
-            Warehouse Management
+            Targon WMS
           </h1>
-          <p className="text-xl text-slate-400">
+          <p className="text-xl text-slate-300">
             Select your region to continue
           </p>
         </div>
@@ -65,7 +65,7 @@ export function WorldMap({ className }: WorldMapProps) {
           {/* Simplified world map SVG */}
           <svg
             viewBox="0 0 1000 500"
-            className="w-full h-auto opacity-20"
+            className="w-full h-auto opacity-40"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
           >
@@ -199,8 +199,8 @@ export function WorldMap({ className }: WorldMapProps) {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-sm text-slate-500">
-                  <span>{tenant.timezone}</span>
+                <div className="flex items-center justify-between text-sm text-slate-400">
+                  <span>{tenant.timezone.replace('_', ' ')}</span>
                   <span
                     className="flex items-center gap-2 font-medium transition-colors group-hover:text-white"
                     style={{ color: selecting === tenant.code ? tenant.color : undefined }}
@@ -258,7 +258,7 @@ export function WorldMap({ className }: WorldMapProps) {
         )}
 
         {/* Footer */}
-        <p className="mt-16 text-sm text-slate-600">
+        <p className="mt-16 text-sm text-slate-400">
           Each region operates as an independent warehouse system
         </p>
       </div>
