@@ -94,7 +94,6 @@ export declare function buildPortalUrl(path: string, options?: PortalUrlOptions)
  */
 export declare function hasPortalSession(options: PortalSessionProbeOptions): Promise<boolean>;
 export type AppEntitlement = {
-    role: string;
     departments?: string[];
     depts?: string[];
 };

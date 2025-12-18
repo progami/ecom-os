@@ -22,7 +22,7 @@ export default async function PortalHome({ searchParams }: { searchParams: Searc
     accessError = `You don't have access to ${appName}. Contact an administrator if you need access.`
   }
 
-  const rolesClaim = (session as any).roles as Record<string, { role: string; depts?: string[] }> | undefined
+  const rolesClaim = (session as any).roles as Record<string, { depts?: string[] }> | undefined
   const allowedAppIds = rolesClaim ? Object.keys(rolesClaim) : []
   const apps = filterAppsForUser(allowedAppIds)
 

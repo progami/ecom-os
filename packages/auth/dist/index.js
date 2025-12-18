@@ -466,7 +466,6 @@ export function getAppEntitlement(roles, appId) {
             ? ent.depts.map(String)
             : undefined;
     return {
-        role: String(ent.role ?? ''),
         departments,
         depts: departments,
     };
