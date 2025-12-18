@@ -1,5 +1,4 @@
 type AppEntitlementMap = Record<string, {
-    role: string;
     departments: string[];
 }>;
 export type AuthenticatedUser = {
@@ -9,7 +8,6 @@ export type AuthenticatedUser = {
     fullName: string | null;
     roles: string[];
     entitlements: Record<string, {
-        role: string;
         departments: string[];
     }>;
 };

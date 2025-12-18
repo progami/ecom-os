@@ -8,7 +8,7 @@ import type { AppDef } from '@/lib/apps'
 
 import styles from './portal.module.css'
 
-type PortalRoleMap = Record<string, { role: string; depts?: string[] }>
+type PortalRoleMap = Record<string, { depts?: string[] }>
 
 const CATEGORY_ORDER = [
   'Ops',
@@ -306,15 +306,9 @@ export default function PortalClient({ session, apps, roles, accessError }: Port
             <section aria-label="Current access summary" className={styles.rolesSection}>
               <h2 className={styles.rolesHeading}>Access summary</h2>
               <ul className={styles.rolesList}>
-                {apps.map((app) => {
-                  const role = roleMap[app.id]?.role
-                  return (
-                    <li key={app.id}>
-                      {app.name}
-                      {role ? `: ${role}` : ''}
-                    </li>
-                  )
-                })}
+                {apps.map((app) => (
+                  <li key={app.id}>{app.name}</li>
+                ))}
               </ul>
             </section>
           )}

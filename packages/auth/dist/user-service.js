@@ -26,7 +26,6 @@ const userSelect = {
     },
     appAccess: {
         select: {
-            accessLevel: true,
             departments: true,
             app: {
                 select: {
@@ -78,10 +77,10 @@ function handleDevFallback(emailOrUsername, password) {
 function buildDemoUser() {
     const demoUsername = (process.env.DEMO_ADMIN_USERNAME || DEFAULT_DEMO_USERNAME).toLowerCase();
     const entitlements = {
-        wms: { role: 'admin', departments: ['Ops'] },
-        hrms: { role: 'admin', departments: ['People Ops'] },
-        website: { role: 'admin', departments: [] },
-        'x-plan': { role: 'admin', departments: ['Product'] },
+        wms: { departments: ['Ops'] },
+        hrms: { departments: ['People Ops'] },
+        website: { departments: [] },
+        'x-plan': { departments: ['Product'] },
     };
     return {
         id: DEMO_ADMIN_UUID,
@@ -100,7 +99,6 @@ export async function getUserEntitlements(userId) {
     const assignments = await prisma.userApp.findMany({
         where: { userId },
         select: {
-            accessLevel: true,
             departments: true,
             app: {
                 select: {
@@ -112,7 +110,6 @@ export async function getUserEntitlements(userId) {
     const entitlements = {};
     for (const assignment of assignments) {
         entitlements[assignment.app.slug] = {
-            role: assignment.accessLevel,
             departments: Array.isArray(assignment.departments) ? assignment.departments : [],
         };
     }
@@ -144,7 +141,6 @@ export async function getUserByEmail(email) {
 function mapPortalUser(user) {
     const entitlements = user.appAccess.reduce((acc, assignment) => {
         acc[assignment.app.slug] = {
-            role: assignment.accessLevel,
             departments: Array.isArray(assignment.departments)
                 ? assignment.departments
                 : [],
