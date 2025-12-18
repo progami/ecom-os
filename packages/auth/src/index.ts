@@ -608,12 +608,11 @@ export async function hasPortalSession(options: PortalSessionProbeOptions): Prom
 
 // ===== Entitlement / Roles claim helpers =====
 export type AppEntitlement = {
-  role: string;
   departments?: string[];
   depts?: string[];
 };
 
-export type RolesClaim = Record<string, AppEntitlement>; // { wms: { role, depts }, fcc: { ... } }
+export type RolesClaim = Record<string, AppEntitlement>; // { wms: { depts }, fcc: { ... } }
 
 export function getAppEntitlement(roles: unknown, appId: string): AppEntitlement | undefined {
   if (!roles || typeof roles !== 'object') return undefined;
@@ -626,7 +625,6 @@ export function getAppEntitlement(roles: unknown, appId: string): AppEntitlement
       ? ent.depts.map(String)
       : undefined;
   return {
-    role: String(ent.role ?? ''),
     departments,
     depts: departments,
   };

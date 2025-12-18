@@ -5,14 +5,16 @@ import { portalUrl } from '@/lib/portal'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const basePath = process.env.BASE_PATH || ''
+  // Use same default as next.config.js for consistency
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || '/hrms'
   const normalizedPath = basePath && pathname.startsWith(basePath)
     ? pathname.slice(basePath.length) || '/'
     : pathname
 
   // Public routes - only specific endpoints, NOT all /api/ routes
+  // Security: Removed '/' and '/api/setup/departments' from public routes
   const PUBLIC_PREFIXES = ['/_next', '/favicon.ico']
-  const PUBLIC_ROUTES = ['/', '/health', '/api/health', '/api/setup/departments', '/no-access']
+  const PUBLIC_ROUTES = ['/health', '/api/health', '/no-access']
   const isPublic =
     PUBLIC_ROUTES.includes(normalizedPath) ||
     PUBLIC_PREFIXES.some((p) => normalizedPath.startsWith(p))

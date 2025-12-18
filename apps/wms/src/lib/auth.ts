@@ -83,22 +83,24 @@ const baseAuthOptions: NextAuthConfig = {
       if (typeof token.sub === 'string') {
         session.user.id = token.sub
       }
-      // Prefer portal roles claim for WMS
+      // Get role and departments from portal claims
       const rolesClaim = (token as { roles?: unknown }).roles
       const wmsEnt = getAppEntitlement(rolesClaim, 'wms')
-      const allowedRoles: UserRole[] = ['admin', 'staff']
-      if (wmsEnt?.role && allowedRoles.includes(wmsEnt.role as UserRole)) {
-        session.user.role = wmsEnt.role as UserRole
-      }
       const sessionUser = session.user as Session['user'] & { departments?: string[] }
       sessionUser.departments = wmsEnt?.departments ?? wmsEnt?.depts
 
-      if (session.user.role === 'staff' && !session.user.warehouseId && session.user.id) {
+      // Get role from WMS's own user table (apps define their own permissions)
+      if (session.user.id) {
         const user = await prisma.user.findUnique({
           where: { id: session.user.id },
-          select: { warehouseId: true },
+          select: { role: true, warehouseId: true },
         })
-        session.user.warehouseId = user?.warehouseId ?? undefined
+        if (user?.role) {
+          session.user.role = user.role
+        }
+        if (user?.warehouseId) {
+          session.user.warehouseId = user.warehouseId
+        }
       }
 
       return session

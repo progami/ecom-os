@@ -107,7 +107,6 @@ async function main() {
         create: {
           userId: adminUser.id,
           appId: app.id,
-          accessLevel: 'admin',
         },
       })
     )
@@ -147,8 +146,8 @@ async function main() {
       appRecords.map(app =>
         prisma.userApp.upsert({
           where: { userId_appId: { userId: user.id, appId: app.id } },
-          update: { accessLevel: 'admin' },
-          create: { userId: user.id, appId: app.id, accessLevel: 'admin' },
+          update: {},
+          create: { userId: user.id, appId: app.id },
         })
       )
     )

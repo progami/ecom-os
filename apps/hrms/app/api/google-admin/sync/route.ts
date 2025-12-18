@@ -1,8 +1,21 @@
 import { NextResponse } from 'next/server'
 import { syncGoogleAdminUsers } from '@/lib/google-admin-sync'
 import { isAdminConfigured } from '@/lib/google-admin'
+import { getCurrentEmployeeId } from '@/lib/current-user'
+import { isSuperAdmin } from '@/lib/permissions'
 
-export async function POST() {
+async function handleSync() {
+  // Security: Only super-admin can trigger Google Admin sync
+  const actorId = await getCurrentEmployeeId()
+  if (!actorId) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+  }
+
+  const isAdmin = await isSuperAdmin(actorId)
+  if (!isAdmin) {
+    return NextResponse.json({ error: 'Only super admin can trigger Google Admin sync' }, { status: 403 })
+  }
+
   if (!isAdminConfigured()) {
     return NextResponse.json(
       { error: 'Google Admin API not configured' },
@@ -22,7 +35,11 @@ export async function POST() {
   }
 }
 
-// Also allow GET for easy testing
+export async function POST() {
+  return handleSync()
+}
+
+// Also allow GET for easy testing (still requires super-admin)
 export async function GET() {
-  return POST()
+  return handleSync()
 }

@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 import { getPortalAuthPrisma } from './db.js'
 
-type AppEntitlementMap = Record<string, { role: string; departments: string[] }>
+type AppEntitlementMap = Record<string, { departments: string[] }>
 
 const DEFAULT_DEMO_USERNAME = 'demo-admin'
 const DEFAULT_DEMO_PASSWORD = 'demo-password'
@@ -20,7 +20,7 @@ export type AuthenticatedUser = {
   username: string | null
   fullName: string | null
   roles: string[]
-  entitlements: Record<string, { role: string; departments: string[] }>
+  entitlements: Record<string, { departments: string[] }>
 }
 
 const userSelect = {
@@ -41,7 +41,6 @@ const userSelect = {
   },
   appAccess: {
     select: {
-      accessLevel: true,
       departments: true,
       app: {
         select: {
@@ -60,7 +59,7 @@ type PortalUserRecord = {
   lastName: string | null
   passwordHash: string
   roles: Array<{ role: { name: string } }>
-  appAccess: Array<{ accessLevel: string; departments: unknown; app: { slug: string } }>
+  appAccess: Array<{ departments: unknown; app: { slug: string } }>
 }
 
 export async function authenticateWithPortalDirectory(input: unknown): Promise<AuthenticatedUser | null> {
@@ -117,10 +116,10 @@ function handleDevFallback(emailOrUsername: string, password: string): Authentic
 function buildDemoUser(): AuthenticatedUser {
   const demoUsername = (process.env.DEMO_ADMIN_USERNAME || DEFAULT_DEMO_USERNAME).toLowerCase()
   const entitlements: AppEntitlementMap = {
-    wms: { role: 'admin', departments: ['Ops'] },
-    hrms: { role: 'admin', departments: ['People Ops'] },
-    website: { role: 'admin', departments: [] },
-    'x-plan': { role: 'admin', departments: ['Product'] },
+    wms: { departments: ['Ops'] },
+    hrms: { departments: ['People Ops'] },
+    website: { departments: [] },
+    'x-plan': { departments: ['Product'] },
   }
 
   return {
@@ -143,7 +142,6 @@ export async function getUserEntitlements(userId: string) {
   const assignments = await prisma.userApp.findMany({
     where: { userId },
     select: {
-      accessLevel: true,
       departments: true,
       app: {
         select: {
@@ -156,7 +154,6 @@ export async function getUserEntitlements(userId: string) {
   const entitlements: AppEntitlementMap = {}
   for (const assignment of assignments) {
     entitlements[assignment.app.slug] = {
-      role: assignment.accessLevel,
       departments: Array.isArray(assignment.departments) ? (assignment.departments as string[]) : [],
     }
   }
@@ -191,7 +188,6 @@ export async function getUserByEmail(email: string): Promise<AuthenticatedUser |
 function mapPortalUser(user: PortalUserRecord): AuthenticatedUser {
   const entitlements = user.appAccess.reduce<AppEntitlementMap>((acc, assignment) => {
     acc[assignment.app.slug] = {
-      role: assignment.accessLevel,
       departments: Array.isArray(assignment.departments)
         ? (assignment.departments as string[])
         : [],

@@ -7,6 +7,8 @@ import {
   HREventTypeEnum,
 } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
+import { isHROrAbove } from '@/lib/permissions'
+import { getCurrentEmployeeId } from '@/lib/current-user'
 
 export async function GET(req: Request) {
   const rateLimitError = withRateLimit(req)
@@ -82,6 +84,17 @@ export async function POST(req: Request) {
   if (rateLimitError) return rateLimitError
 
   try {
+    // Security: Only HR or super-admin can create HR calendar events
+    const actorId = await getCurrentEmployeeId()
+    if (!actorId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    const hasPermission = await isHROrAbove(actorId)
+    if (!hasPermission) {
+      return NextResponse.json({ error: 'Only HR or super admin can create HR calendar events' }, { status: 403 })
+    }
+
     const body = await req.json()
 
     const validation = validateBody(CreateHRCalendarEventSchema, body)
