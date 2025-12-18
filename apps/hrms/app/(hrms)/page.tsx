@@ -39,7 +39,6 @@ import { Avatar } from '@/components/ui/Avatar'
 import { StatusBadge } from '@/components/ui/Badge'
 import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
 import { LeaveHistoryTable } from '@/components/leave/LeaveHistoryTable'
-import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
 import { PendingLeaveApprovals } from '@/components/leave/PendingLeaveApprovals'
 import { LeaveApprovalHistory } from '@/components/leave/LeaveApprovalHistory'
 import { StandingCard } from '@/components/employee/StandingCard'
@@ -158,7 +157,6 @@ export default function Dashboard() {
   const [reviewsLoading, setReviewsLoading] = useState(false)
   const [disciplinaryLoading, setDisciplinaryLoading] = useState(false)
   const [leaveLoading, setLeaveLoading] = useState(false)
-  const [showLeaveForm, setShowLeaveForm] = useState(false)
 
   useEffect(() => {
     fetchDashboardData()
@@ -236,18 +234,6 @@ export default function Dashboard() {
     }
     loadLeave()
   }, [activeTab, data?.currentEmployee?.id])
-
-  const handleLeaveRequestSuccess = async () => {
-    setShowLeaveForm(false)
-    if (!data?.currentEmployee?.id) return
-    // Reload leave data
-    const [balanceData, requestsData] = await Promise.all([
-      LeavesApi.getBalance({ employeeId: data.currentEmployee.id }),
-      LeavesApi.list({ employeeId: data.currentEmployee.id }),
-    ])
-    setLeaveBalances(balanceData.balances || [])
-    setLeaveRequests(requestsData.items || [])
-  }
 
   const handleCancelLeave = async (requestId: string) => {
     if (!data?.currentEmployee?.id) return
@@ -515,20 +501,10 @@ export default function Dashboard() {
               <Card padding="lg">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-sm font-semibold text-gray-900">Leave Balance</h3>
-                  <Button size="sm" onClick={() => setShowLeaveForm(!showLeaveForm)}>
-                    {showLeaveForm ? 'Cancel' : 'Request Leave'}
+                  <Button size="sm" href="/leave?request=true">
+                    Request Leave
                   </Button>
                 </div>
-
-                {showLeaveForm && (
-                  <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                    <LeaveRequestForm
-                      employeeId={currentEmployee.id}
-                      onSuccess={handleLeaveRequestSuccess}
-                      onCancel={() => setShowLeaveForm(false)}
-                    />
-                  </div>
-                )}
 
                 {leaveLoading ? (
                   <div className="animate-pulse space-y-3">
