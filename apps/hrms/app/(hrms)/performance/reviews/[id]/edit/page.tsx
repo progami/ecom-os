@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { PerformanceReviewsApi, type PerformanceReview } from '@/lib/api-client'
 import { ClipboardDocumentCheckIcon, StarIcon, StarFilledIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, CardDivider } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -13,8 +13,6 @@ import {
   FormField,
   SelectField,
   TextareaField,
-  FormSection,
-  FormActions,
 } from '@/components/ui/FormField'
 import { useNavigationHistory } from '@/lib/navigation-history'
 
@@ -264,41 +262,10 @@ export default function EditReviewPage() {
     )
   }
 
-  // Non-editable state - show read-only view with status info
+  // Non-editable state - redirect to view page
   if (!isEditable) {
-    return (
-      <>
-        <PageHeader
-          title="Performance Review"
-          description={`${review.employee?.firstName} ${review.employee?.lastName}`}
-          icon={<ClipboardDocumentCheckIcon className="h-6 w-6 text-white" />}
-          showBack
-        />
-        <div className="max-w-3xl">
-          <Card padding="lg">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  {review.employee?.firstName} {review.employee?.lastName}
-                </h2>
-                <p className="text-sm text-gray-500">
-                  {review.employee?.position} - {review.employee?.department}
-                </p>
-              </div>
-              <StatusBadge status={STATUS_LABELS[review.status] || review.status} />
-            </div>
-            <Alert variant="info">
-              This review is in &quot;{STATUS_LABELS[review.status] || review.status}&quot; status and cannot be edited.
-            </Alert>
-            <div className="mt-4">
-              <Button variant="secondary" onClick={goBack}>
-                Go Back
-              </Button>
-            </div>
-          </Card>
-        </div>
-      </>
-    )
+    router.replace(`/performance/reviews/${id}`)
+    return null
   }
 
   return (
@@ -310,178 +277,181 @@ export default function EditReviewPage() {
         showBack
       />
 
-      <div className="max-w-3xl">
-        <Card padding="lg">
-          {/* Status indicator */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-lg font-medium text-gray-900">
-                {review.employee?.firstName} {review.employee?.lastName}
-              </h2>
-              <p className="text-sm text-gray-500">
-                {review.employee?.position} - {review.employee?.department}
-              </p>
+      <div className="max-w-3xl space-y-6">
+        {error && (
+          <Alert variant="error" onDismiss={() => setError(null)}>
+            {error}
+          </Alert>
+        )}
+
+        {successMessage && (
+          <Alert variant="success" onDismiss={() => setSuccessMessage(null)}>
+            {successMessage}
+          </Alert>
+        )}
+
+        <form onSubmit={handleSave}>
+          {/* Employee Info Card */}
+          <Card padding="lg" className="mb-6">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {review.employee?.firstName} {review.employee?.lastName}
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {review.employee?.position} • {review.employee?.department}
+                </p>
+              </div>
+              <StatusBadge status={STATUS_LABELS[review.status] || review.status} />
             </div>
-            <StatusBadge status={STATUS_LABELS[review.status] || review.status} />
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <SelectField
+                label="Review Type"
+                name="reviewType"
+                required
+                options={reviewTypeOptions}
+                defaultValue={review.reviewType}
+              />
+              <FormField
+                label="Review Period"
+                name="reviewPeriod"
+                required
+                placeholder="e.g., Q4 2025"
+                defaultValue={review.reviewPeriod}
+                disabled={!!review.periodType}
+              />
+              <FormField
+                label="Review Date"
+                name="reviewDate"
+                type="date"
+                required
+                defaultValue={formatDateForInput(review.reviewDate)}
+              />
+              <FormField
+                label="Reviewer Name"
+                name="reviewerName"
+                required
+                placeholder="Manager name"
+                defaultValue={review.reviewerName}
+              />
+            </div>
+          </Card>
+
+          {/* Performance Ratings Card */}
+          <Card padding="lg" className="mb-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Performance Ratings</h3>
+
+            {/* Overall Rating - Highlighted */}
+            <div className="bg-amber-50 rounded-lg p-4 mb-6">
+              <RatingInput
+                name="overallRating"
+                label="Overall Rating"
+                value={overallRating}
+                onChange={setOverallRating}
+                required
+              />
+            </div>
+
+            {/* Individual Ratings Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+              <RatingInput
+                name="qualityOfWork"
+                label="Quality of Work"
+                value={qualityOfWork}
+                onChange={setQualityOfWork}
+                required={review.reviewType === 'QUARTERLY'}
+              />
+              <RatingInput
+                name="productivity"
+                label="Productivity"
+                value={productivity}
+                onChange={setProductivity}
+                required={review.reviewType === 'QUARTERLY'}
+              />
+              <RatingInput
+                name="communication"
+                label="Communication"
+                value={communication}
+                onChange={setCommunication}
+                required={review.reviewType === 'QUARTERLY'}
+              />
+              <RatingInput
+                name="teamwork"
+                label="Teamwork"
+                value={teamwork}
+                onChange={setTeamwork}
+                required={review.reviewType === 'QUARTERLY'}
+              />
+              <RatingInput
+                name="initiative"
+                label="Initiative"
+                value={initiative}
+                onChange={setInitiative}
+                required={review.reviewType === 'QUARTERLY'}
+              />
+              <RatingInput
+                name="attendance"
+                label="Attendance"
+                value={attendance}
+                onChange={setAttendance}
+                required={review.reviewType === 'QUARTERLY'}
+              />
+            </div>
+          </Card>
+
+          {/* Feedback Card */}
+          <Card padding="lg" className="mb-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Feedback</h3>
+            <div className="space-y-4">
+              <TextareaField
+                label="Strengths"
+                name="strengths"
+                rows={3}
+                placeholder="Key strengths demonstrated..."
+                defaultValue={review.strengths || ''}
+              />
+              <TextareaField
+                label="Areas to Improve"
+                name="areasToImprove"
+                rows={3}
+                placeholder="Areas that need development..."
+                defaultValue={review.areasToImprove || ''}
+              />
+              <TextareaField
+                label="Goals for Next Period"
+                name="goals"
+                rows={3}
+                placeholder="Objectives and targets..."
+                defaultValue={review.goals || ''}
+              />
+              <TextareaField
+                label="Additional Comments"
+                name="comments"
+                rows={3}
+                placeholder="Any other observations..."
+                defaultValue={review.comments || ''}
+              />
+            </div>
+          </Card>
+
+          {/* Actions */}
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={goBack}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="secondary" loading={saving}>
+              Save Draft
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSubmit}
+              loading={submitting}
+            >
+              Submit for Review
+            </Button>
           </div>
-
-          {error && (
-            <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
-              {error}
-            </Alert>
-          )}
-
-          {successMessage && (
-            <Alert variant="success" className="mb-6" onDismiss={() => setSuccessMessage(null)}>
-              {successMessage}
-            </Alert>
-          )}
-
-          <form onSubmit={handleSave} className="space-y-8">
-            <FormSection title="Review Details">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <SelectField
-                  label="Review Type"
-                  name="reviewType"
-                  required
-                  options={reviewTypeOptions}
-                  defaultValue={review.reviewType}
-                />
-                <FormField
-                  label="Review Period"
-                  name="reviewPeriod"
-                  required
-                  placeholder="e.g., Q4 2025, Annual 2025"
-                  defaultValue={review.reviewPeriod}
-                  disabled={!!review.periodType} // Disable if structured period exists
-                />
-                <FormField
-                  label="Review Date"
-                  name="reviewDate"
-                  type="date"
-                  required
-                  defaultValue={formatDateForInput(review.reviewDate)}
-                />
-                <FormField
-                  label="Reviewer Name"
-                  name="reviewerName"
-                  required
-                  placeholder="Manager name"
-                  defaultValue={review.reviewerName}
-                />
-              </div>
-            </FormSection>
-
-            <CardDivider />
-
-            <FormSection title="Performance Ratings" description="Rate the employee on a scale of 1-5. All ratings are required.">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="sm:col-span-2">
-                  <RatingInput
-                    name="overallRating"
-                    label="Overall Rating"
-                    value={overallRating}
-                    onChange={setOverallRating}
-                    required
-                  />
-                </div>
-                <RatingInput
-                  name="qualityOfWork"
-                  label="Quality of Work"
-                  value={qualityOfWork}
-                  onChange={setQualityOfWork}
-                  required={review.reviewType === 'QUARTERLY'}
-                />
-                <RatingInput
-                  name="productivity"
-                  label="Productivity"
-                  value={productivity}
-                  onChange={setProductivity}
-                  required={review.reviewType === 'QUARTERLY'}
-                />
-                <RatingInput
-                  name="communication"
-                  label="Communication"
-                  value={communication}
-                  onChange={setCommunication}
-                  required={review.reviewType === 'QUARTERLY'}
-                />
-                <RatingInput
-                  name="teamwork"
-                  label="Teamwork"
-                  value={teamwork}
-                  onChange={setTeamwork}
-                  required={review.reviewType === 'QUARTERLY'}
-                />
-                <RatingInput
-                  name="initiative"
-                  label="Initiative"
-                  value={initiative}
-                  onChange={setInitiative}
-                  required={review.reviewType === 'QUARTERLY'}
-                />
-                <RatingInput
-                  name="attendance"
-                  label="Attendance"
-                  value={attendance}
-                  onChange={setAttendance}
-                  required={review.reviewType === 'QUARTERLY'}
-                />
-              </div>
-            </FormSection>
-
-            <CardDivider />
-
-            <FormSection title="Feedback" description="Provide detailed comments and goals">
-              <div className="space-y-5">
-                <TextareaField
-                  label="Strengths"
-                  name="strengths"
-                  rows={3}
-                  placeholder="Key strengths demonstrated..."
-                  defaultValue={review.strengths || ''}
-                />
-                <TextareaField
-                  label="Areas to Improve"
-                  name="areasToImprove"
-                  rows={3}
-                  placeholder="Areas that need development..."
-                  defaultValue={review.areasToImprove || ''}
-                />
-                <TextareaField
-                  label="Goals for Next Period"
-                  name="goals"
-                  rows={3}
-                  placeholder="Objectives and targets..."
-                  defaultValue={review.goals || ''}
-                />
-                <TextareaField
-                  label="Additional Comments"
-                  name="comments"
-                  rows={3}
-                  placeholder="Any other observations..."
-                  defaultValue={review.comments || ''}
-                />
-              </div>
-            </FormSection>
-
-            <FormActions>
-              <Button variant="secondary" onClick={goBack}>
-                Cancel
-              </Button>
-              <Button type="submit" variant="secondary" loading={saving}>
-                {saving ? 'Saving...' : 'Save Draft'}
-              </Button>
-              <Button
-                type="button"
-                onClick={handleSubmit}
-                loading={submitting}
-              >
-                {submitting ? 'Submitting...' : 'Submit for Review'}
-              </Button>
-            </FormActions>
-          </form>
-        </Card>
+        </form>
       </div>
     </>
   )
