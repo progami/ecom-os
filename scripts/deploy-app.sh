@@ -107,15 +107,14 @@ fi
 log "Step 4: Stopping $pm2_name"
 pm2 stop "$pm2_name" 2>/dev/null || warn "$pm2_name was not running"
 
-# Step 5: Clear all caches
-log "Step 5: Clearing build caches"
-rm -rf "$app_dir/.next" \
-       "$app_dir/.turbo" \
+# Step 5: Clear build caches (keep .next for incremental builds)
+log "Step 5: Clearing build caches (preserving Next.js cache)"
+rm -rf "$app_dir/.turbo" \
        "$app_dir/.cache" \
        "$app_dir/.swc" \
        "$app_dir/node_modules/.cache" \
        2>/dev/null || true
-log "Caches cleared"
+log "Caches cleared (Next.js cache preserved for faster builds)"
 
 # Step 6: Build the app
 log "Step 6: Building $app_key"

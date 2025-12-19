@@ -440,6 +440,12 @@ export type PerformanceReview = {
   reviewDate: string
   reviewerName: string
   assignedReviewerId?: string | null
+  assignedReviewer?: {
+    id: string
+    firstName: string
+    lastName: string
+    position?: string
+  } | null
   overallRating: number
   qualityOfWork?: number | null
   productivity?: number | null

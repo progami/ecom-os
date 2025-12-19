@@ -31,19 +31,23 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 function RatingDisplay({ label, value }: { label: string; value: number | null | undefined }) {
-  if (value == null) return null
+  const hasRating = value != null && value > 0
   return (
     <div className="flex items-center justify-between py-2">
       <span className="text-sm text-gray-600">{label}</span>
-      <div className="flex items-center gap-0.5">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <StarFilledIcon
-            key={star}
-            className={`h-4 w-4 ${star <= value ? 'text-amber-400' : 'text-gray-200'}`}
-          />
-        ))}
-        <span className="ml-2 text-sm font-medium text-gray-700">{value}/5</span>
-      </div>
+      {hasRating ? (
+        <div className="flex items-center gap-0.5">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <StarFilledIcon
+              key={star}
+              className={`h-4 w-4 ${star <= value ? 'text-amber-400' : 'text-gray-200'}`}
+            />
+          ))}
+          <span className="ml-2 text-sm font-medium text-gray-700">{value}/5</span>
+        </div>
+      ) : (
+        <span className="text-sm text-gray-400">Not rated</span>
+      )}
     </div>
   )
 }
@@ -176,7 +180,14 @@ export default function ViewReviewPage() {
             <DetailRow label="Review Type" value={REVIEW_TYPE_LABELS[review.reviewType] || review.reviewType} />
             <DetailRow label="Review Period" value={review.reviewPeriod} />
             <DetailRow label="Review Date" value={formatDate(review.reviewDate)} />
-            <DetailRow label="Reviewer" value={review.reviewerName} />
+            <DetailRow
+              label="Reviewer"
+              value={
+                review.assignedReviewer
+                  ? `${review.assignedReviewer.firstName} ${review.assignedReviewer.lastName}${review.assignedReviewer.position ? ` (${review.assignedReviewer.position})` : ''}`
+                  : review.reviewerName
+              }
+            />
           </dl>
         </Card>
 
@@ -185,15 +196,19 @@ export default function ViewReviewPage() {
           <div className="bg-amber-50 rounded-lg p-4 mb-4">
             <div className="flex items-center justify-between">
               <span className="font-medium text-gray-900">Overall Rating</span>
-              <div className="flex items-center gap-1">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <StarFilledIcon
-                    key={star}
-                    className={`h-6 w-6 ${star <= review.overallRating ? 'text-amber-400' : 'text-gray-200'}`}
-                  />
-                ))}
-                <span className="ml-2 text-lg font-semibold text-gray-900">{review.overallRating}/5</span>
-              </div>
+              {review.overallRating > 0 ? (
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <StarFilledIcon
+                      key={star}
+                      className={`h-6 w-6 ${star <= review.overallRating ? 'text-amber-400' : 'text-gray-200'}`}
+                    />
+                  ))}
+                  <span className="ml-2 text-lg font-semibold text-gray-900">{review.overallRating}/5</span>
+                </div>
+              ) : (
+                <span className="text-sm text-gray-400">Not rated</span>
+              )}
             </div>
           </div>
           <div className="divide-y divide-gray-100">
