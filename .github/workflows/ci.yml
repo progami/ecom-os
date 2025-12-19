@@ -15,11 +15,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.21.0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Enable pnpm via corepack
-        run: corepack enable && corepack prepare pnpm@10.21.0 --activate
+          cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Populate dev env files
@@ -32,21 +34,14 @@ jobs:
           cp apps/x-plan/.env.dev.ci apps/x-plan/.env.local
           cp apps/hrms/.env.dev.ci apps/hrms/.env.dev
           cp apps/hrms/.env.dev.ci apps/hrms/.env.local
-      - name: Reset app build caches
-        run: |
-          bash scripts/refresh-dev-app.sh wms
-          bash scripts/refresh-dev-app.sh ecomos
-          bash scripts/refresh-dev-app.sh website
-          bash scripts/refresh-dev-app.sh xplan
-          bash scripts/refresh-dev-app.sh hrms
       - name: Verify dev environment configuration
         run: bash scripts/verify-dev-env.sh
-      - name: Generate Prisma client
-        run: pnpm --filter @ecom-os/wms db:generate
-      - name: Generate X-Plan Prisma client
-        run: pnpm --filter @ecom-os/x-plan prisma:generate
-      - name: Generate HRMS Prisma client
-        run: cd apps/hrms && npx prisma generate
+      - name: Generate Prisma clients (parallel)
+        run: |
+          pnpm --filter @ecom-os/wms db:generate &
+          pnpm --filter @ecom-os/x-plan prisma:generate &
+          cd apps/hrms && npx prisma generate &
+          wait
       - name: Determine base ref
         id: changes
         run: |
