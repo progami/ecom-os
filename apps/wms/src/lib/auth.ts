@@ -79,18 +79,18 @@ const baseAuthOptions: NextAuthConfig = {
       return token
     },
     async session({ session, token }) {
-      if (typeof token.sub === 'string') {
-        session.user.id = token.sub
-      }
-
-      // Get user from tenant-specific database
-      if (session.user.id) {
+      // Get user from tenant-specific database by EMAIL
+      // Portal IDs (token.sub) differ from WMS user IDs, so we look up by email
+      const email = (token.email ?? session.user?.email) as string | undefined
+      if (email) {
         const prisma = await getTenantPrisma()
         const user = await prisma.user.findUnique({
-          where: { id: session.user.id },
-          select: { role: true, region: true, warehouseId: true },
+          where: { email },
+          select: { id: true, role: true, region: true, warehouseId: true },
         })
         if (user) {
+          // Use the WMS user ID, not the portal ID
+          session.user.id = user.id
           session.user.role = user.role
           session.user.region = user.region
           if (user.warehouseId) {
