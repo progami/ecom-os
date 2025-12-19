@@ -114,6 +114,9 @@ import {
   Activity,
   Zap,
   History,
+  FileEdit,
+  Factory,
+  ShieldCheck,
 
   // Layout & View icons
   LayoutGrid,
@@ -223,6 +226,9 @@ export {
   Activity,
   Zap,
   History,
+  FileEdit,
+  Factory,
+  ShieldCheck,
   LayoutGrid,
   TableProperties,
   Boxes,

@@ -1,186 +1,190 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useEffect, useMemo } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { Button } from '@/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { PageTabs } from '@/components/ui/page-tabs'
 import { PageLoading } from '@/components/ui/loading-spinner'
-import { FileText, Plus, Construction, Ship, Warehouse, CheckCircle, XCircle, Archive } from '@/lib/lucide-icons'
+import {
+  FileText,
+  Plus,
+  FileEdit,
+  Factory,
+  Ship,
+  Warehouse,
+  Truck,
+  XCircle,
+  Archive,
+} from '@/lib/lucide-icons'
 import { PurchaseOrdersPanel } from '../inventory/purchase-orders-panel'
-import type { PurchaseOrderFilter } from '../inventory/purchase-orders-panel'
 import { redirectToPortal } from '@/lib/portal'
 import type { LucideIcon } from 'lucide-react'
 
+// 5-Stage State Machine Status Types
+type POStageStatus = 'DRAFT' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED' | 'CANCELLED' | 'ARCHIVED'
+
 type StatusConfig = {
- value: PurchaseOrderFilter
- label: string
- description: string
- hint: string
- icon: LucideIcon
+  value: POStageStatus
+  label: string
+  description: string
+  icon: LucideIcon
 }
 
-// Main pipeline statuses
-const PIPELINE_STATUSES: StatusConfig[] = [
- {
- value: 'DRAFT',
- label: 'Draft',
- description: 'Orders being prepared before proof submission',
- hint: 'Complete details before moving forward',
- icon: Construction,
- },
- {
- value: 'AWAITING_PROOF',
- label: 'Awaiting Proof',
- description: 'Waiting on delivery proof or supporting documents',
- hint: 'Upload delivery note or supporting docs',
- icon: Ship,
- },
- {
- value: 'REVIEW',
- label: 'Review',
- description: 'Proof received – ready for final approval',
- hint: 'Validate documents and approve',
- icon: Warehouse,
- },
- {
- value: 'POSTED',
- label: 'Posted',
- description: 'Orders posted to the ledger',
- hint: 'Locked for edits',
- icon: CheckCircle,
- },
+// Main pipeline stages (5-stage state machine)
+const PIPELINE_STAGES: StatusConfig[] = [
+  {
+    value: 'DRAFT',
+    label: 'Draft',
+    description: 'Orders being prepared with initial details',
+    icon: FileEdit,
+  },
+  {
+    value: 'MANUFACTURING',
+    label: 'Manufacturing',
+    description: 'Goods in production at manufacturer',
+    icon: Factory,
+  },
+  {
+    value: 'OCEAN',
+    label: 'In Transit',
+    description: 'Goods in transit from manufacturer',
+    icon: Ship,
+  },
+  {
+    value: 'WAREHOUSE',
+    label: 'At Warehouse',
+    description: 'Goods received at warehouse',
+    icon: Warehouse,
+  },
+  {
+    value: 'SHIPPED',
+    label: 'Shipped',
+    description: 'Goods shipped to customer',
+    icon: Truck,
+  },
 ]
 
-// Terminal statuses (separate from main pipeline)
+// Terminal statuses
 const TERMINAL_STATUSES: StatusConfig[] = [
- {
- value: 'CANCELLED',
- label: 'Cancelled',
- description: 'Orders cancelled before completion',
- hint: 'For historical reference only',
- icon: XCircle,
- },
- {
- value: 'CLOSED',
- label: 'Closed',
- description: 'Orders fully reconciled and closed',
- hint: 'Archived records',
- icon: Archive,
- },
+  {
+    value: 'CANCELLED',
+    label: 'Cancelled',
+    description: 'Orders cancelled before completion',
+    icon: XCircle,
+  },
+  {
+    value: 'ARCHIVED',
+    label: 'Archived',
+    description: 'Legacy orders from previous system',
+    icon: Archive,
+  },
 ]
 
-const STATUS_CONFIGS = [...PIPELINE_STATUSES, ...TERMINAL_STATUSES]
+const STATUS_CONFIGS = [...PIPELINE_STAGES, ...TERMINAL_STATUSES]
 
-type OrderType = 'PURCHASE' | 'SALES'
+function OrdersPageContent() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
-const ORDER_TYPE_TABS = [
-  { value: 'PURCHASE', label: 'Purchase Order' },
-  { value: 'SALES', label: 'Sales Order' },
-]
+  // Get status from URL or default to DRAFT
+  const statusFromUrl = searchParams.get('status') as POStageStatus | null
+  const currentStatus: POStageStatus = statusFromUrl && STATUS_CONFIGS.some(s => s.value === statusFromUrl)
+    ? statusFromUrl
+    : 'DRAFT'
 
-function OrdersPage() {
- const { data: session, status } = useSession()
- const router = useRouter()
- const [orderType, setOrderType] = useState<OrderType>('PURCHASE')
- const [statusFilter, setStatusFilter] = useState<PurchaseOrderFilter>('DRAFT')
+  useEffect(() => {
+    if (status === 'loading') return
 
- useEffect(() => {
- if (status === 'loading') return
+    if (!session) {
+      redirectToPortal('/login', `${window.location.origin}/operations/orders`)
+      return
+    }
 
-  if (!session) {
-    redirectToPortal('/login', `${window.location.origin}/operations/orders`)
- return
- }
+    if (!['staff', 'admin'].includes(session.user.role)) {
+      router.push('/dashboard')
+    }
+  }, [session, status, router])
 
- if (!['staff', 'admin'].includes(session.user.role)) {
- router.push('/dashboard')
- }
- }, [session, status, router])
+  const handleStatusChange = (newStatus: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('status', newStatus)
+    router.push(`/operations/orders?${params.toString()}`)
+  }
 
- // Memoize status tabs to use with PageTabs
- const statusTabs = useMemo(
-   () =>
-     STATUS_CONFIGS.map((config) => ({
-       value: config.value,
-       label: config.label,
-       icon: config.icon,
-     })),
-   []
- )
+  // Memoize status tabs to use with PageTabs
+  const statusTabs = useMemo(
+    () =>
+      STATUS_CONFIGS.map((config) => ({
+        value: config.value,
+        label: config.label,
+        icon: config.icon,
+      })),
+    []
+  )
 
- if (status === 'loading') {
-   return (
-     <DashboardLayout>
-       <PageContainer>
-         <PageLoading />
-       </PageContainer>
-     </DashboardLayout>
-   )
- }
+  if (status === 'loading') {
+    return (
+      <DashboardLayout>
+        <PageContainer>
+          <PageLoading />
+        </PageContainer>
+      </DashboardLayout>
+    )
+  }
 
- return (
- <DashboardLayout>
- <PageContainer>
- <PageHeaderSection
- title="Orders"
- description="Operations"
- icon={FileText}
- actions={
- <Popover>
- <PopoverTrigger asChild>
- <Button className="gap-2">
- <Plus className="h-4 w-4" />
- Raise PO
- </Button>
- </PopoverTrigger>
-	 <PopoverContent align="end" className="w-56 space-y-1 p-2">
-	 <Button asChild variant="ghost" className="w-full justify-start">
-	 <Link href="/operations/receive" prefetch={false}>
-	 Inbound (Purchase Order)
-	 </Link>
-	 </Button>
-	 <Button asChild variant="ghost" className="w-full justify-start">
-	 <Link href="/operations/ship" prefetch={false}>
-	 Outbound (Fulfillment Order)
-	 </Link>
-	 </Button>
-	 </PopoverContent>
- </Popover>
- }
- />
- <PageContent>
- <div className="flex flex-col gap-6">
-          {/* Order Type Tabs */}
-          <PageTabs
-            tabs={ORDER_TYPE_TABS}
-            value={orderType}
-            onChange={(value) => setOrderType(value as OrderType)}
-            variant="underline-lg"
-          />
+  return (
+    <DashboardLayout>
+      <PageContainer>
+        <PageHeaderSection
+          title="Purchase Orders"
+          description="Operations"
+          icon={FileText}
+          actions={
+            <Button asChild className="gap-2">
+              <Link href="/operations/orders/new">
+                <Plus className="h-4 w-4" />
+                New Purchase Order
+              </Link>
+            </Button>
+          }
+        />
+        <PageContent>
+          <div className="flex flex-col gap-6">
+            {/* Status Tabs */}
+            <PageTabs
+              tabs={statusTabs}
+              value={currentStatus}
+              onChange={handleStatusChange}
+              variant="underline"
+            />
 
-          {/* Status Tabs */}
-          <PageTabs
-            tabs={statusTabs}
-            value={statusFilter}
-            onChange={(value) => setStatusFilter(value as PurchaseOrderFilter)}
-            variant="underline"
-          />
-
- <PurchaseOrdersPanel
- onPosted={() => {}}
- statusFilter={statusFilter}
- typeFilter={orderType === 'PURCHASE' ? 'PURCHASE' : 'FULFILLMENT'}
- />
- </div>
- </PageContent>
- </PageContainer>
- </DashboardLayout>
- )
+            <PurchaseOrdersPanel
+              onPosted={() => {}}
+              statusFilter={currentStatus}
+              typeFilter="PURCHASE"
+            />
+          </div>
+        </PageContent>
+      </PageContainer>
+    </DashboardLayout>
+  )
 }
 
-export default OrdersPage
+export default function OrdersPage() {
+  return (
+    <Suspense fallback={
+      <DashboardLayout>
+        <PageContainer>
+          <PageLoading />
+        </PageContainer>
+      </DashboardLayout>
+    }>
+      <OrdersPageContent />
+    </Suspense>
+  )
+}
