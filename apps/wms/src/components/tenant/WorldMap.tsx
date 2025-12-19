@@ -28,20 +28,20 @@ export function WorldMap({ className }: WorldMapProps) {
   const router = useRouter()
   const [selecting, setSelecting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [userRegion, setUserRegion] = useState<TenantCode | null>(null)
+  const [accessibleRegions, setAccessibleRegions] = useState<TenantCode[]>([])
   const [loading, setLoading] = useState(true)
   const tenants = getAllTenants()
 
-  // Fetch user's allowed region on mount
+  // Fetch user's accessible regions on mount
   useEffect(() => {
-    async function fetchUserRegion() {
+    async function fetchAccessibleRegions() {
       try {
         const response = await fetch('/api/tenant/current')
         if (response.ok) {
           const data = await response.json()
-          // User can only access their own region
+          // Store ALL accessible regions
           if (data.available && data.available.length > 0) {
-            setUserRegion(data.available[0].code as TenantCode)
+            setAccessibleRegions(data.available.map((t: { code: string }) => t.code as TenantCode))
           }
         }
       } catch {
@@ -50,13 +50,13 @@ export function WorldMap({ className }: WorldMapProps) {
         setLoading(false)
       }
     }
-    fetchUserRegion()
+    fetchAccessibleRegions()
   }, [])
 
   const canAccessTenant = (code: string): boolean => {
-    // If still loading or no user region, allow click (API will reject if unauthorized)
-    if (loading || !userRegion) return true
-    return code === userRegion
+    // If still loading or no regions fetched, allow click (API will reject if unauthorized)
+    if (loading || accessibleRegions.length === 0) return true
+    return accessibleRegions.includes(code as TenantCode)
   }
 
   const handleSelectTenant = async (tenant: TenantConfig) => {

@@ -8,8 +8,26 @@ import {
   TENANT_COOKIE_MAX_AGE,
   getTenantConfig,
 } from '@/lib/tenant/constants'
+import { getTenantPrismaClient } from '@/lib/tenant/prisma-factory'
 
 export const dynamic = 'force-dynamic'
+
+/**
+ * Check if user exists in the specified tenant's database
+ */
+async function userExistsInTenant(email: string, tenantCode: TenantCode): Promise<boolean> {
+  try {
+    const prisma = getTenantPrismaClient(tenantCode)
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    })
+    return !!user
+  } catch (error) {
+    console.error(`[tenant/select] Error checking user in ${tenantCode}:`, error)
+    return false
+  }
+}
 
 /**
  * POST /api/tenant/select
@@ -36,9 +54,17 @@ export async function POST(request: NextRequest) {
 
     const tenantCode = tenant as TenantCode
 
-    // Validate user has access to this tenant based on their region
-    const userRegion = session.user?.region
-    if (userRegion !== tenantCode) {
+    // Validate user has access by checking if they exist in the target tenant's database
+    const userEmail = session.user?.email
+    if (!userEmail) {
+      return NextResponse.json(
+        { error: 'User email not found in session' },
+        { status: 400 }
+      )
+    }
+
+    const hasAccess = await userExistsInTenant(userEmail, tenantCode)
+    if (!hasAccess) {
       return NextResponse.json(
         { error: `Access denied: Your account is not authorized for the ${tenantCode} region` },
         { status: 403 }
