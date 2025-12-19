@@ -7,9 +7,38 @@ import {
   isValidTenantCode,
   getTenantConfig,
   getAllTenants,
+  TENANT_CODES,
+  TenantCode,
 } from '@/lib/tenant/constants'
+import { getTenantPrismaClient } from '@/lib/tenant/prisma-factory'
 
 export const dynamic = 'force-dynamic'
+
+/**
+ * Check which tenants a user has access to by email
+ * Queries each tenant database to see if user exists there
+ */
+async function getUserAccessibleTenants(email: string): Promise<TenantCode[]> {
+  const accessibleTenants: TenantCode[] = []
+
+  for (const tenantCode of TENANT_CODES) {
+    try {
+      const prisma = getTenantPrismaClient(tenantCode)
+      const user = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      })
+      if (user) {
+        accessibleTenants.push(tenantCode)
+      }
+    } catch (error) {
+      // Database not configured or connection error - skip this tenant
+      console.warn(`[tenant/current] Could not check tenant ${tenantCode}:`, error)
+    }
+  }
+
+  return accessibleTenants
+}
 
 /**
  * GET /api/tenant/current
@@ -32,10 +61,18 @@ export async function GET() {
 
     const current = getTenantConfig(tenantCode)
 
-    // Filter available tenants to only user's region
-    const userRegion = session.user?.region
+    // Get user's email from session to check which tenants they can access
+    const userEmail = session.user?.email
+    let accessibleCodes: TenantCode[] = []
+
+    if (userEmail) {
+      // Query all tenant databases to find where this user exists
+      accessibleCodes = await getUserAccessibleTenants(userEmail)
+    }
+
+    // Map accessible tenants to response format
     const available = getAllTenants()
-      .filter((t) => t.code === userRegion)
+      .filter((t) => accessibleCodes.includes(t.code))
       .map((t) => ({
         code: t.code,
         name: t.name,

@@ -1,8 +1,35 @@
 import NextAuth from 'next-auth'
-import type { NextAuthConfig } from 'next-auth'
+import type { NextAuthConfig, Session } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
-import { getTenantPrisma } from '@/lib/tenant/server'
+import { getTenantPrisma, getCurrentTenantCode } from '@/lib/tenant/server'
+import type { TenantCode } from '@/lib/tenant/constants'
+
+// In-memory cache for WMS user data to avoid DB queries on every request
+// Key: `${email}:${tenantCode}`, Value: { data, expiresAt }
+const userCache = new Map<string, {
+  data: { id: string; role: string; region: TenantCode; warehouseId?: string }
+  expiresAt: number
+}>()
+
+const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
+
+function getCachedUser(email: string, tenant: TenantCode) {
+  const key = `${email}:${tenant}`
+  const cached = userCache.get(key)
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data
+  }
+  if (cached) {
+    userCache.delete(key) // Expired
+  }
+  return null
+}
+
+function setCachedUser(email: string, tenant: TenantCode, data: { id: string; role: string; region: TenantCode; warehouseId?: string }) {
+  const key = `${email}:${tenant}`
+  userCache.set(key, { data, expiresAt: Date.now() + CACHE_TTL_MS })
+}
 
 if (!process.env.NEXT_PUBLIC_APP_URL) {
   throw new Error('NEXT_PUBLIC_APP_URL must be defined for WMS auth configuration.')
@@ -79,24 +106,54 @@ const baseAuthOptions: NextAuthConfig = {
       return token
     },
     async session({ session, token }) {
-      // Get user from tenant-specific database by EMAIL
-      // Portal IDs (token.sub) differ from WMS user IDs, so we look up by email
+      // Get current tenant - if no tenant selected yet, skip user enrichment
+      let currentTenant: TenantCode
+      try {
+        currentTenant = await getCurrentTenantCode()
+      } catch {
+        // No tenant context available (e.g., on world map page)
+        return session
+      }
+
       const email = (token.email ?? session.user?.email) as string | undefined
-      if (email) {
-        const prisma = await getTenantPrisma()
-        const user = await prisma.user.findUnique({
-          where: { email },
-          select: { id: true, role: true, region: true, warehouseId: true },
-        })
-        if (user) {
-          // Use the WMS user ID, not the portal ID
-          session.user.id = user.id
-          session.user.role = user.role
-          session.user.region = user.region
-          if (user.warehouseId) {
-            session.user.warehouseId = user.warehouseId
-          }
+      if (!email) {
+        return session
+      }
+
+      // Check in-memory cache first
+      const cached = getCachedUser(email, currentTenant)
+      if (cached) {
+        session.user.id = cached.id
+        session.user.role = cached.role as Session['user']['role']
+        session.user.region = cached.region
+        if (cached.warehouseId) {
+          session.user.warehouseId = cached.warehouseId
         }
+        return session
+      }
+
+      // Cache miss - fetch from DB
+      const prisma = await getTenantPrisma()
+      const user = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true, role: true, region: true, warehouseId: true },
+      })
+
+      if (user) {
+        session.user.id = user.id
+        session.user.role = user.role
+        session.user.region = user.region
+        if (user.warehouseId) {
+          session.user.warehouseId = user.warehouseId
+        }
+
+        // Cache for subsequent requests
+        setCachedUser(email, currentTenant, {
+          id: user.id,
+          role: user.role,
+          region: user.region,
+          warehouseId: user.warehouseId ?? undefined,
+        })
       }
 
       return session
