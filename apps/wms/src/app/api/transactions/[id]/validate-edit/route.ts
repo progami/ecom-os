@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { withAuthAndParams } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(
- request: NextRequest,
- context: { params: Promise<{ id: string }> }
-) {
+export const GET = withAuthAndParams(async (request, params, session) => {
  try {
- const { id } = await context.params
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+ const { id } = params as { id: string }
 
+ const prisma = await getTenantPrisma()
  // Get the transaction
  const transaction = await prisma.inventoryTransaction.findUnique({
  where: { id }
@@ -168,4 +161,4 @@ export async function GET(
  { status: 500 }
  )
  }
-}
+})

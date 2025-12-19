@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { withAuth } from '@/lib/api/auth-wrapper'
 
 // Finance reports functionality reduced in v0.5.0 - Invoice models removed
-export async function GET(request: NextRequest) {
- const session = await auth()
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
-
+export const GET = withAuth(async (request, _session) => {
  const searchParams = request.nextUrl.searchParams
  const reportType = searchParams.get('type')
 
@@ -20,4 +15,4 @@ export async function GET(request: NextRequest) {
  message: 'Invoice-related reports have been removed in v0.5.0'
  }
  })
-}
+})

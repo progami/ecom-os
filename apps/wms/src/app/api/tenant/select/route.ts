@@ -36,13 +36,14 @@ export async function POST(request: NextRequest) {
 
     const tenantCode = tenant as TenantCode
 
-    // TODO: Check if user has access to this tenant
-    // For now, allow all authenticated users to access any tenant
-    // In production, check against user's allowed tenants from portal
-    // const hasAccess = await checkUserTenantAccess(session.user.id, tenantCode)
-    // if (!hasAccess) {
-    //   return NextResponse.json({ error: 'Access denied to this tenant' }, { status: 403 })
-    // }
+    // Validate user has access to this tenant based on their region
+    const userRegion = session.user?.region
+    if (userRegion !== tenantCode) {
+      return NextResponse.json(
+        { error: `Access denied: Your account is not authorized for the ${tenantCode} region` },
+        { status: 403 }
+      )
+    }
 
     // Set tenant cookie
     const cookieStore = await cookies()

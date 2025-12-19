@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { withAuth } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { getInventory, getCatalogItem } from '@/lib/amazon/client'
+import type { Session } from 'next-auth'
 export const dynamic = 'force-dynamic'
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request, session) => {
  try {
- const session = await auth()
- 
- if (!session || session.user.role !== 'admin') {
+ if (session.user.role !== 'admin') {
  return NextResponse.json(
  { message: 'Unauthorized' },
  { status: 401 }
@@ -19,7 +18,7 @@ export async function POST(request: NextRequest) {
 
  switch (syncType) {
  case 'inventory':
- return await syncInventory()
+ return await syncInventory(session)
  case 'products':
  return await syncProducts()
  default:
@@ -35,12 +34,10 @@ export async function POST(request: NextRequest) {
  { status: 500 }
  )
  }
-}
+})
 
-async function syncInventory() {
+async function syncInventory(session: Session) {
  try {
- // Get current session
- const session = await auth()
  if (!session?.user?.id) {
  return NextResponse.json(
  { message: 'Unauthorized' },
@@ -48,9 +45,10 @@ async function syncInventory() {
  )
  }
 
+ const prisma = await getTenantPrisma()
  // Get FBA inventory from Amazon
  const inventoryData = await getInventory()
- 
+
  if (!inventoryData || !inventoryData.inventorySummaries) {
  return NextResponse.json({
  message: 'No inventory data found',
@@ -117,6 +115,7 @@ async function syncInventory() {
 
 async function syncProducts() {
  try {
+ const prisma = await getTenantPrisma()
  // Get all SKUs with ASINs
  const skus = await prisma.sku.findMany({
  where: {

@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { getTenantPrisma } from '@/lib/tenant/server'
+import { withAuth } from '@/lib/api/auth-wrapper'
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request, _session) => {
  try {
- const session = await auth()
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
-
+ const prisma = await getTenantPrisma()
  const searchParams = request.nextUrl.searchParams
  const skuId = searchParams.get('skuId')
  const warehouseId = searchParams.get('warehouseId')
@@ -62,4 +58,4 @@ export async function GET(request: NextRequest) {
  // console.error('Error fetching next batch number:', _error)
  return NextResponse.json({ error: 'Failed to fetch next batch number' }, { status: 500 })
  }
-}
+})

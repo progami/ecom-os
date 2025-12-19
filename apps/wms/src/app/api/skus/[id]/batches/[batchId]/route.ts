@@ -1,5 +1,5 @@
 import { withAuthAndParams, ApiResponses, requireRole, z } from '@/lib/api'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 
@@ -12,6 +12,7 @@ const updateSchema = z.object({
 })
 
 async function ensureBatch(skuId: string, batchId: string) {
+  const prisma = await getTenantPrisma()
   return prisma.skuBatch.findFirst({
     where: {
       id: batchId,
@@ -25,6 +26,7 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
     return ApiResponses.forbidden('Insufficient permissions')
   }
 
+  const prisma = await getTenantPrisma()
   const skuId = params.id as string
   const batchId = params.batchId as string
   const body = await request.json().catch(() => null)
@@ -102,6 +104,7 @@ export const DELETE = withAuthAndParams(async (_request, params, session) => {
     return ApiResponses.forbidden('Insufficient permissions')
   }
 
+  const prisma = await getTenantPrisma()
   const skuId = params.id as string
   const batchId = params.batchId as string
 

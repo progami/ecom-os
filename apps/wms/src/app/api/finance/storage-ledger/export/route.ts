@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { withAuth } from '@/lib/api/auth-wrapper'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { getWarehouseFilter } from '@/lib/auth-utils'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import type { Prisma } from '@ecom-os/prisma-wms'
 
 interface StorageLedgerEntryRow {
@@ -36,7 +36,7 @@ function generateStorageLedgerCSV(entries: StorageLedgerEntryRow[]): string {
  const headers = [
  'Week Ending',
  'Warehouse Code',
- 'Warehouse Name', 
+ 'Warehouse Name',
  'SKU Code',
  'SKU Description',
  'Batch Lot',
@@ -77,22 +77,18 @@ function generateStorageLedgerCSV(entries: StorageLedgerEntryRow[]): string {
  return csvRows.join('\n')
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request, session) => {
  try {
  // Rate limiting
  const rateLimitResponse = await checkRateLimit(request, rateLimitConfigs.api)
  if (rateLimitResponse) return rateLimitResponse
-
- const session = await auth()
- if (!session?.user) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
 
  // Only staff and admin can export storage ledger
  if (!['staff', 'admin'].includes(session.user.role)) {
  return NextResponse.json({ error: 'Access denied' }, { status: 403 })
  }
 
+ const prisma = await getTenantPrisma()
  const { searchParams } = request.nextUrl
  const warehouseCode = searchParams.get('warehouseCode')
  const startDate = searchParams.get('startDate')
@@ -194,4 +190,4 @@ return NextResponse.json({
  { status: 500 }
  )
  }
-}
+})

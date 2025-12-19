@@ -46,7 +46,7 @@ const baseNavigation: NavSection[] = [
  ]
  },
  {
- title: 'Finance',
+ title: 'Ledgers',
  items: [
       { name: 'Storage Ledger', href: '/finance/storage-ledger', icon: Calendar },
       { name: 'Cost Ledger', href: '/finance/cost-ledger', icon: BarChart3 },

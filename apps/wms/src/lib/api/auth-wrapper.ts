@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import type { Session } from 'next-auth'
 import { ApiResponses } from './responses'
 import { auth } from '@/lib/auth'
+import { requireTenantAccess, TenantAccessError } from '@/lib/tenant/guard'
 
 type SessionRole = string | undefined
 
@@ -10,63 +11,39 @@ const getUserRole = (session: Session): SessionRole => {
   return typeof role === 'string' ? role : undefined
 }
 
-function createBypassSession(): Session {
-  const expires = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
-  return {
-    user: {
-      id: process.env.SYSTEM_USER_ID || 'system-bypass-user',
-      name: 'Bypass Admin',
-      email: 'bypass@local.test',
-      role: 'admin',
-    },
-    expires,
-  } satisfies Session
-}
-
-const getUserDepartments = (session: Session): string[] | undefined => {
-  const departments = (session.user as { departments?: unknown })?.departments
-  if (!Array.isArray(departments)) {
-    return undefined
-  }
-  return departments.filter((dept): dept is string => typeof dept === 'string')
-}
-
-export type AuthenticatedHandler<T = unknown> = (
+export type AuthenticatedHandler = (
   request: NextRequest,
   session: Session
-) => Promise<NextResponse<T | { error: string }>>
+) => Promise<Response>
 
-export type AuthenticatedHandlerWithParams<T = unknown> = (
+export type AuthenticatedHandlerWithParams = (
   request: NextRequest,
   params: Record<string, unknown>,
   session: Session
-) => Promise<NextResponse<T | { error: string }>>
+) => Promise<Response>
 
 /**
- * Higher-order function to wrap API routes with authentication
- * Automatically checks for valid session and returns 401 if not authenticated
+ * Higher-order function to wrap API routes with authentication and tenant guard
+ * Automatically checks for valid session and validates tenant access
  */
-export function withAuth<T = unknown>(
-  handler: AuthenticatedHandler<T>
-): (request: NextRequest) => Promise<NextResponse<T | { error: string }>> {
+export function withAuth(
+  handler: AuthenticatedHandler
+): (request: NextRequest) => Promise<Response> {
   return async (request: NextRequest) => {
-    if (process.env.BYPASS_AUTH === 'true') {
-      try {
-        return await handler(request, createBypassSession())
-      } catch (error) {
-        return ApiResponses.handleError(error)
-      }
-    }
-
     const session = await auth()
 
     if (!session) {
       return ApiResponses.unauthorized()
     }
-    
+
     try {
+      // Validate user has access to current tenant
+      await requireTenantAccess(session)
       return await handler(request, session)
     } catch (error) {
+      if (error instanceof TenantAccessError) {
+        return ApiResponses.forbidden(error.message)
+      }
       return ApiResponses.handleError(error)
     }
   }
@@ -75,12 +52,12 @@ export function withAuth<T = unknown>(
 /**
  * Higher-order function for routes with params (e.g., [id] routes)
  */
-export function withAuthAndParams<T = unknown>(
-  handler: AuthenticatedHandlerWithParams<T>
+export function withAuthAndParams(
+  handler: AuthenticatedHandlerWithParams
 ): (
   request: NextRequest,
   context?: { params: Promise<Record<string, string>> }
-) => Promise<NextResponse<T | { error: string }>> {
+) => Promise<Response> {
   return async (
     request: NextRequest,
     context
@@ -90,14 +67,6 @@ export function withAuthAndParams<T = unknown>(
     )
     const contextParams = hydratedParams as Record<string, unknown>
 
-    if (process.env.BYPASS_AUTH === 'true') {
-      try {
-        return await handler(request, contextParams, createBypassSession())
-      } catch (error) {
-        return ApiResponses.handleError(error)
-      }
-    }
-
     const session = await auth()
 
     if (!session) {
@@ -105,8 +74,13 @@ export function withAuthAndParams<T = unknown>(
     }
 
     try {
+      // Validate user has access to current tenant
+      await requireTenantAccess(session)
       return await handler(request, contextParams, session)
     } catch (error) {
+      if (error instanceof TenantAccessError) {
+        return ApiResponses.forbidden(error.message)
+      }
       return ApiResponses.handleError(error)
     }
   }
@@ -123,36 +97,13 @@ export function requireRole(session: Session, allowedRoles: string[]): boolean {
   return allowedRoles.includes(role)
 }
 
-export function requireDept(session: Session, allowedDepts: string[]): boolean {
-  const depts = getUserDepartments(session)
-  if (!allowedDepts.length) return true
-  if (!depts?.length) return false
-  return allowedDepts.some((d) => depts.includes(d))
-}
-
-export function withRoleAndDept<T = unknown>(
-  allowedRoles: string[],
-  allowedDepts: string[] | undefined,
-  handler: AuthenticatedHandler<T>
-): (request: NextRequest) => Promise<NextResponse<T | { error: string }>> {
-  return withAuth(async (request, session) => {
-    if (!requireRole(session, allowedRoles)) {
-      return ApiResponses.forbidden('Insufficient role')
-    }
-    if (allowedDepts && !requireDept(session, allowedDepts)) {
-      return ApiResponses.forbidden('Insufficient department')
-    }
-    return handler(request, session)
-  })
-}
-
 /**
  * Higher-order function that also checks for specific roles
  */
-export function withRole<T = unknown>(
+export function withRole(
   allowedRoles: string[],
-  handler: AuthenticatedHandler<T>
-): (request: NextRequest) => Promise<NextResponse<T | { error: string }>> {
+  handler: AuthenticatedHandler
+): (request: NextRequest) => Promise<Response> {
   return withAuth(async (request, session) => {
     if (!requireRole(session, allowedRoles)) {
       return ApiResponses.forbidden('Insufficient permissions')
@@ -174,9 +125,9 @@ export function requireWarehouse(session: Session): boolean {
 /**
  * Higher-order function that checks for warehouse assignment for staff
  */
-export function withWarehouse<T = unknown>(
-  handler: AuthenticatedHandler<T>
-): (request: NextRequest) => Promise<NextResponse<T | { error: string }>> {
+export function withWarehouse(
+  handler: AuthenticatedHandler
+): (request: NextRequest) => Promise<Response> {
   return withAuth(async (request, session) => {
     if (!requireWarehouse(session)) {
       return ApiResponses.badRequest('No warehouse assigned to this user')

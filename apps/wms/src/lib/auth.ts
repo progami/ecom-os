@@ -1,9 +1,8 @@
 import NextAuth from 'next-auth'
-import type { NextAuthConfig, Session } from 'next-auth'
+import type { NextAuthConfig } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
-import { applyDevAuthDefaults, getAppEntitlement, withSharedAuth } from '@ecom-os/auth'
-import { prisma } from '@/lib/prisma'
-import { UserRole } from '@ecom-os/prisma-wms'
+import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
+import { getTenantPrisma } from '@/lib/tenant/server'
 
 if (!process.env.NEXT_PUBLIC_APP_URL) {
   throw new Error('NEXT_PUBLIC_APP_URL must be defined for WMS auth configuration.')
@@ -83,23 +82,20 @@ const baseAuthOptions: NextAuthConfig = {
       if (typeof token.sub === 'string') {
         session.user.id = token.sub
       }
-      // Get role and departments from portal claims
-      const rolesClaim = (token as { roles?: unknown }).roles
-      const wmsEnt = getAppEntitlement(rolesClaim, 'wms')
-      const sessionUser = session.user as Session['user'] & { departments?: string[] }
-      sessionUser.departments = wmsEnt?.departments ?? wmsEnt?.depts
 
-      // Get role from WMS's own user table (apps define their own permissions)
+      // Get user from tenant-specific database
       if (session.user.id) {
+        const prisma = await getTenantPrisma()
         const user = await prisma.user.findUnique({
           where: { id: session.user.id },
-          select: { role: true, warehouseId: true },
+          select: { role: true, region: true, warehouseId: true },
         })
-        if (user?.role) {
+        if (user) {
           session.user.role = user.role
-        }
-        if (user?.warehouseId) {
-          session.user.warehouseId = user.warehouseId
+          session.user.region = user.region
+          if (user.warehouseId) {
+            session.user.warehouseId = user.warehouseId
+          }
         }
       }
 

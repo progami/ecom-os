@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { withAuth } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma, TransactionType } from '@ecom-os/prisma-wms'
 import * as XLSX from 'xlsx'
 import { generateExportConfig, applyExportConfig } from '@/lib/dynamic-export'
@@ -10,14 +10,9 @@ import { formatDateGMT } from '@/lib/date-utils'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // Allow up to 60 seconds for large exports
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request, session) => {
  try {
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
-
+ const prisma = await getTenantPrisma()
  const searchParams = request.nextUrl.searchParams
  const viewMode = searchParams.get('viewMode') || 'live'
  const date = searchParams.get('date')
@@ -262,4 +257,4 @@ export async function GET(request: NextRequest) {
  details: _error instanceof Error ? _error.message : 'Unknown error'
  }, { status: 500 })
  }
-}
+})

@@ -1,20 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { withAuth } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import * as XLSX from 'xlsx'
 import { getS3Service } from '@/services/s3.service'
 import { formatDateGMT } from '@/lib/date-utils'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // Allow up to 60 seconds for large exports
 
-export async function GET(_request: NextRequest) {
+export const GET = withAuth(async (_request, session) => {
  try {
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
-
+ const prisma = await getTenantPrisma()
  // Fetch all transactions (they now have snapshot data)
  const transactions = await prisma.inventoryTransaction.findMany({
  orderBy: {
@@ -321,4 +316,4 @@ export async function GET(_request: NextRequest) {
  details: _error instanceof Error ? _error.message : 'Unknown error'
  }, { status: 500 })
  }
-}
+})

@@ -10,7 +10,7 @@ import { Package } from '@/lib/lucide-icons'
 import InventoryPanel from './inventory-panel'
 import { redirectToPortal } from '@/lib/portal'
 
-const ALLOWED_ROLES = ['admin', 'staff', 'finance']
+const ALLOWED_ROLES = ['admin', 'staff']
 
 export default function ProductsPage() {
  const router = useRouter()

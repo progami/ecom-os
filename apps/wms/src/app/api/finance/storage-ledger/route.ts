@@ -1,28 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { withAuth } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { getWarehouseFilter } from '@/lib/auth-utils'
 import { Prisma } from '@ecom-os/prisma-wms'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request, session) => {
  try {
  // Rate limiting
  const rateLimitResponse = await checkRateLimit(request, rateLimitConfigs.api)
  if (rateLimitResponse) return rateLimitResponse
-
- const session = await auth()
- if (!session?.user) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
 
  // Only staff and admin can access storage ledger
  if (!['staff', 'admin'].includes(session.user.role)) {
  return NextResponse.json({ error: 'Access denied' }, { status: 403 })
  }
 
+ const prisma = await getTenantPrisma()
  const { searchParams } = request.nextUrl
  const warehouseCode = searchParams.get('warehouseCode')
  const startDate = searchParams.get('startDate')
@@ -149,4 +145,4 @@ export async function GET(request: NextRequest) {
  { status: 500 }
  )
  }
-}
+})

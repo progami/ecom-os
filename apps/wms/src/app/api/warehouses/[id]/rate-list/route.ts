@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { getS3Service } from '@/services/s3.service'
 import { validateFile, scanFileContent } from '@/lib/security/file-upload'
@@ -62,6 +62,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const prisma = await getTenantPrisma()
     const { id } = await params
     const warehouse = await prisma.warehouse.findUnique({
       where: { id },
@@ -101,6 +102,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const prisma = await getTenantPrisma()
     const { id } = await params
     const formData = await request.formData()
     const file = formData.get('file') as File | null
@@ -195,6 +197,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const prisma = await getTenantPrisma()
     const { id } = await params
     const warehouse = await prisma.warehouse.findUnique({
       where: { id },

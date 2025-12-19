@@ -32,14 +32,16 @@ export async function GET() {
 
     const current = getTenantConfig(tenantCode)
 
-    // TODO: Filter available tenants based on user's access
-    // For now, return all tenants
-    const available = getAllTenants().map((t) => ({
-      code: t.code,
-      name: t.name,
-      displayName: t.displayName,
-      flag: t.flag,
-    }))
+    // Filter available tenants to only user's region
+    const userRegion = session.user?.region
+    const available = getAllTenants()
+      .filter((t) => t.code === userRegion)
+      .map((t) => ({
+        code: t.code,
+        name: t.name,
+        displayName: t.displayName,
+        flag: t.flag,
+      }))
 
     return NextResponse.json({
       current: {

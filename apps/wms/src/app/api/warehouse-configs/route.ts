@@ -1,17 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { withAuth } from '@/lib/api/auth-wrapper'
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request, session) => {
  try {
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json(
- { message: 'Unauthorized' },
- { status: 401 }
- )
- }
 
  const searchParams = request.nextUrl.searchParams
  const _warehouseId = searchParams.get('warehouseId')
@@ -29,16 +21,14 @@ export async function GET(request: NextRequest) {
  { status: 500 }
  )
  }
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request, session) => {
  try {
- const session = await auth()
- 
- if (!session || session.user.role !== 'admin') {
+ if (session.user.role !== 'admin') {
  return NextResponse.json(
  { message: 'Unauthorized' },
- { status: 401 }
+ { status: 403 }
  )
  }
 
@@ -63,4 +53,4 @@ export async function POST(request: NextRequest) {
  { status: 500 }
  )
  }
-}
+})

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { withAuth } from '@/lib/api/auth-wrapper';
 import { validateFile, scanFileContent } from '@/lib/security/file-upload';
 import { sanitizeForExcel } from '@/lib/security/input-sanitization';
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter';
@@ -9,16 +9,11 @@ import { z } from 'zod';
 const _MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ['.xlsx', '.xls', '.csv'];
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request, session) => {
  try {
  // Rate limit file uploads
  const rateLimitResponse = await checkRateLimit(request, rateLimitConfigs.upload);
  if (rateLimitResponse) return rateLimitResponse;
-
- const session = await auth();
- if (!session?.user) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
- }
 
  const formData = await request.formData();
  const file = formData.get('file') as File;
@@ -142,4 +137,4 @@ export async function POST(request: NextRequest) {
  { status: 500 }
  );
  }
-}
+})

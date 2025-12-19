@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { withAuth } from '@/lib/api/auth-wrapper'
 import { ValidationError } from '@/lib/api'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import {
  Prisma,
  TransactionType,
@@ -187,13 +187,9 @@ function normalizeAttachmentInput(input: unknown): AttachmentPayload | null {
  }
 }
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request, session) => {
  try {
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+ const prisma = await getTenantPrisma()
 
  const searchParams = request.nextUrl.searchParams
  const limit = parseInt(searchParams.get('limit') || '100')
@@ -268,19 +264,15 @@ export async function GET(request: NextRequest) {
  } catch (_error) {
  // console.error('Failed to fetch transactions:', _error)
  return NextResponse.json({ 
- error: 'Failed to fetch transactions' 
+ error: 'Failed to fetch transactions'
  }, { status: 500 })
  }
-}
+})
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request, session) => {
  const errorContext: Record<string, unknown> = {}
  try {
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+ const prisma = await getTenantPrisma()
 
  const bodyText = await request.text()
  
@@ -1143,20 +1135,20 @@ for (const item of validatedItems) {
   { status: 500 }
  )
  }
-}
+})
 
 // Prevent updates to maintain immutability
-export async function PUT(_request: NextRequest) {
+export const PUT = withAuth(async () => {
  return NextResponse.json({ 
  error: 'Inventory transactions are immutable and cannot be modified',
  message: 'To correct errors, please create an adjustment transaction (ADJUST_IN or ADJUST_OUT)'
  }, { status: 405 })
-}
+})
 
 // Prevent deletes to maintain immutability
-export async function DELETE(_request: NextRequest) {
+export const DELETE = withAuth(async () => {
  return NextResponse.json({ 
  error: 'Inventory transactions are immutable and cannot be deleted',
  message: 'The inventory ledger maintains a permanent audit trail. To correct errors, please create an adjustment transaction'
  }, { status: 405 })
-}
+})
