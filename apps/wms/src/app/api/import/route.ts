@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import type { PrismaClient } from '@ecom-os/prisma-wms'
+import { withAuth } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import * as XLSX from 'xlsx'
 import { getImportConfig, mapExcelRowToEntity } from '@/lib/import-config'
 import { Prisma } from '@ecom-os/prisma-wms'
@@ -9,14 +10,10 @@ export const dynamic = 'force-dynamic'
 
 type ExcelRow = Record<string, unknown>
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request, session) => {
  try {
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
 
+ const prisma = await getTenantPrisma()
  const formData = await request.formData()
  const file = formData.get('file') as File
  const entityName = formData.get('entityName') as string
@@ -51,14 +48,14 @@ export async function POST(request: NextRequest) {
  // Process based on entity type
  switch (entityName) {
  case 'skus':
- const result = await importSkus(data, session.user.id)
+ const result = await importSkus(data, session.user.id, prisma)
  imported = result.imported
  skipped = result.skipped
  errors.push(...result.errors)
  break
 
  case 'warehouses':
- const warehouseResult = await importWarehouses(data, session.user.id)
+ const warehouseResult = await importWarehouses(data, session.user.id, prisma)
  imported = warehouseResult.imported
  skipped = warehouseResult.skipped
  errors.push(...warehouseResult.errors)
@@ -78,9 +75,9 @@ export async function POST(request: NextRequest) {
  details: _error instanceof Error ? _error.message : 'Unknown error'
  }, { status: 500 })
  }
-}
+})
 
-async function importSkus(data: ExcelRow[], _userId: string) {
+async function importSkus(data: ExcelRow[], _userId: string, prisma: PrismaClient) {
  const config = getImportConfig('skus')!
  let imported = 0
  let skipped = 0
@@ -89,7 +86,7 @@ async function importSkus(data: ExcelRow[], _userId: string) {
  for (const row of data) {
  try {
  const { data: mappedData, errors: mappingErrors } = mapExcelRowToEntity(row, config)
- 
+
  if (mappingErrors.length > 0) {
  const skuLabel = String(row['SKU'] ?? mappedData.skuCode ?? 'unknown')
  errors.push(`Row ${skuLabel}: ${mappingErrors.join(', ')}`)
@@ -113,7 +110,7 @@ async function importSkus(data: ExcelRow[], _userId: string) {
  return { imported, skipped, errors }
 }
 
-async function importWarehouses(data: ExcelRow[], _userId: string) {
+async function importWarehouses(data: ExcelRow[], _userId: string, prisma: PrismaClient) {
  const config = getImportConfig('warehouses')!
  let imported = 0
  let skipped = 0
@@ -122,7 +119,7 @@ async function importWarehouses(data: ExcelRow[], _userId: string) {
  for (const row of data) {
  try {
  const { data: mappedData, errors: mappingErrors } = mapExcelRowToEntity(row, config)
- 
+
  if (mappingErrors.length > 0) {
  const warehouseLabel = String(row['Code'] ?? mappedData.code ?? 'unknown')
  errors.push(`Row ${warehouseLabel}: ${mappingErrors.join(', ')}`)

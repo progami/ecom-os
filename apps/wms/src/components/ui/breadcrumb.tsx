@@ -31,7 +31,7 @@ export function Breadcrumb() {
  label = 'Operations'
  break
  case 'finance':
- label = 'Finance'
+ label = 'Ledgers'
  break
  case 'config':
  label = 'Configuration'

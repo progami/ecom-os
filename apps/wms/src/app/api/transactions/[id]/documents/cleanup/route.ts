@@ -1,22 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { withAuthAndParams } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { getS3Service } from '@/services/s3.service'
 
 export const dynamic = 'force-dynamic'
 
-export async function POST(
- request: NextRequest,
- { params }: { params: Promise<{ id: string }> }
-) {
+export const POST = withAuthAndParams(async (request, params, session) => {
  try {
- const { id } = await params
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+ const { id } = params as { id: string }
 
+ const prisma = await getTenantPrisma()
  const body = await request.json()
  const { documentCategory } = body
 
@@ -122,4 +115,4 @@ export async function POST(
  details: _error instanceof Error ? _error.message : 'Unknown error'
  }, { status: 500 })
  }
-}
+})

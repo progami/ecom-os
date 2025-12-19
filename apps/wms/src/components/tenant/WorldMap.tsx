@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ComposableMap,
@@ -9,7 +9,7 @@ import {
   Marker,
 } from 'react-simple-maps'
 import { cn } from '@/lib/utils'
-import { getAllTenants, TenantConfig } from '@/lib/tenant/constants'
+import { getAllTenants, TenantCode, TenantConfig } from '@/lib/tenant/constants'
 
 interface WorldMapProps {
   className?: string
@@ -28,9 +28,43 @@ export function WorldMap({ className }: WorldMapProps) {
   const router = useRouter()
   const [selecting, setSelecting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [userRegion, setUserRegion] = useState<TenantCode | null>(null)
+  const [loading, setLoading] = useState(true)
   const tenants = getAllTenants()
 
+  // Fetch user's allowed region on mount
+  useEffect(() => {
+    async function fetchUserRegion() {
+      try {
+        const response = await fetch('/api/tenant/current')
+        if (response.ok) {
+          const data = await response.json()
+          // User can only access their own region
+          if (data.available && data.available.length > 0) {
+            setUserRegion(data.available[0].code as TenantCode)
+          }
+        }
+      } catch {
+        // If not authenticated, all regions shown but will fail on select
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchUserRegion()
+  }, [])
+
+  const canAccessTenant = (code: string): boolean => {
+    // If still loading or no user region, allow click (API will reject if unauthorized)
+    if (loading || !userRegion) return true
+    return code === userRegion
+  }
+
   const handleSelectTenant = async (tenant: TenantConfig) => {
+    if (!canAccessTenant(tenant.code)) {
+      setError(`You don't have access to the ${tenant.displayName} region`)
+      return
+    }
+
     setSelecting(tenant.code)
     setError(null)
 
@@ -42,7 +76,8 @@ export function WorldMap({ className }: WorldMapProps) {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to select region')
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to select region')
       }
 
       router.push('/dashboard')
@@ -182,17 +217,22 @@ export function WorldMap({ className }: WorldMapProps) {
 
         {/* Region cards */}
         <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-2xl">
-          {tenants.map((tenant) => (
+          {tenants.map((tenant) => {
+            const hasAccess = canAccessTenant(tenant.code)
+            const isDisabled = selecting !== null || !hasAccess
+
+            return (
             <button
               key={tenant.code}
               onClick={() => handleSelectTenant(tenant)}
-              disabled={selecting !== null}
+              disabled={isDisabled}
               className={cn(
                 'group relative overflow-hidden rounded-2xl p-6 text-left transition-all duration-300',
                 'bg-slate-900/50 border border-slate-800',
-                'hover:bg-slate-900 hover:border-slate-700 hover:shadow-2xl hover:shadow-slate-900/50',
+                hasAccess && 'hover:bg-slate-900 hover:border-slate-700 hover:shadow-2xl hover:shadow-slate-900/50',
                 'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-950',
                 selecting === tenant.code && 'ring-2',
+                !hasAccess && 'opacity-40 cursor-not-allowed',
                 selecting !== null && selecting !== tenant.code && 'opacity-50'
               )}
               style={{
@@ -244,6 +284,8 @@ export function WorldMap({ className }: WorldMapProps) {
                         </svg>
                         Connecting...
                       </>
+                    ) : !hasAccess ? (
+                      <span className="text-slate-500">No Access</span>
                     ) : (
                       <>
                         Enter
@@ -266,7 +308,8 @@ export function WorldMap({ className }: WorldMapProps) {
                 </div>
               </div>
             </button>
-          ))}
+            )
+          })}
         </div>
 
         {/* Error message */}

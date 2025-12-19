@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { getTenantPrisma } from '@/lib/tenant/server';
 import { CostCategory } from '@ecom-os/prisma-wms';
 
 export interface AggregatedCost {
@@ -31,6 +31,7 @@ export async function aggregateCostsForBillingPeriod(
  warehouseCode: string,
  billingPeriod: BillingPeriod
 ): Promise<AggregatedCost[]> {
+ const prisma = await getTenantPrisma()
  const aggregatedCosts: AggregatedCost[] = [];
 
  // Get warehouse info
@@ -123,6 +124,7 @@ export async function getCostSummaryByCategory(
  startDate: Date,
  endDate: Date
 ): Promise<Map<CostCategory, number>> {
+ const prisma = await getTenantPrisma()
  const summary = new Map<CostCategory, number>();
 
  const costs = await prisma.costLedger.findMany({
@@ -152,6 +154,7 @@ export async function calculateAverageCostPerUnit(
  startDate: Date,
  endDate: Date
 ): Promise<number> {
+ const prisma = await getTenantPrisma()
  // Get all transactions for this SKU in the period
  const transactions = await prisma.inventoryTransaction.findMany({
  where: {

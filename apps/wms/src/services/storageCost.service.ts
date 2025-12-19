@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma, TransactionType } from '@ecom-os/prisma-wms'
 import { addMonths, eachDayOfInterval, endOfWeek, format, startOfWeek } from 'date-fns'
 import { randomUUID } from 'crypto'
@@ -58,6 +58,7 @@ export async function recordStorageCostEntry({
  batchLot,
  transactionDate,
 }: RecordStorageCostParams) {
+ const prisma = await getTenantPrisma()
  const weekEndingDate = endOfWeek(transactionDate, { weekStartsOn: 1 })
  const weekStartingDate = startOfWeek(transactionDate, { weekStartsOn: 1 })
 
@@ -400,6 +401,7 @@ export async function recordStorageCostEntry({
  * This is run as a weekly batch process to catch any missed entries
  */
 export async function ensureWeeklyStorageEntries(date: Date = new Date()) {
+ const prisma = await getTenantPrisma()
  const weekEndingDate = endOfWeek(date, { weekStartsOn: 1 })
 
  // Get all batches with positive inventory balances
@@ -483,6 +485,7 @@ export async function recalculateStorageCosts(
  recalculated: number
  errors: string[]
 }> {
+ const prisma = await getTenantPrisma()
  const where: Prisma.StorageLedgerWhereInput = {
  isCostCalculated: false,
  }
@@ -543,6 +546,7 @@ export async function getStorageCostSummary(
  endDate: Date,
  warehouseCode?: string
 ) {
+ const prisma = await getTenantPrisma()
  const where: Prisma.StorageLedgerWhereInput = {
  weekEndingDate: {
  gte: startDate,

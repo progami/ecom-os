@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { getCandidateSessionCookieNames, decodePortalSession, getAppEntitlement } from '@ecom-os/auth'
+import { getCandidateSessionCookieNames, decodePortalSession } from '@ecom-os/auth'
 import { withBasePath, withoutBasePath } from '@/lib/utils/base-path'
 import { portalUrl } from '@/lib/portal'
 import { TENANT_COOKIE_NAME, isValidTenantCode } from '@/lib/tenant/constants'
@@ -44,7 +44,6 @@ export async function middleware(request: NextRequest) {
  '/no-access',
  '/api/health',
  '/api/logs',
- '/api/demo/setup',
  ]
 
  // Routes that should be prefix-matched
@@ -62,16 +61,11 @@ export async function middleware(request: NextRequest) {
  // Combine both checks
  const isPublicRoute = isExactPublicRoute || isPublicPrefix
 
- const bypassAuthEnv = process.env.BYPASS_AUTH === 'true'
- const bypassAuthHeader = request.headers.get('x-bypass-auth') === 'true'
-
- // Skip auth check for public routes, static assets, or when bypass flag is set
+ // Skip auth check for public routes and static assets
  if (
  isPublicRoute ||
  normalizedPath.startsWith('/_next') ||
- normalizedPath === '/favicon.ico' ||
- bypassAuthEnv ||
- bypassAuthHeader
+ normalizedPath === '/favicon.ico'
  ) {
  return NextResponse.next()
  }
@@ -95,25 +89,15 @@ export async function middleware(request: NextRequest) {
  })
 
  const hasSession = !!decoded
- const wmsEntitlement = decoded ? getAppEntitlement(decoded.roles, 'wms') : undefined
- const hasAccess = hasSession && !!wmsEntitlement
 
- // If no token or no WMS entitlement, redirect to portal
- if (!hasAccess && !normalizedPath.startsWith('/auth/')) {
+ // If no session, redirect to portal login
+ // Note: Region-based access control is handled by the tenant guard in API routes
+ if (!hasSession && !normalizedPath.startsWith('/auth/')) {
    const forwardedProto = request.headers.get('x-forwarded-proto') || 'http'
    const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host
    const basePath = process.env.BASE_PATH || ''
    const callbackUrl = `${forwardedProto}://${forwardedHost}${basePath}${pathname}${request.nextUrl.search}`
 
-   // User has session but no WMS access - redirect to no-access page
-   if (hasSession && !wmsEntitlement) {
-     const url = request.nextUrl.clone()
-     url.pathname = withBasePath('/no-access')
-     url.search = ''
-     return NextResponse.redirect(url)
-   }
-
-   // No session at all
    const redirect = portalUrl('/login', request, `${forwardedProto}://${forwardedHost}`)
    redirect.searchParams.set('callbackUrl', callbackUrl)
    return NextResponse.redirect(redirect)

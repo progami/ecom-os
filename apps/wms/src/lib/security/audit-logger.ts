@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { sanitizeForAudit } from './input-sanitization'
 
@@ -17,6 +17,7 @@ export interface AuditLogEntry {
  */
 export async function auditLog(entry: AuditLogEntry) {
  try {
+ const prisma = await getTenantPrisma()
  // Sanitize data before storing
  const sanitizedData: Prisma.JsonValue =
  entry.data === undefined ? null : sanitizeAuditData(entry.data)
@@ -127,6 +128,7 @@ export async function getAuditLogs(
  userId?: string
  } = {}
 ) {
+ const prisma = await getTenantPrisma()
  const where: Prisma.AuditLogWhereInput = {
  entity: entityType,
  entityId: entityId,
@@ -173,6 +175,7 @@ export async function generateComplianceReport(
  userIds?: string[]
  } = {}
 ) {
+ const prisma = await getTenantPrisma()
  const where: Prisma.AuditLogWhereInput = {
  createdAt: {
  gte: startDate,

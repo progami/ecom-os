@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { withAuthAndParams } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { getS3Service } from '@/services/s3.service'
 
@@ -40,18 +40,11 @@ function parseAttachmentList(value: unknown): TransactionAttachment[] {
  }))
 }
 
-export async function GET(
- request: NextRequest,
- { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withAuthAndParams(async (request, params, session) => {
  try {
- const { id } = await params
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+ const { id } = params as { id: string }
 
+ const prisma = await getTenantPrisma()
  const transaction = await prisma.inventoryTransaction.findUnique({
  where: { id },
  select: {
@@ -160,25 +153,18 @@ export async function GET(
  } catch (_error) {
  // console.error('Failed to fetch transaction:', _error)
  return NextResponse.json({ 
- error: 'Failed to fetch transaction' 
+ error: 'Failed to fetch transaction'
  }, { status: 500 })
  }
-}
+})
 
-export async function PUT(
- request: NextRequest,
- { params }: { params: Promise<{ id: string }> }
-) {
+export const PUT = withAuthAndParams(async (request, params, session) => {
  try {
- const { id } = await params
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+ const { id } = params as { id: string }
 
+ const prisma = await getTenantPrisma()
  const body = await request.json()
- 
+
  // Get the existing transaction
  const existingTransaction = await prisma.inventoryTransaction.findUnique({
  where: { id }
@@ -225,23 +211,16 @@ export async function PUT(
  } catch (_error) {
  // console.error('Failed to update transaction:', _error)
  return NextResponse.json({ 
- error: 'Failed to update transaction' 
+ error: 'Failed to update transaction'
  }, { status: 500 })
  }
-}
+})
 
-export async function DELETE(
- request: NextRequest,
- { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = withAuthAndParams(async (request, params, session) => {
  try {
- const { id } = await params
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+ const { id } = params as { id: string }
 
+ const prisma = await getTenantPrisma()
  // First validate if this transaction can be deleted
  const nextAuthBaseUrl = process.env.NEXTAUTH_URL
  if (!nextAuthBaseUrl) {
@@ -312,7 +291,7 @@ export async function DELETE(
  } catch (_error) {
  // console.error('Failed to delete transaction:', _error)
  return NextResponse.json({ 
- error: 'Failed to delete transaction' 
+ error: 'Failed to delete transaction'
  }, { status: 500 })
  }
-}
+})

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import type { Session } from 'next-auth'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { withAuth } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
 import { auditLog } from '@/lib/security/audit-logger'
 import { endOfWeek } from 'date-fns'
@@ -15,18 +14,11 @@ const weeklyCalculationSchema = z.object({
  forceRecalculate: z.boolean().optional(),
 })
 
-export async function POST(request: NextRequest) {
- let session: Session | null = null
- 
+export const POST = withAuth(async (request, session) => {
  try {
  // Rate limiting
  const rateLimitResponse = await checkRateLimit(request, rateLimitConfigs.api)
  if (rateLimitResponse) return rateLimitResponse
-
- session = await auth()
- if (!session?.user) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
 
  // Only admin users can trigger weekly calculations
  if (session.user.role !== 'admin') {
@@ -62,6 +54,7 @@ export async function POST(request: NextRequest) {
  const warehouseId = data.warehouseId
 
  // Get warehouse code if warehouse ID was provided
+ const prisma = await getTenantPrisma()
  let warehouseCode = data.warehouseCode
  if (warehouseId && !warehouseCode) {
  const warehouse = await prisma.warehouse.findUnique({
@@ -112,27 +105,22 @@ export async function POST(request: NextRequest) {
  entityType: 'StorageCalculation',
  entityId: 'WEEKLY',
  action: 'ERROR',
- userId: session?.user?.id || 'SYSTEM',
+ userId: session.user.id,
  data: { error: error instanceof Error ? error.message : String(error) }
  })
- 
+
  return NextResponse.json(
  { error: 'Failed to calculate weekly storage costs' },
  { status: 500 }
  )
  }
-}
+})
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request, session) => {
  try {
  // Rate limiting
  const rateLimitResponse = await checkRateLimit(request, rateLimitConfigs.api)
  if (rateLimitResponse) return rateLimitResponse
-
- const session = await auth()
- if (!session?.user) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
 
  // Only admin users can view calculation status
  if (session.user.role !== 'admin') {
@@ -155,4 +143,4 @@ export async function GET(request: NextRequest) {
  { status: 500 }
  )
  }
-}
+})

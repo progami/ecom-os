@@ -1,21 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { withAuth } from '@/lib/api/auth-wrapper'
 import { checkRateLimit, rateLimitConfigs } from '@/lib/security/rate-limiter'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { startOfDay, endOfDay, subDays } from 'date-fns'
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request, session) => {
  try {
  // Rate limiting
  const rateLimitResponse = await checkRateLimit(request, rateLimitConfigs.api)
  if (rateLimitResponse) return rateLimitResponse
 
- const session = await auth()
- if (!session?.user) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
-
+ const prisma = await getTenantPrisma()
  const searchParams = request.nextUrl.searchParams
  const days = parseInt(searchParams.get('days') || '7')
  const warehouseId = searchParams.get('warehouseId')
@@ -167,4 +163,4 @@ export async function GET(request: NextRequest) {
  { status: 500 }
  )
  }
-}
+})

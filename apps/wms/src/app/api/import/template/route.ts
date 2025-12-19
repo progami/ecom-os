@@ -1,17 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { withAuth } from '@/lib/api/auth-wrapper'
 import * as XLSX from 'xlsx'
 import { getImportConfig } from '@/lib/import-config'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request, session) => {
  try {
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
 
  const searchParams = request.nextUrl.searchParams
  const entityName = searchParams.get('entity')
@@ -89,7 +84,7 @@ export async function GET(request: NextRequest) {
  details: _error instanceof Error ? _error.message : 'Unknown error'
  }, { status: 500 })
  }
-}
+})
 
 interface ImportConfig {
  displayName: string

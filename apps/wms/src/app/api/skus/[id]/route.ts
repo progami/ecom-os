@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { withAuthAndParams } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 export const dynamic = 'force-dynamic'
 
 // GET /api/skus/[id] - Get a single SKU by ID
-export async function GET(
- request: NextRequest,
- { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withAuthAndParams(async (_request, params, _session) => {
  try {
- const { id } = await params
- const session = await auth()
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+ const { id } = params as { id: string }
 
+ const prisma = await getTenantPrisma()
  const sku = await prisma.sku.findUnique({
  where: { id }
  })
@@ -46,20 +40,14 @@ export async function GET(
  { status: 500 }
  )
  }
-}
+})
 
 // PUT /api/skus/[id] - Update a SKU
-export async function PUT(
- request: NextRequest,
- { params }: { params: Promise<{ id: string }> }
-) {
+export const PUT = withAuthAndParams(async (request, params, _session) => {
  try {
- const { id } = await params
- const session = await auth()
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+ const { id } = params as { id: string }
 
+ const prisma = await getTenantPrisma()
  const body = await request.json()
 
  // Validate required fields
@@ -112,20 +100,14 @@ export async function PUT(
  { status: 500 }
  )
  }
-}
+})
 
 // DELETE /api/skus/[id] - Delete or deactivate a SKU
-export async function DELETE(
- request: NextRequest,
- { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = withAuthAndParams(async (_request, params, _session) => {
  try {
- const { id } = await params
- const session = await auth()
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+ const { id } = params as { id: string }
 
+ const prisma = await getTenantPrisma()
  // Check if SKU has related data
  const sku = await prisma.sku.findUnique({
  where: { id }
@@ -172,4 +154,4 @@ export async function DELETE(
  { status: 500 }
  )
  }
-}
+})

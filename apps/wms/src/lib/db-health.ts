@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 
 export interface DatabaseHealthCheck {
  isHealthy: boolean
@@ -8,6 +8,7 @@ export interface DatabaseHealthCheck {
 
 export async function checkDatabaseHealth(): Promise<DatabaseHealthCheck> {
  try {
+ const prisma = await getTenantPrisma()
  // Try to connect and run a simple query
  await prisma.$queryRaw`SELECT 1`
  

@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 
 export interface StorageRateResult {
  ratePerPalletDay: number
@@ -20,10 +20,11 @@ function storageCostNameForTier(tier: StorageTier) {
  * @returns Storage rate information or null if not found
  */
 export async function getStorageRate(
- warehouseCode: string, 
+ warehouseCode: string,
  effectiveDate: Date = new Date(),
  tier: StorageTier = 'STANDARD'
 ): Promise<StorageRateResult | null> {
+ const prisma = await getTenantPrisma()
  const requestedCostName = storageCostNameForTier(tier)
  
  // Get active storage rate for warehouse
@@ -89,6 +90,7 @@ export async function getStorageRatesForWarehouses(
  warehouseCodes: string[],
  effectiveDate: Date = new Date()
 ): Promise<Map<string, StorageRateResult>> {
+ await getTenantPrisma()
  const rates = new Map<string, StorageRateResult>()
  
  for (const warehouseCode of warehouseCodes) {
@@ -111,6 +113,7 @@ export async function hasValidStorageRate(
  warehouseCode: string,
  effectiveDate: Date = new Date()
 ): Promise<boolean> {
+ await getTenantPrisma()
  const rate = await getStorageRate(warehouseCode, effectiveDate)
  return rate !== null
 }

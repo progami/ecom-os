@@ -1,15 +1,10 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { withAuth } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 
-export async function GET() {
+export const GET = withAuth(async (_request, session) => {
  try {
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'No session found' }, { status: 401 })
- }
-
+ const prisma = await getTenantPrisma()
  // Check if the user from session exists in database
  const user = await prisma.user.findUnique({
  where: { id: session.user.id },
@@ -47,4 +42,4 @@ export async function GET() {
  details: _error instanceof Error ? _error.message : 'Unknown error'
  }, { status: 500 })
  }
-}
+})

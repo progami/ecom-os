@@ -1,23 +1,19 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { withAuth } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 export const dynamic = 'force-dynamic'
 
-export async function POST() {
+export const POST = withAuth(async (_request, session) => {
  try {
- const session = await auth()
- if (!session) {
- // console.log('Setup warehouse: No session found')
- return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
- }
  if (session.user.role !== 'admin') {
  // console.log('Setup warehouse: User is not admin:', session.user.role)
  return NextResponse.json({ error: 'Admin access required' }, { status: 403 })
  }
- 
+
+ const prisma = await getTenantPrisma()
  // console.log('Setup warehouse: Starting setup for user:', session.user.email)
- 
+
  // Create or update Amazon FBA warehouse
  let amazonWarehouse = await prisma.warehouse.findFirst({
  where: {
@@ -136,4 +132,4 @@ export async function POST() {
  { status: 500 }
  )
  }
-}
+})

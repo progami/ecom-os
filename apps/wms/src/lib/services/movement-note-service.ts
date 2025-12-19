@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import {
   Prisma,
   MovementNoteStatus,
@@ -31,6 +31,7 @@ export interface CreateMovementNoteInput {
 }
 
 export async function listMovementNotes(filter?: { purchaseOrderId?: string | null }) {
+ const prisma = await getTenantPrisma()
  const notes = await prisma.movementNote.findMany({
  where: filter?.purchaseOrderId ? { purchaseOrderId: filter.purchaseOrderId } : undefined,
  orderBy: { createdAt: 'desc' },
@@ -53,6 +54,7 @@ export async function listMovementNotes(filter?: { purchaseOrderId?: string | nu
 }
 
 export async function getMovementNoteById(id: string) {
+ const prisma = await getTenantPrisma()
  const note = await prisma.movementNote.findUnique({
  where: { id },
  include: {
@@ -82,6 +84,7 @@ export async function createMovementNote(input: CreateMovementNoteInput, user: U
  throw new ValidationError('At least one line is required')
  }
 
+ const prisma = await getTenantPrisma()
  return prisma.$transaction(async tx => {
  const purchaseOrder = await tx.purchaseOrder.findUnique({
  where: { id: input.purchaseOrderId },
@@ -160,6 +163,7 @@ export async function createMovementNote(input: CreateMovementNoteInput, user: U
 }
 
 export async function cancelMovementNote(id: string) {
+ const prisma = await getTenantPrisma()
  return prisma.$transaction(async tx => {
  const note = await tx.movementNote.findUnique({
  where: { id },
@@ -195,6 +199,7 @@ function formatNoteOrderNumber<T extends { purchaseOrder: { orderNumber: string 
 }
 
 export async function postMovementNote(id: string, _user: UserContext) {
+ const prisma = await getTenantPrisma()
  return prisma.$transaction(async tx => {
  const note = await tx.movementNote.findUnique({
  where: { id },

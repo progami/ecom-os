@@ -1,5 +1,5 @@
 import { withAuth, withRole, ApiResponses, z } from '@/lib/api'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma, type Sku } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay, sanitizeSearchQuery, escapeRegex } from '@/lib/security/input-sanitization'
 export const dynamic = 'force-dynamic'
@@ -28,8 +28,8 @@ const updateSkuSchema = createSkuSchema.partial().extend({
 })
 
 // GET /api/skus - List SKUs
-export const GET = withAuth<SkuWithCounts[]>(async (request, _session) => {
-
+export const GET = withAuth(async (request, _session) => {
+ const prisma = await getTenantPrisma()
  const searchParams = request.nextUrl.searchParams
  const search = searchParams.get('search') ? sanitizeSearchQuery(searchParams.get('search')!) : null
  const includeInactive = searchParams.get('includeInactive') === 'true'
@@ -80,8 +80,8 @@ export const GET = withAuth<SkuWithCounts[]>(async (request, _session) => {
 })
 
 // POST /api/skus - Create new SKU
-export const POST = withRole<Sku>(['admin', 'staff'], async (request, _session) => {
-
+export const POST = withRole(['admin', 'staff'], async (request, _session) => {
+ const prisma = await getTenantPrisma()
  const body = await request.json()
  const validatedData = createSkuSchema.parse(body)
 
@@ -115,8 +115,8 @@ export const POST = withRole<Sku>(['admin', 'staff'], async (request, _session) 
 })
 
 // PATCH /api/skus - Update SKU
-export const PATCH = withRole<Sku>(['admin', 'staff'], async (request, _session) => {
-
+export const PATCH = withRole(['admin', 'staff'], async (request, _session) => {
+ const prisma = await getTenantPrisma()
  const searchParams = request.nextUrl.searchParams
  const skuId = searchParams.get('id')
  
@@ -150,8 +150,8 @@ export const PATCH = withRole<Sku>(['admin', 'staff'], async (request, _session)
 })
 
 // DELETE /api/skus - Delete SKU
-export const DELETE = withRole<DeleteSkuResponse>(['admin'], async (request, _session) => {
-
+export const DELETE = withRole(['admin'], async (request, _session) => {
+ const prisma = await getTenantPrisma()
  const searchParams = request.nextUrl.searchParams
  const skuId = searchParams.get('id')
  

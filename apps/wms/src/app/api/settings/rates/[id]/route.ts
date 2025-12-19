@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 export const dynamic = 'force-dynamic'
 
 export async function GET(
@@ -10,11 +10,12 @@ export async function GET(
  try {
  const { id: rateId } = await params
  const session = await auth()
- 
+
  if (!session) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }
 
+ const prisma = await getTenantPrisma()
  const rate = await prisma.costRate.findUnique({
  where: { id: rateId },
  include: {
@@ -66,6 +67,7 @@ export async function PUT(
    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const prisma = await getTenantPrisma()
   const body = await request.json()
   const { costValue, endDate } = body as {
    costValue?: number
@@ -148,6 +150,7 @@ export async function DELETE(
    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  const prisma = await getTenantPrisma()
   await prisma.$transaction(async (tx) => {
    await tx.storageLedger.updateMany({
     where: { costRateId: rateId },

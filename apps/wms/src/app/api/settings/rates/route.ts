@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type { Session } from 'next-auth'
+import type { PrismaClient } from '@ecom-os/prisma-wms'
 import bcrypt from 'bcryptjs'
 import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma, getCurrentTenantCode } from '@/lib/tenant/server'
 import { UserRole } from '@ecom-os/prisma-wms'
 export const dynamic = 'force-dynamic'
 
@@ -18,7 +19,7 @@ const normalizeRole = (role?: unknown): UserRole => {
  return 'staff'
 }
 
-const ensureWmsUser = async (session: Session) => {
+const ensureWmsUser = async (session: Session, prisma: PrismaClient) => {
  const rawEmail = session.user?.email
 
  if (!rawEmail) {
@@ -29,6 +30,7 @@ const ensureWmsUser = async (session: Session) => {
 
  const fullName = session.user?.name || email
  const role = normalizeRole((session.user as { role?: string })?.role)
+ const region = await getCurrentTenantCode()
 
  const user = await prisma.user.upsert({
   where: { email },
@@ -43,6 +45,7 @@ const ensureWmsUser = async (session: Session) => {
    passwordHash: PLACEHOLDER_PASSWORD_HASH,
    fullName,
    role,
+   region,
    isActive: true,
   },
   select: { id: true },
@@ -54,11 +57,12 @@ const ensureWmsUser = async (session: Session) => {
 export async function GET(_request: NextRequest) {
  try {
  const session = await auth()
- 
+
  if (!session) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }
 
+ const prisma = await getTenantPrisma()
  // All authenticated users can view rates
 
  const rates = await prisma.costRate.findMany({
@@ -109,6 +113,7 @@ export async function POST(request: NextRequest) {
    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
+  const prisma = await getTenantPrisma()
   const body = await request.json()
   const {
    warehouseId,
@@ -167,7 +172,7 @@ export async function POST(request: NextRequest) {
    )
   }
 
-  const wmsUser = await ensureWmsUser(session)
+  const wmsUser = await ensureWmsUser(session, prisma)
 
   const newRate = await prisma.costRate.create({
    data: {

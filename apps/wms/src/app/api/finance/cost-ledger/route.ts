@@ -1,11 +1,12 @@
 import { withAuth, ApiResponses } from '@/lib/api'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { aggregateCostLedger } from '@ecom-os/ledger'
 
 export const dynamic = 'force-dynamic'
 
 export const GET = withAuth(async (request, _session) => {
+ const prisma = await getTenantPrisma()
  const searchParams = request.nextUrl.searchParams
  const groupBy = (searchParams.get('groupBy') as 'week' | 'month') || 'week'
  const warehouseCode = searchParams.get('warehouseCode')

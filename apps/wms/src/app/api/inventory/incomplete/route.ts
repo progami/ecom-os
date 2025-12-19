@@ -1,16 +1,12 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma'
+import { withAuth } from '@/lib/api/auth-wrapper';
+import { getTenantPrisma } from '@/lib/tenant/server'
 import type { TransactionType } from '@ecom-os/prisma-wms';
 export const dynamic = 'force-dynamic'
 
-export async function GET(_request: Request) {
+export const GET = withAuth(async (_request, session) => {
  try {
- const session = await auth();
- if (!session?.user) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
- }
-
+ const prisma = await getTenantPrisma()
  // Get incomplete transactions based on user's warehouse
  let scopedWarehouseCode: string | undefined
  if (session.user.role === 'staff' && session.user.warehouseId) {
@@ -112,4 +108,4 @@ export async function GET(_request: Request) {
  { status: 500 }
  );
  }
-}
+})

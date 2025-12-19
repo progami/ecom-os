@@ -184,6 +184,10 @@ export class UserService extends BaseService {
  // Hash password
  const passwordHash = await bcrypt.hash(validatedData.password, 10)
 
+ // Get current tenant code for region assignment
+ const { getCurrentTenantCode } = await import('@/lib/tenant/server')
+ const currentTenant = await getCurrentTenantCode()
+
  // Create user
  const newUser = await tx.user.create({
  data: {
@@ -192,6 +196,7 @@ export class UserService extends BaseService {
  fullName: validatedData.fullName,
  passwordHash: passwordHash,
  role: validatedData.role,
+ region: currentTenant,
  warehouseId: validatedData.warehouseId,
  isActive: validatedData.isActive
  },
