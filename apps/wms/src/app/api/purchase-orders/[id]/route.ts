@@ -5,6 +5,9 @@ import {
  updatePurchaseOrderDetails,
   getPurchaseOrderVoidMetadata,
 } from '@/lib/services/purchase-order-service'
+import {
+  serializePurchaseOrder as serializeWithStageData,
+} from '@/lib/services/po-stage-service'
 
 export const GET = withAuthAndParams(async (_request, params, _session) => {
  const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params?.id?.[0] : undefined
@@ -19,12 +22,14 @@ export const GET = withAuthAndParams(async (_request, params, _session) => {
 
  const voidMeta = await getPurchaseOrderVoidMetadata(order.id)
 
- return ApiResponses.success(
- serializePurchaseOrder(order, {
- voidedFromStatus: voidMeta?.voidedFromStatus ?? null,
- voidedAt: voidMeta?.voidedAt ?? null,
+ // Use the new serializer that includes stageData and approvalHistory
+ const serialized = serializeWithStageData(order)
+
+ return ApiResponses.success({
+   ...serialized,
+   voidedFromStatus: voidMeta?.voidedFromStatus ?? null,
+   voidedAt: voidMeta?.voidedAt ?? null,
  })
- )
 })
 
 const UpdateDetailsSchema = z.object({

@@ -512,11 +512,15 @@ export function serializePurchaseOrder(order: PurchaseOrder & { lines?: any[] })
     // Lines if included
     lines: order.lines?.map((line) => ({
       id: line.id,
-      itemSku: line.itemSku,
-      itemName: line.itemName,
+      skuCode: line.skuCode,
+      skuDescription: line.skuDescription,
+      batchLot: line.batchLot,
       quantity: line.quantity,
-      receivedQuantity: line.receivedQuantity,
-      unitCost: line.unitCost,
+      unitCost: line.unitCost ? Number(line.unitCost) : null,
+      status: line.status,
+      postedQuantity: line.postedQuantity,
+      createdAt: line.createdAt?.toISOString?.() ?? line.createdAt,
+      updatedAt: line.updatedAt?.toISOString?.() ?? line.updatedAt,
     })),
   }
 }
