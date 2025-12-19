@@ -39,7 +39,21 @@ export async function GET(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    return NextResponse.json(item)
+    // Fetch assigned reviewer details if exists
+    let assignedReviewer = null
+    if (item.assignedReviewerId) {
+      assignedReviewer = await prisma.employee.findUnique({
+        where: { id: item.assignedReviewerId },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          position: true,
+        },
+      })
+    }
+
+    return NextResponse.json({ ...item, assignedReviewer })
   } catch (e) {
     return safeErrorResponse(e, 'Failed to fetch performance review')
   }
@@ -91,7 +105,7 @@ export async function PATCH(req: Request, context: RouteContext) {
     if (data.reviewType !== undefined) updates.reviewType = data.reviewType
     if (data.reviewPeriod !== undefined) updates.reviewPeriod = data.reviewPeriod
     if (data.reviewDate !== undefined) updates.reviewDate = new Date(data.reviewDate)
-    if (data.reviewerName !== undefined) updates.reviewerName = data.reviewerName
+    // reviewerName is derived from assignedReviewerId - not editable
     if (data.overallRating !== undefined) updates.overallRating = data.overallRating
     if (data.qualityOfWork !== undefined) updates.qualityOfWork = data.qualityOfWork
     if (data.productivity !== undefined) updates.productivity = data.productivity
