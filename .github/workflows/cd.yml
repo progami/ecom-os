@@ -240,11 +240,12 @@ jobs:
             fi
           done
 
-      - name: Generate Prisma clients
+      - name: Generate Prisma clients (parallel)
         run: |
-          pnpm --filter @ecom-os/wms db:generate || true
-          pnpm --filter @ecom-os/x-plan prisma:generate || true
-          cd apps/hrms && npx prisma generate || true
+          (pnpm --filter @ecom-os/wms db:generate || true) &
+          (pnpm --filter @ecom-os/x-plan prisma:generate || true) &
+          (cd apps/hrms && npx prisma generate || true) &
+          wait
 
       - name: Build changed apps
         run: |
