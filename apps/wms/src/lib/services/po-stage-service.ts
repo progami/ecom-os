@@ -482,6 +482,25 @@ export const PO_STAGE_COLORS: Record<PurchaseOrderStatus, string> = {
 }
 
 /**
+ * Serialize stage data dates to ISO strings
+ */
+function serializeStageData(data: ReturnType<typeof getStageData>): Record<string, any> {
+  return {
+    manufacturing: {
+      ...data.manufacturing,
+      manufacturingStart: data.manufacturing.manufacturingStart?.toISOString?.() ?? data.manufacturing.manufacturingStart ?? null,
+      manufacturingEnd: data.manufacturing.manufacturingEnd?.toISOString?.() ?? data.manufacturing.manufacturingEnd ?? null,
+    },
+    ocean: data.ocean,
+    warehouse: data.warehouse,
+    shipped: {
+      ...data.shipped,
+      shippedAt: data.shipped.shippedAt?.toISOString?.() ?? data.shipped.shippedAt ?? null,
+    },
+  }
+}
+
+/**
  * Serialize a PurchaseOrder for API responses
  */
 export function serializePurchaseOrder(order: PurchaseOrder & { lines?: any[] }): Record<string, any> {
@@ -499,9 +518,12 @@ export function serializePurchaseOrder(order: PurchaseOrder & { lines?: any[] })
     receiveType: order.receiveType,
     isLegacy: order.isLegacy,
 
-    // Stage data
-    stageData: getStageData(order),
-    approvalHistory: getStageApprovalHistory(order),
+    // Stage data - serialize dates to ISO strings
+    stageData: serializeStageData(getStageData(order)),
+    approvalHistory: getStageApprovalHistory(order).map(h => ({
+      ...h,
+      approvedAt: h.approvedAt?.toISOString() ?? null,
+    })),
 
     // Metadata
     createdAt: order.createdAt.toISOString(),
