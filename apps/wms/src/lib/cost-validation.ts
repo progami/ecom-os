@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { CostCategory } from '@ecom-os/prisma-wms'
 
 /**
@@ -8,6 +8,7 @@ export async function validateCostAgainstRates(
  warehouseCode: string,
  costCategory: CostCategory
 ): Promise<{ valid: boolean; message?: string }> {
+ const prisma = await getTenantPrisma()
  // Get warehouse
  const warehouse = await prisma.warehouse.findUnique({
  where: { code: warehouseCode }
@@ -42,6 +43,7 @@ export async function validateCostAgainstRates(
  * Get valid cost categories for a warehouse
  */
 export async function getValidCostCategories(warehouseCode: string): Promise<CostCategory[]> {
+ const prisma = await getTenantPrisma()
  const warehouse = await prisma.warehouse.findUnique({
  where: { code: warehouseCode },
  include: {
@@ -66,6 +68,7 @@ export async function getCostRate(
  warehouseCode: string,
  costCategory: CostCategory
 ) {
+ const prisma = await getTenantPrisma()
  const warehouse = await prisma.warehouse.findUnique({
  where: { code: warehouseCode }
  })

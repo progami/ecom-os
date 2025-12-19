@@ -15,6 +15,7 @@ model User {
   passwordHash         String                 @map("password_hash")
   fullName             String                 @map("full_name")
   role                 UserRole               @default(staff)
+  region               TenantCode             @default(US)
   warehouseId          String?                @map("warehouse_id")
   isActive             Boolean                @default(true) @map("is_active")
   isDemo               Boolean                @default(false) @map("is_demo")
@@ -392,10 +393,16 @@ model AuditLog {
 
 enum UserRole {
   admin
-  finance
   staff
 
   @@map("UserRole")
+}
+
+enum TenantCode {
+  US
+  UK
+
+  @@map("TenantCode")
 }
 
 enum CostCategory {

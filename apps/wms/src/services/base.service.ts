@@ -127,7 +127,7 @@ export abstract class BaseService {
  // For non-admin users, check role-based permissions
  // This is a simplified permission check - in a real app, you'd have a proper permission system
  const rolePermissions: Record<string, string[]> = {
- staff: ['inventory.read', 'inventory.write', 'finance.read'],
+ staff: ['inventory.read', 'inventory.write'],
  admin: [] // Admin has all permissions, handled above
  }
 

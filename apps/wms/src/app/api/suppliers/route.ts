@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
  try {
+ const prisma = await getTenantPrisma()
  // For now, return empty array since supplier column may not have data yet
  const suppliers: string[] = []
- 
+
  try {
  // Try to get distinct suppliers from RECEIVE transactions
  const transactions = await prisma.inventoryTransaction.findMany({

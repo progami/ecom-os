@@ -4,7 +4,7 @@
  * This replaces the confusing "trigger" pattern with a clear service layer
  */
 
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma, TransactionType } from '@ecom-os/prisma-wms'
 import { addMinutes } from 'date-fns'
 import { handleTransactionCosts } from '@/lib/events/transaction-cost-handler'
@@ -38,6 +38,7 @@ function hasLinkedPurchaseOrder(data: Prisma.InventoryTransactionUncheckedCreate
  */
 export async function createTransaction(input: CreateTransactionInput) {
  const { data, costs, purchaseOrder } = input
+ const prisma = await getTenantPrisma()
 
  const transaction = await prisma.$transaction(async (tx) => {
  const hasPurchaseOrderId = hasLinkedPurchaseOrder(data)
@@ -101,6 +102,7 @@ export async function createTransactionBatch(
  inputs: CreateTransactionInput[],
  splitCosts?: boolean
 ) {
+ const prisma = await getTenantPrisma()
  return await prisma.$transaction(async (tx) => {
  const results = []
  
@@ -179,7 +181,7 @@ function shouldProcessCosts(type: TransactionType): boolean {
  return type === 'RECEIVE' || type === 'SHIP'
 }
 
-type TransactionClient = typeof prisma | Prisma.TransactionClient
+type TransactionClient = Awaited<ReturnType<typeof getTenantPrisma>> | Prisma.TransactionClient
 
 async function createInventoryTransactionWithUniqueMinute(
  client: TransactionClient,

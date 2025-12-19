@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { PerformanceReviewsApi, type PerformanceReview } from '@/lib/api-client'
 import { ClipboardDocumentCheckIcon, PencilIcon, TrashIcon, StarFilledIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
-import { Card, CardDivider } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -20,10 +20,14 @@ const REVIEW_TYPE_LABELS: Record<string, string> = {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  NOT_STARTED: 'Not Started',
+  IN_PROGRESS: 'In Progress',
   DRAFT: 'Draft',
-  PENDING_REVIEW: 'Pending Review',
-  COMPLETED: 'Completed',
+  PENDING_HR_REVIEW: 'Pending HR Review',
+  PENDING_SUPER_ADMIN: 'Pending Admin Approval',
+  PENDING_ACKNOWLEDGMENT: 'Pending Acknowledgment',
   ACKNOWLEDGED: 'Acknowledged',
+  COMPLETED: 'Completed',
 }
 
 function RatingDisplay({ label, value }: { label: string; value: number | null | undefined }) {

@@ -1,24 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { withAuthAndParams } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 export const dynamic = 'force-dynamic'
 
-export async function GET(
- request: NextRequest,
- { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withAuthAndParams(async (_request, params, _session) => {
  try {
- const { id } = await params
- const session = await auth()
- if (!session) {
- return NextResponse.json(
- { message: 'Unauthorized' },
- { status: 401 }
- )
- }
+ const { id } = params as { id: string }
 
+ const prisma = await getTenantPrisma()
  const skuCode = id // Using id parameter but it contains skuCode
- 
+
  // Get the SKU
  const sku = await prisma.sku.findFirst({
  where: { skuCode }
@@ -115,4 +106,4 @@ export async function GET(
  { status: 500 }
  )
  }
-}
+})

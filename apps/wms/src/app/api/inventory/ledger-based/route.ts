@@ -1,11 +1,12 @@
 import { withAuth, ApiResponses } from '@/lib/api'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { aggregateInventoryTransactions } from '@ecom-os/ledger'
 
 export const dynamic = 'force-dynamic'
 
 export const GET = withAuth(async (req, session) => {
+ const prisma = await getTenantPrisma()
  const searchParams = req.nextUrl.searchParams
  const warehouseId = searchParams.get('warehouseId') || session.user.warehouseId
  const skuCode = searchParams.get('skuCode')

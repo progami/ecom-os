@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { withAuth } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma, TransactionType } from '@ecom-os/prisma-wms'
 import { parseLocalDate } from '@/lib/utils/date-helpers'
 import { aggregateInventoryTransactions } from '@ecom-os/ledger'
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request, session) => {
  try {
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
 
+ const prisma = await getTenantPrisma()
  const searchParams = request.nextUrl.searchParams
  const date = searchParams.get('date')
  const warehouse = searchParams.get('warehouse')
@@ -227,7 +223,7 @@ export async function GET(request: NextRequest) {
  details: _error instanceof Error ? _error.message : 'Unknown error'
  }, { status: 500 })
  }
-}
+})
 
 // Helper function to process attachments efficiently
 type ProcessedAttachmentResult = {

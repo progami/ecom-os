@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { getTenantPrisma } from '@/lib/tenant/server';
 
 // Health check endpoint for monitoring and CI
 export async function GET() {
@@ -16,8 +16,9 @@ export async function GET() {
  };
 
  // Check database connection
- if (process.env.DATABASE_URL && prisma) {
+ if (process.env.DATABASE_URL) {
  try {
+ const prisma = await getTenantPrisma()
  await prisma.$queryRaw`SELECT 1`;
  health.checks.database = true;
  } catch (error) {

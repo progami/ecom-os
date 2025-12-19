@@ -1,15 +1,11 @@
 'use client'
 
-import { useState } from 'react'
-// import { signIn } from '@/hooks/usePortalSession'
-import { toast } from 'react-hot-toast'
-import { 
- Package2, 
- Sparkles, 
- ArrowRight, 
- CheckCircle2, 
- BarChart3, 
- Truck, 
+import {
+ Package2,
+ ArrowRight,
+ CheckCircle2,
+ BarChart3,
+ Truck,
  FileText,
  Shield,
  Zap,
@@ -18,41 +14,12 @@ import {
 import { portalUrl, redirectToPortal } from '@/lib/portal'
 
 export default function LandingPage() {
- const [isLoading, setIsLoading] = useState(false)
  const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0'
  const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
  const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
  const commitUrl = commitSha ? `https://github.com/progami/ecom-os/commit/${commitSha}` : undefined
  const inferredReleaseUrl = `https://github.com/progami/ecom-os/releases/tag/v${version}`
  const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl
-
- const handleTryDemo = async () => {
- setIsLoading(true)
- 
- try {
- // Always try to set up demo environment first (it will check internally if data already exists)
- const setupResponse = await fetch('/api/demo/setup', {
- method: 'POST',
- headers: { 'Content-Type': 'application/json' },
- })
-
- if (!setupResponse.ok) {
- const errorData = await setupResponse.json()
- throw new Error(errorData.error || 'Failed to set up demo environment')
- }
-
- // Wait a moment for the database transaction to complete
- await new Promise(resolve => setTimeout(resolve, 1000))
-
- // Redirect to portalAuth login; after login, return to Dashboard
- redirectToPortal('/login', `${window.location.origin}/dashboard`)
- } catch (_error) {
- // console.error('Error setting up demo:', error)
- toast.error(_error instanceof Error ? _error.message : 'Failed to set up demo')
- } finally {
- setIsLoading(false)
- }
- }
 
  const features = [
  {
@@ -92,68 +59,38 @@ export default function LandingPage() {
  {/* Hero Section */}
  <div className="relative overflow-hidden">
  <div className="absolute inset-0 bg-gradient-to-br from-cyan-50 to-brand-teal-50 " />
- 
+
  <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-20 pb-16 text-center">
- <div className="flex justify-center mb-8">
- <div className="flex items-center gap-3 px-4 py-2 bg-cyan-100 rounded-full">
- <Sparkles className="h-5 w-5 text-cyan-600 " />
- <span className="text-sm font-medium text-cyan-700 ">
- Try it free with demo data
- </span>
- </div>
- </div>
- 
  <h1 className="text-5xl sm:text-6xl font-bold text-slate-900 mb-6 leading-tight">
  Modern Warehouse
  <span className="block text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-brand-teal-600 pb-2">
  Management System
  </span>
  </h1>
- 
+
  <p className="text-xl text-slate-600 mb-10 max-w-3xl mx-auto">
- Streamline your warehouse operations with our comprehensive inventory tracking, 
+ Streamline your warehouse operations with our comprehensive inventory tracking,
  automated billing, and real-time analytics platform.
  </p>
- 
+
  <div className="flex flex-col sm:flex-row gap-4 justify-center">
- <button
- onClick={handleTryDemo}
- disabled={isLoading}
- className="group inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-cyan-600 to-brand-teal-600 rounded-lg hover:from-cyan-700 hover:to-brand-teal-700 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
- >
- {isLoading ? (
- <>
- <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
- <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
- <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
- </svg>
- <span>Setting up demo...</span>
- </>
- ) : (
- <>
- <Sparkles className="h-5 w-5" />
- <span>Try Demo</span>
- <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
- </>
- )}
- </button>
- 
  <a
  href={portalUrl('/login').toString()}
  onClick={(e) => {
  e.preventDefault()
  redirectToPortal('/login', `${window.location.origin}/dashboard`)
  }}
- className="inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+ className="group inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-medium text-white bg-gradient-to-r from-cyan-600 to-brand-teal-600 rounded-lg hover:from-cyan-700 hover:to-brand-teal-700 transition-all transform hover:scale-105"
  >
  <Package2 className="h-5 w-5" />
  <span>Sign In</span>
+ <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
  </a>
  </div>
- 
+
  <div className="mt-8 flex items-center justify-center gap-2 text-sm text-slate-600 ">
  <CheckCircle2 className="h-4 w-4 text-green-500" />
- <span>No credit card required • Instant access • Real sample data</span>
+ <span>Multi-tenant • Secure • Real-time analytics</span>
  </div>
  </div>
  </div>
@@ -198,28 +135,19 @@ export default function LandingPage() {
  Ready to transform your warehouse operations?
  </h2>
  <p className="text-xl text-cyan-100 mb-8">
- Try the demo now and see how WMS can streamline your business
+ Sign in to access your warehouse management dashboard
  </p>
- <button
- onClick={handleTryDemo}
- disabled={isLoading}
- className="inline-flex items-center gap-2 px-8 py-4 text-lg font-medium text-cyan-600 bg-white rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+ <a
+ href={portalUrl('/login').toString()}
+ onClick={(e) => {
+ e.preventDefault()
+ redirectToPortal('/login', `${window.location.origin}/dashboard`)
+ }}
+ className="inline-flex items-center gap-2 px-8 py-4 text-lg font-medium text-cyan-600 bg-white rounded-lg hover:bg-slate-100 transition-colors"
  >
- {isLoading ? (
- <>
- <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
- <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
- <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
- </svg>
- <span>Setting up demo...</span>
- </>
- ) : (
- <>
- <span>Start Your Free Demo</span>
+ <span>Get Started</span>
  <ArrowRight className="h-5 w-5" />
- </>
- )}
- </button>
+ </a>
  </div>
  </div>
 

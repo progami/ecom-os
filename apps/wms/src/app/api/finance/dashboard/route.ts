@@ -1,16 +1,11 @@
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { withAuth } from '@/lib/api/auth-wrapper'
 
 export const dynamic = 'force-dynamic'
 
 // Finance dashboard functionality removed in v0.5.0 with removal of Invoice/CalculatedCost models
-export async function GET() {
+export const GET = withAuth(async (_request, _session) => {
  try {
- const session = await auth()
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
-
  // Return minimal dashboard data as most financial models were removed in v0.5.0
  const currentDate = new Date()
  const billingPeriodStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
@@ -53,4 +48,4 @@ export async function GET() {
  { status: 500 }
  )
  }
-}
+})

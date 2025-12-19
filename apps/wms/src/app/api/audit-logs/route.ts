@@ -1,23 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { withAuth } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 export const dynamic = 'force-dynamic'
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request, session) => {
  try {
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
-
+ const prisma = await getTenantPrisma()
  const searchParams = request.nextUrl.searchParams
  const entityType = searchParams.get('tableName') || searchParams.get('entityType')
  const entityId = searchParams.get('recordId') || searchParams.get('entityId')
  const limit = parseInt(searchParams.get('limit') || '50')
 
  const whereClause: { entity?: string; entityId?: string } = {}
- 
+
  if (entityType) {
  // Map entity type to table name for backward compatibility
  const tableMap: { [key: string]: string } = {
@@ -28,7 +23,7 @@ export async function GET(request: NextRequest) {
  }
  whereClause.entity = tableMap[entityType] || entityType
  }
- 
+
  if (entityId) {
  whereClause.entityId = entityId
  }
@@ -61,15 +56,15 @@ export async function GET(request: NextRequest) {
  createdAt: log.createdAt
  }))
 
- return NextResponse.json({ 
+ return NextResponse.json({
  logs: transformedLogs,
  count: logs.length
  })
  } catch (_error) {
  // console.error('Fetch audit logs error:', _error)
- return NextResponse.json({ 
+ return NextResponse.json({
  error: 'Failed to fetch audit logs',
  details: _error instanceof Error ? _error.message : 'Unknown error'
  }, { status: 500 })
  }
-}
+})

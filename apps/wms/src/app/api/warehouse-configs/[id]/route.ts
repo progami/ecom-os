@@ -1,22 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { withAuthAndParams } from '@/lib/api/auth-wrapper'
 export const dynamic = 'force-dynamic'
 
 // WarehouseSkuConfig model removed in v0.5.0
-export async function GET(
- request: NextRequest,
- { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withAuthAndParams(async (request, params, session) => {
  try {
- const { id: _id } = await params
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json(
- { message: 'Unauthorized' },
- { status: 401 }
- )
- }
+ const { id: _id } = params as { id: string }
 
  return NextResponse.json(
  { message: 'WarehouseSkuConfig functionality removed in v0.5.0' },
@@ -29,20 +18,16 @@ export async function GET(
  { status: 500 }
  )
  }
-}
+})
 
-export async function PUT(
- request: NextRequest,
- { params }: { params: Promise<{ id: string }> }
-) {
+export const PUT = withAuthAndParams(async (request, params, session) => {
  try {
- const { id: _id } = await params
- const session = await auth()
- 
- if (!session || session.user.role !== 'admin') {
+ const { id: _id } = params as { id: string }
+
+ if (session.user.role !== 'admin') {
  return NextResponse.json(
  { message: 'Unauthorized' },
- { status: 401 }
+ { status: 403 }
  )
  }
 
@@ -57,4 +42,4 @@ export async function PUT(
  { status: 500 }
  )
  }
-}
+})

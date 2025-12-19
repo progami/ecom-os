@@ -1,5 +1,5 @@
 import { withAuthAndParams, ApiResponses, requireRole, z } from '@/lib/api'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 
@@ -16,6 +16,7 @@ export const GET = withAuthAndParams(async (request, params, session) => {
     return ApiResponses.forbidden('Insufficient permissions')
   }
 
+  const prisma = await getTenantPrisma()
   const skuId = params.id as string
   const includeInactive = request.nextUrl.searchParams.get('includeInactive') === 'true'
 
@@ -44,6 +45,7 @@ export const POST = withAuthAndParams(async (request, params, session) => {
     return ApiResponses.forbidden('Insufficient permissions')
   }
 
+  const prisma = await getTenantPrisma()
   const skuId = params.id as string
   const body = await request.json().catch(() => null)
 

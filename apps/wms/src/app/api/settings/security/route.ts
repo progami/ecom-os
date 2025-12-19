@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { withAuth } from '@/lib/api/auth-wrapper'
 export const dynamic = 'force-dynamic'
 
 interface SecuritySettings {
@@ -30,12 +30,10 @@ const DEFAULT_SETTINGS: SecuritySettings = {
 }
 
 // Settings model removed in v0.5.0
-export async function GET(_request: NextRequest) {
+export const GET = withAuth(async (_request, session) => {
  try {
- const session = await auth()
- 
- if (!session || session.user.role !== 'admin') {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+ if (session.user.role !== 'admin') {
+ return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
  }
 
  // Return default settings (Settings model removed in v0.5.0)
@@ -47,14 +45,12 @@ export async function GET(_request: NextRequest) {
  { status: 500 }
  )
  }
-}
+})
 
-export async function PUT(request: NextRequest) {
+export const PUT = withAuth(async (request, session) => {
  try {
- const session = await auth()
- 
- if (!session || session.user.role !== 'admin') {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+ if (session.user.role !== 'admin') {
+ return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
  }
 
  const body = await request.json() as SecuritySettings
@@ -112,4 +108,4 @@ export async function PUT(request: NextRequest) {
  { status: 500 }
  )
  }
-}
+})

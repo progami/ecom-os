@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { NotFoundError, ConflictError, ValidationError } from '@/lib/api'
 import {
   Prisma,
@@ -104,6 +104,7 @@ export interface UpdatePurchaseOrderInput {
 }
 
 export async function getPurchaseOrders() {
+ const prisma = await getTenantPrisma()
  return prisma.purchaseOrder.findMany({
  orderBy: { createdAt: 'desc' },
  include: { lines: true },
@@ -111,6 +112,7 @@ export async function getPurchaseOrders() {
 }
 
 export async function getPurchaseOrderById(id: string) {
+ const prisma = await getTenantPrisma()
  return prisma.purchaseOrder.findUnique({
  where: { id },
  include: { lines: true },
@@ -121,6 +123,7 @@ export async function updatePurchaseOrderDetails(
  id: string,
  input: UpdatePurchaseOrderInput
 ): Promise<PurchaseOrderWithLines> {
+ const prisma = await getTenantPrisma()
  const order = await prisma.purchaseOrder.findUnique({
  where: { id },
  })
@@ -163,6 +166,7 @@ export async function updatePurchaseOrderDetails(
 }
 
 export async function postPurchaseOrder(id: string, user: UserContext): Promise<PurchaseOrderWithLines> {
+ const prisma = await getTenantPrisma()
  return prisma.$transaction(async (tx) => {
  const order = await tx.purchaseOrder.findUnique({
  where: { id },
@@ -433,6 +437,7 @@ export async function validateDocumentsForTransition(
   fromStatus: PurchaseOrderStatus,
   toStatus: PurchaseOrderStatus
 ): Promise<DocumentValidationResult> {
+  const prisma = await getTenantPrisma()
   const order = await prisma.purchaseOrder.findUnique({
     where: { id: orderId },
     select: { type: true },
@@ -516,6 +521,7 @@ export async function transitionPurchaseOrderStatus(
  id: string,
  targetStatus: PurchaseOrderStatus,
 ): Promise<PurchaseOrderWithLines> {
+  const prisma = await getTenantPrisma()
   const order = await prisma.purchaseOrder.findUnique({
     where: { id },
     include: { lines: true },
@@ -810,6 +816,7 @@ export async function transitionPurchaseOrderStatus(
 export async function ensurePurchaseOrderForTransactionStandalone(
  input: EnsurePurchaseOrderForTransactionInput
 ): Promise<EnsurePurchaseOrderResult> {
+ const prisma = await getTenantPrisma()
  return prisma.$transaction(tx => ensurePurchaseOrderForTransaction(tx, input))
 }
 
@@ -873,6 +880,7 @@ export async function voidPurchaseOrder(
   voidedFromStatus: PurchaseOrderStatus
   voidedAt: Date
 }> {
+  const prisma = await getTenantPrisma()
   return prisma.$transaction(async tx => {
     const order = await tx.purchaseOrder.findUnique({
       where: { id },
@@ -951,6 +959,7 @@ export async function getPurchaseOrderVoidMetadata(id: string): Promise<{
   voidedFromStatus: PurchaseOrderStatus | null
   voidedAt: string | null
 } | null> {
+  const prisma = await getTenantPrisma()
   const log = await prisma.auditLog.findFirst({
     where: {
       entity: 'PurchaseOrder',

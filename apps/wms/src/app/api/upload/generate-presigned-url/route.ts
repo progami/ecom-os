@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { withAuth } from '@/lib/api/auth-wrapper'
 import { getS3Service } from '@/services/s3.service'
 import { validateFile } from '@/lib/security/file-upload'
 
@@ -16,13 +16,8 @@ interface PresignedUrlRequest {
  }
 }
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request, session) => {
  try {
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
 
  const body: PresignedUrlRequest = await request.json()
  const { fileName, fileType, fileSize, context } = body
@@ -81,4 +76,4 @@ export async function POST(request: NextRequest) {
  details: _error instanceof Error ? _error.message : 'Unknown error'
  }, { status: 500 })
  }
-}
+})

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { withAuthAndParams } from '@/lib/api/auth-wrapper'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { getS3Service } from '@/services/s3.service'
 import { validateFile, scanFileContent } from '@/lib/security/file-upload'
@@ -24,33 +24,26 @@ type AttachmentInput = Partial<AttachmentData> & {
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // 60 seconds for file uploads
 
-export async function POST(
- request: NextRequest,
- { params }: { params: Promise<{ id: string }> }
-) {
+export const POST = withAuthAndParams(async (request, params, session) => {
  try {
- const { id } = await params
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+ const { id } = params as { id: string }
 
+ const prisma = await getTenantPrisma()
  // Initialize S3 service
  const s3Service = getS3Service();
- 
+
  // Check content type to handle both FormData and JSON
  const contentType = request.headers.get('content-type')
- 
+
  if (contentType?.includes('application/json')) {
  // Handle JSON with base64 attachments - migrate to S3
  const body = await request.json()
  const { attachments } = body as { attachments?: unknown }
- 
+
  if (!attachments || !Array.isArray(attachments)) {
  return NextResponse.json({ error: 'Attachments array is required' }, { status: 400 })
  }
- 
+
  // Get the transaction
  const transaction = await prisma.inventoryTransaction.findUnique({
  where: { id }
@@ -291,20 +284,13 @@ export async function POST(
  details: _error instanceof Error ? _error.message : 'Unknown error'
  }, { status: 500 })
  }
-}
+})
 
-export async function GET(
- request: NextRequest,
- { params }: { params: Promise<{ id: string }> }
-) {
+export const GET = withAuthAndParams(async (request, params, session) => {
  try {
- const { id } = await params
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+ const { id } = params as { id: string }
 
+ const prisma = await getTenantPrisma()
  const s3Service = getS3Service();
  const searchParams = request.nextUrl.searchParams
  const download = searchParams.get('download') === 'true'
@@ -391,20 +377,13 @@ export async function GET(
  details: _error instanceof Error ? _error.message : 'Unknown error'
  }, { status: 500 })
  }
-}
+})
 
-export async function DELETE(
- request: NextRequest,
- { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = withAuthAndParams(async (request, params, session) => {
  try {
- const { id } = await params
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
+ const { id } = params as { id: string }
 
+ const prisma = await getTenantPrisma()
  const searchParams = request.nextUrl.searchParams
  const category = searchParams.get('category')
 
@@ -477,7 +456,7 @@ export async function DELETE(
  details: _error instanceof Error ? _error.message : 'Unknown error'
  }, { status: 500 })
  }
-}
+})
 
 function deriveCategoryPrefix(s3Key: string, category: string): string | null {
  if (!s3Key) return null

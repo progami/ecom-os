@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { withAuth } from '@/lib/api/auth-wrapper'
 export const dynamic = 'force-dynamic'
 
 interface NotificationSettings {
@@ -31,13 +31,8 @@ const DEFAULT_SETTINGS: NotificationSettings = {
 
 // Settings model removed in v0.5.0
 // GET /api/settings/notifications - Get notification settings
-export async function GET() {
+export const GET = withAuth(async () => {
  try {
- const session = await auth()
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
-
  // Return default settings (Settings model removed in v0.5.0)
  return NextResponse.json(DEFAULT_SETTINGS)
  } catch (_error) {
@@ -47,14 +42,13 @@ export async function GET() {
  { status: 500 }
  )
  }
-}
+})
 
 // POST /api/settings/notifications - Save notification settings
-export async function POST(req: NextRequest) {
+export const POST = withAuth(async (req, session) => {
  try {
- const session = await auth()
- if (!session || session.user.role !== 'admin') {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+ if (session.user.role !== 'admin') {
+ return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
  }
 
  const body = await req.json() as NotificationSettings
@@ -111,4 +105,4 @@ export async function POST(req: NextRequest) {
  { status: 500 }
  )
  }
-}
+})

@@ -1,5 +1,5 @@
 import { withAuth, withRole, ApiResponses, z } from '@/lib/api'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay, validateAlphanumeric } from '@/lib/security/input-sanitization'
 export const dynamic = 'force-dynamic'
@@ -93,7 +93,7 @@ const updateWarehouseSchema = z.object({
 
 // GET /api/warehouses - List warehouses
 export const GET = withAuth(async (req, _session) => {
-
+ const prisma = await getTenantPrisma()
  const searchParams = req.nextUrl.searchParams
  const includeInactive = searchParams.get('includeInactive') === 'true'
  const includeAmazon = searchParams.get('includeAmazon') === 'true'
@@ -154,6 +154,7 @@ export const GET = withAuth(async (req, _session) => {
 
 // POST /api/warehouses - Create warehouse
 export const POST = withRole(['admin', 'staff'], async (request, _session) => {
+ const prisma = await getTenantPrisma()
  const body = await request.json()
  const validatedData = createWarehouseSchema.parse(body)
 
@@ -201,6 +202,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
 
 // PATCH /api/warehouses - Update warehouse
 export const PATCH = withRole(['admin', 'staff'], async (request, _session) => {
+ const prisma = await getTenantPrisma()
  const searchParams = request.nextUrl.searchParams
  const warehouseId = searchParams.get('id')
  
@@ -260,6 +262,7 @@ export const PATCH = withRole(['admin', 'staff'], async (request, _session) => {
 
 // DELETE /api/warehouses - Delete warehouse
 export const DELETE = withRole(['admin'], async (request, _session) => {
+ const prisma = await getTenantPrisma()
  const searchParams = request.nextUrl.searchParams
  const warehouseId = searchParams.get('id')
  

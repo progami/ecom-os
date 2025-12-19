@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
+import { withAuth } from '@/lib/api/auth-wrapper'
 import * as XLSX from 'xlsx'
 import { getS3Service } from '@/services/s3.service'
 import { formatDateGMT } from '@/lib/date-utils'
@@ -7,14 +7,8 @@ import type { CostLedgerGroupResult, CostLedgerBucketTotals } from '@ecom-os/led
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // Allow up to 60 seconds for large exports
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request, session) => {
  try {
- const session = await auth()
- 
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
-
  // Fetch the cost ledger data using the same logic as the main route
  const searchParams = request.nextUrl.searchParams
  const costLedgerUrl = new URL('/api/finance/cost-ledger', request.url)
@@ -207,4 +201,4 @@ export async function GET(request: NextRequest) {
  details: _error instanceof Error ? _error.message : 'Unknown error'
  }, { status: 500 })
  }
-}
+})

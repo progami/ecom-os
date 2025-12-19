@@ -1,5 +1,5 @@
 import { withAuth, ApiResponses } from '@/lib/api'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 export const dynamic = 'force-dynamic'
 
 interface DashboardStatsResponse {
@@ -32,11 +32,8 @@ const emptyDashboardStats: DashboardStatsResponse = {
   },
 }
 
-export const GET = withAuth<DashboardStatsResponse>(async (request, session) => {
-  if (!prisma) {
-    console.warn('[dashboard/stats] Prisma client unavailable; returning empty stats response')
-    return ApiResponses.success(emptyDashboardStats)
-  }
+export const GET = withAuth(async (request, session) => {
+  const prisma = await getTenantPrisma()
 
  // Get query parameters
  const searchParams = request.nextUrl.searchParams

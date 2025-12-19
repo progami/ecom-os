@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
 import {
   getPaginationParams,
@@ -9,17 +9,13 @@ import {
 import { toPublicOrderNumber } from '@/lib/services/purchase-order-service'
 import { sanitizeSearchQuery } from '@/lib/security/input-sanitization'
 import { aggregateInventoryTransactions } from '@ecom-os/ledger'
-import { auth } from '@/lib/auth'
+import { withAuth } from '@/lib/api/auth-wrapper'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: NextRequest) {
+export const GET = withAuth(async (req, session) => {
  try {
- const session = await auth()
- if (!session) {
- return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- }
-
+ const prisma = await getTenantPrisma()
  const searchParams = req.nextUrl.searchParams
  const warehouseId = searchParams.get('warehouseId') || session.user.warehouseId
  const date = searchParams.get('date')
@@ -174,4 +170,4 @@ export async function GET(req: NextRequest) {
  { status: 500 }
  )
  }
-}
+})

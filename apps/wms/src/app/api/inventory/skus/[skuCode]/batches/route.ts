@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
 import { aggregateInventoryTransactions } from '@ecom-os/ledger'
-import { auth } from '@/lib/auth'
+import { withAuthAndParams } from '@/lib/api/auth-wrapper'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,17 +45,11 @@ interface SkuBatchResponse {
   batches: BatchDetail[]
 }
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ skuCode: string }> }
-) {
+export const GET = withAuthAndParams(async (req, params, session) => {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    const prisma = await getTenantPrisma()
 
-    const { skuCode } = await params
+    const { skuCode } = params as { skuCode: string }
     const searchParams = req.nextUrl.searchParams
     const warehouseId = searchParams.get('warehouseId')
 
@@ -180,4 +174,4 @@ export async function GET(
       { status: 500 }
     )
   }
-}
+})

@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: NextRequest) {
  try {
  const session = await auth()
- 
+
  if (!session) {
  return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  }
 
+ const prisma = await getTenantPrisma()
  const body = await request.json()
   const { rateId, warehouseId, costName, effectiveDate } = body
 

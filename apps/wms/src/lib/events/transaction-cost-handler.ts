@@ -1,5 +1,5 @@
 // Transaction cost handler - automatically creates cost ledger entries when transactions include costs
-import { prisma } from '@/lib/prisma'
+import { getTenantPrisma } from '@/lib/tenant/server'
 import { TransactionType, PurchaseOrderStatus, CostCategory } from '@ecom-os/prisma-wms'
 import { getValidCostCategories } from '@/lib/cost-validation'
 
@@ -61,6 +61,7 @@ async function resolveWarehouseName(transaction: TransactionWithCosts): Promise<
  return transaction.warehouseName
  }
 
+ const prisma = await getTenantPrisma()
  const warehouse = await prisma.warehouse.findUnique({
  where: { code: transaction.warehouseCode },
  select: { name: true }
@@ -75,6 +76,7 @@ async function resolveWarehouseName(transaction: TransactionWithCosts): Promise<
  */
 export async function handleTransactionCosts(transaction: TransactionWithCosts) {
   try {
+    const prisma = await getTenantPrisma()
     // Only process if costs are provided
     if (!transaction.costs) {
       return
