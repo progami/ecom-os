@@ -13,8 +13,9 @@ import {
   type POType,
 } from '@/lib/constants/status-mappings'
 
-export type PurchaseOrderTypeOption = 'PURCHASE' | 'FULFILLMENT' | 'ADJUSTMENT'
-export type PurchaseOrderStatusOption = 'DRAFT' | 'AWAITING_PROOF' | 'REVIEW' | 'POSTED' | 'CANCELLED' | 'CLOSED'
+export type PurchaseOrderTypeOption = 'PURCHASE' | 'ADJUSTMENT' | 'FULFILLMENT'
+// New 5-stage state machine statuses
+export type PurchaseOrderStatusOption = 'DRAFT' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED' | 'CANCELLED' | 'ARCHIVED' | 'AWAITING_PROOF' | 'REVIEW' | 'POSTED' | 'CLOSED'
 export type PurchaseOrderLineStatusOption = 'PENDING' | 'POSTED' | 'CANCELLED'
 
 export interface PurchaseOrderLineSummary {
@@ -108,19 +109,30 @@ export function PurchaseOrdersPanel({ onPosted: _onPosted, statusFilter = 'DRAFT
     fetchOrders()
   }, [fetchOrders])
 
- const { draftCount, awaitingProofCount, reviewCount, postedCount, cancelledCount } = useMemo(() => {
- return orders.reduce(
- (acc, order) => {
- if (order.status === 'DRAFT') acc.draftCount += 1
- if (order.status === 'AWAITING_PROOF') acc.awaitingProofCount += 1
- if (order.status === 'REVIEW') acc.reviewCount += 1
- if (order.status === 'POSTED') acc.postedCount += 1
- if (order.status === 'CANCELLED') acc.cancelledCount += 1
- return acc
- },
- { draftCount: 0, awaitingProofCount: 0, reviewCount: 0, postedCount: 0, cancelledCount: 0 }
- )
- }, [orders])
+ // Count orders by new 5-stage statuses
+  const statusCounts = useMemo(() => {
+    return orders.reduce(
+      (acc, order) => {
+        if (order.status === 'DRAFT') acc.draftCount += 1
+        if (order.status === 'MANUFACTURING') acc.manufacturingCount += 1
+        if (order.status === 'OCEAN') acc.oceanCount += 1
+        if (order.status === 'WAREHOUSE') acc.warehouseCount += 1
+        if (order.status === 'SHIPPED') acc.shippedCount += 1
+        if (order.status === 'CANCELLED') acc.cancelledCount += 1
+        if (order.status === 'ARCHIVED') acc.archivedCount += 1
+        return acc
+      },
+      {
+        draftCount: 0,
+        manufacturingCount: 0,
+        oceanCount: 0,
+        warehouseCount: 0,
+        shippedCount: 0,
+        cancelledCount: 0,
+        archivedCount: 0,
+      }
+    )
+  }, [orders])
 
  const visibleOrders = useMemo(
  () => orders.filter(order => {
@@ -142,22 +154,25 @@ export function PurchaseOrdersPanel({ onPosted: _onPosted, statusFilter = 'DRAFT
  </p>
  </div>
  <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
- <span>
- <span className="font-semibold text-foreground">{draftCount}</span> draft
- </span>
- <span>
- <span className="font-semibold text-foreground">{awaitingProofCount}</span> awaiting proof
- </span>
- <span>
- <span className="font-semibold text-foreground">{reviewCount}</span> review
- </span>
- <span>
- <span className="font-semibold text-foreground">{postedCount}</span> posted
- </span>
- <span>
- <span className="font-semibold text-foreground">{cancelledCount}</span> cancelled
- </span>
- </div>
+              <span>
+                <span className="font-semibold text-foreground">{statusCounts.draftCount}</span> draft
+              </span>
+              <span>
+                <span className="font-semibold text-foreground">{statusCounts.manufacturingCount}</span> manufacturing
+              </span>
+              <span>
+                <span className="font-semibold text-foreground">{statusCounts.oceanCount}</span> in transit
+              </span>
+              <span>
+                <span className="font-semibold text-foreground">{statusCounts.warehouseCount}</span> at warehouse
+              </span>
+              <span>
+                <span className="font-semibold text-foreground">{statusCounts.shippedCount}</span> shipped
+              </span>
+              <span>
+                <span className="font-semibold text-foreground">{statusCounts.cancelledCount}</span> cancelled
+              </span>
+            </div>
  </div>
  </div>
 

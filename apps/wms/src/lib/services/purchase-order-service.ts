@@ -781,12 +781,19 @@ export async function transitionPurchaseOrderStatus(
  }
 
  const allowedTransitions: Record<PurchaseOrderStatus, PurchaseOrderStatus[]> = {
- [PurchaseOrderStatus.DRAFT]: [PurchaseOrderStatus.AWAITING_PROOF],
- [PurchaseOrderStatus.AWAITING_PROOF]: [PurchaseOrderStatus.DRAFT, PurchaseOrderStatus.REVIEW],
- [PurchaseOrderStatus.REVIEW]: [PurchaseOrderStatus.AWAITING_PROOF],
- [PurchaseOrderStatus.POSTED]: [],
- [PurchaseOrderStatus.CLOSED]: [],
- [PurchaseOrderStatus.CANCELLED]: [],
+   // New 5-stage workflow (handled by po-stage-service.ts)
+   [PurchaseOrderStatus.DRAFT]: [PurchaseOrderStatus.AWAITING_PROOF],
+   [PurchaseOrderStatus.MANUFACTURING]: [],
+   [PurchaseOrderStatus.OCEAN]: [],
+   [PurchaseOrderStatus.WAREHOUSE]: [],
+   [PurchaseOrderStatus.SHIPPED]: [],
+   [PurchaseOrderStatus.ARCHIVED]: [],
+   // Legacy workflow statuses
+   [PurchaseOrderStatus.AWAITING_PROOF]: [PurchaseOrderStatus.DRAFT, PurchaseOrderStatus.REVIEW],
+   [PurchaseOrderStatus.REVIEW]: [PurchaseOrderStatus.AWAITING_PROOF],
+   [PurchaseOrderStatus.POSTED]: [],
+   [PurchaseOrderStatus.CLOSED]: [],
+   [PurchaseOrderStatus.CANCELLED]: [],
  }
 
  const nextStatuses = allowedTransitions[order.status] ?? []
