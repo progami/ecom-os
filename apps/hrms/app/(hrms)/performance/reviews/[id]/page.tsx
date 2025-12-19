@@ -180,7 +180,14 @@ export default function ViewReviewPage() {
             <DetailRow label="Review Type" value={REVIEW_TYPE_LABELS[review.reviewType] || review.reviewType} />
             <DetailRow label="Review Period" value={review.reviewPeriod} />
             <DetailRow label="Review Date" value={formatDate(review.reviewDate)} />
-            <DetailRow label="Reviewer" value={review.reviewerName} />
+            <DetailRow
+              label="Reviewer"
+              value={
+                review.assignedReviewer
+                  ? `${review.assignedReviewer.firstName} ${review.assignedReviewer.lastName}${review.assignedReviewer.position ? ` (${review.assignedReviewer.position})` : ''}`
+                  : review.reviewerName
+              }
+            />
           </dl>
         </Card>
 

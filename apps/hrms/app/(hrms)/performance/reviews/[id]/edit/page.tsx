@@ -146,7 +146,6 @@ export default function EditReviewPage() {
         reviewType: String(payload.reviewType),
         reviewPeriod: String(payload.reviewPeriod),
         reviewDate: String(payload.reviewDate),
-        reviewerName: String(payload.reviewerName),
         overallRating: parseInt(payload.overallRating, 10),
         qualityOfWork: parseInt(payload.qualityOfWork, 10),
         productivity: parseInt(payload.productivity, 10),
@@ -186,7 +185,6 @@ export default function EditReviewPage() {
         reviewType: String(payload.reviewType),
         reviewPeriod: String(payload.reviewPeriod),
         reviewDate: String(payload.reviewDate),
-        reviewerName: String(payload.reviewerName),
         overallRating: parseInt(payload.overallRating, 10),
         qualityOfWork: parseInt(payload.qualityOfWork, 10),
         productivity: parseInt(payload.productivity, 10),
@@ -328,13 +326,19 @@ export default function EditReviewPage() {
                 required
                 defaultValue={formatDateForInput(review.reviewDate)}
               />
-              <FormField
-                label="Reviewer Name"
-                name="reviewerName"
-                required
-                placeholder="Manager name"
-                defaultValue={review.reviewerName}
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  Reviewer
+                </label>
+                <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-900">
+                  {review.assignedReviewer
+                    ? `${review.assignedReviewer.firstName} ${review.assignedReviewer.lastName}`
+                    : review.reviewerName}
+                  {review.assignedReviewer?.position && (
+                    <span className="text-gray-500 ml-1">({review.assignedReviewer.position})</span>
+                  )}
+                </div>
+              </div>
             </div>
           </Card>
 
