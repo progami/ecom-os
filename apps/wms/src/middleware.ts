@@ -5,14 +5,24 @@ import { withBasePath, withoutBasePath } from '@/lib/utils/base-path'
 import { portalUrl } from '@/lib/portal'
 import { TENANT_COOKIE_NAME, isValidTenantCode } from '@/lib/tenant/constants'
 
-if (typeof process !== 'undefined' && process.env) {
- const devSecret = 'dev_portal_auth_secret_2025'
- if (!process.env.PORTAL_AUTH_SECRET) {
- process.env.PORTAL_AUTH_SECRET = devSecret
- }
- if (!process.env.NEXTAUTH_SECRET) {
- process.env.NEXTAUTH_SECRET = process.env.PORTAL_AUTH_SECRET ?? devSecret
- }
+// Security: Only allow fallback secrets in development mode
+// In production, missing secrets should cause a clear failure
+function getAuthSecret(): string {
+  const secret = process.env.PORTAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
+  if (secret) {
+    return secret
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    // In production, missing secrets are a critical configuration error
+    // Do not fall back to hardcoded values - this would be a security vulnerability
+    console.error('[SECURITY] PORTAL_AUTH_SECRET or NEXTAUTH_SECRET must be set in production')
+    throw new Error('Authentication secret not configured')
+  }
+
+  // Only in development: use a fallback for local testing
+  console.warn('[DEV] Using development fallback auth secret - never use in production')
+  return 'dev_only_local_secret_' + process.pid
 }
 
 export async function middleware(request: NextRequest) {
@@ -75,7 +85,7 @@ export async function middleware(request: NextRequest) {
    ...getCandidateSessionCookieNames('ecomos'),
    ...getCandidateSessionCookieNames('wms'),
  ]))
- const sharedSecret = process.env.PORTAL_AUTH_SECRET ?? 'dev_portal_auth_secret_2025'
+ const sharedSecret = getAuthSecret()
  const authDebugFlag =
    typeof process.env.NEXTAUTH_DEBUG === 'string' &&
    ['1', 'true', 'yes', 'on'].includes(process.env.NEXTAUTH_DEBUG.toLowerCase())
