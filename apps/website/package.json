@@ -17,7 +17,7 @@
     "@ecom-os/theme": "workspace:^",
     "dotenv": "^17.2.3",
     "lucide-react": "^0.559.0",
-    "next": "16.0.8",
+    "next": "16.0.10",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "winston": "^3.19.0",

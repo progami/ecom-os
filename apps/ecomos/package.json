@@ -11,7 +11,7 @@
     "postinstall": "node ../../scripts/link-prisma-client-auth.js"
   },
   "dependencies": {
-    "next": "16.0.8",
+    "next": "16.0.10",
     "react": "19.2.1",
     "react-dom": "19.2.1",
     "next-auth": "5.0.0-beta.30",
