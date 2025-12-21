@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { withAuthAndParams, ApiResponses, z } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { NotFoundError } from '@/lib/api'
+import { hasPermission } from '@/lib/services/permission-service'
+import { Prisma } from '@ecom-os/prisma-wms'
 
 const CONTAINER_SIZES = ['20FT', '40FT', '40HC', '45HC'] as const
 
@@ -50,6 +52,11 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
   const containerId = params.containerId as string
   const prisma = await getTenantPrisma()
 
+  const canEdit = await hasPermission(_session.user.id, 'po.edit')
+  if (!canEdit) {
+    return ApiResponses.forbidden('Insufficient permissions')
+  }
+
   const order = await prisma.purchaseOrder.findUnique({
     where: { id },
   })
@@ -83,7 +90,7 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     )
   }
 
-  const updateData: Record<string, any> = {}
+  const updateData: Prisma.PurchaseOrderContainerUpdateInput = {}
   if (result.data.containerNumber !== undefined) updateData.containerNumber = result.data.containerNumber
   if (result.data.containerSize !== undefined) updateData.containerSize = result.data.containerSize
   if (result.data.sealNumber !== undefined) updateData.sealNumber = result.data.sealNumber
@@ -92,10 +99,18 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     return ApiResponses.badRequest('No fields to update')
   }
 
-  const updated = await prisma.purchaseOrderContainer.update({
-    where: { id: containerId },
-    data: updateData,
-  })
+  let updated
+  try {
+    updated = await prisma.purchaseOrderContainer.update({
+      where: { id: containerId },
+      data: updateData,
+    })
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return ApiResponses.conflict('A container with this number already exists for the purchase order')
+    }
+    throw error
+  }
 
   return ApiResponses.success({
     id: updated.id,
@@ -114,6 +129,11 @@ export const DELETE = withAuthAndParams(async (request: NextRequest, params, _se
   const id = params.id as string
   const containerId = params.containerId as string
   const prisma = await getTenantPrisma()
+
+  const canEdit = await hasPermission(_session.user.id, 'po.edit')
+  if (!canEdit) {
+    return ApiResponses.forbidden('Insufficient permissions')
+  }
 
   const order = await prisma.purchaseOrder.findUnique({
     where: { id },

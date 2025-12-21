@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { withAuthAndParams, ApiResponses, z } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { NotFoundError } from '@/lib/api'
+import { hasPermission } from '@/lib/services/permission-service'
+import { Prisma } from '@ecom-os/prisma-wms'
 
 const CONTAINER_SIZES = ['20FT', '40FT', '40HC', '45HC'] as const
 
@@ -47,6 +49,11 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
   const id = params.id as string
   const prisma = await getTenantPrisma()
 
+  const canEdit = await hasPermission(_session.user.id, 'po.edit')
+  if (!canEdit) {
+    return ApiResponses.forbidden('Insufficient permissions')
+  }
+
   const order = await prisma.purchaseOrder.findUnique({
     where: { id },
   })
@@ -69,14 +76,22 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
     )
   }
 
-  const container = await prisma.purchaseOrderContainer.create({
-    data: {
-      purchaseOrderId: id,
-      containerNumber: result.data.containerNumber,
-      containerSize: result.data.containerSize,
-      sealNumber: result.data.sealNumber,
-    },
-  })
+  let container
+  try {
+    container = await prisma.purchaseOrderContainer.create({
+      data: {
+        purchaseOrderId: id,
+        containerNumber: result.data.containerNumber,
+        containerSize: result.data.containerSize,
+        sealNumber: result.data.sealNumber,
+      },
+    })
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return ApiResponses.conflict('A container with this number already exists for the purchase order')
+    }
+    throw error
+  }
 
   return ApiResponses.success({
     id: container.id,

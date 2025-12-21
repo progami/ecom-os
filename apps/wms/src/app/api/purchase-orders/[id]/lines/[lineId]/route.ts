@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { withAuthAndParams, ApiResponses, z } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { NotFoundError } from '@/lib/api'
+import { hasPermission } from '@/lib/services/permission-service'
+import { Prisma } from '@ecom-os/prisma-wms'
 
 const UpdateLineSchema = z.object({
   skuCode: z.string().min(1).optional(),
@@ -10,7 +12,7 @@ const UpdateLineSchema = z.object({
   unitCost: z.number().optional(),
   currency: z.string().optional(),
   notes: z.string().optional(),
-  quantityReceived: z.number().int().optional(),
+  quantityReceived: z.number().int().min(0).optional(),
 })
 
 /**
@@ -58,6 +60,11 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
   const lineId = params.lineId as string
   const prisma = await getTenantPrisma()
 
+  const canEdit = await hasPermission(_session.user.id, 'po.edit')
+  if (!canEdit) {
+    return ApiResponses.forbidden('Insufficient permissions')
+  }
+
   const order = await prisma.purchaseOrder.findUnique({
     where: { id },
   })
@@ -88,7 +95,7 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     )
   }
 
-  const updateData: Record<string, any> = {}
+  const updateData: Prisma.PurchaseOrderLineUpdateInput = {}
 
   // Core fields - only editable in DRAFT
   if (order.status === 'DRAFT') {
@@ -102,6 +109,9 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
 
   // quantityReceived - editable in WAREHOUSE status
   if (order.status === 'WAREHOUSE' && result.data.quantityReceived !== undefined) {
+    if (result.data.quantityReceived > line.quantity) {
+      return ApiResponses.badRequest('quantityReceived cannot exceed ordered quantity')
+    }
     updateData.quantityReceived = result.data.quantityReceived
   }
 
@@ -136,6 +146,11 @@ export const DELETE = withAuthAndParams(async (request: NextRequest, params, _se
   const id = params.id as string
   const lineId = params.lineId as string
   const prisma = await getTenantPrisma()
+
+  const canEdit = await hasPermission(_session.user.id, 'po.edit')
+  if (!canEdit) {
+    return ApiResponses.forbidden('Insufficient permissions')
+  }
 
   const order = await prisma.purchaseOrder.findUnique({
     where: { id },

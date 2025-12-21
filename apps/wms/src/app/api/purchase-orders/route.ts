@@ -6,6 +6,7 @@ import {
   serializePurchaseOrder as serializeNewPO,
 } from '@/lib/services/po-stage-service'
 import type { UserContext } from '@/lib/services/po-stage-service'
+import { hasPermission } from '@/lib/services/permission-service'
 
 export const GET = withAuth(async (_request: NextRequest, _session) => {
   const orders = await getPurchaseOrders()
@@ -48,6 +49,11 @@ export const POST = withAuth(async (request: NextRequest, session) => {
     id: session.user.id,
     name: session.user.name || session.user.email || 'Unknown',
     email: session.user.email || '',
+  }
+
+  const canCreate = await hasPermission(userContext.id, 'po.create')
+  if (!canCreate) {
+    return ApiResponses.forbidden('Insufficient permissions')
   }
 
   try {

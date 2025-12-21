@@ -149,7 +149,7 @@ export default function NewPurchaseOrderPage() {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}))
-        throw new Error(error.message || 'Failed to create purchase order')
+        throw new Error(error.error || error.message || 'Failed to create purchase order')
       }
 
       const data = await response.json()

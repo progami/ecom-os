@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server'
 import { withAuthAndParams, ApiResponses, z } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { NotFoundError } from '@/lib/api'
+import { hasPermission } from '@/lib/services/permission-service'
+import { Prisma } from '@ecom-os/prisma-wms'
 
 const LineItemSchema = z.object({
   skuCode: z.string().min(1),
@@ -55,6 +57,11 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
   const id = params.id as string
   const prisma = await getTenantPrisma()
 
+  const canEdit = await hasPermission(_session.user.id, 'po.edit')
+  if (!canEdit) {
+    return ApiResponses.forbidden('Insufficient permissions')
+  }
+
   const order = await prisma.purchaseOrder.findUnique({
     where: { id },
   })
@@ -77,18 +84,26 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
     )
   }
 
-  const line = await prisma.purchaseOrderLine.create({
-    data: {
-      purchaseOrderId: id,
-      skuCode: result.data.skuCode,
-      skuDescription: result.data.skuDescription || '',
-      quantity: result.data.quantity,
-      unitCost: result.data.unitCost,
-      currency: result.data.currency,
-      lineNotes: result.data.notes,
-      status: 'PENDING',
-    },
-  })
+  let line
+  try {
+    line = await prisma.purchaseOrderLine.create({
+      data: {
+        purchaseOrderId: id,
+        skuCode: result.data.skuCode,
+        skuDescription: result.data.skuDescription || '',
+        quantity: result.data.quantity,
+        unitCost: result.data.unitCost,
+        currency: result.data.currency,
+        lineNotes: result.data.notes,
+        status: 'PENDING',
+      },
+    })
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return ApiResponses.conflict('A line with this SKU and batch already exists for the purchase order')
+    }
+    throw error
+  }
 
   return ApiResponses.success({
     id: line.id,

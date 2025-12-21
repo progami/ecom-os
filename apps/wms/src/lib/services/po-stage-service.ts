@@ -5,7 +5,7 @@ import {
   Prisma,
 } from '@ecom-os/prisma-wms'
 import { NotFoundError, ValidationError, ConflictError } from '@/lib/api'
-import { canApproveStageTransition, isSuperAdmin } from './permission-service'
+import { canApproveStageTransition, hasPermission, isSuperAdmin } from './permission-service'
 import { auditLog } from '@/lib/security/audit-logger'
 
 // Valid stage transitions for new 5-stage workflow
@@ -320,7 +320,12 @@ export async function transitionPurchaseOrderStage(
   }
 
   // Check user permission for this transition (unless cancelling)
-  if (targetStatus !== PurchaseOrderStatus.CANCELLED) {
+  if (targetStatus === PurchaseOrderStatus.CANCELLED) {
+    const canCancel = await hasPermission(user.id, 'po.cancel')
+    if (!canCancel && !isSuperAdmin(user.email)) {
+      throw new ValidationError(`You don't have permission to cancel purchase orders`)
+    }
+  } else {
     const canApprove = await canApproveStageTransition(
       user.id,
       currentStatus,
@@ -425,6 +430,17 @@ export async function transitionPurchaseOrderStage(
   // Stage 4: Warehouse fields
   if (stageData.warehouseCode !== undefined) {
     updateData.warehouseCode = stageData.warehouseCode
+    // Snapshot warehouse name from the master record when not explicitly provided
+    if (stageData.warehouseName === undefined) {
+      const warehouse = await prisma.warehouse.findFirst({
+        where: { code: stageData.warehouseCode },
+        select: { name: true },
+      })
+      if (!warehouse) {
+        throw new ValidationError(`Invalid warehouse code: ${stageData.warehouseCode}`)
+      }
+      updateData.warehouseName = warehouse.name
+    }
   }
   if (stageData.warehouseName !== undefined) {
     updateData.warehouseName = stageData.warehouseName
@@ -546,7 +562,16 @@ export async function transitionPurchaseOrderStage(
       updateData.warehouseApprovedAt = now
       updateData.warehouseApprovedById = user.id
       updateData.warehouseApprovedByName = user.name
-      updateData.shippedAt = now
+      updateData.shippedApprovedAt = now
+      updateData.shippedApprovedById = user.id
+      updateData.shippedApprovedByName = user.name
+      // Legacy (keep existing consumers working)
+      updateData.shippedAt =
+        stageData.shippedDate !== undefined
+          ? new Date(stageData.shippedDate)
+          : order.shippedDate
+            ? new Date(order.shippedDate)
+            : now
       updateData.shippedById = user.id
       updateData.shippedByName = user.name
       break

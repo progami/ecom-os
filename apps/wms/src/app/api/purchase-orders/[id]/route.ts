@@ -1,13 +1,13 @@
 import { withAuthAndParams, ApiResponses, z } from '@/lib/api'
 import {
  getPurchaseOrderById,
- serializePurchaseOrder,
  updatePurchaseOrderDetails,
   getPurchaseOrderVoidMetadata,
 } from '@/lib/services/purchase-order-service'
 import {
   serializePurchaseOrder as serializeWithStageData,
 } from '@/lib/services/po-stage-service'
+import { hasPermission } from '@/lib/services/permission-service'
 
 export const GET = withAuthAndParams(async (_request, params, _session) => {
  const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params?.id?.[0] : undefined
@@ -38,10 +38,15 @@ const UpdateDetailsSchema = z.object({
  notes: z.string().trim().optional().nullable(),
 })
 
-export const PATCH = withAuthAndParams(async (request, params, _session) => {
+export const PATCH = withAuthAndParams(async (request, params, session) => {
  const id = typeof params?.id === 'string' ? params.id : Array.isArray(params?.id) ? params?.id?.[0] : undefined
  if (!id) {
  return ApiResponses.badRequest('Purchase order ID is required')
+ }
+
+ const canEdit = await hasPermission(session.user.id, 'po.edit')
+ if (!canEdit) {
+ return ApiResponses.forbidden('Insufficient permissions')
  }
 
  const payload = await request.json().catch(() => null)
@@ -64,7 +69,7 @@ export const PATCH = withAuthAndParams(async (request, params, _session) => {
 
  try {
  const updated = await updatePurchaseOrderDetails(id, normalized)
- return ApiResponses.success(serializePurchaseOrder(updated))
+ return ApiResponses.success(serializeWithStageData(updated))
  } catch (error) {
  return ApiResponses.handleError(error)
  }

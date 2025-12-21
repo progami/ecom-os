@@ -362,11 +362,12 @@ model PurchaseOrderContainer {
   purchaseOrderId String        @map("purchase_order_id")
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   containerNumber String        @map("container_number")
-  containerSize   String        @map("container_size") // 20FT, 40FT, 40HC
+  containerSize   String        @map("container_size") // 20FT, 40FT, 40HC, 45HC
   sealNumber      String?       @map("seal_number")
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
+  @@unique([purchaseOrderId, containerNumber])
   @@index([purchaseOrderId])
   @@map("purchase_order_containers")
 }
