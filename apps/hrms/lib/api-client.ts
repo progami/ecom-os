@@ -545,7 +545,7 @@ export type DisciplinaryAction = {
   }
   violationType: string
   violationReason: string
-  primaryValueBreached: string
+  valuesBreached: string[]
   severity: string
   incidentDate: string
   reportedDate: string
@@ -604,7 +604,7 @@ export const DisciplinaryActionsApi = {
     employeeId: string
     violationType: string
     violationReason: string
-    primaryValueBreached: string
+    valuesBreached: string[]
     severity: string
     incidentDate: string
     reportedBy: string

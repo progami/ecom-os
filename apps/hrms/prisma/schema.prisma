@@ -607,7 +607,7 @@ model DisciplinaryAction {
   severity        ViolationSeverity
 
   // Core Values breach tracking
-  primaryValueBreached    ValueBreach?        // Which core value was primarily compromised
+  valuesBreached          ValueBreach[]       // Which core values were breached
   employeeTookOwnership   Boolean?            // Did the employee take ownership of the issue?
   // Auto-escalation: If ownership=false AND value=HONESTY, severity escalates
   severityEscalated       Boolean             @default(false)
@@ -677,7 +677,7 @@ model DisciplinaryAction {
   @@index([severity])
   @@index([status])
   @@index([incidentDate])
-  @@index([primaryValueBreached])
+  @@index([valuesBreached])
   @@index([hrReviewedById])
   @@index([superAdminApprovedById])
 }

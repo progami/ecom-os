@@ -87,6 +87,13 @@ const ACTION_LABELS: Record<string, string> = {
   NO_ACTION: 'No Action',
 }
 
+const VALUES_BREACHED_LABELS: Record<string, string> = {
+  BREACH_OF_DETAIL: 'Attention to Detail',
+  BREACH_OF_COURAGE: 'Courage',
+  BREACH_OF_HONESTY: 'Honesty',
+  BREACH_OF_INTEGRITY: 'Integrity',
+}
+
 const STATUS_LABELS: Record<string, string> = {
   // Approval chain statuses
   PENDING_HR_REVIEW: 'Pending HR Review',
@@ -860,6 +867,14 @@ export default function ViewDisciplinaryPage() {
           <dl className="divide-y divide-gray-100">
             <DetailRow label="Violation Type" value={VIOLATION_TYPE_LABELS[action.violationType] || action.violationType} />
             <DetailRow label="Specific Reason" value={VIOLATION_REASON_LABELS[action.violationReason] || action.violationReason} />
+            <DetailRow
+              label="Core Values Breached"
+              value={
+                action.valuesBreached?.length > 0
+                  ? action.valuesBreached.map(v => VALUES_BREACHED_LABELS[v] || v).join(', ')
+                  : null
+              }
+            />
             <DetailRow label="Incident Date" value={formatDate(action.incidentDate)} />
             <DetailRow label="Reported Date" value={formatDate(action.reportedDate)} />
             <DetailRow label="Reported By" value={action.reportedBy} />

@@ -231,3 +231,67 @@ export function FormActions({ children }: FormActionsProps) {
     </div>
   )
 }
+
+// Checkbox group for multi-select
+type CheckboxGroupFieldProps = {
+  label: React.ReactNode
+  name: string
+  required?: boolean
+  options: { value: string; label: string }[]
+  value: string[]
+  onChange: (values: string[]) => void
+  error?: string
+  hint?: string
+}
+
+export function CheckboxGroupField({
+  label,
+  name,
+  required = false,
+  options,
+  value,
+  onChange,
+  error,
+  hint,
+}: CheckboxGroupFieldProps) {
+  const handleChange = (optValue: string, checked: boolean) => {
+    if (checked) {
+      onChange([...value, optValue])
+    } else {
+      onChange(value.filter((v) => v !== optValue))
+    }
+  }
+
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">
+        {label}
+        {required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      <div className="space-y-2">
+        {options.map((opt) => (
+          <label
+            key={opt.value}
+            className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            <input
+              type="checkbox"
+              name={name}
+              value={opt.value}
+              checked={value.includes(opt.value)}
+              onChange={(e) => handleChange(opt.value, e.target.checked)}
+              className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700">{opt.label}</span>
+          </label>
+        ))}
+      </div>
+      {hint && !error && (
+        <p className="text-xs text-gray-500 mt-2">{hint}</p>
+      )}
+      {error && (
+        <p className="text-xs text-red-600 mt-2">{error}</p>
+      )}
+    </div>
+  )
+}
