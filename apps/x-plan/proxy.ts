@@ -108,8 +108,13 @@ export async function proxy(request: NextRequest) {
         console.log('[x-plan proxy] no session, redirecting to portal login', login.toString())
       }
       const callbackOrigin = resolveAppOrigin(request)
+      const callbackPathname = (() => {
+        if (!basePath) return request.nextUrl.pathname
+        if (request.nextUrl.pathname.startsWith(basePath)) return request.nextUrl.pathname
+        return request.nextUrl.pathname === '/' ? basePath : `${basePath}${request.nextUrl.pathname}`
+      })()
       const callbackUrl = new URL(
-        request.nextUrl.pathname + request.nextUrl.search + request.nextUrl.hash,
+        callbackPathname + request.nextUrl.search + request.nextUrl.hash,
         callbackOrigin
       )
       login.searchParams.set('callbackUrl', callbackUrl.toString())
