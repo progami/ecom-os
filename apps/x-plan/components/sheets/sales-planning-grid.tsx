@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation'
 import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { useHandsontableThemeName } from '@/hooks/useHandsontableThemeName'
+import { usePersistentHandsontableScroll } from '@/hooks/usePersistentHandsontableScroll'
 import {
   SHEET_TOOLBAR_GROUP,
   SHEET_TOOLBAR_LABEL,
@@ -138,6 +139,8 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
   const focusProductId = focusContext?.focusProductId ?? 'ALL'
   const warningThreshold = Number.isFinite(stockWarningWeeks) ? stockWarningWeeks : Number.POSITIVE_INFINITY
   const router = useRouter()
+
+  usePersistentHandsontableScroll(hotRef, `sales-planning:${strategyId}`)
 
   const preserveScrollPosition = useCallback((action: () => void) => {
     const scroll = getHandsontableScroll(hotRef.current)

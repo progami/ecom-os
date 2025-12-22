@@ -1,11 +1,5 @@
-import { redirect } from 'next/navigation'
+import { LastSheetRedirect } from '@/components/last-sheet-redirect'
 
-export default async function HomePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ year?: string }>
-}) {
-  const params = await searchParams
-  const query = params?.year ? `?year=${params.year}` : ''
-  redirect(`/0-strategies${query}`)
+export default function HomePage() {
+  return <LastSheetRedirect />
 }

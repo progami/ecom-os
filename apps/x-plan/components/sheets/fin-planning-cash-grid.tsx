@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { useHandsontableThemeName } from '@/hooks/useHandsontableThemeName'
+import { usePersistentHandsontableScroll } from '@/hooks/usePersistentHandsontableScroll'
 import { withAppBasePath } from '@/lib/base-path'
 
 registerAllModules()
@@ -53,6 +54,8 @@ function normalizeEditable(value: unknown) {
 export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const themeName = useHandsontableThemeName()
+
+  usePersistentHandsontableScroll(hotRef, `cash-flow:${strategyId}`)
 
   const data = useMemo(() => weekly, [weekly])
 
