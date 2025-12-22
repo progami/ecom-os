@@ -3,6 +3,7 @@ import { z } from 'zod'
 import prisma from '@/lib/prisma'
 import { loadPlanningCalendar } from '@/lib/planning'
 import { getCalendarDateForWeek } from '@/lib/calculations/calendar'
+import { withXPlanAuth } from '@/lib/api/auth'
 
 const allowedFields = ['actualSales', 'forecastSales', 'finalSales'] as const
 
@@ -24,7 +25,7 @@ function parseIntValue(value: string | null | undefined) {
   return Math.round(parsed)
 }
 
-export async function PUT(request: Request) {
+export const PUT = withXPlanAuth(async (request: Request) => {
   const body = await request.json().catch(() => null)
   const parsed = updateSchema.safeParse(body)
 
@@ -76,4 +77,4 @@ export async function PUT(request: Request) {
   )
 
   return NextResponse.json({ ok: true })
-}
+})

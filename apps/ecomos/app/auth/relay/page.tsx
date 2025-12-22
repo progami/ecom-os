@@ -8,8 +8,50 @@ function AuthRelayContent() {
   const to = searchParams.get('to') || '/'
 
   useEffect(() => {
+    const isProd = process.env.NODE_ENV === 'production'
+
+    const isIPv4 = (hostname: string) => /^\d+\.\d+\.\d+\.\d+$/.test(hostname)
+
+    const getBaseDomain = (hostname: string): string | null => {
+      const normalized = hostname.trim().toLowerCase().replace(/\.$/, '')
+      if (!normalized || normalized === 'localhost' || isIPv4(normalized)) {
+        return null
+      }
+      const parts = normalized.split('.').filter(Boolean)
+      if (parts.length < 2) return null
+      return parts.slice(-2).join('.')
+    }
+
+    const isAllowedTarget = (target: URL): boolean => {
+      const protocol = target.protocol.toLowerCase()
+      if (protocol !== 'http:' && protocol !== 'https:') {
+        return false
+      }
+
+      const currentOrigin = window.location.origin
+      if (target.origin === currentOrigin) {
+        return true
+      }
+
+      if (isProd && protocol !== 'https:') {
+        return false
+      }
+
+      const hostname = target.hostname.toLowerCase()
+      if (!isProd && (hostname === 'localhost' || hostname === '127.0.0.1')) {
+        return true
+      }
+
+      const baseDomain = getBaseDomain(window.location.hostname)
+      return Boolean(baseDomain && (hostname === baseDomain || hostname.endsWith(`.${baseDomain}`)))
+    }
+
     try {
-      const url = new URL(to)
+      const url = new URL(to, window.location.origin)
+      if (!isAllowedTarget(url)) {
+        window.location.replace('/')
+        return
+      }
       window.location.replace(url.toString())
     } catch {
       window.location.replace('/')

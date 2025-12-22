@@ -1,132 +1,153 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { getCandidateSessionCookieNames, decodePortalSession } from '@ecom-os/auth'
+import { applyDevAuthDefaults, decodePortalSession, getAppEntitlement, getCandidateSessionCookieNames } from '@ecom-os/auth'
 import { withBasePath, withoutBasePath } from '@/lib/utils/base-path'
 import { portalUrl } from '@/lib/portal'
 import { TENANT_COOKIE_NAME, isValidTenantCode } from '@/lib/tenant/constants'
 
-if (typeof process !== 'undefined' && process.env) {
- const devSecret = 'dev_portal_auth_secret_2025'
- if (!process.env.PORTAL_AUTH_SECRET) {
- process.env.PORTAL_AUTH_SECRET = devSecret
- }
- if (!process.env.NEXTAUTH_SECRET) {
- process.env.NEXTAUTH_SECRET = process.env.PORTAL_AUTH_SECRET ?? devSecret
- }
-}
+applyDevAuthDefaults({
+  // Align with portal default secret in local dev when ALLOW_DEV_AUTH_DEFAULTS=true.
+  appId: 'ecomos',
+})
 
 export async function middleware(request: NextRequest) {
- const { pathname } = request.nextUrl
- const normalizedPath = withoutBasePath(pathname)
- if (process.env.NODE_ENV !== 'production') {
-   const cookieHeader = request.headers.get('cookie')
-   if (cookieHeader) {
-     const names = cookieHeader.split(';').map((part) => part.split('=')[0]?.trim()).filter(Boolean)
-     console.warn('[wms middleware] incoming cookies', names)
-   } else {
-     console.warn('[wms middleware] no cookies on request', normalizedPath)
-   }
- }
+  const { pathname } = request.nextUrl
+  const normalizedPath = withoutBasePath(pathname)
 
- // Redirect /operations to /operations/inventory (base-path aware)
- if (normalizedPath === '/operations') {
- const url = request.nextUrl.clone()
- url.pathname = withBasePath('/operations/inventory')
- return NextResponse.redirect(url)
- }
+  // Redirect /operations to /operations/inventory (base-path aware)
+  if (normalizedPath === '/operations') {
+    const url = request.nextUrl.clone()
+    url.pathname = withBasePath('/operations/inventory')
+    return NextResponse.redirect(url)
+  }
 
- // Public routes that don't require authentication
- // Use exact matches or proper prefix matching to prevent auth bypass
- const publicRoutes = [
- '/',
- '/auth/login',
- '/auth/error',
- '/no-access',
- '/api/health',
- '/api/logs',
- ]
+  // Public routes that don't require authentication
+  // Use exact matches or proper prefix matching to prevent auth bypass
+  const publicRoutes = [
+    '/',
+    '/auth/login',
+    '/auth/error',
+    '/no-access',
+    '/api/health',
+    '/api/logs',
+  ]
 
- // Routes that should be prefix-matched
- const publicPrefixes = [
- '/api/auth/', // NextAuth internal routes
- '/api/tenant/', // Tenant selection routes
- ]
+  // Routes that should be prefix-matched
+  const publicPrefixes = [
+    '/api/auth/', // NextAuth internal routes
+    '/api/tenant/', // Tenant selection routes
+  ]
 
- // Check if the route is public using exact match
- const isExactPublicRoute = publicRoutes.includes(normalizedPath)
+  // Check if the route is public using exact match
+  const isExactPublicRoute = publicRoutes.includes(normalizedPath)
 
- // Check if the route matches a public prefix
- const isPublicPrefix = publicPrefixes.some(prefix => normalizedPath.startsWith(prefix))
+  // Check if the route matches a public prefix
+  const isPublicPrefix = publicPrefixes.some((prefix) => normalizedPath.startsWith(prefix))
 
- // Combine both checks
- const isPublicRoute = isExactPublicRoute || isPublicPrefix
+  // Combine both checks
+  const isPublicRoute = isExactPublicRoute || isPublicPrefix
 
- // Skip auth check for public routes and static assets
- if (
- isPublicRoute ||
- normalizedPath.startsWith('/_next') ||
- normalizedPath === '/favicon.ico'
- ) {
- return NextResponse.next()
- }
+  // Skip auth check for public routes and static assets
+  if (
+    isPublicRoute ||
+    normalizedPath.startsWith('/_next') ||
+    normalizedPath === '/favicon.ico'
+  ) {
+    return NextResponse.next()
+  }
 
- // Check for session and app entitlement
- const cookieNames = Array.from(new Set([
-   ...getCandidateSessionCookieNames('ecomos'),
-   ...getCandidateSessionCookieNames('wms'),
- ]))
- const sharedSecret = process.env.PORTAL_AUTH_SECRET ?? 'dev_portal_auth_secret_2025'
- const authDebugFlag =
-   typeof process.env.NEXTAUTH_DEBUG === 'string' &&
-   ['1', 'true', 'yes', 'on'].includes(process.env.NEXTAUTH_DEBUG.toLowerCase())
+  // Check for session and app entitlement
+  const cookieNames = Array.from(
+    new Set([
+      ...getCandidateSessionCookieNames('ecomos'),
+      ...getCandidateSessionCookieNames('wms'),
+    ])
+  )
+  const sharedSecret = process.env.PORTAL_AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
+  if (!sharedSecret) {
+    console.error('[wms middleware] Missing PORTAL_AUTH_SECRET/NEXTAUTH_SECRET')
+    return normalizedPath.startsWith('/api/')
+      ? NextResponse.json({ error: 'Authentication misconfigured' }, { status: 500 })
+      : new NextResponse('Authentication misconfigured', { status: 500 })
+  }
 
- const cookieHeader = request.headers.get('cookie')
- const decoded = await decodePortalSession({
-   cookieHeader,
-   cookieNames,
-   secret: sharedSecret,
-   debug: authDebugFlag,
- })
+  const authDebugFlag =
+    typeof process.env.NEXTAUTH_DEBUG === 'string' &&
+    ['1', 'true', 'yes', 'on'].includes(process.env.NEXTAUTH_DEBUG.toLowerCase())
 
- const hasSession = !!decoded
+  const cookieHeader = request.headers.get('cookie')
+  const decoded = await decodePortalSession({
+    cookieHeader,
+    cookieNames,
+    secret: sharedSecret,
+    debug: authDebugFlag,
+  })
 
- // If no session, redirect to portal login
- // Note: Region-based access control is handled by the tenant guard in API routes
- if (!hasSession && !normalizedPath.startsWith('/auth/')) {
-   const forwardedProto = request.headers.get('x-forwarded-proto') || 'http'
-   const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host
-   const basePath = process.env.BASE_PATH || ''
-   const callbackUrl = `${forwardedProto}://${forwardedHost}${basePath}${pathname}${request.nextUrl.search}`
+  const hasSession = !!decoded
+  const wmsEntitlement = decoded ? getAppEntitlement(decoded.roles, 'wms') : undefined
+  const hasAccess = hasSession && !!wmsEntitlement
 
-   const redirect = portalUrl('/login', request, `${forwardedProto}://${forwardedHost}`)
-   redirect.searchParams.set('callbackUrl', callbackUrl)
-   return NextResponse.redirect(redirect)
- }
+  if (!hasAccess) {
+    if (normalizedPath.startsWith('/api/')) {
+      const errorMsg = hasSession ? 'No access to WMS' : 'Authentication required'
+      return NextResponse.json({ error: errorMsg }, { status: hasSession ? 403 : 401 })
+    }
 
- // Tenant handling for authenticated users
- const tenantCookie = request.cookies.get(TENANT_COOKIE_NAME)?.value
- const hasTenant = isValidTenantCode(tenantCookie)
+    if (hasSession && !wmsEntitlement) {
+      const url = request.nextUrl.clone()
+      url.pathname = withBasePath('/no-access')
+      url.search = ''
+      return NextResponse.redirect(url)
+    }
 
- // If no tenant selected and not on world map, redirect to world map
- // Skip this for API routes - they should handle missing tenant themselves
- if (!hasTenant && !normalizedPath.startsWith('/api/')) {
-   const url = request.nextUrl.clone()
-   url.pathname = withBasePath('/')
-   url.search = ''
-   return NextResponse.redirect(url)
- }
+    const forwardedProtoHeader = request.headers.get('x-forwarded-proto')
+    const forwardedProto = ((forwardedProtoHeader || request.nextUrl.protocol || 'http')
+      .split(',')[0]
+      .trim()
+      .replace(/:$/, '')) || 'http'
 
- // Inject tenant into headers for API routes
- const response = NextResponse.next()
- if (hasTenant) {
-   response.headers.set('x-tenant', tenantCookie)
- }
+    const forwardedHostHeader = request.headers.get('x-forwarded-host') || request.headers.get('host')
+    const forwardedHost = (forwardedHostHeader ? forwardedHostHeader.split(',')[0]?.trim() : '') || request.nextUrl.host
 
- return response
+    const rawBasePath = (process.env.BASE_PATH || '').trim()
+    const normalizedBasePath = rawBasePath && rawBasePath !== '/'
+      ? (rawBasePath.startsWith('/') ? rawBasePath : `/${rawBasePath}`)
+      : ''
+    const basePath = normalizedBasePath.endsWith('/')
+      ? normalizedBasePath.slice(0, -1)
+      : normalizedBasePath
+    const callbackPath = basePath && !pathname.startsWith(basePath)
+      ? `${basePath}${pathname}`
+      : pathname
+    const callbackUrl = `${forwardedProto}://${forwardedHost}${callbackPath}${request.nextUrl.search}`
+
+    const redirect = portalUrl('/login', request)
+    redirect.searchParams.set('callbackUrl', callbackUrl)
+    return NextResponse.redirect(redirect)
+  }
+
+  // Tenant handling for authenticated users
+  const tenantCookie = request.cookies.get(TENANT_COOKIE_NAME)?.value
+  const hasTenant = isValidTenantCode(tenantCookie)
+
+  // If no tenant selected and not on world map, redirect to world map
+  // Skip this for API routes - they should handle missing tenant themselves
+  if (!hasTenant && !normalizedPath.startsWith('/api/')) {
+    const url = request.nextUrl.clone()
+    url.pathname = withBasePath('/')
+    url.search = ''
+    return NextResponse.redirect(url)
+  }
+
+  // Inject tenant into headers for API routes
+  const response = NextResponse.next()
+  if (hasTenant) {
+    response.headers.set('x-tenant', tenantCookie)
+  }
+
+  return response
 }
 
 export const config = {
- matcher: [
- '/((?!_next/static|_next/image|favicon.ico).*)',
- ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }

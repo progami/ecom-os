@@ -2,33 +2,49 @@ import NextAuth from 'next-auth'
 import type { NextAuthConfig } from 'next-auth'
 import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
 
-const isProductionBuild = process.env.NODE_ENV === 'production'
-
-const ensureEnv = (key: string, fallback?: string) => {
-  if (!process.env[key] && fallback) {
-    process.env[key] = fallback
-  }
-  if (!process.env[key] && !isProductionBuild) {
-    throw new Error(`${key} must be defined for X-Plan auth configuration.`)
-  }
+if (!process.env.NEXT_PUBLIC_APP_URL) {
+  throw new Error('NEXT_PUBLIC_APP_URL must be defined for X-Plan auth configuration.')
 }
 
-ensureEnv('NEXT_PUBLIC_APP_URL', 'https://ecomos.targonglobal.com/x-plan')
-ensureEnv('PORTAL_AUTH_URL', 'https://ecomos.targonglobal.com')
-ensureEnv('NEXT_PUBLIC_PORTAL_AUTH_URL', process.env.PORTAL_AUTH_URL)
+if (!process.env.PORTAL_AUTH_URL) {
+  throw new Error('PORTAL_AUTH_URL must be defined for X-Plan auth configuration.')
+}
+if (!process.env.NEXT_PUBLIC_PORTAL_AUTH_URL) {
+  throw new Error('NEXT_PUBLIC_PORTAL_AUTH_URL must be defined for X-Plan auth configuration.')
+}
 
 applyDevAuthDefaults({
   appId: 'x-plan',
 })
 
-if (!process.env.NEXTAUTH_SECRET) {
-  process.env.NEXTAUTH_SECRET = 'build-only-nextauth-secret-x-plan'
+function sanitizeBaseUrl(raw?: string | null): string | undefined {
+  if (!raw) return undefined
+  try {
+    const url = new URL(raw)
+    url.hash = ''
+    url.search = ''
+    if (/\/api\/auth\/?$/.test(url.pathname)) {
+      url.pathname = url.pathname.replace(/\/?api\/auth\/?$/, '') || '/'
+    }
+    if (url.pathname.length > 1 && url.pathname.endsWith('/')) {
+      url.pathname = url.pathname.slice(0, -1)
+    }
+    return url.origin + (url.pathname === '/' ? '' : url.pathname)
+  } catch {
+    return undefined
+  }
+}
+
+const normalizedNextAuthUrl = sanitizeBaseUrl(process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL)
+if (normalizedNextAuthUrl) {
+  process.env.NEXTAUTH_URL = normalizedNextAuthUrl
 }
 
 const sharedSecret = process.env.PORTAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
-if (sharedSecret) {
-  process.env.NEXTAUTH_SECRET = sharedSecret
+if (!sharedSecret) {
+  throw new Error('PORTAL_AUTH_SECRET or NEXTAUTH_SECRET must be defined for X-Plan auth configuration.')
 }
+process.env.NEXTAUTH_SECRET = sharedSecret
 
 const baseAuthOptions: NextAuthConfig = {
   providers: [],
