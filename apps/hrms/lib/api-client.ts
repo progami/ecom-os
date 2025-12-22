@@ -68,7 +68,7 @@ export class ApiError extends Error {
   }
 }
 
-function getApiBase(): string {
+export function getApiBase(): string {
   // Allow override via env for future deployments; default to /hrms
   if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_BASE) {
     return process.env.NEXT_PUBLIC_API_BASE
