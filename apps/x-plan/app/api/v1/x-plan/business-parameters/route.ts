@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Prisma } from '@ecom-os/prisma-x-plan'
 import prisma from '@/lib/prisma'
+import { withXPlanAuth } from '@/lib/api/auth'
 
 type UpdatePayload = {
   id: string
@@ -15,7 +16,7 @@ type CreatePayload = {
   valueText?: string
 }
 
-export async function POST(request: Request) {
+export const POST = withXPlanAuth(async (request: Request) => {
   try {
     const body = await request.json()
     const payload = body as CreatePayload
@@ -54,9 +55,9 @@ export async function POST(request: Request) {
     console.error('[business-parameters][POST]', error)
     return NextResponse.json({ error: 'Unable to create business parameter' }, { status: 500 })
   }
-}
+})
 
-export async function PUT(request: Request) {
+export const PUT = withXPlanAuth(async (request: Request) => {
   try {
     const body = await request.json()
     const updates = Array.isArray(body?.updates) ? (body.updates as UpdatePayload[]) : []
@@ -99,4 +100,4 @@ export async function PUT(request: Request) {
     console.error('[business-parameters][PUT]', error)
     return NextResponse.json({ error: 'Unable to update business parameters' }, { status: 500 })
   }
-}
+})
