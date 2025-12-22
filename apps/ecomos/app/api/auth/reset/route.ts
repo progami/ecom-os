@@ -11,13 +11,9 @@ export async function GET(request: NextRequest) {
   const provider = request.nextUrl.searchParams.get('provider')
   const callbackUrl = request.nextUrl.searchParams.get('callbackUrl') || '/'
 
-  // Always redirect to login page - it will handle the OAuth flow properly
-  // using next-auth/react signIn() which POSTs with CSRF token
-  const redirectUrl = new URL('/login', baseUrl)
+  // Clear cookies first, then start the OAuth flow in a clean request.
+  const redirectUrl = new URL(provider === 'google' ? '/login/google' : '/login', baseUrl)
   redirectUrl.searchParams.set('callbackUrl', callbackUrl)
-  if (provider) {
-    redirectUrl.searchParams.set('autoSignIn', provider)
-  }
 
   const response = NextResponse.redirect(redirectUrl)
 
