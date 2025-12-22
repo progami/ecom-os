@@ -21,6 +21,20 @@ export async function GET(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
+    const actorId = await getCurrentEmployeeId()
+    if (!actorId) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
+    }
+
+    // Security: Allow HR/super-admin, or self, or managers in chain.
+    const isHR = await isHROrAbove(actorId)
+    if (!isHR && actorId !== id) {
+      const permissionCheck = await canManageEmployee(actorId, id)
+      if (!permissionCheck.canManage) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    }
+
     const memberships = await prisma.projectMember.findMany({
       where: { employeeId: id },
       include: {
@@ -64,8 +78,9 @@ export async function PUT(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    const canManage = await canManageEmployee(actorId, id)
-    if (!canManage) {
+    const isHR = await isHROrAbove(actorId)
+    const permissionCheck = isHR ? { canManage: true } : await canManageEmployee(actorId, id)
+    if (!permissionCheck.canManage) {
       return NextResponse.json({ error: 'You do not have permission to manage this employee\'s projects' }, { status: 403 })
     }
 

@@ -9,44 +9,21 @@ import {
   EmploymentTypeEnum,
 } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
-import { syncGoogleAdminUsers } from '@/lib/google-admin-sync'
-import { isAdminConfigured } from '@/lib/google-admin'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { isHROrAbove } from '@/lib/permissions'
-
-// Cache for sync status - 5 minute cache
-const SYNC_CACHE_MS = 5 * 60 * 1000
-let lastSyncTime: number | null = null
-let syncInProgress = false
-
-async function triggerBackgroundSync() {
-  if (syncInProgress || !isAdminConfigured()) return
-
-  const now = Date.now()
-  if (lastSyncTime && (now - lastSyncTime) < SYNC_CACHE_MS) return
-
-  syncInProgress = true
-  try {
-    console.log('[Employees API] Starting background Google Admin sync...')
-    const result = await syncGoogleAdminUsers()
-    lastSyncTime = Date.now()
-    console.log(`[Employees API] Sync complete: ${result.created} created, ${result.updated} updated, ${result.deactivated} deactivated`)
-  } catch (e) {
-    console.error('[Employees API] Background sync failed:', e)
-  } finally {
-    syncInProgress = false
-  }
-}
 
 export async function GET(req: Request) {
   // Rate limiting
   const rateLimitError = withRateLimit(req)
   if (rateLimitError) return rateLimitError
 
-  // Trigger background sync (non-blocking)
-  triggerBackgroundSync()
-
   try {
+    const actorId = await getCurrentEmployeeId()
+    if (!actorId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const isHR = await isHROrAbove(actorId)
     const { searchParams } = new URL(req.url)
 
     // Validate pagination params
@@ -78,11 +55,16 @@ export async function GET(req: Request) {
     if (department) where.department = department
 
     // Validate status enum
-    const statusParam = searchParams.get('status')
-    if (statusParam) {
-      const statusValidation = EmployeeStatusEnum.safeParse(statusParam.toUpperCase())
-      if (statusValidation.success) {
-        where.status = statusValidation.data
+    // Non-HR users can only view ACTIVE employees.
+    if (!isHR) {
+      where.status = 'ACTIVE'
+    } else {
+      const statusParam = searchParams.get('status')
+      if (statusParam) {
+        const statusValidation = EmployeeStatusEnum.safeParse(statusParam.toUpperCase())
+        if (statusValidation.success) {
+          where.status = statusValidation.data
+        }
       }
     }
 
@@ -101,7 +83,22 @@ export async function GET(req: Request) {
         take: Math.min(take, MAX_PAGINATION_LIMIT),
         skip,
         orderBy: { createdAt: 'desc' },
-        include: { roles: true, dept: true },
+        select: {
+          id: true,
+          employeeId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          avatar: true,
+          department: true,
+          departmentId: true,
+          dept: { select: { id: true, name: true } },
+          position: true,
+          employmentType: true,
+          joinDate: true,
+          status: true,
+          reportsToId: true,
+        },
       }),
       prisma.employee.count({ where }),
     ])

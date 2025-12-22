@@ -42,7 +42,6 @@ export async function GET(req: Request) {
     const [
       currentEmployee,
       directReports,
-      notifications,
       pendingReviews,
       pendingQuarterlyReviewsRaw,
     ] = await Promise.all([
@@ -89,14 +88,6 @@ export async function GET(req: Request) {
           avatar: true,
         },
         orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
-        take: 10,
-      }),
-      // Get user's notifications (personal + broadcast)
-      prisma.notification.findMany({
-        where: {
-          OR: [{ employeeId }, { employeeId: null }],
-        },
-        orderBy: { createdAt: 'desc' },
         take: 10,
       }),
       // Get pending reviews for direct reports
@@ -194,14 +185,22 @@ export async function GET(req: Request) {
         OR: [{ employeeId }, { employeeId: null }],
       },
       orderBy: { createdAt: 'desc' },
+      include: {
+        readReceipts: {
+          where: { employeeId },
+          select: { id: true },
+        },
+      },
       take: 10,
     })
 
     // Get unread notification count
     const unreadNotificationCount = await prisma.notification.count({
       where: {
-        isRead: false,
-        OR: [{ employeeId }, { employeeId: null }],
+        OR: [
+          { employeeId, isRead: false },
+          { employeeId: null, readReceipts: { none: { employeeId } } },
+        ],
       },
     })
 
@@ -216,6 +215,11 @@ export async function GET(req: Request) {
       ...currentEmployee,
       reportsTo: (currentEmployee as any).manager || null,
     } : null
+
+    const freshNotificationsFormatted = freshNotifications.map(({ readReceipts, ...n }) => ({
+      ...n,
+      isRead: n.employeeId === null ? readReceipts.length > 0 : n.isRead,
+    }))
 
     // Fetch leave data
     const year = new Date().getFullYear()
@@ -292,7 +296,7 @@ export async function GET(req: Request) {
       isManager,
       currentEmployee: currentEmployeeFormatted,
       directReports,
-      notifications: freshNotifications,
+      notifications: freshNotificationsFormatted,
       unreadNotificationCount,
       pendingReviews,
       pendingQuarterlyReviews,

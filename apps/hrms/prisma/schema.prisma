@@ -72,6 +72,7 @@ model Employee {
   performanceReviews PerformanceReview[]
   disciplinaryActions DisciplinaryAction[]
   notifications    Notification[]
+  notificationReadReceipts NotificationReadReceipt[]
   departmentsLed   Department[]    @relation("DepartmentHead")
   projectsLed      Project[]       @relation("ProjectLead")
   projectMemberships ProjectMember[]
@@ -254,6 +255,9 @@ model Notification {
   relatedId     String?
   relatedType   String?          // "POLICY", "REVIEW", etc.
 
+  // Per-employee read receipts for broadcast notifications (employeeId = null)
+  readReceipts  NotificationReadReceipt[]
+
   isRead        Boolean          @default(false)
   createdAt     DateTime         @default(now())
 
@@ -261,6 +265,21 @@ model Notification {
   @@index([isRead])
   @@index([createdAt])
   @@index([employeeId])
+}
+
+model NotificationReadReceipt {
+  id             String        @id @default(cuid())
+  notificationId String
+  notification   Notification  @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  employeeId     String
+  employee       Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  readAt         DateTime      @default(now())
+
+  @@unique([notificationId, employeeId])
+  @@index([employeeId])
+  @@index([notificationId])
 }
 
 enum NotificationType {
