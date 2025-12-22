@@ -244,12 +244,12 @@ export default function SuppliersPanel() {
             <EmptyState
               icon={Users}
               title={searchTerm || includeInactive ? 'No suppliers found' : 'No suppliers yet'}
-              description={
-                searchTerm
-                  ? 'Clear your search or create a new supplier.'
-                  : 'Create suppliers here so ops can pick them consistently.'
-              }
-            />
+	              description={
+	                searchTerm
+	                  ? 'Clear your search or create a new supplier.'
+	                  : 'Create suppliers for consistent SKU defaults and purchase orders.'
+	              }
+	            />
           </div>
         ) : (
           <div className="overflow-x-auto">
