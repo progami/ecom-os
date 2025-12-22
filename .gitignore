@@ -24,6 +24,12 @@ logs/
 **/logs-dev/
 *.log
 
+# Playwright
+playwright-report/
+test-results/
+**/playwright-report/
+**/test-results/
+
 # Env
 .env*
 *.mcp.json
