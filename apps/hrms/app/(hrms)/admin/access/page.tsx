@@ -182,25 +182,6 @@ export default function AccessManagementPage() {
           </div>
         </div>
 
-        {/* Legend */}
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Role Descriptions</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-600">
-            <div className="flex items-start gap-2">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
-                Super Admin
-              </span>
-              <span>Full system access, final approval authority for violations</span>
-            </div>
-            <div className="flex items-start gap-2">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
-                HR
-              </span>
-              <span>Can review violations, access all employee records</span>
-            </div>
-          </div>
-        </div>
-
         {/* Table */}
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
