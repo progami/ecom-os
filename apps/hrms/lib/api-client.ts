@@ -471,6 +471,67 @@ export type PerformanceReview = {
   updatedAt?: string
 }
 
+export type CreatePerformanceReviewInput = {
+  employeeId: string
+  reviewType: string
+  periodType: string
+  periodYear: number
+  reviewDate: string
+  reviewerName: string
+  overallRating: number
+  qualityOfWork?: number | null
+  productivity?: number | null
+  communication?: number | null
+  teamwork?: number | null
+  initiative?: number | null
+  attendance?: number | null
+  ratingPrecision?: number | null
+  ratingTransparency?: number | null
+  ratingReliability?: number | null
+  ratingInitiative?: number | null
+  selfRatingPrecision?: number | null
+  selfRatingTransparency?: number | null
+  selfRatingReliability?: number | null
+  selfRatingInitiative?: number | null
+  lowHonestyJustification?: string | null
+  lowIntegrityJustification?: string | null
+  strengths?: string | null
+  areasToImprove?: string | null
+  goals?: string | null
+  comments?: string | null
+  status?: string
+}
+
+export type UpdatePerformanceReviewInput = {
+  reviewType?: string
+  periodType?: string
+  periodYear?: number
+  reviewDate?: string
+  reviewerName?: string
+  overallRating?: number
+  qualityOfWork?: number | null
+  productivity?: number | null
+  communication?: number | null
+  teamwork?: number | null
+  initiative?: number | null
+  attendance?: number | null
+  ratingPrecision?: number | null
+  ratingTransparency?: number | null
+  ratingReliability?: number | null
+  ratingInitiative?: number | null
+  selfRatingPrecision?: number | null
+  selfRatingTransparency?: number | null
+  selfRatingReliability?: number | null
+  selfRatingInitiative?: number | null
+  lowHonestyJustification?: string | null
+  lowIntegrityJustification?: string | null
+  strengths?: string | null
+  areasToImprove?: string | null
+  goals?: string | null
+  comments?: string | null
+  status?: string
+}
+
 export const PerformanceReviewsApi = {
   list(params: {
     q?: string
@@ -493,14 +554,14 @@ export const PerformanceReviewsApi = {
   get(id: string) {
     return request<PerformanceReview>(`/api/performance-reviews/${encodeURIComponent(id)}`)
   },
-  create(payload: Omit<PerformanceReview, 'id' | 'employee' | 'createdAt' | 'updatedAt'>) {
+  create(payload: CreatePerformanceReviewInput) {
     return request<PerformanceReview>(`/api/performance-reviews`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
   },
-  update(id: string, payload: Partial<Omit<PerformanceReview, 'id' | 'employeeId' | 'employee' | 'createdAt' | 'updatedAt'>>) {
+  update(id: string, payload: UpdatePerformanceReviewInput) {
     return request<PerformanceReview>(`/api/performance-reviews/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

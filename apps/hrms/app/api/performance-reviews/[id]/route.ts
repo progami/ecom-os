@@ -4,6 +4,7 @@ import { UpdatePerformanceReviewSchema } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canManageEmployee } from '@/lib/permissions'
+import { formatReviewPeriod, type ReviewPeriodType } from '@/lib/review-period'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -103,7 +104,11 @@ export async function PATCH(req: Request, context: RouteContext) {
     const updates: Record<string, unknown> = {}
 
     if (data.reviewType !== undefined) updates.reviewType = data.reviewType
-    if (data.reviewPeriod !== undefined) updates.reviewPeriod = data.reviewPeriod
+    if (data.periodType !== undefined && data.periodYear !== undefined) {
+      updates.periodType = data.periodType
+      updates.periodYear = data.periodYear
+      updates.reviewPeriod = formatReviewPeriod(data.periodType as ReviewPeriodType, data.periodYear)
+    }
     if (data.reviewDate !== undefined) updates.reviewDate = new Date(data.reviewDate)
     // reviewerName is derived from assignedReviewerId - not editable
     if (data.overallRating !== undefined) updates.overallRating = data.overallRating
