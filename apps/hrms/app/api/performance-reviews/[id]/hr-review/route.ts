@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canHRReview, getSuperAdminEmployees } from '@/lib/permissions'
+import { writeAuditLog } from '@/lib/audit'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -106,6 +107,19 @@ export async function POST(req: Request, context: RouteContext) {
         })
       }
 
+      await writeAuditLog({
+        actorId: currentEmployeeId,
+        action: 'APPROVE',
+        entityType: 'PERFORMANCE_REVIEW',
+        entityId: updated.id,
+        summary: `HR approved review for ${updated.employee.firstName} ${updated.employee.lastName}`,
+        metadata: {
+          hrNotes: Boolean(notes),
+          newStatus: updated.status,
+        },
+        req,
+      })
+
       return NextResponse.json({
         success: true,
         message: 'Review approved by HR, sent to Super Admin for final approval',
@@ -148,6 +162,19 @@ export async function POST(req: Request, context: RouteContext) {
           },
         })
       }
+
+      await writeAuditLog({
+        actorId: currentEmployeeId,
+        action: 'REJECT',
+        entityType: 'PERFORMANCE_REVIEW',
+        entityId: updated.id,
+        summary: `HR returned review for ${updated.employee.firstName} ${updated.employee.lastName}`,
+        metadata: {
+          hrNotes: Boolean(notes),
+          newStatus: updated.status,
+        },
+        req,
+      })
 
       return NextResponse.json({
         success: true,

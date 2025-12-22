@@ -3,6 +3,7 @@ import prisma from '../../../../../lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { getHREmployees } from '@/lib/permissions'
+import { writeAuditLog } from '@/lib/audit'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -96,6 +97,19 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
+      await writeAuditLog({
+        actorId: currentEmployeeId,
+        action: 'ACKNOWLEDGE',
+        entityType: 'DISCIPLINARY_ACTION',
+        entityId: id,
+        summary: 'Acknowledged violation as manager',
+        metadata: {
+          acknowledgedAs: 'manager',
+          employeeId: action.employeeId,
+        },
+        req,
+      })
+
       return NextResponse.json({
         ...updated,
         acknowledgedAs: 'manager',
@@ -160,6 +174,19 @@ export async function POST(req: Request, context: RouteContext) {
         })
       }
 
+      await writeAuditLog({
+        actorId: currentEmployeeId,
+        action: 'ACKNOWLEDGE',
+        entityType: 'DISCIPLINARY_ACTION',
+        entityId: id,
+        summary: 'Acknowledged violation as employee',
+        metadata: {
+          acknowledgedAs: 'employee',
+          employeeId: action.employeeId,
+        },
+        req,
+      })
+
       return NextResponse.json({
         ...updated,
         acknowledgedAs: 'employee',
@@ -209,6 +236,19 @@ export async function POST(req: Request, context: RouteContext) {
           },
         })
       }
+
+      await writeAuditLog({
+        actorId: currentEmployeeId,
+        action: 'ACKNOWLEDGE',
+        entityType: 'DISCIPLINARY_ACTION',
+        entityId: id,
+        summary: 'Acknowledged violation as manager',
+        metadata: {
+          acknowledgedAs: 'manager',
+          employeeId: action.employeeId,
+        },
+        req,
+      })
 
       return NextResponse.json({
         ...updated,

@@ -4,6 +4,7 @@ import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canManageEmployee, getHREmployees } from '@/lib/permissions'
 import { updateCycleStats } from '@/lib/quarterly-review-automation'
+import { writeAuditLog } from '@/lib/audit'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -92,13 +93,18 @@ export async function POST(req: Request, context: RouteContext) {
     }
 
     // Transition to PENDING_HR_REVIEW
+    let startedAt = review.startedAt
+    if (!startedAt) {
+      startedAt = new Date()
+    }
+
     const updated = await prisma.performanceReview.update({
       where: { id },
       data: {
         status: 'PENDING_HR_REVIEW',
         submittedAt: new Date(),
         // If it wasn't started yet, set startedAt now
-        startedAt: review.startedAt || new Date(),
+        startedAt,
       },
       include: {
         employee: {
@@ -136,6 +142,19 @@ export async function POST(req: Request, context: RouteContext) {
     }
 
     console.log(`[Performance Review] Review ${id} submitted by ${currentEmployeeId} for ${review.employee.firstName} ${review.employee.lastName}`)
+
+    await writeAuditLog({
+      actorId: currentEmployeeId,
+      action: 'SUBMIT',
+      entityType: 'PERFORMANCE_REVIEW',
+      entityId: id,
+      summary: 'Submitted performance review for HR review',
+      metadata: {
+        employeeId: review.employeeId,
+        newStatus: updated.status,
+      },
+      req,
+    })
 
     return NextResponse.json({
       ...updated,

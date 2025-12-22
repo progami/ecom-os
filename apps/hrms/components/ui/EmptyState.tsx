@@ -41,13 +41,14 @@ type TableEmptyStateProps = {
   colSpan: number
   icon?: React.ReactNode
   title: string
+  description?: string
   action?: {
     label: string
     href: string
   }
 }
 
-export function TableEmptyState({ colSpan, icon, title, action }: TableEmptyStateProps) {
+export function TableEmptyState({ colSpan, icon, title, description, action }: TableEmptyStateProps) {
   return (
     <tr>
       <td colSpan={colSpan} className="px-6 py-16">
@@ -57,7 +58,10 @@ export function TableEmptyState({ colSpan, icon, title, action }: TableEmptyStat
               {icon}
             </div>
           )}
-          <p className="text-sm text-gray-600 mb-2">{title}</p>
+          <p className={`text-sm text-gray-600 ${description ? 'mb-1' : 'mb-2'}`}>{title}</p>
+          {description && (
+            <p className="text-sm text-gray-500 text-center max-w-sm mb-2">{description}</p>
+          )}
           {action && (
             <Link
               href={action.href}

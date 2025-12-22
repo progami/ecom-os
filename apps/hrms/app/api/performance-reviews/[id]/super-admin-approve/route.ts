@@ -4,6 +4,7 @@ import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canFinalApprove, getHREmployees } from '@/lib/permissions'
 import { sendNotificationEmail } from '@/lib/email-service'
+import { writeAuditLog } from '@/lib/audit'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -116,6 +117,19 @@ export async function POST(req: Request, context: RouteContext) {
         )
       }
 
+      await writeAuditLog({
+        actorId: currentEmployeeId,
+        action: 'APPROVE',
+        entityType: 'PERFORMANCE_REVIEW',
+        entityId: updated.id,
+        summary: `Super Admin approved review for ${updated.employee.firstName} ${updated.employee.lastName}`,
+        metadata: {
+          notes: Boolean(notes),
+          newStatus: updated.status,
+        },
+        req,
+      })
+
       return NextResponse.json({
         success: true,
         message: 'Review approved by Super Admin, sent to employee for acknowledgment',
@@ -174,6 +188,19 @@ export async function POST(req: Request, context: RouteContext) {
           },
         })
       }
+
+      await writeAuditLog({
+        actorId: currentEmployeeId,
+        action: 'REJECT',
+        entityType: 'PERFORMANCE_REVIEW',
+        entityId: updated.id,
+        summary: `Super Admin returned review for ${updated.employee.firstName} ${updated.employee.lastName}`,
+        metadata: {
+          notes: Boolean(notes),
+          newStatus: updated.status,
+        },
+        req,
+      })
 
       return NextResponse.json({
         success: true,
