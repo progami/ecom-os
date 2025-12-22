@@ -11,6 +11,7 @@ import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { toast } from 'react-hot-toast'
 import { WarehouseRatesPanel } from '../../warehouse-rates-panel'
 import { useRef, ChangeEvent } from 'react'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface Warehouse {
   id: string
@@ -37,6 +38,7 @@ export default function WarehouseRatesPage({
   const [uploading, setUploading] = useState(false)
   const [downloading, setDownloading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false)
 
   const loadWarehouse = useCallback(async () => {
     try {
@@ -108,8 +110,15 @@ export default function WarehouseRatesPage({
     }
   }
 
-  const handleRemoveAttachment = async () => {
-    if (!warehouse || !confirm('Remove the rate list attachment?')) return
+  const handleRemoveAttachment = () => {
+    if (!warehouse) return
+    setShowRemoveConfirm(true)
+  }
+
+  const handleConfirmRemove = async () => {
+    if (!warehouse) return
+
+    setShowRemoveConfirm(false)
     try {
       const response = await fetchWithCSRF(`/api/warehouses/${warehouse.id}/rate-list`, {
         method: 'DELETE',
@@ -232,6 +241,18 @@ export default function WarehouseRatesPage({
           </div>
         </PageContent>
       </PageContainer>
+
+      {/* Remove Attachment Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showRemoveConfirm}
+        onClose={() => setShowRemoveConfirm(false)}
+        onConfirm={handleConfirmRemove}
+        title="Remove Attachment"
+        message="Are you sure you want to remove the rate list attachment?"
+        type="warning"
+        confirmText="Remove"
+        cancelText="Cancel"
+      />
     </DashboardLayout>
   )
 }
