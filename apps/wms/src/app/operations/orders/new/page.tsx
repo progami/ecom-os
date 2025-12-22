@@ -13,6 +13,13 @@ import { ArrowLeft, Loader2, Plus, Trash2 } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 
+interface Supplier {
+  id: string
+  name: string
+  contactName: string | null
+  isActive: boolean
+}
+
 interface Sku {
   id: string
   skuCode: string
@@ -40,9 +47,10 @@ export default function NewPurchaseOrderPage() {
   const { data: session, status } = useSession()
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [skus, setSkus] = useState<Sku[]>([])
   const [formData, setFormData] = useState({
-    counterpartyName: '',
+    supplierId: '',
     notes: '',
   })
   const [lineItems, setLineItems] = useState<LineItem[]>([])
@@ -58,21 +66,31 @@ export default function NewPurchaseOrderPage() {
       return
     }
 
-    const loadSkus = async () => {
+    const loadData = async () => {
       try {
-        const response = await fetch('/api/skus')
-        if (response.ok) {
-          const data = await response.json()
-          setSkus(Array.isArray(data) ? data : [])
+        const [suppliersRes, skusRes] = await Promise.all([
+          fetch('/api/suppliers'),
+          fetch('/api/skus'),
+        ])
+
+        if (suppliersRes.ok) {
+          const suppliersData = await suppliersRes.json()
+          const suppliersList = suppliersData?.data || suppliersData || []
+          setSuppliers(Array.isArray(suppliersList) ? suppliersList.filter((s: Supplier) => s.isActive) : [])
+        }
+
+        if (skusRes.ok) {
+          const skusData = await skusRes.json()
+          setSkus(Array.isArray(skusData) ? skusData : [])
         }
       } catch (error) {
-        console.error('Failed to load SKUs:', error)
+        console.error('Failed to load data:', error)
       } finally {
         setLoading(false)
       }
     }
 
-    loadSkus()
+    loadData()
   }, [router, session, status])
 
   const addLineItem = () => {
@@ -117,6 +135,11 @@ export default function NewPurchaseOrderPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!formData.supplierId) {
+      toast.error('Please select a supplier')
+      return
+    }
+
     if (lineItems.length === 0) {
       toast.error('Please add at least one line item')
       return
@@ -128,13 +151,19 @@ export default function NewPurchaseOrderPage() {
       return
     }
 
+    const selectedSupplier = suppliers.find((s) => s.id === formData.supplierId)
+    if (!selectedSupplier) {
+      toast.error('Invalid supplier selected')
+      return
+    }
+
     setSubmitting(true)
     try {
       const response = await fetchWithCSRF('/api/purchase-orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          counterpartyName: formData.counterpartyName || undefined,
+          counterpartyName: selectedSupplier.name,
           notes: formData.notes || undefined,
           lines: lineItems.map((item) => ({
             skuCode: item.skuCode,
@@ -193,14 +222,30 @@ export default function NewPurchaseOrderPage() {
             <div className="grid grid-cols-1 gap-6">
               <div>
                 <label className="block text-sm font-medium mb-2">
-                  Supplier / Counterparty <span className="text-red-500">*</span>
+                  Supplier <span className="text-red-500">*</span>
                 </label>
-                <Input
-                  value={formData.counterpartyName}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, counterpartyName: e.target.value }))}
-                  placeholder="Enter supplier name"
+                <select
+                  value={formData.supplierId}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, supplierId: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
                   required
-                />
+                >
+                  <option value="">Select a supplier</option>
+                  {suppliers.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>
+                      {supplier.name}
+                      {supplier.contactName ? ` (${supplier.contactName})` : ''}
+                    </option>
+                  ))}
+                </select>
+                {suppliers.length === 0 && !loading && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    No suppliers found.{' '}
+                    <Link href="/config/suppliers" className="underline hover:no-underline">
+                      Add a supplier first
+                    </Link>
+                  </p>
+                )}
               </div>
 
               <div>
@@ -340,7 +385,7 @@ export default function NewPurchaseOrderPage() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting || lineItems.length === 0}>
+            <Button type="submit" disabled={submitting || !formData.supplierId || lineItems.length === 0}>
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
