@@ -73,8 +73,19 @@ export function aggregateInventoryTransactions(
       current.lastTransactionId = transaction.id ?? transaction.transactionId ?? null
       current.lastTransactionType = transaction.transactionType ?? null
       current.lastTransactionReference = transaction.referenceId ?? null
-      current.purchaseOrderId = transaction.purchaseOrderId ?? null
-      current.purchaseOrderNumber = transaction.purchaseOrderNumber ?? null
+
+      if (transaction.purchaseOrderId) {
+        const poIdChanged = current.purchaseOrderId !== transaction.purchaseOrderId
+        current.purchaseOrderId = transaction.purchaseOrderId
+
+        if (transaction.purchaseOrderNumber) {
+          current.purchaseOrderNumber = transaction.purchaseOrderNumber
+        } else if (poIdChanged) {
+          current.purchaseOrderNumber = null
+        }
+      } else if (transaction.purchaseOrderNumber) {
+        current.purchaseOrderNumber = transaction.purchaseOrderNumber
+      }
     }
 
     if (transaction.storageCartonsPerPallet && transaction.storageCartonsPerPallet > 0) {
