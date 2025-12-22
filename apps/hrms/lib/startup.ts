@@ -5,6 +5,7 @@ import {
   checkAndCreateQuarterlyReviews,
   processRemindersAndEscalations
 } from './quarterly-review-automation'
+import { runWithCronLock } from './cron-lock'
 
 let syncInitialized = false
 let quarterlyReviewsInitialized = false
@@ -20,13 +21,21 @@ export async function initializeGoogleAdminSync() {
 
   console.log('[Startup] Running initial Google Admin sync...')
   try {
-    const result = await syncGoogleAdminUsers()
-    console.log(`[Startup] Sync complete - Created: ${result.created}, Updated: ${result.updated}, Deactivated: ${result.deactivated}`)
+    const lock = await runWithCronLock('google-admin-sync', 10 * 60 * 1000, async () => {
+      const result = await syncGoogleAdminUsers()
+      console.log(`[Startup] Sync complete - Created: ${result.created}, Updated: ${result.updated}, Deactivated: ${result.deactivated}`)
 
-    // Run profile completion check after sync (wrapped to handle errors gracefully)
-    runProfileCompletionCheckForAll()
-      .then((result) => console.log(`[Profile Check] Checked: ${result.checked}, Notified: ${result.notified}`))
-      .catch((err) => console.error('[Profile Check] Failed:', err))
+      // Run profile completion check after sync (wrapped to handle errors gracefully)
+      runProfileCompletionCheckForAll()
+        .then((profileResult) => console.log(`[Profile Check] Checked: ${profileResult.checked}, Notified: ${profileResult.notified}`))
+        .catch((err) => console.error('[Profile Check] Failed:', err))
+
+      return result
+    })
+
+    if (!lock.ran) {
+      console.log('[Startup] Skipping initial Google Admin sync (lock not acquired)')
+    }
   } catch (e) {
     console.error('[Startup] Google Admin sync failed:', e)
   }
@@ -42,8 +51,16 @@ export function startPeriodicSync(intervalMs = 30 * 60 * 1000) {
     if (!isAdminConfigured()) return
     console.log('[Periodic Sync] Running Google Admin sync...')
     try {
-      const result = await syncGoogleAdminUsers()
-      console.log(`[Periodic Sync] Sync complete - Created: ${result.created}, Updated: ${result.updated}, Deactivated: ${result.deactivated}`)
+      const lock = await runWithCronLock('google-admin-sync', 25 * 60 * 1000, async () => {
+        const result = await syncGoogleAdminUsers()
+        console.log(`[Periodic Sync] Sync complete - Created: ${result.created}, Updated: ${result.updated}, Deactivated: ${result.deactivated}`)
+        return result
+      })
+
+      if (!lock.ran) {
+        console.log('[Periodic Sync] Skipping sync (lock not acquired)')
+        return
+      }
 
       // Run profile completion check after sync
       runProfileCompletionCheckForAll()
@@ -72,14 +89,21 @@ export async function initializeQuarterlyReviewAutomation() {
 
   console.log('[Startup] Checking quarterly reviews...')
   try {
-    const result = await checkAndCreateQuarterlyReviews()
-    if (result.cycleCreated) {
-      console.log(`[Startup] Created quarterly cycle with ${result.reviewsCreated} reviews`)
-    } else {
-      console.log('[Startup] No new quarterly cycle needed')
-    }
-    if (result.errors.length > 0) {
-      console.error('[Startup] Quarterly review errors:', result.errors)
+    const lock = await runWithCronLock('quarterly-review-automation', 10 * 60 * 1000, async () => {
+      const result = await checkAndCreateQuarterlyReviews()
+      if (result.cycleCreated) {
+        console.log(`[Startup] Created quarterly cycle with ${result.reviewsCreated} reviews`)
+      } else {
+        console.log('[Startup] No new quarterly cycle needed')
+      }
+      if (result.errors.length > 0) {
+        console.error('[Startup] Quarterly review errors:', result.errors)
+      }
+      return result
+    })
+
+    if (!lock.ran) {
+      console.log('[Startup] Skipping quarterly review check (lock not acquired)')
     }
   } catch (e) {
     console.error('[Startup] Quarterly review check failed:', e)
@@ -95,16 +119,24 @@ export function startQuarterlyReviewReminders(intervalMs = 6 * 60 * 60 * 1000) {
   quarterlyReviewInterval = setInterval(async () => {
     console.log('[Quarterly Reviews] Running periodic check...')
     try {
-      // Check if new quarter started (creates new cycle if needed)
-      const cycleResult = await checkAndCreateQuarterlyReviews()
-      if (cycleResult.cycleCreated) {
-        console.log(`[Quarterly Reviews] Created new cycle with ${cycleResult.reviewsCreated} reviews`)
-      }
+      const lock = await runWithCronLock('quarterly-review-reminders', 5 * 60 * 60 * 1000, async () => {
+        // Check if new quarter started (creates new cycle if needed)
+        const cycleResult = await checkAndCreateQuarterlyReviews()
+        if (cycleResult.cycleCreated) {
+          console.log(`[Quarterly Reviews] Created new cycle with ${cycleResult.reviewsCreated} reviews`)
+        }
 
-      // Process reminders and escalations
-      const reminderResult = await processRemindersAndEscalations()
-      if (reminderResult.remindersSent > 0 || reminderResult.escalations > 0) {
-        console.log(`[Quarterly Reviews] Reminders: ${reminderResult.remindersSent}, Escalations: ${reminderResult.escalations}`)
+        // Process reminders and escalations
+        const reminderResult = await processRemindersAndEscalations()
+        if (reminderResult.remindersSent > 0 || reminderResult.escalations > 0) {
+          console.log(`[Quarterly Reviews] Reminders: ${reminderResult.remindersSent}, Escalations: ${reminderResult.escalations}`)
+        }
+
+        return { cycleResult, reminderResult }
+      })
+
+      if (!lock.ran) {
+        console.log('[Quarterly Reviews] Skipping periodic check (lock not acquired)')
       }
     } catch (e) {
       console.error('[Quarterly Reviews] Periodic check failed:', e)

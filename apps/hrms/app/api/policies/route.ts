@@ -12,6 +12,7 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { publish } from '@/lib/notification-service'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { isHROrAbove } from '@/lib/permissions'
+import { writeAuditLog } from '@/lib/audit'
 
 export async function GET(req: Request) {
   // Rate limiting
@@ -143,6 +144,20 @@ export async function POST(req: Request) {
       type: 'POLICY_CREATED',
       policyId: item.id,
       policyTitle: item.title,
+    })
+
+    await writeAuditLog({
+      actorId,
+      action: 'CREATE',
+      entityType: 'POLICY',
+      entityId: item.id,
+      summary: `Created policy "${item.title}" v${item.version}`,
+      metadata: {
+        category: item.category,
+        region: item.region,
+        status: item.status,
+      },
+      req,
     })
 
     return NextResponse.json(item, { status: 201 })

@@ -13,8 +13,14 @@ jobs:
         run: |
           echo "Base: ${{ github.base_ref }}"
           echo "Head: ${{ github.head_ref }}"
-          if [ "${{ github.base_ref }}" != "main" ]; then
+          if [[ "${{ github.base_ref }}" != "main" ]]; then
             echo "Not targeting main; skipping."
             exit 0
           fi
-          echo "::warning::PR policy enforcement is currently disabled; allowing '${{ github.head_ref }}' → main."
+
+          if [[ "${{ github.head_ref }}" != "dev" ]]; then
+            echo "::error::Releases to main must come from the dev branch (got '${{ github.head_ref }}' → main)."
+            exit 1
+          fi
+
+          echo "✓ PR source policy passed (dev → main)"

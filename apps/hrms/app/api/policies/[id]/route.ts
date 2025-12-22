@@ -5,6 +5,7 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { publish } from '@/lib/notification-service'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { isHROrAbove } from '@/lib/permissions'
+import { writeAuditLog } from '@/lib/audit'
 
 type PolicyRouteContext = { params: Promise<{ id: string }> }
 
@@ -127,6 +128,18 @@ export async function PATCH(req: Request, context: PolicyRouteContext) {
       })
     }
 
+    await writeAuditLog({
+      actorId,
+      action: 'UPDATE',
+      entityType: 'POLICY',
+      entityId: p.id,
+      summary: `Updated policy "${p.title}"`,
+      metadata: {
+        changed: Object.keys(updates),
+      },
+      req,
+    })
+
     return NextResponse.json(p)
   } catch (e) {
     return safeErrorResponse(e, 'Failed to update policy')
@@ -156,7 +169,23 @@ export async function DELETE(req: Request, context: PolicyRouteContext) {
       return NextResponse.json({ error: 'Only HR or super admin can delete policies' }, { status: 403 })
     }
 
+    const existing = await prisma.policy.findUnique({
+      where: { id },
+      select: { id: true, title: true },
+    })
+
     await prisma.policy.delete({ where: { id } })
+
+    if (existing) {
+      await writeAuditLog({
+        actorId,
+        action: 'DELETE',
+        entityType: 'POLICY',
+        entityId: existing.id,
+        summary: `Deleted policy "${existing.title}"`,
+        req,
+      })
+    }
     return NextResponse.json({ ok: true })
   } catch (e) {
     return safeErrorResponse(e, 'Failed to delete policy')

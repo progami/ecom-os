@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { getHREmployees } from '@/lib/permissions'
+import { writeAuditLog } from '@/lib/audit'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -118,6 +119,19 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
     }
+
+    await writeAuditLog({
+      actorId: currentEmployeeId,
+      action: 'ACKNOWLEDGE',
+      entityType: 'PERFORMANCE_REVIEW',
+      entityId: id,
+      summary: 'Acknowledged performance review',
+      metadata: {
+        employeeId: review.employeeId,
+        newStatus: updated.status,
+      },
+      req,
+    })
 
     return NextResponse.json({
       ...updated,

@@ -7,6 +7,7 @@ import { checkAndNotifyMissingFields, publish } from '@/lib/notification-service
 import { patchUser, isAdminConfigured } from '@/lib/google-admin'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { filterAllowedFields, canReassignEmployee, isHROrAbove, isSuperAdmin } from '@/lib/permissions'
+import { writeAuditLog } from '@/lib/audit'
 
 type EmployeeRouteContext = { params: Promise<{ id: string }> }
 
@@ -304,6 +305,22 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
       })
     }
 
+    await writeAuditLog({
+      actorId,
+      action: 'UPDATE',
+      entityType: 'EMPLOYEE',
+      entityId: e.id,
+      summary: 'Updated employee record',
+      metadata: {
+        changedFields: Object.keys(updates),
+        deniedFields: denied.map((d) => d.field),
+        hierarchyChanged: data.reportsToId !== undefined && oldManagerId !== newManagerId,
+        rolesChanged: roles !== undefined,
+        departmentChanged: departmentName !== undefined,
+      },
+      req,
+    })
+
     return NextResponse.json(e)
   } catch (e) {
     return safeErrorResponse(e, 'Failed to update employee')
@@ -338,7 +355,26 @@ export async function DELETE(req: Request, context: EmployeeRouteContext) {
       return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 400 })
     }
 
+    const existing = await prisma.employee.findUnique({
+      where: { id },
+      select: { id: true, employeeId: true },
+    })
+
     await prisma.employee.delete({ where: { id } })
+
+    if (existing) {
+      await writeAuditLog({
+        actorId,
+        action: 'DELETE',
+        entityType: 'EMPLOYEE',
+        entityId: existing.id,
+        summary: 'Deleted employee record',
+        metadata: {
+          employeeId: existing.employeeId,
+        },
+        req,
+      })
+    }
     return NextResponse.json({ ok: true })
   } catch (e) {
     return safeErrorResponse(e, 'Failed to delete employee')
