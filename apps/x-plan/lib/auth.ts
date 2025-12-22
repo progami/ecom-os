@@ -1,21 +1,13 @@
 import NextAuth from 'next-auth'
 import type { NextAuthConfig } from 'next-auth'
+import type { NextRequest } from 'next/server'
 import { applyDevAuthDefaults, withSharedAuth } from '@ecom-os/auth'
-
-if (!process.env.NEXT_PUBLIC_APP_URL) {
-  throw new Error('NEXT_PUBLIC_APP_URL must be defined for X-Plan auth configuration.')
-}
-
-if (!process.env.PORTAL_AUTH_URL) {
-  throw new Error('PORTAL_AUTH_URL must be defined for X-Plan auth configuration.')
-}
-if (!process.env.NEXT_PUBLIC_PORTAL_AUTH_URL) {
-  throw new Error('NEXT_PUBLIC_PORTAL_AUTH_URL must be defined for X-Plan auth configuration.')
-}
 
 applyDevAuthDefaults({
   appId: 'x-plan',
 })
+
+type NextAuthResult = ReturnType<typeof NextAuth>
 
 function sanitizeBaseUrl(raw?: string | null): string | undefined {
   if (!raw) return undefined
@@ -35,41 +27,70 @@ function sanitizeBaseUrl(raw?: string | null): string | undefined {
   }
 }
 
-const normalizedNextAuthUrl = sanitizeBaseUrl(process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL)
-if (normalizedNextAuthUrl) {
-  process.env.NEXTAUTH_URL = normalizedNextAuthUrl
+function requireEnv(name: string): string {
+  const value = process.env[name]
+  if (!value || value.trim() === '') {
+    throw new Error(`${name} must be defined for X-Plan auth configuration.`)
+  }
+  return value
 }
 
-const sharedSecret = process.env.PORTAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
-if (!sharedSecret) {
-  throw new Error('PORTAL_AUTH_SECRET or NEXTAUTH_SECRET must be defined for X-Plan auth configuration.')
-}
-process.env.NEXTAUTH_SECRET = sharedSecret
+function resolveAuthOptions(): NextAuthConfig {
+  requireEnv('NEXT_PUBLIC_APP_URL')
+  requireEnv('PORTAL_AUTH_URL')
+  requireEnv('NEXT_PUBLIC_PORTAL_AUTH_URL')
 
-const baseAuthOptions: NextAuthConfig = {
-  providers: [],
-  session: { strategy: 'jwt' },
-  secret: sharedSecret,
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user && (user as any).id) {
-        token.sub = (user as any).id
-      }
-      return token
+  const normalizedNextAuthUrl = sanitizeBaseUrl(process.env.NEXTAUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL)
+  if (normalizedNextAuthUrl) {
+    process.env.NEXTAUTH_URL = normalizedNextAuthUrl
+  }
+
+  const sharedSecret = process.env.PORTAL_AUTH_SECRET || process.env.NEXTAUTH_SECRET
+  if (!sharedSecret) {
+    throw new Error('PORTAL_AUTH_SECRET or NEXTAUTH_SECRET must be defined for X-Plan auth configuration.')
+  }
+  process.env.NEXTAUTH_SECRET = sharedSecret
+
+  const baseAuthOptions: NextAuthConfig = {
+    trustHost: true,
+    providers: [],
+    session: { strategy: 'jwt' },
+    secret: sharedSecret,
+    callbacks: {
+      async jwt({ token, user }) {
+        if (user && (user as any).id) {
+          token.sub = (user as any).id
+        }
+        return token
+      },
+      async session({ session, token }) {
+        ;(session as { roles?: unknown }).roles = (token as { roles?: unknown }).roles
+        session.user.id = (token.sub as string) || session.user.id
+        return session
+      },
     },
-    async session({ session, token }) {
-      (session as { roles?: unknown }).roles = (token as { roles?: unknown }).roles
-      session.user.id = (token.sub as string) || session.user.id
-      return session
-    },
-  },
+  }
+
+  return withSharedAuth(baseAuthOptions, {
+    cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
+    // Read portal cookie in dev
+    appId: 'ecomos',
+  })
 }
 
-export const authOptions: NextAuthConfig = withSharedAuth(baseAuthOptions, {
-  cookieDomain: process.env.COOKIE_DOMAIN || '.targonglobal.com',
-  // Read portal cookie in dev
-  appId: 'ecomos',
-})
+let cached: NextAuthResult | null = null
 
-// Initialize NextAuth with config and export handlers + auth function
-export const { handlers, auth, signIn, signOut } = NextAuth(authOptions)
+function getNextAuth(): NextAuthResult {
+  if (cached) return cached
+  cached = NextAuth(resolveAuthOptions())
+  return cached
+}
+
+export const handlers = {
+  GET: (request: NextRequest) => getNextAuth().handlers.GET(request),
+  POST: (request: NextRequest) => getNextAuth().handlers.POST(request),
+} satisfies NextAuthResult['handlers']
+
+export async function auth() {
+  return getNextAuth().auth()
+}
