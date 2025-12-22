@@ -39,7 +39,7 @@ function resolveAppOrigin(request: NextRequest): string {
   return request.nextUrl.origin
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const normalizeBasePath = (value?: string | null) => {
@@ -105,7 +105,7 @@ export async function middleware(request: NextRequest) {
       // No session at all
       const login = portalUrl('/login', request)
       if (debug) {
-        console.log('[x-plan middleware] no session, redirecting to portal login', login.toString())
+        console.log('[x-plan proxy] no session, redirecting to portal login', login.toString())
       }
       const callbackOrigin = resolveAppOrigin(request)
       const callbackUrl = new URL(

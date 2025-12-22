@@ -16,9 +16,7 @@
     "prisma:generate": "prisma generate --schema prisma/schema.prisma",
     "prisma:push": "prisma db push --schema prisma/schema.prisma",
     "prisma:migrate:dev": "prisma migrate dev --schema prisma/schema.prisma",
-    "prisma:migrate:deploy": "prisma migrate deploy --schema prisma/schema.prisma",
-    "cleanup:parameters": "tsx scripts/remove-parameter-products.ts",
-    "fix:weekly-costs": "tsx scripts/fix-weekly-fixed-costs.ts"
+    "prisma:migrate:deploy": "prisma migrate deploy --schema prisma/schema.prisma"
   },
   "dependencies": {
     "@ecom-os/auth": "workspace:*",
@@ -70,7 +68,10 @@
     "tailwindcss": "^3.4.17",
     "tslib": "^2.7.0",
     "tsx": "^4.21.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "jsdom": "^26.1.0",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.4"
   },
   "engines": {
     "node": ">=20.9.0"

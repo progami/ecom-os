@@ -52,7 +52,6 @@ const NUMERIC_FIELDS = [
   'sellingPrice',
   'manufacturingCost',
   'freightCost',
-  'tariffRate',
   'fbaFee',
   'storagePerMonth',
 ] as const
@@ -63,15 +62,15 @@ const NUMERIC_PRECISION: Record<NumericField, number> = {
   sellingPrice: 2,
   manufacturingCost: 2,
   freightCost: 2,
-  tariffRate: 2,
   fbaFee: 2,
   storagePerMonth: 2,
 }
 
-const PERCENT_FIELDS = ['tacosPercent', 'referralRate'] as const
+const PERCENT_FIELDS = ['tariffRate', 'tacosPercent', 'referralRate'] as const
 type PercentField = (typeof PERCENT_FIELDS)[number]
 
 const PERCENT_PRECISION: Record<PercentField, number> = {
+  tariffRate: 2,
   tacosPercent: 2,
   referralRate: 2,
 }
@@ -129,7 +128,7 @@ const COLUMNS: ColumnDef[] = [
   { key: 'sellingPrice', header: 'Sell $', width: 120, type: 'numeric', editable: true, precision: 2 },
   { key: 'manufacturingCost', header: 'Mfg $', width: 120, type: 'numeric', editable: true, precision: 2 },
   { key: 'freightCost', header: 'Freight $', width: 120, type: 'numeric', editable: true, precision: 2 },
-  { key: 'tariffRate', header: 'Tariff $', width: 110, type: 'numeric', editable: true, precision: 2 },
+  { key: 'tariffRate', header: 'Tariff %', width: 110, type: 'percent', editable: true, precision: 2 },
   { key: 'tacosPercent', header: 'TACoS %', width: 110, type: 'percent', editable: true, precision: 2 },
   { key: 'fbaFee', header: 'FBA $', width: 110, type: 'numeric', editable: true, precision: 2 },
   { key: 'referralRate', header: 'Referral %', width: 110, type: 'percent', editable: true, precision: 2 },

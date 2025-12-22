@@ -14,7 +14,7 @@ function parseNumber(value: string | null | undefined) {
   if (!value) return null
   const trimmed = value.trim()
   if (!trimmed) return null
-  const cleaned = trimmed.replace(/[$,%]/g, '')
+  const cleaned = trimmed.replace(/[$,%\s]/g, '').replace(/,/g, '')
   const parsed = Number(cleaned)
   return Number.isNaN(parsed) ? null : parsed
 }

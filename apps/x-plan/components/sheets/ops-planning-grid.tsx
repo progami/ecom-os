@@ -4,10 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { HotTable } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
-import 'handsontable/dist/handsontable.full.min.css'
-import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { useHandsontableThemeName } from '@/hooks/useHandsontableThemeName'
 import { toIsoDate } from '@/lib/utils/dates'
 import { dateValidator, formatNumericInput, numericValidator } from '@/components/sheets/validators'
 import { withAppBasePath } from '@/lib/base-path'
@@ -271,6 +270,7 @@ export function OpsPlanningGrid({
 }: OpsPlanningGridProps) {
   const [isClient, setIsClient] = useState(false)
   const [stageMode, setStageMode] = useState<'weeks' | 'dates'>('weeks')
+  const themeName = useHandsontableThemeName()
   const hotRef = useRef<Handsontable | null>(null)
   const handleFlush = useCallback(
     async (payload: Array<{ id: string; values: Record<string, string> }>) => {
@@ -454,6 +454,7 @@ export function OpsPlanningGrid({
         }}
         data={data}
         licenseKey="non-commercial-and-evaluation"
+        themeName={themeName}
         columns={columns}
         colHeaders={headers}
         afterGetColHeader={(col, TH) => handleColHeader(col as number, TH as HTMLTableCellElement)}

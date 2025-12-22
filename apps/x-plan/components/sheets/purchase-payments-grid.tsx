@@ -6,10 +6,9 @@ import Handsontable from 'handsontable'
 import Flatpickr from 'react-flatpickr'
 import 'flatpickr/dist/themes/light.css'
 import { registerAllModules } from 'handsontable/registry'
-import 'handsontable/dist/handsontable.full.min.css'
-import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { useHandsontableThemeName } from '@/hooks/useHandsontableThemeName'
 import { finishEditingSafely } from '@/lib/handsontable'
 import { deriveIsoWeek, formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
 import {
@@ -134,6 +133,7 @@ export function PurchasePaymentsGrid({
   summaryLine,
 }: PurchasePaymentsGridProps) {
   const [isClient, setIsClient] = useState(false)
+  const themeName = useHandsontableThemeName()
   const hotRef = useRef<Handsontable | null>(null)
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
@@ -318,6 +318,7 @@ export function PurchasePaymentsGrid({
         }}
         data={data}
         licenseKey="non-commercial-and-evaluation"
+        themeName={themeName}
         colHeaders={HEADERS}
         columns={COLUMNS}
         rowHeaders={false}
