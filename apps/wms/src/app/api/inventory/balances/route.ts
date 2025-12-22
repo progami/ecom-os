@@ -6,7 +6,7 @@ import {
   getPaginationSkipTake,
   createPaginatedResponse
 } from '@/lib/database/pagination'
-import { toPublicOrderNumber } from '@/lib/services/purchase-order-service'
+import { toPublicOrderNumber } from '@/lib/services/purchase-order-utils'
 import { sanitizeSearchQuery } from '@/lib/security/input-sanitization'
 import { aggregateInventoryTransactions } from '@ecom-os/ledger'
 import { withAuth } from '@/lib/api/auth-wrapper'

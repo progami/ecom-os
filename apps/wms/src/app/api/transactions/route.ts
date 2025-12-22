@@ -7,7 +7,7 @@ import { businessLogger, perfLogger } from '@/lib/logger/index'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 import { parseLocalDateTime } from '@/lib/utils/date-helpers'
 import { recordStorageCostEntry } from '@/services/storageCost.service'
-import { resolveBatchLot } from '@/lib/services/purchase-order-service'
+import { resolveBatchLot } from '@/lib/services/purchase-order-utils'
 import { buildTacticalCostLedgerEntries } from '@/lib/costing/tactical-costing'
 import {
   isRecord,

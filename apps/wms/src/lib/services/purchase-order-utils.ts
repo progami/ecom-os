@@ -4,8 +4,6 @@
  */
 
 import { createHash } from 'crypto'
-import { PurchaseOrderType, TransactionType } from '@ecom-os/prisma-wms'
-import { ValidationError } from '@/lib/api'
 
 export const SYSTEM_FALLBACK_ID = 'system'
 export const SYSTEM_FALLBACK_NAME = 'System'
@@ -27,14 +25,6 @@ export function normalizeNullable(value?: string | null): string | null {
   return trimmed && trimmed.length > 0 ? trimmed : null
 }
 
-/**
- * Normalize order number - throws if empty
- */
-export function normalizeOrderNumber(value?: string | null): string {
-  const provided = normalizeNullable(value)
-  if (provided) return provided
-  throw new ValidationError('A purchase order number or reference is required to link transactions')
-}
 
 /**
  * Generate a deterministic hash from seed parts
@@ -70,20 +60,4 @@ export function resolveBatchLot(params: {
     params.skuCode
   ])
   return fallback
-}
-
-/**
- * Map transaction type to purchase order type
- */
-export function mapTransactionToOrderType(type: TransactionType): PurchaseOrderType {
-  switch (type) {
-    case 'RECEIVE':
-    case 'ADJUST_IN':
-      return PurchaseOrderType.PURCHASE
-    case 'SHIP':
-    case 'ADJUST_OUT':
-      return PurchaseOrderType.FULFILLMENT
-    default:
-      return PurchaseOrderType.ADJUSTMENT
-  }
 }

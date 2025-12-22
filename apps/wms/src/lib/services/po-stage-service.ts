@@ -17,12 +17,6 @@ export const VALID_TRANSITIONS: Partial<Record<PurchaseOrderStatus, PurchaseOrde
   WAREHOUSE: [PurchaseOrderStatus.SHIPPED, PurchaseOrderStatus.CANCELLED],
   SHIPPED: [], // Terminal state
   CANCELLED: [], // Terminal state
-  ARCHIVED: [], // Legacy terminal state
-  // Legacy statuses have no valid transitions in new workflow
-  AWAITING_PROOF: [],
-  REVIEW: [],
-  POSTED: [],
-  CLOSED: [],
 }
 
 // Stage-specific required fields for transition
@@ -742,45 +736,6 @@ export function getStageData(order: PurchaseOrder): {
       shippedBy: order.shippedByName,
     },
   }
-}
-
-// Export status constants for UI use
-export const PO_STAGES = [
-  PurchaseOrderStatus.DRAFT,
-  PurchaseOrderStatus.MANUFACTURING,
-  PurchaseOrderStatus.OCEAN,
-  PurchaseOrderStatus.WAREHOUSE,
-  PurchaseOrderStatus.SHIPPED,
-] as const
-
-export const PO_STAGE_LABELS: Record<PurchaseOrderStatus, string> = {
-  [PurchaseOrderStatus.DRAFT]: 'Draft',
-  [PurchaseOrderStatus.MANUFACTURING]: 'Manufacturing',
-  [PurchaseOrderStatus.OCEAN]: 'In Transit',
-  [PurchaseOrderStatus.WAREHOUSE]: 'At Warehouse',
-  [PurchaseOrderStatus.SHIPPED]: 'Shipped',
-  [PurchaseOrderStatus.CANCELLED]: 'Cancelled',
-  [PurchaseOrderStatus.ARCHIVED]: 'Archived',
-  // Legacy statuses
-  [PurchaseOrderStatus.AWAITING_PROOF]: 'Awaiting Proof',
-  [PurchaseOrderStatus.REVIEW]: 'Review',
-  [PurchaseOrderStatus.POSTED]: 'Posted',
-  [PurchaseOrderStatus.CLOSED]: 'Closed',
-}
-
-export const PO_STAGE_COLORS: Record<PurchaseOrderStatus, string> = {
-  [PurchaseOrderStatus.DRAFT]: 'slate',
-  [PurchaseOrderStatus.MANUFACTURING]: 'amber',
-  [PurchaseOrderStatus.OCEAN]: 'blue',
-  [PurchaseOrderStatus.WAREHOUSE]: 'purple',
-  [PurchaseOrderStatus.SHIPPED]: 'emerald',
-  [PurchaseOrderStatus.CANCELLED]: 'red',
-  [PurchaseOrderStatus.ARCHIVED]: 'gray',
-  // Legacy statuses
-  [PurchaseOrderStatus.AWAITING_PROOF]: 'sky',
-  [PurchaseOrderStatus.REVIEW]: 'cyan',
-  [PurchaseOrderStatus.POSTED]: 'emerald',
-  [PurchaseOrderStatus.CLOSED]: 'slate',
 }
 
 /**
