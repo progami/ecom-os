@@ -19,6 +19,25 @@ import { withAppBasePath } from '@/lib/base-path'
 
 registerAllModules()
 
+function getHandsontableScroll(hot: Handsontable | null): { top: number; left: number } | null {
+  if (!hot?.rootElement) return null
+  const holder =
+    (hot.rootElement.querySelector('.ht_master .wtHolder') as HTMLElement | null) ??
+    (hot.rootElement.querySelector('.wtHolder') as HTMLElement | null)
+  if (!holder) return null
+  return { top: holder.scrollTop, left: holder.scrollLeft }
+}
+
+function restoreHandsontableScroll(hot: Handsontable | null, scroll: { top: number; left: number }) {
+  if (!hot?.rootElement) return
+  const holder =
+    (hot.rootElement.querySelector('.ht_master .wtHolder') as HTMLElement | null) ??
+    (hot.rootElement.querySelector('.wtHolder') as HTMLElement | null)
+  if (!holder) return
+  holder.scrollTop = scroll.top
+  holder.scrollLeft = scroll.left
+}
+
 type SalesRow = {
   weekNumber: string
   weekDate: string
@@ -119,6 +138,17 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
   const focusProductId = focusContext?.focusProductId ?? 'ALL'
   const warningThreshold = Number.isFinite(stockWarningWeeks) ? stockWarningWeeks : Number.POSITIVE_INFINITY
   const router = useRouter()
+
+  const preserveScrollPosition = useCallback((action: () => void) => {
+    const scroll = getHandsontableScroll(hotRef.current)
+    action()
+    if (!scroll) return
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        restoreHandsontableScroll(hotRef.current, scroll)
+      })
+    })
+  }, [])
 
   const data = useMemo(() => rows, [rows])
   const hasInboundByWeek = useMemo(() => {
@@ -359,11 +389,13 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
           e.preventDefault()
           e.stopPropagation()
           e.stopImmediatePropagation()
-          if (showAllArrow) {
-            focusContext?.setFocusProductId('ALL')
-          } else if (hasPrev) {
-            focusContext?.setFocusProductId(productOptions[currentProductIndex - 1].id)
-          }
+          preserveScrollPosition(() => {
+            if (showAllArrow) {
+              focusContext?.setFocusProductId('ALL')
+            } else if (hasPrev) {
+              focusContext?.setFocusProductId(productOptions[currentProductIndex - 1].id)
+            }
+          })
         })
         prevBtn.addEventListener('mousedown', (e) => {
           e.preventDefault()
@@ -390,9 +422,11 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
           e.preventDefault()
           e.stopPropagation()
           e.stopImmediatePropagation()
-          if (hasNext) {
-            focusContext?.setFocusProductId(productOptions[currentProductIndex + 1].id)
-          }
+          preserveScrollPosition(() => {
+            if (hasNext) {
+              focusContext?.setFocusProductId(productOptions[currentProductIndex + 1].id)
+            }
+          })
         })
         nextBtn.addEventListener('mousedown', (e) => {
           e.preventDefault()
@@ -433,7 +467,9 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
 
       if (meta.field === activeStockMetric) {
         renderToggle(activeStockMetric === 'stockWeeks' ? 'Stock (Weeks)' : 'Stock Qty', () => {
-          setActiveStockMetric((prev) => (prev === 'stockWeeks' ? 'stockEnd' : 'stockWeeks'))
+          preserveScrollPosition(() => {
+            setActiveStockMetric((prev) => (prev === 'stockWeeks' ? 'stockEnd' : 'stockWeeks'))
+          })
         })
         return
       }
@@ -441,7 +477,9 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
       const activeFinalField = showFinalError ? 'finalSalesError' : 'finalSales'
       if (meta.field === activeFinalField) {
         renderToggle(showFinalError ? '% Error' : 'Final Sales', () => {
-          setShowFinalError((prev) => !prev)
+          preserveScrollPosition(() => {
+            setShowFinalError((prev) => !prev)
+          })
         })
       }
     },
@@ -449,6 +487,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
       activeStockMetric,
       columnKeys,
       columnMeta,
+      preserveScrollPosition,
       setActiveStockMetric,
       setShowFinalError,
       showFinalError,
