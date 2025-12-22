@@ -157,15 +157,31 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
       toast.error('Supplier name is required')
       return
     }
+    if (!formState.contactName.trim()) {
+      toast.error('Contact name is required')
+      return
+    }
+    if (!formState.email.trim()) {
+      toast.error('Email is required')
+      return
+    }
+    if (!formState.phone.trim()) {
+      toast.error('Phone is required')
+      return
+    }
+    if (!formState.address.trim()) {
+      toast.error('Address is required')
+      return
+    }
 
     setIsSubmitting(true)
     try {
       const payload = {
         name: formState.name.trim(),
-        contactName: formState.contactName.trim() ? formState.contactName.trim() : null,
-        email: formState.email.trim() ? formState.email.trim() : null,
-        phone: formState.phone.trim() ? formState.phone.trim() : null,
-        address: formState.address.trim() ? formState.address.trim() : null,
+        contactName: formState.contactName.trim(),
+        email: formState.email.trim(),
+        phone: formState.phone.trim(),
+        address: formState.address.trim(),
         notes: formState.notes.trim() ? formState.notes.trim() : null,
         isActive: formState.isActive,
       }
@@ -367,7 +383,7 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
                     id="supplier-contact"
                     value={formState.contactName}
                     onChange={(event) => setFormState((prev) => ({ ...prev, contactName: event.target.value }))}
-                    placeholder="Optional"
+                    required
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
                   />
                 </div>
@@ -379,7 +395,7 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
                     type="email"
                     value={formState.email}
                     onChange={(event) => setFormState((prev) => ({ ...prev, email: event.target.value }))}
-                    placeholder="Optional"
+                    required
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
                   />
                 </div>
@@ -390,7 +406,7 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
                     id="supplier-phone"
                     value={formState.phone}
                     onChange={(event) => setFormState((prev) => ({ ...prev, phone: event.target.value }))}
-                    placeholder="Optional"
+                    required
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
                   />
                 </div>
@@ -401,7 +417,7 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
                     id="supplier-address"
                     value={formState.address}
                     onChange={(event) => setFormState((prev) => ({ ...prev, address: event.target.value }))}
-                    placeholder="Optional"
+                    required
                     rows={2}
                   />
                 </div>
