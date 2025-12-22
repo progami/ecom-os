@@ -11,14 +11,6 @@ import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { Edit2, Loader2, Package2, Plus, Search } from '@/lib/lucide-icons'
 import { SkuBatchesModal } from './sku-batches-modal'
 
-type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE'
-
-const STATUS_FILTERS: { label: string; value: StatusFilter }[] = [
-  { label: 'All', value: 'ALL' },
-  { label: 'Active', value: 'ACTIVE' },
-  { label: 'Inactive', value: 'INACTIVE' },
-]
-
 interface SkuRow {
   id: string
   skuCode: string
@@ -108,7 +100,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
   const [skus, setSkus] = useState<SkuRow[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ACTIVE')
+  const [showInactive, setShowInactive] = useState(false)
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([])
   const [suppliersLoading, setSuppliersLoading] = useState(false)
   const [batchesSku, setBatchesSku] = useState<SkuRow | null>(null)
@@ -135,9 +127,9 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
   const buildQuery = useCallback(() => {
     const params = new URLSearchParams()
     if (searchTerm.trim()) params.set('search', searchTerm.trim())
-    if (statusFilter !== 'ACTIVE') params.set('includeInactive', 'true')
+    if (showInactive) params.set('includeInactive', 'true')
     return params.toString()
-  }, [searchTerm, statusFilter])
+  }, [searchTerm, showInactive])
 
   const fetchSkus = useCallback(async () => {
     try {
@@ -189,8 +181,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
   const filteredSkus = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
     return skus.filter((sku) => {
-      if (statusFilter === 'ACTIVE' && !sku.isActive) return false
-      if (statusFilter === 'INACTIVE' && sku.isActive) return false
+      if (!showInactive && !sku.isActive) return false
       if (!term) return true
 
       return (
@@ -199,7 +190,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         (sku.asin ?? '').toLowerCase().includes(term)
       )
     })
-  }, [skus, searchTerm, statusFilter])
+  }, [skus, searchTerm, showInactive])
 
   const totals = useMemo(() => {
     const active = skus.filter((s) => s.isActive).length
@@ -359,22 +350,15 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                 className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
               />
             </div>
-            <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
-              {STATUS_FILTERS.map((filter) => (
-                <button
-                  key={filter.value}
-                  type="button"
-                  onClick={() => setStatusFilter(filter.value)}
-                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                    statusFilter === filter.value
-                      ? 'bg-slate-900 text-white'
-                      : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  {filter.label}
-                </button>
-              ))}
-            </div>
+            <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(event) => setShowInactive(event.target.checked)}
+                className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
+              />
+              Show inactive
+            </label>
           </div>
         </div>
 
@@ -387,15 +371,15 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
             <Package2 className="h-10 w-10 text-slate-300" />
             <div>
               <p className="text-base font-semibold text-slate-900">
-                {searchTerm || statusFilter !== 'ALL' ? 'No SKUs found' : 'No SKUs yet'}
+                {searchTerm || showInactive ? 'No SKUs found' : 'No SKUs yet'}
               </p>
               <p className="text-sm text-slate-500">
-                {searchTerm || statusFilter !== 'ALL'
-                  ? 'Adjust filters or clear your search.'
+                {searchTerm
+                  ? 'Clear your search or create a new SKU.'
                   : 'Create your first SKU to start receiving inventory.'}
               </p>
             </div>
-            {!searchTerm && statusFilter === 'ALL' && (
+            {!searchTerm && !showInactive && (
               <Button onClick={openCreate} className="gap-2">
                 <Plus className="h-4 w-4" />
                 New SKU
