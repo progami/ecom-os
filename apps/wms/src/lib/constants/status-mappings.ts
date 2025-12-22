@@ -3,11 +3,8 @@
  * Centralizes badge classes, labels, and other status-related UI configurations.
  */
 
-// Purchase Order Status Types (New 5-stage state machine)
-export type POStatus = 'DRAFT' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED' | 'CANCELLED' | 'ARCHIVED'
-
-// Legacy statuses (for backwards compatibility)
-export type POStatusLegacy = 'AWAITING_PROOF' | 'REVIEW' | 'POSTED' | 'CLOSED'
+// Purchase Order Status Types (5-stage state machine)
+export type POStatus = 'DRAFT' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED' | 'CANCELLED'
 
 export type POType = 'PURCHASE' | 'ADJUSTMENT'
 
@@ -23,39 +20,25 @@ export type POLineStatus = 'PENDING' | 'POSTED' | 'CANCELLED'
 /**
  * Badge CSS classes for Purchase Order statuses (5-stage state machine)
  */
-export const PO_STATUS_BADGE_CLASSES: Record<POStatus | POStatusLegacy, string> = {
-  // New 5-stage statuses
+export const PO_STATUS_BADGE_CLASSES: Record<POStatus, string> = {
   DRAFT: 'bg-slate-100 text-slate-700 border border-slate-200',
   MANUFACTURING: 'bg-amber-50 text-amber-700 border border-amber-200',
   OCEAN: 'bg-blue-50 text-blue-700 border border-blue-200',
   WAREHOUSE: 'bg-purple-50 text-purple-700 border border-purple-200',
   SHIPPED: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
   CANCELLED: 'bg-red-50 text-red-700 border border-red-200',
-  ARCHIVED: 'bg-slate-100 text-slate-500 border border-slate-200',
-  // Legacy statuses (for backwards compatibility)
-  AWAITING_PROOF: 'bg-sky-50 text-sky-700 border border-sky-200',
-  REVIEW: 'bg-brand-teal-50 text-brand-teal-700 border border-brand-teal-200',
-  POSTED: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-  CLOSED: 'bg-slate-100 text-slate-600 border border-slate-200',
 }
 
 /**
  * Human-readable labels for Purchase Order statuses (5-stage state machine)
  */
-export const PO_STATUS_LABELS: Record<POStatus | POStatusLegacy, string> = {
-  // New 5-stage statuses
+export const PO_STATUS_LABELS: Record<POStatus, string> = {
   DRAFT: 'Draft',
   MANUFACTURING: 'Manufacturing',
   OCEAN: 'In Transit',
   WAREHOUSE: 'At Warehouse',
   SHIPPED: 'Shipped',
   CANCELLED: 'Cancelled',
-  ARCHIVED: 'Archived',
-  // Legacy statuses (for backwards compatibility)
-  AWAITING_PROOF: 'Awaiting Proof',
-  REVIEW: 'Review',
-  POSTED: 'Posted',
-  CLOSED: 'Closed',
 }
 
 /**
