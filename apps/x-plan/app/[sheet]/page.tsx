@@ -531,55 +531,55 @@ async function loadOperationsContext(strategyId: string) {
     | undefined
   const paymentsDelegate = prismaAny.purchaseOrderPayment as typeof prisma.purchaseOrderPayment | undefined
 
-  const products = await safeFindMany<Product[]>(
-    productDelegate,
-    { where: { strategyId }, orderBy: { name: 'asc' } },
-    [],
-    'product',
-  )
-
-  const leadStages = await safeFindMany<LeadStageTemplate[]>(
-    leadStageDelegate,
-    { orderBy: { sequence: 'asc' } },
-    [],
-    'leadStageTemplate',
-  )
-
-  const overrides = await safeFindMany<LeadTimeOverride[]>(
-    leadOverrideDelegate,
-    undefined,
-    [],
-    'leadTimeOverride',
-  )
-
-  const businessParameters = await safeFindMany<BusinessParameter[]>(
-    businessParameterDelegate,
-    { where: { strategyId }, orderBy: { label: 'asc' } },
-    [],
-    'businessParameter',
-  )
-
-  const purchaseOrders = await safeFindMany<
-    Array<PurchaseOrder & { payments: PurchaseOrderPayment[] }>
-  >(
-    purchaseOrderDelegate,
-    {
-      where: { strategyId },
-      orderBy: { orderCode: 'asc' },
-      include: {
-        payments: { orderBy: { paymentIndex: 'asc' } },
+  const [products, leadStages, overrides, businessParameters, purchaseOrders, batchTableRows] = await Promise.all([
+    safeFindMany<Product[]>(
+      productDelegate,
+      { where: { strategyId }, orderBy: { name: 'asc' } },
+      [],
+      'product',
+    ),
+    safeFindMany<LeadStageTemplate[]>(
+      leadStageDelegate,
+      { orderBy: { sequence: 'asc' } },
+      [],
+      'leadStageTemplate',
+    ),
+    safeFindMany<LeadTimeOverride[]>(
+      leadOverrideDelegate,
+      { where: { product: { strategyId } } },
+      [],
+      'leadTimeOverride',
+    ),
+    safeFindMany<BusinessParameter[]>(
+      businessParameterDelegate,
+      { where: { strategyId }, orderBy: { label: 'asc' } },
+      [],
+      'businessParameter',
+    ),
+    safeFindMany<
+      Array<PurchaseOrder & { payments: PurchaseOrderPayment[] }>
+    >(
+      purchaseOrderDelegate,
+      {
+        where: { strategyId },
+        orderBy: { orderCode: 'asc' },
+        include: {
+          payments: { orderBy: { paymentIndex: 'asc' } },
+        },
       },
-    },
-    [],
-    'purchaseOrder',
-  )
-
-  const batchTableRows = await safeFindMany<BatchTableRow[]>(
-    batchTableRowDelegate,
-    { orderBy: [{ purchaseOrderId: 'asc' }, { createdAt: 'asc' }] },
-    [],
-    'batchTableRow',
-  )
+      [],
+      'purchaseOrder',
+    ),
+    safeFindMany<BatchTableRow[]>(
+      batchTableRowDelegate,
+      {
+        where: { purchaseOrder: { strategyId } },
+        orderBy: [{ purchaseOrderId: 'asc' }, { createdAt: 'asc' }],
+      },
+      [],
+      'batchTableRow',
+    ),
+  ])
 
   const productInputs = mapProducts(products)
   const productIndex = buildProductCostIndex(productInputs)
@@ -609,7 +609,7 @@ async function loadOperationsContext(strategyId: string) {
 
   const purchaseOrderInputsInitial = mapPurchaseOrders(purchaseOrdersWithBatches)
 
-  await ensureDefaultSupplierInvoices({
+  const didSeedInvoices = await ensureDefaultSupplierInvoices({
     purchaseOrders: purchaseOrdersWithBatches,
     purchaseOrderInputs: purchaseOrderInputsInitial,
     productIndex,
@@ -618,7 +618,9 @@ async function loadOperationsContext(strategyId: string) {
     paymentsDelegate,
   })
 
-  const purchaseOrderInputs = mapPurchaseOrders(purchaseOrdersWithBatches)
+  const purchaseOrderInputs = didSeedInvoices
+    ? mapPurchaseOrders(purchaseOrdersWithBatches)
+    : purchaseOrderInputsInitial
 
   return {
     productInputs,
@@ -645,11 +647,13 @@ async function ensureDefaultSupplierInvoices({
   leadProfiles: Map<string, LeadTimeProfile>
   parameters: BusinessParameterMap
   paymentsDelegate?: typeof prisma.purchaseOrderPayment
-}) {
+}): Promise<boolean> {
   if (!paymentsDelegate) {
     console.warn('[x-plan] purchase order payments delegate unavailable; skipping invoice seeding')
-    return
+    return false
   }
+
+  let didSeedInvoices = false
   for (let index = 0; index < purchaseOrders.length; index += 1) {
     const record = purchaseOrders[index]
     const input = purchaseOrderInputs[index]
@@ -740,6 +744,7 @@ async function ensureDefaultSupplierInvoices({
     }
 
     if (updates.length > 0) {
+      didSeedInvoices = true
       const results = await Promise.all(updates)
       for (const result of results) {
         if (!result) continue
@@ -753,6 +758,8 @@ async function ensureDefaultSupplierInvoices({
       record.payments.sort((a, b) => a.paymentIndex - b.paymentIndex)
     }
   }
+
+  return didSeedInvoices
 }
 
 type PaymentDueDateSource = 'SYSTEM' | 'USER'
@@ -894,12 +901,6 @@ function deriveOrders(context: Awaited<ReturnType<typeof loadOperationsContext>>
 }
 
 async function loadFinancialData(planning: PlanningCalendar, strategyId: string) {
-  const operations = await loadOperationsContext(strategyId)
-  const derivedOrders = deriveOrders(operations)
-  const salesPlan = computeSalesPlan(planning.salesWeeks, derivedOrders.map((item) => item.derived), {
-    productIds: operations.productInputs.map((product) => product.id),
-    calendar: planning.calendar,
-  })
   const prismaAny = prisma as unknown as Record<string, unknown>
   const profitDelegate = prismaAny.profitAndLossWeek as {
     findMany: (args?: unknown) => Promise<ProfitAndLossWeek[]>
@@ -908,18 +909,27 @@ async function loadFinancialData(planning: PlanningCalendar, strategyId: string)
     findMany: (args?: unknown) => Promise<CashFlowWeek[]>
   } | undefined
 
-  const profitOverrideRows = await safeFindMany<ProfitAndLossWeek[]>(
-    profitDelegate,
-    { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
-    [],
-    'profitAndLossWeek',
-  )
-  const cashOverrideRows = await safeFindMany<CashFlowWeek[]>(
-    cashDelegate,
-    { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
-    [],
-    'cashFlowWeek',
-  )
+  const [operations, profitOverrideRows, cashOverrideRows] = await Promise.all([
+    loadOperationsContext(strategyId),
+    safeFindMany<ProfitAndLossWeek[]>(
+      profitDelegate,
+      { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
+      [],
+      'profitAndLossWeek',
+    ),
+    safeFindMany<CashFlowWeek[]>(
+      cashDelegate,
+      { where: { strategyId }, orderBy: { weekNumber: 'asc' } },
+      [],
+      'cashFlowWeek',
+    ),
+  ])
+
+  const derivedOrders = deriveOrders(operations)
+  const salesPlan = computeSalesPlan(planning.salesWeeks, derivedOrders.map((item) => item.derived), {
+    productIds: operations.productInputs.map((product) => product.id),
+    calendar: planning.calendar,
+  })
 
   const profitOverrides = mapProfitAndLossWeeks(
     profitOverrideRows.filter(
