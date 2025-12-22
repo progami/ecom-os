@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils'
 import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
 import { Badge } from '@/components/ui/badge'
-import { PageLoading } from '@/components/ui/loading-spinner'
+import { LoadingSpinner, PageLoading } from '@/components/ui/loading-spinner'
 import { toast } from 'react-hot-toast'
 import { format } from 'date-fns'
 import { redirectToPortal } from '@/lib/portal'
@@ -21,6 +21,7 @@ import {
   type SortKey,
 } from '@/hooks/useInventoryFilters'
 import { getMovementTypeFromTransaction, getMovementMultiplier, type MovementType } from '@/lib/utils/movement-types'
+import { usePageState } from '@/lib/store'
 
 const LEDGER_TIME_FORMAT = 'PPP p'
 
@@ -55,9 +56,12 @@ const PAGE_KEY = '/operations/inventory'
 function InventoryPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [_loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [balances, setBalances] = useState<InventoryBalance[]>([])
   const [summary, setSummary] = useState<InventorySummary | null>(null)
+  const pageState = usePageState(PAGE_KEY)
+  const [hydrated, setHydrated] = useState(false)
+  const [showZeroStock, setShowZeroStock] = useState(false)
 
   // Use the inventory filters hook for filtering, sorting, and persistence
   const {
@@ -79,6 +83,20 @@ function InventoryPage() {
   })
 
   useEffect(() => {
+    setHydrated(true)
+    const persisted = pageState.custom?.showZeroStock
+    if (typeof persisted === 'boolean') {
+      setShowZeroStock(persisted)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (hydrated) {
+      pageState.setCustom('showZeroStock', showZeroStock)
+    }
+  }, [hydrated, showZeroStock]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (status === 'loading') return
     if (!session) {
       redirectToPortal('/login', `${window.location.origin}/operations/inventory`)
@@ -94,7 +112,7 @@ function InventoryPage() {
     try {
       setLoading(true)
       const params = new URLSearchParams({
-        showZeroStock: 'false',
+        showZeroStock: showZeroStock ? 'true' : 'false',
       })
 
       const response = await fetch(`/api/inventory/balances?${params}`)
@@ -119,7 +137,7 @@ function InventoryPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [showZeroStock])
 
   useEffect(() => {
     if (status === 'authenticated') {
@@ -127,7 +145,21 @@ function InventoryPage() {
     }
   }, [fetchBalances, status])
 
-  const headerActions = useMemo(() => null, [])
+  const headerActions = useMemo(
+    () => (
+      <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
+        <input
+          type="checkbox"
+          checked={showZeroStock}
+          onChange={(event) => setShowZeroStock(event.target.checked)}
+          className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
+        />
+        Show zero stock
+        {loading ? <LoadingSpinner size="sm" className="ml-1" /> : null}
+      </label>
+    ),
+    [loading, showZeroStock]
+  )
 
   const tableTotals = useMemo(() => {
  return processedBalances.reduce(
@@ -540,10 +572,23 @@ function InventoryPage() {
  </thead>
 
  <tbody>
- {processedBalances.length === 0 && (
+ {loading && processedBalances.length === 0 && (
+ <tr>
+ <td colSpan={11} className="px-4 py-8 text-center text-muted-foreground">
+ <span className="inline-flex items-center gap-2">
+ <LoadingSpinner size="sm" />
+ Loading inventory…
+ </span>
+ </td>
+ </tr>
+ )}
+
+ {!loading && processedBalances.length === 0 && (
  <tr>
  <td colSpan={11} className="px-4 py-6 text-center text-muted-foreground">
- No inventory balances match the current filters.
+ {showZeroStock
+ ? 'No inventory balances match the current filters.'
+ : "No on-hand inventory. Enable 'Show zero stock' to view history for items currently at 0."}
  </td>
  </tr>
  )}

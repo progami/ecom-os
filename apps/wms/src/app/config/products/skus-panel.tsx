@@ -5,20 +5,11 @@ import { toast } from 'react-hot-toast'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { Edit2, Loader2, Package2, Plus, Search } from '@/lib/lucide-icons'
 import { SkuBatchesModal } from './sku-batches-modal'
-
-type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE'
-
-const STATUS_FILTERS: { label: string; value: StatusFilter }[] = [
-  { label: 'All', value: 'ALL' },
-  { label: 'Active', value: 'ACTIVE' },
-  { label: 'Inactive', value: 'INACTIVE' },
-]
 
 interface SkuRow {
   id: string
@@ -100,11 +91,16 @@ function parsePositiveNumber(value: string): number | null {
   return parsed
 }
 
-export default function SkusPanel() {
+interface SkusPanelProps {
+  externalModalOpen?: boolean
+  onExternalModalClose?: () => void
+}
+
+export default function SkusPanel({ externalModalOpen, onExternalModalClose }: SkusPanelProps) {
   const [skus, setSkus] = useState<SkuRow[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ACTIVE')
+  const [showInactive, setShowInactive] = useState(false)
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([])
   const [suppliersLoading, setSuppliersLoading] = useState(false)
   const [batchesSku, setBatchesSku] = useState<SkuRow | null>(null)
@@ -119,12 +115,21 @@ export default function SkusPanel() {
     nextActive: boolean
   } | null>(null)
 
+  // Handle external modal open trigger
+  useEffect(() => {
+    if (externalModalOpen) {
+      setEditingSku(null)
+      setFormState(buildFormState())
+      setIsModalOpen(true)
+    }
+  }, [externalModalOpen])
+
   const buildQuery = useCallback(() => {
     const params = new URLSearchParams()
     if (searchTerm.trim()) params.set('search', searchTerm.trim())
-    if (statusFilter !== 'ACTIVE') params.set('includeInactive', 'true')
+    if (showInactive) params.set('includeInactive', 'true')
     return params.toString()
-  }, [searchTerm, statusFilter])
+  }, [searchTerm, showInactive])
 
   const fetchSkus = useCallback(async () => {
     try {
@@ -176,8 +181,7 @@ export default function SkusPanel() {
   const filteredSkus = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
     return skus.filter((sku) => {
-      if (statusFilter === 'ACTIVE' && !sku.isActive) return false
-      if (statusFilter === 'INACTIVE' && sku.isActive) return false
+      if (!showInactive && !sku.isActive) return false
       if (!term) return true
 
       return (
@@ -186,7 +190,13 @@ export default function SkusPanel() {
         (sku.asin ?? '').toLowerCase().includes(term)
       )
     })
-  }, [skus, searchTerm, statusFilter])
+  }, [skus, searchTerm, showInactive])
+
+  const totals = useMemo(() => {
+    const active = skus.filter((s) => s.isActive).length
+    const inactive = skus.length - active
+    return { active, inactive }
+  }, [skus])
 
   const openCreate = () => {
     setEditingSku(null)
@@ -205,6 +215,7 @@ export default function SkusPanel() {
     setIsModalOpen(false)
     setEditingSku(null)
     setFormState(buildFormState())
+    onExternalModalClose?.()
   }
 
   const submitSku = async (event: React.FormEvent) => {
@@ -308,117 +319,115 @@ export default function SkusPanel() {
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-6">
-      <div className="min-h-0 overflow-hidden rounded-xl border bg-white shadow-soft">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-          <div className="flex flex-col gap-1">
-            <h3 className="text-sm font-semibold text-muted-foreground">SKUs</h3>
-            <p className="text-xs text-muted-foreground">
-              Showing {filteredSkus.length.toLocaleString()} SKU{filteredSkus.length === 1 ? '' : 's'}
-            </p>
+    <div className="space-y-6">
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 px-6 py-5">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Package2 className="h-5 w-5 text-cyan-600" />
+              <h2 className="text-xl font-semibold text-slate-900">SKU Catalog</h2>
+            </div>
+            <p className="text-sm text-slate-600">Manage product SKUs and their specifications</p>
           </div>
-          <Button onClick={openCreate} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New SKU
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-medium">
+              {totals.active} active
+            </Badge>
+            <Badge className="bg-slate-100 text-slate-600 border-slate-200 font-medium">
+              {totals.inactive} inactive
+            </Badge>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-          <div className="relative w-full max-w-sm">
-            <label htmlFor="sku-search" className="sr-only">
-              Search SKUs
-            </label>
-            <Search
-              className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
-              aria-hidden="true"
-            />
-            <Input
-              id="sku-search"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-              placeholder="Search by SKU, description, ASIN"
-              className="pl-9"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-white p-1">
-              {STATUS_FILTERS.map((filter) => (
-                <Button
-                  key={filter.value}
-                  size="sm"
-                  variant={statusFilter === filter.value ? 'default' : 'ghost'}
-                  className="px-3 py-1 text-xs"
-                  onClick={() => setStatusFilter(filter.value)}
-                >
-                  {filter.label}
-                </Button>
-              ))}
+        <div className="flex flex-col gap-3 px-6 py-4 bg-slate-50/50 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-1 items-center gap-3">
+            <div className="relative flex-1 md:max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search SKUs..."
+                className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+              />
             </div>
-            <Button variant="outline" size="sm" onClick={fetchSkus} disabled={loading}>
-              Refresh
-            </Button>
+            <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(event) => setShowInactive(event.target.checked)}
+                className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
+              />
+              Show inactive
+            </label>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex h-48 items-center justify-center text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" />
+          <div className="flex h-48 items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
           </div>
         ) : filteredSkus.length === 0 ? (
-          <div className="p-10">
-            <EmptyState
-              icon={Package2}
-              title={searchTerm || statusFilter !== 'ALL' ? 'No SKUs found' : 'No SKUs yet'}
-              description={
-                searchTerm || statusFilter !== 'ALL'
-                  ? 'Adjust filters or clear your search.'
-                  : 'Create your first SKU to start receiving inventory.'
-              }
-            />
+          <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+            <Package2 className="h-10 w-10 text-slate-300" />
+            <div>
+              <p className="text-base font-semibold text-slate-900">
+                {searchTerm || showInactive ? 'No SKUs found' : 'No SKUs yet'}
+              </p>
+              <p className="text-sm text-slate-500">
+                {searchTerm
+                  ? 'Clear your search or create a new SKU.'
+                  : 'Create your first SKU to start receiving inventory.'}
+              </p>
+            </div>
+            {!searchTerm && !showInactive && (
+              <Button onClick={openCreate} className="gap-2">
+                <Plus className="h-4 w-4" />
+                New SKU
+              </Button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full table-auto text-sm">
-              <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-3 py-2 text-left font-semibold">SKU</th>
-                  <th className="px-3 py-2 text-left font-semibold">Description</th>
-                  <th className="px-3 py-2 text-left font-semibold">ASIN</th>
-                  <th className="px-3 py-2 text-right font-semibold">Pack</th>
-                  <th className="px-3 py-2 text-right font-semibold">Units/Carton</th>
-                  <th className="px-3 py-2 text-right font-semibold">Txns</th>
-                  <th className="px-3 py-2 text-left font-semibold">Status</th>
-                  <th className="px-3 py-2 text-right font-semibold">Actions</th>
+                  <th className="px-4 py-3 text-left font-semibold">SKU</th>
+                  <th className="px-4 py-3 text-left font-semibold">Description</th>
+                  <th className="px-4 py-3 text-left font-semibold">ASIN</th>
+                  <th className="px-4 py-3 text-right font-semibold">Pack</th>
+                  <th className="px-4 py-3 text-right font-semibold">Units/Carton</th>
+                  <th className="px-4 py-3 text-right font-semibold">Txns</th>
+                  <th className="px-4 py-3 text-left font-semibold">Status</th>
+                  <th className="px-4 py-3 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {filteredSkus.map((sku) => (
-                  <tr key={sku.id} className="odd:bg-muted/20">
-                    <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">{sku.skuCode}</td>
-                    <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{sku.description}</td>
-                    <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{sku.asin ?? '—'}</td>
-                    <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
+                  <tr key={sku.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">{sku.skuCode}</td>
+                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{sku.description}</td>
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{sku.asin ?? '—'}</td>
+                    <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
                       {sku.packSize ?? '—'}
                     </td>
-                    <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
+                    <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
                       {sku.unitsPerCarton}
                     </td>
-                    <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
+                    <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
                       {sku._count?.inventoryTransactions ?? 0}
                     </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <Badge
                         className={
                           sku.isActive
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-slate-100 text-slate-600 border border-slate-200'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-slate-100 text-slate-600 border-slate-200'
                         }
                       >
                         {sku.isActive ? 'Active' : 'Inactive'}
                       </Badge>
                     </td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
                       <div className="inline-flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => setBatchesSku(sku)}>
                           Batches

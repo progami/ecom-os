@@ -1,16 +1,18 @@
 'use client'
 
-import { Suspense, useEffect, useMemo } from 'react'
+import { Suspense, useEffect, useMemo, useState, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
 import { toast } from 'react-hot-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
-import { Package, Package2 } from '@/lib/lucide-icons'
+import { Package, Package2, Plus } from '@/lib/lucide-icons'
 import InventoryPanel from './inventory-panel'
 import SkusPanel from './skus-panel'
 import { redirectToPortal } from '@/lib/portal'
 import { PageTabs } from '@/components/ui/page-tabs'
+import { Button } from '@/components/ui/button'
+import { ImportButton } from '@/components/ui/import-button'
 
 const ALLOWED_ROLES = ['admin', 'staff']
 const TABS = [
@@ -22,6 +24,7 @@ function ProductsPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { data: session, status } = useSession()
+  const [openSkuModal, setOpenSkuModal] = useState(false)
 
   const currentTab = useMemo(() => {
     const tab = searchParams.get('tab')
@@ -30,6 +33,10 @@ function ProductsPageContent() {
     }
     return 'skus'
   }, [searchParams])
+
+  const handleOpenSkuModal = useCallback(() => {
+    setOpenSkuModal(true)
+  }, [])
 
   useEffect(() => {
     if (status === 'loading') return
@@ -74,14 +81,30 @@ function ProductsPageContent() {
       <PageContainer>
         <PageHeaderSection
           title="Products"
-          description="Manage SKU master data and inventory"
+          description="Configuration"
           icon={Package}
+          actions={
+            currentTab === 'skus' ? (
+              <div className="flex items-center gap-2">
+                <ImportButton entityName="skus" onImportComplete={() => window.location.reload()} />
+                <Button onClick={handleOpenSkuModal} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add SKU
+                </Button>
+              </div>
+            ) : null
+          }
         />
         <PageContent>
           <div className="flex flex-col gap-6">
             <PageTabs tabs={[...TABS]} value={currentTab} onChange={handleTabChange} variant="underline" />
 
-            {currentTab === 'skus' ? <SkusPanel /> : null}
+            {currentTab === 'skus' ? (
+              <SkusPanel
+                externalModalOpen={openSkuModal}
+                onExternalModalClose={() => setOpenSkuModal(false)}
+              />
+            ) : null}
             {currentTab === 'inventory' ? <InventoryPanel /> : null}
           </div>
         </PageContent>
