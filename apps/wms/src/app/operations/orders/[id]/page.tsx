@@ -28,14 +28,11 @@ import {
 } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import {
-  PO_STATUS_BADGE_CLASSES,
-  PO_STATUS_LABELS,
-} from '@/lib/constants/status-mappings'
+import { PO_STATUS_BADGE_CLASSES, PO_STATUS_LABELS } from '@/lib/constants/status-mappings'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 
 // 5-Stage State Machine Types
-type POStageStatus = 'DRAFT' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED' | 'CANCELLED' | 'ARCHIVED'
+type POStageStatus = 'DRAFT' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED' | 'CANCELLED'
 
 interface PurchaseOrderLineSummary {
   id: string
@@ -293,13 +290,13 @@ export default function PurchaseOrderDetailPage() {
 
   const currentStageIndex = useMemo(() => {
     if (!order) return 0
-    const idx = STAGES.findIndex((s) => s.value === order.status)
+    const idx = STAGES.findIndex(s => s.value === order.status)
     return idx >= 0 ? idx : 0
   }, [order])
 
   const nextStage = useMemo(() => {
-    if (!order || order.status === 'CANCELLED' || order.status === 'ARCHIVED') return null
-    const idx = STAGES.findIndex((s) => s.value === order.status)
+    if (!order || order.status === 'CANCELLED') return null
+    const idx = STAGES.findIndex(s => s.value === order.status)
     if (idx >= 0 && idx < STAGES.length - 1) {
       return STAGES[idx + 1]
     }
@@ -447,7 +444,7 @@ export default function PurchaseOrderDetailPage() {
   }
 
   const totalQuantity = order.lines.reduce((sum, line) => sum + line.quantity, 0)
-  const isTerminal = order.status === 'SHIPPED' || order.status === 'CANCELLED' || order.status === 'ARCHIVED'
+  const isTerminal = order.status === 'SHIPPED' || order.status === 'CANCELLED'
   const canEdit = !isTerminal && order.status === 'DRAFT'
 
   const breadcrumbItems = [
@@ -515,7 +512,7 @@ export default function PurchaseOrderDetailPage() {
             key: 'warehouseCode',
             label: 'Warehouse',
             type: 'select',
-            options: warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` })),
+            options: warehouses.map(w => ({ value: w.code, label: `${w.name} (${w.code})` })),
             disabled: warehousesLoading || warehouses.length === 0,
           },
           { key: 'customsEntryNumber', label: 'Customs Entry Number', type: 'text' },
@@ -541,15 +538,15 @@ export default function PurchaseOrderDetailPage() {
           Required for {nextStage.label}
         </h4>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {fields.map((field) => (
+          {fields.map(field => (
             <div key={field.key} className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">{field.label}</label>
               {field.type === 'select' ? (
                 <select
                   value={stageFormData[field.key] || ''}
-                  onChange={(e) => {
+                  onChange={e => {
                     const value = e.target.value
-                    setStageFormData((prev) => ({ ...prev, [field.key]: value }))
+                    setStageFormData(prev => ({ ...prev, [field.key]: value }))
                   }}
                   disabled={field.disabled}
                   className="w-full px-3 py-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm disabled:opacity-50"
@@ -557,7 +554,7 @@ export default function PurchaseOrderDetailPage() {
                   <option value="">
                     {warehousesLoading ? 'Loading warehouses…' : 'Select warehouse'}
                   </option>
-                  {field.options?.map((opt) => (
+                  {field.options?.map(opt => (
                     <option key={opt.value} value={opt.value}>
                       {opt.label}
                     </option>
@@ -567,8 +564,8 @@ export default function PurchaseOrderDetailPage() {
                 <Input
                   type={field.type}
                   value={stageFormData[field.key] || ''}
-                  onChange={(e) =>
-                    setStageFormData((prev) => ({ ...prev, [field.key]: e.target.value }))
+                  onChange={e =>
+                    setStageFormData(prev => ({ ...prev, [field.key]: e.target.value }))
                   }
                   placeholder={field.type === 'date' ? '' : `Enter ${field.label.toLowerCase()}`}
                 />
@@ -610,14 +607,11 @@ export default function PurchaseOrderDetailPage() {
             <Badge className={statusBadgeClasses(order.status)}>
               {formatStatusLabel(order.status)}
             </Badge>
-            {order.isLegacy && (
-              <Badge className="bg-slate-100 text-slate-600 border-slate-200">Legacy</Badge>
-            )}
           </div>
         </div>
 
         {/* Stage Progress Bar */}
-        {!order.isLegacy && order.status !== 'CANCELLED' && order.status !== 'ARCHIVED' && (
+        {!order.isLegacy && order.status !== 'CANCELLED' && (
           <div className="rounded-xl border bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-semibold text-slate-900">Order Progress</h2>
@@ -708,21 +702,11 @@ export default function PurchaseOrderDetailPage() {
           </div>
         )}
 
-        {/* Legacy/Cancelled/Archived banner */}
-        {(order.isLegacy || order.status === 'CANCELLED' || order.status === 'ARCHIVED') && (
-          <div
-            className={`rounded-xl border p-4 ${
-              order.status === 'CANCELLED'
-                ? 'bg-red-50 border-red-200'
-                : 'bg-slate-50 border-slate-200'
-            }`}
-          >
+        {/* Cancelled banner */}
+        {order.status === 'CANCELLED' && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-4">
             <p className="text-sm text-slate-700">
-              {order.status === 'CANCELLED'
-                ? 'This order has been cancelled and cannot be modified.'
-                : order.isLegacy
-                  ? 'This is a legacy order from the previous system and is read-only.'
-                  : 'This order is archived and cannot be modified.'}
+              This order has been cancelled and cannot be modified.
             </p>
           </div>
         )}
@@ -786,8 +770,8 @@ export default function PurchaseOrderDetailPage() {
                     <Input
                       value={detailsDraft.counterpartyName}
                       placeholder="Enter counterparty name"
-                      onChange={(e) =>
-                        setDetailsDraft((d) => ({ ...d, counterpartyName: e.target.value }))
+                      onChange={e =>
+                        setDetailsDraft(d => ({ ...d, counterpartyName: e.target.value }))
                       }
                       disabled={detailsSaving}
                     />
@@ -801,9 +785,7 @@ export default function PurchaseOrderDetailPage() {
                     <Input
                       type="date"
                       value={detailsDraft.expectedDate}
-                      onChange={(e) =>
-                        setDetailsDraft((d) => ({ ...d, expectedDate: e.target.value }))
-                      }
+                      onChange={e => setDetailsDraft(d => ({ ...d, expectedDate: e.target.value }))}
                       disabled={detailsSaving}
                     />
                   ) : (
@@ -825,7 +807,7 @@ export default function PurchaseOrderDetailPage() {
                 {isEditingDetails ? (
                   <Textarea
                     value={detailsDraft.notes}
-                    onChange={(e) => setDetailsDraft((d) => ({ ...d, notes: e.target.value }))}
+                    onChange={e => setDetailsDraft(d => ({ ...d, notes: e.target.value }))}
                     rows={4}
                     disabled={detailsSaving}
                     placeholder="Add internal notes for the team"
@@ -879,7 +861,9 @@ export default function PurchaseOrderDetailPage() {
                         {order.stageData.manufacturing.factoryName && (
                           <div>
                             <span className="text-muted-foreground">Factory:</span>{' '}
-                            <span className="font-medium">{order.stageData.manufacturing.factoryName}</span>
+                            <span className="font-medium">
+                              {order.stageData.manufacturing.factoryName}
+                            </span>
                           </div>
                         )}
                         {order.stageData.manufacturing.expectedCompletionDate && (
@@ -908,19 +892,25 @@ export default function PurchaseOrderDetailPage() {
                         {order.stageData.ocean.houseBillOfLading && (
                           <div>
                             <span className="text-muted-foreground">House B/L:</span>{' '}
-                            <span className="font-medium">{order.stageData.ocean.houseBillOfLading}</span>
+                            <span className="font-medium">
+                              {order.stageData.ocean.houseBillOfLading}
+                            </span>
                           </div>
                         )}
                         {order.stageData.ocean.masterBillOfLading && (
                           <div>
                             <span className="text-muted-foreground">Master B/L:</span>{' '}
-                            <span className="font-medium">{order.stageData.ocean.masterBillOfLading}</span>
+                            <span className="font-medium">
+                              {order.stageData.ocean.masterBillOfLading}
+                            </span>
                           </div>
                         )}
                         {order.stageData.ocean.packingListRef && (
                           <div>
                             <span className="text-muted-foreground">Packing List:</span>{' '}
-                            <span className="font-medium">{order.stageData.ocean.packingListRef}</span>
+                            <span className="font-medium">
+                              {order.stageData.ocean.packingListRef}
+                            </span>
                           </div>
                         )}
                         {(order.stageData.ocean.commercialInvoiceNumber ||
@@ -939,11 +929,15 @@ export default function PurchaseOrderDetailPage() {
                             <span className="font-medium">{order.stageData.ocean.vesselName}</span>
                           </div>
                         )}
-                        {(order.stageData.ocean.portOfLoading || order.stageData.ocean.portOfDischarge) && (
+                        {(order.stageData.ocean.portOfLoading ||
+                          order.stageData.ocean.portOfDischarge) && (
                           <div className="col-span-2">
                             <span className="text-muted-foreground">Route:</span>{' '}
                             <span className="font-medium">
-                              {[order.stageData.ocean.portOfLoading, order.stageData.ocean.portOfDischarge]
+                              {[
+                                order.stageData.ocean.portOfLoading,
+                                order.stageData.ocean.portOfDischarge,
+                              ]
                                 .filter(Boolean)
                                 .join(' → ') || '—'}
                             </span>
@@ -964,11 +958,13 @@ export default function PurchaseOrderDetailPage() {
                         At Warehouse
                       </h4>
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        {(order.stageData.warehouse.warehouseName || order.stageData.warehouse.warehouseCode) && (
+                        {(order.stageData.warehouse.warehouseName ||
+                          order.stageData.warehouse.warehouseCode) && (
                           <div>
                             <span className="text-muted-foreground">Warehouse:</span>{' '}
                             <span className="font-medium">
-                              {order.stageData.warehouse.warehouseName && order.stageData.warehouse.warehouseCode
+                              {order.stageData.warehouse.warehouseName &&
+                              order.stageData.warehouse.warehouseCode
                                 ? `${order.stageData.warehouse.warehouseName} (${order.stageData.warehouse.warehouseCode})`
                                 : order.stageData.warehouse.warehouseCode || '—'}
                             </span>
@@ -977,7 +973,9 @@ export default function PurchaseOrderDetailPage() {
                         {order.stageData.warehouse.customsEntryNumber && (
                           <div>
                             <span className="text-muted-foreground">Customs Entry:</span>{' '}
-                            <span className="font-medium">{order.stageData.warehouse.customsEntryNumber}</span>
+                            <span className="font-medium">
+                              {order.stageData.warehouse.customsEntryNumber}
+                            </span>
                           </div>
                         )}
                         {order.stageData.warehouse.customsClearedDate && (
@@ -991,7 +989,9 @@ export default function PurchaseOrderDetailPage() {
                         {order.stageData.warehouse.receivedDate && (
                           <div>
                             <span className="text-muted-foreground">Received:</span>{' '}
-                            <span className="font-medium">{formatDateOnly(order.stageData.warehouse.receivedDate)}</span>
+                            <span className="font-medium">
+                              {formatDateOnly(order.stageData.warehouse.receivedDate)}
+                            </span>
                           </div>
                         )}
                         {order.stageData.warehouse.dutyAmount !== null &&
@@ -1025,19 +1025,25 @@ export default function PurchaseOrderDetailPage() {
                         {order.stageData.shipped.shipToName && (
                           <div>
                             <span className="text-muted-foreground">Ship To:</span>{' '}
-                            <span className="font-medium">{order.stageData.shipped.shipToName}</span>
+                            <span className="font-medium">
+                              {order.stageData.shipped.shipToName}
+                            </span>
                           </div>
                         )}
                         {order.stageData.shipped.shippingCarrier && (
                           <div>
                             <span className="text-muted-foreground">Carrier:</span>{' '}
-                            <span className="font-medium">{order.stageData.shipped.shippingCarrier}</span>
+                            <span className="font-medium">
+                              {order.stageData.shipped.shippingCarrier}
+                            </span>
                           </div>
                         )}
                         {order.stageData.shipped.trackingNumber && (
                           <div>
                             <span className="text-muted-foreground">Tracking:</span>{' '}
-                            <span className="font-medium">{order.stageData.shipped.trackingNumber}</span>
+                            <span className="font-medium">
+                              {order.stageData.shipped.trackingNumber}
+                            </span>
                           </div>
                         )}
                         {order.stageData.shipped.shippedDate && (
@@ -1048,11 +1054,13 @@ export default function PurchaseOrderDetailPage() {
                             </span>
                           </div>
                         )}
-                        {(order.stageData.shipped.proofOfDeliveryRef || order.stageData.shipped.proofOfDelivery) && (
+                        {(order.stageData.shipped.proofOfDeliveryRef ||
+                          order.stageData.shipped.proofOfDelivery) && (
                           <div className="col-span-2">
                             <span className="text-muted-foreground">Proof of Delivery:</span>{' '}
                             <span className="font-medium">
-                              {order.stageData.shipped.proofOfDeliveryRef || order.stageData.shipped.proofOfDelivery}
+                              {order.stageData.shipped.proofOfDeliveryRef ||
+                                order.stageData.shipped.proofOfDelivery}
                             </span>
                           </div>
                         )}
@@ -1092,7 +1100,7 @@ export default function PurchaseOrderDetailPage() {
                         </td>
                       </tr>
                     ) : (
-                      order.lines.map((line) => (
+                      order.lines.map(line => (
                         <tr key={line.id} className="odd:bg-muted/20">
                           <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">
                             {line.skuCode}

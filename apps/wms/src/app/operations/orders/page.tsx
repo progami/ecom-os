@@ -18,14 +18,13 @@ import {
   Warehouse,
   Truck,
   XCircle,
-  Archive,
 } from '@/lib/lucide-icons'
 import { PurchaseOrdersPanel } from '../inventory/purchase-orders-panel'
 import { redirectToPortal } from '@/lib/portal'
 import type { LucideIcon } from 'lucide-react'
 
 // 5-Stage State Machine Status Types
-type POStageStatus = 'DRAFT' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED' | 'CANCELLED' | 'ARCHIVED'
+type POStageStatus = 'DRAFT' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED' | 'CANCELLED'
 
 type StatusConfig = {
   value: POStageStatus
@@ -76,12 +75,6 @@ const TERMINAL_STATUSES: StatusConfig[] = [
     description: 'Orders cancelled before completion',
     icon: XCircle,
   },
-  {
-    value: 'ARCHIVED',
-    label: 'Archived',
-    description: 'Legacy orders from previous system',
-    icon: Archive,
-  },
 ]
 
 const STATUS_CONFIGS = [...PIPELINE_STAGES, ...TERMINAL_STATUSES]
@@ -93,9 +86,8 @@ function OrdersPageContent() {
 
   // Get status from URL or default to DRAFT
   const statusFromUrl = searchParams.get('status') as POStageStatus | null
-  const currentStatus: POStageStatus = statusFromUrl && STATUS_CONFIGS.some(s => s.value === statusFromUrl)
-    ? statusFromUrl
-    : 'DRAFT'
+  const currentStatus: POStageStatus =
+    statusFromUrl && STATUS_CONFIGS.some(s => s.value === statusFromUrl) ? statusFromUrl : 'DRAFT'
 
   useEffect(() => {
     if (status === 'loading') return
@@ -119,7 +111,7 @@ function OrdersPageContent() {
   // Memoize status tabs to use with PageTabs
   const statusTabs = useMemo(
     () =>
-      STATUS_CONFIGS.map((config) => ({
+      STATUS_CONFIGS.map(config => ({
         value: config.value,
         label: config.label,
         icon: config.icon,
@@ -177,13 +169,15 @@ function OrdersPageContent() {
 
 export default function OrdersPage() {
   return (
-    <Suspense fallback={
-      <DashboardLayout>
-        <PageContainer>
-          <PageLoading />
-        </PageContainer>
-      </DashboardLayout>
-    }>
+    <Suspense
+      fallback={
+        <DashboardLayout>
+          <PageContainer>
+            <PageLoading />
+          </PageContainer>
+        </DashboardLayout>
+      }
+    >
       <OrdersPageContent />
     </Suspense>
   )
