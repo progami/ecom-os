@@ -280,8 +280,8 @@ export const CreateDisciplinaryActionSchema = z.object({
   employeeId: z.string().min(1).max(100),
   violationType: ViolationTypeEnum,
   violationReason: ViolationReasonEnum,
-  // Core Value Breached determines severity and action automatically
-  primaryValueBreached: ValueBreachEnum,
+  // Core Values Breached - can select multiple
+  valuesBreached: z.array(ValueBreachEnum).min(1, 'At least one value must be selected'),
   severity: ViolationSeverityEnum,
   incidentDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid date format' }),
   reportedBy: z.string().min(1).max(100).trim(),
@@ -296,7 +296,7 @@ export const UpdateDisciplinaryActionSchema = z.object({
   violationReason: ViolationReasonEnum.optional(),
   severity: ViolationSeverityEnum.optional(),
   // Core Values breach tracking
-  primaryValueBreached: ValueBreachEnum.optional().nullable(),
+  valuesBreached: z.array(ValueBreachEnum).optional(),
   employeeTookOwnership: z.boolean().optional().nullable(),
   incidentDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid date format' }).optional(),
   reportedBy: z.string().min(1).max(100).trim().optional(),

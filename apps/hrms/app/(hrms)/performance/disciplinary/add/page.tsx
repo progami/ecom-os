@@ -14,6 +14,7 @@ import {
   TextareaField,
   FormSection,
   FormActions,
+  CheckboxGroupField,
 } from '@/components/ui/FormField'
 import { useNavigationHistory } from '@/lib/navigation-history'
 
@@ -82,10 +83,10 @@ const violationReasonOptions: Record<string, { value: string; label: string }[]>
 
 // Core Values
 const coreValueBreachedOptions = [
-  { value: 'BREACH_OF_DETAIL', label: 'Attention to Detail - Mistakes, sloppy work' },
-  { value: 'BREACH_OF_COURAGE', label: 'Courage - Avoiding tasks, hiding bad news' },
-  { value: 'BREACH_OF_HONESTY', label: 'Honesty - Lying, falsifying records' },
-  { value: 'BREACH_OF_INTEGRITY', label: 'Integrity - Theft, harassment, toxic behavior' },
+  { value: 'BREACH_OF_DETAIL', label: 'Attention to Detail' },
+  { value: 'BREACH_OF_COURAGE', label: 'Courage' },
+  { value: 'BREACH_OF_HONESTY', label: 'Honesty' },
+  { value: 'BREACH_OF_INTEGRITY', label: 'Integrity' },
 ]
 
 // Severity options
@@ -127,6 +128,7 @@ function AddDisciplinaryForm() {
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(preselectedEmployeeId || '')
   const [authorizedReporters, setAuthorizedReporters] = useState<AuthorizedReporter[]>([])
   const [loadingReporters, setLoadingReporters] = useState(false)
+  const [selectedValuesBreached, setSelectedValuesBreached] = useState<string[]>([])
 
   useEffect(() => {
     async function loadEmployees() {
@@ -166,6 +168,13 @@ function AddDisciplinaryForm() {
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
+
+    // Validate at least one value is selected
+    if (selectedValuesBreached.length === 0) {
+      setError('Please select at least one core value that was breached')
+      return
+    }
+
     setSubmitting(true)
     setError(null)
     const fd = new FormData(e.currentTarget)
@@ -176,7 +185,7 @@ function AddDisciplinaryForm() {
         employeeId: String(payload.employeeId),
         violationType: String(payload.violationType),
         violationReason: String(payload.violationReason),
-        primaryValueBreached: String(payload.primaryValueBreached),
+        valuesBreached: selectedValuesBreached,
         severity: String(payload.severity),
         incidentDate: String(payload.incidentDate),
         reportedBy: String(payload.reportedBy),
@@ -245,12 +254,14 @@ function AddDisciplinaryForm() {
               placeholder="Select reason..."
             />
             <div className="sm:col-span-2">
-              <SelectField
-                label="Core Value Breached"
-                name="primaryValueBreached"
+              <CheckboxGroupField
+                label="Core Values Breached"
+                name="valuesBreached"
                 required
                 options={coreValueBreachedOptions}
-                placeholder="Select the core value that was breached..."
+                value={selectedValuesBreached}
+                onChange={setSelectedValuesBreached}
+                hint="Select all core values that were breached"
               />
             </div>
             <SelectField

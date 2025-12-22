@@ -180,7 +180,7 @@ export async function POST(req: Request) {
         employeeId: data.employeeId,
         violationType: data.violationType,
         violationReason: data.violationReason,
-        primaryValueBreached: data.primaryValueBreached,
+        valuesBreached: data.valuesBreached,
         severity: data.severity,
         incidentDate: new Date(data.incidentDate),
         reportedBy: data.reportedBy,
