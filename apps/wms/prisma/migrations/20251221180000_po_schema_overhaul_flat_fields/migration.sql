@@ -11,6 +11,25 @@ ALTER TABLE "public"."purchase_orders"
   ALTER COLUMN "warehouse_name" DROP NOT NULL;
 
 -- 2) Replace warehouse-scoped unique with global order_number unique
+-- Ensure existing data can satisfy the new uniqueness constraint by
+-- disambiguating any duplicates (previously allowed across warehouses).
+WITH ranked_orders AS (
+  SELECT
+    "id",
+    "order_number",
+    "warehouse_code",
+    ROW_NUMBER() OVER (
+      PARTITION BY "order_number"
+      ORDER BY "created_at" ASC, "id" ASC
+    ) AS rn
+  FROM "public"."purchase_orders"
+)
+UPDATE "public"."purchase_orders" AS po
+SET "order_number" = ranked_orders."order_number" || '::' || COALESCE(ranked_orders."warehouse_code", 'NA') || '-' || ranked_orders."id"
+FROM ranked_orders
+WHERE po."id" = ranked_orders."id"
+  AND ranked_orders.rn > 1;
+
 DROP INDEX IF EXISTS "purchase_orders_warehouse_code_order_number_key";
 CREATE UNIQUE INDEX IF NOT EXISTS "purchase_orders_order_number_key"
   ON "public"."purchase_orders" ("order_number");

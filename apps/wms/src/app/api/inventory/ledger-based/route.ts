@@ -11,13 +11,7 @@ export const GET = withAuth(async (req, session) => {
  const warehouseId = searchParams.get('warehouseId') || session.user.warehouseId
  const skuCode = searchParams.get('skuCode')
 
- // Only include transactions from POSTED orders (or no order)
- const where: Prisma.InventoryTransactionWhereInput = {
- OR: [
-   { purchaseOrderId: null },
-   { purchaseOrder: { status: 'POSTED' } }
- ]
- }
+ const where: Prisma.InventoryTransactionWhereInput = {}
 
  if (warehouseId) {
  const warehouse = await prisma.warehouse.findUnique({

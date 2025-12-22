@@ -7,6 +7,7 @@ import {
 import { NotFoundError, ValidationError, ConflictError } from '@/lib/api'
 import { canApproveStageTransition, hasPermission, isSuperAdmin } from './permission-service'
 import { auditLog } from '@/lib/security/audit-logger'
+import { toPublicOrderNumber } from './purchase-order-utils'
 
 // Valid stage transitions for new 5-stage workflow
 export const VALID_TRANSITIONS: Partial<Record<PurchaseOrderStatus, PurchaseOrderStatus[]>> = {
@@ -238,46 +239,64 @@ export async function createPurchaseOrder(
 ): Promise<PurchaseOrder & { lines: any[] }> {
   const prisma = await getTenantPrisma()
 
-  const poNumber = await generatePoNumber()
-  const orderNumber = poNumber // Order number is just the PO number now
+  const MAX_PO_NUMBER_ATTEMPTS = 5
+  let order: (PurchaseOrder & { lines: any[] }) | null = null
 
-  const order = await prisma.purchaseOrder.create({
-    data: {
-      orderNumber,
-      poNumber,
-      type: 'PURCHASE',
-      status: 'DRAFT',
-      counterpartyName: input.counterpartyName,
-      notes: input.notes,
-      createdById: user.id,
-      createdByName: user.name,
-      isLegacy: false,
-      // Create lines if provided
-      lines: input.lines && input.lines.length > 0
-        ? {
-            create: input.lines.map((line) => ({
-              skuCode: line.skuCode,
-              skuDescription: line.skuDescription || '',
-              quantity: line.quantity,
-              unitCost: line.unitCost,
-              currency: line.currency || 'USD',
-              lineNotes: line.notes,
-              status: 'PENDING',
-            })),
-          }
-        : undefined,
-    },
-    include: {
-      lines: true,
-    },
-  })
+  for (let attempt = 0; attempt < MAX_PO_NUMBER_ATTEMPTS; attempt += 1) {
+    const poNumber = await generatePoNumber()
+    const orderNumber = poNumber // Order number is just the PO number now
+
+    try {
+      order = await prisma.purchaseOrder.create({
+        data: {
+          orderNumber,
+          poNumber,
+          type: 'PURCHASE',
+          status: 'DRAFT',
+          counterpartyName: input.counterpartyName,
+          notes: input.notes,
+          createdById: user.id,
+          createdByName: user.name,
+          isLegacy: false,
+          // Create lines if provided
+          lines:
+            input.lines && input.lines.length > 0
+              ? {
+                  create: input.lines.map((line) => ({
+                    skuCode: line.skuCode,
+                    skuDescription: line.skuDescription || '',
+                    quantity: line.quantity,
+                    unitCost: line.unitCost,
+                    currency: line.currency || 'USD',
+                    lineNotes: line.notes,
+                    status: 'PENDING',
+                  })),
+                }
+              : undefined,
+        },
+        include: {
+          lines: true,
+        },
+      })
+      break
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        continue
+      }
+      throw error
+    }
+  }
+
+  if (!order) {
+    throw new ValidationError('Unable to generate a unique PO number. Please retry.')
+  }
 
   await auditLog({
     userId: user.id,
     action: 'CREATE',
     entityType: 'PurchaseOrder',
     entityId: order.id,
-    data: { poNumber, status: 'DRAFT', lineCount: input.lines?.length || 0 },
+    data: { poNumber: order.poNumber, status: 'DRAFT', lineCount: input.lines?.length || 0 },
   })
 
   return order
@@ -429,20 +448,18 @@ export async function transitionPurchaseOrderStage(
 
   // Stage 4: Warehouse fields
   if (stageData.warehouseCode !== undefined) {
-    updateData.warehouseCode = stageData.warehouseCode
-    // Snapshot warehouse name from the master record when not explicitly provided
-    if (stageData.warehouseName === undefined) {
-      const warehouse = await prisma.warehouse.findFirst({
-        where: { code: stageData.warehouseCode },
-        select: { name: true },
-      })
-      if (!warehouse) {
-        throw new ValidationError(`Invalid warehouse code: ${stageData.warehouseCode}`)
-      }
-      updateData.warehouseName = warehouse.name
+    const warehouse = await prisma.warehouse.findFirst({
+      where: { code: stageData.warehouseCode },
+      select: { name: true },
+    })
+    if (!warehouse) {
+      throw new ValidationError(`Invalid warehouse code: ${stageData.warehouseCode}`)
     }
+
+    updateData.warehouseCode = stageData.warehouseCode
+    updateData.warehouseName = stageData.warehouseName ?? warehouse.name
   }
-  if (stageData.warehouseName !== undefined) {
+  if (stageData.warehouseName !== undefined && stageData.warehouseCode === undefined) {
     updateData.warehouseName = stageData.warehouseName
   }
   if (stageData.customsEntryNumber !== undefined) {
@@ -819,7 +836,7 @@ function serializeStageData(data: ReturnType<typeof getStageData>): Record<strin
 export function serializePurchaseOrder(order: PurchaseOrder & { lines?: any[] }): Record<string, any> {
   return {
     id: order.id,
-    orderNumber: order.orderNumber,
+    orderNumber: toPublicOrderNumber(order.orderNumber),
     poNumber: order.poNumber,
     type: order.type,
     status: order.status,
