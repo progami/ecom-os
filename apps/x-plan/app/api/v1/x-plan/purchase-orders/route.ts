@@ -47,6 +47,7 @@ const percentFields: Record<string, true> = {
   pay1Percent: true,
   pay2Percent: true,
   pay3Percent: true,
+  overrideTariffRate: true,
   overrideTacosPercent: true,
   overrideReferralRate: true,
 }
@@ -62,7 +63,6 @@ const decimalFields: Record<string, true> = {
   overrideSellingPrice: true,
   overrideManufacturingCost: true,
   overrideFreightCost: true,
-  overrideTariffRate: true,
   overrideFbaFee: true,
   overrideStoragePerMonth: true,
 }
@@ -107,7 +107,7 @@ function parseNumber(value: string | null | undefined) {
   if (!value) return null
   const trimmed = value.trim()
   if (!trimmed) return null
-  const cleaned = trimmed.replace(/[$,%]/g, '')
+  const cleaned = trimmed.replace(/[$,%\s]/g, '').replace(/,/g, '')
   const parsed = Number(cleaned)
   return Number.isNaN(parsed) ? null : parsed
 }
@@ -157,12 +157,17 @@ function resolveStageDefaultWeeks(map: StageDefaultsMap, label: string): number 
 }
 
 export async function PUT(request: Request) {
+  const debug = process.env.NODE_ENV !== 'production'
   const body = await request.json().catch(() => null)
-  console.log('[PUT /purchase-orders] body:', JSON.stringify(body, null, 2))
+  if (debug) {
+    console.log('[PUT /purchase-orders] body:', JSON.stringify(body, null, 2))
+  }
   const parsed = updateSchema.safeParse(body)
 
   if (!parsed.success) {
-    console.log('[PUT /purchase-orders] validation error:', parsed.error.format())
+    if (debug) {
+      console.log('[PUT /purchase-orders] validation error:', parsed.error.format())
+    }
     return NextResponse.json({ error: 'Invalid payload', details: parsed.error.format() }, { status: 400 })
   }
 
@@ -199,7 +204,9 @@ export async function PUT(request: Request) {
         )
         if (conflict) {
           const errorMessage = `Order code "${update.orderCode}" is already in use by another purchase order.`
-          console.log('[PUT /purchase-orders] returning 409:', errorMessage)
+          if (debug) {
+            console.log('[PUT /purchase-orders] returning 409:', errorMessage)
+          }
           return new Response(JSON.stringify({ error: errorMessage }), {
             status: 409,
             headers: { 'Content-Type': 'application/json' },
@@ -246,13 +253,17 @@ export async function PUT(request: Request) {
       return prisma.purchaseOrder.update({ where: { id }, data })
     })
   )
-    console.log('[PUT /purchase-orders] success')
+    if (debug) {
+      console.log('[PUT /purchase-orders] success')
+    }
     return NextResponse.json({ ok: true })
   } catch (error) {
     console.error('[PUT /purchase-orders] error:', error)
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       const errorMessage = 'A purchase order with this code already exists.'
-      console.log('[PUT /purchase-orders] returning 409 (Prisma P2002):', errorMessage)
+      if (debug) {
+        console.log('[PUT /purchase-orders] returning 409 (Prisma P2002):', errorMessage)
+      }
       return new Response(JSON.stringify({ error: errorMessage }), {
         status: 409,
         headers: { 'Content-Type': 'application/json' },

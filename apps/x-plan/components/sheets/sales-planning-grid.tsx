@@ -4,8 +4,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, typ
 import { HotTable } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
-import 'handsontable/dist/handsontable.full.min.css'
-import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { formatNumericInput, numericValidator } from '@/components/sheets/validators'

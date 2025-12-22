@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { HotTable } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
-import 'handsontable/dist/handsontable.full.min.css'
-import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { finishEditingSafely } from '@/lib/handsontable'
@@ -55,7 +53,7 @@ const COST_HEADERS = [
   'Sell $',
   'Mfg $',
   'Freight $',
-  'Tariff $',
+  'Tariff %',
   'TACoS %',
   'FBA $',
   'Referral %',
@@ -67,7 +65,6 @@ const NUMERIC_FIELDS = [
   'sellingPrice',
   'manufacturingCost',
   'freightCost',
-  'tariffRate',
   'fbaFee',
   'storagePerMonth',
 ] as const
@@ -77,14 +74,14 @@ const NUMERIC_PRECISION: Record<NumericField, number> = {
   sellingPrice: 2,
   manufacturingCost: 2,
   freightCost: 2,
-  tariffRate: 2,
   fbaFee: 2,
   storagePerMonth: 2,
 }
 
-const PERCENT_FIELDS = ['tacosPercent', 'referralRate'] as const
+const PERCENT_FIELDS = ['tariffRate', 'tacosPercent', 'referralRate'] as const
 type PercentField = (typeof PERCENT_FIELDS)[number]
 const PERCENT_PRECISION: Record<PercentField, number> = {
+  tariffRate: 2,
   tacosPercent: 2,
   referralRate: 2,
 }
@@ -233,7 +230,7 @@ export function OpsPlanningCostGrid({
       {
         data: 'tariffRate',
         type: 'numeric',
-        numericFormat: { pattern: '$0,0.00' },
+        numericFormat: { pattern: '0.00%' },
         className: 'cell-editable text-right',
         width: 110,
         validator: numericValidator,

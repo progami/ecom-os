@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import 'handsontable/dist/handsontable.full.min.css'
+import '@/styles/handsontable-theme.css'
 import { Providers } from '@/components/providers'
 import { clsx } from 'clsx'
 

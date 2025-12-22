@@ -48,7 +48,7 @@ function parseNumeric(value: string | null | undefined) {
   if (value === null || value === undefined) return null
   const trimmed = value.trim()
   if (!trimmed) return null
-  const normalized = trimmed.replace(/[%$]/g, '')
+  const normalized = trimmed.replace(/[%$\s]/g, '').replace(/,/g, '')
   const parsed = Number(normalized)
   if (Number.isNaN(parsed)) return null
   return parsed

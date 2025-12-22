@@ -272,13 +272,9 @@ export function computePurchaseOrderDerived(
 
   const derivedBatches: PurchaseOrderBatchDerived[] = []
 
-  const batchCount = batches.length || 1
-  const totalBatchQuantity = batches.reduce((sum, batch) => {
-    return sum + Math.max(0, coerceNumber(batch.quantity))
-  }, 0)
   const orderManufacturingOverride = parseNumber(order.overrideManufacturingCost)
   const orderFreightOverride = parseNumber(order.overrideFreightCost)
-  const orderTariffOverride = parseNumber(order.overrideTariffRate)
+  const orderTariffOverride = parsePercent(order.overrideTariffRate)
 
   let totalQuantity = 0
   let totalSellingPrice = 0
@@ -298,38 +294,23 @@ export function computePurchaseOrderDerived(
     const product = productIndex.get(batch.productId)
     if (!product) continue
 
-    const ratio = totalBatchQuantity > 0 ? quantity / totalBatchQuantity : 1 / batchCount
     const sellingPrice = resolveOverride(product.sellingPrice, batch.overrideSellingPrice ?? order.overrideSellingPrice)
-    const parsedBatchManufacturing = batch.overrideManufacturingCost != null ? parseNumber(batch.overrideManufacturingCost) : null
-    const parsedManufacturing =
-      parsedBatchManufacturing != null
-        ? parsedBatchManufacturing
-        : orderManufacturingOverride != null
-          ? orderManufacturingOverride * ratio
-          : null
-    const batchManufacturingTotal =
-      parsedManufacturing != null ? parsedManufacturing : product.manufacturingCost * quantity
-
-    const parsedBatchFreight = batch.overrideFreightCost != null ? parseNumber(batch.overrideFreightCost) : null
-    const parsedFreight =
-      parsedBatchFreight != null
-        ? parsedBatchFreight
-        : orderFreightOverride != null
-          ? orderFreightOverride * ratio
-          : null
-    const batchFreightTotal = parsedFreight != null ? parsedFreight : product.freightCost * quantity
-
-    const parsedBatchTariff = parseNumber(batch.overrideTariffRate)
-    const overrideTariffAmount =
-      parsedBatchTariff != null
-        ? parsedBatchTariff
-        : orderTariffOverride != null
-          ? orderTariffOverride * ratio
-          : null
-    const baseTariffCost = Number.isFinite(product.tariffCost)
-      ? product.tariffCost
-      : product.manufacturingCost * product.tariffRate
-    const batchTariffTotal = overrideTariffAmount != null ? overrideTariffAmount : baseTariffCost * quantity
+    const manufacturingUnitCost = resolveOverride(
+      product.manufacturingCost,
+      batch.overrideManufacturingCost ?? orderManufacturingOverride ?? null,
+    )
+    const freightUnitCost = resolveOverride(
+      product.freightCost,
+      batch.overrideFreightCost ?? orderFreightOverride ?? null,
+    )
+    const tariffRate = resolveOverride(
+      product.tariffRate,
+      parsePercent(batch.overrideTariffRate ?? orderTariffOverride ?? null),
+    )
+    const tariffUnitCost = manufacturingUnitCost * tariffRate
+    const batchManufacturingTotal = manufacturingUnitCost * quantity
+    const batchFreightTotal = freightUnitCost * quantity
+    const batchTariffTotal = tariffUnitCost * quantity
     const tacosPercent = resolveOverride(product.tacosPercent, batch.overrideTacosPercent ?? order.overrideTacosPercent)
     const fbaFee = resolveOverride(product.fbaFee, batch.overrideFbaFee ?? order.overrideFbaFee)
     const referralRate = resolveOverride(
@@ -349,9 +330,9 @@ export function computePurchaseOrderDerived(
       productId: batch.productId,
       quantity,
       sellingPrice,
-      manufacturingCost: batchManufacturingTotal / Math.max(quantity, 1),
-      freightCost: batchFreightTotal / Math.max(quantity, 1),
-      tariffRate: batchTariffTotal / Math.max(quantity, 1),
+      manufacturingCost: manufacturingUnitCost,
+      freightCost: freightUnitCost,
+      tariffRate,
       tacosPercent,
       fbaFee,
       amazonReferralRate: referralRate,
@@ -379,7 +360,7 @@ export function computePurchaseOrderDerived(
   const sellingPrice = divisor > 0 ? totalSellingPrice / divisor : 0
   const manufacturingCost = divisor > 0 ? totalManufacturingCost / divisor : 0
   const freightCost = divisor > 0 ? totalFreightCost / divisor : 0
-  const tariffRate = divisor > 0 ? totalTariffCost / divisor : 0
+  const tariffRate = totalManufacturingCost > 0 ? totalTariffCost / totalManufacturingCost : 0
   const tacosPercent = divisor > 0 ? totalTacosPercent / divisor : 0
   const fbaFee = divisor > 0 ? totalFbaFee / divisor : 0
   const referralRate = divisor > 0 ? totalReferralRate / divisor : 0
