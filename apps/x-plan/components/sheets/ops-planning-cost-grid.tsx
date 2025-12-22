@@ -6,6 +6,7 @@ import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
 import { toast } from 'sonner'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { useHandsontableThemeName } from '@/hooks/useHandsontableThemeName'
 import { finishEditingSafely } from '@/lib/handsontable'
 import { formatNumericInput, formatPercentInput, numericValidator, sanitizeNumeric } from '@/components/sheets/validators'
 import { withAppBasePath } from '@/lib/base-path'
@@ -148,6 +149,7 @@ export function OpsPlanningCostGrid({
   onSync,
 }: OpsPlanningCostGridProps) {
   const [isClient, setIsClient] = useState(false)
+  const themeName = useHandsontableThemeName()
   const hotRef = useRef<Handsontable | null>(null)
   const handleFlush = useCallback(
     async (payload: Array<{ id: string; values: Record<string, string | null> }>) => {
@@ -357,6 +359,7 @@ export function OpsPlanningCostGrid({
         }}
         data={data}
         licenseKey="non-commercial-and-evaluation"
+        themeName={themeName}
         columns={columns}
         colHeaders={COST_HEADERS}
         stretchH="all"
