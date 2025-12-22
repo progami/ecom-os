@@ -4,11 +4,10 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { HotTable } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
-import 'handsontable/dist/handsontable.full.min.css'
-import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { useHandsontableThemeName } from '@/hooks/useHandsontableThemeName'
 import { withAppBasePath } from '@/lib/base-path'
 
 registerAllModules()
@@ -53,6 +52,7 @@ function normalizeEditable(value: unknown) {
 
 export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
+  const themeName = useHandsontableThemeName()
 
   const data = useMemo(() => weekly, [weekly])
 
@@ -169,6 +169,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
           }}
           data={data}
           licenseKey="non-commercial-and-evaluation"
+          themeName={themeName}
           width="100%"
           columns={columns}
           colHeaders={['Week', 'Date', 'Amazon Payout', 'Inventory Purchase', 'Fixed Costs', 'Net Cash', 'Cash Balance']}

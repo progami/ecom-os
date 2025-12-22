@@ -4,12 +4,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, typ
 import { HotTable } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
-import 'handsontable/dist/handsontable.full.min.css'
-import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { useHandsontableThemeName } from '@/hooks/useHandsontableThemeName'
 import {
   SHEET_TOOLBAR_GROUP,
   SHEET_TOOLBAR_LABEL,
@@ -116,6 +115,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
   const focusContext = useContext(SalesPlanningFocusContext)
   const [activeStockMetric, setActiveStockMetric] = usePersistentState<StockMetricId>('xplan:sales-grid:metric', 'stockWeeks')
   const [showFinalError, setShowFinalError] = usePersistentState<boolean>('xplan:sales-grid:show-final-error', false)
+  const themeName = useHandsontableThemeName()
   const focusProductId = focusContext?.focusProductId ?? 'ALL'
   const warningThreshold = Number.isFinite(stockWarningWeeks) ? stockWarningWeeks : Number.POSITIVE_INFINITY
   const router = useRouter()
@@ -502,6 +502,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
           }}
           data={data}
           licenseKey="non-commercial-and-evaluation"
+          themeName={themeName}
           width="100%"
           colHeaders={false}
           columns={columns}

@@ -4,10 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { HotTable } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
-import 'handsontable/dist/handsontable.full.min.css'
-import '@/styles/handsontable-theme.css'
 import { toast } from 'sonner'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { useHandsontableThemeName } from '@/hooks/useHandsontableThemeName'
 import { finishEditingSafely } from '@/lib/handsontable'
 import { formatNumericInput, formatPercentInput, numericValidator, sanitizeNumeric } from '@/components/sheets/validators'
 import { withAppBasePath } from '@/lib/base-path'
@@ -55,7 +54,7 @@ const COST_HEADERS = [
   'Sell $',
   'Mfg $',
   'Freight $',
-  'Tariff $',
+  'Tariff %',
   'TACoS %',
   'FBA $',
   'Referral %',
@@ -67,7 +66,6 @@ const NUMERIC_FIELDS = [
   'sellingPrice',
   'manufacturingCost',
   'freightCost',
-  'tariffRate',
   'fbaFee',
   'storagePerMonth',
 ] as const
@@ -77,14 +75,14 @@ const NUMERIC_PRECISION: Record<NumericField, number> = {
   sellingPrice: 2,
   manufacturingCost: 2,
   freightCost: 2,
-  tariffRate: 2,
   fbaFee: 2,
   storagePerMonth: 2,
 }
 
-const PERCENT_FIELDS = ['tacosPercent', 'referralRate'] as const
+const PERCENT_FIELDS = ['tariffRate', 'tacosPercent', 'referralRate'] as const
 type PercentField = (typeof PERCENT_FIELDS)[number]
 const PERCENT_PRECISION: Record<PercentField, number> = {
+  tariffRate: 2,
   tacosPercent: 2,
   referralRate: 2,
 }
@@ -151,6 +149,7 @@ export function OpsPlanningCostGrid({
   onSync,
 }: OpsPlanningCostGridProps) {
   const [isClient, setIsClient] = useState(false)
+  const themeName = useHandsontableThemeName()
   const hotRef = useRef<Handsontable | null>(null)
   const handleFlush = useCallback(
     async (payload: Array<{ id: string; values: Record<string, string | null> }>) => {
@@ -233,7 +232,7 @@ export function OpsPlanningCostGrid({
       {
         data: 'tariffRate',
         type: 'numeric',
-        numericFormat: { pattern: '$0,0.00' },
+        numericFormat: { pattern: '0.00%' },
         className: 'cell-editable text-right',
         width: 110,
         validator: numericValidator,
@@ -360,6 +359,7 @@ export function OpsPlanningCostGrid({
         }}
         data={data}
         licenseKey="non-commercial-and-evaluation"
+        themeName={themeName}
         columns={columns}
         colHeaders={COST_HEADERS}
         stretchH="all"
