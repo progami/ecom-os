@@ -27,14 +27,17 @@ export async function tryAcquireCronLock(key: string, ttlMs: number): Promise<bo
   }
 
   try {
-    await prisma.cronLock.create({
-      data: {
-        key,
-        lockedUntil,
-        lockedBy,
-      },
+    const created = await prisma.cronLock.createMany({
+      data: [
+        {
+          key,
+          lockedUntil,
+          lockedBy,
+        },
+      ],
+      skipDuplicates: true,
     })
-    return true
+    return created.count > 0
   } catch (e) {
     return false
   }
@@ -53,4 +56,3 @@ export async function runWithCronLock<T>(
   const result = await runner()
   return { ran: true, result }
 }
-
