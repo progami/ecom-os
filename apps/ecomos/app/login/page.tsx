@@ -1,85 +1,29 @@
-"use client"
-
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
-import { signIn } from 'next-auth/react'
 import './login.css'
 
-export default function LoginPage() {
-  return (
-    <Suspense fallback={<div className="login-container" />}>
-      <LoginPageInner />
-    </Suspense>
-  )
+type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
+
+function asString(value: string | string[] | undefined): string | undefined {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) return value[0]
+  return undefined
 }
 
-// Clear all auth cookies from browser
-function clearAuthCookies() {
-  const cookiePatterns = ['next-auth', 'authjs', '__Secure-', '__Host-', 'csrf', 'session', 'callback', 'ecomos']
-  const domains = ['.targonglobal.com', 'ecomos.targonglobal.com', '']
-
-  document.cookie.split(';').forEach(cookie => {
-    const name = cookie.split('=')[0].trim()
-    if (cookiePatterns.some(p => name.toLowerCase().includes(p.toLowerCase()))) {
-      // Clear for each domain variant
-      domains.forEach(domain => {
-        const domainPart = domain ? `; domain=${domain}` : ''
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/${domainPart}`
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/${domainPart}; secure`
-      })
-    }
-  })
-}
-
-function LoginPageInner() {
-  const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') || '/'
-  const error = searchParams.get('error') || ''
-  const autoSignIn = searchParams.get('autoSignIn')
-
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-  const autoSignInTriggered = useRef(false)
-  const cookiesCleared = useRef(false)
-
-  // Clear stale cookies on page load to prevent JWT errors
-  useEffect(() => {
-    if (!cookiesCleared.current) {
-      cookiesCleared.current = true
-      clearAuthCookies()
-    }
-  }, [])
-
-  const errorMessage = useMemo(() => {
-    if (!error) return ''
-    const messages: Record<string, string> = {
-      AccessDenied: 'Your account is not allowed to sign in. Please contact an administrator.',
-      PortalUserMissing: 'Your account is not provisioned in the portal directory.',
-      OAuthCallback: 'Google rejected the sign-in request. Please try again.',
-      Configuration: 'There was a problem with the authentication configuration. Please try again.',
-    }
-    return messages[error] || 'Unable to sign in right now. Please try again or reach out to support.'
-  }, [error])
-
-  // Auto sign-in when redirected from reset route with autoSignIn param
-  useEffect(() => {
-    if (autoSignIn === 'google' && !autoSignInTriggered.current && !error) {
-      autoSignInTriggered.current = true
-      setIsGoogleLoading(true)
-      signIn('google', { callbackUrl })
-    }
-  }, [autoSignIn, callbackUrl, error])
-
-  const handleGoogleSignIn = () => {
-    setIsGoogleLoading(true)
-
-    // Always go through reset route to clear any stale cookies first
-    // This prevents CSRF/JWT errors from old sessions
-    const resetUrl = new URL('/api/auth/reset', window.location.origin)
-    resetUrl.searchParams.set('provider', 'google')
-    resetUrl.searchParams.set('callbackUrl', callbackUrl)
-
-    window.location.href = resetUrl.toString()
+function getErrorMessage(error: string): string {
+  const messages: Record<string, string> = {
+    AccessDenied: 'Your account is not allowed to sign in. Please contact an administrator.',
+    PortalUserMissing: 'Your account is not provisioned in the portal directory.',
+    OAuthCallback: 'Google rejected the sign-in request. Please try again.',
+    Configuration: 'There was a problem with the authentication configuration. Please try again.',
   }
+
+  return messages[error] || 'Unable to sign in right now. Please try again or reach out to support.'
+}
+
+export default async function LoginPage({ searchParams }: { searchParams?: SearchParams } = {}) {
+  const params = (await searchParams) ?? {}
+  const callbackUrl = asString(params.callbackUrl) || '/'
+  const error = asString(params.error) || ''
+  const errorMessage = error ? getErrorMessage(error) : ''
 
   return (
     <div className="login-container">
@@ -112,32 +56,30 @@ function LoginPageInner() {
             </div>
           )}
 
-          <button
-            type="button"
-            className="login-google-button"
-            onClick={handleGoogleSignIn}
-            disabled={isGoogleLoading}
-          >
-            <svg className="google-icon" viewBox="0 0 18 18" aria-hidden="true">
-              <path
-                d="M17.64 9.2045C17.64 8.56632 17.5827 7.95268 17.4764 7.36364H9V10.8455H13.8436C13.635 11.97 13.0009 12.9236 12.0473 13.5636V15.8191H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.2045Z"
-                fill="#4285F4"
-              />
-              <path
-                d="M9 18C11.43 18 13.4673 17.1941 14.9564 15.8191L12.0473 13.5636C11.2423 14.1036 10.2114 14.4091 9 14.4091C6.65614 14.4091 4.67182 12.825 3.96409 10.71H0.957275V13.0418C2.43545 15.9832 5.48182 18 9 18Z"
-                fill="#34A853"
-              />
-              <path
-                d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40682 3.78409 7.83 3.96409 7.29V4.95818H0.957273C0.347727 6.17318 0 7.54773 0 9C0 10.4523 0.347727 11.8268 0.957273 13.0418L3.96409 10.71Z"
-                fill="#FBBC05"
-              />
-              <path
-                d="M9 3.59091C10.3214 3.59091 11.49 4.04545 12.3941 4.90409L15.0191 2.27909C13.4632 0.834545 11.4264 0 9 0C5.48182 0 2.43545 2.01636 0.957275 4.95818L3.96409 7.29C4.67182 5.175 6.65614 3.59091 9 3.59091Z"
-                fill="#EA4335"
-              />
-            </svg>
-            {isGoogleLoading ? 'Signing in…' : 'Sign in with Google'}
-          </button>
+          <form action="/login/google" method="get">
+            <input type="hidden" name="callbackUrl" value={callbackUrl} />
+            <button type="submit" className="login-google-button">
+              <svg className="google-icon" viewBox="0 0 18 18" aria-hidden="true">
+                <path
+                  d="M17.64 9.2045C17.64 8.56632 17.5827 7.95268 17.4764 7.36364H9V10.8455H13.8436C13.635 11.97 13.0009 12.9236 12.0473 13.5636V15.8191H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.2045Z"
+                  fill="#4285F4"
+                />
+                <path
+                  d="M9 18C11.43 18 13.4673 17.1941 14.9564 15.8191L12.0473 13.5636C11.2423 14.1036 10.2114 14.4091 9 14.4091C6.65614 14.4091 4.67182 12.825 3.96409 10.71H0.957275V13.0418C2.43545 15.9832 5.48182 18 9 18Z"
+                  fill="#34A853"
+                />
+                <path
+                  d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40682 3.78409 7.83 3.96409 7.29V4.95818H0.957273C0.347727 6.17318 0 7.54773 0 9C0 10.4523 0.347727 11.8268 0.957273 13.0418L3.96409 10.71Z"
+                  fill="#FBBC05"
+                />
+                <path
+                  d="M9 3.59091C10.3214 3.59091 11.49 4.04545 12.3941 4.90409L15.0191 2.27909C13.4632 0.834545 11.4264 0 9 0C5.48182 0 2.43545 2.01636 0.957275 4.95818L3.96409 7.29C4.67182 5.175 6.65614 3.59091 9 3.59091Z"
+                  fill="#EA4335"
+                />
+              </svg>
+              Sign in with Google
+            </button>
+          </form>
 
           <p className="login-note">
             Need access or see an issue? Contact the platform team.
