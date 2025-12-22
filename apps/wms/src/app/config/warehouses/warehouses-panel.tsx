@@ -22,6 +22,7 @@ import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { toast } from 'react-hot-toast'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface Warehouse {
   id: string
@@ -53,6 +54,11 @@ export default function WarehousesPanel() {
   const [loading, setLoading] = useState(true)
   const [showInactive, setShowInactive] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    open: boolean
+    warehouse: Warehouse | null
+    hasRelatedData: boolean
+  }>({ open: false, warehouse: null, hasRelatedData: false })
 
   const loadWarehouses = useCallback(async () => {
     setLoading(true)
@@ -94,13 +100,20 @@ export default function WarehousesPanel() {
     loadWarehouses()
   }, [loadWarehouses])
 
-  const handleDelete = async (warehouse: Warehouse) => {
+  const handleDelete = (warehouse: Warehouse) => {
     const hasRelatedData = Object.values(warehouse._count).some(count => count > 0)
-    const confirmation = hasRelatedData
-      ? 'This warehouse has related data and will be deactivated. Continue?'
-      : `Delete ${warehouse.name}? This cannot be undone.`
+    setDeleteConfirm({
+      open: true,
+      warehouse,
+      hasRelatedData,
+    })
+  }
 
-    if (!confirm(confirmation)) return
+  const handleConfirmDelete = async () => {
+    const warehouse = deleteConfirm.warehouse
+    if (!warehouse) return
+
+    setDeleteConfirm({ open: false, warehouse: null, hasRelatedData: false })
 
     try {
       const response = await fetchWithCSRF(`/api/warehouses?id=${warehouse.id}`, {
@@ -390,6 +403,22 @@ export default function WarehousesPanel() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.open}
+        onClose={() => setDeleteConfirm({ open: false, warehouse: null, hasRelatedData: false })}
+        onConfirm={handleConfirmDelete}
+        title={deleteConfirm.hasRelatedData ? 'Deactivate Warehouse' : 'Delete Warehouse'}
+        message={
+          deleteConfirm.hasRelatedData
+            ? 'This warehouse has related data and will be deactivated instead of deleted. Continue?'
+            : `Delete ${deleteConfirm.warehouse?.name || 'this warehouse'}? This cannot be undone.`
+        }
+        type="danger"
+        confirmText={deleteConfirm.hasRelatedData ? 'Deactivate' : 'Delete'}
+        cancelText="Cancel"
+      />
     </div>
   )
 }

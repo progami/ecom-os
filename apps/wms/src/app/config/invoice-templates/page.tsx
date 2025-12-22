@@ -18,6 +18,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Button } from '@/components/ui/button'
 import { toast } from 'react-hot-toast'
 import { redirectToPortal } from '@/lib/portal'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface CostMapping {
  enabled: boolean
@@ -85,6 +86,12 @@ export default function InvoiceTemplatesPage() {
  transactionType: 'BOTH' as 'RECEIVE' | 'SHIP' | 'BOTH',
  costMappings: {} as Record<string, CostMapping>,
  isDefault: false
+ })
+
+ // Delete confirmation dialog state
+ const [deleteConfirm, setDeleteConfirm] = useState<{ open: boolean; templateId: string | null }>({
+   open: false,
+   templateId: null
  })
 
  useEffect(() => {
@@ -173,15 +180,21 @@ export default function InvoiceTemplatesPage() {
  }
  }
 
- const handleDelete = async (_id: string) => {
- if (!confirm('Are you sure you want to delete this template?')) return
-
- try {
- // API endpoint removed
- toast.error('Delete feature not available')
- } catch (_error) {
- toast.error('Failed to delete template')
+ const handleDelete = (id: string) => {
+   setDeleteConfirm({ open: true, templateId: id })
  }
+
+ const handleConfirmDelete = async () => {
+   if (!deleteConfirm.templateId) return
+
+   try {
+     // API endpoint removed
+     toast.error('Delete feature not available')
+   } catch (_error) {
+     toast.error('Failed to delete template')
+   } finally {
+     setDeleteConfirm({ open: false, templateId: null })
+   }
  }
 
  const handleCopy = async (template: InvoiceTemplate) => {
@@ -548,6 +561,18 @@ export default function InvoiceTemplatesPage() {
  </div>
  </div>
  )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirm.open}
+        onClose={() => setDeleteConfirm({ open: false, templateId: null })}
+        onConfirm={handleConfirmDelete}
+        title="Delete Template"
+        message="Are you sure you want to delete this template? This action cannot be undone."
+        type="danger"
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
  </DashboardLayout>
  )
  }
