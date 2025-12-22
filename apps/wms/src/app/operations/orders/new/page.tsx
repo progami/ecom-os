@@ -8,7 +8,6 @@ import { toast } from 'react-hot-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 import { ArrowLeft, Loader2, Plus, Trash2 } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
@@ -53,7 +52,17 @@ export default function NewPurchaseOrderPage() {
     supplierId: '',
     notes: '',
   })
-  const [lineItems, setLineItems] = useState<LineItem[]>([])
+  const [lineItems, setLineItems] = useState<LineItem[]>([
+    {
+      id: generateTempId(),
+      skuCode: '',
+      skuDescription: '',
+      quantity: 1,
+      unitCost: '',
+      currency: 'USD',
+      notes: '',
+    },
+  ])
 
   useEffect(() => {
     if (status === 'loading') return
@@ -203,180 +212,170 @@ export default function NewPurchaseOrderPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl">
-        <div className="mb-6">
-          <Link
-            href="/operations/orders"
-            className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Back to Orders
-          </Link>
-        </div>
+      <div className="mb-4">
+        <Link
+          href="/operations/orders"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back to Orders
+        </Link>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Basic Info Card */}
-          <div className="bg-white rounded-lg border shadow-sm p-6">
-            <h2 className="text-lg font-semibold mb-6">Order Details</h2>
+      <form onSubmit={handleSubmit}>
+        <div className="bg-white rounded-lg border shadow-sm">
+          {/* Header */}
+          <div className="px-6 py-4 border-b">
+            <h1 className="text-lg font-semibold">New Purchase Order</h1>
+          </div>
 
-            <div className="grid grid-cols-1 gap-6">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Supplier <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={formData.supplierId}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, supplierId: e.target.value }))}
-                  className="w-full px-3 py-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                  required
-                >
-                  <option value="">Select a supplier</option>
-                  {suppliers.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>
-                      {supplier.name}
-                      {supplier.contactName ? ` (${supplier.contactName})` : ''}
-                    </option>
-                  ))}
-                </select>
-                {suppliers.length === 0 && !loading && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    No suppliers found.{' '}
-                    <Link href="/config/suppliers" className="text-primary hover:underline">
-                      Add one
-                    </Link>
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Notes</label>
-                <Textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
-                  placeholder="Optional notes..."
-                  rows={3}
-                />
-              </div>
+          {/* Supplier & Notes Row */}
+          <div className="px-6 py-4 border-b grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1.5">
+                Supplier <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.supplierId}
+                onChange={(e) => setFormData((prev) => ({ ...prev, supplierId: e.target.value }))}
+                className="w-full px-3 py-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                required
+              >
+                <option value="">Select a supplier</option>
+                {suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.name}
+                    {supplier.contactName ? ` (${supplier.contactName})` : ''}
+                  </option>
+                ))}
+              </select>
+              {suppliers.length === 0 && !loading && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  No suppliers found.{' '}
+                  <Link href="/config/suppliers" className="text-primary hover:underline">
+                    Add one
+                  </Link>
+                </p>
+              )}
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1.5">Notes</label>
+              <Input
+                value={formData.notes}
+                onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                placeholder="Optional notes..."
+              />
             </div>
           </div>
 
-          {/* Line Items Card */}
-          <div className="bg-white rounded-lg border shadow-sm p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-semibold">Line Items</h2>
+          {/* Line Items Section */}
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-medium">Line Items</h2>
               <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
                 <Plus className="h-4 w-4 mr-1" />
                 Add Item
               </Button>
             </div>
 
-            {lineItems.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-                <p className="mb-2">No line items added</p>
-                <Button type="button" variant="outline" size="sm" onClick={addLineItem}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add First Item
-                </Button>
+            <div className="space-y-3">
+              {/* Table Header */}
+              <div className="grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground pb-2 border-b">
+                <div className="col-span-3">SKU</div>
+                <div className="col-span-3">Description</div>
+                <div className="col-span-1">Qty</div>
+                <div className="col-span-2">Unit Cost</div>
+                <div className="col-span-2">Notes</div>
+                <div className="col-span-1"></div>
               </div>
-            ) : (
-              <div className="space-y-4">
-                {/* Table Header */}
-                <div className="grid grid-cols-12 gap-3 text-sm font-medium text-muted-foreground border-b pb-2">
-                  <div className="col-span-3">SKU</div>
-                  <div className="col-span-3">Description</div>
-                  <div className="col-span-1">Qty</div>
-                  <div className="col-span-2">Unit Cost</div>
-                  <div className="col-span-2">Notes</div>
-                  <div className="col-span-1"></div>
-                </div>
 
-                {/* Line Items */}
-                {lineItems.map((item) => (
-                  <div key={item.id} className="grid grid-cols-12 gap-3 items-start">
-                    <div className="col-span-3">
+              {/* Line Items */}
+              {lineItems.map((item) => (
+                <div key={item.id} className="grid grid-cols-12 gap-2 items-center">
+                  <div className="col-span-3">
+                    <select
+                      value={item.skuCode}
+                      onChange={(e) => updateLineItem(item.id, 'skuCode', e.target.value)}
+                      className="w-full px-2 py-1.5 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                      required
+                    >
+                      <option value="">Select SKU</option>
+                      {skus.map((sku) => (
+                        <option key={sku.id} value={sku.skuCode}>
+                          {sku.skuCode}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-3">
+                    <Input
+                      value={item.skuDescription}
+                      onChange={(e) => updateLineItem(item.id, 'skuDescription', e.target.value)}
+                      placeholder="Description"
+                      className="text-sm h-8"
+                    />
+                  </div>
+                  <div className="col-span-1">
+                    <Input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
+                      className="text-sm h-8"
+                      required
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <div className="flex gap-1">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={item.unitCost}
+                        onChange={(e) => updateLineItem(item.id, 'unitCost', e.target.value)}
+                        placeholder="0.00"
+                        className="text-sm h-8 flex-1"
+                      />
                       <select
-                        value={item.skuCode}
-                        onChange={(e) => updateLineItem(item.id, 'skuCode', e.target.value)}
-                        className="w-full px-3 py-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                        required
+                        value={item.currency}
+                        onChange={(e) => updateLineItem(item.id, 'currency', e.target.value)}
+                        className="w-16 px-1 py-1 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
                       >
-                        <option value="">Select SKU</option>
-                        {skus.map((sku) => (
-                          <option key={sku.id} value={sku.skuCode}>
-                            {sku.skuCode}
+                        {CURRENCIES.map((curr) => (
+                          <option key={curr} value={curr}>
+                            {curr}
                           </option>
                         ))}
                       </select>
                     </div>
-                    <div className="col-span-3">
-                      <Input
-                        value={item.skuDescription}
-                        onChange={(e) => updateLineItem(item.id, 'skuDescription', e.target.value)}
-                        placeholder="Description"
-                        className="text-sm"
-                      />
-                    </div>
-                    <div className="col-span-1">
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
-                        className="text-sm"
-                        required
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <div className="flex gap-1">
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={item.unitCost}
-                          onChange={(e) => updateLineItem(item.id, 'unitCost', e.target.value)}
-                          placeholder="0.00"
-                          className="text-sm flex-1"
-                        />
-                        <select
-                          value={item.currency}
-                          onChange={(e) => updateLineItem(item.id, 'currency', e.target.value)}
-                          className="w-16 px-1 py-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
-                        >
-                          {CURRENCIES.map((curr) => (
-                            <option key={curr} value={curr}>
-                              {curr}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="col-span-2">
-                      <Input
-                        value={item.notes}
-                        onChange={(e) => updateLineItem(item.id, 'notes', e.target.value)}
-                        placeholder="Notes"
-                        className="text-sm"
-                      />
-                    </div>
-                    <div className="col-span-1 flex justify-end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeLineItem(item.id)}
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
                   </div>
-                ))}
-              </div>
-            )}
+                  <div className="col-span-2">
+                    <Input
+                      value={item.notes}
+                      onChange={(e) => updateLineItem(item.id, 'notes', e.target.value)}
+                      placeholder="Notes"
+                      className="text-sm h-8"
+                    />
+                  </div>
+                  <div className="col-span-1 flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeLineItem(item.id)}
+                      disabled={lineItems.length === 1}
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 disabled:opacity-30"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3">
+          <div className="px-6 py-4 border-t bg-slate-50 flex justify-end gap-3">
             <Button
               type="button"
               variant="outline"
@@ -392,15 +391,12 @@ export default function NewPurchaseOrderPage() {
                   Creating...
                 </>
               ) : (
-                <>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Purchase Order
-                </>
+                'Create Purchase Order'
               )}
             </Button>
           </div>
-        </form>
-      </div>
+        </div>
+      </form>
     </DashboardLayout>
   )
 }
