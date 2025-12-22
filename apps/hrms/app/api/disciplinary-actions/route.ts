@@ -12,6 +12,7 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canRaiseViolation, getHREmployees } from '@/lib/permissions'
 import { publish } from '@/lib/notification-service'
+import { writeAuditLog } from '@/lib/audit'
 
 export async function GET(req: Request) {
   const rateLimitError = withRateLimit(req)
@@ -201,6 +202,22 @@ export async function POST(req: Request) {
           },
         },
       },
+    })
+
+    await writeAuditLog({
+      actorId: currentEmployeeId,
+      action: 'CREATE',
+      entityType: 'DISCIPLINARY_ACTION',
+      entityId: item.id,
+      summary: `Raised violation (${item.severity.toLowerCase()})`,
+      metadata: {
+        employeeId: item.employeeId,
+        violationType: item.violationType,
+        violationReason: item.violationReason,
+        severity: item.severity,
+        status: item.status,
+      },
+      req,
     })
 
     // Notify HR about pending violation review

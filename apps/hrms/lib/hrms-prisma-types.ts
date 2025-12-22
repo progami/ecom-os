@@ -19,6 +19,15 @@ export {
   DisciplinaryStatus,
   HREventType,
   NotificationType,
+  TaskStatus,
+  TaskCategory,
+  CaseType,
+  CaseStatus,
+  CaseSeverity,
+  CaseParticipantRole,
+  CaseNoteVisibility,
+  AuditAction,
+  AuditEntityType,
 } from '@ecom-os/prisma-hrms'
 
 // Transaction client type for $transaction callbacks

@@ -5,7 +5,6 @@ import { ReactNode, useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import {
   HomeIcon,
-  UsersIcon,
   FolderIcon,
   DocumentIcon,
   CalendarIcon,
@@ -14,23 +13,29 @@ import {
   XIcon,
   ClipboardDocumentCheckIcon,
   ShieldExclamationIcon,
+  BellIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
   OrgChartIcon,
   LockClosedIcon,
 } from '@/components/ui/Icons'
 import { NotificationBell } from '@/components/ui/NotificationBell'
 import { NavigationHistoryProvider } from '@/lib/navigation-history'
+import { MeApi } from '@/lib/api-client'
 
 interface NavItem {
   name: string
   href: string
   icon: React.ComponentType<{ className?: string }>
   requireSuperAdmin?: boolean
+  requireHR?: boolean
 }
 
 interface NavSection {
   title: string
   items: NavItem[]
   requireSuperAdmin?: boolean
+  requireHR?: boolean
 }
 
 const navigation: NavSection[] = [
@@ -38,6 +43,13 @@ const navigation: NavSection[] = [
     title: '',
     items: [
       { name: 'Dashboard', href: '/', icon: HomeIcon },
+      { name: 'Work Queue', href: '/work', icon: BellIcon },
+    ]
+  },
+  {
+    title: 'Work',
+    items: [
+      { name: 'Tasks', href: '/tasks', icon: CheckCircleIcon },
     ]
   },
   {
@@ -52,6 +64,7 @@ const navigation: NavSection[] = [
     items: [
       { name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon },
       { name: 'Violations', href: '/performance/disciplinary', icon: ShieldExclamationIcon },
+      { name: 'Cases', href: '/cases', icon: ExclamationTriangleIcon },
     ]
   },
   {
@@ -60,6 +73,13 @@ const navigation: NavSection[] = [
       { name: 'Resources', href: '/resources', icon: FolderIcon },
       { name: 'Policies', href: '/policies', icon: DocumentIcon },
       { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
+    ]
+  },
+  {
+    title: 'Compliance',
+    requireHR: true,
+    items: [
+      { name: 'Audit Logs', href: '/audit-logs', icon: LockClosedIcon, requireHR: true },
     ]
   },
   {
@@ -75,7 +95,7 @@ function cn(...classes: (string | boolean | undefined)[]) {
   return classes.filter(Boolean).join(' ')
 }
 
-function Sidebar({ onClose, isSuperAdmin }: { onClose?: () => void; isSuperAdmin: boolean }) {
+function Sidebar({ onClose, isSuperAdmin, isHR }: { onClose?: () => void; isSuperAdmin: boolean; isHR: boolean }) {
   const pathname = usePathname()
 
   const matchesPath = (href: string) => {
@@ -83,10 +103,21 @@ function Sidebar({ onClose, isSuperAdmin }: { onClose?: () => void; isSuperAdmin
     return pathname.startsWith(href)
   }
 
+  const canSeeHR = isSuperAdmin || isHR
+
   // Filter navigation based on permissions
-  const filteredNavigation = navigation.filter(
-    (section) => !section.requireSuperAdmin || isSuperAdmin
-  )
+  const filteredNavigation = navigation
+    .filter((section) => !section.requireSuperAdmin || isSuperAdmin)
+    .filter((section) => !section.requireHR || canSeeHR)
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        if (item.requireSuperAdmin && !isSuperAdmin) return false
+        if (item.requireHR && !canSeeHR) return false
+        return true
+      }),
+    }))
+    .filter((section) => section.items.length > 0)
 
   return (
     <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6 pb-4">
@@ -152,7 +183,7 @@ function Sidebar({ onClose, isSuperAdmin }: { onClose?: () => void; isSuperAdmin
   )
 }
 
-function MobileNav({ isOpen, onClose, isSuperAdmin }: { isOpen: boolean; onClose: () => void; isSuperAdmin: boolean }) {
+function MobileNav({ isOpen, onClose, isSuperAdmin, isHR }: { isOpen: boolean; onClose: () => void; isSuperAdmin: boolean; isHR: boolean }) {
   if (!isOpen) return null
 
   return (
@@ -165,7 +196,7 @@ function MobileNav({ isOpen, onClose, isSuperAdmin }: { isOpen: boolean; onClose
               <XIcon className="h-6 w-6 text-white" />
             </button>
           </div>
-          <Sidebar onClose={onClose} isSuperAdmin={isSuperAdmin} />
+          <Sidebar onClose={onClose} isSuperAdmin={isSuperAdmin} isHR={isHR} />
         </div>
       </div>
     </div>
@@ -204,6 +235,7 @@ function Header({ onMenuClick }: { onMenuClick: () => void }) {
 export default function HRMSLayout({ children }: { children: ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [isHR, setIsHR] = useState(false)
   const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0'
   const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
   const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
@@ -220,11 +252,9 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function fetchUserPermissions() {
       try {
-        const res = await fetch('/api/me')
-        if (res.ok) {
-          const data = await res.json()
-          setIsSuperAdmin(data.isSuperAdmin || false)
-        }
+        const me = await MeApi.get()
+        setIsSuperAdmin(Boolean(me.isSuperAdmin))
+        setIsHR(Boolean(me.isHR))
       } catch (e) {
         // Ignore errors, default to non-admin
       }
@@ -236,11 +266,11 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
     <NavigationHistoryProvider>
       {/* Desktop Sidebar */}
       <div className="hidden md:fixed md:inset-y-0 md:z-50 md:flex md:w-64 md:flex-col">
-        <Sidebar isSuperAdmin={isSuperAdmin} />
+        <Sidebar isSuperAdmin={isSuperAdmin} isHR={isHR} />
       </div>
 
       {/* Mobile Nav */}
-      <MobileNav isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} isSuperAdmin={isSuperAdmin} />
+      <MobileNav isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} isSuperAdmin={isSuperAdmin} isHR={isHR} />
 
       {/* Main Content */}
       <div className="md:pl-64 min-h-screen flex flex-col bg-gray-50">

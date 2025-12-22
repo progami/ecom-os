@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PoliciesApi, type Policy } from '@/lib/api-client'
+import { MeApi, PoliciesApi, type Policy } from '@/lib/api-client'
 import {
   DocumentIcon,
   PlusIcon,
@@ -35,6 +35,7 @@ export default function PoliciesPage() {
   const [items, setItems] = useState<Policy[]>([])
   const [q, setQ] = useState('')
   const [loading, setLoading] = useState(true)
+  const [canManagePolicies, setCanManagePolicies] = useState(false)
 
   const load = useCallback(async () => {
     try {
@@ -53,6 +54,18 @@ export default function PoliciesPage() {
     load()
   }, [load])
 
+  useEffect(() => {
+    async function loadPermissions() {
+      try {
+        const me = await MeApi.get()
+        setCanManagePolicies(Boolean(me.isSuperAdmin || me.isHR))
+      } catch (e) {
+        setCanManagePolicies(false)
+      }
+    }
+    loadPermissions()
+  }, [])
+
   return (
     <>
       <ListPageHeader
@@ -60,9 +73,11 @@ export default function PoliciesPage() {
         description="Manage company policies and guidelines"
         icon={<DocumentIcon className="h-6 w-6 text-white" />}
         action={
-          <Button href="/policies/add" icon={<PlusIcon className="h-4 w-4" />}>
-            Add Policy
-          </Button>
+          canManagePolicies ? (
+            <Button href="/policies/add" icon={<PlusIcon className="h-4 w-4" />}>
+              Add Policy
+            </Button>
+          ) : null
         }
       />
 

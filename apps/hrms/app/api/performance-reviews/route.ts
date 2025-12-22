@@ -12,6 +12,7 @@ import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canRaiseViolation, getHREmployees } from '@/lib/permissions'
 import { getReviewWeights, calculateValuesScore, applyValuesVeto } from '@/lib/standing'
 import { publish } from '@/lib/notification-service'
+import { writeAuditLog } from '@/lib/audit'
 
 export async function GET(req: Request) {
   const rateLimitError = withRateLimit(req)
@@ -244,6 +245,20 @@ export async function POST(req: Request) {
           },
         },
       },
+    })
+
+    await writeAuditLog({
+      actorId: currentEmployeeId,
+      action: 'CREATE',
+      entityType: 'PERFORMANCE_REVIEW',
+      entityId: item.id,
+      summary: `Created performance review (${item.reviewType.toLowerCase()})`,
+      metadata: {
+        employeeId: item.employeeId,
+        reviewType: item.reviewType,
+        status: item.status,
+      },
+      req,
     })
 
     // Notify HR if review is submitted for approval
