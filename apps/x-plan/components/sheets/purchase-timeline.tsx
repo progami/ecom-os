@@ -6,23 +6,32 @@ import { clsx } from 'clsx'
 import { Info } from 'lucide-react'
 import type { PurchaseTimelineProps } from '@/lib/planning/timeline'
 import { PurchaseTimelineOrder, TimelineStageKey } from '@/lib/planning/timeline'
+import { Tooltip } from '@/components/ui/tooltip'
 
-const stagePalette: Record<TimelineStageKey, { label: string; barClass: string }> = {
-  production: {
-    label: 'Production',
-    barClass: 'bg-sky-500',
-  },
+const stagePalette: Record<TimelineStageKey, { label: string; description: string; barClass: string; textClass: string }> = {
   source: {
     label: 'Source',
-    barClass: 'bg-amber-500',
+    description: 'Sourcing & procurement phase',
+    barClass: 'bg-cyan-400/80 hover:bg-cyan-400 dark:bg-cyan-600/80 dark:hover:bg-cyan-600 focus-visible:outline-cyan-400',
+    textClass: 'text-cyan-950 dark:text-cyan-100',
+  },
+  production: {
+    label: 'Production',
+    description: 'Manufacturing in progress',
+    barClass: 'bg-cyan-500/90 hover:bg-cyan-500 dark:bg-cyan-500/90 dark:hover:bg-cyan-500 focus-visible:outline-cyan-500',
+    textClass: 'text-white dark:text-cyan-50',
   },
   ocean: {
     label: 'Ocean',
-    barClass: 'bg-indigo-500',
+    description: 'Ocean freight in transit',
+    barClass: 'bg-cyan-600/90 hover:bg-cyan-600 dark:bg-[#00a39e]/90 dark:hover:bg-[#00a39e] focus-visible:outline-cyan-600',
+    textClass: 'text-white dark:text-cyan-50',
   },
   final: {
     label: 'Final',
-    barClass: 'bg-emerald-500',
+    description: 'Final mile & delivery',
+    barClass: 'bg-cyan-700 hover:bg-cyan-800 dark:bg-[#00c2b9] dark:hover:bg-[#00d4ca] focus-visible:outline-cyan-700',
+    textClass: 'text-white dark:text-[#002430]',
   },
 }
 
@@ -159,19 +168,45 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
     const palette = stagePalette[segment.key] ?? stagePalette.production
     const leftPercent = ((clampedStart - timelineStart.getTime()) / totalDurationMs) * 100
     const widthPercent = ((clampedEnd - clampedStart) / totalDurationMs) * 100
+    const durationDays = differenceInCalendarDays(segment.endDate, segment.startDate)
+
+    const tooltipContent = (
+      <div className="space-y-1.5">
+        <div className="font-semibold text-white">{palette.label}</div>
+        <div className="text-slate-300 text-xs">{palette.description}</div>
+        <div className="pt-1 border-t border-slate-700 dark:border-slate-600">
+          <div className="text-xs text-slate-300">
+            {format(segment.startDate, 'MMM d, yyyy')} – {format(segment.endDate, 'MMM d, yyyy')}
+          </div>
+          <div className="text-xs text-cyan-400 dark:text-cyan-300">{durationDays} days</div>
+        </div>
+      </div>
+    )
 
     return (
-      <div
+      <Tooltip
         key={`${order.id}-${segment.key}-${segment.start}`}
-        className={clsx(
-          'absolute h-full rounded cursor-pointer transition-opacity hover:opacity-80',
-          palette.barClass,
-          activeOrderId === order.id && 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-white dark:ring-offset-[#041324]'
-        )}
-        style={{ left: `${leftPercent}%`, width: `${Math.max(widthPercent, 0.8)}%` }}
-        onClick={() => onSelectOrder?.(order.id)}
-        title={`${segment.label}: ${format(segment.startDate, 'MMM d')} – ${format(segment.endDate, 'MMM d')}`}
-      />
+        content={tooltipContent}
+        position="top"
+        className="absolute h-full"
+        style={{ left: `${leftPercent}%`, width: `${Math.max(widthPercent, 1.5)}%` }}
+      >
+        <button
+          type="button"
+          onClick={() => onSelectOrder?.(order.id)}
+          className={clsx(
+            'flex h-full w-full flex-col justify-center rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide shadow-md transition-all duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 cursor-pointer',
+            palette.barClass,
+            activeOrderId === order.id && 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-white dark:ring-offset-[#041324]'
+          )}
+          aria-label={`${segment.label}: ${format(segment.startDate, 'MMM d')} – ${format(segment.endDate, 'MMM d')}`}
+        >
+          <span className="truncate text-xs">{segment.label}</span>
+          <span className={clsx('truncate text-xs font-normal uppercase tracking-wide', palette.textClass)}>
+            {format(segment.startDate, 'MMM d')} – {format(segment.endDate, 'MMM d')}
+          </span>
+        </button>
+      </Tooltip>
     )
   }
 
@@ -273,12 +308,29 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
                       {order.orderCode}
                     </button>
                     {(order.shipName || order.containerNumber) ? (
-                      <span
-                        className="inline-flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 cursor-help"
-                        title={[order.shipName && `Ship: ${order.shipName}`, order.containerNumber && `Container: ${order.containerNumber}`].filter(Boolean).join('\n')}
+                      <Tooltip
+                        content={
+                          <div className="space-y-1">
+                            {order.shipName && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-400 text-xs">Ship</span>
+                                <span className="text-white text-sm">{order.shipName}</span>
+                              </div>
+                            )}
+                            {order.containerNumber && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-400 text-xs">Container</span>
+                                <span className="text-white text-sm font-mono">{order.containerNumber}</span>
+                              </div>
+                            )}
+                          </div>
+                        }
+                        position="right"
                       >
-                        <Info className="h-3.5 w-3.5" />
-                      </span>
+                        <span className="inline-flex items-center text-slate-400 hover:text-cyan-600 dark:text-slate-500 dark:hover:text-cyan-400 cursor-pointer transition-colors">
+                          <Info className="h-3.5 w-3.5" />
+                        </span>
+                      </Tooltip>
                     ) : null}
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
