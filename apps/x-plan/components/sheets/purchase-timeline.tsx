@@ -188,30 +188,33 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
   }
 
   const renderTimelineBackground = () => {
-    if (monthBuckets && monthBuckets.length > 0) {
-      return (
-        <div className="flex h-full gap-1">
-          {monthBuckets.map((month) => (
-            <div
-              key={`${month.label}-${month.start.toISOString()}`}
-              className="flex-1 rounded-md border border-dashed border-slate-200 dark:border-[#0b3a52]/60 bg-slate-50 dark:bg-[#06182b]/40"
-              style={{ flexGrow: month.duration, flexBasis: 0 }}
-            />
-          ))}
-        </div>
-      )
-    }
-
-    if (!weekColumns.length) {
-      return <div className="h-full rounded-md border border-dashed border-slate-200 dark:border-[#0b3a52]/60 bg-slate-50 dark:bg-[#06182b]/40" />
+    // Calculate week positions for dividers
+    const weekDividers: { position: number; isMonthStart: boolean }[] = []
+    if (timelineStart && timelineEnd && totalDurationMs && monthBuckets) {
+      let cursor = startOfWeek(timelineStart, WEEK_OPTIONS)
+      while (cursor.getTime() <= timelineEnd.getTime()) {
+        const position = ((cursor.getTime() - timelineStart.getTime()) / totalDurationMs) * 100
+        if (position > 0 && position < 100) {
+          const isMonthStart = cursor.getDate() <= 7 && cursor.getDate() >= 1
+          weekDividers.push({ position, isMonthStart })
+        }
+        cursor = addWeeks(cursor, 1)
+      }
     }
 
     return (
-      <div className="grid h-full gap-1" style={{ gridTemplateColumns: `repeat(${weekColumns.length}, minmax(12px, 1fr))` }}>
-        {weekColumns.map((week) => (
+      <div className="h-full rounded-lg bg-slate-100 dark:bg-[#06182b]/60 relative overflow-hidden">
+        {/* Week divider lines */}
+        {weekDividers.map((divider, i) => (
           <div
-            key={week.key}
-            className="rounded-md border border-dashed border-slate-200 dark:border-[#0b3a52]/60 bg-slate-50 dark:bg-[#06182b]/40"
+            key={i}
+            className={clsx(
+              'absolute top-0 bottom-0 w-px',
+              divider.isMonthStart
+                ? 'bg-slate-300 dark:bg-slate-600'
+                : 'bg-slate-200 dark:bg-slate-700/50'
+            )}
+            style={{ left: `${divider.position}%` }}
           />
         ))}
       </div>
@@ -227,29 +230,40 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
         </header>
       )}
 
-      <div className="grid items-end gap-4 border-b border-slate-200 dark:border-[#0b3a52] pb-2 text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400" style={{ gridTemplateColumns: 'minmax(200px, 240px) 1fr' }}>
+      <div className="grid items-end gap-4 pb-2 text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-400" style={{ gridTemplateColumns: 'minmax(180px, 220px) 1fr' }}>
         <span className="px-2 text-slate-600 dark:text-slate-400">Order</span>
         {monthBuckets ? (
-          <div className="flex items-end gap-1">
-            {monthBuckets.map((month) => (
-              <div
-                key={`${month.label}-${month.start.toISOString()}-header`}
-                className="flex flex-col items-center justify-end rounded-md border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/60 px-1 py-1 text-xs font-semibold text-slate-700 dark:text-slate-200"
-                style={{ flexGrow: month.duration, flexBasis: 0 }}
-              >
-                <span>{month.label}</span>
-              </div>
-            ))}
+          <div className="relative h-8 rounded-lg bg-slate-100 dark:bg-[#06182b]/60 overflow-hidden">
+            {/* Month labels positioned absolutely */}
+            {monthBuckets.map((month, idx) => {
+              if (!timelineStart || !totalDurationMs) return null
+              const monthMid = month.start.getTime() + (month.end.getTime() - month.start.getTime()) / 2
+              const position = ((monthMid - timelineStart.getTime()) / totalDurationMs) * 100
+              return (
+                <span
+                  key={`${month.label}-${month.start.toISOString()}-header`}
+                  className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 text-xs font-semibold text-slate-600 dark:text-slate-300"
+                  style={{ left: `${Math.min(Math.max(position, 4), 96)}%` }}
+                >
+                  {month.label}
+                </span>
+              )
+            })}
+            {/* Month divider lines */}
+            {monthBuckets.slice(1).map((month, idx) => {
+              if (!timelineStart || !totalDurationMs) return null
+              const position = ((month.start.getTime() - timelineStart.getTime()) / totalDurationMs) * 100
+              return (
+                <div
+                  key={`divider-${idx}`}
+                  className="absolute top-0 bottom-0 w-px bg-slate-300 dark:bg-slate-600"
+                  style={{ left: `${position}%` }}
+                />
+              )
+            })}
           </div>
         ) : (
-          <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${weekColumns.length}, minmax(12px, 1fr))` }}>
-            {weekColumns.map((week) => (
-              <div key={week.key} className="text-center">
-                <span className="block text-xs font-semibold text-slate-600 dark:text-slate-300">{format(week.start, 'MMM d')}</span>
-                <span className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">W{week.weekNumber}</span>
-              </div>
-            ))}
-          </div>
+          <div className="relative h-8 rounded-lg bg-slate-100 dark:bg-[#06182b]/60" />
         )}
       </div>
 
