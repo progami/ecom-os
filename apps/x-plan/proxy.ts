@@ -4,7 +4,7 @@ import { getCandidateSessionCookieNames, decodePortalSession, getAppEntitlement 
 import { portalUrl } from '@/lib/portal'
 
 const PUBLIC_PREFIXES = ['/api/auth/', '/_next', '/favicon.ico', '/health']
-const PUBLIC_ROUTES = ['/', '/login', '/no-access']
+const PUBLIC_ROUTES = ['/no-access']
 
 function resolveAppOrigin(request: NextRequest): string {
   const candidates = [
