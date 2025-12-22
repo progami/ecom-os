@@ -1,10 +1,6 @@
 name: CD
 
 on:
-  pull_request:
-    branches:
-      - dev
-      - main
   push:
     branches:
       - dev
@@ -34,13 +30,16 @@ env:
   ECOM_OS_DEV_DIR: /Users/jarraramjad/ecom-os-dev
   ECOM_OS_MAIN_DIR: /Users/jarraramjad/ecom-os-main
 
+permissions:
+  contents: read
+
 concurrency:
-  group: cd-${{ github.ref_name }}-${{ github.event_name }}
-  cancel-in-progress: true
+  group: cd-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.environment || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
   detect-changes:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     outputs:
       ecomos: ${{ steps.changes.outputs.ecomos }}
       wms: ${{ steps.changes.outputs.wms }}
@@ -56,19 +55,25 @@ jobs:
 
       - name: Detect changed apps
         id: changes
+        shell: bash
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ inputs.app }}" ]]; then
             echo "${{ inputs.app }}=true" >> "$GITHUB_OUTPUT"
             echo "any_app=true" >> "$GITHUB_OUTPUT"
           else
-            # For PRs, compare against base branch
-            if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-              BASE="${{ github.event.pull_request.base.sha }}"
-              HEAD="${{ github.event.pull_request.head.sha }}"
-              CHANGED_FILES=$(git diff --name-only "$BASE" "$HEAD")
+            if [[ "${{ github.event_name }}" == "push" ]]; then
+              # For pushes, compare the entire range included in the event payload.
+              BASE="${{ github.event.before }}"
+              HEAD="${{ github.sha }}"
+
+              if [[ -z "$BASE" || "$BASE" == "0000000000000000000000000000000000000000" ]]; then
+                CHANGED_FILES="$(git ls-files)"
+              else
+                CHANGED_FILES="$(git diff --name-only "$BASE" "$HEAD")"
+              fi
             else
-              # For push, compare with previous commit
-              CHANGED_FILES=$(git diff --name-only HEAD^ HEAD 2>/dev/null || git diff --name-only HEAD)
+              # For workflow_dispatch, fall back to "latest commit vs previous commit" on the selected branch.
+              CHANGED_FILES="$(git diff --name-only HEAD^ HEAD 2>/dev/null || git diff --name-only HEAD)"
             fi
 
             echo "Changed files:"
@@ -213,137 +218,62 @@ jobs:
           generate_release_notes: true
 
   # ===========================================
-  # BUILD CHECK - Runs on PRs (blocks merge if fails)
+  # DEPLOY - Only runs on push to dev/main
   # ===========================================
-  build-check:
-    needs: detect-changes
-    if: github.event_name == 'pull_request' && needs.detect-changes.outputs.any_app == 'true'
+  deploy:
+    needs: [detect-changes, build-metadata]
+    if: github.event_name == 'push' && needs.detect-changes.outputs.any_app == 'true'
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup pnpm
+        shell: bash
         run: corepack enable && corepack prepare pnpm@10.21.0 --activate
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile 2>/dev/null || pnpm install
-
-      - name: Prepare CI env files
+      - name: Deploy changed apps
+        shell: bash
+        env:
+          NEXT_PUBLIC_VERSION: ${{ needs.build-metadata.outputs.version }}
+          NEXT_PUBLIC_RELEASE_URL: ${{ needs.build-metadata.outputs.version_url }}
+          NEXT_PUBLIC_COMMIT_SHA: ${{ needs.build-metadata.outputs.commit_sha }}
+          BUILD_TIME: ${{ needs.build-metadata.outputs.build_time }}
         run: |
-          # Next.js only auto-loads .env, .env.local, .env.production, etc.
-          # For CI builds we copy committed .env.dev.ci → .env.production when a production env file
-          # is not present in the checkout (secrets files are not committed).
-          for app_dir in apps/ecomos apps/wms apps/x-plan apps/hrms apps/website; do
-            if [[ -f "$app_dir/.env.dev.ci" && ! -f "$app_dir/.env.production" ]]; then
-              echo "Seeding $app_dir/.env.production from $app_dir/.env.dev.ci"
-              cp "$app_dir/.env.dev.ci" "$app_dir/.env.production"
+          set -euo pipefail
+
+          TARGET_ENV="${{ github.ref_name }}"
+
+          declare -a apps=()
+          if [[ "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
+            apps=(ecomos wms website xplan hrms)
+          else
+            [[ "${{ needs.detect-changes.outputs.ecomos }}" == "true" ]] && apps+=(ecomos)
+            [[ "${{ needs.detect-changes.outputs.wms }}" == "true" ]] && apps+=(wms)
+            [[ "${{ needs.detect-changes.outputs.website }}" == "true" ]] && apps+=(website)
+            [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" ]] && apps+=(xplan)
+            [[ "${{ needs.detect-changes.outputs.hrms }}" == "true" ]] && apps+=(hrms)
+          fi
+
+          if [[ ${#apps[@]} -eq 0 ]]; then
+            echo "No deployable apps detected; exiting."
+            exit 0
+          fi
+
+          echo "Deploying to $TARGET_ENV: ${apps[*]}"
+
+          first=true
+          for app in "${apps[@]}"; do
+            if [[ "$first" == "true" ]]; then
+              DEPLOY_GIT_SHA="${{ github.sha }}" DEPLOY_SKIP_GIT=false DEPLOY_SKIP_INSTALL=false DEPLOY_SKIP_PM2_SAVE=true \
+                bash "${{ github.workspace }}/scripts/deploy-app.sh" "$app" "$TARGET_ENV"
+              first=false
+            else
+              DEPLOY_SKIP_GIT=true DEPLOY_SKIP_INSTALL=true DEPLOY_SKIP_PM2_SAVE=true \
+                bash "${{ github.workspace }}/scripts/deploy-app.sh" "$app" "$TARGET_ENV"
             fi
           done
 
-      - name: Generate Prisma clients (parallel)
-        run: |
-          (pnpm --filter @ecom-os/wms db:generate || true) &
-          (pnpm --filter @ecom-os/x-plan prisma:generate || true) &
-          (cd apps/hrms && npx prisma generate || true) &
-          wait
-
-      - name: Build changed apps
-        run: |
-          echo "Building changed apps..."
-          if [[ "${{ needs.detect-changes.outputs.ecomos }}" == "true" || "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
-            echo "Building ecomos..."
-            pnpm --filter @ecom-os/ecomos build
-          fi
-          if [[ "${{ needs.detect-changes.outputs.wms }}" == "true" || "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
-            echo "Building wms..."
-            pnpm --filter @ecom-os/wms build
-          fi
-          if [[ "${{ needs.detect-changes.outputs.website }}" == "true" || "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
-            echo "Building website..."
-            pnpm --filter @ecom-os/website build
-          fi
-          if [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" || "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
-            echo "Building x-plan..."
-            pnpm --filter @ecom-os/x-plan build
-          fi
-          if [[ "${{ needs.detect-changes.outputs.hrms }}" == "true" || "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
-            echo "Building hrms..."
-            cd apps/hrms && pnpm run build
-          fi
-          echo "All builds successful!"
-
-  # ===========================================
-  # DEPLOY - Only runs after merge (push event)
-  # ===========================================
-  deploy-ecomos:
-    needs: [detect-changes, build-metadata]
-    if: github.event_name == 'push' && (needs.detect-changes.outputs.ecomos == 'true' || needs.detect-changes.outputs.packages == 'true')
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy ecomos
-        env:
-          NEXT_PUBLIC_VERSION: ${{ needs.build-metadata.outputs.version }}
-          NEXT_PUBLIC_RELEASE_URL: ${{ needs.build-metadata.outputs.version_url }}
-          NEXT_PUBLIC_COMMIT_SHA: ${{ needs.build-metadata.outputs.commit_sha }}
-          BUILD_TIME: ${{ needs.build-metadata.outputs.build_time }}
-        run: bash "${{ github.workspace }}/scripts/deploy-app.sh" ecomos "${{ github.ref_name }}"
-
-  deploy-wms:
-    needs: [detect-changes, build-metadata]
-    if: github.event_name == 'push' && (needs.detect-changes.outputs.wms == 'true' || needs.detect-changes.outputs.packages == 'true')
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy wms
-        env:
-          NEXT_PUBLIC_VERSION: ${{ needs.build-metadata.outputs.version }}
-          NEXT_PUBLIC_RELEASE_URL: ${{ needs.build-metadata.outputs.version_url }}
-          NEXT_PUBLIC_COMMIT_SHA: ${{ needs.build-metadata.outputs.commit_sha }}
-          BUILD_TIME: ${{ needs.build-metadata.outputs.build_time }}
-        run: bash "${{ github.workspace }}/scripts/deploy-app.sh" wms "${{ github.ref_name }}"
-
-  deploy-website:
-    needs: [detect-changes, build-metadata]
-    if: github.event_name == 'push' && (needs.detect-changes.outputs.website == 'true' || needs.detect-changes.outputs.packages == 'true')
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy website
-        env:
-          NEXT_PUBLIC_VERSION: ${{ needs.build-metadata.outputs.version }}
-          NEXT_PUBLIC_RELEASE_URL: ${{ needs.build-metadata.outputs.version_url }}
-          NEXT_PUBLIC_COMMIT_SHA: ${{ needs.build-metadata.outputs.commit_sha }}
-          BUILD_TIME: ${{ needs.build-metadata.outputs.build_time }}
-        run: bash "${{ github.workspace }}/scripts/deploy-app.sh" website "${{ github.ref_name }}"
-
-  deploy-xplan:
-    needs: [detect-changes, build-metadata]
-    if: github.event_name == 'push' && (needs.detect-changes.outputs.xplan == 'true' || needs.detect-changes.outputs.packages == 'true')
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy x-plan
-        env:
-          NEXT_PUBLIC_VERSION: ${{ needs.build-metadata.outputs.version }}
-          NEXT_PUBLIC_RELEASE_URL: ${{ needs.build-metadata.outputs.version_url }}
-          NEXT_PUBLIC_COMMIT_SHA: ${{ needs.build-metadata.outputs.commit_sha }}
-          BUILD_TIME: ${{ needs.build-metadata.outputs.build_time }}
-        run: bash "${{ github.workspace }}/scripts/deploy-app.sh" xplan "${{ github.ref_name }}"
-
-  deploy-hrms:
-    needs: [detect-changes, build-metadata]
-    if: github.event_name == 'push' && (needs.detect-changes.outputs.hrms == 'true' || needs.detect-changes.outputs.packages == 'true')
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v4
-      - name: Deploy hrms
-        env:
-          NEXT_PUBLIC_VERSION: ${{ needs.build-metadata.outputs.version }}
-          NEXT_PUBLIC_RELEASE_URL: ${{ needs.build-metadata.outputs.version_url }}
-          NEXT_PUBLIC_COMMIT_SHA: ${{ needs.build-metadata.outputs.commit_sha }}
-          BUILD_TIME: ${{ needs.build-metadata.outputs.build_time }}
-        run: bash "${{ github.workspace }}/scripts/deploy-app.sh" hrms "${{ github.ref_name }}"
+          echo "Saving PM2 state once"
+          pm2 save
 
   # ===========================================
   # MANUAL DEPLOY - For workflow_dispatch
@@ -354,17 +284,49 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy selected app
+      - name: Setup pnpm
+        shell: bash
+        run: corepack enable && corepack prepare pnpm@10.21.0 --activate
+
+      - name: Deploy selected app(s)
+        shell: bash
         run: |
-          APP="${{ inputs.app }}"
-          ENV="${{ inputs.environment }}"
-          if [[ -z "$APP" ]]; then
-            echo "No app selected, deploying all changed apps..."
-            [[ "${{ needs.detect-changes.outputs.ecomos }}" == "true" ]] && bash "${{ github.workspace }}/scripts/deploy-app.sh" ecomos "$ENV"
-            [[ "${{ needs.detect-changes.outputs.wms }}" == "true" ]] && bash "${{ github.workspace }}/scripts/deploy-app.sh" wms "$ENV"
-            [[ "${{ needs.detect-changes.outputs.website }}" == "true" ]] && bash "${{ github.workspace }}/scripts/deploy-app.sh" website "$ENV"
-            [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" ]] && bash "${{ github.workspace }}/scripts/deploy-app.sh" xplan "$ENV"
-            [[ "${{ needs.detect-changes.outputs.hrms }}" == "true" ]] && bash "${{ github.workspace }}/scripts/deploy-app.sh" hrms "$ENV"
+          set -euo pipefail
+
+          requested_app="${{ inputs.app }}"
+          target_env="${{ inputs.environment }}"
+
+          declare -a apps=()
+          if [[ -n "$requested_app" ]]; then
+            apps=("$requested_app")
+          elif [[ "${{ needs.detect-changes.outputs.packages }}" == "true" ]]; then
+            apps=(ecomos wms website xplan hrms)
           else
-            bash "${{ github.workspace }}/scripts/deploy-app.sh" "$APP" "$ENV"
+            [[ "${{ needs.detect-changes.outputs.ecomos }}" == "true" ]] && apps+=(ecomos)
+            [[ "${{ needs.detect-changes.outputs.wms }}" == "true" ]] && apps+=(wms)
+            [[ "${{ needs.detect-changes.outputs.website }}" == "true" ]] && apps+=(website)
+            [[ "${{ needs.detect-changes.outputs.xplan }}" == "true" ]] && apps+=(xplan)
+            [[ "${{ needs.detect-changes.outputs.hrms }}" == "true" ]] && apps+=(hrms)
           fi
+
+          if [[ ${#apps[@]} -eq 0 ]]; then
+            echo "No deployable apps detected; exiting."
+            exit 0
+          fi
+
+          echo "Manual deploy to $target_env: ${apps[*]}"
+
+          first=true
+          for app in "${apps[@]}"; do
+            if [[ "$first" == "true" ]]; then
+              DEPLOY_SKIP_GIT=false DEPLOY_SKIP_INSTALL=false DEPLOY_SKIP_PM2_SAVE=true \
+                bash "${{ github.workspace }}/scripts/deploy-app.sh" "$app" "$target_env"
+              first=false
+            else
+              DEPLOY_SKIP_GIT=true DEPLOY_SKIP_INSTALL=true DEPLOY_SKIP_PM2_SAVE=true \
+                bash "${{ github.workspace }}/scripts/deploy-app.sh" "$app" "$target_env"
+            fi
+          done
+
+          echo "Saving PM2 state once"
+          pm2 save
