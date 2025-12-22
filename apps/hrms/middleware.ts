@@ -3,6 +3,39 @@ import type { NextRequest } from 'next/server'
 import { getCandidateSessionCookieNames, decodePortalSession, getAppEntitlement } from '@ecom-os/auth'
 import { portalUrl } from '@/lib/portal'
 
+function resolveAppOrigin(request: NextRequest): string {
+  const candidates = [
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.BASE_URL,
+    process.env.NEXTAUTH_URL,
+  ]
+
+  for (const candidate of candidates) {
+    if (!candidate) continue
+    try {
+      return new URL(candidate).origin
+    } catch {
+      continue
+    }
+  }
+
+  const forwardedHost = request.headers.get('x-forwarded-host')
+  const forwardedProto = request.headers.get('x-forwarded-proto') || request.nextUrl.protocol
+  if (forwardedHost) {
+    const host = forwardedHost.split(',')[0]?.trim()
+    if (host) {
+      return `${forwardedProto}://${host}`
+    }
+  }
+
+  const hostHeader = request.headers.get('host')
+  if (hostHeader) {
+    return `${forwardedProto}://${hostHeader}`
+  }
+
+  return request.nextUrl.origin
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   // Use same default as next.config.js for consistency
@@ -62,12 +95,21 @@ export async function middleware(request: NextRequest) {
       if (debug) {
         console.log('[hrms middleware] missing session, redirecting to', login.toString())
       }
-      login.searchParams.set('callbackUrl', request.nextUrl.toString())
+      const callbackOrigin = resolveAppOrigin(request)
+      const callbackUrl = new URL(
+        request.nextUrl.pathname + request.nextUrl.search + request.nextUrl.hash,
+        callbackOrigin
+      )
+      login.searchParams.set('callbackUrl', callbackUrl.toString())
       return NextResponse.redirect(login)
     }
   }
 
-  return NextResponse.next()
+  const response = NextResponse.next()
+  if (!isPublic) {
+    response.headers.set('Cache-Control', 'private, no-store')
+  }
+  return response
 }
 
 export const config = {

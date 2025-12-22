@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
-import { getCurrentEmployeeId, getCurrentUser } from '@/lib/current-user'
+import { getCurrentEmployeeId } from '@/lib/current-user'
 import { sendNotificationEmail } from '@/lib/email-service'
 import { z } from 'zod'
 
@@ -10,9 +10,32 @@ const CreateLeaveRequestSchema = z.object({
   leaveType: z.enum(['PTO', 'MATERNITY', 'PATERNITY', 'PARENTAL', 'BEREAVEMENT_IMMEDIATE', 'BEREAVEMENT_EXTENDED', 'JURY_DUTY', 'UNPAID']),
   startDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid start date' }),
   endDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid end date' }),
-  totalDays: z.number().min(0.5).max(365),
+  totalDays: z.number().min(0.5).max(365).optional(),
   reason: z.string().max(2000).optional(),
 })
+
+function parseDateOnlyToUtcNoon(dateString: string): Date {
+  const date = new Date(`${dateString}T12:00:00.000Z`)
+  if (isNaN(date.getTime())) {
+    throw new Error('Invalid date')
+  }
+  return date
+}
+
+function calculateBusinessDaysUtc(start: Date, end: Date): number {
+  if (start > end) return 0
+
+  let count = 0
+  const current = new Date(start)
+  while (current <= end) {
+    const day = current.getUTCDay()
+    if (day !== 0 && day !== 6) {
+      count++
+    }
+    current.setUTCDate(current.getUTCDate() + 1)
+  }
+  return count
+}
 
 /**
  * GET /api/leaves
@@ -81,11 +104,19 @@ export async function GET(req: Request) {
     }
 
     if (startDate) {
-      where.startDate = { gte: new Date(startDate) }
+      try {
+        where.startDate = { gte: parseDateOnlyToUtcNoon(startDate) }
+      } catch {
+        // Ignore invalid date filter
+      }
     }
 
     if (endDate) {
-      where.endDate = { lte: new Date(endDate) }
+      try {
+        where.endDate = { lte: parseDateOnlyToUtcNoon(endDate) }
+      } catch {
+        // Ignore invalid date filter
+      }
     }
 
     const [items, total] = await Promise.all([
@@ -138,7 +169,22 @@ export async function POST(req: Request) {
       return validation.error
     }
 
-    const { employeeId, leaveType, startDate, endDate, totalDays, reason } = validation.data
+    const { employeeId, leaveType, startDate, endDate, totalDays: providedTotalDays, reason } = validation.data
+
+    const start = parseDateOnlyToUtcNoon(startDate)
+    const end = parseDateOnlyToUtcNoon(endDate)
+    const computedTotalDays = calculateBusinessDaysUtc(start, end)
+
+    if (computedTotalDays <= 0) {
+      return NextResponse.json({ error: 'End date must be after start date' }, { status: 400 })
+    }
+
+    if (typeof providedTotalDays === 'number' && Math.abs(providedTotalDays - computedTotalDays) > 0.0001) {
+      return NextResponse.json(
+        { error: 'Total days does not match selected date range' },
+        { status: 400 }
+      )
+    }
 
     // Check if current user can create leave for this employee
     const currentEmployee = await prisma.employee.findUnique({
@@ -162,6 +208,26 @@ export async function POST(req: Request) {
 
     if (!employee) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
+    }
+
+    // Prevent overlapping pending/approved leave requests for the same employee
+    const overlapping = await prisma.leaveRequest.findFirst({
+      where: {
+        employeeId,
+        status: { in: ['PENDING', 'APPROVED'] },
+        AND: [
+          { startDate: { lte: end } },
+          { endDate: { gte: start } },
+        ],
+      },
+      select: { id: true },
+    })
+
+    if (overlapping) {
+      return NextResponse.json(
+        { error: 'Overlapping leave request already exists' },
+        { status: 409 }
+      )
     }
 
     // Check if leave type is valid for employee's region
@@ -210,9 +276,9 @@ export async function POST(req: Request) {
 
     // Check if enough balance
     const available = balance.allocated + balance.carriedOver - balance.used - balance.pending
-    if (totalDays > available && leaveType !== 'UNPAID') {
+    if (computedTotalDays > available && leaveType !== 'UNPAID') {
       return NextResponse.json(
-        { error: `Insufficient leave balance. Available: ${available} days, Requested: ${totalDays} days` },
+        { error: `Insufficient leave balance. Available: ${available} days, Requested: ${computedTotalDays} days` },
         { status: 400 }
       )
     }
@@ -222,9 +288,9 @@ export async function POST(req: Request) {
       data: {
         employeeId,
         leaveType: leaveType as any,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        totalDays,
+        startDate: start,
+        endDate: end,
+        totalDays: computedTotalDays,
         reason,
         status: 'PENDING',
       },
@@ -245,7 +311,7 @@ export async function POST(req: Request) {
     // Update pending balance
     await prisma.leaveBalance.update({
       where: { id: balance.id },
-      data: { pending: { increment: Math.ceil(totalDays) } },
+      data: { pending: { increment: computedTotalDays } },
     })
 
     // Notify the manager about the leave request
@@ -256,14 +322,14 @@ export async function POST(req: Request) {
       })
 
       if (manager) {
-        const startDateStr = new Date(startDate).toLocaleDateString()
-        const endDateStr = new Date(endDate).toLocaleDateString()
+        const startDateStr = start.toLocaleDateString()
+        const endDateStr = end.toLocaleDateString()
 
         await prisma.notification.create({
           data: {
             type: 'LEAVE_REQUESTED',
             title: 'Leave Request Pending Approval',
-            message: `${employee.firstName} ${employee.lastName} has requested ${leaveType.replace(/_/g, ' ')} leave from ${startDateStr} to ${endDateStr} (${totalDays} days).`,
+            message: `${employee.firstName} ${employee.lastName} has requested ${leaveType.replace(/_/g, ' ')} leave from ${startDateStr} to ${endDateStr} (${computedTotalDays} days).`,
             link: `/leaves/${leaveRequest.id}`,
             employeeId: manager.id,
             relatedId: leaveRequest.id,

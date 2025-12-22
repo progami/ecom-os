@@ -6,7 +6,7 @@ import { EmploymentType, EmployeeStatus } from '@/lib/hrms-prisma-types'
 import { checkAndNotifyMissingFields, publish } from '@/lib/notification-service'
 import { patchUser, isAdminConfigured } from '@/lib/google-admin'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { filterAllowedFields, canReassignEmployee, isSuperAdmin } from '@/lib/permissions'
+import { filterAllowedFields, canReassignEmployee, isHROrAbove, isSuperAdmin } from '@/lib/permissions'
 
 type EmployeeRouteContext = { params: Promise<{ id: string }> }
 
@@ -22,13 +22,81 @@ export async function GET(req: Request, context: EmployeeRouteContext) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
 
-    const e = await prisma.employee.findFirst({
+    const actorId = await getCurrentEmployeeId()
+    if (!actorId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const isHR = await isHROrAbove(actorId)
+
+    // First resolve the canonical employee ID (route param can be cuid or employeeId)
+    const base = await prisma.employee.findFirst({
       where: { OR: [{ id }, { employeeId: id }] },
-      include: {
-        roles: true,
-        dept: true,
+      select: {
+        id: true,
+        status: true,
+      },
+    })
+
+    if (!base) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    const isSelf = actorId === base.id
+
+    // Non-HR users can only view ACTIVE employees (except themselves).
+    if (!isHR && !isSelf && base.status !== 'ACTIVE') {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    const canViewPersonal = isSelf || isHR
+    const canViewComp = isHR
+
+    const e = await prisma.employee.findUnique({
+      where: { id: base.id },
+      select: {
+        // Always-safe directory fields
+        id: true,
+        employeeId: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phone: true,
+        avatar: true,
+        department: true,
+        departmentId: true,
+        dept: { select: { id: true, name: true } },
+        position: true,
+        employmentType: true,
+        joinDate: true,
+        status: true,
+        region: true,
+        reportsToId: true,
         manager: { select: { id: true, firstName: true, lastName: true, position: true } },
         departments: { include: { department: { select: { id: true, name: true } } } },
+
+        // Personal info (self/HR only)
+        ...(canViewPersonal ? {
+          dateOfBirth: true,
+          gender: true,
+          maritalStatus: true,
+          nationality: true,
+          address: true,
+          city: true,
+          country: true,
+          postalCode: true,
+          emergencyContact: true,
+          emergencyPhone: true,
+        } : {}),
+
+        // Compensation/admin fields (HR only)
+        ...(canViewComp ? {
+          salary: true,
+          currency: true,
+          permissionLevel: true,
+          isSuperAdmin: true,
+          googleId: true,
+        } : {}),
       },
     })
 
