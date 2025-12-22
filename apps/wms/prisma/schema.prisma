@@ -116,12 +116,31 @@ model SkuBatch {
   description    String?   @map("description")
   productionDate DateTime? @map("production_date")
   expiryDate     DateTime? @map("expiry_date")
+  storageCartonsPerPallet  Int?      @map("storage_cartons_per_pallet")
+  shippingCartonsPerPallet Int?      @map("shipping_cartons_per_pallet")
   isActive       Boolean   @default(true) @map("is_active")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
   @@unique([skuId, batchCode])
   @@map("sku_batches")
+}
+
+model Supplier {
+  id          String   @id @default(uuid())
+  name        String   @map("name")
+  contactName String?  @map("contact_name")
+  email       String?  @map("email")
+  phone       String?  @map("phone")
+  address     String?  @map("address")
+  notes       String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([name])
+  @@index([isActive])
+  @@map("suppliers")
 }
 
 model CostRate {

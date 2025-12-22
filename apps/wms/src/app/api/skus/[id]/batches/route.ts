@@ -8,6 +8,8 @@ const createBatchSchema = z.object({
   description: z.string().optional().nullable(),
   productionDate: z.string().optional().nullable(),
   expiryDate: z.string().optional().nullable(),
+  storageCartonsPerPallet: z.number().int().positive().optional().nullable(),
+  shippingCartonsPerPallet: z.number().int().positive().optional().nullable(),
   isActive: z.boolean().optional(),
 })
 
@@ -88,6 +90,8 @@ export const POST = withAuthAndParams(async (request, params, session) => {
         description: payload.description ? sanitizeForDisplay(payload.description) : null,
         productionDate,
         expiryDate,
+        storageCartonsPerPallet: payload.storageCartonsPerPallet ?? null,
+        shippingCartonsPerPallet: payload.shippingCartonsPerPallet ?? null,
         isActive: payload.isActive ?? true,
       },
     })

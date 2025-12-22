@@ -583,17 +583,57 @@ const pendingBatchCreates = new Map<
  }
  }
  
- // Validate item structure
- if (!item.skuCode || !item.batchLot || typeof item.cartons !== 'number') {
- return NextResponse.json({ 
- error: `Invalid item structure. Each item must have skuCode, batchLot, and cartons` 
- }, { status: 400 })
- }
- 
- // For RECEIVE transactions, validate storage and shipping configs
- if (txType === 'RECEIVE') {
- if (!item.storageCartonsPerPallet || item.storageCartonsPerPallet <= 0) {
- return NextResponse.json({ 
+	 // Validate item structure
+	 if (!item.skuCode || !item.batchLot || typeof item.cartons !== 'number') {
+	 return NextResponse.json({ 
+	 error: `Invalid item structure. Each item must have skuCode, batchLot, and cartons` 
+	 }, { status: 400 })
+	 }
+
+   // For RECEIVE, auto-fill missing cartons-per-pallet from batch defaults (SkuBatch)
+   if (txType === 'RECEIVE') {
+     const needsStorage = !item.storageCartonsPerPallet || item.storageCartonsPerPallet <= 0
+     const needsShipping = !item.shippingCartonsPerPallet || item.shippingCartonsPerPallet <= 0
+
+     if (needsStorage || needsShipping) {
+       const normalizedSkuCode = sanitizeForDisplay(item.skuCode)
+       const normalizedBatchCode = sanitizeForDisplay(item.batchLot)
+
+       const defaults = await prisma.skuBatch.findFirst({
+         where: {
+           sku: {
+             skuCode: {
+               equals: normalizedSkuCode || item.skuCode,
+               mode: 'insensitive',
+             },
+           },
+           batchCode: {
+             equals: normalizedBatchCode || item.batchLot,
+             mode: 'insensitive',
+           },
+         },
+         select: {
+           storageCartonsPerPallet: true,
+           shippingCartonsPerPallet: true,
+         },
+       })
+
+       if (defaults) {
+         if (needsStorage && defaults.storageCartonsPerPallet) {
+           item.storageCartonsPerPallet = defaults.storageCartonsPerPallet
+         }
+
+         if (needsShipping && defaults.shippingCartonsPerPallet) {
+           item.shippingCartonsPerPallet = defaults.shippingCartonsPerPallet
+         }
+       }
+     }
+   }
+	 
+	 // For RECEIVE transactions, validate storage and shipping configs
+	 if (txType === 'RECEIVE') {
+	 if (!item.storageCartonsPerPallet || item.storageCartonsPerPallet <= 0) {
+	 return NextResponse.json({ 
  error: `Storage configuration required for RECEIVE transactions. Please specify cartons per pallet for storage for SKU ${item.skuCode}` 
  }, { status: 400 })
  }

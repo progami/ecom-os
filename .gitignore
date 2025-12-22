@@ -40,3 +40,4 @@ logs/
 Pers/
 .env.local
 .todo*
+cookies.txt
