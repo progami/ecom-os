@@ -7,26 +7,22 @@ import { Info } from 'lucide-react'
 import type { PurchaseTimelineProps } from '@/lib/planning/timeline'
 import { PurchaseTimelineOrder, TimelineStageKey } from '@/lib/planning/timeline'
 
-const stagePalette: Record<TimelineStageKey, { label: string; barClass: string; textClass: string }> = {
+const stagePalette: Record<TimelineStageKey, { label: string; barClass: string }> = {
   production: {
     label: 'Production',
-    barClass: 'bg-sky-500/90 hover:bg-sky-500 focus-visible:outline-sky-400',
-    textClass: 'text-sky-100',
+    barClass: 'bg-sky-500',
   },
   source: {
     label: 'Source',
-    barClass: 'bg-amber-500/90 hover:bg-amber-500 focus-visible:outline-amber-400',
-    textClass: 'text-amber-50',
+    barClass: 'bg-amber-500',
   },
   ocean: {
     label: 'Ocean',
-    barClass: 'bg-indigo-500/90 hover:bg-indigo-500 focus-visible:outline-indigo-400',
-    textClass: 'text-indigo-100',
+    barClass: 'bg-indigo-500',
   },
   final: {
     label: 'Final',
-    barClass: 'bg-emerald-500/90 hover:bg-emerald-500 focus-visible:outline-emerald-400',
-    textClass: 'text-emerald-50',
+    barClass: 'bg-emerald-500',
   },
 }
 
@@ -152,7 +148,7 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
   const timelineEnd = monthBuckets?.[monthBuckets.length - 1]?.end ?? timelineBounds?.rangeEnd ?? null
   const totalDurationMs = timelineStart && timelineEnd ? Math.max(timelineEnd.getTime() - timelineStart.getTime(), 1) : null
 
-  const renderStageButton = (order: TimelineComputedOrder, segment: TimelineComputedSegment) => {
+  const renderStageBlock = (order: TimelineComputedOrder, segment: TimelineComputedSegment) => {
     if (!timelineStart || !timelineEnd || !totalDurationMs) return null
     const rawStart = segment.startDate.getTime()
     const rawEnd = segment.endDate.getTime()
@@ -163,27 +159,19 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
     const palette = stagePalette[segment.key] ?? stagePalette.production
     const leftPercent = ((clampedStart - timelineStart.getTime()) / totalDurationMs) * 100
     const widthPercent = ((clampedEnd - clampedStart) / totalDurationMs) * 100
-    const rangeLabel = `${format(segment.startDate, 'MMM d yyyy')} – ${format(segment.endDate, 'MMM d yyyy')}`
 
     return (
-      <button
+      <div
         key={`${order.id}-${segment.key}-${segment.start}`}
-        type="button"
-        onClick={() => onSelectOrder?.(order.id)}
         className={clsx(
-          'absolute flex h-full flex-col justify-center rounded-lg px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2',
+          'absolute h-full rounded cursor-pointer transition-opacity hover:opacity-80',
           palette.barClass,
-          activeOrderId === order.id && 'ring-2 ring-cyan-400 ring-offset-2 ring-offset-white dark:ring-offset-[#041324]'
+          activeOrderId === order.id && 'ring-2 ring-cyan-400 ring-offset-1 ring-offset-white dark:ring-offset-[#041324]'
         )}
-        style={{ left: `${leftPercent}%`, width: `${Math.max(widthPercent, 1.5)}%` }}
-        aria-label={`${segment.label} · ${rangeLabel}`}
-        title={`${segment.label} · ${rangeLabel}`}
-      >
-        <span className="truncate text-xs">{segment.label}</span>
-        <span className={clsx('truncate text-xs font-normal uppercase tracking-wide', palette.textClass)}>
-          {format(segment.startDate, 'MMM d')} – {format(segment.endDate, 'MMM d')}
-        </span>
-      </button>
+        style={{ left: `${leftPercent}%`, width: `${Math.max(widthPercent, 0.8)}%` }}
+        onClick={() => onSelectOrder?.(order.id)}
+        title={`${segment.label}: ${format(segment.startDate, 'MMM d')} – ${format(segment.endDate, 'MMM d')}`}
+      />
     )
   }
 
@@ -314,7 +302,7 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
                 <div className="relative h-12">
                   {renderTimelineBackground()}
                   <div className="absolute inset-0">
-                    {order.segments.map((segment) => renderStageButton(order, segment))}
+                    {order.segments.map((segment) => renderStageBlock(order, segment))}
                   </div>
                 </div>
               </div>
