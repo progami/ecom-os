@@ -1,38 +1,23 @@
 'use client'
 
-import { Suspense, useEffect, useMemo, useState, useCallback } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
 import { toast } from 'react-hot-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
-import { Package, Package2, Plus } from '@/lib/lucide-icons'
-import InventoryPanel from './inventory-panel'
+import { Package, Plus } from '@/lib/lucide-icons'
 import SkusPanel from './skus-panel'
 import { redirectToPortal } from '@/lib/portal'
-import { PageTabs } from '@/components/ui/page-tabs'
 import { Button } from '@/components/ui/button'
 import { ImportButton } from '@/components/ui/import-button'
 
 const ALLOWED_ROLES = ['admin', 'staff']
-const TABS = [
-  { value: 'skus', label: 'SKUs', icon: Package2 },
-  { value: 'inventory', label: 'Inventory', icon: Package },
-] as const
 
 function ProductsPageContent() {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { data: session, status } = useSession()
   const [openSkuModal, setOpenSkuModal] = useState(false)
-
-  const currentTab = useMemo(() => {
-    const tab = searchParams.get('tab')
-    if (tab && TABS.some((t) => t.value === tab)) {
-      return tab
-    }
-    return 'skus'
-  }, [searchParams])
 
   const handleOpenSkuModal = useCallback(() => {
     setOpenSkuModal(true)
@@ -52,12 +37,6 @@ function ProductsPageContent() {
       router.push('/dashboard')
     }
   }, [router, session, status])
-
-  const handleTabChange = (value: string) => {
-    const params = new URLSearchParams(searchParams.toString())
-    params.set('tab', value)
-    router.push(`/config/products?${params.toString()}`)
-  }
 
   if (status === 'loading') {
     return (
@@ -84,29 +63,20 @@ function ProductsPageContent() {
           description="Configuration"
           icon={Package}
           actions={
-            currentTab === 'skus' ? (
-              <div className="flex items-center gap-2">
-                <ImportButton entityName="skus" onImportComplete={() => window.location.reload()} />
-                <Button onClick={handleOpenSkuModal} className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  Add SKU
-                </Button>
-              </div>
-            ) : null
+            <div className="flex items-center gap-2">
+              <ImportButton entityName="skus" onImportComplete={() => window.location.reload()} />
+              <Button onClick={handleOpenSkuModal} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Add SKU
+              </Button>
+            </div>
           }
         />
         <PageContent>
-          <div className="flex flex-col gap-6">
-            <PageTabs tabs={[...TABS]} value={currentTab} onChange={handleTabChange} variant="underline" />
-
-            {currentTab === 'skus' ? (
-              <SkusPanel
-                externalModalOpen={openSkuModal}
-                onExternalModalClose={() => setOpenSkuModal(false)}
-              />
-            ) : null}
-            {currentTab === 'inventory' ? <InventoryPanel /> : null}
-          </div>
+          <SkusPanel
+            externalModalOpen={openSkuModal}
+            onExternalModalClose={() => setOpenSkuModal(false)}
+          />
         </PageContent>
       </PageContainer>
     </DashboardLayout>
@@ -114,20 +84,5 @@ function ProductsPageContent() {
 }
 
 export default function ProductsPage() {
-  return (
-    <Suspense
-      fallback={
-        <DashboardLayout>
-          <div className="flex h-full items-center justify-center">
-            <div className="flex flex-col items-center gap-2 text-muted-foreground">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent " />
-              <span>Loading…</span>
-            </div>
-          </div>
-        </DashboardLayout>
-      }
-    >
-      <ProductsPageContent />
-    </Suspense>
-  )
+  return <ProductsPageContent />
 }
