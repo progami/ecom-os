@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { getSheetConfig } from '@/lib/sheets'
 
 type LastLocation = {
@@ -21,8 +21,6 @@ function parseLastLocation(raw: string | null): LastLocation | null {
 
 export function LastSheetRedirect() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const currentQueryString = useMemo(() => searchParams?.toString() ?? '', [searchParams])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -31,7 +29,7 @@ export function LastSheetRedirect() {
     const storedSlug = stored?.slug && getSheetConfig(stored.slug) ? stored.slug : '0-strategies'
 
     const mergedParams = new URLSearchParams(stored?.query ?? '')
-    const currentParams = new URLSearchParams(currentQueryString)
+    const currentParams = new URLSearchParams(window.location.search)
 
     for (const [key, value] of currentParams.entries()) {
       mergedParams.set(key, value)
@@ -39,7 +37,7 @@ export function LastSheetRedirect() {
 
     const query = mergedParams.toString()
     router.replace(`/${storedSlug}${query ? `?${query}` : ''}`)
-  }, [currentQueryString, router])
+  }, [router])
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500 dark:bg-[#041324] dark:text-slate-300">
@@ -47,4 +45,3 @@ export function LastSheetRedirect() {
     </div>
   )
 }
-
