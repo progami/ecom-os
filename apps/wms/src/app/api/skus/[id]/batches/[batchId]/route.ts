@@ -4,10 +4,12 @@ import { Prisma } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 
 const updateSchema = z.object({
-  batchCode: z.string().min(1).max(64).optional(),
+  batchCode: z.string().trim().min(1).max(64).optional(),
   description: z.string().optional().nullable(),
   productionDate: z.string().optional().nullable(),
   expiryDate: z.string().optional().nullable(),
+  storageCartonsPerPallet: z.number().int().positive().optional().nullable(),
+  shippingCartonsPerPallet: z.number().int().positive().optional().nullable(),
   isActive: z.boolean().optional(),
 })
 
@@ -81,6 +83,14 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
 
   if (parsed.data.isActive !== undefined) {
     data.isActive = parsed.data.isActive
+  }
+
+  if (parsed.data.storageCartonsPerPallet !== undefined) {
+    data.storageCartonsPerPallet = parsed.data.storageCartonsPerPallet
+  }
+
+  if (parsed.data.shippingCartonsPerPallet !== undefined) {
+    data.shippingCartonsPerPallet = parsed.data.shippingCartonsPerPallet
   }
 
   try {

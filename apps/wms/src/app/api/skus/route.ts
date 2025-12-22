@@ -9,23 +9,76 @@ type DeleteSkuResponse = { message: string } | { message: string; sku: Sku }
 
 // Validation schemas with sanitization
 const createSkuSchema = z.object({
- skuCode: z.string().min(1).max(50).transform(val => sanitizeForDisplay(val)),
- asin: z.string().optional().transform(val => val ? sanitizeForDisplay(val) : val),
- description: z.string().min(1).transform(val => sanitizeForDisplay(val)),
+ skuCode: z.string().trim().min(1).max(50).transform(val => sanitizeForDisplay(val)),
+ asin: z
+  .string()
+  .trim()
+  .max(64)
+  .optional()
+  .nullable()
+  .transform((val) => {
+    if (val === undefined) return undefined
+    if (val === null) return null
+    const sanitized = sanitizeForDisplay(val)
+    return sanitized ? sanitized : null
+  }),
+ description: z.string().trim().min(1).transform(val => sanitizeForDisplay(val)),
  packSize: z.number().int().positive(),
- material: z.string().optional().transform(val => val ? sanitizeForDisplay(val) : val),
- unitDimensionsCm: z.string().optional().transform(val => val ? sanitizeForDisplay(val) : val),
- unitWeightKg: z.number().positive().optional(),
+ material: z
+  .string()
+  .trim()
+  .max(120)
+  .optional()
+  .nullable()
+  .transform((val) => {
+    if (val === undefined) return undefined
+    if (val === null) return null
+    const sanitized = sanitizeForDisplay(val)
+    return sanitized ? sanitized : null
+  }),
+ unitDimensionsCm: z
+  .string()
+  .trim()
+  .max(120)
+  .optional()
+  .nullable()
+  .transform((val) => {
+    if (val === undefined) return undefined
+    if (val === null) return null
+    const sanitized = sanitizeForDisplay(val)
+    return sanitized ? sanitized : null
+  }),
+ unitWeightKg: z.number().positive().optional().nullable(),
  unitsPerCarton: z.number().int().positive(),
- cartonDimensionsCm: z.string().optional().transform(val => val ? sanitizeForDisplay(val) : val),
- cartonWeightKg: z.number().positive().optional(),
- packagingType: z.string().optional().transform(val => val ? sanitizeForDisplay(val) : val),
+ cartonDimensionsCm: z
+  .string()
+  .trim()
+  .max(120)
+  .optional()
+  .nullable()
+  .transform((val) => {
+    if (val === undefined) return undefined
+    if (val === null) return null
+    const sanitized = sanitizeForDisplay(val)
+    return sanitized ? sanitized : null
+  }),
+ cartonWeightKg: z.number().positive().optional().nullable(),
+ packagingType: z
+  .string()
+  .trim()
+  .max(80)
+  .optional()
+  .nullable()
+  .transform((val) => {
+    if (val === undefined) return undefined
+    if (val === null) return null
+    const sanitized = sanitizeForDisplay(val)
+    return sanitized ? sanitized : null
+  }),
  isActive: z.boolean().default(true)
 })
 
-const updateSkuSchema = createSkuSchema.partial().extend({
- skuCode: z.string().min(1).max(50).optional()
-})
+const updateSkuSchema = createSkuSchema.partial()
 
 // GET /api/skus - List SKUs
 export const GET = withAuth(async (request, _session) => {
@@ -97,16 +150,16 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
  const sku = await prisma.sku.create({
  data: {
  skuCode: validatedData.skuCode,
- asin: validatedData.asin || null,
+ asin: validatedData.asin ?? null,
  description: validatedData.description,
  packSize: validatedData.packSize,
- material: validatedData.material || null,
- unitDimensionsCm: validatedData.unitDimensionsCm || null,
- unitWeightKg: validatedData.unitWeightKg || null,
+ material: validatedData.material ?? null,
+ unitDimensionsCm: validatedData.unitDimensionsCm ?? null,
+ unitWeightKg: validatedData.unitWeightKg ?? null,
  unitsPerCarton: validatedData.unitsPerCarton,
- cartonDimensionsCm: validatedData.cartonDimensionsCm || null,
- cartonWeightKg: validatedData.cartonWeightKg || null,
- packagingType: validatedData.packagingType || null,
+ cartonDimensionsCm: validatedData.cartonDimensionsCm ?? null,
+ cartonWeightKg: validatedData.cartonWeightKg ?? null,
+ packagingType: validatedData.packagingType ?? null,
  isActive: validatedData.isActive
  }
  })
