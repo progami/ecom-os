@@ -201,7 +201,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
     )
 
     if (batches.length === 0) {
-      toast.error(`No batches configured for ${sku.skuCode}. Create one in Config → Products → Batches.`)
+      toast.error(`No batches configured for ${sku.skuCode}. Create one in Config → Products → SKUs → Batches.`)
     }
   }
 

@@ -15,6 +15,7 @@ import {
  BookOpen,
  Calendar,
  AlertTriangle,
+ Users,
 } from '@/lib/lucide-icons'
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
@@ -56,6 +57,7 @@ const baseNavigation: NavSection[] = [
  title: 'Configuration',
  items: [
  { name: 'Products', href: '/config/products', icon: Package },
+      { name: 'Suppliers', href: '/config/suppliers', icon: Users },
       { name: 'Warehouses', href: '/config/warehouses', icon: Building },
  ]
  },

@@ -9,7 +9,8 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
-import { Edit2, Loader2, Package2, Plus } from '@/lib/lucide-icons'
+import { Edit2, Loader2, Package2, Plus, Search } from '@/lib/lucide-icons'
+import { SkuBatchesModal } from './sku-batches-modal'
 
 type StatusFilter = 'ALL' | 'ACTIVE' | 'INACTIVE'
 
@@ -25,6 +26,8 @@ interface SkuRow {
   description: string
   asin: string | null
   packSize: number | null
+  defaultSupplierId?: string | null
+  secondarySupplierId?: string | null
   material: string | null
   unitDimensionsCm: string | null
   unitWeightKg: number | null
@@ -36,11 +39,19 @@ interface SkuRow {
   _count?: { inventoryTransactions: number }
 }
 
+interface SupplierOption {
+  id: string
+  name: string
+  isActive: boolean
+}
+
 interface SkuFormState {
   skuCode: string
   description: string
   asin: string
   packSize: string
+  defaultSupplierId: string
+  secondarySupplierId: string
   material: string
   unitDimensionsCm: string
   unitWeightKg: string
@@ -57,6 +68,8 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
     description: sku?.description ?? '',
     asin: sku?.asin ?? '',
     packSize: sku?.packSize?.toString() ?? '1',
+    defaultSupplierId: sku?.defaultSupplierId ?? '',
+    secondarySupplierId: sku?.secondarySupplierId ?? '',
     material: sku?.material ?? '',
     unitDimensionsCm: sku?.unitDimensionsCm ?? '',
     unitWeightKg: sku?.unitWeightKg?.toString() ?? '',
@@ -92,6 +105,9 @@ export default function SkusPanel() {
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ACTIVE')
+  const [suppliers, setSuppliers] = useState<SupplierOption[]>([])
+  const [suppliersLoading, setSuppliersLoading] = useState(false)
+  const [batchesSku, setBatchesSku] = useState<SkuRow | null>(null)
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -133,6 +149,30 @@ export default function SkusPanel() {
     fetchSkus()
   }, [fetchSkus])
 
+  const fetchSuppliers = useCallback(async () => {
+    try {
+      setSuppliersLoading(true)
+      const response = await fetch('/api/suppliers', { credentials: 'include' })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error ?? 'Failed to load suppliers')
+      }
+
+      const payload = await response.json()
+      const rows = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload) ? payload : []
+      setSuppliers(rows)
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load suppliers')
+      setSuppliers([])
+    } finally {
+      setSuppliersLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchSuppliers()
+  }, [fetchSuppliers])
+
   const filteredSkus = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
     return skus.filter((sku) => {
@@ -171,6 +211,15 @@ export default function SkusPanel() {
     event.preventDefault()
     if (isSubmitting) return
 
+    if (
+      formState.defaultSupplierId &&
+      formState.secondarySupplierId &&
+      formState.defaultSupplierId === formState.secondarySupplierId
+    ) {
+      toast.error('Default and secondary supplier must be different')
+      return
+    }
+
     const packSize = parsePositiveInt(formState.packSize)
     const unitsPerCarton = parsePositiveInt(formState.unitsPerCarton)
     if (!packSize) {
@@ -201,6 +250,8 @@ export default function SkusPanel() {
         asin: formState.asin.trim() ? formState.asin.trim() : null,
         description: formState.description.trim(),
         packSize,
+        defaultSupplierId: formState.defaultSupplierId ? formState.defaultSupplierId : null,
+        secondarySupplierId: formState.secondarySupplierId ? formState.secondarySupplierId : null,
         material: formState.material.trim() ? formState.material.trim() : null,
         unitDimensionsCm: formState.unitDimensionsCm.trim() ? formState.unitDimensionsCm.trim() : null,
         unitWeightKg: unitWeightKg ?? null,
@@ -258,46 +309,58 @@ export default function SkusPanel() {
 
   return (
     <div className="flex min-h-0 flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-semibold text-muted-foreground">SKUs</h3>
-          <p className="text-xs text-muted-foreground">
-            Showing {filteredSkus.length.toLocaleString()} SKU{filteredSkus.length === 1 ? '' : 's'}
-          </p>
-        </div>
-        <Button onClick={openCreate} className="gap-2">
-          <Plus className="h-4 w-4" />
-          New SKU
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="w-full max-w-sm">
-          <Input
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search by SKU, description, ASIN"
-          />
-        </div>
-        <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-white p-1">
-          {STATUS_FILTERS.map((filter) => (
-            <Button
-              key={filter.value}
-              size="sm"
-              variant={statusFilter === filter.value ? 'default' : 'ghost'}
-              className="px-3 py-1 text-xs"
-              onClick={() => setStatusFilter(filter.value)}
-            >
-              {filter.label}
-            </Button>
-          ))}
-        </div>
-        <Button variant="outline" onClick={fetchSkus} disabled={loading}>
-          Refresh
-        </Button>
-      </div>
-
       <div className="min-h-0 overflow-hidden rounded-xl border bg-white shadow-soft">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+          <div className="flex flex-col gap-1">
+            <h3 className="text-sm font-semibold text-muted-foreground">SKUs</h3>
+            <p className="text-xs text-muted-foreground">
+              Showing {filteredSkus.length.toLocaleString()} SKU{filteredSkus.length === 1 ? '' : 's'}
+            </p>
+          </div>
+          <Button onClick={openCreate} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New SKU
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+          <div className="relative w-full max-w-sm">
+            <label htmlFor="sku-search" className="sr-only">
+              Search SKUs
+            </label>
+            <Search
+              className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden="true"
+            />
+            <Input
+              id="sku-search"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+              placeholder="Search by SKU, description, ASIN"
+              className="pl-9"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1 rounded-xl border border-border/60 bg-white p-1">
+              {STATUS_FILTERS.map((filter) => (
+                <Button
+                  key={filter.value}
+                  size="sm"
+                  variant={statusFilter === filter.value ? 'default' : 'ghost'}
+                  className="px-3 py-1 text-xs"
+                  onClick={() => setStatusFilter(filter.value)}
+                >
+                  {filter.label}
+                </Button>
+              ))}
+            </div>
+            <Button variant="outline" size="sm" onClick={fetchSkus} disabled={loading}>
+              Refresh
+            </Button>
+          </div>
+        </div>
+
         {loading ? (
           <div className="flex h-48 items-center justify-center text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -357,6 +420,9 @@ export default function SkusPanel() {
                     </td>
                     <td className="px-3 py-2 text-right whitespace-nowrap">
                       <div className="inline-flex items-center gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setBatchesSku(sku)}>
+                          Batches
+                        </Button>
                         <Button variant="outline" size="sm" onClick={() => openEdit(sku)}>
                           <Edit2 className="h-4 w-4" />
                         </Button>
@@ -417,6 +483,50 @@ export default function SkusPanel() {
                     onChange={(event) => setFormState((prev) => ({ ...prev, description: event.target.value }))}
                     required
                   />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="defaultSupplierId">Default Supplier</Label>
+                  <select
+                    id="defaultSupplierId"
+                    value={formState.defaultSupplierId}
+                    onChange={(event) =>
+                      setFormState((prev) => ({ ...prev, defaultSupplierId: event.target.value }))
+                    }
+                    className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    disabled={suppliersLoading}
+                  >
+                    <option value="">{suppliersLoading ? 'Loading…' : 'None'}</option>
+                    {suppliers
+                      .filter((supplier) => supplier.isActive)
+                      .map((supplier) => (
+                        <option key={supplier.id} value={supplier.id}>
+                          {supplier.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="secondarySupplierId">Secondary Supplier</Label>
+                  <select
+                    id="secondarySupplierId"
+                    value={formState.secondarySupplierId}
+                    onChange={(event) =>
+                      setFormState((prev) => ({ ...prev, secondarySupplierId: event.target.value }))
+                    }
+                    className="w-full rounded-md border border-border/60 bg-white px-3 py-2 text-sm shadow-soft focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                    disabled={suppliersLoading}
+                  >
+                    <option value="">{suppliersLoading ? 'Loading…' : 'None'}</option>
+                    {suppliers
+                      .filter((supplier) => supplier.isActive)
+                      .map((supplier) => (
+                        <option key={supplier.id} value={supplier.id}>
+                          {supplier.name}
+                        </option>
+                      ))}
+                  </select>
                 </div>
 
                 <div className="space-y-1">
@@ -560,6 +670,16 @@ export default function SkusPanel() {
         }
         confirmText={confirmToggle?.nextActive ? 'Activate' : 'Deactivate'}
         type={confirmToggle?.nextActive ? 'info' : 'warning'}
+      />
+
+      <SkuBatchesModal
+        isOpen={batchesSku !== null}
+        onClose={() => setBatchesSku(null)}
+        sku={
+          batchesSku
+            ? { id: batchesSku.id, skuCode: batchesSku.skuCode, description: batchesSku.description }
+            : null
+        }
       />
     </div>
   )

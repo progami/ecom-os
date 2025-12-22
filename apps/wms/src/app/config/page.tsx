@@ -7,6 +7,7 @@ import {
  DollarSign, 
  FileText,
  Warehouse,
+ Users,
  ArrowRight
 } from '@/lib/lucide-icons'
 
@@ -17,6 +18,13 @@ const configModules = [
  href: '/config/products',
  icon: Package,
  color: 'bg-cyan-100 text-cyan-700'
+ },
+ {
+ title: 'Suppliers',
+ description: 'Manage supplier master data',
+ href: '/config/suppliers',
+ icon: Users,
+ color: 'bg-indigo-100 text-indigo-700'
  },
  {
  title: 'Batch Attributes',
@@ -93,6 +101,7 @@ export default function ConfigurationPage() {
  <h3 className="font-semibold mb-2">Configuration Tips</h3>
  <ul className="space-y-1 text-sm text-slate-700">
  <li>• Set up <strong>Products (SKUs)</strong> before creating transactions</li>
+ <li>• Maintain <strong>Suppliers</strong> so teams pick consistent names</li>
  <li>• Configure <strong>Cost Rates</strong> for accurate billing</li>
  <li>• Use <strong>Warehouse Configs</strong> for SKU-specific pallet settings</li>
  <li>• Keep <strong>Warehouses</strong> information updated</li>
