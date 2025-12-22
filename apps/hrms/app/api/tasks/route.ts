@@ -5,6 +5,7 @@ import { getCurrentEmployeeId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
 import { isHROrAbove, isManagerOf } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
+import { sendNotificationEmail } from '@/lib/email-service'
 
 const TaskStatusEnum = z.enum(['OPEN', 'IN_PROGRESS', 'DONE', 'CANCELLED'])
 const TaskCategoryEnum = z.enum(['GENERAL', 'ONBOARDING', 'OFFBOARDING', 'CASE', 'POLICY'])
@@ -159,9 +160,36 @@ export async function POST(req: Request) {
       req,
     })
 
+    if (task.assignedToId && task.assignedToId !== currentEmployeeId) {
+      await prisma.notification.create({
+        data: {
+          type: 'SYSTEM',
+          title: 'New task assigned',
+          message: `You have been assigned: "${task.title}".`,
+          link: `/tasks/${task.id}`,
+          employeeId: task.assignedToId,
+          relatedId: task.id,
+          relatedType: 'TASK',
+        },
+      })
+
+      const assignee = await prisma.employee.findUnique({
+        where: { id: task.assignedToId },
+        select: { email: true, firstName: true },
+      })
+
+      if (assignee?.email) {
+        await sendNotificationEmail(
+          assignee.email,
+          assignee.firstName,
+          'TASK_ASSIGNED',
+          `/tasks/${task.id}`
+        )
+      }
+    }
+
     return NextResponse.json(task, { status: 201 })
   } catch (e) {
     return safeErrorResponse(e, 'Failed to create task')
   }
 }
-

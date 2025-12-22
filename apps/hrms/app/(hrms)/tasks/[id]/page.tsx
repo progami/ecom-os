@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { MeApi, TasksApi, type Me, type Task } from '@/lib/api-client'
+import { EmployeesApi, MeApi, TasksApi, type Employee, type Me, type Task } from '@/lib/api-client'
 import { CheckCircleIcon, TrashIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
@@ -38,6 +38,8 @@ export default function TaskDetailPage() {
 
   const [task, setTask] = useState<Task | null>(null)
   const [me, setMe] = useState<Me | null>(null)
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [loadingEmployees, setLoadingEmployees] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -63,6 +65,8 @@ export default function TaskDetailPage() {
     status: 'OPEN',
     category: 'GENERAL',
     dueDate: '',
+    assignedToId: '',
+    subjectEmployeeId: '',
   })
 
   useEffect(() => {
@@ -81,7 +85,20 @@ export default function TaskDetailPage() {
           status: taskData.status,
           category: taskData.category,
           dueDate: taskData.dueDate ? taskData.dueDate.slice(0, 10) : '',
+          assignedToId: taskData.assignedToId ?? '',
+          subjectEmployeeId: taskData.subjectEmployeeId ?? '',
         })
+
+        const canEditNow = meData.isSuperAdmin || meData.isHR || taskData.createdById === meData.id
+        if (canEditNow) {
+          setLoadingEmployees(true)
+          try {
+            const list = await EmployeesApi.listManageable()
+            setEmployees(list.items || [])
+          } finally {
+            setLoadingEmployees(false)
+          }
+        }
       } catch (e: any) {
         setError(e.message || 'Failed to load task')
       } finally {
@@ -103,6 +120,8 @@ export default function TaskDetailPage() {
         status: canUpdateStatus ? next.status : undefined,
         category: canEdit ? next.category : undefined,
         dueDate: canEdit ? (next.dueDate ? next.dueDate : null) : undefined,
+        assignedToId: canEdit ? (next.assignedToId ? next.assignedToId : null) : undefined,
+        subjectEmployeeId: canEdit ? (next.subjectEmployeeId ? next.subjectEmployeeId : null) : undefined,
       })
       setTask(updated)
       setForm({
@@ -111,6 +130,8 @@ export default function TaskDetailPage() {
         status: updated.status,
         category: updated.category,
         dueDate: updated.dueDate ? updated.dueDate.slice(0, 10) : '',
+        assignedToId: updated.assignedToId ?? '',
+        subjectEmployeeId: updated.subjectEmployeeId ?? '',
       })
     } catch (e: any) {
       setError(e.message || 'Failed to update task')
@@ -168,6 +189,40 @@ export default function TaskDetailPage() {
     )
   }
 
+  const employeeOptions = useMemo(() => {
+    const options: { value: string; label: string }[] = []
+    const seen = new Set<string>()
+
+    if (me) {
+      options.push({ value: me.id, label: `Me (${me.employeeId})` })
+      seen.add(me.id)
+    }
+
+    for (const e of employees) {
+      if (seen.has(e.id)) continue
+      options.push({ value: e.id, label: `${e.firstName} ${e.lastName} (${e.employeeId})` })
+      seen.add(e.id)
+    }
+
+    if (task?.assignedTo && !seen.has(task.assignedTo.id)) {
+      options.push({
+        value: task.assignedTo.id,
+        label: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
+      })
+      seen.add(task.assignedTo.id)
+    }
+
+    if (task?.subjectEmployee && !seen.has(task.subjectEmployee.id)) {
+      options.push({
+        value: task.subjectEmployee.id,
+        label: `${task.subjectEmployee.firstName} ${task.subjectEmployee.lastName}`,
+      })
+      seen.add(task.subjectEmployee.id)
+    }
+
+    return options
+  }, [employees, me, task])
+
   return (
     <>
       <PageHeader
@@ -210,7 +265,7 @@ export default function TaskDetailPage() {
         )}
 
         <Card padding="md">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-6">
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Status</p>
               <StatusBadge status={task.status} />
@@ -220,10 +275,37 @@ export default function TaskDetailPage() {
               <p className="text-sm text-gray-900">{formatDate(task.dueDate ?? null)}</p>
             </div>
             <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Assigned</p>
+              <p className="text-sm text-gray-900">
+                {task.assignedTo ? `${task.assignedTo.firstName} ${task.assignedTo.lastName}` : '—'}
+              </p>
+            </div>
+            <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Completed</p>
               <p className="text-sm text-gray-900">{formatDate(task.completedAt ?? null)}</p>
             </div>
           </div>
+
+          {(task.subjectEmployee || task.case) && (
+            <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {task.subjectEmployee && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Subject</p>
+                  <p className="text-sm text-gray-900">
+                    {task.subjectEmployee.firstName} {task.subjectEmployee.lastName}
+                  </p>
+                </div>
+              )}
+              {task.case && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Case</p>
+                  <a className="text-sm text-blue-700 hover:text-blue-800" href={`/cases/${task.case.id}`}>
+                    Case #{task.case.caseNumber}: {task.case.title}
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
         </Card>
 
         <Card padding="lg">
@@ -245,6 +327,30 @@ export default function TaskDetailPage() {
                     disabled={!canEdit}
                   />
                 </div>
+
+                {canEdit && (
+                  <>
+                    <SelectField
+                      label="Assigned To"
+                      name="assignedToId"
+                      options={employeeOptions}
+                      placeholder={loadingEmployees ? 'Loading employees...' : 'Unassigned'}
+                      value={form.assignedToId}
+                      onChange={(e) => setForm((p) => ({ ...p, assignedToId: e.target.value }))}
+                      disabled={saving || !canEdit}
+                    />
+
+                    <SelectField
+                      label="Subject Employee (optional)"
+                      name="subjectEmployeeId"
+                      options={employeeOptions}
+                      placeholder={loadingEmployees ? 'Loading employees...' : 'None'}
+                      value={form.subjectEmployeeId}
+                      onChange={(e) => setForm((p) => ({ ...p, subjectEmployeeId: e.target.value }))}
+                      disabled={saving || !canEdit}
+                    />
+                  </>
+                )}
 
                 <SelectField
                   label="Status"
@@ -297,4 +403,3 @@ export default function TaskDetailPage() {
     </>
   )
 }
-

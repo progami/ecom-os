@@ -20,6 +20,9 @@ type EmailNotificationType =
   | 'LEAVE_REQUESTED'
   | 'LEAVE_APPROVED'
   | 'LEAVE_REJECTED'
+  | 'TASK_ASSIGNED'
+  | 'TASK_DUE_SOON'
+  | 'TASK_OVERDUE'
   | 'GENERAL'
 
 const SUBJECT_MAP: Record<EmailNotificationType, string> = {
@@ -32,6 +35,9 @@ const SUBJECT_MAP: Record<EmailNotificationType, string> = {
   LEAVE_REQUESTED: 'Leave Request Pending Approval',
   LEAVE_APPROVED: 'Your Leave Request Has Been Approved',
   LEAVE_REJECTED: 'Your Leave Request Has Been Declined',
+  TASK_ASSIGNED: 'New Task Assigned',
+  TASK_DUE_SOON: 'Task Due Soon',
+  TASK_OVERDUE: 'Task Overdue',
   GENERAL: 'New HRMS Notification',
 }
 
