@@ -15,10 +15,38 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      statuses: write
+      checks: read
+      statuses: read
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine if deploy is expected
+        id: deploy-scope
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+
+          git fetch --no-tags origin "$base_sha" "$head_sha" >/dev/null 2>&1 || true
+
+          changed_files="$(git diff --name-only "$base_sha" "$head_sha")"
+          echo "Changed files:"
+          echo "$changed_files"
+
+          if echo "$changed_files" | grep -Eq '^(apps/|packages/)'; then
+            echo "should_wait=true" >> "$GITHUB_OUTPUT"
+            echo "Deploy required (apps/packages changed)."
+          else
+            echo "should_wait=false" >> "$GITHUB_OUTPUT"
+            echo "No apps/packages changes detected; skipping deploy wait."
+          fi
+
       - name: Wait for deployment checks on merge commit
-        continue-on-error: true
+        if: steps.deploy-scope.outputs.should_wait == 'true'
         uses: lewagon/wait-on-check-action@v1.3.4
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
@@ -27,18 +55,6 @@ jobs:
           wait-interval: 10
           allowed-conclusions: success
           verbose: true
-
-      - name: Mark build-test status on merge commit
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          api_url="https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.event.pull_request.merge_commit_sha }}"
-          payload="{\"state\":\"success\",\"context\":\"build-test\",\"description\":\"Auto-sync acknowledged deploy\",\"target_url\":\"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
-          curl -sSf -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -d "$payload" \
-            "$api_url"
 
       - name: Checkout dev
         uses: actions/checkout@v4
