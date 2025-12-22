@@ -166,13 +166,13 @@ export async function calculateStanding(employeeId: string): Promise<StandingRes
     },
     select: {
       severity: true,
-      primaryValueBreached: true,
+      valuesBreached: true,
     }
   })
 
   // Check for Honesty/Integrity violations (RED condition A)
   const hasHonestyIntegrityViolation = activeViolations.some(
-    v => v.primaryValueBreached === 'BREACH_OF_HONESTY' || v.primaryValueBreached === 'BREACH_OF_INTEGRITY'
+    v => v.valuesBreached.includes('BREACH_OF_HONESTY') || v.valuesBreached.includes('BREACH_OF_INTEGRITY')
   )
 
   if (hasHonestyIntegrityViolation) {
@@ -215,7 +215,7 @@ export async function calculateStanding(employeeId: string): Promise<StandingRes
 
   if (hasMinorModerateViolation) {
     // YELLOW condition A - Skill Gap
-    const violationForDetail = activeViolations.some(v => v.primaryValueBreached === 'BREACH_OF_DETAIL')
+    const violationForDetail = activeViolations.some(v => v.valuesBreached.includes('BREACH_OF_DETAIL'))
     return {
       standing: 'YELLOW',
       reason: violationForDetail
