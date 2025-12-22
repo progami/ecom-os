@@ -107,27 +107,6 @@ interface FileAttachment {
  file?: File
 }
 
-interface LinkedPurchaseOrderLine {
- id: string
- skuCode: string
- skuDescription: string | null
- batchLot: string | null
- quantity: number
- postedQuantity: number
-}
-
-interface _LinkedPurchaseOrderSummary {
- id: string
- orderNumber: string
- warehouseCode: string
- warehouseName: string
- status: 'DRAFT' | 'AWAITING_PROOF' | 'REVIEW' | 'POSTED' | 'CANCELLED' | 'CLOSED'
- type: 'PURCHASE' | 'FULFILLMENT' | 'ADJUSTMENT'
- counterpartyName: string | null
- expectedDate: string | null
- lines: LinkedPurchaseOrderLine[]
-}
-
 interface ReceiveFormData {
  transactionDate: string
  referenceNumber: string
