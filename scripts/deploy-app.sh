@@ -12,6 +12,18 @@ fi
 app_key="$1"
 environment="$2"
 
+is_truthy() {
+  case "${1:-}" in
+    [Tt][Rr][Uu][Ee] | 1 | [Yy][Ee][Ss]) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+skip_git="${DEPLOY_SKIP_GIT:-false}"
+skip_install="${DEPLOY_SKIP_INSTALL:-false}"
+skip_pm2_save="${DEPLOY_SKIP_PM2_SAVE:-false}"
+deploy_git_sha="${DEPLOY_GIT_SHA:-}"
+
 # Determine directories based on environment
 if [[ "$environment" == "dev" ]]; then
   REPO_DIR="${ECOM_OS_DEV_DIR:-/Users/jarraramjad/ecom-os-dev}"
@@ -81,17 +93,31 @@ log "PM2 process: $pm2_name"
 log "=========================================="
 
 # Step 1: Pull latest code
-log "Step 1: Pulling latest code from $BRANCH branch"
-cd "$REPO_DIR"
-git fetch origin "$BRANCH" --prune
-git checkout "$BRANCH"
-git reset --hard "origin/$BRANCH"
-log "Git pull complete"
+if is_truthy "$skip_git"; then
+  log "Step 1: Skipping git update (DEPLOY_SKIP_GIT=$skip_git)"
+else
+  log "Step 1: Pulling latest code from $BRANCH branch"
+  cd "$REPO_DIR"
+  git fetch origin "$BRANCH" --prune
+  git checkout "$BRANCH"
+  if [[ -n "$deploy_git_sha" ]]; then
+    log "Step 1: Resetting to pinned commit $deploy_git_sha"
+    git reset --hard "$deploy_git_sha"
+  else
+    git reset --hard "origin/$BRANCH"
+  fi
+  log "Git pull complete"
+fi
 
 # Step 2: Install dependencies
-log "Step 2: Installing dependencies"
-pnpm install --frozen-lockfile 2>/dev/null || pnpm install
-log "Dependencies installed"
+if is_truthy "$skip_install"; then
+  log "Step 2: Skipping dependency install (DEPLOY_SKIP_INSTALL=$skip_install)"
+else
+  log "Step 2: Installing dependencies"
+  cd "$REPO_DIR"
+  pnpm install --frozen-lockfile 2>/dev/null || pnpm install
+  log "Dependencies installed"
+fi
 
 # Step 3: Generate Prisma client if needed
 if [[ -n "$prisma_cmd" ]]; then
@@ -128,9 +154,13 @@ pm2 start "$pm2_name" --update-env 2>/dev/null || pm2 restart "$pm2_name" --upda
 log "$pm2_name started"
 
 # Step 8: Save PM2 state
-log "Step 8: Saving PM2 state"
-pm2 save
-log "PM2 state saved"
+if is_truthy "$skip_pm2_save"; then
+  log "Step 8: Skipping PM2 save (DEPLOY_SKIP_PM2_SAVE=$skip_pm2_save)"
+else
+  log "Step 8: Saving PM2 state"
+  pm2 save
+  log "PM2 state saved"
+fi
 
 log "=========================================="
 log "Deployment complete for $app_key to $environment"
