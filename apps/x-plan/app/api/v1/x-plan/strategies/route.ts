@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import prisma from '@/lib/prisma'
+import { withXPlanAuth } from '@/lib/api/auth'
 
 // Type assertion for strategy model (Prisma types are generated but not resolved correctly at build time)
 const prismaAny = prisma as unknown as Record<string, any>
@@ -22,7 +23,7 @@ const deleteSchema = z.object({
   id: z.string().min(1),
 })
 
-export async function GET() {
+export const GET = withXPlanAuth(async () => {
   const strategies = await prismaAny.strategy.findMany({
     orderBy: [{ isDefault: 'desc' }, { updatedAt: 'desc' }],
     include: {
@@ -36,9 +37,9 @@ export async function GET() {
     },
   })
   return NextResponse.json({ strategies })
-}
+})
 
-export async function POST(request: Request) {
+export const POST = withXPlanAuth(async (request: Request) => {
   const body = await request.json().catch(() => null)
   const parsed = createSchema.safeParse(body)
 
@@ -60,9 +61,9 @@ export async function POST(request: Request) {
   })
 
   return NextResponse.json({ strategy })
-}
+})
 
-export async function PUT(request: Request) {
+export const PUT = withXPlanAuth(async (request: Request) => {
   const body = await request.json().catch(() => null)
   const parsed = updateSchema.safeParse(body)
 
@@ -99,9 +100,9 @@ export async function PUT(request: Request) {
   })
 
   return NextResponse.json({ strategy })
-}
+})
 
-export async function DELETE(request: Request) {
+export const DELETE = withXPlanAuth(async (request: Request) => {
   const body = await request.json().catch(() => null)
   const parsed = deleteSchema.safeParse(body)
 
@@ -121,4 +122,4 @@ export async function DELETE(request: Request) {
   await prismaAny.strategy.delete({ where: { id } })
 
   return NextResponse.json({ ok: true })
-}
+})

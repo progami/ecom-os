@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Prisma } from '@ecom-os/prisma-x-plan'
 import prisma from '@/lib/prisma'
+import { withXPlanAuth } from '@/lib/api/auth'
 
 type UpdatePayload = {
   id: string
@@ -31,7 +32,7 @@ function parseDate(value: string | null | undefined) {
   return new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()))
 }
 
-export async function PUT(request: Request) {
+export const PUT = withXPlanAuth(async (request: Request) => {
   const body = await request.json().catch(() => null)
   if (!body || !Array.isArray(body.updates)) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
@@ -84,9 +85,9 @@ export async function PUT(request: Request) {
   )
 
   return NextResponse.json({ ok: true })
-}
+})
 
-export async function POST(request: Request) {
+export const POST = withXPlanAuth(async (request: Request) => {
   const body = await request.json().catch(() => null)
   if (!body || typeof body.purchaseOrderId !== 'string') {
     return NextResponse.json({ error: 'purchaseOrderId is required' }, { status: 400 })
@@ -146,9 +147,9 @@ export async function POST(request: Request) {
     console.error('[purchase-order-payments][POST]', error)
     return NextResponse.json({ error: 'Unable to create payment' }, { status: 500 })
   }
-}
+})
 
-export async function DELETE(request: Request) {
+export const DELETE = withXPlanAuth(async (request: Request) => {
   const body = await request.json().catch(() => null)
   if (!body || !Array.isArray(body.ids)) {
     return NextResponse.json({ error: 'ids array is required' }, { status: 400 })
@@ -165,4 +166,4 @@ export async function DELETE(request: Request) {
     console.error('[purchase-order-payments][DELETE]', error)
     return NextResponse.json({ error: 'Unable to delete payments' }, { status: 500 })
   }
-}
+})
