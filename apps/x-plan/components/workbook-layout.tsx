@@ -6,6 +6,7 @@ import { getSheetConfig } from '@/lib/sheets'
 import type { YearSegment } from '@/lib/calculations/calendar'
 import type { WorkbookSheetStatus } from '@/lib/workbook'
 import { usePersistentScroll } from '@/hooks/usePersistentScroll'
+import { usePersistentState } from '@/hooks/usePersistentState'
 import { clsx } from 'clsx'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight, FileText } from 'lucide-react'
@@ -47,17 +48,38 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [contextWidth, setContextWidth] = useState(360)
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
+  const getScrollElement = useCallback(() => scrollContainerRef.current, [])
+  const [contextWidth, setContextWidth, contextHydrated] = usePersistentState<number>('xplan:workbook:context-width', 360)
   const [isResizing, setIsResizing] = useState(false)
   const hasContextPane = Boolean(contextPane)
   const [isPending, startTransition] = useTransition()
 
-  usePersistentScroll(`sheet:${activeSlug}`, true)
+  usePersistentScroll(`sheet:${activeSlug}`, true, getScrollElement)
 
   const sortedYears = useMemo(() => {
     if (!planningYears) return [] as YearSegment[]
     return [...planningYears].sort((a, b) => a.year - b.year)
   }, [planningYears])
+
+  useEffect(() => {
+    if (!contextHydrated) return
+    setContextWidth((value) => Math.min(Math.max(value, MIN_CONTEXT_WIDTH), MAX_CONTEXT_WIDTH))
+  }, [contextHydrated, setContextWidth])
+
+  const searchQueryString = useMemo(() => searchParams?.toString() ?? '', [searchParams])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      window.sessionStorage.setItem(
+        'xplan:last-location',
+        JSON.stringify({ slug: activeSlug, query: searchQueryString }),
+      )
+    } catch (error) {
+      console.warn('[x-plan] failed to persist last location', error)
+    }
+  }, [activeSlug, searchQueryString])
 
   const resolvedYear = useMemo(() => {
     if (!sortedYears.length) return null
@@ -99,7 +121,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
     if (!isResizing) return
     const newWidth = window.innerWidth - event.clientX - 16
     setContextWidth(Math.min(Math.max(newWidth, MIN_CONTEXT_WIDTH), MAX_CONTEXT_WIDTH))
-  }, [isResizing])
+  }, [isResizing, setContextWidth])
 
   const stopResizing = useCallback(() => setIsResizing(false), [])
 
@@ -329,7 +351,7 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
     <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-[#041324]">
       <main className="flex flex-1 overflow-hidden" role="main" aria-label="Main content">
         <section className="flex flex-1 overflow-hidden">
-          <div className="flex-1 min-h-0 overflow-auto">
+          <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-auto">
             <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-4 shadow-lg backdrop-blur-xl dark:border-[#0b3a52] dark:bg-[#041324]/95 dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)] sm:px-6 lg:px-8" role="banner">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex min-w-0 flex-1 items-center">
