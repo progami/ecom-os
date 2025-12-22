@@ -5,12 +5,11 @@ import { toast } from 'react-hot-toast'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
-import { Edit2, Loader2, Plus, RefreshCw, Users } from '@/lib/lucide-icons'
+import { Edit2, Loader2, Plus, Search, Users } from '@/lib/lucide-icons'
 
 interface SupplierRow {
   id: string
@@ -52,11 +51,16 @@ function buildSupplierFormState(supplier?: SupplierRow | null): SupplierFormStat
   }
 }
 
-export default function SuppliersPanel() {
+interface SuppliersPanelProps {
+  externalModalOpen?: boolean
+  onExternalModalClose?: () => void
+}
+
+export default function SuppliersPanel({ externalModalOpen, onExternalModalClose }: SuppliersPanelProps) {
   const [suppliers, setSuppliers] = useState<SupplierRow[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [includeInactive, setIncludeInactive] = useState(false)
+  const [showInactive, setShowInactive] = useState(false)
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -68,12 +72,21 @@ export default function SuppliersPanel() {
     nextActive: boolean
   } | null>(null)
 
+  // Handle external modal open trigger
+  useEffect(() => {
+    if (externalModalOpen) {
+      setEditingSupplier(null)
+      setFormState(buildSupplierFormState())
+      setIsModalOpen(true)
+    }
+  }, [externalModalOpen])
+
   const buildQuery = useCallback(() => {
     const params = new URLSearchParams()
     if (searchTerm.trim()) params.set('search', searchTerm.trim())
-    if (includeInactive) params.set('includeInactive', 'true')
+    if (showInactive) params.set('includeInactive', 'true')
     return params.toString()
-  }, [includeInactive, searchTerm])
+  }, [showInactive, searchTerm])
 
   const fetchSuppliers = useCallback(async () => {
     try {
@@ -100,6 +113,7 @@ export default function SuppliersPanel() {
   const filteredSuppliers = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
     return suppliers.filter((supplier) => {
+      if (!showInactive && !supplier.isActive) return false
       if (!term) return true
       return (
         supplier.name.toLowerCase().includes(term) ||
@@ -107,7 +121,13 @@ export default function SuppliersPanel() {
         (supplier.email ?? '').toLowerCase().includes(term)
       )
     })
-  }, [searchTerm, suppliers])
+  }, [searchTerm, suppliers, showInactive])
+
+  const totals = useMemo(() => {
+    const active = suppliers.filter((s) => s.isActive).length
+    const inactive = suppliers.length - active
+    return { active, inactive }
+  }, [suppliers])
 
   const openCreate = () => {
     setEditingSupplier(null)
@@ -126,6 +146,7 @@ export default function SuppliersPanel() {
     setIsModalOpen(false)
     setEditingSupplier(null)
     setFormState(buildSupplierFormState())
+    onExternalModalClose?.()
   }
 
   const submitSupplier = async (event: React.FormEvent) => {
@@ -193,98 +214,107 @@ export default function SuppliersPanel() {
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-semibold text-muted-foreground">Suppliers</h3>
-          <p className="text-xs text-muted-foreground">
-            Showing {filteredSuppliers.length.toLocaleString()} supplier
-            {filteredSuppliers.length === 1 ? '' : 's'}
-          </p>
+    <div className="space-y-6">
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 px-6 py-5">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-cyan-600" />
+              <h2 className="text-xl font-semibold text-slate-900">Supplier Directory</h2>
+            </div>
+            <p className="text-sm text-slate-600">Manage supplier information and contacts</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-medium">
+              {totals.active} active
+            </Badge>
+            <Badge className="bg-slate-100 text-slate-600 border-slate-200 font-medium">
+              {totals.inactive} inactive
+            </Badge>
+          </div>
         </div>
 
-        <Button onClick={openCreate} className="gap-2">
-          <Plus className="h-4 w-4" />
-          New Supplier
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="w-full max-w-sm">
-          <Label htmlFor="supplier-search">Search</Label>
-          <Input
-            id="supplier-search"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Search by name, contact, email"
-          />
+        <div className="flex flex-col gap-3 px-6 py-4 bg-slate-50/50 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-1 items-center gap-3">
+            <div className="relative flex-1 md:max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="Search suppliers..."
+                className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
+              />
+            </div>
+            <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(event) => setShowInactive(event.target.checked)}
+                className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
+              />
+              Show inactive
+            </label>
+          </div>
         </div>
 
-        <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={includeInactive}
-            onChange={(event) => setIncludeInactive(event.target.checked)}
-          />
-          Include inactive
-        </label>
-
-        <Button variant="outline" size="sm" onClick={fetchSuppliers} disabled={loading}>
-          <RefreshCw className="h-4 w-4" />
-        </Button>
-      </div>
-
-      <div className="min-h-0 overflow-hidden rounded-xl border bg-white shadow-soft">
         {loading ? (
-          <div className="flex h-48 items-center justify-center text-muted-foreground">
-            <Loader2 className="h-5 w-5 animate-spin" />
+          <div className="flex h-48 items-center justify-center">
+            <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
           </div>
         ) : filteredSuppliers.length === 0 ? (
-          <div className="p-10">
-            <EmptyState
-              icon={Users}
-              title={searchTerm || includeInactive ? 'No suppliers found' : 'No suppliers yet'}
-	              description={
-	                searchTerm
-	                  ? 'Clear your search or create a new supplier.'
-	                  : 'Create suppliers for consistent SKU defaults and purchase orders.'
-	              }
-	            />
+          <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
+            <Users className="h-10 w-10 text-slate-300" />
+            <div>
+              <p className="text-base font-semibold text-slate-900">
+                {searchTerm || showInactive ? 'No suppliers found' : 'No suppliers yet'}
+              </p>
+              <p className="text-sm text-slate-500">
+                {searchTerm
+                  ? 'Clear your search or create a new supplier.'
+                  : 'Create suppliers for consistent SKU defaults and purchase orders.'}
+              </p>
+            </div>
+            {!searchTerm && !showInactive && (
+              <Button onClick={openCreate} className="gap-2">
+                <Plus className="h-4 w-4" />
+                New Supplier
+              </Button>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full table-auto text-sm">
-              <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
-                  <th className="px-3 py-2 text-left font-semibold">Name</th>
-                  <th className="px-3 py-2 text-left font-semibold">Contact</th>
-                  <th className="px-3 py-2 text-left font-semibold">Email</th>
-                  <th className="px-3 py-2 text-left font-semibold">Phone</th>
-                  <th className="px-3 py-2 text-left font-semibold">Status</th>
-                  <th className="px-3 py-2 text-right font-semibold">Actions</th>
+                  <th className="px-4 py-3 text-left font-semibold">Name</th>
+                  <th className="px-4 py-3 text-left font-semibold">Contact</th>
+                  <th className="px-4 py-3 text-left font-semibold">Email</th>
+                  <th className="px-4 py-3 text-left font-semibold">Phone</th>
+                  <th className="px-4 py-3 text-left font-semibold">Status</th>
+                  <th className="px-4 py-3 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-slate-100">
                 {filteredSuppliers.map((supplier) => (
-                  <tr key={supplier.id} className="odd:bg-muted/20">
-                    <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">{supplier.name}</td>
-                    <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                  <tr key={supplier.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">{supplier.name}</td>
+                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                       {supplier.contactName ?? '—'}
                     </td>
-                    <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{supplier.email ?? '—'}</td>
-                    <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">{supplier.phone ?? '—'}</td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{supplier.email ?? '—'}</td>
+                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{supplier.phone ?? '—'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <Badge
                         className={
                           supplier.isActive
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : 'bg-slate-100 text-slate-600 border border-slate-200'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            : 'bg-slate-100 text-slate-600 border-slate-200'
                         }
                       >
                         {supplier.isActive ? 'Active' : 'Inactive'}
                       </Badge>
                     </td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
                       <div className="inline-flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => openEdit(supplier)}>
                           <Edit2 className="h-4 w-4" />
@@ -322,42 +352,46 @@ export default function SuppliersPanel() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1 md:col-span-2">
                   <Label htmlFor="supplier-name">Name</Label>
-                  <Input
+                  <input
                     id="supplier-name"
                     value={formState.name}
                     onChange={(event) => setFormState((prev) => ({ ...prev, name: event.target.value }))}
                     required
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
                   />
                 </div>
 
                 <div className="space-y-1">
                   <Label htmlFor="supplier-contact">Contact Name</Label>
-                  <Input
+                  <input
                     id="supplier-contact"
                     value={formState.contactName}
                     onChange={(event) => setFormState((prev) => ({ ...prev, contactName: event.target.value }))}
                     placeholder="Optional"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
                   />
                 </div>
 
                 <div className="space-y-1">
                   <Label htmlFor="supplier-email">Email</Label>
-                  <Input
+                  <input
                     id="supplier-email"
                     type="email"
                     value={formState.email}
                     onChange={(event) => setFormState((prev) => ({ ...prev, email: event.target.value }))}
                     placeholder="Optional"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
                   />
                 </div>
 
                 <div className="space-y-1">
                   <Label htmlFor="supplier-phone">Phone</Label>
-                  <Input
+                  <input
                     id="supplier-phone"
                     value={formState.phone}
                     onChange={(event) => setFormState((prev) => ({ ...prev, phone: event.target.value }))}
                     placeholder="Optional"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
                   />
                 </div>
 
@@ -390,6 +424,7 @@ export default function SuppliersPanel() {
                     type="checkbox"
                     checked={formState.isActive}
                     onChange={(event) => setFormState((prev) => ({ ...prev, isActive: event.target.checked }))}
+                    className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
                   />
                   Active
                 </label>
