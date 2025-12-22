@@ -13,6 +13,7 @@ import { canRaiseViolation, getHREmployees } from '@/lib/permissions'
 import { getReviewWeights, calculateValuesScore, applyValuesVeto } from '@/lib/standing'
 import { publish } from '@/lib/notification-service'
 import { writeAuditLog } from '@/lib/audit'
+import { formatReviewPeriod, type ReviewPeriodType } from '@/lib/review-period'
 
 export async function GET(req: Request) {
   const rateLimitError = withRateLimit(req)
@@ -201,7 +202,9 @@ export async function POST(req: Request) {
       data: {
         employeeId: data.employeeId,
         reviewType: data.reviewType,
-        reviewPeriod: data.reviewPeriod,
+        periodType: data.periodType,
+        periodYear: data.periodYear,
+        reviewPeriod: formatReviewPeriod(data.periodType as ReviewPeriodType, data.periodYear),
         reviewDate: new Date(data.reviewDate),
         reviewerName: data.reviewerName,
         overallRating: data.overallRating,

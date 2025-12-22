@@ -15,6 +15,7 @@ import {
   TextareaField,
 } from '@/components/ui/FormField'
 import { useNavigationHistory } from '@/lib/navigation-history'
+import { REVIEW_PERIOD_TYPES, REVIEW_PERIOD_TYPE_LABELS, inferReviewPeriodParts } from '@/lib/review-period'
 
 const reviewTypeOptions = [
   { value: 'PROBATION', label: 'Probation (90-day)' },
@@ -35,6 +36,11 @@ const STATUS_LABELS: Record<string, string> = {
   ACKNOWLEDGED: 'Acknowledged',
   COMPLETED: 'Completed',
 }
+
+const reviewPeriodTypeOptions = REVIEW_PERIOD_TYPES.map((value) => ({
+  value,
+  label: REVIEW_PERIOD_TYPE_LABELS[value],
+}))
 
 function RatingInput({ name, label, value, onChange, required = false }: {
   name: string
@@ -91,6 +97,11 @@ export default function EditReviewPage() {
   const [teamwork, setTeamwork] = useState(3)
   const [initiative, setInitiative] = useState(3)
   const [attendance, setAttendance] = useState(3)
+  const currentYear = new Date().getFullYear()
+  const periodYearOptions = Array.from({ length: 8 }, (_, idx) => currentYear - 5 + idx).map((y) => ({
+    value: String(y),
+    label: String(y),
+  }))
 
   useEffect(() => {
     async function load() {
@@ -144,7 +155,8 @@ export default function EditReviewPage() {
     try {
       const updated = await PerformanceReviewsApi.update(id, {
         reviewType: String(payload.reviewType),
-        reviewPeriod: String(payload.reviewPeriod),
+        periodType: String(payload.periodType),
+        periodYear: parseInt(String(payload.periodYear), 10),
         reviewDate: String(payload.reviewDate),
         overallRating: parseInt(payload.overallRating, 10),
         qualityOfWork: parseInt(payload.qualityOfWork, 10),
@@ -183,7 +195,8 @@ export default function EditReviewPage() {
       // Save first
       await PerformanceReviewsApi.update(id, {
         reviewType: String(payload.reviewType),
-        reviewPeriod: String(payload.reviewPeriod),
+        periodType: String(payload.periodType),
+        periodYear: parseInt(String(payload.periodYear), 10),
         reviewDate: String(payload.reviewDate),
         overallRating: parseInt(payload.overallRating, 10),
         qualityOfWork: parseInt(payload.qualityOfWork, 10),
@@ -266,6 +279,11 @@ export default function EditReviewPage() {
     return null
   }
 
+  const inferredPeriod = inferReviewPeriodParts(review.reviewPeriod)
+  const periodTypeValue = review.periodType || inferredPeriod.periodType || 'ANNUAL'
+  const periodYearValue = review.periodYear ?? inferredPeriod.periodYear ?? currentYear
+  const isPeriodLocked = !!review.quarterlyCycleId
+
   return (
     <>
       <PageHeader
@@ -311,14 +329,24 @@ export default function EditReviewPage() {
                 options={reviewTypeOptions}
                 defaultValue={review.reviewType}
               />
-              <FormField
+              <SelectField
                 label="Review Period"
-                name="reviewPeriod"
+                name="periodType"
                 required
-                placeholder="e.g., Q4 2025"
-                defaultValue={review.reviewPeriod}
-                disabled={!!review.periodType}
+                options={reviewPeriodTypeOptions}
+                defaultValue={periodTypeValue}
+                disabled={isPeriodLocked}
               />
+              {isPeriodLocked && <input type="hidden" name="periodType" value={periodTypeValue} />}
+              <SelectField
+                label="Year"
+                name="periodYear"
+                required
+                options={periodYearOptions}
+                defaultValue={String(periodYearValue)}
+                disabled={isPeriodLocked}
+              />
+              {isPeriodLocked && <input type="hidden" name="periodYear" value={String(periodYearValue)} />}
               <FormField
                 label="Review Date"
                 name="reviewDate"
@@ -326,7 +354,7 @@ export default function EditReviewPage() {
                 required
                 defaultValue={formatDateForInput(review.reviewDate)}
               />
-              <div>
+              <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Reviewer
                 </label>
