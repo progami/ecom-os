@@ -23,7 +23,7 @@ const OPS_DEFAULTS = [
 ]
 
 const SALES_DEFAULTS = [
-  { label: 'Stockout Warning (weeks)', defaultValue: '2' },
+  { label: 'Stockout Warning (weeks)', defaultValue: '4' },
 ]
 
 const FINANCE_DEFAULTS = [
