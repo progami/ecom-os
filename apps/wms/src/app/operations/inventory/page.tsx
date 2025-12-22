@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useSession } from '@/hooks/usePortalSession'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
@@ -17,10 +18,9 @@ import { redirectToPortal } from '@/lib/portal'
 import {
   useInventoryFilters,
   type InventoryBalance,
-  type ColumnFilterKey,
   type SortKey,
 } from '@/hooks/useInventoryFilters'
-import { getMovementTypeFromTransaction, getMovementMultiplier, type MovementType } from '@/lib/utils/movement-types'
+import { getMovementTypeFromTransaction, getMovementMultiplier } from '@/lib/utils/movement-types'
 import { usePageState } from '@/lib/store'
 
 const LEDGER_TIME_FORMAT = 'PPP p'
@@ -618,14 +618,27 @@ function InventoryPage() {
    : 'neutral' as const
 
  const purchaseOrderLabel = balance.purchaseOrderNumber ?? '—'
+ const purchaseOrderHref = balance.purchaseOrderId
+   ? `/operations/orders/${balance.purchaseOrderId}`
+   : null
+ const purchaseOrderDisplay = balance.purchaseOrderNumber ?? (purchaseOrderHref ? 'View' : '—')
+ const firstReceiveMeta = balance.receiveTransaction
+   ? `First receive: ${formatLedgerTimestamp(balance.receiveTransaction.transactionDate) ?? '—'} by ${balance.receiveTransaction.createdBy?.fullName ?? 'Unknown'}`
+   : null
 
  return (
  <tr key={balance.id} className="odd:bg-muted/20">
  <td
   className="px-3 py-2 text-sm font-semibold text-foreground whitespace-nowrap"
-  title={balance.purchaseOrderNumber || undefined}
+  title={[balance.purchaseOrderNumber, firstReceiveMeta].filter(Boolean).join('\n') || undefined}
  >
-  {purchaseOrderLabel}
+  {purchaseOrderHref ? (
+    <Link href={purchaseOrderHref} className="text-primary hover:underline" prefetch={false}>
+      {purchaseOrderDisplay}
+    </Link>
+  ) : (
+    purchaseOrderLabel
+  )}
  </td>
  <td className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">
  {balance.warehouse.code || balance.warehouse.name || '—'}
@@ -647,9 +660,19 @@ function InventoryPage() {
  </td>
  <td
  className="px-3 py-2 text-sm text-muted-foreground whitespace-nowrap max-w-[10rem] truncate"
- title={balance.lastTransactionReference || undefined}
+ title={[balance.lastTransactionReference, balance.lastTransactionId].filter(Boolean).join('\n') || undefined}
  >
- {balance.lastTransactionReference ?? '—'}
+ {balance.lastTransactionId ? (
+   <Link
+     href={`/operations/transactions/${balance.lastTransactionId}`}
+     className="text-primary hover:underline"
+     prefetch={false}
+   >
+     {balance.lastTransactionReference ?? 'View'}
+   </Link>
+ ) : (
+   balance.lastTransactionReference ?? '—'
+ )}
  </td>
  <td className="px-3 py-2 text-right text-sm font-semibold text-primary whitespace-nowrap">
                   {signedCartons.toLocaleString()}

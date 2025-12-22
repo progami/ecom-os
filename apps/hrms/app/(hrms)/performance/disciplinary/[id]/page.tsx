@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { DisciplinaryActionsApi, type DisciplinaryAction } from '@/lib/api-client'
+import { DisciplinaryActionsApi, getApiBase, type DisciplinaryAction } from '@/lib/api-client'
 import {
   ShieldExclamationIcon,
   PencilIcon,
@@ -333,6 +333,7 @@ export default function ViewDisciplinaryPage() {
   const router = useRouter()
   const params = useParams()
   const id = params.id as string
+  const apiBase = getApiBase().replace(/\/$/, '')
 
   const [action, setAction] = useState<DisciplinaryAction | null>(null)
   const [loading, setLoading] = useState(true)
@@ -360,19 +361,19 @@ export default function ViewDisciplinaryPage() {
 
   async function loadAllStatuses() {
     // Load acknowledgment status
-    const ackRes = await fetch(`/api/disciplinary-actions/${id}/acknowledge`)
+    const ackRes = await fetch(`${apiBase}/api/disciplinary-actions/${id}/acknowledge`)
     if (ackRes.ok) setAckStatus(await ackRes.json())
 
     // Load appeal status
-    const appealRes = await fetch(`/api/disciplinary-actions/${id}/appeal`)
+    const appealRes = await fetch(`${apiBase}/api/disciplinary-actions/${id}/appeal`)
     if (appealRes.ok) setAppealStatus(await appealRes.json())
 
     // Load HR review status
-    const hrRes = await fetch(`/api/disciplinary-actions/${id}/hr-review`)
+    const hrRes = await fetch(`${apiBase}/api/disciplinary-actions/${id}/hr-review`)
     if (hrRes.ok) setHrReviewStatus(await hrRes.json())
 
     // Load Super Admin status
-    const saRes = await fetch(`/api/disciplinary-actions/${id}/super-admin-approve`)
+    const saRes = await fetch(`${apiBase}/api/disciplinary-actions/${id}/super-admin-approve`)
     if (saRes.ok) setSuperAdminStatus(await saRes.json())
   }
 
@@ -395,7 +396,7 @@ export default function ViewDisciplinaryPage() {
     setAcknowledging(true)
     setError(null)
     try {
-      const res = await fetch(`/api/disciplinary-actions/${id}/acknowledge`, { method: 'POST' })
+      const res = await fetch(`${apiBase}/api/disciplinary-actions/${id}/acknowledge`, { method: 'POST' })
       if (!res.ok) {
         const data = await res.json()
         throw new Error(data.error || 'Failed to acknowledge')
@@ -415,7 +416,7 @@ export default function ViewDisciplinaryPage() {
     setHrReviewing(true)
     setError(null)
     try {
-      const res = await fetch(`/api/disciplinary-actions/${id}/hr-review`, {
+      const res = await fetch(`${apiBase}/api/disciplinary-actions/${id}/hr-review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ approved, notes: hrReviewNotes.trim() || null }),
@@ -441,7 +442,7 @@ export default function ViewDisciplinaryPage() {
     setSaApproving(true)
     setError(null)
     try {
-      const res = await fetch(`/api/disciplinary-actions/${id}/super-admin-approve`, {
+      const res = await fetch(`${apiBase}/api/disciplinary-actions/${id}/super-admin-approve`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ approved, notes: saApprovalNotes.trim() || null }),
@@ -471,7 +472,7 @@ export default function ViewDisciplinaryPage() {
     setAppealing(true)
     setError(null)
     try {
-      const res = await fetch(`/api/disciplinary-actions/${id}/appeal`, {
+      const res = await fetch(`${apiBase}/api/disciplinary-actions/${id}/appeal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appealReason: appealReason.trim() }),
@@ -497,7 +498,7 @@ export default function ViewDisciplinaryPage() {
     setResolving(true)
     setError(null)
     try {
-      const res = await fetch(`/api/disciplinary-actions/${id}/appeal`, {
+      const res = await fetch(`${apiBase}/api/disciplinary-actions/${id}/appeal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -532,7 +533,7 @@ export default function ViewDisciplinaryPage() {
     setResolving(true)
     setError(null)
     try {
-      const res = await fetch(`/api/disciplinary-actions/${id}/appeal`, {
+      const res = await fetch(`${apiBase}/api/disciplinary-actions/${id}/appeal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
