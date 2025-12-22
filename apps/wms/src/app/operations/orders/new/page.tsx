@@ -239,12 +239,19 @@ export default function NewPurchaseOrderPage() {
                   ))}
                 </select>
                 {suppliers.length === 0 && !loading && (
-                  <p className="text-xs text-amber-600 mt-1">
-                    No suppliers found.{' '}
-                    <Link href="/config/suppliers" className="underline hover:no-underline">
-                      Add a supplier first
-                    </Link>
-                  </p>
+                  <div className="flex items-center gap-3 mt-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                    <p className="text-sm text-amber-700">No suppliers found.</p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => router.push('/config/suppliers')}
+                      className="border-amber-300 text-amber-700 hover:bg-amber-100"
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Supplier
+                    </Button>
+                  </div>
                 )}
               </div>
 
