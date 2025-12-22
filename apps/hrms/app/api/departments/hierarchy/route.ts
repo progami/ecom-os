@@ -5,6 +5,9 @@ import { withRateLimit } from '@/lib/api-helpers'
 // Departments to exclude from the organogram hierarchy view
 const EXCLUDED_DEPARTMENTS = ['executive supervision', 'general']
 
+// Only show these employment types in the "By Department" view
+const VISIBLE_EMPLOYMENT_TYPES = ['FULL_TIME', 'PART_TIME'] as const
+
 export async function GET(req: Request) {
   const rateLimitError = withRateLimit(req)
   if (rateLimitError) return rateLimitError
@@ -37,6 +40,7 @@ export async function GET(req: Request) {
             email: true,
             position: true,
             avatar: true,
+            employmentType: true,
           },
         },
         parent: {
@@ -60,6 +64,9 @@ export async function GET(req: Request) {
           },
         },
         employees: {
+          where: {
+            employmentType: { in: ['FULL_TIME', 'PART_TIME'] },
+          },
           select: {
             id: true,
             employeeId: true,
@@ -72,14 +79,29 @@ export async function GET(req: Request) {
         },
         _count: {
           select: {
-            employees: true,
+            employees: {
+              where: {
+                employmentType: { in: ['FULL_TIME', 'PART_TIME'] },
+              },
+            },
           },
         },
       },
       orderBy: { name: 'asc' },
     })
 
-    return NextResponse.json({ items: departments })
+    // Filter out heads who are not FULL_TIME or PART_TIME
+    const filtered = departments.map(dept => ({
+      ...dept,
+      head: dept.head && VISIBLE_EMPLOYMENT_TYPES.includes(dept.head.employmentType as any)
+        ? dept.head
+        : null,
+      headId: dept.head && VISIBLE_EMPLOYMENT_TYPES.includes(dept.head.employmentType as any)
+        ? dept.headId
+        : null,
+    }))
+
+    return NextResponse.json({ items: filtered })
   } catch (e) {
     console.error('[Departments Hierarchy] Error:', e)
     return NextResponse.json(
