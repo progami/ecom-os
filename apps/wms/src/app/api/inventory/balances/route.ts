@@ -27,13 +27,8 @@ export const GET = withAuth(async (req, session) => {
  const pointInTime = date ? new Date(date) : new Date()
  pointInTime.setHours(23, 59, 59, 999)
 
- // Only include transactions from POSTED orders (or no order)
  const transactionWhere: Prisma.InventoryTransactionWhereInput = {
  transactionDate: { lte: pointInTime },
- OR: [
-   { purchaseOrderId: null },
-   { purchaseOrder: { status: 'POSTED' } }
- ]
  }
 
  if (session.user.role === 'staff' && session.user.warehouseId) {

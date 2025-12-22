@@ -43,8 +43,11 @@ interface PurchaseOrderLineSummary {
   batchLot: string | null
   quantity: number
   unitCost: number | null
+  currency?: string
   status: 'PENDING' | 'POSTED' | 'CANCELLED'
   postedQuantity: number
+  quantityReceived?: number | null
+  lineNotes?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -57,6 +60,18 @@ interface StageApproval {
 
 interface StageData {
   manufacturing: {
+    proformaInvoiceNumber: string | null
+    proformaInvoiceDate: string | null
+    factoryName: string | null
+    manufacturingStartDate: string | null
+    expectedCompletionDate: string | null
+    actualCompletionDate: string | null
+    totalWeightKg: number | null
+    totalVolumeCbm: number | null
+    totalCartons: number | null
+    totalPallets: number | null
+    packagingNotes: string | null
+    // Legacy
     proformaInvoiceId: string | null
     proformaInvoiceData: unknown
     manufacturingStart: string | null
@@ -65,16 +80,50 @@ interface StageData {
   }
   ocean: {
     houseBillOfLading: string | null
+    masterBillOfLading: string | null
+    commercialInvoiceNumber: string | null
     packingListRef: string | null
+    vesselName: string | null
+    voyageNumber: string | null
+    portOfLoading: string | null
+    portOfDischarge: string | null
+    estimatedDeparture: string | null
+    estimatedArrival: string | null
+    actualDeparture: string | null
+    actualArrival: string | null
+    // Legacy
     commercialInvoiceId: string | null
   }
   warehouse: {
+    warehouseCode: string | null
+    warehouseName: string | null
+    customsEntryNumber: string | null
+    customsClearedDate: string | null
+    dutyAmount: number | null
+    dutyCurrency: string | null
+    surrenderBlDate: string | null
+    transactionCertNumber: string | null
+    receivedDate: string | null
+    discrepancyNotes: string | null
+    // Legacy
     warehouseInvoiceId: string | null
     surrenderBL: string | null
     transactionCertificate: string | null
     customsDeclaration: string | null
   }
   shipped: {
+    shipToName: string | null
+    shipToAddress: string | null
+    shipToCity: string | null
+    shipToCountry: string | null
+    shipToPostalCode: string | null
+    shippingCarrier: string | null
+    shippingMethod: string | null
+    trackingNumber: string | null
+    shippedDate: string | null
+    proofOfDeliveryRef: string | null
+    deliveredDate: string | null
+    // Legacy
     proofOfDelivery: string | null
     shippedAt: string | null
     shippedBy: string | null
@@ -88,8 +137,8 @@ interface PurchaseOrderSummary {
   type: 'PURCHASE' | 'ADJUSTMENT'
   status: POStageStatus
   isLegacy: boolean
-  warehouseCode: string
-  warehouseName: string
+  warehouseCode: string | null
+  warehouseName: string | null
   counterpartyName: string | null
   expectedDate: string | null
   createdAt: string
@@ -151,6 +200,8 @@ export default function PurchaseOrderDetailPage() {
 
   // Stage transition form data
   const [stageFormData, setStageFormData] = useState<Record<string, string>>({})
+  const [warehouses, setWarehouses] = useState<Array<{ code: string; name: string }>>([])
+  const [warehousesLoading, setWarehousesLoading] = useState(false)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -161,6 +212,43 @@ export default function PurchaseOrderDetailPage() {
     if (!['staff', 'admin'].includes(session.user.role)) {
       router.push('/dashboard')
       return
+    }
+
+    const loadWarehouses = async () => {
+      try {
+        setWarehousesLoading(true)
+        const response = await fetch('/api/warehouses')
+        if (!response.ok) return
+        const payload: unknown = await response.json().catch(() => null)
+
+        const listCandidate: unknown =
+          payload && typeof payload === 'object' && !Array.isArray(payload) && 'data' in payload
+            ? (payload as { data?: unknown }).data
+            : payload
+
+        if (!Array.isArray(listCandidate)) {
+          setWarehouses([])
+          return
+        }
+
+        const parsed = listCandidate
+          .map((item): { code: string; name: string } | null => {
+            if (!item || typeof item !== 'object' || Array.isArray(item)) return null
+            const record = item as Record<string, unknown>
+            const code = record.code
+            const name = record.name
+            if (typeof code !== 'string' || typeof name !== 'string') return null
+            if (!code.trim() || !name.trim()) return null
+            return { code, name }
+          })
+          .filter((value): value is { code: string; name: string } => value !== null)
+
+        setWarehouses(parsed)
+      } catch (_error) {
+        // Non-blocking; warehouse can still be selected later via API if needed.
+      } finally {
+        setWarehousesLoading(false)
+      }
     }
 
     const loadOrder = async () => {
@@ -180,6 +268,7 @@ export default function PurchaseOrderDetailPage() {
       }
     }
 
+    loadWarehouses()
     loadOrder()
   }, [params.id, router, session, status])
 
@@ -358,32 +447,53 @@ export default function PurchaseOrderDetailPage() {
   const renderStageTransitionForm = () => {
     if (!nextStage) return null
 
-    const fields: { key: string; label: string; type: 'text' | 'date' }[] = []
+    const fields: Array<{
+      key: string
+      label: string
+      type: 'text' | 'date' | 'select'
+      placeholder?: string
+      options?: Array<{ value: string; label: string }>
+      disabled?: boolean
+    }> = []
 
     switch (nextStage.value) {
       case 'MANUFACTURING':
         fields.push(
-          { key: 'proformaInvoiceId', label: 'Proforma Invoice ID', type: 'text' },
-          { key: 'manufacturingStart', label: 'Manufacturing Start Date', type: 'date' }
+          { key: 'proformaInvoiceNumber', label: 'Proforma Invoice Number', type: 'text' },
+          { key: 'manufacturingStartDate', label: 'Manufacturing Start Date', type: 'date' }
         )
         break
       case 'OCEAN':
         fields.push(
           { key: 'houseBillOfLading', label: 'House Bill of Lading', type: 'text' },
+          { key: 'commercialInvoiceNumber', label: 'Commercial Invoice Number', type: 'text' },
           { key: 'packingListRef', label: 'Packing List Reference', type: 'text' },
-          { key: 'commercialInvoiceId', label: 'Commercial Invoice ID', type: 'text' }
+          { key: 'vesselName', label: 'Vessel Name', type: 'text' },
+          { key: 'portOfLoading', label: 'Port of Loading', type: 'text' },
+          { key: 'portOfDischarge', label: 'Port of Discharge', type: 'text' }
         )
         break
       case 'WAREHOUSE':
         fields.push(
-          { key: 'warehouseInvoiceId', label: 'Warehouse Invoice ID', type: 'text' },
-          { key: 'surrenderBL', label: 'Surrender B/L', type: 'text' },
-          { key: 'transactionCertificate', label: 'Transaction Certificate', type: 'text' },
-          { key: 'customsDeclaration', label: 'Customs Declaration', type: 'text' }
+          {
+            key: 'warehouseCode',
+            label: 'Warehouse',
+            type: 'select',
+            options: warehouses.map((w) => ({ value: w.code, label: `${w.name} (${w.code})` })),
+            disabled: warehousesLoading || warehouses.length === 0,
+          },
+          { key: 'customsEntryNumber', label: 'Customs Entry Number', type: 'text' },
+          { key: 'customsClearedDate', label: 'Customs Cleared Date', type: 'date' },
+          { key: 'receivedDate', label: 'Received Date', type: 'date' }
         )
         break
       case 'SHIPPED':
-        fields.push({ key: 'proofOfDelivery', label: 'Proof of Delivery', type: 'text' })
+        fields.push(
+          { key: 'shipToName', label: 'Ship To Name', type: 'text' },
+          { key: 'shippingCarrier', label: 'Shipping Carrier', type: 'text' },
+          { key: 'trackingNumber', label: 'Tracking Number', type: 'text' },
+          { key: 'shippedDate', label: 'Shipped Date', type: 'date' }
+        )
         break
     }
 
@@ -398,14 +508,35 @@ export default function PurchaseOrderDetailPage() {
           {fields.map((field) => (
             <div key={field.key} className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">{field.label}</label>
-              <Input
-                type={field.type}
-                value={stageFormData[field.key] || ''}
-                onChange={(e) =>
-                  setStageFormData((prev) => ({ ...prev, [field.key]: e.target.value }))
-                }
-                placeholder={field.type === 'date' ? '' : `Enter ${field.label.toLowerCase()}`}
-              />
+              {field.type === 'select' ? (
+                <select
+                  value={stageFormData[field.key] || ''}
+                  onChange={(e) => {
+                    const value = e.target.value
+                    setStageFormData((prev) => ({ ...prev, [field.key]: value }))
+                  }}
+                  disabled={field.disabled}
+                  className="w-full px-3 py-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm disabled:opacity-50"
+                >
+                  <option value="">
+                    {warehousesLoading ? 'Loading warehouses…' : 'Select warehouse'}
+                  </option>
+                  {field.options?.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  type={field.type}
+                  value={stageFormData[field.key] || ''}
+                  onChange={(e) =>
+                    setStageFormData((prev) => ({ ...prev, [field.key]: e.target.value }))
+                  }
+                  placeholder={field.type === 'date' ? '' : `Enter ${field.label.toLowerCase()}`}
+                />
+              )}
             </div>
           ))}
         </div>
@@ -433,7 +564,9 @@ export default function PurchaseOrderDetailPage() {
                 {order.poNumber || order.orderNumber}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {order.warehouseName} ({order.warehouseCode})
+                {order.warehouseCode && order.warehouseName
+                  ? `${order.warehouseName} (${order.warehouseCode})`
+                  : 'Warehouse not set yet (selected at Stage 4)'}
               </p>
             </div>
           </div>
@@ -601,7 +734,15 @@ export default function PurchaseOrderDetailPage() {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Warehouse</label>
-                  <Input value={`${order.warehouseName} (${order.warehouseCode})`} disabled readOnly />
+                  <Input
+                    value={
+                      order.warehouseCode && order.warehouseName
+                        ? `${order.warehouseName} (${order.warehouseCode})`
+                        : 'Not set yet'
+                    }
+                    disabled
+                    readOnly
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-muted-foreground">Counterparty</label>
@@ -670,7 +811,10 @@ export default function PurchaseOrderDetailPage() {
                   <h3 className="text-sm font-semibold text-foreground">Stage Information</h3>
 
                   {/* Manufacturing Data */}
-                  {order.stageData.manufacturing?.proformaInvoiceId && (
+                  {(order.stageData.manufacturing?.proformaInvoiceNumber ||
+                    order.stageData.manufacturing?.proformaInvoiceId ||
+                    order.stageData.manufacturing?.manufacturingStartDate ||
+                    order.stageData.manufacturing?.manufacturingStart) && (
                     <div className="rounded-lg border p-4 bg-amber-50 border-amber-200">
                       <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2">
                         Manufacturing
@@ -678,13 +822,35 @@ export default function PurchaseOrderDetailPage() {
                       <div className="grid grid-cols-2 gap-2 text-sm">
                         <div>
                           <span className="text-muted-foreground">Proforma Invoice:</span>{' '}
-                          <span className="font-medium">{order.stageData.manufacturing.proformaInvoiceId}</span>
+                          <span className="font-medium">
+                            {order.stageData.manufacturing.proformaInvoiceNumber ||
+                              order.stageData.manufacturing.proformaInvoiceId ||
+                              '—'}
+                          </span>
                         </div>
-                        {order.stageData.manufacturing.manufacturingStart && (
+                        {(order.stageData.manufacturing.manufacturingStartDate ||
+                          order.stageData.manufacturing.manufacturingStart) && (
                           <div>
                             <span className="text-muted-foreground">Start:</span>{' '}
                             <span className="font-medium">
-                              {formatDateOnly(order.stageData.manufacturing.manufacturingStart)}
+                              {formatDateOnly(
+                                order.stageData.manufacturing.manufacturingStartDate ||
+                                  order.stageData.manufacturing.manufacturingStart
+                              )}
+                            </span>
+                          </div>
+                        )}
+                        {order.stageData.manufacturing.factoryName && (
+                          <div>
+                            <span className="text-muted-foreground">Factory:</span>{' '}
+                            <span className="font-medium">{order.stageData.manufacturing.factoryName}</span>
+                          </div>
+                        )}
+                        {order.stageData.manufacturing.expectedCompletionDate && (
+                          <div>
+                            <span className="text-muted-foreground">Expected Complete:</span>{' '}
+                            <span className="font-medium">
+                              {formatDateOnly(order.stageData.manufacturing.expectedCompletionDate)}
                             </span>
                           </div>
                         )}
@@ -693,26 +859,58 @@ export default function PurchaseOrderDetailPage() {
                   )}
 
                   {/* Ocean Data */}
-                  {order.stageData.ocean?.houseBillOfLading && (
+                  {(order.stageData.ocean?.houseBillOfLading ||
+                    order.stageData.ocean?.masterBillOfLading ||
+                    order.stageData.ocean?.vesselName ||
+                    order.stageData.ocean?.commercialInvoiceNumber ||
+                    order.stageData.ocean?.commercialInvoiceId) && (
                     <div className="rounded-lg border p-4 bg-blue-50 border-blue-200">
                       <h4 className="text-xs font-semibold text-blue-800 uppercase tracking-wider mb-2">
                         In Transit
                       </h4>
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">House B/L:</span>{' '}
-                          <span className="font-medium">{order.stageData.ocean.houseBillOfLading}</span>
-                        </div>
+                        {order.stageData.ocean.houseBillOfLading && (
+                          <div>
+                            <span className="text-muted-foreground">House B/L:</span>{' '}
+                            <span className="font-medium">{order.stageData.ocean.houseBillOfLading}</span>
+                          </div>
+                        )}
+                        {order.stageData.ocean.masterBillOfLading && (
+                          <div>
+                            <span className="text-muted-foreground">Master B/L:</span>{' '}
+                            <span className="font-medium">{order.stageData.ocean.masterBillOfLading}</span>
+                          </div>
+                        )}
                         {order.stageData.ocean.packingListRef && (
                           <div>
                             <span className="text-muted-foreground">Packing List:</span>{' '}
                             <span className="font-medium">{order.stageData.ocean.packingListRef}</span>
                           </div>
                         )}
-                        {order.stageData.ocean.commercialInvoiceId && (
+                        {(order.stageData.ocean.commercialInvoiceNumber ||
+                          order.stageData.ocean.commercialInvoiceId) && (
                           <div>
                             <span className="text-muted-foreground">Commercial Invoice:</span>{' '}
-                            <span className="font-medium">{order.stageData.ocean.commercialInvoiceId}</span>
+                            <span className="font-medium">
+                              {order.stageData.ocean.commercialInvoiceNumber ||
+                                order.stageData.ocean.commercialInvoiceId}
+                            </span>
+                          </div>
+                        )}
+                        {order.stageData.ocean.vesselName && (
+                          <div>
+                            <span className="text-muted-foreground">Vessel:</span>{' '}
+                            <span className="font-medium">{order.stageData.ocean.vesselName}</span>
+                          </div>
+                        )}
+                        {(order.stageData.ocean.portOfLoading || order.stageData.ocean.portOfDischarge) && (
+                          <div className="col-span-2">
+                            <span className="text-muted-foreground">Route:</span>{' '}
+                            <span className="font-medium">
+                              {[order.stageData.ocean.portOfLoading, order.stageData.ocean.portOfDischarge]
+                                .filter(Boolean)
+                                .join(' → ') || '—'}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -720,53 +918,106 @@ export default function PurchaseOrderDetailPage() {
                   )}
 
                   {/* Warehouse Data */}
-                  {order.stageData.warehouse?.warehouseInvoiceId && (
+                  {(order.stageData.warehouse?.warehouseCode ||
+                    order.stageData.warehouse?.customsEntryNumber ||
+                    order.stageData.warehouse?.customsClearedDate ||
+                    order.stageData.warehouse?.receivedDate ||
+                    order.stageData.warehouse?.warehouseInvoiceId) && (
                     <div className="rounded-lg border p-4 bg-purple-50 border-purple-200">
                       <h4 className="text-xs font-semibold text-purple-800 uppercase tracking-wider mb-2">
                         At Warehouse
                       </h4>
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Warehouse Invoice:</span>{' '}
-                          <span className="font-medium">{order.stageData.warehouse.warehouseInvoiceId}</span>
-                        </div>
-                        {order.stageData.warehouse.surrenderBL && (
+                        {(order.stageData.warehouse.warehouseName || order.stageData.warehouse.warehouseCode) && (
                           <div>
-                            <span className="text-muted-foreground">Surrender B/L:</span>{' '}
-                            <span className="font-medium">{order.stageData.warehouse.surrenderBL}</span>
+                            <span className="text-muted-foreground">Warehouse:</span>{' '}
+                            <span className="font-medium">
+                              {order.stageData.warehouse.warehouseName && order.stageData.warehouse.warehouseCode
+                                ? `${order.stageData.warehouse.warehouseName} (${order.stageData.warehouse.warehouseCode})`
+                                : order.stageData.warehouse.warehouseCode || '—'}
+                            </span>
                           </div>
                         )}
-                        {order.stageData.warehouse.transactionCertificate && (
+                        {order.stageData.warehouse.customsEntryNumber && (
                           <div>
-                            <span className="text-muted-foreground">Transaction Cert:</span>{' '}
-                            <span className="font-medium">{order.stageData.warehouse.transactionCertificate}</span>
+                            <span className="text-muted-foreground">Customs Entry:</span>{' '}
+                            <span className="font-medium">{order.stageData.warehouse.customsEntryNumber}</span>
                           </div>
                         )}
-                        {order.stageData.warehouse.customsDeclaration && (
+                        {order.stageData.warehouse.customsClearedDate && (
                           <div>
-                            <span className="text-muted-foreground">Customs:</span>{' '}
-                            <span className="font-medium">{order.stageData.warehouse.customsDeclaration}</span>
+                            <span className="text-muted-foreground">Cleared:</span>{' '}
+                            <span className="font-medium">
+                              {formatDateOnly(order.stageData.warehouse.customsClearedDate)}
+                            </span>
                           </div>
                         )}
+                        {order.stageData.warehouse.receivedDate && (
+                          <div>
+                            <span className="text-muted-foreground">Received:</span>{' '}
+                            <span className="font-medium">{formatDateOnly(order.stageData.warehouse.receivedDate)}</span>
+                          </div>
+                        )}
+                        {order.stageData.warehouse.dutyAmount !== null &&
+                          order.stageData.warehouse.dutyAmount !== undefined && (
+                            <div>
+                              <span className="text-muted-foreground">Duty:</span>{' '}
+                              <span className="font-medium">
+                                {order.stageData.warehouse.dutyAmount}
+                                {order.stageData.warehouse.dutyCurrency
+                                  ? ` ${order.stageData.warehouse.dutyCurrency}`
+                                  : ''}
+                              </span>
+                            </div>
+                          )}
                       </div>
                     </div>
                   )}
 
                   {/* Shipped Data */}
-                  {order.stageData.shipped?.proofOfDelivery && (
+                  {(order.stageData.shipped?.shipToName ||
+                    order.stageData.shipped?.shippingCarrier ||
+                    order.stageData.shipped?.trackingNumber ||
+                    order.stageData.shipped?.shippedDate ||
+                    order.stageData.shipped?.proofOfDeliveryRef ||
+                    order.stageData.shipped?.proofOfDelivery) && (
                     <div className="rounded-lg border p-4 bg-emerald-50 border-emerald-200">
                       <h4 className="text-xs font-semibold text-emerald-800 uppercase tracking-wider mb-2">
                         Shipped
                       </h4>
                       <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Proof of Delivery:</span>{' '}
-                          <span className="font-medium">{order.stageData.shipped.proofOfDelivery}</span>
-                        </div>
-                        {order.stageData.shipped.shippedAt && (
+                        {order.stageData.shipped.shipToName && (
                           <div>
-                            <span className="text-muted-foreground">Shipped At:</span>{' '}
-                            <span className="font-medium">{formatDate(order.stageData.shipped.shippedAt)}</span>
+                            <span className="text-muted-foreground">Ship To:</span>{' '}
+                            <span className="font-medium">{order.stageData.shipped.shipToName}</span>
+                          </div>
+                        )}
+                        {order.stageData.shipped.shippingCarrier && (
+                          <div>
+                            <span className="text-muted-foreground">Carrier:</span>{' '}
+                            <span className="font-medium">{order.stageData.shipped.shippingCarrier}</span>
+                          </div>
+                        )}
+                        {order.stageData.shipped.trackingNumber && (
+                          <div>
+                            <span className="text-muted-foreground">Tracking:</span>{' '}
+                            <span className="font-medium">{order.stageData.shipped.trackingNumber}</span>
+                          </div>
+                        )}
+                        {order.stageData.shipped.shippedDate && (
+                          <div>
+                            <span className="text-muted-foreground">Shipped Date:</span>{' '}
+                            <span className="font-medium">
+                              {formatDateOnly(order.stageData.shipped.shippedDate)}
+                            </span>
+                          </div>
+                        )}
+                        {(order.stageData.shipped.proofOfDeliveryRef || order.stageData.shipped.proofOfDelivery) && (
+                          <div className="col-span-2">
+                            <span className="text-muted-foreground">Proof of Delivery:</span>{' '}
+                            <span className="font-medium">
+                              {order.stageData.shipped.proofOfDeliveryRef || order.stageData.shipped.proofOfDelivery}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -820,7 +1071,7 @@ export default function PurchaseOrderDetailPage() {
                             {line.quantity.toLocaleString()}
                           </td>
                           <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
-                            {line.postedQuantity.toLocaleString()}
+                            {(line.quantityReceived ?? line.postedQuantity).toLocaleString()}
                           </td>
                           <td className="px-3 py-2 whitespace-nowrap">
                             <Badge variant="outline">{line.status}</Badge>

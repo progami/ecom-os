@@ -138,10 +138,7 @@ async function createPurchaseOrders() {
 
     await prisma.purchaseOrder.upsert({
       where: {
-        warehouseCode_orderNumber: {
-          warehouseCode: warehouse.code,
-          orderNumber: sample.orderNumber,
-        },
+        orderNumber: sample.orderNumber,
       },
       update: {
         type: sample.type,

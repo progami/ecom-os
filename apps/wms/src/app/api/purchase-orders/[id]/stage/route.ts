@@ -8,6 +8,14 @@ import {
 } from '@/lib/services/po-stage-service'
 import type { UserContext } from '@/lib/services/po-stage-service'
 
+const DateInputSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .refine((value) => !Number.isNaN(new Date(value).getTime()), {
+    message: 'Invalid date',
+  })
+
 const StageTransitionSchema = z.object({
   targetStatus: z.enum([
     'DRAFT',
@@ -19,25 +27,79 @@ const StageTransitionSchema = z.object({
   ] as const),
   stageData: z
     .object({
-      // Manufacturing stage data
+      // ===========================================
+      // Stage 2: Manufacturing
+      // ===========================================
+      proformaInvoiceNumber: z.string().optional(),
+      proformaInvoiceDate: DateInputSchema.optional(),
+      factoryName: z.string().optional(),
+      manufacturingStartDate: DateInputSchema.optional(),
+      expectedCompletionDate: DateInputSchema.optional(),
+      actualCompletionDate: DateInputSchema.optional(),
+      totalWeightKg: z.number().optional(),
+      totalVolumeCbm: z.number().optional(),
+      totalCartons: z.number().int().optional(),
+      totalPallets: z.number().int().optional(),
+      packagingNotes: z.string().optional(),
+
+      // ===========================================
+      // Stage 3: Ocean
+      // ===========================================
+      houseBillOfLading: z.string().optional(),
+      masterBillOfLading: z.string().optional(),
+      commercialInvoiceNumber: z.string().optional(),
+      packingListRef: z.string().optional(),
+      vesselName: z.string().optional(),
+      voyageNumber: z.string().optional(),
+      portOfLoading: z.string().optional(),
+      portOfDischarge: z.string().optional(),
+      estimatedDeparture: DateInputSchema.optional(),
+      estimatedArrival: DateInputSchema.optional(),
+      actualDeparture: DateInputSchema.optional(),
+      actualArrival: DateInputSchema.optional(),
+
+      // ===========================================
+      // Stage 4: Warehouse (warehouse selected here)
+      // ===========================================
+      warehouseCode: z.string().optional(),
+      warehouseName: z.string().optional(),
+      customsEntryNumber: z.string().optional(),
+      customsClearedDate: DateInputSchema.optional(),
+      dutyAmount: z.number().optional(),
+      dutyCurrency: z.string().optional(),
+      surrenderBlDate: DateInputSchema.optional(),
+      transactionCertNumber: z.string().optional(),
+      receivedDate: DateInputSchema.optional(),
+      discrepancyNotes: z.string().optional(),
+
+      // ===========================================
+      // Stage 5: Shipped
+      // ===========================================
+      shipToName: z.string().optional(),
+      shipToAddress: z.string().optional(),
+      shipToCity: z.string().optional(),
+      shipToCountry: z.string().optional(),
+      shipToPostalCode: z.string().optional(),
+      shippingCarrier: z.string().optional(),
+      shippingMethod: z.string().optional(),
+      trackingNumber: z.string().optional(),
+      shippedDate: DateInputSchema.optional(),
+      proofOfDeliveryRef: z.string().optional(),
+      deliveredDate: DateInputSchema.optional(),
+
+      // ===========================================
+      // Legacy fields (backward compatibility)
+      // ===========================================
       proformaInvoiceId: z.string().optional(),
       proformaInvoiceData: z.any().optional(),
-      manufacturingStart: z.string().datetime().optional(),
-      manufacturingEnd: z.string().datetime().optional(),
+      manufacturingStart: DateInputSchema.optional(),
+      manufacturingEnd: DateInputSchema.optional(),
       cargoDetails: z.any().optional(),
-
-      // Ocean stage data
-      houseBillOfLading: z.string().optional(),
-      packingListRef: z.string().optional(),
       commercialInvoiceId: z.string().optional(),
-
-      // Warehouse stage data
       warehouseInvoiceId: z.string().optional(),
       surrenderBL: z.string().optional(),
       transactionCertificate: z.string().optional(),
       customsDeclaration: z.string().optional(),
-
-      // Shipped stage data
       proofOfDelivery: z.string().optional(),
     })
     .optional()

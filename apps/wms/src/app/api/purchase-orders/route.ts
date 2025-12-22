@@ -6,6 +6,7 @@ import {
   serializePurchaseOrder as serializeNewPO,
 } from '@/lib/services/po-stage-service'
 import type { UserContext } from '@/lib/services/po-stage-service'
+import { hasPermission } from '@/lib/services/permission-service'
 
 export const GET = withAuth(async (_request: NextRequest, _session) => {
   const orders = await getPurchaseOrders()
@@ -14,18 +15,25 @@ export const GET = withAuth(async (_request: NextRequest, _session) => {
   })
 })
 
-const CreatePOSchema = z.object({
-  warehouseCode: z.string().min(1),
-  warehouseName: z.string().min(1),
-  counterpartyName: z.string().optional(),
-  expectedDate: z.string().datetime().optional(),
+const LineItemSchema = z.object({
+  skuCode: z.string().min(1),
+  skuDescription: z.string().optional(),
+  quantity: z.number().int().positive(),
+  unitCost: z.number().optional(),
+  currency: z.string().optional(),
   notes: z.string().optional(),
-  receiveType: z.enum(['SEA', 'AIR', 'LAND']).optional(),
+})
+
+const CreatePOSchema = z.object({
+  counterpartyName: z.string().min(1),
+  notes: z.string().optional(),
+  lines: z.array(LineItemSchema).min(1, 'At least one line item is required'),
 })
 
 /**
  * POST /api/purchase-orders
  * Create a new Purchase Order in DRAFT status with auto-generated PO number
+ * Warehouse is NOT required at this stage - selected at Stage 4 (WAREHOUSE)
  */
 export const POST = withAuth(async (request: NextRequest, session) => {
   const payload = await request.json().catch(() => null)
@@ -33,7 +41,7 @@ export const POST = withAuth(async (request: NextRequest, session) => {
 
   if (!result.success) {
     return ApiResponses.badRequest(
-      `Invalid payload: ${result.error.message}`
+      `Invalid payload: ${result.error.errors.map(e => e.message).join(', ')}`
     )
   }
 
@@ -43,17 +51,24 @@ export const POST = withAuth(async (request: NextRequest, session) => {
     email: session.user.email || '',
   }
 
+  const canCreate = await hasPermission(userContext.id, 'po.create')
+  if (!canCreate) {
+    return ApiResponses.forbidden('Insufficient permissions')
+  }
+
   try {
     const order = await createPurchaseOrder(
       {
-        warehouseCode: result.data.warehouseCode,
-        warehouseName: result.data.warehouseName,
         counterpartyName: result.data.counterpartyName,
-        expectedDate: result.data.expectedDate
-          ? new Date(result.data.expectedDate)
-          : undefined,
         notes: result.data.notes,
-        receiveType: result.data.receiveType,
+        lines: result.data.lines.map((line) => ({
+          skuCode: line.skuCode,
+          skuDescription: line.skuDescription,
+          quantity: line.quantity,
+          unitCost: line.unitCost,
+          currency: line.currency,
+          notes: line.notes,
+        })),
       },
       userContext
     )

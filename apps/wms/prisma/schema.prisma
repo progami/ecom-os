@@ -203,13 +203,7 @@ model PurchaseOrder {
   poNumber         String?             @unique @map("po_number") // Auto-generated PO-0001 format
   type             PurchaseOrderType
   status           PurchaseOrderStatus @default(DRAFT)
-  warehouseCode    String              @map("warehouse_code")
-  warehouseName    String              @map("warehouse_name")
   counterpartyName String?             @map("counterparty_name")
-  expectedDate     DateTime?           @map("expected_date")
-  postedAt         DateTime?           @map("posted_at")
-  receiveType      InboundReceiveType? @map("receive_type")
-  shipMode         OutboundShipMode?   @map("ship_mode")
   notes            String?
   createdById      String?             @map("created_by")
   createdByName    String?             @map("created_by_name")
@@ -217,33 +211,81 @@ model PurchaseOrder {
   updatedAt        DateTime            @updatedAt @map("updated_at")
   isLegacy         Boolean             @default(false) @map("is_legacy")
 
-  // Cost estimation fields
+  // Legacy fields (kept for backward compatibility)
+  expectedDate     DateTime?           @map("expected_date")
+  postedAt         DateTime?           @map("posted_at")
+  receiveType      InboundReceiveType? @map("receive_type")
+  shipMode         OutboundShipMode?   @map("ship_mode")
   expectedCartons    Int?     @map("expected_cartons")
   expectedPallets    Int?     @map("expected_pallets")
   expectedSkuCount   Int?     @map("expected_sku_count")
   estimatedTotalCost Decimal? @map("estimated_total_cost") @db.Decimal(12, 2)
   actualTotalCost    Decimal? @map("actual_total_cost") @db.Decimal(12, 2)
 
-  // Manufacturing Stage Fields
-  proformaInvoiceId   String?   @map("proforma_invoice_id")
-  proformaInvoiceData Json?     @map("proforma_invoice_data")
-  manufacturingStart  DateTime? @map("manufacturing_start")
-  manufacturingEnd    DateTime? @map("manufacturing_end")
-  cargoDetails        Json?     @map("cargo_details")
+  // ===========================================
+  // STAGE 2: MANUFACTURING
+  // ===========================================
+  proformaInvoiceNumber   String?   @map("proforma_invoice_number")
+  proformaInvoiceDate     DateTime? @map("proforma_invoice_date")
+  factoryName             String?   @map("factory_name")
+  manufacturingStartDate  DateTime? @map("manufacturing_start_date")
+  expectedCompletionDate  DateTime? @map("expected_completion_date")
+  actualCompletionDate    DateTime? @map("actual_completion_date")
+  // Cargo specs (flat fields)
+  totalWeightKg           Decimal?  @map("total_weight_kg") @db.Decimal(10, 2)
+  totalVolumeCbm          Decimal?  @map("total_volume_cbm") @db.Decimal(10, 3)
+  totalCartons            Int?      @map("total_cartons")
+  totalPallets            Int?      @map("total_pallets")
+  packagingNotes          String?   @map("packaging_notes")
 
-  // Ocean Stage Fields
-  houseBillOfLading   String? @map("house_bill_of_lading")
-  packingListRef      String? @map("packing_list_ref")
-  commercialInvoiceId String? @map("commercial_invoice_id")
+  // ===========================================
+  // STAGE 3: OCEAN
+  // ===========================================
+  houseBillOfLading       String?   @map("house_bill_of_lading")
+  masterBillOfLading      String?   @map("master_bill_of_lading")
+  commercialInvoiceNumber String?   @map("commercial_invoice_number")
+  packingListRef          String?   @map("packing_list_ref")
+  vesselName              String?   @map("vessel_name")
+  voyageNumber            String?   @map("voyage_number")
+  portOfLoading           String?   @map("port_of_loading")
+  portOfDischarge         String?   @map("port_of_discharge")
+  estimatedDeparture      DateTime? @map("estimated_departure")
+  estimatedArrival        DateTime? @map("estimated_arrival")
+  actualDeparture         DateTime? @map("actual_departure")
+  actualArrival           DateTime? @map("actual_arrival")
 
-  // Warehouse Stage Fields
-  warehouseInvoiceId     String? @map("warehouse_invoice_id")
-  surrenderBL            String? @map("surrender_bl")
-  transactionCertificate String? @map("transaction_certificate")
-  customsDeclaration     String? @map("customs_declaration")
-  proofOfDelivery        String? @map("proof_of_delivery")
+  // ===========================================
+  // STAGE 4: WAREHOUSE (warehouse selected here)
+  // ===========================================
+  warehouseCode           String?   @map("warehouse_code")
+  warehouseName           String?   @map("warehouse_name")
+  customsEntryNumber      String?   @map("customs_entry_number")
+  customsClearedDate      DateTime? @map("customs_cleared_date")
+  dutyAmount              Decimal?  @map("duty_amount") @db.Decimal(10, 2)
+  dutyCurrency            String?   @map("duty_currency")
+  surrenderBlDate         DateTime? @map("surrender_bl_date")
+  transactionCertNumber   String?   @map("transaction_cert_number")
+  receivedDate            DateTime? @map("received_date")
+  discrepancyNotes        String?   @map("discrepancy_notes")
 
-  // Stage Approval Tracking
+  // ===========================================
+  // STAGE 5: SHIPPED
+  // ===========================================
+  shipToName              String?   @map("ship_to_name")
+  shipToAddress           String?   @map("ship_to_address")
+  shipToCity              String?   @map("ship_to_city")
+  shipToCountry           String?   @map("ship_to_country")
+  shipToPostalCode        String?   @map("ship_to_postal_code")
+  shippingCarrier         String?   @map("shipping_carrier")
+  shippingMethod          String?   @map("shipping_method")
+  trackingNumber          String?   @map("tracking_number")
+  shippedDate             DateTime? @map("shipped_date")
+  proofOfDeliveryRef      String?   @map("proof_of_delivery_ref")
+  deliveredDate           DateTime? @map("delivered_date")
+
+  // ===========================================
+  // STAGE APPROVAL TRACKING
+  // ===========================================
   draftApprovedAt             DateTime? @map("draft_approved_at")
   draftApprovedById           String?   @map("draft_approved_by_id")
   draftApprovedByName         String?   @map("draft_approved_by_name")
@@ -256,19 +298,37 @@ model PurchaseOrder {
   warehouseApprovedAt         DateTime? @map("warehouse_approved_at")
   warehouseApprovedById       String?   @map("warehouse_approved_by_id")
   warehouseApprovedByName     String?   @map("warehouse_approved_by_name")
-  shippedAt                   DateTime? @map("shipped_at")
-  shippedById                 String?   @map("shipped_by_id")
-  shippedByName               String?   @map("shipped_by_name")
+  shippedApprovedAt           DateTime? @map("shipped_approved_at")
+  shippedApprovedById         String?   @map("shipped_approved_by_id")
+  shippedApprovedByName       String?   @map("shipped_approved_by_name")
+
+  // Legacy fields (for old schema compatibility)
+  proformaInvoiceId       String?   @map("proforma_invoice_id")
+  proformaInvoiceData     Json?     @map("proforma_invoice_data")
+  manufacturingStart      DateTime? @map("manufacturing_start")
+  manufacturingEnd        DateTime? @map("manufacturing_end")
+  cargoDetails            Json?     @map("cargo_details")
+  commercialInvoiceId     String?   @map("commercial_invoice_id")
+  warehouseInvoiceId      String?   @map("warehouse_invoice_id")
+  surrenderBL             String?   @map("surrender_bl")
+  transactionCertificate  String?   @map("transaction_certificate")
+  customsDeclaration      String?   @map("customs_declaration")
+  proofOfDelivery         String?   @map("proof_of_delivery")
+  shippedAt               DateTime? @map("shipped_at")
+  shippedById             String?   @map("shipped_by_id")
+  shippedByName           String?   @map("shipped_by_name")
 
   lines         PurchaseOrderLine[]
+  containers    PurchaseOrderContainer[]
   transactions  InventoryTransaction[] @relation("TransactionPurchaseOrder")
   movementNotes MovementNote[]
   invoiceLines  WarehouseInvoiceLine[] @relation("WarehouseInvoiceLinePurchaseOrder")
 
-  @@unique([warehouseCode, orderNumber])
+  @@unique([orderNumber])
   @@index([status])
   @@index([type, status])
   @@index([isLegacy])
+  @@index([warehouseCode])
   @@map("purchase_orders")
 }
 
@@ -281,8 +341,11 @@ model PurchaseOrderLine {
   batchLot          String?                 @map("batch_lot")
   quantity          Int
   unitCost          Decimal?                @map("unit_cost") @db.Decimal(12, 2)
+  currency          String                  @default("USD")
   status            PurchaseOrderLineStatus @default(PENDING)
   postedQuantity    Int                     @default(0) @map("posted_quantity")
+  quantityReceived  Int?                    @map("quantity_received") // Filled at WAREHOUSE stage
+  lineNotes         String?                 @map("line_notes")
   createdAt         DateTime                @default(now()) @map("created_at")
   updatedAt         DateTime                @updatedAt @map("updated_at")
   transactions      InventoryTransaction[]  @relation("TransactionPurchaseOrderLine")
@@ -292,6 +355,21 @@ model PurchaseOrderLine {
   @@unique([purchaseOrderId, skuCode, batchLot])
   @@index([purchaseOrderId])
   @@map("purchase_order_lines")
+}
+
+model PurchaseOrderContainer {
+  id              String        @id @default(uuid())
+  purchaseOrderId String        @map("purchase_order_id")
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  containerNumber String        @map("container_number")
+  containerSize   String        @map("container_size") // 20FT, 40FT, 40HC, 45HC
+  sealNumber      String?       @map("seal_number")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@unique([purchaseOrderId, containerNumber])
+  @@index([purchaseOrderId])
+  @@map("purchase_order_containers")
 }
 
 model MovementNote {

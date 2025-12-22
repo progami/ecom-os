@@ -36,8 +36,8 @@ export interface PurchaseOrderSummary {
  orderNumber: string
  type: PurchaseOrderTypeOption
  status: PurchaseOrderStatusOption
- warehouseCode: string
- warehouseName: string
+ warehouseCode: string | null
+ warehouseName: string | null
  counterpartyName: string | null
  expectedDate: string | null
  postedAt: string | null
@@ -225,7 +225,7 @@ No purchase orders yet. Use the Inventory Actions menu to create one.
  </Badge>
             </td>
             <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
-              {order.warehouseCode}
+              {order.warehouseCode || '—'}
             </td>
  <td className="px-3 py-2 whitespace-nowrap text-muted-foreground">
  {order.counterpartyName || '—'}

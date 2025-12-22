@@ -5,8 +5,9 @@ import {
   Prisma,
 } from '@ecom-os/prisma-wms'
 import { NotFoundError, ValidationError, ConflictError } from '@/lib/api'
-import { canApproveStageTransition, isSuperAdmin } from './permission-service'
+import { canApproveStageTransition, hasPermission, isSuperAdmin } from './permission-service'
 import { auditLog } from '@/lib/security/audit-logger'
+import { toPublicOrderNumber } from './purchase-order-utils'
 
 // Valid stage transitions for new 5-stage workflow
 export const VALID_TRANSITIONS: Partial<Record<PurchaseOrderStatus, PurchaseOrderStatus[]>> = {
@@ -26,46 +27,106 @@ export const VALID_TRANSITIONS: Partial<Record<PurchaseOrderStatus, PurchaseOrde
 
 // Stage-specific required fields for transition
 export const STAGE_REQUIREMENTS: Record<string, string[]> = {
-  MANUFACTURING: ['proformaInvoiceId', 'manufacturingStart'],
-  OCEAN: ['houseBillOfLading', 'packingListRef', 'commercialInvoiceId'],
-  WAREHOUSE: ['warehouseInvoiceId', 'surrenderBL', 'transactionCertificate', 'customsDeclaration'],
-  SHIPPED: ['proofOfDelivery'],
+  // Stage 2: Manufacturing
+  MANUFACTURING: ['proformaInvoiceNumber', 'manufacturingStartDate'],
+  // Stage 3: Ocean
+  OCEAN: ['houseBillOfLading', 'commercialInvoiceNumber', 'packingListRef', 'vesselName', 'portOfLoading', 'portOfDischarge'],
+  // Stage 4: Warehouse - now requires selecting the warehouse
+  WAREHOUSE: ['warehouseCode', 'customsEntryNumber', 'customsClearedDate', 'receivedDate'],
+  // Stage 5: Shipped
+  SHIPPED: ['shipToName', 'shippingCarrier', 'trackingNumber', 'shippedDate'],
 }
 
 // Field labels for error messages
 const FIELD_LABELS: Record<string, string> = {
-  proformaInvoiceId: 'Proforma Invoice ID',
-  manufacturingStart: 'Manufacturing Start Date',
+  // Stage 2
+  proformaInvoiceNumber: 'Proforma Invoice Number',
+  manufacturingStartDate: 'Manufacturing Start Date',
+  expectedCompletionDate: 'Expected Completion Date',
+  // Stage 3
   houseBillOfLading: 'House Bill of Lading',
+  commercialInvoiceNumber: 'Commercial Invoice Number',
   packingListRef: 'Packing List Reference',
-  commercialInvoiceId: 'Commercial Invoice ID',
-  warehouseInvoiceId: 'Warehouse Invoice ID',
-  surrenderBL: 'Surrender B/L',
-  transactionCertificate: 'Transaction Certificate',
-  customsDeclaration: 'Customs Declaration',
-  proofOfDelivery: 'Proof of Delivery',
+  vesselName: 'Vessel Name',
+  portOfLoading: 'Port of Loading',
+  portOfDischarge: 'Port of Discharge',
+  // Stage 4
+  warehouseCode: 'Warehouse',
+  customsEntryNumber: 'Customs Entry Number',
+  customsClearedDate: 'Customs Cleared Date',
+  receivedDate: 'Received Date',
+  // Stage 5
+  shipToName: 'Ship To Name',
+  shippingCarrier: 'Shipping Carrier',
+  trackingNumber: 'Tracking Number',
+  shippedDate: 'Shipped Date',
+  proofOfDeliveryRef: 'Proof of Delivery Reference',
 }
 
 export interface StageTransitionInput {
-  // Manufacturing stage data
+  // Stage 2: Manufacturing
+  proformaInvoiceNumber?: string
+  proformaInvoiceDate?: Date | string
+  factoryName?: string
+  manufacturingStartDate?: Date | string
+  expectedCompletionDate?: Date | string
+  actualCompletionDate?: Date | string
+  totalWeightKg?: number
+  totalVolumeCbm?: number
+  totalCartons?: number
+  totalPallets?: number
+  packagingNotes?: string
+
+  // Stage 3: Ocean
+  houseBillOfLading?: string
+  masterBillOfLading?: string
+  commercialInvoiceNumber?: string
+  packingListRef?: string
+  vesselName?: string
+  voyageNumber?: string
+  portOfLoading?: string
+  portOfDischarge?: string
+  estimatedDeparture?: Date | string
+  estimatedArrival?: Date | string
+  actualDeparture?: Date | string
+  actualArrival?: Date | string
+
+  // Stage 4: Warehouse
+  warehouseCode?: string
+  warehouseName?: string
+  customsEntryNumber?: string
+  customsClearedDate?: Date | string
+  dutyAmount?: number
+  dutyCurrency?: string
+  surrenderBlDate?: Date | string
+  transactionCertNumber?: string
+  receivedDate?: Date | string
+  discrepancyNotes?: string
+
+  // Stage 5: Shipped
+  shipToName?: string
+  shipToAddress?: string
+  shipToCity?: string
+  shipToCountry?: string
+  shipToPostalCode?: string
+  shippingCarrier?: string
+  shippingMethod?: string
+  trackingNumber?: string
+  shippedDate?: Date | string
+  proofOfDeliveryRef?: string
+  deliveredDate?: Date | string
+
+  // Legacy fields (for backward compatibility)
   proformaInvoiceId?: string
   proformaInvoiceData?: Prisma.JsonValue
   manufacturingStart?: Date | string
   manufacturingEnd?: Date | string
   cargoDetails?: Prisma.JsonValue
-
-  // Ocean stage data
-  houseBillOfLading?: string
-  packingListRef?: string
   commercialInvoiceId?: string
-
-  // Warehouse stage data
   warehouseInvoiceId?: string
   surrenderBL?: string
   transactionCertificate?: string
   customsDeclaration?: string
-
-  // Shipped stage data
   proofOfDelivery?: string
 }
 
@@ -155,49 +216,87 @@ export async function generatePoNumber(): Promise<string> {
   return `PO-${nextNumber.toString().padStart(4, '0')}`
 }
 
+export interface CreatePurchaseOrderLineInput {
+  skuCode: string
+  skuDescription?: string
+  quantity: number
+  unitCost?: number
+  currency?: string
+  notes?: string
+}
+
 /**
  * Create a new Purchase Order in DRAFT status
+ * Warehouse is NOT required at this stage - it's selected at Stage 4 (WAREHOUSE)
  */
 export async function createPurchaseOrder(
   input: {
-    warehouseCode: string
-    warehouseName: string
     counterpartyName?: string
-    expectedDate?: Date
     notes?: string
-    receiveType?: string
+    lines?: CreatePurchaseOrderLineInput[]
   },
   user: UserContext
-): Promise<PurchaseOrder> {
+): Promise<PurchaseOrder & { lines: any[] }> {
   const prisma = await getTenantPrisma()
 
-  const poNumber = await generatePoNumber()
-  const orderNumber = `${input.warehouseCode}-${poNumber}`
+  const MAX_PO_NUMBER_ATTEMPTS = 5
+  let order: (PurchaseOrder & { lines: any[] }) | null = null
 
-  const order = await prisma.purchaseOrder.create({
-    data: {
-      orderNumber,
-      poNumber,
-      type: 'PURCHASE',
-      status: 'DRAFT',
-      warehouseCode: input.warehouseCode,
-      warehouseName: input.warehouseName,
-      counterpartyName: input.counterpartyName,
-      expectedDate: input.expectedDate,
-      notes: input.notes,
-      receiveType: input.receiveType as any,
-      createdById: user.id,
-      createdByName: user.name,
-      isLegacy: false,
-    },
-  })
+  for (let attempt = 0; attempt < MAX_PO_NUMBER_ATTEMPTS; attempt += 1) {
+    const poNumber = await generatePoNumber()
+    const orderNumber = poNumber // Order number is just the PO number now
+
+    try {
+      order = await prisma.purchaseOrder.create({
+        data: {
+          orderNumber,
+          poNumber,
+          type: 'PURCHASE',
+          status: 'DRAFT',
+          counterpartyName: input.counterpartyName,
+          notes: input.notes,
+          createdById: user.id,
+          createdByName: user.name,
+          isLegacy: false,
+          // Create lines if provided
+          lines:
+            input.lines && input.lines.length > 0
+              ? {
+                  create: input.lines.map((line) => ({
+                    skuCode: line.skuCode,
+                    skuDescription: line.skuDescription || '',
+                    quantity: line.quantity,
+                    unitCost: line.unitCost,
+                    currency: line.currency || 'USD',
+                    lineNotes: line.notes,
+                    status: 'PENDING',
+                  })),
+                }
+              : undefined,
+        },
+        include: {
+          lines: true,
+        },
+      })
+      break
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        continue
+      }
+      throw error
+    }
+  }
+
+  if (!order) {
+    throw new ValidationError('Unable to generate a unique PO number. Please retry.')
+  }
 
   await auditLog({
     userId: user.id,
     action: 'CREATE',
     entityType: 'PurchaseOrder',
     entityId: order.id,
-    data: { poNumber, status: 'DRAFT' },
+    data: { poNumber: order.poNumber, status: 'DRAFT', lineCount: input.lines?.length || 0 },
   })
 
   return order
@@ -240,7 +339,12 @@ export async function transitionPurchaseOrderStage(
   }
 
   // Check user permission for this transition (unless cancelling)
-  if (targetStatus !== PurchaseOrderStatus.CANCELLED) {
+  if (targetStatus === PurchaseOrderStatus.CANCELLED) {
+    const canCancel = await hasPermission(user.id, 'po.cancel')
+    if (!canCancel && !isSuperAdmin(user.email)) {
+      throw new ValidationError(`You don't have permission to cancel purchase orders`)
+    }
+  } else {
     const canApprove = await canApproveStageTransition(
       user.id,
       currentStatus,
@@ -269,7 +373,156 @@ export async function transitionPurchaseOrderStage(
     status: targetStatus,
   }
 
-  // Add stage-specific data
+  // Stage 2: Manufacturing fields
+  if (stageData.proformaInvoiceNumber !== undefined) {
+    updateData.proformaInvoiceNumber = stageData.proformaInvoiceNumber
+  }
+  if (stageData.proformaInvoiceDate !== undefined) {
+    updateData.proformaInvoiceDate = new Date(stageData.proformaInvoiceDate)
+  }
+  if (stageData.factoryName !== undefined) {
+    updateData.factoryName = stageData.factoryName
+  }
+  if (stageData.manufacturingStartDate !== undefined) {
+    updateData.manufacturingStartDate = new Date(stageData.manufacturingStartDate)
+  }
+  if (stageData.expectedCompletionDate !== undefined) {
+    updateData.expectedCompletionDate = new Date(stageData.expectedCompletionDate)
+  }
+  if (stageData.actualCompletionDate !== undefined) {
+    updateData.actualCompletionDate = new Date(stageData.actualCompletionDate)
+  }
+  if (stageData.totalWeightKg !== undefined) {
+    updateData.totalWeightKg = stageData.totalWeightKg
+  }
+  if (stageData.totalVolumeCbm !== undefined) {
+    updateData.totalVolumeCbm = stageData.totalVolumeCbm
+  }
+  if (stageData.totalCartons !== undefined) {
+    updateData.totalCartons = stageData.totalCartons
+  }
+  if (stageData.totalPallets !== undefined) {
+    updateData.totalPallets = stageData.totalPallets
+  }
+  if (stageData.packagingNotes !== undefined) {
+    updateData.packagingNotes = stageData.packagingNotes
+  }
+
+  // Stage 3: Ocean fields
+  if (stageData.houseBillOfLading !== undefined) {
+    updateData.houseBillOfLading = stageData.houseBillOfLading
+  }
+  if (stageData.masterBillOfLading !== undefined) {
+    updateData.masterBillOfLading = stageData.masterBillOfLading
+  }
+  if (stageData.commercialInvoiceNumber !== undefined) {
+    updateData.commercialInvoiceNumber = stageData.commercialInvoiceNumber
+  }
+  if (stageData.packingListRef !== undefined) {
+    updateData.packingListRef = stageData.packingListRef
+  }
+  if (stageData.vesselName !== undefined) {
+    updateData.vesselName = stageData.vesselName
+  }
+  if (stageData.voyageNumber !== undefined) {
+    updateData.voyageNumber = stageData.voyageNumber
+  }
+  if (stageData.portOfLoading !== undefined) {
+    updateData.portOfLoading = stageData.portOfLoading
+  }
+  if (stageData.portOfDischarge !== undefined) {
+    updateData.portOfDischarge = stageData.portOfDischarge
+  }
+  if (stageData.estimatedDeparture !== undefined) {
+    updateData.estimatedDeparture = new Date(stageData.estimatedDeparture)
+  }
+  if (stageData.estimatedArrival !== undefined) {
+    updateData.estimatedArrival = new Date(stageData.estimatedArrival)
+  }
+  if (stageData.actualDeparture !== undefined) {
+    updateData.actualDeparture = new Date(stageData.actualDeparture)
+  }
+  if (stageData.actualArrival !== undefined) {
+    updateData.actualArrival = new Date(stageData.actualArrival)
+  }
+
+  // Stage 4: Warehouse fields
+  if (stageData.warehouseCode !== undefined) {
+    const warehouse = await prisma.warehouse.findFirst({
+      where: { code: stageData.warehouseCode },
+      select: { name: true },
+    })
+    if (!warehouse) {
+      throw new ValidationError(`Invalid warehouse code: ${stageData.warehouseCode}`)
+    }
+
+    updateData.warehouseCode = stageData.warehouseCode
+    updateData.warehouseName = stageData.warehouseName ?? warehouse.name
+  }
+  if (stageData.warehouseName !== undefined && stageData.warehouseCode === undefined) {
+    updateData.warehouseName = stageData.warehouseName
+  }
+  if (stageData.customsEntryNumber !== undefined) {
+    updateData.customsEntryNumber = stageData.customsEntryNumber
+  }
+  if (stageData.customsClearedDate !== undefined) {
+    updateData.customsClearedDate = new Date(stageData.customsClearedDate)
+  }
+  if (stageData.dutyAmount !== undefined) {
+    updateData.dutyAmount = stageData.dutyAmount
+  }
+  if (stageData.dutyCurrency !== undefined) {
+    updateData.dutyCurrency = stageData.dutyCurrency
+  }
+  if (stageData.surrenderBlDate !== undefined) {
+    updateData.surrenderBlDate = new Date(stageData.surrenderBlDate)
+  }
+  if (stageData.transactionCertNumber !== undefined) {
+    updateData.transactionCertNumber = stageData.transactionCertNumber
+  }
+  if (stageData.receivedDate !== undefined) {
+    updateData.receivedDate = new Date(stageData.receivedDate)
+  }
+  if (stageData.discrepancyNotes !== undefined) {
+    updateData.discrepancyNotes = stageData.discrepancyNotes
+  }
+
+  // Stage 5: Shipped fields
+  if (stageData.shipToName !== undefined) {
+    updateData.shipToName = stageData.shipToName
+  }
+  if (stageData.shipToAddress !== undefined) {
+    updateData.shipToAddress = stageData.shipToAddress
+  }
+  if (stageData.shipToCity !== undefined) {
+    updateData.shipToCity = stageData.shipToCity
+  }
+  if (stageData.shipToCountry !== undefined) {
+    updateData.shipToCountry = stageData.shipToCountry
+  }
+  if (stageData.shipToPostalCode !== undefined) {
+    updateData.shipToPostalCode = stageData.shipToPostalCode
+  }
+  if (stageData.shippingCarrier !== undefined) {
+    updateData.shippingCarrier = stageData.shippingCarrier
+  }
+  if (stageData.shippingMethod !== undefined) {
+    updateData.shippingMethod = stageData.shippingMethod
+  }
+  if (stageData.trackingNumber !== undefined) {
+    updateData.trackingNumber = stageData.trackingNumber
+  }
+  if (stageData.shippedDate !== undefined) {
+    updateData.shippedDate = new Date(stageData.shippedDate)
+  }
+  if (stageData.proofOfDeliveryRef !== undefined) {
+    updateData.proofOfDeliveryRef = stageData.proofOfDeliveryRef
+  }
+  if (stageData.deliveredDate !== undefined) {
+    updateData.deliveredDate = new Date(stageData.deliveredDate)
+  }
+
+  // Legacy fields (for backward compatibility)
   if (stageData.proformaInvoiceId !== undefined) {
     updateData.proformaInvoiceId = stageData.proformaInvoiceId
   }
@@ -284,12 +537,6 @@ export async function transitionPurchaseOrderStage(
   }
   if (stageData.cargoDetails !== undefined) {
     updateData.cargoDetails = stageData.cargoDetails
-  }
-  if (stageData.houseBillOfLading !== undefined) {
-    updateData.houseBillOfLading = stageData.houseBillOfLading
-  }
-  if (stageData.packingListRef !== undefined) {
-    updateData.packingListRef = stageData.packingListRef
   }
   if (stageData.commercialInvoiceId !== undefined) {
     updateData.commercialInvoiceId = stageData.commercialInvoiceId
@@ -332,7 +579,16 @@ export async function transitionPurchaseOrderStage(
       updateData.warehouseApprovedAt = now
       updateData.warehouseApprovedById = user.id
       updateData.warehouseApprovedByName = user.name
-      updateData.shippedAt = now
+      updateData.shippedApprovedAt = now
+      updateData.shippedApprovedById = user.id
+      updateData.shippedApprovedByName = user.name
+      // Legacy (keep existing consumers working)
+      updateData.shippedAt =
+        stageData.shippedDate !== undefined
+          ? new Date(stageData.shippedDate)
+          : order.shippedDate
+            ? new Date(order.shippedDate)
+            : now
       updateData.shippedById = user.id
       updateData.shippedByName = user.name
       break
@@ -417,6 +673,18 @@ export function getStageData(order: PurchaseOrder): {
 } {
   return {
     manufacturing: {
+      proformaInvoiceNumber: order.proformaInvoiceNumber,
+      proformaInvoiceDate: order.proformaInvoiceDate,
+      factoryName: order.factoryName,
+      manufacturingStartDate: order.manufacturingStartDate,
+      expectedCompletionDate: order.expectedCompletionDate,
+      actualCompletionDate: order.actualCompletionDate,
+      totalWeightKg: order.totalWeightKg ? Number(order.totalWeightKg) : null,
+      totalVolumeCbm: order.totalVolumeCbm ? Number(order.totalVolumeCbm) : null,
+      totalCartons: order.totalCartons,
+      totalPallets: order.totalPallets,
+      packagingNotes: order.packagingNotes,
+      // Legacy fields
       proformaInvoiceId: order.proformaInvoiceId,
       proformaInvoiceData: order.proformaInvoiceData,
       manufacturingStart: order.manufacturingStart,
@@ -425,16 +693,50 @@ export function getStageData(order: PurchaseOrder): {
     },
     ocean: {
       houseBillOfLading: order.houseBillOfLading,
+      masterBillOfLading: order.masterBillOfLading,
+      commercialInvoiceNumber: order.commercialInvoiceNumber,
       packingListRef: order.packingListRef,
+      vesselName: order.vesselName,
+      voyageNumber: order.voyageNumber,
+      portOfLoading: order.portOfLoading,
+      portOfDischarge: order.portOfDischarge,
+      estimatedDeparture: order.estimatedDeparture,
+      estimatedArrival: order.estimatedArrival,
+      actualDeparture: order.actualDeparture,
+      actualArrival: order.actualArrival,
+      // Legacy
       commercialInvoiceId: order.commercialInvoiceId,
     },
     warehouse: {
+      warehouseCode: order.warehouseCode,
+      warehouseName: order.warehouseName,
+      customsEntryNumber: order.customsEntryNumber,
+      customsClearedDate: order.customsClearedDate,
+      dutyAmount: order.dutyAmount ? Number(order.dutyAmount) : null,
+      dutyCurrency: order.dutyCurrency,
+      surrenderBlDate: order.surrenderBlDate,
+      transactionCertNumber: order.transactionCertNumber,
+      receivedDate: order.receivedDate,
+      discrepancyNotes: order.discrepancyNotes,
+      // Legacy
       warehouseInvoiceId: order.warehouseInvoiceId,
       surrenderBL: order.surrenderBL,
       transactionCertificate: order.transactionCertificate,
       customsDeclaration: order.customsDeclaration,
     },
     shipped: {
+      shipToName: order.shipToName,
+      shipToAddress: order.shipToAddress,
+      shipToCity: order.shipToCity,
+      shipToCountry: order.shipToCountry,
+      shipToPostalCode: order.shipToPostalCode,
+      shippingCarrier: order.shippingCarrier,
+      shippingMethod: order.shippingMethod,
+      trackingNumber: order.trackingNumber,
+      shippedDate: order.shippedDate,
+      proofOfDeliveryRef: order.proofOfDeliveryRef,
+      deliveredDate: order.deliveredDate,
+      // Legacy
       proofOfDelivery: order.proofOfDelivery,
       shippedAt: order.shippedAt,
       shippedBy: order.shippedByName,
@@ -482,20 +784,48 @@ export const PO_STAGE_COLORS: Record<PurchaseOrderStatus, string> = {
 }
 
 /**
+ * Helper to serialize a date field
+ */
+function serializeDate(value: Date | null | undefined): string | null {
+  if (!value) return null
+  if (value instanceof Date) return value.toISOString()
+  return value
+}
+
+/**
  * Serialize stage data dates to ISO strings
  */
 function serializeStageData(data: ReturnType<typeof getStageData>): Record<string, any> {
   return {
     manufacturing: {
       ...data.manufacturing,
-      manufacturingStart: data.manufacturing.manufacturingStart?.toISOString?.() ?? data.manufacturing.manufacturingStart ?? null,
-      manufacturingEnd: data.manufacturing.manufacturingEnd?.toISOString?.() ?? data.manufacturing.manufacturingEnd ?? null,
+      proformaInvoiceDate: serializeDate(data.manufacturing.proformaInvoiceDate),
+      manufacturingStartDate: serializeDate(data.manufacturing.manufacturingStartDate),
+      expectedCompletionDate: serializeDate(data.manufacturing.expectedCompletionDate),
+      actualCompletionDate: serializeDate(data.manufacturing.actualCompletionDate),
+      // Legacy
+      manufacturingStart: serializeDate(data.manufacturing.manufacturingStart),
+      manufacturingEnd: serializeDate(data.manufacturing.manufacturingEnd),
     },
-    ocean: data.ocean,
-    warehouse: data.warehouse,
+    ocean: {
+      ...data.ocean,
+      estimatedDeparture: serializeDate(data.ocean.estimatedDeparture),
+      estimatedArrival: serializeDate(data.ocean.estimatedArrival),
+      actualDeparture: serializeDate(data.ocean.actualDeparture),
+      actualArrival: serializeDate(data.ocean.actualArrival),
+    },
+    warehouse: {
+      ...data.warehouse,
+      customsClearedDate: serializeDate(data.warehouse.customsClearedDate),
+      surrenderBlDate: serializeDate(data.warehouse.surrenderBlDate),
+      receivedDate: serializeDate(data.warehouse.receivedDate),
+    },
     shipped: {
       ...data.shipped,
-      shippedAt: data.shipped.shippedAt?.toISOString?.() ?? data.shipped.shippedAt ?? null,
+      shippedDate: serializeDate(data.shipped.shippedDate),
+      deliveredDate: serializeDate(data.shipped.deliveredDate),
+      // Legacy
+      shippedAt: serializeDate(data.shipped.shippedAt),
     },
   }
 }
@@ -506,7 +836,7 @@ function serializeStageData(data: ReturnType<typeof getStageData>): Record<strin
 export function serializePurchaseOrder(order: PurchaseOrder & { lines?: any[] }): Record<string, any> {
   return {
     id: order.id,
-    orderNumber: order.orderNumber,
+    orderNumber: toPublicOrderNumber(order.orderNumber),
     poNumber: order.poNumber,
     type: order.type,
     status: order.status,
@@ -539,8 +869,11 @@ export function serializePurchaseOrder(order: PurchaseOrder & { lines?: any[] })
       batchLot: line.batchLot,
       quantity: line.quantity,
       unitCost: line.unitCost ? Number(line.unitCost) : null,
+      currency: line.currency || 'USD',
       status: line.status,
       postedQuantity: line.postedQuantity,
+      quantityReceived: line.quantityReceived,
+      lineNotes: line.lineNotes,
       createdAt: line.createdAt?.toISOString?.() ?? line.createdAt,
       updatedAt: line.updatedAt?.toISOString?.() ?? line.updatedAt,
     })),
