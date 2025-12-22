@@ -3,9 +3,11 @@
 import clsx from 'clsx'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Check, X, Pencil, Trash2, Star } from 'lucide-react'
+import { Plus, Check, X, Pencil, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { withAppBasePath } from '@/lib/base-path'
+
+const DEFAULT_STRATEGY_ID = 'default-strategy'
 
 type Strategy = {
   id: string
@@ -90,8 +92,8 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
 
   const handleDelete = async (id: string) => {
     const strategy = strategies.find((s) => s.id === id)
-    if (strategy?.isDefault) {
-      toast.error('Cannot delete the default strategy')
+    if (id === DEFAULT_STRATEGY_ID || strategy?.isDefault) {
+      toast.error('Cannot delete the default strategy for existing data')
       return
     }
 
@@ -110,26 +112,8 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
     }
   }
 
-  const handleSetDefault = async (id: string) => {
-    try {
-      const response = await fetch(withAppBasePath('/api/v1/x-plan/strategies'), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, isDefault: true }),
-      })
-      if (!response.ok) throw new Error('Failed to set default strategy')
-      setStrategies((prev) =>
-        prev.map((s) => ({ ...s, isDefault: s.id === id }))
-      )
-      toast.success('Default strategy updated')
-    } catch (error) {
-      console.error(error)
-      toast.error('Failed to set default strategy')
-    }
-  }
-
   const handleSelectStrategy = (id: string) => {
-    router.push(withAppBasePath(`/1-product-setup?strategy=${id}`))
+    router.push(`/1-product-setup?strategy=${id}`)
   }
 
   const startEdit = (strategy: Strategy) => {
@@ -274,7 +258,9 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
                           {strategy.name}
                         </span>
                         {strategy.isDefault && (
-                          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                          <span className="rounded-full bg-cyan-600/15 px-2 py-0.5 text-[11px] font-semibold text-cyan-700 dark:bg-[#00C2B9]/20 dark:text-cyan-100">
+                            Default
+                          </span>
                         )}
                         {strategy.description && (
                           <span className="text-xs text-slate-500 dark:text-slate-400">
@@ -315,16 +301,6 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
                         </>
                       ) : (
                         <>
-                          {!strategy.isDefault && (
-                            <button
-                              type="button"
-                              onClick={() => handleSetDefault(strategy.id)}
-                              title="Set as default"
-                              className="rounded p-1.5 text-slate-400 transition hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20 dark:hover:text-amber-400"
-                            >
-                              <Star className="h-4 w-4" />
-                            </button>
-                          )}
                           <button
                             type="button"
                             onClick={() => startEdit(strategy)}
@@ -332,7 +308,7 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
-                          {!strategy.isDefault && (
+                          {strategy.id !== DEFAULT_STRATEGY_ID && !strategy.isDefault && (
                             <button
                               type="button"
                               onClick={() => handleDelete(strategy.id)}

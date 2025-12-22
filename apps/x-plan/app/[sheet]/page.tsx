@@ -366,6 +366,7 @@ function isHiddenParameterLabel(label: string) {
 
 async function resolveStrategyId(searchParamStrategy: string | string[] | undefined): Promise<string> {
   const prismaAny = prisma as unknown as Record<string, any>
+  const DEFAULT_STRATEGY_ID = 'default-strategy'
 
   // If strategyId is provided in URL, validate it exists
   if (typeof searchParamStrategy === 'string' && searchParamStrategy) {
@@ -373,7 +374,14 @@ async function resolveStrategyId(searchParamStrategy: string | string[] | undefi
     if (exists) return searchParamStrategy
   }
 
-  // Otherwise get the default strategy
+  // Prefer the canonical default strategy for existing data (created via migration).
+  const canonicalDefault = await prismaAny.strategy.findUnique({
+    where: { id: DEFAULT_STRATEGY_ID },
+    select: { id: true },
+  })
+  if (canonicalDefault) return canonicalDefault.id
+
+  // Otherwise get the default strategy (legacy behavior)
   const defaultStrategy = await prismaAny.strategy.findFirst({
     where: { isDefault: true },
     select: { id: true },
@@ -1457,16 +1465,38 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           },
         },
       })
-      const strategies = strategiesData.map((s: any) => ({
+      const canonicalDefaultId = 'default-strategy'
+      type StrategyRow = {
+        id: string
+        name: string
+        description: string | null
+        status: string
+        isDefault: boolean
+        createdAt: string
+        updatedAt: string
+        _count: {
+          products: number
+          purchaseOrders: number
+          salesWeeks: number
+        }
+      }
+
+      const strategies: StrategyRow[] = strategiesData.map((s: any) => ({
         id: s.id,
         name: s.name,
         description: s.description,
         status: s.status,
-        isDefault: s.isDefault,
+        isDefault: s.id === canonicalDefaultId,
         createdAt: s.createdAt.toISOString(),
         updatedAt: s.updatedAt.toISOString(),
         _count: s._count,
       }))
+      strategies.sort((a, b) => {
+        const aDefault = a.id === canonicalDefaultId
+        const bDefault = b.id === canonicalDefaultId
+        if (aDefault !== bDefault) return aDefault ? -1 : 1
+        return b.updatedAt.localeCompare(a.updatedAt)
+      })
       tabularContent = <StrategiesWorkspace strategies={strategies} />
       visualContent = null
       break

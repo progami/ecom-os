@@ -6,6 +6,8 @@ import { withXPlanAuth } from '@/lib/api/auth'
 // Type assertion for strategy model (Prisma types are generated but not resolved correctly at build time)
 const prismaAny = prisma as unknown as Record<string, any>
 
+const DEFAULT_STRATEGY_ID = 'default-strategy'
+
 const createSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
@@ -16,7 +18,6 @@ const updateSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   status: z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']).optional(),
-  isDefault: z.boolean().optional(),
 })
 
 const deleteSchema = z.object({
@@ -36,7 +37,23 @@ export const GET = withXPlanAuth(async () => {
       },
     },
   })
-  return NextResponse.json({ strategies })
+
+  const hasCanonicalDefault = strategies.some((strategy: any) => strategy.id === DEFAULT_STRATEGY_ID)
+  const normalized = strategies.map((strategy: any) => ({
+    ...strategy,
+    isDefault: hasCanonicalDefault ? strategy.id === DEFAULT_STRATEGY_ID : strategy.isDefault,
+  }))
+
+  normalized.sort((a: any, b: any) => {
+    const aDefault = a.id === DEFAULT_STRATEGY_ID
+    const bDefault = b.id === DEFAULT_STRATEGY_ID
+    if (aDefault !== bDefault) return aDefault ? -1 : 1
+    const aUpdated = typeof a.updatedAt === 'string' ? a.updatedAt : a.updatedAt?.toISOString?.() ?? ''
+    const bUpdated = typeof b.updatedAt === 'string' ? b.updatedAt : b.updatedAt?.toISOString?.() ?? ''
+    return bUpdated.localeCompare(aUpdated)
+  })
+
+  return NextResponse.json({ strategies: normalized })
 })
 
 export const POST = withXPlanAuth(async (request: Request) => {
@@ -47,16 +64,12 @@ export const POST = withXPlanAuth(async (request: Request) => {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
-  // Check if this is the first strategy - make it default
-  const count = await prismaAny.strategy.count()
-  const isDefault = count === 0
-
   const strategy = await prismaAny.strategy.create({
     data: {
       name: parsed.data.name.trim(),
       description: parsed.data.description?.trim(),
-      isDefault,
-      status: isDefault ? 'ACTIVE' : 'DRAFT',
+      isDefault: false,
+      status: 'DRAFT',
     },
   })
 
@@ -65,6 +78,11 @@ export const POST = withXPlanAuth(async (request: Request) => {
 
 export const PUT = withXPlanAuth(async (request: Request) => {
   const body = await request.json().catch(() => null)
+
+  if (body && typeof body === 'object' && 'isDefault' in body) {
+    return NextResponse.json({ error: 'Default strategy cannot be changed' }, { status: 400 })
+  }
+
   const parsed = updateSchema.safeParse(body)
 
   if (!parsed.success) {
@@ -72,14 +90,6 @@ export const PUT = withXPlanAuth(async (request: Request) => {
   }
 
   const { id, ...data } = parsed.data
-
-  // If setting this as default, unset other defaults
-  if (data.isDefault) {
-    await prismaAny.strategy.updateMany({
-      where: { isDefault: true, id: { not: id } },
-      data: { isDefault: false },
-    })
-  }
 
   // If setting this as ACTIVE, set others to DRAFT
   if (data.status === 'ACTIVE') {
@@ -95,7 +105,6 @@ export const PUT = withXPlanAuth(async (request: Request) => {
       ...(data.name && { name: data.name.trim() }),
       ...(data.description !== undefined && { description: data.description?.trim() }),
       ...(data.status && { status: data.status }),
-      ...(data.isDefault !== undefined && { isDefault: data.isDefault }),
     },
   })
 
@@ -112,9 +121,8 @@ export const DELETE = withXPlanAuth(async (request: Request) => {
 
   const { id } = parsed.data
 
-  // Don't allow deleting the default strategy
-  const strategy = await prismaAny.strategy.findUnique({ where: { id } })
-  if (strategy?.isDefault) {
+  // Don't allow deleting the default strategy for existing data.
+  if (id === DEFAULT_STRATEGY_ID) {
     return NextResponse.json({ error: 'Cannot delete the default strategy' }, { status: 400 })
   }
 
