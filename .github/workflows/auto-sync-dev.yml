@@ -14,8 +14,9 @@ jobs:
           github.event.pull_request.head.ref == 'dev' }}
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       pull-requests: write
+      actions: write
       checks: read
       statuses: read
     steps:
@@ -64,6 +65,9 @@ jobs:
         run: |
           set -euo pipefail
 
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
           git fetch --no-tags origin main dev
 
           behind="$(git rev-list --count origin/dev..origin/main)"
@@ -72,12 +76,22 @@ jobs:
             exit 0
           fi
 
-          existing_url="$(gh pr list --base dev --head main --state open --json url --jq '.[0].url')"
-          if [[ -n "$existing_url" ]]; then
-            echo "Sync PR already open: $existing_url"
-            exit 0
+          sync_branch="sync/main-into-dev"
+
+          git checkout -B "$sync_branch" origin/dev
+
+          git merge origin/main --no-edit -m "chore: sync dev with main"
+
+          git push --force-with-lease origin "$sync_branch"
+
+          pr_number="$(gh pr list --base dev --head "$sync_branch" --state open --json number --jq '.[0].number')"
+          if [[ -z "$pr_number" ]]; then
+            title="chore: sync dev with main"
+            body="Auto-created after merging PR #${{ github.event.pull_request.number }} into main."
+            pr_url="$(gh pr create --base dev --head "$sync_branch" --title "$title" --body "$body")"
+            pr_number="$(gh pr view "$pr_url" --json number --jq '.number')"
           fi
 
-          title="chore: sync dev with main"
-          body="Auto-created after merging PR #${{ github.event.pull_request.number }} into main."
-          gh pr create --base dev --head main --title "$title" --body "$body"
+          echo "Sync PR: #$pr_number"
+          gh workflow run ci.yml --ref "$sync_branch"
+          gh pr merge "$pr_number" --auto --merge --delete-branch || true
