@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { addMonths, addWeeks, differenceInCalendarDays, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from 'date-fns'
 import { clsx } from 'clsx'
+import { Info } from 'lucide-react'
 import type { PurchaseTimelineProps } from '@/lib/planning/timeline'
 import { PurchaseTimelineOrder, TimelineStageKey } from '@/lib/planning/timeline'
 
@@ -263,32 +264,36 @@ export function PurchaseTimeline({ orders, activeOrderId, onSelectOrder, header,
                 isActive && 'border-cyan-400 shadow-[0_12px_24px_rgba(0,194,185,0.15)]'
               )}
             >
-              <div className="grid gap-4" style={{ gridTemplateColumns: 'minmax(200px, 240px) 1fr' }}>
-                <div className="space-y-2">
-                  <button type="button" onClick={() => onSelectOrder?.(order.id)} className="text-left text-sm font-semibold text-slate-900 dark:text-white hover:underline">
-                    {order.orderCode}
-                  </button>
-                  <p className="text-xs text-slate-600 dark:text-slate-300">
+              <div className="grid gap-4" style={{ gridTemplateColumns: 'minmax(180px, 220px) 1fr' }}>
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <button type="button" onClick={() => onSelectOrder?.(order.id)} className="text-left text-sm font-semibold text-slate-900 dark:text-white hover:underline">
+                      {order.orderCode}
+                    </button>
+                    {(order.shipName || order.containerNumber) ? (
+                      <span
+                        className="inline-flex items-center text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 cursor-help"
+                        title={[order.shipName && `Ship: ${order.shipName}`, order.containerNumber && `Container: ${order.containerNumber}`].filter(Boolean).join('\n')}
+                      >
+                        <Info className="h-3.5 w-3.5" />
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     {order.productName} · {order.quantity.toLocaleString('en-US')} units
                   </p>
-                  {(order.shipName || order.containerNumber) ? (
-                    <div className="flex flex-wrap gap-2 text-xs text-slate-600 dark:text-slate-300">
-                      {order.shipName ? <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-white/10 px-2 py-1 font-medium">Ship: {order.shipName}</span> : null}
-                      {order.containerNumber ? <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-white/10 px-2 py-1 font-medium">Container: {order.containerNumber}</span> : null}
-                    </div>
-                  ) : null}
-                  <div className="flex flex-wrap gap-2">
-                    <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-white/10 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-slate-100 dark:bg-white/10 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-slate-600 dark:text-slate-300">
                       {order.status.replace(/_/g, ' ')}
                     </span>
                     {order.availableDate ? (
-                      <span className="inline-flex items-center rounded-full bg-emerald-100 dark:bg-emerald-500/15 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                      <span className="inline-flex items-center rounded-full bg-emerald-100 dark:bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
                         ETA {format(order.availableDate, 'MMM d')}
                       </span>
                     ) : null}
                   </div>
                   {order.segments.length === 0 ? (
-                    <p className="mt-2 text-xs text-slate-500 dark:text-slate-500">Add milestone dates to plot this purchase order on the timeline.</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">Add milestone dates to plot on timeline.</p>
                   ) : null}
                 </div>
 
