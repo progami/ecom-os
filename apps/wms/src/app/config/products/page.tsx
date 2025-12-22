@@ -6,19 +6,15 @@ import { useSession } from '@/hooks/usePortalSession'
 import { toast } from 'react-hot-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
-import { Boxes, Package, Package2, Users } from '@/lib/lucide-icons'
-import BatchesPanel from './batches-panel'
+import { Package, Package2 } from '@/lib/lucide-icons'
 import InventoryPanel from './inventory-panel'
 import SkusPanel from './skus-panel'
-import SuppliersPanel from './suppliers-panel'
 import { redirectToPortal } from '@/lib/portal'
 import { PageTabs } from '@/components/ui/page-tabs'
 
 const ALLOWED_ROLES = ['admin', 'staff']
 const TABS = [
   { value: 'skus', label: 'SKUs', icon: Package2 },
-  { value: 'batches', label: 'Batches', icon: Boxes },
-  { value: 'suppliers', label: 'Suppliers', icon: Users },
   { value: 'inventory', label: 'Inventory', icon: Package },
 ] as const
 
@@ -78,7 +74,7 @@ function ProductsPageContent() {
       <PageContainer>
         <PageHeaderSection
           title="Products"
-          description="Manage SKUs, batches, suppliers, and inventory"
+          description="Manage SKU master data and inventory"
           icon={Package}
         />
         <PageContent>
@@ -86,8 +82,6 @@ function ProductsPageContent() {
             <PageTabs tabs={[...TABS]} value={currentTab} onChange={handleTabChange} variant="underline" />
 
             {currentTab === 'skus' ? <SkusPanel /> : null}
-            {currentTab === 'batches' ? <BatchesPanel /> : null}
-            {currentTab === 'suppliers' ? <SuppliersPanel /> : null}
             {currentTab === 'inventory' ? <InventoryPanel /> : null}
           </div>
         </PageContent>

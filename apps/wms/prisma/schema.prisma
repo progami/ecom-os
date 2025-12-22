@@ -89,6 +89,10 @@ model Sku {
   asin                String?
   description         String
   packSize            Int?       @map("pack_size")
+  defaultSupplierId   String?    @map("default_supplier_id")
+  secondarySupplierId String?    @map("secondary_supplier_id")
+  defaultSupplier     Supplier?  @relation("SkuDefaultSupplier", fields: [defaultSupplierId], references: [id], onDelete: SetNull)
+  secondarySupplier   Supplier?  @relation("SkuSecondarySupplier", fields: [secondarySupplierId], references: [id], onDelete: SetNull)
   material            String?
   unitDimensionsCm    String?    @map("unit_dimensions_cm")
   unitWeightKg        Decimal?   @map("unit_weight_kg") @db.Decimal(8, 2)
@@ -105,6 +109,8 @@ model Sku {
 
   @@index([skuCode])
   @@index([asin])
+  @@index([defaultSupplierId])
+  @@index([secondarySupplierId])
   @@map("skus")
 }
 
@@ -137,6 +143,8 @@ model Supplier {
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
+  defaultSkus   Sku[]  @relation("SkuDefaultSupplier")
+  secondarySkus Sku[]  @relation("SkuSecondarySupplier")
 
   @@unique([name])
   @@index([isActive])

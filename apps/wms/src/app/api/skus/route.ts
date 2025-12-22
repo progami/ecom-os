@@ -8,6 +8,16 @@ type SkuWithCounts = Sku & { _count: { inventoryTransactions: number } }
 type DeleteSkuResponse = { message: string } | { message: string; sku: Sku }
 
 // Validation schemas with sanitization
+const supplierIdSchema = z.preprocess(
+  (value) => {
+    if (value === undefined) return undefined
+    if (value === null) return null
+    if (typeof value === 'string' && value.trim() === '') return null
+    return value
+  },
+  z.string().uuid().nullable().optional()
+)
+
 const createSkuSchema = z.object({
  skuCode: z.string().trim().min(1).max(50).transform(val => sanitizeForDisplay(val)),
  asin: z
@@ -24,6 +34,8 @@ const createSkuSchema = z.object({
   }),
  description: z.string().trim().min(1).transform(val => sanitizeForDisplay(val)),
  packSize: z.number().int().positive(),
+ defaultSupplierId: supplierIdSchema,
+ secondarySupplierId: supplierIdSchema,
  material: z
   .string()
   .trim()
@@ -138,6 +150,32 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
  const body = await request.json()
  const validatedData = createSkuSchema.parse(body)
 
+ if (
+  validatedData.defaultSupplierId &&
+  validatedData.secondarySupplierId &&
+  validatedData.defaultSupplierId === validatedData.secondarySupplierId
+ ) {
+  return ApiResponses.badRequest('Default and secondary supplier must be different')
+ }
+
+ const supplierIds = [
+  validatedData.defaultSupplierId ?? undefined,
+  validatedData.secondarySupplierId ?? undefined,
+ ].filter((id): id is string => Boolean(id))
+
+ if (supplierIds.length > 0) {
+  const suppliers = await prisma.supplier.findMany({
+   where: { id: { in: supplierIds } },
+   select: { id: true },
+  })
+
+  const foundIds = new Set(suppliers.map((s) => s.id))
+  const missing = supplierIds.filter((id) => !foundIds.has(id))
+  if (missing.length > 0) {
+   return ApiResponses.badRequest('Supplier not found')
+  }
+ }
+
  // Check if SKU code already exists
  const existingSku = await prisma.sku.findUnique({
  where: { skuCode: validatedData.skuCode }
@@ -153,6 +191,8 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
  asin: validatedData.asin ?? null,
  description: validatedData.description,
  packSize: validatedData.packSize,
+ defaultSupplierId: validatedData.defaultSupplierId ?? null,
+ secondarySupplierId: validatedData.secondarySupplierId ?? null,
  material: validatedData.material ?? null,
  unitDimensionsCm: validatedData.unitDimensionsCm ?? null,
  unitWeightKg: validatedData.unitWeightKg ?? null,
@@ -179,6 +219,32 @@ export const PATCH = withRole(['admin', 'staff'], async (request, _session) => {
 
  const body = await request.json()
  const validatedData = updateSkuSchema.parse(body)
+
+ if (
+  validatedData.defaultSupplierId &&
+  validatedData.secondarySupplierId &&
+  validatedData.defaultSupplierId === validatedData.secondarySupplierId
+ ) {
+  return ApiResponses.badRequest('Default and secondary supplier must be different')
+ }
+
+ const supplierIds = [
+  validatedData.defaultSupplierId ?? undefined,
+  validatedData.secondarySupplierId ?? undefined,
+ ].filter((id): id is string => Boolean(id))
+
+ if (supplierIds.length > 0) {
+  const suppliers = await prisma.supplier.findMany({
+   where: { id: { in: supplierIds } },
+   select: { id: true },
+  })
+
+  const foundIds = new Set(suppliers.map((s) => s.id))
+  const missing = supplierIds.filter((id) => !foundIds.has(id))
+  if (missing.length > 0) {
+   return ApiResponses.badRequest('Supplier not found')
+  }
+ }
 
  // If updating code, check if it's already in use
  if (validatedData.skuCode) {
