@@ -63,6 +63,8 @@ interface BatchOption {
   description: string | null
   productionDate: string | null
   expiryDate: string | null
+  storageCartonsPerPallet: number | null
+  shippingCartonsPerPallet: number | null
   isActive: boolean
 }
 
@@ -155,6 +157,9 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
               unitsPerCarton: sku.unitsPerCarton || 0,
               units: (item.cartons || 0) * (sku.unitsPerCarton || 0),
               batchLot: '',
+              storageCartonsPerPallet: 0,
+              shippingCartonsPerPallet: 0,
+              configLoaded: false,
               loadingBatch: true,
             }
           : item
@@ -169,23 +174,34 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
           return item
         }
 
-        const defaultBatch = batches.length === 1 ? batches[0].batchCode : ''
+        const defaultBatch = batches.length === 1 ? batches[0] : null
         const cartons = item.cartons || 0
         const unitsPerCarton = sku.unitsPerCarton || item.unitsPerCarton || 0
+        const storageCartonsPerPallet = defaultBatch?.storageCartonsPerPallet ?? 0
+        const shippingCartonsPerPallet = defaultBatch?.shippingCartonsPerPallet ?? 0
 
-        return {
+        const next = {
           ...item,
           skuId: sku.id,
-          batchLot: defaultBatch,
+          batchLot: defaultBatch?.batchCode ?? '',
           unitsPerCarton,
           units: cartons * unitsPerCarton,
+          storageCartonsPerPallet,
+          shippingCartonsPerPallet,
+          configLoaded: defaultBatch !== null,
           loadingBatch: false,
         }
+
+        if (storageCartonsPerPallet > 0 && cartons > 0) {
+          next.storagePalletsIn = Math.ceil(cartons / storageCartonsPerPallet)
+        }
+
+        return next
       })
     )
 
     if (batches.length === 0) {
-      toast.error(`No batches configured for ${sku.skuCode}. Create one under Products → Batches.`)
+      toast.error(`No batches configured for ${sku.skuCode}. Create one in Config → Products → Batches.`)
     }
   }
 
@@ -228,7 +244,6 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
         const selectedSku = skus.find(sku => sku.skuCode === value)
         if (selectedSku) {
           await loadBatchesForItem(id, selectedSku)
-          await fetchSkuDefaults(id, String(value))
         }
       } else {
         setItems(prevItems =>
@@ -237,6 +252,38 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
           )
         )
       }
+      return
+    }
+
+    // If batch changed, apply batch-level defaults for cartons per pallet
+    if (field === 'batchLot') {
+      setItems(prevItems =>
+        prevItems.map(item => {
+          if (item.id !== id) return item
+          if (!item.skuId) return item
+
+          const options = batchesBySku[item.skuId] ?? []
+          const selectedCode = String(value ?? '')
+          const selected = options.find(batch => batch.batchCode === selectedCode)
+
+          const storageCartonsPerPallet = selected?.storageCartonsPerPallet ?? 0
+          const shippingCartonsPerPallet = selected?.shippingCartonsPerPallet ?? 0
+
+          const next = {
+            ...item,
+            batchLot: selectedCode,
+            storageCartonsPerPallet,
+            shippingCartonsPerPallet,
+            configLoaded: true,
+          }
+
+          if (storageCartonsPerPallet > 0 && next.cartons > 0) {
+            next.storagePalletsIn = Math.ceil(next.cartons / storageCartonsPerPallet)
+          }
+
+          return next
+        })
+      )
       return
     }
 
@@ -291,72 +338,6 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
           }
           return item
         })
-      )
-    }
-  }
-
-  const fetchSkuDefaults = async (itemId: string, skuCode: string) => {
-    try {
-      if (!warehouseId || !skuCode) {
-        setItems(prev =>
-          prev.map(item => (item.id === itemId ? { ...item, configLoaded: true } : item))
-        )
-        return
-      }
-
-      const sku = skus.find(s => s.skuCode === skuCode)
-      if (!sku) {
-        setItems(prev =>
-          prev.map(item => (item.id === itemId ? { ...item, configLoaded: true } : item))
-        )
-        return
-      }
-
-      // Fetch warehouse-specific config
-      const configResponse = await fetch(
-        `/api/warehouse-configs?warehouseId=${warehouseId}&skuId=${sku.id}`,
-        {
-          credentials: 'include',
-        }
-      )
-      let storageCartonsPerPallet = 0
-      let shippingCartonsPerPallet = 0
-
-      if (configResponse.ok) {
-        const configs = await configResponse.json()
-        if (configs.length > 0) {
-          storageCartonsPerPallet = configs[0].storageCartonsPerPallet || 0
-          shippingCartonsPerPallet = configs[0].shippingCartonsPerPallet || 0
-        }
-      }
-
-      // Skip warehouse defaults lookup - endpoint not implemented
-      // If no SKU-specific config found, values remain at 0
-
-      setItems(prev =>
-        prev.map(item => {
-          if (item.id === itemId) {
-            const updatedItem = {
-              ...item,
-              storageCartonsPerPallet,
-              shippingCartonsPerPallet,
-              configLoaded: true,
-            }
-
-            // Auto-calculate pallets if cartons are already entered
-            if (storageCartonsPerPallet > 0 && item.cartons > 0) {
-              updatedItem.storagePalletsIn = Math.ceil(item.cartons / storageCartonsPerPallet)
-            }
-
-            return updatedItem
-          }
-          return item
-        })
-      )
-    } catch (_error) {
-      // console.error('Failed to fetch SKU defaults:', _error)
-      setItems(prev =>
-        prev.map(item => (item.id === itemId ? { ...item, configLoaded: true } : item))
       )
     }
   }
@@ -572,9 +553,11 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                               title={
                                 !item.skuCode
                                   ? 'Select SKU first'
-                                  : item.configLoaded && item.storageCartonsPerPallet > 0
-                                    ? 'Loaded from warehouse config (editable)'
-                                    : 'Enter value'
+                                  : !item.configLoaded
+                                    ? 'Select batch to load defaults'
+                                    : item.storageCartonsPerPallet > 0
+                                      ? 'Default applied from batch (editable)'
+                                      : 'No default set for batch (enter value)'
                               }
                               required
                             />
@@ -603,9 +586,11 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                               title={
                                 !item.skuCode
                                   ? 'Select SKU first'
-                                  : item.configLoaded && item.shippingCartonsPerPallet > 0
-                                    ? 'Loaded from warehouse config (editable)'
-                                    : 'Enter value'
+                                  : !item.configLoaded
+                                    ? 'Select batch to load defaults'
+                                    : item.shippingCartonsPerPallet > 0
+                                      ? 'Default applied from batch (editable)'
+                                      : 'No default set for batch (enter value)'
                               }
                               required
                             />
