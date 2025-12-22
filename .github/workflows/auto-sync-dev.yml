@@ -14,7 +14,8 @@ jobs:
           github.event.pull_request.head.ref == 'dev' }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
+      pull-requests: write
       checks: read
       statuses: read
     steps:
@@ -56,24 +57,27 @@ jobs:
           allowed-conclusions: success
           verbose: true
 
-      - name: Checkout dev
-        uses: actions/checkout@v4
-        with:
-          ref: dev
-          fetch-depth: 0
-
-      - name: Merge main into dev
+      - name: Open sync PR (main → dev)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          set -euo pipefail
 
-          echo "Fetching main branch..."
-          git fetch origin main
+          git fetch --no-tags origin main dev
 
-          echo "Merging main into dev..."
-          git merge origin/main --no-edit -m "chore: sync dev with main after release"
+          behind="$(git rev-list --count origin/dev..origin/main)"
+          if [[ "$behind" -eq 0 ]]; then
+            echo "Dev is already up to date with main; nothing to sync."
+            exit 0
+          fi
 
-          echo "Pushing to dev..."
-          git push origin dev
+          existing_url="$(gh pr list --base dev --head main --state open --json url --jq '.[0].url')"
+          if [[ -n "$existing_url" ]]; then
+            echo "Sync PR already open: $existing_url"
+            exit 0
+          fi
 
-          echo "✓ Dev branch synchronized with main"
+          title="chore: sync dev with main"
+          body="Auto-created after merging PR #${{ github.event.pull_request.number }} into main."
+          gh pr create --base dev --head main --title "$title" --body "$body"
