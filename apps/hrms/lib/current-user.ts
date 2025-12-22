@@ -1,5 +1,5 @@
 import { headers } from 'next/headers'
-import { decodePortalSession, type PortalJwtPayload } from '@ecom-os/auth'
+import { decodePortalSession, getCandidateSessionCookieNames, type PortalJwtPayload } from '@ecom-os/auth'
 import { Prisma } from '@ecom-os/prisma-hrms'
 import { prisma } from './prisma'
 
@@ -139,8 +139,18 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   const headersList = await headers()
   const cookieHeader = headersList.get('cookie')
 
+  const cookieNames = Array.from(
+    new Set([
+      ...getCandidateSessionCookieNames('ecomos'),
+      ...getCandidateSessionCookieNames('hrms'),
+    ])
+  )
+  const sharedSecret = process.env.PORTAL_AUTH_SECRET ?? process.env.NEXTAUTH_SECRET
+
   const session = await decodePortalSession({
     cookieHeader,
+    cookieNames,
+    secret: sharedSecret,
     appId: 'hrms',
   })
 
