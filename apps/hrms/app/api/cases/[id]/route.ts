@@ -17,6 +17,7 @@ const UpdateCaseSchema = z.object({
   title: z.string().min(1).max(200).trim().optional(),
   description: z.string().max(10000).trim().optional().nullable(),
   status: CaseStatusEnum.optional(),
+  statusNote: z.string().max(10000).trim().optional().nullable(),
   severity: CaseSeverityEnum.optional(),
   caseType: CaseTypeEnum.optional(),
   assignedToId: z.string().min(1).max(100).optional().nullable(),
@@ -32,6 +33,7 @@ async function getCaseAccess(caseId: string, actorId: string) {
         createdById: true,
         assignedToId: true,
         subjectEmployeeId: true,
+        status: true,
         closedAt: true,
         participants: { select: { employeeId: true } },
       },
@@ -198,6 +200,19 @@ export async function PATCH(req: Request, context: RouteContext) {
       }
     }
 
+    const closingStatuses = new Set(['RESOLVED', 'CLOSED', 'DISMISSED'])
+    const statusChanged = data.status !== undefined && data.status !== access.base.status
+    const isClosing = statusChanged && data.status !== undefined && closingStatuses.has(data.status)
+
+    if (isClosing && !access.isHR) {
+      return NextResponse.json({ error: 'Only HR can resolve, close, or dismiss cases' }, { status: 403 })
+    }
+
+    const statusNote = data.statusNote ? data.statusNote.trim() : null
+    if (isClosing && !statusNote) {
+      return NextResponse.json({ error: 'statusNote is required when resolving/closing/dismissing a case' }, { status: 400 })
+    }
+
     const updates: any = {}
     if (data.title !== undefined) updates.title = data.title
     if (data.description !== undefined) updates.description = data.description
@@ -208,8 +223,7 @@ export async function PATCH(req: Request, context: RouteContext) {
     if (data.status !== undefined) {
       updates.status = data.status
 
-      const closingStatuses = ['RESOLVED', 'CLOSED', 'DISMISSED']
-      if (closingStatuses.includes(data.status)) {
+      if (closingStatuses.has(data.status)) {
         if (!access.base.closedAt) {
           updates.closedAt = new Date()
         }
@@ -220,13 +234,30 @@ export async function PATCH(req: Request, context: RouteContext) {
       }
     }
 
-    const updated = await prisma.case.update({
-      where: { id },
-      data: updates,
+    const updated = await prisma.$transaction(async (tx) => {
+      const next = await tx.case.update({
+        where: { id },
+        data: updates,
+      })
+
+      if (statusChanged && statusNote) {
+        await tx.caseNote.create({
+          data: {
+            caseId: id,
+            authorId: actorId,
+            visibility: access.isHR ? 'INTERNAL_HR' : 'MANAGER_VISIBLE',
+            body: `Status changed to ${next.status}: ${statusNote}`,
+          },
+        })
+      }
+
+      return next
     })
 
     const isAssignmentChange = data.assignedToId !== undefined && data.assignedToId !== access.base.assignedToId
-    const auditAction = isAssignmentChange ? 'ASSIGN' : 'UPDATE'
+    const auditAction = isAssignmentChange ? 'ASSIGN' : isClosing ? 'COMPLETE' : 'UPDATE'
+    const changed = new Set(Object.keys(updates))
+    if (statusChanged && statusNote) changed.add('statusNote')
 
     await writeAuditLog({
       actorId,
@@ -235,7 +266,7 @@ export async function PATCH(req: Request, context: RouteContext) {
       entityId: updated.id,
       summary: `Updated case #${updated.caseNumber}`,
       metadata: {
-        changed: Object.keys(updates),
+        changed: Array.from(changed),
       },
       req,
     })

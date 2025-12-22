@@ -1,6 +1,7 @@
 import { syncGoogleAdminUsers } from './google-admin-sync'
 import { isAdminConfigured } from './google-admin'
 import { runProfileCompletionCheckForAll } from './notification-service'
+import { processTaskDueReminders } from './task-reminders'
 import {
   checkAndCreateQuarterlyReviews,
   processRemindersAndEscalations
@@ -9,6 +10,7 @@ import { runWithCronLock } from './cron-lock'
 
 let syncInitialized = false
 let quarterlyReviewsInitialized = false
+let taskRemindersInitialized = false
 
 export async function initializeGoogleAdminSync() {
   if (syncInitialized) return
@@ -150,5 +152,63 @@ export function stopQuarterlyReviewReminders() {
   if (quarterlyReviewInterval) {
     clearInterval(quarterlyReviewInterval)
     quarterlyReviewInterval = null
+  }
+}
+
+// ============ TASK REMINDERS ============
+
+export async function initializeTaskReminders() {
+  if (taskRemindersInitialized) return
+  taskRemindersInitialized = true
+
+  console.log('[Startup] Running initial task reminders...')
+  try {
+    const lock = await runWithCronLock('task-reminders', 10 * 60 * 1000, async () => {
+      const result = await processTaskDueReminders()
+      if (result.dueSoonCreated > 0 || result.overdueCreated > 0) {
+        console.log(`[Task Reminders] Due soon: ${result.dueSoonCreated}, Overdue: ${result.overdueCreated}`)
+      }
+      return result
+    })
+
+    if (!lock.ran) {
+      console.log('[Startup] Skipping initial task reminders (lock not acquired)')
+    }
+  } catch (e) {
+    console.error('[Startup] Task reminders failed:', e)
+  }
+}
+
+let taskReminderInterval: NodeJS.Timeout | null = null
+
+export function startTaskReminders(intervalMs = 6 * 60 * 60 * 1000) {
+  if (taskReminderInterval) return
+
+  taskReminderInterval = setInterval(async () => {
+    console.log('[Task Reminders] Running periodic check...')
+    try {
+      const lock = await runWithCronLock('task-reminders', 5 * 60 * 60 * 1000, async () => {
+        const result = await processTaskDueReminders()
+        if (result.dueSoonCreated > 0 || result.overdueCreated > 0) {
+          console.log(`[Task Reminders] Due soon: ${result.dueSoonCreated}, Overdue: ${result.overdueCreated}`)
+        }
+        return result
+      })
+
+      if (!lock.ran) {
+        console.log('[Task Reminders] Skipping periodic check (lock not acquired)')
+      }
+    } catch (e) {
+      console.error('[Task Reminders] Periodic check failed:', e)
+    }
+  }, intervalMs)
+
+  console.log(`[Startup] Task reminders scheduled every ${intervalMs / 3600000} hours`)
+}
+
+export function stopTaskReminders() {
+  if (taskReminderInterval) {
+    clearInterval(taskReminderInterval)
+    taskReminderInterval = null
   }
 }

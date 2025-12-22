@@ -5,6 +5,7 @@ import { getCurrentEmployeeId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
 import { isHROrAbove, isManagerOf } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
+import { sendNotificationEmail } from '@/lib/email-service'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -140,6 +141,13 @@ export async function PATCH(req: Request, context: RouteContext) {
       }
     }
 
+    if (data.subjectEmployeeId && data.subjectEmployeeId !== actorId && !access.isHR) {
+      const canTarget = await isManagerOf(actorId, data.subjectEmployeeId)
+      if (!canTarget) {
+        return NextResponse.json({ error: 'Cannot set subject employee outside your reporting line' }, { status: 403 })
+      }
+    }
+
     const updates: any = {}
     if (data.title !== undefined) updates.title = data.title
     if (data.description !== undefined) updates.description = data.description
@@ -172,7 +180,12 @@ export async function PATCH(req: Request, context: RouteContext) {
       },
     })
 
-    const action = data.status === 'DONE' && existing.status !== 'DONE' ? 'COMPLETE' : 'UPDATE'
+    const assignmentChanged = data.assignedToId !== undefined && data.assignedToId !== existing.assignedToId
+    const action = data.status === 'DONE' && existing.status !== 'DONE'
+      ? 'COMPLETE'
+      : assignmentChanged
+        ? 'ASSIGN'
+        : 'UPDATE'
     await writeAuditLog({
       actorId,
       action,
@@ -184,6 +197,34 @@ export async function PATCH(req: Request, context: RouteContext) {
       },
       req,
     })
+
+    if (assignmentChanged && updated.assignedToId && updated.assignedToId !== actorId) {
+      await prisma.notification.create({
+        data: {
+          type: 'SYSTEM',
+          title: 'Task assignment updated',
+          message: `You have been assigned: "${updated.title}".`,
+          link: `/tasks/${updated.id}`,
+          employeeId: updated.assignedToId,
+          relatedId: updated.id,
+          relatedType: 'TASK',
+        },
+      })
+
+      const assignee = await prisma.employee.findUnique({
+        where: { id: updated.assignedToId },
+        select: { email: true, firstName: true },
+      })
+
+      if (assignee?.email) {
+        await sendNotificationEmail(
+          assignee.email,
+          assignee.firstName,
+          'TASK_ASSIGNED',
+          `/tasks/${updated.id}`
+        )
+      }
+    }
 
     return NextResponse.json(updated)
   } catch (e) {
@@ -237,4 +278,3 @@ export async function DELETE(req: Request, context: RouteContext) {
     return safeErrorResponse(e, 'Failed to delete task')
   }
 }
-

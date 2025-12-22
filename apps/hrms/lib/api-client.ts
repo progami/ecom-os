@@ -1329,6 +1329,7 @@ export const CasesApi = {
     title: string
     description: string | null
     status: string
+    statusNote: string | null
     severity: string
     caseType: string
     assignedToId: string | null
@@ -1337,6 +1338,25 @@ export const CasesApi = {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+    })
+  },
+  addParticipant(id: string, payload: { employeeId: string; role: string }) {
+    return request<CaseParticipant>(`/api/cases/${encodeURIComponent(id)}/participants`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  updateParticipant(id: string, participantId: string, payload: { role: string }) {
+    return request<CaseParticipant>(`/api/cases/${encodeURIComponent(id)}/participants/${encodeURIComponent(participantId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  },
+  removeParticipant(id: string, participantId: string) {
+    return request<{ ok: boolean }>(`/api/cases/${encodeURIComponent(id)}/participants/${encodeURIComponent(participantId)}`, {
+      method: 'DELETE',
     })
   },
   listNotes(id: string) {
