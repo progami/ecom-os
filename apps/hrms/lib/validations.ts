@@ -158,13 +158,26 @@ export const CreateCalendarEventSchema = z.object({
 // ============ PERFORMANCE REVIEW SCHEMAS ============
 export const ReviewTypeEnum = z.enum(['PROBATION', 'QUARTERLY', 'SEMI_ANNUAL', 'ANNUAL', 'PROMOTION', 'PIP'])
 export const ReviewStatusEnum = z.enum(['DRAFT', 'PENDING_REVIEW', 'COMPLETED', 'ACKNOWLEDGED'])
+export const ReviewPeriodTypeEnum = z.enum([
+  'Q1',
+  'Q2',
+  'Q3',
+  'Q4',
+  'H1',
+  'H2',
+  'ANNUAL',
+  'PROBATION',
+  'CUSTOM',
+])
 
 const RatingSchema = z.coerce.number().int().min(1).max(5)
+const PeriodYearSchema = z.coerce.number().int().min(2000).max(2100)
 
 export const CreatePerformanceReviewSchema = z.object({
   employeeId: z.string().min(1).max(100),
   reviewType: ReviewTypeEnum,
-  reviewPeriod: z.string().min(1).max(50).trim(),
+  periodType: ReviewPeriodTypeEnum,
+  periodYear: PeriodYearSchema,
   reviewDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid date format' }),
   reviewerName: z.string().min(1).max(100).trim(),
   overallRating: RatingSchema,
@@ -196,7 +209,8 @@ export const CreatePerformanceReviewSchema = z.object({
 
 export const UpdatePerformanceReviewSchema = z.object({
   reviewType: ReviewTypeEnum.optional(),
-  reviewPeriod: z.string().min(1).max(50).trim().optional(),
+  periodType: ReviewPeriodTypeEnum.optional(),
+  periodYear: PeriodYearSchema.optional(),
   reviewDate: z.string().refine((val) => !isNaN(Date.parse(val)), { message: 'Invalid date format' }).optional(),
   reviewerName: z.string().min(1).max(100).trim().optional(),
   overallRating: RatingSchema.optional(),
@@ -224,6 +238,16 @@ export const UpdatePerformanceReviewSchema = z.object({
   goals: z.string().max(2000).trim().optional().nullable(),
   comments: z.string().max(5000).trim().optional().nullable(),
   status: ReviewStatusEnum.optional(),
+}).superRefine((data, ctx) => {
+  const hasPeriodType = data.periodType !== undefined
+  const hasPeriodYear = data.periodYear !== undefined
+  if (hasPeriodType !== hasPeriodYear) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'periodType and periodYear must be provided together',
+      path: ['periodType'],
+    })
+  }
 })
 
 // ============ DISCIPLINARY ACTION SCHEMAS ============
