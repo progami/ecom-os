@@ -39,7 +39,15 @@ function resolveAppOrigin(request: NextRequest): string {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   // Use same default as next.config.js for consistency
-  const basePath = process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || '/hrms'
+  const normalizeBasePath = (value?: string | null) => {
+    if (!value) return ''
+    const trimmed = value.trim()
+    if (!trimmed || trimmed === '/') return ''
+    const withLeading = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+    return withLeading.length > 1 && withLeading.endsWith('/') ? withLeading.slice(0, -1) : withLeading
+  }
+
+  const basePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || '/hrms')
   const normalizedPath = basePath && pathname.startsWith(basePath)
     ? pathname.slice(basePath.length) || '/'
     : pathname
@@ -96,8 +104,13 @@ export async function middleware(request: NextRequest) {
         console.log('[hrms middleware] missing session, redirecting to', login.toString())
       }
       const callbackOrigin = resolveAppOrigin(request)
+      const callbackPathname = (() => {
+        if (!basePath) return request.nextUrl.pathname
+        if (request.nextUrl.pathname.startsWith(basePath)) return request.nextUrl.pathname
+        return request.nextUrl.pathname === '/' ? basePath : `${basePath}${request.nextUrl.pathname}`
+      })()
       const callbackUrl = new URL(
-        request.nextUrl.pathname + request.nextUrl.search + request.nextUrl.hash,
+        callbackPathname + request.nextUrl.search + request.nextUrl.hash,
         callbackOrigin
       )
       login.searchParams.set('callbackUrl', callbackUrl.toString())
