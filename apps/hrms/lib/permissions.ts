@@ -12,7 +12,8 @@ export type PermissionCheckResult = {
  * 1. They are the direct manager (employee.reportsToId === currentUserId)
  * 2. They are in the management chain (manager's manager, etc.)
  * 3. They are the head of the employee's department
- * 4. They have an ADMIN role
+ * 4. They are HR or Super Admin
+ * 5. They have an ADMIN role
  */
 export async function canManageEmployee(
   currentUserId: string,
@@ -35,6 +36,30 @@ export async function canManageEmployee(
 
   if (!targetEmployee) {
     return { canManage: false, reason: 'Employee not found' }
+  }
+
+  const actor = await prisma.employee.findUnique({
+    where: { id: currentUserId },
+    select: {
+      isSuperAdmin: true,
+      permissionLevel: true,
+      roles: {
+        where: { name: { in: [...HR_ROLE_NAMES, 'ADMIN', 'Admin', 'admin'] } },
+        select: { name: true },
+      },
+    },
+  })
+
+  if (actor?.isSuperAdmin) {
+    return { canManage: true, reason: 'Super Admin' }
+  }
+
+  if ((actor?.permissionLevel ?? 0) >= PermissionLevel.HR) {
+    return { canManage: true, reason: 'HR' }
+  }
+
+  if ((actor?.roles?.length ?? 0) > 0) {
+    return { canManage: true, reason: 'HR/Admin role' }
   }
 
   // Check 1: Direct manager
@@ -71,20 +96,6 @@ export async function canManageEmployee(
     }
   }
 
-  // Check 4: Has ADMIN role
-  const currentUser = await prisma.employee.findUnique({
-    where: { id: currentUserId },
-    select: {
-      roles: {
-        where: { name: { in: ['ADMIN', 'Admin', 'admin', 'HR_ADMIN', 'HR Admin'] } },
-        select: { name: true },
-      },
-    },
-  })
-  if (currentUser?.roles && currentUser.roles.length > 0) {
-    return { canManage: true, reason: 'Admin role' }
-  }
-
   return { canManage: false, reason: 'No management relationship' }
 }
 
@@ -96,15 +107,21 @@ export async function getManageableEmployees(currentUserId: string) {
     where: { id: currentUserId },
     select: {
       id: true,
+      isSuperAdmin: true,
+      permissionLevel: true,
       roles: {
-        where: { name: { in: ['ADMIN', 'Admin', 'admin', 'HR_ADMIN', 'HR Admin'] } },
+        where: { name: { in: [...HR_ROLE_NAMES, 'ADMIN', 'Admin', 'admin'] } },
         select: { name: true },
       },
     },
   })
 
   // If admin, return all employees except self
-  if (currentUser?.roles && currentUser.roles.length > 0) {
+  const isHRLike = currentUser?.isSuperAdmin ||
+    (currentUser?.permissionLevel ?? 0) >= PermissionLevel.HR ||
+    (currentUser?.roles?.length ?? 0) > 0
+
+  if (isHRLike) {
     return prisma.employee.findMany({
       where: {
         id: { not: currentUserId },
