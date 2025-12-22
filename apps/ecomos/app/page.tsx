@@ -1,14 +1,14 @@
-import { redirect } from 'next/navigation'
 import { filterAppsForUser, resolveAppUrl, ALL_APPS } from '@/lib/apps'
 import { getSafeServerSession } from '@/lib/safe-session'
 import PortalClient from './PortalClient'
+import LoginPage from './login/page'
 
 type SearchParams = Promise<{ [key: string]: string | string[] | undefined }>
 
 export default async function PortalHome({ searchParams }: { searchParams: SearchParams }) {
   const session = await getSafeServerSession()
   if (!session) {
-    redirect('/login')
+    return <LoginPage />
   }
 
   const params = await searchParams

@@ -1,5 +1,12 @@
-import { LastSheetRedirect } from '@/components/last-sheet-redirect'
+import SheetPage from './[sheet]/page'
 
-export default function HomePage() {
-  return <LastSheetRedirect />
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>
+}) {
+  return SheetPage({
+    params: Promise.resolve({ sheet: '0-strategies' }),
+    searchParams,
+  })
 }
