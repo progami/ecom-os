@@ -45,6 +45,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "calculate:storage:weekly": "tsx scripts/production/weekly-storage-calculation.ts",
+    "po:cleanup-legacy": "tsx scripts/maintenance/cleanup-legacy-purchase-orders.ts",
     "migrate:files-to-s3": "tsx scripts/migrations/archive/migrate-files-to-s3.ts",
     "migrate:files-to-s3:dry-run": "tsx scripts/migrations/archive/migrate-files-to-s3.ts --dry-run"
   },

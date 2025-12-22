@@ -16,6 +16,7 @@ import {
   FormActions,
 } from '@/components/ui/FormField'
 import { useNavigationHistory } from '@/lib/navigation-history'
+import { REVIEW_PERIOD_TYPES, REVIEW_PERIOD_TYPE_LABELS } from '@/lib/review-period'
 
 const reviewTypeOptions = [
   { value: 'PROBATION', label: 'Probation (90-day)' },
@@ -32,6 +33,11 @@ const statusOptions = [
   { value: 'COMPLETED', label: 'Completed' },
   { value: 'ACKNOWLEDGED', label: 'Acknowledged' },
 ]
+
+const reviewPeriodTypeOptions = REVIEW_PERIOD_TYPES.map((value) => ({
+  value,
+  label: REVIEW_PERIOD_TYPE_LABELS[value],
+}))
 
 function RatingInput({ name, label, value, onChange }: { name: string; label: string; value: number; onChange: (v: number) => void }) {
   return (
@@ -78,6 +84,11 @@ function AddReviewForm() {
   const [teamwork, setTeamwork] = useState(3)
   const [initiative, setInitiative] = useState(3)
   const [attendance, setAttendance] = useState(3)
+  const currentYear = new Date().getFullYear()
+  const periodYearOptions = Array.from({ length: 8 }, (_, idx) => currentYear - 5 + idx).map((y) => ({
+    value: String(y),
+    label: String(y),
+  }))
 
   useEffect(() => {
     async function loadEmployees() {
@@ -105,7 +116,8 @@ function AddReviewForm() {
       await PerformanceReviewsApi.create({
         employeeId: String(payload.employeeId),
         reviewType: String(payload.reviewType),
-        reviewPeriod: String(payload.reviewPeriod),
+        periodType: String(payload.periodType),
+        periodYear: parseInt(String(payload.periodYear), 10),
         reviewDate: String(payload.reviewDate),
         reviewerName: String(payload.reviewerName),
         overallRating: parseInt(payload.overallRating, 10),
@@ -162,11 +174,19 @@ function AddReviewForm() {
               options={reviewTypeOptions}
               defaultValue="ANNUAL"
             />
-            <FormField
+            <SelectField
               label="Review Period"
-              name="reviewPeriod"
+              name="periodType"
               required
-              placeholder="e.g., Q4 2025, Annual 2025"
+              options={reviewPeriodTypeOptions}
+              defaultValue="ANNUAL"
+            />
+            <SelectField
+              label="Year"
+              name="periodYear"
+              required
+              options={periodYearOptions}
+              defaultValue={String(currentYear)}
             />
             <FormField
               label="Review Date"
