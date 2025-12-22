@@ -98,6 +98,10 @@ export async function createMovementNote(input: CreateMovementNoteInput, user: U
  throw new ConflictError('Cannot record a note against a closed or cancelled purchase order')
  }
 
+ if (!purchaseOrder.warehouseCode || !purchaseOrder.warehouseName) {
+ throw new ValidationError('Select a warehouse on the purchase order before creating a movement note')
+ }
+
  const receivedAt = input.receivedAt ?? new Date()
 
   const note = await tx.movementNote.create({
@@ -151,7 +155,7 @@ export async function createMovementNote(input: CreateMovementNoteInput, user: U
     },
   })
 
- if (purchaseOrder.status === PurchaseOrderStatus.DRAFT) {
+ if (purchaseOrder.isLegacy && purchaseOrder.status === PurchaseOrderStatus.DRAFT) {
  await tx.purchaseOrder.update({
  where: { id: purchaseOrder.id },
  data: { status: PurchaseOrderStatus.AWAITING_PROOF },

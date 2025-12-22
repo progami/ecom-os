@@ -42,6 +42,7 @@ import { LeaveHistoryTable } from '@/components/leave/LeaveHistoryTable'
 import { PendingLeaveApprovals } from '@/components/leave/PendingLeaveApprovals'
 import { LeaveApprovalHistory } from '@/components/leave/LeaveApprovalHistory'
 import { StandingCard } from '@/components/employee/StandingCard'
+import { TabButton } from '@/components/ui/TabButton'
 import { employmentTypeLabels } from '@/lib/constants'
 
 type Tab = 'overview' | 'leave' | 'reviews' | 'violations'
@@ -94,32 +95,6 @@ function StarRating({ rating }: { rating: number }) {
         />
       ))}
     </div>
-  )
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-  icon: Icon,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-  icon: React.ComponentType<{ className?: string }>
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-        active
-          ? 'bg-blue-50 text-blue-700'
-          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-      }`}
-    >
-      <Icon className="h-4 w-4" />
-      {children}
-    </button>
   )
 }
 

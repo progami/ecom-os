@@ -9,69 +9,99 @@ datasource db {
 }
 
 model User {
-  id                   String                 @id @default(uuid())
-  email                String                 @unique
-  username             String?                @unique
-  passwordHash         String                 @map("password_hash")
-  fullName             String                 @map("full_name")
-  role                 UserRole               @default(staff)
-  region               TenantCode             @default(US)
-  warehouseId          String?                @map("warehouse_id")
-  isActive             Boolean                @default(true) @map("is_active")
-  isDemo               Boolean                @default(false) @map("is_demo")
-  createdAt            DateTime               @default(now()) @map("created_at")
-  updatedAt            DateTime               @updatedAt @map("updated_at")
-  lastLoginAt          DateTime?              @map("last_login_at")
-  lockedUntil          DateTime?              @map("locked_until")
-  lockedReason         String?                @map("locked_reason")
-  auditLogs            AuditLog[]
-  createdCostRates     CostRate[]
-  warehouse            Warehouse?             @relation(fields: [warehouseId], references: [id])
+  id               String           @id @default(uuid())
+  email            String           @unique
+  username         String?          @unique
+  passwordHash     String           @map("password_hash")
+  fullName         String           @map("full_name")
+  role             UserRole         @default(staff)
+  region           TenantCode       @default(US)
+  warehouseId      String?          @map("warehouse_id")
+  isActive         Boolean          @default(true) @map("is_active")
+  isDemo           Boolean          @default(false) @map("is_demo")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  lastLoginAt      DateTime?        @map("last_login_at")
+  lockedUntil      DateTime?        @map("locked_until")
+  lockedReason     String?          @map("locked_reason")
+  auditLogs        AuditLog[]
+  createdCostRates CostRate[]
+  warehouse        Warehouse?       @relation(fields: [warehouseId], references: [id])
+  permissions      UserPermission[]
 
   @@index([email])
   @@index([warehouseId])
   @@map("users")
 }
 
+model Permission {
+  id          String           @id @default(uuid())
+  code        String           @unique
+  name        String
+  description String?
+  category    String
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  users       UserPermission[]
+
+  @@index([category])
+  @@map("permissions")
+}
+
+model UserPermission {
+  id           String     @id @default(uuid())
+  userId       String     @map("user_id")
+  permissionId String     @map("permission_id")
+  grantedById  String     @map("granted_by_id")
+  grantedAt    DateTime   @default(now()) @map("granted_at")
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+  @@index([userId])
+  @@index([permissionId])
+  @@map("user_permissions")
+}
+
 model Warehouse {
-  id                    String                 @id @default(uuid())
-  code                  String                 @unique
-  name                  String
-  address               String?
-  latitude              Float?                 @map("latitude")
-  longitude             Float?                 @map("longitude")
-  contactEmail          String?                @map("contact_email")
-  contactPhone          String?                @map("contact_phone")
-  isActive              Boolean                @default(true) @map("is_active")
-  rateListAttachment    Json?                  @map("rate_list_attachment")
-  createdAt             DateTime               @default(now()) @map("created_at")
-  updatedAt             DateTime               @updatedAt @map("updated_at")
-  costRates             CostRate[]
-  users                 User[]
+  id                 String     @id @default(uuid())
+  code               String     @unique
+  name               String
+  address            String?
+  latitude           Float?     @map("latitude")
+  longitude          Float?     @map("longitude")
+  contactEmail       String?    @map("contact_email")
+  contactPhone       String?    @map("contact_phone")
+  isActive           Boolean    @default(true) @map("is_active")
+  rateListAttachment Json?      @map("rate_list_attachment")
+  createdAt          DateTime   @default(now()) @map("created_at")
+  updatedAt          DateTime   @updatedAt @map("updated_at")
+  costRates          CostRate[]
+  users              User[]
 
   @@index([code])
   @@map("warehouses")
 }
 
 model Sku {
-  id                    String                 @id @default(uuid())
-  skuCode               String                 @unique @map("sku_code")
-  asin                  String?
-  description           String
-  packSize              Int?                   @map("pack_size")
-  material              String?
-  unitDimensionsCm      String?                @map("unit_dimensions_cm")
-  unitWeightKg          Decimal?               @map("unit_weight_kg") @db.Decimal(8, 2)
-  unitsPerCarton        Int                    @default(1) @map("units_per_carton")
-  cartonDimensionsCm    String?                @map("carton_dimensions_cm")
-  cartonWeightKg        Decimal?               @map("carton_weight_kg") @db.Decimal(8, 2)
-  packagingType         String?                @map("packaging_type")
-  isActive              Boolean                @default(true) @map("is_active")
-  createdAt             DateTime               @default(now()) @map("created_at")
-  updatedAt             DateTime               @updatedAt @map("updated_at")
-  fbaStock              Int?                   @map("fba_stock")
-  fbaStockLastUpdated   DateTime?              @map("fba_stock_last_updated")
-  batches               SkuBatch[]
+  id                  String     @id @default(uuid())
+  skuCode             String     @unique @map("sku_code")
+  asin                String?
+  description         String
+  packSize            Int?       @map("pack_size")
+  material            String?
+  unitDimensionsCm    String?    @map("unit_dimensions_cm")
+  unitWeightKg        Decimal?   @map("unit_weight_kg") @db.Decimal(8, 2)
+  unitsPerCarton      Int        @default(1) @map("units_per_carton")
+  cartonDimensionsCm  String?    @map("carton_dimensions_cm")
+  cartonWeightKg      Decimal?   @map("carton_weight_kg") @db.Decimal(8, 2)
+  packagingType       String?    @map("packaging_type")
+  isActive            Boolean    @default(true) @map("is_active")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @updatedAt @map("updated_at")
+  fbaStock            Int?       @map("fba_stock")
+  fbaStockLastUpdated DateTime?  @map("fba_stock_last_updated")
+  batches             SkuBatch[]
 
   @@index([skuCode])
   @@index([asin])
@@ -79,16 +109,16 @@ model Sku {
 }
 
 model SkuBatch {
-  id             String   @id @default(uuid())
-  skuId          String   @map("sku_id")
-  sku            Sku      @relation(fields: [skuId], references: [id], onDelete: Cascade)
-  batchCode      String   @map("batch_code")
-  description    String?  @map("description")
+  id             String    @id @default(uuid())
+  skuId          String    @map("sku_id")
+  sku            Sku       @relation(fields: [skuId], references: [id], onDelete: Cascade)
+  batchCode      String    @map("batch_code")
+  description    String?   @map("description")
   productionDate DateTime? @map("production_date")
   expiryDate     DateTime? @map("expiry_date")
-  isActive       Boolean  @default(true) @map("is_active")
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   @@unique([skuId, batchCode])
   @@map("sku_batches")
@@ -116,44 +146,44 @@ model CostRate {
 }
 
 model InventoryTransaction {
-  id                       String          @id @default(uuid())
+  id                       String             @id @default(uuid())
   // Warehouse snapshot data
-  warehouseCode            String          @map("warehouse_code")
-  warehouseName            String          @map("warehouse_name")
-  warehouseAddress         String?         @map("warehouse_address")
+  warehouseCode            String             @map("warehouse_code")
+  warehouseName            String             @map("warehouse_name")
+  warehouseAddress         String?            @map("warehouse_address")
   // SKU snapshot data
-  skuCode                  String          @map("sku_code")
-  skuDescription           String          @map("sku_description")
-  unitDimensionsCm         String?         @map("unit_dimensions_cm")
-  unitWeightKg             Decimal?        @map("unit_weight_kg") @db.Decimal(8, 2)
-  cartonDimensionsCm       String?         @map("carton_dimensions_cm")
-  cartonWeightKg           Decimal?        @map("carton_weight_kg") @db.Decimal(8, 2)
-  packagingType            String?         @map("packaging_type")
-  unitsPerCarton           Int             @map("units_per_carton")
+  skuCode                  String             @map("sku_code")
+  skuDescription           String             @map("sku_description")
+  unitDimensionsCm         String?            @map("unit_dimensions_cm")
+  unitWeightKg             Decimal?           @map("unit_weight_kg") @db.Decimal(8, 2)
+  cartonDimensionsCm       String?            @map("carton_dimensions_cm")
+  cartonWeightKg           Decimal?           @map("carton_weight_kg") @db.Decimal(8, 2)
+  packagingType            String?            @map("packaging_type")
+  unitsPerCarton           Int                @map("units_per_carton")
   // Transaction data
-  batchLot                 String          @map("batch_lot")
-  transactionType          TransactionType @map("transaction_type")
-  referenceId              String?         @map("reference_id")
-  cartonsIn                Int             @default(0) @map("cartons_in")
-  cartonsOut               Int             @default(0) @map("cartons_out")
-  storagePalletsIn         Int             @default(0) @map("storage_pallets_in")
-  shippingPalletsOut       Int             @default(0) @map("shipping_pallets_out")
-  transactionDate          DateTime        @map("transaction_date")
-  pickupDate               DateTime?       @map("pickup_date")
-  isReconciled             Boolean         @default(false) @map("is_reconciled")
-  isDemo                   Boolean         @default(false) @map("is_demo")
-  createdAt                DateTime        @default(now()) @map("created_at")
-  createdById              String          @map("created_by")
-  createdByName            String          @map("created_by_name")
-  shippingCartonsPerPallet Int?            @map("shipping_cartons_per_pallet")
-  storageCartonsPerPallet  Int?            @map("storage_cartons_per_pallet")
-  shipName                 String?         @map("ship_name")
-  trackingNumber           String?         @map("tracking_number")
+  batchLot                 String             @map("batch_lot")
+  transactionType          TransactionType    @map("transaction_type")
+  referenceId              String?            @map("reference_id")
+  cartonsIn                Int                @default(0) @map("cartons_in")
+  cartonsOut               Int                @default(0) @map("cartons_out")
+  storagePalletsIn         Int                @default(0) @map("storage_pallets_in")
+  shippingPalletsOut       Int                @default(0) @map("shipping_pallets_out")
+  transactionDate          DateTime           @map("transaction_date")
+  pickupDate               DateTime?          @map("pickup_date")
+  isReconciled             Boolean            @default(false) @map("is_reconciled")
+  isDemo                   Boolean            @default(false) @map("is_demo")
+  createdAt                DateTime           @default(now()) @map("created_at")
+  createdById              String             @map("created_by")
+  createdByName            String             @map("created_by_name")
+  shippingCartonsPerPallet Int?               @map("shipping_cartons_per_pallet")
+  storageCartonsPerPallet  Int?               @map("storage_cartons_per_pallet")
+  shipName                 String?            @map("ship_name")
+  trackingNumber           String?            @map("tracking_number")
   attachments              Json?
-  supplier                 String?         @map("supplier")
-  purchaseOrderId          String?         @map("purchase_order_id")
-  purchaseOrderLineId      String?         @map("purchase_order_line_id")
-  purchaseOrder            PurchaseOrder?  @relation("TransactionPurchaseOrder", fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  supplier                 String?            @map("supplier")
+  purchaseOrderId          String?            @map("purchase_order_id")
+  purchaseOrderLineId      String?            @map("purchase_order_line_id")
+  purchaseOrder            PurchaseOrder?     @relation("TransactionPurchaseOrder", fields: [purchaseOrderId], references: [id], onDelete: SetNull)
   purchaseOrderLine        PurchaseOrderLine? @relation("TransactionPurchaseOrderLine", fields: [purchaseOrderLineId], references: [id], onDelete: SetNull)
   costLedger               CostLedger[]
 
@@ -168,78 +198,197 @@ model InventoryTransaction {
 }
 
 model PurchaseOrder {
-  id               String                 @id @default(uuid())
-  orderNumber      String                 @map("order_number")
+  id               String              @id @default(uuid())
+  orderNumber      String              @map("order_number")
+  poNumber         String?             @unique @map("po_number") // Auto-generated PO-0001 format
   type             PurchaseOrderType
-  status           PurchaseOrderStatus    @default(DRAFT)
-  warehouseCode    String                 @map("warehouse_code")
-  warehouseName    String                 @map("warehouse_name")
-  counterpartyName String?                @map("counterparty_name")
-  expectedDate     DateTime?              @map("expected_date")
-  postedAt         DateTime?              @map("posted_at")
-  receiveType      InboundReceiveType?    @map("receive_type")
-  shipMode         OutboundShipMode?      @map("ship_mode")
+  status           PurchaseOrderStatus @default(DRAFT)
+  counterpartyName String?             @map("counterparty_name")
   notes            String?
-  createdById      String?                @map("created_by")
-  createdByName    String?                @map("created_by_name")
-  createdAt        DateTime               @default(now()) @map("created_at")
-  updatedAt        DateTime               @updatedAt @map("updated_at")
-  // Cost estimation fields
-  expectedCartons    Int?                 @map("expected_cartons")
-  expectedPallets    Int?                 @map("expected_pallets")
-  expectedSkuCount   Int?                 @map("expected_sku_count")
-  estimatedTotalCost Decimal?             @map("estimated_total_cost") @db.Decimal(12, 2)
-  actualTotalCost    Decimal?             @map("actual_total_cost") @db.Decimal(12, 2)
-  lines            PurchaseOrderLine[]
-  transactions     InventoryTransaction[] @relation("TransactionPurchaseOrder")
-  movementNotes    MovementNote[]
-  invoiceLines     WarehouseInvoiceLine[] @relation("WarehouseInvoiceLinePurchaseOrder")
+  createdById      String?             @map("created_by")
+  createdByName    String?             @map("created_by_name")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+  isLegacy         Boolean             @default(false) @map("is_legacy")
 
+  // Legacy fields (kept for backward compatibility)
+  expectedDate     DateTime?           @map("expected_date")
+  postedAt         DateTime?           @map("posted_at")
+  receiveType      InboundReceiveType? @map("receive_type")
+  shipMode         OutboundShipMode?   @map("ship_mode")
+  expectedCartons    Int?     @map("expected_cartons")
+  expectedPallets    Int?     @map("expected_pallets")
+  expectedSkuCount   Int?     @map("expected_sku_count")
+  estimatedTotalCost Decimal? @map("estimated_total_cost") @db.Decimal(12, 2)
+  actualTotalCost    Decimal? @map("actual_total_cost") @db.Decimal(12, 2)
+
+  // ===========================================
+  // STAGE 2: MANUFACTURING
+  // ===========================================
+  proformaInvoiceNumber   String?   @map("proforma_invoice_number")
+  proformaInvoiceDate     DateTime? @map("proforma_invoice_date")
+  factoryName             String?   @map("factory_name")
+  manufacturingStartDate  DateTime? @map("manufacturing_start_date")
+  expectedCompletionDate  DateTime? @map("expected_completion_date")
+  actualCompletionDate    DateTime? @map("actual_completion_date")
+  // Cargo specs (flat fields)
+  totalWeightKg           Decimal?  @map("total_weight_kg") @db.Decimal(10, 2)
+  totalVolumeCbm          Decimal?  @map("total_volume_cbm") @db.Decimal(10, 3)
+  totalCartons            Int?      @map("total_cartons")
+  totalPallets            Int?      @map("total_pallets")
+  packagingNotes          String?   @map("packaging_notes")
+
+  // ===========================================
+  // STAGE 3: OCEAN
+  // ===========================================
+  houseBillOfLading       String?   @map("house_bill_of_lading")
+  masterBillOfLading      String?   @map("master_bill_of_lading")
+  commercialInvoiceNumber String?   @map("commercial_invoice_number")
+  packingListRef          String?   @map("packing_list_ref")
+  vesselName              String?   @map("vessel_name")
+  voyageNumber            String?   @map("voyage_number")
+  portOfLoading           String?   @map("port_of_loading")
+  portOfDischarge         String?   @map("port_of_discharge")
+  estimatedDeparture      DateTime? @map("estimated_departure")
+  estimatedArrival        DateTime? @map("estimated_arrival")
+  actualDeparture         DateTime? @map("actual_departure")
+  actualArrival           DateTime? @map("actual_arrival")
+
+  // ===========================================
+  // STAGE 4: WAREHOUSE (warehouse selected here)
+  // ===========================================
+  warehouseCode           String?   @map("warehouse_code")
+  warehouseName           String?   @map("warehouse_name")
+  customsEntryNumber      String?   @map("customs_entry_number")
+  customsClearedDate      DateTime? @map("customs_cleared_date")
+  dutyAmount              Decimal?  @map("duty_amount") @db.Decimal(10, 2)
+  dutyCurrency            String?   @map("duty_currency")
+  surrenderBlDate         DateTime? @map("surrender_bl_date")
+  transactionCertNumber   String?   @map("transaction_cert_number")
+  receivedDate            DateTime? @map("received_date")
+  discrepancyNotes        String?   @map("discrepancy_notes")
+
+  // ===========================================
+  // STAGE 5: SHIPPED
+  // ===========================================
+  shipToName              String?   @map("ship_to_name")
+  shipToAddress           String?   @map("ship_to_address")
+  shipToCity              String?   @map("ship_to_city")
+  shipToCountry           String?   @map("ship_to_country")
+  shipToPostalCode        String?   @map("ship_to_postal_code")
+  shippingCarrier         String?   @map("shipping_carrier")
+  shippingMethod          String?   @map("shipping_method")
+  trackingNumber          String?   @map("tracking_number")
+  shippedDate             DateTime? @map("shipped_date")
+  proofOfDeliveryRef      String?   @map("proof_of_delivery_ref")
+  deliveredDate           DateTime? @map("delivered_date")
+
+  // ===========================================
+  // STAGE APPROVAL TRACKING
+  // ===========================================
+  draftApprovedAt             DateTime? @map("draft_approved_at")
+  draftApprovedById           String?   @map("draft_approved_by_id")
+  draftApprovedByName         String?   @map("draft_approved_by_name")
+  manufacturingApprovedAt     DateTime? @map("manufacturing_approved_at")
+  manufacturingApprovedById   String?   @map("manufacturing_approved_by_id")
+  manufacturingApprovedByName String?   @map("manufacturing_approved_by_name")
+  oceanApprovedAt             DateTime? @map("ocean_approved_at")
+  oceanApprovedById           String?   @map("ocean_approved_by_id")
+  oceanApprovedByName         String?   @map("ocean_approved_by_name")
+  warehouseApprovedAt         DateTime? @map("warehouse_approved_at")
+  warehouseApprovedById       String?   @map("warehouse_approved_by_id")
+  warehouseApprovedByName     String?   @map("warehouse_approved_by_name")
+  shippedApprovedAt           DateTime? @map("shipped_approved_at")
+  shippedApprovedById         String?   @map("shipped_approved_by_id")
+  shippedApprovedByName       String?   @map("shipped_approved_by_name")
+
+  // Legacy fields (for old schema compatibility)
+  proformaInvoiceId       String?   @map("proforma_invoice_id")
+  proformaInvoiceData     Json?     @map("proforma_invoice_data")
+  manufacturingStart      DateTime? @map("manufacturing_start")
+  manufacturingEnd        DateTime? @map("manufacturing_end")
+  cargoDetails            Json?     @map("cargo_details")
+  commercialInvoiceId     String?   @map("commercial_invoice_id")
+  warehouseInvoiceId      String?   @map("warehouse_invoice_id")
+  surrenderBL             String?   @map("surrender_bl")
+  transactionCertificate  String?   @map("transaction_certificate")
+  customsDeclaration      String?   @map("customs_declaration")
+  proofOfDelivery         String?   @map("proof_of_delivery")
+  shippedAt               DateTime? @map("shipped_at")
+  shippedById             String?   @map("shipped_by_id")
+  shippedByName           String?   @map("shipped_by_name")
+
+  lines         PurchaseOrderLine[]
+  containers    PurchaseOrderContainer[]
+  transactions  InventoryTransaction[] @relation("TransactionPurchaseOrder")
+  movementNotes MovementNote[]
+  invoiceLines  WarehouseInvoiceLine[] @relation("WarehouseInvoiceLinePurchaseOrder")
+
+  @@unique([orderNumber])
   @@index([status])
   @@index([type, status])
-  @@unique([warehouseCode, orderNumber])
+  @@index([isLegacy])
+  @@index([warehouseCode])
   @@map("purchase_orders")
 }
 
 model PurchaseOrderLine {
-  id                String                 @id @default(uuid())
-  purchaseOrderId   String                 @map("purchase_order_id")
-  purchaseOrder     PurchaseOrder          @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  skuCode           String                 @map("sku_code")
-  skuDescription    String?                @map("sku_description")
-  batchLot          String?                @map("batch_lot")
+  id                String                  @id @default(uuid())
+  purchaseOrderId   String                  @map("purchase_order_id")
+  purchaseOrder     PurchaseOrder           @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  skuCode           String                  @map("sku_code")
+  skuDescription    String?                 @map("sku_description")
+  batchLot          String?                 @map("batch_lot")
   quantity          Int
-  unitCost          Decimal?               @map("unit_cost") @db.Decimal(12, 2)
+  unitCost          Decimal?                @map("unit_cost") @db.Decimal(12, 2)
+  currency          String                  @default("USD")
   status            PurchaseOrderLineStatus @default(PENDING)
-  postedQuantity    Int                    @default(0) @map("posted_quantity")
-  createdAt         DateTime               @default(now()) @map("created_at")
-  updatedAt         DateTime               @updatedAt @map("updated_at")
-  transactions      InventoryTransaction[] @relation("TransactionPurchaseOrderLine")
+  postedQuantity    Int                     @default(0) @map("posted_quantity")
+  quantityReceived  Int?                    @map("quantity_received") // Filled at WAREHOUSE stage
+  lineNotes         String?                 @map("line_notes")
+  createdAt         DateTime                @default(now()) @map("created_at")
+  updatedAt         DateTime                @updatedAt @map("updated_at")
+  transactions      InventoryTransaction[]  @relation("TransactionPurchaseOrderLine")
   movementNoteLines MovementNoteLine[]
   invoiceLines      WarehouseInvoiceLine[]
 
-  @@index([purchaseOrderId])
   @@unique([purchaseOrderId, skuCode, batchLot])
+  @@index([purchaseOrderId])
   @@map("purchase_order_lines")
 }
 
+model PurchaseOrderContainer {
+  id              String        @id @default(uuid())
+  purchaseOrderId String        @map("purchase_order_id")
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  containerNumber String        @map("container_number")
+  containerSize   String        @map("container_size") // 20FT, 40FT, 40HC, 45HC
+  sealNumber      String?       @map("seal_number")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@unique([purchaseOrderId, containerNumber])
+  @@index([purchaseOrderId])
+  @@map("purchase_order_containers")
+}
+
 model MovementNote {
-  id                String              @id @default(uuid())
-  purchaseOrderId   String              @map("purchase_order_id")
-  purchaseOrder     PurchaseOrder       @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  status            MovementNoteStatus  @default(DRAFT)
-  referenceNumber   String?             @map("reference_number")
-  receivedAt        DateTime            @default(now()) @map("received_at")
-  receivedById      String?             @map("received_by_id")
-  receivedByName    String?             @map("received_by_name")
-  warehouseId       String?             @map("warehouse_id")
-  warehouseCode     String              @map("warehouse_code")
-  warehouseName     String              @map("warehouse_name")
-  notes             String?
-  attachments       Json?               @map("attachments")
-  createdAt         DateTime            @default(now()) @map("created_at")
-  updatedAt         DateTime            @updatedAt @map("updated_at")
-  lines             MovementNoteLine[]
+  id              String             @id @default(uuid())
+  purchaseOrderId String             @map("purchase_order_id")
+  purchaseOrder   PurchaseOrder      @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  status          MovementNoteStatus @default(DRAFT)
+  referenceNumber String?            @map("reference_number")
+  receivedAt      DateTime           @default(now()) @map("received_at")
+  receivedById    String?            @map("received_by_id")
+  receivedByName  String?            @map("received_by_name")
+  warehouseId     String?            @map("warehouse_id")
+  warehouseCode   String             @map("warehouse_code")
+  warehouseName   String             @map("warehouse_name")
+  notes           String?
+  attachments     Json?              @map("attachments")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  lines           MovementNoteLine[]
 
   @@index([purchaseOrderId])
   @@index([warehouseCode])
@@ -247,22 +396,22 @@ model MovementNote {
 }
 
 model MovementNoteLine {
-  id                        String             @id @default(uuid())
-  movementNoteId            String             @map("goods_receipt_id")
-  movementNote              MovementNote       @relation(fields: [movementNoteId], references: [id], onDelete: Cascade)
-  purchaseOrderLineId       String?            @map("purchase_order_line_id")
-  purchaseOrderLine         PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id], onDelete: SetNull)
-  skuCode                   String             @map("sku_code")
-  skuDescription            String?            @map("sku_description")
-  batchLot                  String?            @map("batch_lot")
-  quantity                  Int
-  varianceQuantity          Int                @default(0) @map("variance_quantity")
-  storageCartonsPerPallet   Int?               @map("storage_cartons_per_pallet")
-  shippingCartonsPerPallet  Int?               @map("shipping_cartons_per_pallet")
-  attachments               Json?              @map("attachments")
-  createdAt                 DateTime           @default(now()) @map("created_at")
-  updatedAt                 DateTime           @updatedAt @map("updated_at")
-  invoiceLines              WarehouseInvoiceLine[]
+  id                       String                 @id @default(uuid())
+  movementNoteId           String                 @map("goods_receipt_id")
+  movementNote             MovementNote           @relation(fields: [movementNoteId], references: [id], onDelete: Cascade)
+  purchaseOrderLineId      String?                @map("purchase_order_line_id")
+  purchaseOrderLine        PurchaseOrderLine?     @relation(fields: [purchaseOrderLineId], references: [id], onDelete: SetNull)
+  skuCode                  String                 @map("sku_code")
+  skuDescription           String?                @map("sku_description")
+  batchLot                 String?                @map("batch_lot")
+  quantity                 Int
+  varianceQuantity         Int                    @default(0) @map("variance_quantity")
+  storageCartonsPerPallet  Int?                   @map("storage_cartons_per_pallet")
+  shippingCartonsPerPallet Int?                   @map("shipping_cartons_per_pallet")
+  attachments              Json?                  @map("attachments")
+  createdAt                DateTime               @default(now()) @map("created_at")
+  updatedAt                DateTime               @updatedAt @map("updated_at")
+  invoiceLines             WarehouseInvoiceLine[]
 
   @@index([movementNoteId])
   @@index([purchaseOrderLineId])
@@ -270,21 +419,21 @@ model MovementNoteLine {
 }
 
 model WarehouseInvoice {
-  id              String                 @id @default(uuid())
-  invoiceNumber   String                 @map("invoice_number")
-  status          WarehouseInvoiceStatus @default(DRAFT)
-  issuedAt        DateTime?              @map("issued_at")
-  dueAt           DateTime?              @map("due_at")
-  warehouseId     String?                @map("warehouse_id")
-  warehouseCode   String                 @map("warehouse_code")
-  warehouseName   String                 @map("warehouse_name")
-  currency        String                 @default("USD")
-  subtotal        Decimal                @default(0) @map("subtotal") @db.Decimal(14, 2)
-  total           Decimal                @default(0) @map("total") @db.Decimal(14, 2)
-  notes           String?
-  createdAt       DateTime               @default(now()) @map("created_at")
-  updatedAt       DateTime               @updatedAt @map("updated_at")
-  lines           WarehouseInvoiceLine[]
+  id            String                 @id @default(uuid())
+  invoiceNumber String                 @map("invoice_number")
+  status        WarehouseInvoiceStatus @default(DRAFT)
+  issuedAt      DateTime?              @map("issued_at")
+  dueAt         DateTime?              @map("due_at")
+  warehouseId   String?                @map("warehouse_id")
+  warehouseCode String                 @map("warehouse_code")
+  warehouseName String                 @map("warehouse_name")
+  currency      String                 @default("USD")
+  subtotal      Decimal                @default(0) @map("subtotal") @db.Decimal(14, 2)
+  total         Decimal                @default(0) @map("total") @db.Decimal(14, 2)
+  notes         String?
+  createdAt     DateTime               @default(now()) @map("created_at")
+  updatedAt     DateTime               @updatedAt @map("updated_at")
+  lines         WarehouseInvoiceLine[]
 
   @@index([invoiceNumber])
   @@index([status])
@@ -293,24 +442,24 @@ model WarehouseInvoice {
 }
 
 model WarehouseInvoiceLine {
-  id                   String             @id @default(uuid())
-  warehouseInvoiceId   String             @map("warehouse_invoice_id")
-  warehouseInvoice     WarehouseInvoice   @relation(fields: [warehouseInvoiceId], references: [id], onDelete: Cascade)
-  purchaseOrderId      String?            @map("purchase_order_id")
-  purchaseOrder        PurchaseOrder?     @relation("WarehouseInvoiceLinePurchaseOrder", fields: [purchaseOrderId], references: [id], onDelete: SetNull)
-  purchaseOrderLineId  String?            @map("purchase_order_line_id")
-  purchaseOrderLine    PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id], onDelete: SetNull)
-  movementNoteLineId   String?            @map("goods_receipt_line_id")
-  movementNoteLine     MovementNoteLine?  @relation(fields: [movementNoteLineId], references: [id], onDelete: SetNull)
-  chargeCode           String             @map("charge_code")
-  description          String?            @map("description")
-  quantity             Decimal            @default(0) @map("quantity") @db.Decimal(14, 4)
-  unitRate             Decimal            @default(0) @map("unit_rate") @db.Decimal(14, 4)
-  total                Decimal            @default(0) @map("total") @db.Decimal(14, 2)
-  varianceAmount       Decimal?           @map("variance_amount") @db.Decimal(14, 2)
-  notes                String?
-  createdAt            DateTime           @default(now()) @map("created_at")
-  updatedAt            DateTime           @updatedAt @map("updated_at")
+  id                  String             @id @default(uuid())
+  warehouseInvoiceId  String             @map("warehouse_invoice_id")
+  warehouseInvoice    WarehouseInvoice   @relation(fields: [warehouseInvoiceId], references: [id], onDelete: Cascade)
+  purchaseOrderId     String?            @map("purchase_order_id")
+  purchaseOrder       PurchaseOrder?     @relation("WarehouseInvoiceLinePurchaseOrder", fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  purchaseOrderLineId String?            @map("purchase_order_line_id")
+  purchaseOrderLine   PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id], onDelete: SetNull)
+  movementNoteLineId  String?            @map("goods_receipt_line_id")
+  movementNoteLine    MovementNoteLine?  @relation(fields: [movementNoteLineId], references: [id], onDelete: SetNull)
+  chargeCode          String             @map("charge_code")
+  description         String?            @map("description")
+  quantity            Decimal            @default(0) @map("quantity") @db.Decimal(14, 4)
+  unitRate            Decimal            @default(0) @map("unit_rate") @db.Decimal(14, 4)
+  total               Decimal            @default(0) @map("total") @db.Decimal(14, 2)
+  varianceAmount      Decimal?           @map("variance_amount") @db.Decimal(14, 2)
+  notes               String?
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
 
   @@index([warehouseInvoiceId])
   @@index([purchaseOrderId])
@@ -319,36 +468,36 @@ model WarehouseInvoiceLine {
 }
 
 model StorageLedger {
-  id               String    @id @default(uuid())
-  storageLedgerId  String    @unique @map("storage_ledger_id")
-  warehouseCode    String    @map("warehouse_code")
-  warehouseName    String    @map("warehouse_name")
-  skuCode          String    @map("sku_code")
-  skuDescription   String    @map("sku_description")
-  batchLot         String    @map("batch_lot")
-  weekEndingDate   DateTime  @map("week_ending_date") @db.Date
-  openingBalance   Int       @map("opening_balance")
-  weeklyReceive    Int       @map("weekly_receive")
-  weeklyShip       Int       @map("weekly_ship")
-  weeklyAdjust     Int       @map("weekly_adjust")
-  closingBalance   Int       @map("closing_balance")
-  averageBalance   Decimal   @map("average_balance") @db.Decimal(10, 2)
-  dailyBalanceData Json?     @map("daily_balance_data")
+  id               String   @id @default(uuid())
+  storageLedgerId  String   @unique @map("storage_ledger_id")
+  warehouseCode    String   @map("warehouse_code")
+  warehouseName    String   @map("warehouse_name")
+  skuCode          String   @map("sku_code")
+  skuDescription   String   @map("sku_description")
+  batchLot         String   @map("batch_lot")
+  weekEndingDate   DateTime @map("week_ending_date") @db.Date
+  openingBalance   Int      @map("opening_balance")
+  weeklyReceive    Int      @map("weekly_receive")
+  weeklyShip       Int      @map("weekly_ship")
+  weeklyAdjust     Int      @map("weekly_adjust")
+  closingBalance   Int      @map("closing_balance")
+  averageBalance   Decimal  @map("average_balance") @db.Decimal(10, 2)
+  dailyBalanceData Json?    @map("daily_balance_data")
 
   // Tactical storage methodology fields
-  closingPallets   Int       @default(0) @map("closing_pallets")
-  palletDays       Int       @default(0) @map("pallet_days")
-  
+  closingPallets Int @default(0) @map("closing_pallets")
+  palletDays     Int @default(0) @map("pallet_days")
+
   // Storage cost fields
   storageRatePerPalletDay Decimal?  @map("storage_rate_per_pallet_day") @db.Decimal(10, 4)
   totalStorageCost        Decimal?  @map("total_storage_cost") @db.Decimal(12, 2)
   rateEffectiveDate       DateTime? @map("rate_effective_date") @db.Date
   costRateId              String?   @map("cost_rate_id")
   isCostCalculated        Boolean   @default(false) @map("is_cost_calculated")
-  
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
-  createdByName    String    @map("created_by_name")
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  createdByName String   @map("created_by_name")
 
   @@unique([warehouseCode, skuCode, batchLot, weekEndingDate])
   @@index([warehouseCode, weekEndingDate])
@@ -426,18 +575,26 @@ enum TransactionType {
 
 enum PurchaseOrderType {
   PURCHASE
-  FULFILLMENT
   ADJUSTMENT
+  FULFILLMENT // Legacy - kept for backward compatibility
 
   @@map("PurchaseOrderType")
 }
 
 enum PurchaseOrderStatus {
+  // New 5-stage workflow statuses
   DRAFT
+  MANUFACTURING
+  OCEAN
+  WAREHOUSE
+  SHIPPED
+  CANCELLED
+  ARCHIVED
+
+  // Legacy statuses (for backward compatibility with existing data)
   AWAITING_PROOF
   REVIEW
   POSTED
-  CANCELLED
   CLOSED
 
   @@map("PurchaseOrderStatus")

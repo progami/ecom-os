@@ -34,6 +34,7 @@ import {
   ResultsCount,
 } from '@/components/ui/Table'
 import { TableEmptyState } from '@/components/ui/EmptyState'
+import { TabButton } from '@/components/ui/TabButton'
 import { LeaveBalanceCards } from '@/components/leave/LeaveBalanceCards'
 import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
 
@@ -60,39 +61,6 @@ const STATUS_LABELS: Record<string, string> = {
   APPROVED: 'Approved',
   REJECTED: 'Rejected',
   CANCELLED: 'Cancelled',
-}
-
-function TabButton({
-  active,
-  onClick,
-  children,
-  icon: Icon,
-  badge,
-}: {
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
-  icon: React.ComponentType<{ className?: string }>
-  badge?: number
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
-        active
-          ? 'bg-blue-50 text-blue-700'
-          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-      }`}
-    >
-      <Icon className="h-4 w-4" />
-      {children}
-      {badge !== undefined && badge > 0 && (
-        <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 rounded-full">
-          {badge}
-        </span>
-      )}
-    </button>
-  )
 }
 
 function formatDate(dateStr: string): string {
@@ -215,45 +183,45 @@ function TeamLeaveSection({
   })
 
   return (
-    <div className="space-y-4">
-      {/* Header with filter tabs and search */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg w-fit">
-          <button
-            onClick={() => setFilter('pending')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              filter === 'pending'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            Pending
-            {pendingRequests.length > 0 && (
-              <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700 rounded-full">
-                {pendingRequests.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              filter === 'all'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            All Requests
-          </button>
-        </div>
-        <div className="flex-1 max-w-md">
-          <SearchForm
-            value={q}
-            onChange={setQ}
-            onSubmit={() => {}}
-            placeholder="Search by name or leave type..."
-          />
-        </div>
+    <div className="space-y-6">
+      {/* Filter tabs */}
+      <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg w-fit">
+        <button
+          onClick={() => setFilter('pending')}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            filter === 'pending'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          Pending
+          {pendingRequests.length > 0 && (
+            <span className="ml-1.5 px-1.5 py-0.5 text-xs font-semibold bg-amber-100 text-amber-700 rounded-full">
+              {pendingRequests.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setFilter('all')}
+          className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            filter === 'all'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          All Requests
+        </button>
       </div>
+
+      {/* Search */}
+      <Card padding="md">
+        <SearchForm
+          value={q}
+          onChange={setQ}
+          onSubmit={() => {}}
+          placeholder="Search by name or leave type..."
+        />
+      </Card>
 
       <ResultsCount
         count={filteredRequests.length}
@@ -671,26 +639,23 @@ function LeavePageContent() {
               <LeaveBalanceCards balances={leaveBalances} />
             </Card>
 
-            {/* My Requests Section */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900">My Requests</h3>
-                <div className="flex items-center gap-3">
-                  <ResultsCount
-                    count={filteredRequests.length}
-                    singular="request"
-                    plural="requests"
-                    loading={leaveLoading}
-                  />
-                </div>
-              </div>
+            {/* Search */}
+            <Card padding="md">
               <SearchForm
                 value={q}
                 onChange={setQ}
                 onSubmit={() => {}}
                 placeholder="Search by leave type, status, or reason..."
               />
-            </div>
+            </Card>
+
+            {/* Results count */}
+            <ResultsCount
+              count={filteredRequests.length}
+              singular="request"
+              plural="requests"
+              loading={leaveLoading}
+            />
 
             {/* Leave Requests Table */}
             <Table>

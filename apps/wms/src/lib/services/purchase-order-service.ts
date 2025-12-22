@@ -781,12 +781,19 @@ export async function transitionPurchaseOrderStatus(
  }
 
  const allowedTransitions: Record<PurchaseOrderStatus, PurchaseOrderStatus[]> = {
- [PurchaseOrderStatus.DRAFT]: [PurchaseOrderStatus.AWAITING_PROOF],
- [PurchaseOrderStatus.AWAITING_PROOF]: [PurchaseOrderStatus.DRAFT, PurchaseOrderStatus.REVIEW],
- [PurchaseOrderStatus.REVIEW]: [PurchaseOrderStatus.AWAITING_PROOF],
- [PurchaseOrderStatus.POSTED]: [],
- [PurchaseOrderStatus.CLOSED]: [],
- [PurchaseOrderStatus.CANCELLED]: [],
+   // New 5-stage workflow (handled by po-stage-service.ts)
+   [PurchaseOrderStatus.DRAFT]: [PurchaseOrderStatus.AWAITING_PROOF],
+   [PurchaseOrderStatus.MANUFACTURING]: [],
+   [PurchaseOrderStatus.OCEAN]: [],
+   [PurchaseOrderStatus.WAREHOUSE]: [],
+   [PurchaseOrderStatus.SHIPPED]: [],
+   [PurchaseOrderStatus.ARCHIVED]: [],
+   // Legacy workflow statuses
+   [PurchaseOrderStatus.AWAITING_PROOF]: [PurchaseOrderStatus.DRAFT, PurchaseOrderStatus.REVIEW],
+   [PurchaseOrderStatus.REVIEW]: [PurchaseOrderStatus.AWAITING_PROOF],
+   [PurchaseOrderStatus.POSTED]: [],
+   [PurchaseOrderStatus.CLOSED]: [],
+   [PurchaseOrderStatus.CANCELLED]: [],
  }
 
  const nextStatuses = allowedTransitions[order.status] ?? []
@@ -861,12 +868,74 @@ async function createPurchaseOrderRecord(
    const existing = await client.purchaseOrder.findFirst({
     where: {
      warehouseCode: params.warehouseCode,
-     orderNumber: params.orderNumber,
+     OR: [
+      { orderNumber: params.orderNumber },
+      { orderNumber: { startsWith: `${params.orderNumber}${ORDER_NUMBER_SEPARATOR}` } },
+     ],
+    },
+    orderBy: { createdAt: 'asc' },
+   })
+   if (existing) return existing
+
+   // If another warehouse already owns the public order number, mint a unique
+   // internal order number for this warehouse while preserving the public prefix.
+   const base = `${params.orderNumber}${ORDER_NUMBER_SEPARATOR}${params.warehouseCode}`
+   const fallback = `${base}${ORDER_NUMBER_SEPARATOR}${Math.random().toString(36).slice(2, 8)}`
+
+   return await client.purchaseOrder
+    .create({
+    data: {
+     orderNumber: base,
+     type: params.orderType,
+     status: PurchaseOrderStatus.DRAFT,
+     warehouseCode: params.warehouseCode,
+     warehouseName: params.warehouseName,
+     counterpartyName: params.counterparty,
+     expectedDate: params.expectedDate ?? undefined,
+     notes: params.notes,
+     receiveType: params.receiveType ?? undefined,
+     shipMode: params.shipMode ?? undefined,
+     createdById: params.createdById ?? undefined,
+     createdByName: params.createdByName ?? undefined,
     },
    })
-   if (existing) {
-    return existing
-   }
+    .catch(async (secondError) => {
+    if (
+     secondError instanceof Prisma.PrismaClientKnownRequestError &&
+     secondError.code === 'P2002'
+    ) {
+     const concurrent = await client.purchaseOrder.findFirst({
+      where: {
+       warehouseCode: params.warehouseCode,
+       OR: [
+        { orderNumber: base },
+        { orderNumber: { startsWith: `${params.orderNumber}${ORDER_NUMBER_SEPARATOR}` } },
+       ],
+      },
+      orderBy: { createdAt: 'asc' },
+     })
+
+     if (concurrent) return concurrent
+
+     return client.purchaseOrder.create({
+      data: {
+       orderNumber: fallback,
+       type: params.orderType,
+       status: PurchaseOrderStatus.DRAFT,
+       warehouseCode: params.warehouseCode,
+       warehouseName: params.warehouseName,
+       counterpartyName: params.counterparty,
+       expectedDate: params.expectedDate ?? undefined,
+       notes: params.notes,
+       receiveType: params.receiveType ?? undefined,
+       shipMode: params.shipMode ?? undefined,
+       createdById: params.createdById ?? undefined,
+       createdByName: params.createdByName ?? undefined,
+      },
+     })
+    }
+    throw secondError
+    })
   }
   throw error
  }

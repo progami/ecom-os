@@ -14,7 +14,7 @@ export default function Error({
 }) {
  useEffect(() => {
  // Log the error to console in development
- // console.error('Application error:', error)
+ console.error('Application error:', error)
  }, [error])
 
  return (

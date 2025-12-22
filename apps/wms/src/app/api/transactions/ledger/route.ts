@@ -19,13 +19,8 @@ export const GET = withAuth(async (request, session) => {
  const limit = searchParams.get('limit')
  const offset = searchParams.get('offset')
 
- // Build where clause - only include transactions from POSTED orders (or no order)
- const where: Prisma.InventoryTransactionWhereInput = {
-   OR: [
-     { purchaseOrderId: null },
-     { purchaseOrder: { status: 'POSTED' } }
-   ]
- }
+ // Build where clause for ledger filters
+ const where: Prisma.InventoryTransactionWhereInput = {}
 
  let warehouseCodeFilter: string | undefined
 
