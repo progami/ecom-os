@@ -72,11 +72,26 @@ model Employee {
   performanceReviews PerformanceReview[]
   disciplinaryActions DisciplinaryAction[]
   notifications    Notification[]
+  notificationReadReceipts NotificationReadReceipt[]
   departmentsLed   Department[]    @relation("DepartmentHead")
   projectsLed      Project[]       @relation("ProjectLead")
   projectMemberships ProjectMember[]
   leaveBalances    LeaveBalance[]
   leaveRequests    LeaveRequest[]
+  policyAcknowledgements PolicyAcknowledgement[]
+
+  casesCreated     Case[]          @relation("CasesCreated")
+  casesAssigned    Case[]          @relation("CasesAssigned")
+  casesSubjectEmployee Case[]      @relation("CasesSubjectEmployee")
+  caseParticipants CaseParticipant[]
+  caseNotesAuthored CaseNote[]     @relation("CaseNotesAuthored")
+  caseAttachmentsUploaded CaseAttachment[] @relation("CaseAttachmentsUploaded")
+
+  tasksCreated     Task[]          @relation("TasksCreated")
+  tasksAssigned    Task[]          @relation("TasksAssigned")
+  tasksSubject     Task[]          @relation("TasksSubjectEmployee")
+
+  auditLogs        AuditLog[]      @relation("AuditLogsActor")
 
   @@index([email])
   @@index([employeeId])
@@ -232,6 +247,8 @@ model Policy {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
+  acknowledgements PolicyAcknowledgement[]
+
   @@unique([category, region])
   @@unique([effectiveDate])
   @@index([category])
@@ -254,6 +271,9 @@ model Notification {
   relatedId     String?
   relatedType   String?          // "POLICY", "REVIEW", etc.
 
+  // Per-employee read receipts for broadcast notifications (employeeId = null)
+  readReceipts  NotificationReadReceipt[]
+
   isRead        Boolean          @default(false)
   createdAt     DateTime         @default(now())
 
@@ -261,6 +281,195 @@ model Notification {
   @@index([isRead])
   @@index([createdAt])
   @@index([employeeId])
+}
+
+model NotificationReadReceipt {
+  id             String        @id @default(cuid())
+  notificationId String
+  notification   Notification  @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  employeeId     String
+  employee       Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  readAt         DateTime      @default(now())
+
+  @@unique([notificationId, employeeId])
+  @@index([employeeId])
+  @@index([notificationId])
+}
+
+// ============ WORKFLOW + COMPLIANCE ============
+
+model PolicyAcknowledgement {
+  id             String    @id @default(cuid())
+  policyId        String
+  policy          Policy    @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  employeeId      String
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  policyVersion   String
+  acknowledgedAt  DateTime  @default(now())
+
+  @@unique([policyId, employeeId, policyVersion])
+  @@index([employeeId])
+  @@index([policyId])
+}
+
+model Task {
+  id               String      @id @default(cuid())
+  title            String
+  description      String?
+  status           TaskStatus  @default(OPEN)
+  category         TaskCategory @default(GENERAL)
+
+  dueDate          DateTime?
+  completedAt      DateTime?
+
+  createdById      String
+  createdBy        Employee    @relation("TasksCreated", fields: [createdById], references: [id], onDelete: Restrict)
+
+  assignedToId     String?
+  assignedTo       Employee?   @relation("TasksAssigned", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  subjectEmployeeId String?
+  subjectEmployee  Employee?   @relation("TasksSubjectEmployee", fields: [subjectEmployeeId], references: [id], onDelete: SetNull)
+
+  caseId           String?
+  case             Case?       @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([assignedToId])
+  @@index([subjectEmployeeId])
+  @@index([caseId])
+  @@index([dueDate])
+}
+
+model Case {
+  id               String      @id @default(cuid())
+  caseNumber       Int         @unique @default(autoincrement())
+  caseType         CaseType
+  title            String
+  description      String?
+  status           CaseStatus  @default(OPEN)
+  severity         CaseSeverity @default(MEDIUM)
+
+  subjectEmployeeId String?
+  subjectEmployee  Employee?   @relation("CasesSubjectEmployee", fields: [subjectEmployeeId], references: [id], onDelete: SetNull)
+
+  createdById      String
+  createdBy        Employee    @relation("CasesCreated", fields: [createdById], references: [id], onDelete: Restrict)
+
+  assignedToId     String?
+  assignedTo       Employee?   @relation("CasesAssigned", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  openedAt         DateTime    @default(now())
+  closedAt         DateTime?
+
+  participants     CaseParticipant[]
+  notes            CaseNote[]
+  attachments      CaseAttachment[]
+  tasks            Task[]
+
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  @@index([caseType])
+  @@index([status])
+  @@index([severity])
+  @@index([subjectEmployeeId])
+  @@index([createdById])
+  @@index([assignedToId])
+  @@index([openedAt])
+  @@index([closedAt])
+}
+
+model CaseParticipant {
+  id            String              @id @default(cuid())
+  caseId        String
+  case          Case                @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  employeeId    String
+  employee      Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  role          CaseParticipantRole @default(OTHER)
+  addedAt       DateTime            @default(now())
+
+  @@unique([caseId, employeeId])
+  @@index([caseId])
+  @@index([employeeId])
+  @@index([role])
+}
+
+model CaseNote {
+  id          String             @id @default(cuid())
+  caseId      String
+  case        Case               @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  authorId    String
+  author      Employee           @relation("CaseNotesAuthored", fields: [authorId], references: [id], onDelete: Restrict)
+
+  visibility  CaseNoteVisibility @default(INTERNAL_HR)
+  body        String
+
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([caseId])
+  @@index([authorId])
+  @@index([visibility])
+  @@index([createdAt])
+}
+
+model CaseAttachment {
+  id           String    @id @default(cuid())
+  caseId       String
+  case         Case      @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  uploadedById String
+  uploadedBy   Employee  @relation("CaseAttachmentsUploaded", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  title        String?
+  fileUrl      String
+
+  createdAt    DateTime  @default(now())
+
+  @@index([caseId])
+  @@index([uploadedById])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id          String         @id @default(cuid())
+  actorId     String?
+  actor       Employee?      @relation("AuditLogsActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  action      AuditAction
+  entityType  AuditEntityType
+  entityId    String
+  summary     String?
+  metadata    Json?
+
+  ip          String?
+  userAgent   String?
+
+  createdAt   DateTime       @default(now())
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+model CronLock {
+  key         String   @id
+  lockedUntil DateTime
+  lockedBy    String?
+  updatedAt   DateTime @updatedAt
 }
 
 enum NotificationType {
@@ -858,4 +1067,88 @@ enum HREventType {
   COMPANY_EVENT
   HOLIDAY
   OTHER
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+enum TaskCategory {
+  GENERAL
+  ONBOARDING
+  OFFBOARDING
+  CASE
+  POLICY
+}
+
+enum CaseType {
+  VIOLATION
+  GRIEVANCE
+  INVESTIGATION
+  INCIDENT
+  REQUEST
+  OTHER
+}
+
+enum CaseStatus {
+  OPEN
+  IN_REVIEW
+  ON_HOLD
+  RESOLVED
+  CLOSED
+  DISMISSED
+}
+
+enum CaseSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum CaseParticipantRole {
+  SUBJECT
+  REPORTER
+  WITNESS
+  ASSIGNEE
+  HR
+  LEGAL
+  OTHER
+}
+
+enum CaseNoteVisibility {
+  INTERNAL_HR
+  MANAGER_VISIBLE
+  EMPLOYEE_VISIBLE
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  SUBMIT
+  APPROVE
+  REJECT
+  ACKNOWLEDGE
+  ASSIGN
+  COMMENT
+  ATTACH
+  COMPLETE
+}
+
+enum AuditEntityType {
+  EMPLOYEE
+  POLICY
+  POLICY_ACKNOWLEDGEMENT
+  LEAVE_REQUEST
+  PERFORMANCE_REVIEW
+  DISCIPLINARY_ACTION
+  CASE
+  CASE_NOTE
+  CASE_ATTACHMENT
+  TASK
+  NOTIFICATION
 }

@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canHRReview, getSuperAdminEmployees } from '@/lib/permissions'
+import { writeAuditLog } from '@/lib/audit'
 
 /**
  * HR Review endpoint for disciplinary actions
@@ -106,6 +107,19 @@ export async function POST(req: Request, context: RouteContext) {
         })
       }
 
+      await writeAuditLog({
+        actorId: currentEmployeeId,
+        action: 'APPROVE',
+        entityType: 'DISCIPLINARY_ACTION',
+        entityId: updated.id,
+        summary: `HR approved violation for ${updated.employee.firstName} ${updated.employee.lastName}`,
+        metadata: {
+          hrNotes: Boolean(notes),
+          newStatus: updated.status,
+        },
+        req,
+      })
+
       return NextResponse.json({
         success: true,
         message: 'Violation approved by HR, sent to Super Admin for final approval',
@@ -149,6 +163,19 @@ export async function POST(req: Request, context: RouteContext) {
           },
         })
       }
+
+      await writeAuditLog({
+        actorId: currentEmployeeId,
+        action: 'REJECT',
+        entityType: 'DISCIPLINARY_ACTION',
+        entityId: updated.id,
+        summary: `HR rejected violation for ${updated.employee.firstName} ${updated.employee.lastName}`,
+        metadata: {
+          hrNotes: Boolean(notes),
+          newStatus: updated.status,
+        },
+        req,
+      })
 
       return NextResponse.json({
         success: true,

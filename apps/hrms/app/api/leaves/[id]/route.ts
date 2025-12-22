@@ -3,6 +3,7 @@ import prisma from '../../../../lib/prisma'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { sendNotificationEmail } from '@/lib/email-service'
+import { writeAuditLog } from '@/lib/audit'
 import { z } from 'zod'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -293,6 +294,23 @@ export async function PATCH(req: Request, context: RouteContext) {
       })
     }
 
+    if (status) {
+      const action = status === 'APPROVED' ? 'APPROVE' : status === 'REJECTED' ? 'REJECT' : 'UPDATE'
+      await writeAuditLog({
+        actorId: currentEmployeeId,
+        action,
+        entityType: 'LEAVE_REQUEST',
+        entityId: id,
+        summary: `Updated leave request status to ${status}`,
+        metadata: {
+          previousStatus: leaveRequest.status,
+          newStatus: status,
+          employeeId: leaveRequest.employeeId,
+        },
+        req,
+      })
+    }
+
     return NextResponse.json(updated)
   } catch (e) {
     return safeErrorResponse(e, 'Failed to update leave request')
@@ -352,6 +370,19 @@ export async function DELETE(req: Request, context: RouteContext) {
     }
 
     await prisma.leaveRequest.delete({ where: { id } })
+
+    await writeAuditLog({
+      actorId: currentEmployeeId,
+      action: 'DELETE',
+      entityType: 'LEAVE_REQUEST',
+      entityId: id,
+      summary: 'Deleted leave request',
+      metadata: {
+        employeeId: leaveRequest.employeeId,
+        previousStatus: leaveRequest.status,
+      },
+      req,
+    })
 
     return NextResponse.json({ success: true })
   } catch (e) {

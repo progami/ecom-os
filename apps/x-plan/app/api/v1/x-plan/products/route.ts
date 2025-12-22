@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { Prisma } from '@ecom-os/prisma-x-plan'
 import { z } from 'zod'
 import prisma from '@/lib/prisma'
+import { withXPlanAuth } from '@/lib/api/auth'
 
 const numericFields = [
   'sellingPrice',
@@ -98,7 +99,7 @@ async function seedSalesWeeksForProduct(productId: string, strategyId: string, c
   })
 }
 
-export async function GET(request: Request) {
+export const GET = withXPlanAuth(async (request: Request) => {
   const { searchParams } = new URL(request.url)
   const strategyId = searchParams.get('strategyId')
 
@@ -111,9 +112,9 @@ export async function GET(request: Request) {
     orderBy: { name: 'asc' },
   })
   return NextResponse.json({ products })
-}
+})
 
-export async function POST(request: Request) {
+export const POST = withXPlanAuth(async (request: Request) => {
   const body = await request.json().catch(() => null)
   const parsed = createSchema.safeParse(body)
 
@@ -144,9 +145,9 @@ export async function POST(request: Request) {
   })
 
   return NextResponse.json({ product: result })
-}
+})
 
-export async function PUT(request: Request) {
+export const PUT = withXPlanAuth(async (request: Request) => {
   const body = await request.json().catch(() => null)
   const parsed = updateSchema.safeParse(body)
 
@@ -200,9 +201,9 @@ export async function PUT(request: Request) {
   )
 
   return NextResponse.json({ ok: true })
-}
+})
 
-export async function DELETE(request: Request) {
+export const DELETE = withXPlanAuth(async (request: Request) => {
   const body = await request.json().catch(() => null)
   const parsed = deleteSchema.safeParse(body)
 
@@ -219,4 +220,4 @@ export async function DELETE(request: Request) {
   })
 
   return NextResponse.json({ ok: true })
-}
+})

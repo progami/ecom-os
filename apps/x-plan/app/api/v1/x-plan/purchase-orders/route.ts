@@ -3,6 +3,7 @@ import { Prisma } from '@ecom-os/prisma-x-plan'
 import { z } from 'zod'
 import prisma from '@/lib/prisma'
 import { OPS_STAGE_DEFAULT_LABELS } from '@/lib/business-parameter-labels'
+import { withXPlanAuth } from '@/lib/api/auth'
 
 const allowedFields = [
   'productId',
@@ -156,7 +157,7 @@ function resolveStageDefaultWeeks(map: StageDefaultsMap, label: string): number 
   return 1
 }
 
-export async function PUT(request: Request) {
+export const PUT = withXPlanAuth(async (request: Request) => {
   const debug = process.env.NODE_ENV !== 'production'
   const body = await request.json().catch(() => null)
   if (debug) {
@@ -216,43 +217,48 @@ export async function PUT(request: Request) {
     }
 
     await prisma.$transaction(
-    parsed.data.updates.map(({ id, values }) => {
-      const data: Record<string, unknown> = {}
-      for (const field of allowedFields) {
-        if (!(field in values)) continue
-        const incoming = values[field]
-        if (incoming === null || incoming === undefined || incoming === '') {
-          data[field] = null
-          continue
-        }
-
-        if (field === 'quantity') {
-          data[field] = parseNumber(incoming) ?? null
-        } else if (percentFields[field]) {
-          const parsedNumber = parseNumber(incoming)
-          if (parsedNumber === null) {
+      parsed.data.updates.map(({ id, values }) => {
+        const data: Record<string, unknown> = {}
+        for (const field of allowedFields) {
+          if (!(field in values)) continue
+          const incoming = values[field]
+          if (incoming === null || incoming === undefined || incoming === '') {
             data[field] = null
-          } else {
-            data[field] = parsedNumber > 1 ? parsedNumber / 100 : parsedNumber
+            continue
           }
-        } else if (decimalFields[field]) {
-          data[field] = parseNumber(incoming)
-        } else if (dateFields[field]) {
-          data[field] = parseDate(incoming)
-        } else if (field === 'status') {
-          data[field] = incoming as string
-        } else if (field === 'productId') {
-          data[field] = incoming
-        } else if (field === 'orderCode' || field === 'transportReference' || field === 'shipName' || field === 'containerNumber') {
-          data[field] = incoming
-        } else if (field === 'notes') {
-          data[field] = incoming
-        }
-      }
 
-      return prisma.purchaseOrder.update({ where: { id }, data })
-    })
-  )
+          if (field === 'quantity') {
+            data[field] = parseNumber(incoming) ?? null
+          } else if (percentFields[field]) {
+            const parsedNumber = parseNumber(incoming)
+            if (parsedNumber === null) {
+              data[field] = null
+            } else {
+              data[field] = parsedNumber > 1 ? parsedNumber / 100 : parsedNumber
+            }
+          } else if (decimalFields[field]) {
+            data[field] = parseNumber(incoming)
+          } else if (dateFields[field]) {
+            data[field] = parseDate(incoming)
+          } else if (field === 'status') {
+            data[field] = incoming as string
+          } else if (field === 'productId') {
+            data[field] = incoming
+          } else if (
+            field === 'orderCode' ||
+            field === 'transportReference' ||
+            field === 'shipName' ||
+            field === 'containerNumber'
+          ) {
+            data[field] = incoming
+          } else if (field === 'notes') {
+            data[field] = incoming
+          }
+        }
+
+        return prisma.purchaseOrder.update({ where: { id }, data })
+      })
+    )
     if (debug) {
       console.log('[PUT /purchase-orders] success')
     }
@@ -271,7 +277,7 @@ export async function PUT(request: Request) {
     }
     return NextResponse.json({ error: 'Database error', details: String(error) }, { status: 500 })
   }
-}
+})
 
 function generateOrderCode() {
   const random = Math.random().toString(36).slice(-5).toUpperCase()
@@ -302,7 +308,7 @@ async function resolveOrderCode(strategyId: string, requested?: string) {
   return { error: 'Unable to generate a unique purchase order code. Try again.', status: 503 as const }
 }
 
-export async function POST(request: Request) {
+export const POST = withXPlanAuth(async (request: Request) => {
   const body = await request.json().catch(() => null)
   const parsed = createSchema.safeParse(body)
 
@@ -368,9 +374,9 @@ export async function POST(request: Request) {
     console.error('[POST /purchase-orders] error:', error)
     return NextResponse.json({ error: 'Unable to create purchase order' }, { status: 500 })
   }
-}
+})
 
-export async function DELETE(request: Request) {
+export const DELETE = withXPlanAuth(async (request: Request) => {
   const body = await request.json().catch(() => null)
   const parsed = deleteSchema.safeParse(body)
 
@@ -387,4 +393,4 @@ export async function DELETE(request: Request) {
   }
 
   return NextResponse.json({ ok: true })
-}
+})

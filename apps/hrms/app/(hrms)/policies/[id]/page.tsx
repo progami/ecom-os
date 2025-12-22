@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { PoliciesApi, type Policy } from '@/lib/api-client'
+import { MeApi, PoliciesApi, PolicyAcknowledgementsApi, type Policy, type PolicyAcknowledgementStatus } from '@/lib/api-client'
 import { DocumentIcon, PencilIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
@@ -60,14 +60,23 @@ export default function ViewPolicyPage() {
   const id = params.id as string
 
   const [policy, setPolicy] = useState<Policy | null>(null)
+  const [ack, setAck] = useState<PolicyAcknowledgementStatus | null>(null)
+  const [ackSubmitting, setAckSubmitting] = useState(false)
+  const [canManagePolicies, setCanManagePolicies] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
       try {
-        const data = await PoliciesApi.get(id)
-        setPolicy(data)
+        const [policyData, meData, ackData] = await Promise.all([
+          PoliciesApi.get(id),
+          MeApi.get().catch(() => null),
+          PolicyAcknowledgementsApi.get(id).catch(() => null),
+        ])
+        setPolicy(policyData)
+        setAck(ackData)
+        setCanManagePolicies(Boolean(meData?.isHR || meData?.isSuperAdmin))
       } catch (e: any) {
         setError(e.message || 'Failed to load policy')
       } finally {
@@ -76,6 +85,22 @@ export default function ViewPolicyPage() {
     }
     load()
   }, [id])
+
+  async function acknowledgePolicy() {
+    if (!policy) return
+    setAckSubmitting(true)
+    try {
+      const res = await PolicyAcknowledgementsApi.acknowledge(policy.id)
+      setAck((prev) => {
+        if (!prev) return prev
+        return { ...prev, isAcknowledged: true, acknowledgedAt: res.acknowledgedAt }
+      })
+    } catch (e: any) {
+      setError(e.message || 'Failed to acknowledge policy')
+    } finally {
+      setAckSubmitting(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -111,13 +136,40 @@ export default function ViewPolicyPage() {
         icon={<DocumentIcon className="h-6 w-6 text-white" />}
         showBack
         actions={
-          <Button href={`/policies/${id}/edit`} icon={<PencilIcon className="h-4 w-4" />}>
-            Edit
-          </Button>
+          canManagePolicies ? (
+            <Button href={`/policies/${id}/edit`} icon={<PencilIcon className="h-4 w-4" />}>
+              Edit
+            </Button>
+          ) : null
         }
       />
 
       <div className="max-w-4xl space-y-6">
+        {/* Acknowledgement */}
+        {policy.status === 'ACTIVE' && ack?.isApplicable && (
+          <Card padding="md">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-gray-900">Acknowledgement</p>
+                {ack.isAcknowledged ? (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Acknowledged {ack.acknowledgedAt ? `on ${formatDate(ack.acknowledgedAt)}` : ''}.
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Please acknowledge you have read and understood this policy.
+                  </p>
+                )}
+              </div>
+              {!ack.isAcknowledged && (
+                <Button onClick={acknowledgePolicy} loading={ackSubmitting} disabled={ackSubmitting}>
+                  {ackSubmitting ? 'Acknowledging...' : 'Acknowledge'}
+                </Button>
+              )}
+            </div>
+          </Card>
+        )}
+
         {/* Meta Info */}
         <Card padding="md">
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-6">

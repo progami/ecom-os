@@ -14,11 +14,40 @@ jobs:
           github.event.pull_request.head.ref == 'dev' }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      statuses: write
+      contents: read
+      pull-requests: write
+      checks: read
+      statuses: read
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine if deploy is expected
+        id: deploy-scope
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+
+          git fetch --no-tags origin "$base_sha" "$head_sha" >/dev/null 2>&1 || true
+
+          changed_files="$(git diff --name-only "$base_sha" "$head_sha")"
+          echo "Changed files:"
+          echo "$changed_files"
+
+          if echo "$changed_files" | grep -Eq '^(apps/|packages/)'; then
+            echo "should_wait=true" >> "$GITHUB_OUTPUT"
+            echo "Deploy required (apps/packages changed)."
+          else
+            echo "should_wait=false" >> "$GITHUB_OUTPUT"
+            echo "No apps/packages changes detected; skipping deploy wait."
+          fi
+
       - name: Wait for deployment checks on merge commit
-        continue-on-error: true
+        if: steps.deploy-scope.outputs.should_wait == 'true'
         uses: lewagon/wait-on-check-action@v1.3.4
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
@@ -28,36 +57,27 @@ jobs:
           allowed-conclusions: success
           verbose: true
 
-      - name: Mark build-test status on merge commit
+      - name: Open sync PR (main → dev)
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
         run: |
-          api_url="https://api.github.com/repos/${{ github.repository }}/statuses/${{ github.event.pull_request.merge_commit_sha }}"
-          payload="{\"state\":\"success\",\"context\":\"build-test\",\"description\":\"Auto-sync acknowledged deploy\",\"target_url\":\"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
-          curl -sSf -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            -d "$payload" \
-            "$api_url"
+          set -euo pipefail
 
-      - name: Checkout dev
-        uses: actions/checkout@v4
-        with:
-          ref: dev
-          fetch-depth: 0
+          git fetch --no-tags origin main dev
 
-      - name: Merge main into dev
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          behind="$(git rev-list --count origin/dev..origin/main)"
+          if [[ "$behind" -eq 0 ]]; then
+            echo "Dev is already up to date with main; nothing to sync."
+            exit 0
+          fi
 
-          echo "Fetching main branch..."
-          git fetch origin main
+          existing_url="$(gh pr list --base dev --head main --state open --json url --jq '.[0].url')"
+          if [[ -n "$existing_url" ]]; then
+            echo "Sync PR already open: $existing_url"
+            exit 0
+          fi
 
-          echo "Merging main into dev..."
-          git merge origin/main --no-edit -m "chore: sync dev with main after release"
-
-          echo "Pushing to dev..."
-          git push origin dev
-
-          echo "✓ Dev branch synchronized with main"
+          title="chore: sync dev with main"
+          body="Auto-created after merging PR #${{ github.event.pull_request.number }} into main."
+          gh pr create --base dev --head main --title "$title" --body "$body"

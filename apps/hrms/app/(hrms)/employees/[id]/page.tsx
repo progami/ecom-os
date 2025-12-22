@@ -5,9 +5,11 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   EmployeesApi,
+  EmployeeTimelineApi,
   PerformanceReviewsApi,
   DisciplinaryActionsApi,
   LeavesApi,
+  type TimelineEvent,
   type Employee,
   type PerformanceReview,
   type DisciplinaryAction,
@@ -37,7 +39,7 @@ import { LeaveRequestForm } from '@/components/leave/LeaveRequestForm'
 import { employmentTypeLabels } from '@/lib/constants'
 import { StandingCard } from '@/components/employee/StandingCard'
 
-type Tab = 'overview' | 'leave' | 'reviews' | 'disciplinary'
+type Tab = 'overview' | 'leave' | 'reviews' | 'disciplinary' | 'timeline'
 
 const REVIEW_TYPE_LABELS: Record<string, string> = {
   PROBATION: '90-Day Probation',
@@ -128,6 +130,8 @@ export default function EmployeeViewPage() {
   const [disciplinaryLoading, setDisciplinaryLoading] = useState(false)
   const [leaveLoading, setLeaveLoading] = useState(false)
   const [showLeaveForm, setShowLeaveForm] = useState(false)
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([])
+  const [timelineLoading, setTimelineLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [canManage, setCanManage] = useState(false)
   const [canEdit, setCanEdit] = useState(false)
@@ -204,6 +208,23 @@ export default function EmployeeViewPage() {
       }
     }
     loadLeave()
+  }, [activeTab, id])
+
+  useEffect(() => {
+    async function loadTimeline() {
+      if (activeTab !== 'timeline') return
+      try {
+        setTimelineLoading(true)
+        const data = await EmployeeTimelineApi.get(id, { take: 200 })
+        setTimelineEvents(data.items || [])
+      } catch (e) {
+        console.error('Failed to load timeline', e)
+        setTimelineEvents([])
+      } finally {
+        setTimelineLoading(false)
+      }
+    }
+    loadTimeline()
   }, [activeTab, id])
 
   const handleLeaveRequestSuccess = async () => {
@@ -337,6 +358,13 @@ export default function EmployeeViewPage() {
             icon={ShieldExclamationIcon}
           >
             Disciplinary
+          </TabButton>
+          <TabButton
+            active={activeTab === 'timeline'}
+            onClick={() => setActiveTab('timeline')}
+            icon={CalendarIcon}
+          >
+            Timeline
           </TabButton>
         </div>
 
@@ -522,6 +550,49 @@ export default function EmployeeViewPage() {
                       </div>
                     </div>
                   </Link>
+                ))}
+              </div>
+            )}
+          </Card>
+        )}
+
+        {activeTab === 'timeline' && (
+          <Card padding="lg">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4">Timeline</h3>
+
+            {timelineLoading ? (
+              <div className="animate-pulse space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="h-14 bg-gray-100 rounded-lg" />
+                ))}
+              </div>
+            ) : timelineEvents.length === 0 ? (
+              <p className="text-sm text-gray-600">No timeline events found.</p>
+            ) : (
+              <div className="space-y-3">
+                {timelineEvents.map((ev) => (
+                  <div key={ev.id} className="p-4 rounded-lg border border-gray-200 bg-white">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-gray-900">{ev.title}</p>
+                      <span className="text-xs text-gray-500">
+                        {new Date(ev.occurredAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </span>
+                    </div>
+                    {ev.description && (
+                      <p className="text-sm text-gray-700 mt-1">{ev.description}</p>
+                    )}
+                    {ev.href && (
+                      <div className="mt-2">
+                        <Button size="sm" variant="secondary" href={ev.href}>
+                          View
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             )}

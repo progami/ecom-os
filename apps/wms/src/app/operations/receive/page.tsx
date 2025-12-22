@@ -46,6 +46,9 @@ const _getFieldError = (errors: Record<string, string>, field: string) => errors
 // Icons
 import { Package2, FileText, Paperclip, Save, X, PackageCheck, DollarSign } from '@/lib/lucide-icons'
 
+// UI Components
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
 // Types
 interface WarehouseOption {
  id: string
@@ -191,6 +194,9 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  
  // Validation
  const [_validationErrors, setValidationErrors] = useState<ValidationErrors>(initialValidationErrors)
+
+ // Cancel confirmation dialog
+ const [showCancelConfirm, setShowCancelConfirm] = useState(false)
 
  // Helper function to update form data
  const updateFormField = useCallback(<K extends keyof ReceiveFormData>(
@@ -531,12 +537,15 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
 
  const handleCancel = () => {
  if ((lineItems && lineItems.length > 0) || (attachments && attachments.length > 0) || formData.referenceNumber) {
- if (confirm('Are you sure you want to cancel? All entered data will be lost.')) {
- router.push(PURCHASE_ORDERS_PATH)
- }
+   setShowCancelConfirm(true)
  } else {
  router.push(PURCHASE_ORDERS_PATH)
  }
+ }
+
+ const handleConfirmCancel = () => {
+   setShowCancelConfirm(false)
+   router.push(PURCHASE_ORDERS_PATH)
  }
 
  // Dynamic tab configuration based on warehouse selection
@@ -749,6 +758,18 @@ const PURCHASE_ORDERS_PATH = '/operations/orders'
  </TabbedContainer>
  </PageContent>
  </PageContainer>
+
+      {/* Cancel Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showCancelConfirm}
+        onClose={() => setShowCancelConfirm(false)}
+        onConfirm={handleConfirmCancel}
+        title="Discard Changes"
+        message="Are you sure you want to cancel? All entered data will be lost."
+        type="warning"
+        confirmText="Discard"
+        cancelText="Keep Editing"
+      />
  </DashboardLayout>
  )
 }

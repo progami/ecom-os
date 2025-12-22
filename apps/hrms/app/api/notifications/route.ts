@@ -40,36 +40,46 @@ export async function GET(req: Request) {
     // Self-healing: re-check profile completion to clean up stale notifications
     await checkAndNotifyMissingFields(employeeId)
 
-    // Filter: show notifications targeted to this employee OR broadcast (employeeId = null)
-    const whereClause = {
-      AND: [
-        unreadOnly ? { isRead: false } : {},
-        {
+    // Filter: show notifications targeted to this employee OR broadcast (employeeId = null).
+    // Broadcast notifications use per-employee read receipts.
+    const whereClause = unreadOnly
+      ? {
           OR: [
-            { employeeId: employeeId },
-            { employeeId: null },
+            { employeeId, isRead: false },
+            { employeeId: null, readReceipts: { none: { employeeId } } },
           ],
-        },
-      ],
-    }
+        }
+      : {
+          OR: [{ employeeId }, { employeeId: null }],
+        }
 
     const notifications = await prisma.notification.findMany({
       where: whereClause,
       orderBy: { createdAt: 'desc' },
       take: limit,
+      include: {
+        readReceipts: {
+          where: { employeeId },
+          select: { id: true },
+        },
+      },
     })
 
     const unreadCount = await prisma.notification.count({
       where: {
-        isRead: false,
         OR: [
-          { employeeId: employeeId },
-          { employeeId: null },
+          { employeeId, isRead: false },
+          { employeeId: null, readReceipts: { none: { employeeId } } },
         ],
       },
     })
 
-    return NextResponse.json({ items: notifications, unreadCount })
+    const items = notifications.map(({ readReceipts, ...n }) => ({
+      ...n,
+      isRead: n.employeeId === null ? readReceipts.length > 0 : n.isRead,
+    }))
+
+    return NextResponse.json({ items, unreadCount })
   } catch (e) {
     return safeErrorResponse(e, 'Failed to fetch notifications')
   }
@@ -90,31 +100,67 @@ export async function PATCH(req: Request) {
 
     const employeeId = user.employee?.id
 
-    // Security: Build proper where clause that doesn't leak data
-    // If no employeeId, only allow marking broadcast notifications as read
-    const accessFilter = employeeId
-      ? { OR: [{ employeeId: employeeId }, { employeeId: null }] }
-      : { employeeId: null }
+    if (!employeeId) {
+      return NextResponse.json({ error: 'Employee record required' }, { status: 400 })
+    }
 
     if (markAllRead) {
+      // Mark personal notifications as read
       await prisma.notification.updateMany({
         where: {
           isRead: false,
-          ...accessFilter,
+          employeeId,
         },
         data: { isRead: true },
       })
+
+      // Mark broadcast notifications as read via read receipts (per-employee)
+      const unreadBroadcast = await prisma.notification.findMany({
+        where: {
+          employeeId: null,
+          readReceipts: { none: { employeeId } },
+        },
+        select: { id: true },
+      })
+
+      if (unreadBroadcast.length > 0) {
+        await prisma.notificationReadReceipt.createMany({
+          data: unreadBroadcast.map((n) => ({ notificationId: n.id, employeeId })),
+          skipDuplicates: true,
+        })
+      }
       return NextResponse.json({ ok: true })
     }
 
     if (ids && Array.isArray(ids) && ids.length > 0) {
-      await prisma.notification.updateMany({
+      const scoped = await prisma.notification.findMany({
         where: {
           id: { in: ids },
-          ...accessFilter,
+          OR: [{ employeeId }, { employeeId: null }],
         },
-        data: { isRead: true },
+        select: { id: true, employeeId: true },
       })
+
+      const personalIds = scoped.filter((n) => n.employeeId === employeeId).map((n) => n.id)
+      const broadcastIds = scoped.filter((n) => n.employeeId === null).map((n) => n.id)
+
+      if (personalIds.length > 0) {
+        await prisma.notification.updateMany({
+          where: {
+            id: { in: personalIds },
+            employeeId,
+          },
+          data: { isRead: true },
+        })
+      }
+
+      if (broadcastIds.length > 0) {
+        await prisma.notificationReadReceipt.createMany({
+          data: broadcastIds.map((notificationId) => ({ notificationId, employeeId })),
+          skipDuplicates: true,
+        })
+      }
+
       return NextResponse.json({ ok: true })
     }
 

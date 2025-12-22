@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Card } from '@/components/ui/Card'
 import { SpinnerIcon, UsersIcon, ExclamationCircleIcon, ChevronRightIcon } from '@/components/ui/Icons'
+import { StandingApi } from '@/lib/api-client'
 
 type CulturalHealthData = {
   greenPercentage: number
@@ -63,11 +64,7 @@ export function CulturalHealthWidget() {
     async function fetchData() {
       try {
         setLoading(true)
-        const response = await fetch('/api/standing')
-        if (!response.ok) {
-          throw new Error('Failed to fetch cultural health data')
-        }
-        const result = await response.json()
+        const result = await StandingApi.getCulturalHealth()
         setData(result)
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to load data'

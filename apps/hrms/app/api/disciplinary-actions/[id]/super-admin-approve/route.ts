@@ -4,6 +4,7 @@ import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canFinalApprove, getHREmployees } from '@/lib/permissions'
 import { sendNotificationEmail } from '@/lib/email-service'
+import { writeAuditLog } from '@/lib/audit'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -131,6 +132,19 @@ export async function POST(req: Request, context: RouteContext) {
         })
       }
 
+      await writeAuditLog({
+        actorId: currentEmployeeId,
+        action: 'APPROVE',
+        entityType: 'DISCIPLINARY_ACTION',
+        entityId: updated.id,
+        summary: `Super Admin approved violation for ${updated.employee.firstName} ${updated.employee.lastName}`,
+        metadata: {
+          notes: Boolean(notes),
+          newStatus: updated.status,
+        },
+        req,
+      })
+
       return NextResponse.json({
         success: true,
         message: 'Violation approved by Super Admin, sent for acknowledgment',
@@ -190,6 +204,19 @@ export async function POST(req: Request, context: RouteContext) {
           },
         })
       }
+
+      await writeAuditLog({
+        actorId: currentEmployeeId,
+        action: 'REJECT',
+        entityType: 'DISCIPLINARY_ACTION',
+        entityId: updated.id,
+        summary: `Super Admin rejected violation for ${updated.employee.firstName} ${updated.employee.lastName}`,
+        metadata: {
+          notes: Boolean(notes),
+          newStatus: updated.status,
+        },
+        req,
+      })
 
       return NextResponse.json({
         success: true,

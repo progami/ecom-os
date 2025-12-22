@@ -27,6 +27,7 @@ import {
   History,
 } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   PO_STATUS_BADGE_CLASSES,
   PO_STATUS_LABELS,
@@ -203,6 +204,14 @@ export default function PurchaseOrderDetailPage() {
   const [warehouses, setWarehouses] = useState<Array<{ code: string; name: string }>>([])
   const [warehousesLoading, setWarehousesLoading] = useState(false)
 
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean
+    type: 'cancel' | 'ship' | null
+    title: string
+    message: string
+  }>({ open: false, type: null, title: '', message: '' })
+
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
@@ -300,19 +309,33 @@ export default function PurchaseOrderDetailPage() {
   const handleTransition = async (targetStatus: POStageStatus) => {
     if (!order || transitioning) return
 
-    // Confirm cancellation
+    // Show confirmation dialog for cancel
     if (targetStatus === 'CANCELLED') {
-      if (!confirm('Are you sure you want to cancel this order? This cannot be undone.')) {
-        return
-      }
+      setConfirmDialog({
+        open: true,
+        type: 'cancel',
+        title: 'Cancel Order',
+        message: 'Are you sure you want to cancel this order? This cannot be undone.',
+      })
+      return
     }
 
-    // Confirm shipped
+    // Show confirmation dialog for shipped
     if (targetStatus === 'SHIPPED') {
-      if (!confirm('Mark this order as shipped? This will finalize the order.')) {
-        return
-      }
+      setConfirmDialog({
+        open: true,
+        type: 'ship',
+        title: 'Mark as Shipped',
+        message: 'Mark this order as shipped? This will finalize the order.',
+      })
+      return
     }
+
+    await executeTransition(targetStatus)
+  }
+
+  const executeTransition = async (targetStatus: POStageStatus) => {
+    if (!order || transitioning) return
 
     try {
       setTransitioning(true)
@@ -340,6 +363,19 @@ export default function PurchaseOrderDetailPage() {
     } finally {
       setTransitioning(false)
     }
+  }
+
+  const handleConfirmDialogConfirm = async () => {
+    if (confirmDialog.type === 'cancel') {
+      await executeTransition('CANCELLED')
+    } else if (confirmDialog.type === 'ship') {
+      await executeTransition('SHIPPED')
+    }
+    setConfirmDialog({ open: false, type: null, title: '', message: '' })
+  }
+
+  const handleConfirmDialogClose = () => {
+    setConfirmDialog({ open: false, type: null, title: '', message: '' })
   }
 
   const handleEditDetails = () => {
@@ -1125,6 +1161,18 @@ export default function PurchaseOrderDetailPage() {
           </TabPanel>
         </TabbedContainer>
       </div>
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={confirmDialog.open}
+        onClose={handleConfirmDialogClose}
+        onConfirm={handleConfirmDialogConfirm}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        type={confirmDialog.type === 'cancel' ? 'danger' : 'info'}
+        confirmText={confirmDialog.type === 'cancel' ? 'Cancel Order' : 'Confirm'}
+        cancelText="Go Back"
+      />
     </DashboardLayout>
   )
 }

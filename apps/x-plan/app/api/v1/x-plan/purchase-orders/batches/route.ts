@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import prisma from '@/lib/prisma'
+import { withXPlanAuth } from '@/lib/api/auth'
 
 const prismaAny = prisma as unknown as {
   batchTableRow?: typeof prisma.batchTableRow
@@ -90,7 +91,7 @@ async function recalcOrderQuantity(purchaseOrderId: string) {
   }
 }
 
-export async function POST(request: Request) {
+export const POST = withXPlanAuth(async (request: Request) => {
   const delegate = ensureBatchDelegate()
   if (!delegate) {
     return NextResponse.json(
@@ -158,9 +159,9 @@ export async function POST(request: Request) {
       batchCode: created.batchCode,
     },
   })
-}
+})
 
-export async function PUT(request: Request) {
+export const PUT = withXPlanAuth(async (request: Request) => {
   const delegate = ensureBatchDelegate()
   if (!delegate) {
     return NextResponse.json(
@@ -240,9 +241,9 @@ export async function PUT(request: Request) {
   }
 
   return NextResponse.json({ ok: true })
-}
+})
 
-export async function DELETE(request: Request) {
+export const DELETE = withXPlanAuth(async (request: Request) => {
   const delegate = ensureBatchDelegate()
   if (!delegate) {
     return NextResponse.json(
@@ -286,4 +287,4 @@ export async function DELETE(request: Request) {
   await recalcOrderQuantity(existing.purchaseOrderId)
 
   return NextResponse.json({ ok: true })
-}
+})
