@@ -387,15 +387,6 @@ export const POST = withAuth(async (request, session) => {
           .filter((item): item is AttachmentPayload => item !== null)
       : []
     const batchValidationCache = new Map<string, boolean>()
-    const pendingBatchCreates = new Map<
-      string,
-      {
-        skuId?: string
-        skuCode: string
-        batchLot: string
-        description?: string | null
-      }
-    >()
 
     const newSkuRequests = itemsArray.filter(item => item.isNewSku)
     if (newSkuRequests.length > 0) {
@@ -871,28 +862,27 @@ export const POST = withAuth(async (request, session) => {
         )
       }
 
-      if (['RECEIVE', 'ADJUST_IN'].includes(txType)) {
-        const cacheKey = `${sku.id}::${item.batchLot}`
-        if (!batchValidationCache.has(cacheKey)) {
-          const batchRecord = await prisma.skuBatch.findFirst({
-            where: {
-              skuId: sku.id,
-              batchCode: item.batchLot,
-              isActive: true,
+      const cacheKey = `${sku.id}::${item.batchLot}`
+      if (!batchValidationCache.has(cacheKey)) {
+        const batchRecord = await prisma.skuBatch.findFirst({
+          where: {
+            skuId: sku.id,
+            batchCode: item.batchLot,
+            isActive: true,
+          },
+          select: { id: true },
+        })
+
+        if (!batchRecord) {
+          return NextResponse.json(
+            {
+              error: `Batch/Lot ${item.batchLot} is not configured for SKU ${item.skuCode}. Create it in Config → Products → SKUs → Batches.`,
             },
-          })
-
-          if (!batchRecord) {
-            pendingBatchCreates.set(cacheKey, {
-              skuId: sku.id,
-              skuCode: sku.skuCode,
-              batchLot: item.batchLot,
-              description: item.batchData?.description ?? null,
-            })
-          }
-
-          batchValidationCache.set(cacheKey, true)
+            { status: 400 }
+          )
         }
+
+        batchValidationCache.set(cacheKey, true)
       }
 
       // For SHIP and ADJUST_OUT transactions, verify inventory availability
@@ -978,30 +968,6 @@ export const POST = withAuth(async (request, session) => {
       const skus = await tx.sku.findMany({
         where: { skuCode: { in: skuCodes } },
       })
-
-      if (pendingBatchCreates.size > 0) {
-        for (const pending of pendingBatchCreates.values()) {
-          if (!pending.skuId) continue
-          try {
-            await tx.skuBatch.create({
-              data: {
-                skuId: pending.skuId,
-                batchCode: pending.batchLot,
-                description: sanitizeNullableString(pending.description),
-                isActive: true,
-              },
-            })
-          } catch (creationError) {
-            if (
-              !(creationError instanceof Prisma.PrismaClientKnownRequestError) ||
-              creationError.code !== 'P2002'
-            ) {
-              throw creationError
-            }
-            // If another request created the batch simultaneously, it's safe to continue.
-          }
-        }
-      }
 
       const skuMap = new Map(skus.map(sku => [sku.skuCode, sku]))
       let totalStoragePalletsIn = 0
