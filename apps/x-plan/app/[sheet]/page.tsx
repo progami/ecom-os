@@ -1170,6 +1170,52 @@ function getSalesPlanningView(
 ) {
   const context = financialData.operations
   const productList = [...context.productInputs].sort((a, b) => a.name.localeCompare(b.name))
+  const leadTimeByProduct = Object.fromEntries(
+    productList.map((product) => {
+      const profile = getLeadTimeProfile(product.id, context.leadProfiles)
+      const profileTotal =
+        Number(profile.productionWeeks ?? 0) +
+        Number(profile.sourceWeeks ?? 0) +
+        Number(profile.oceanWeeks ?? 0) +
+        Number(profile.finalWeeks ?? 0)
+
+      const fallback = context.parameters
+      const fallbackProfile = {
+        productionWeeks: fallback.defaultProductionWeeks,
+        sourceWeeks: fallback.defaultSourceWeeks,
+        oceanWeeks: fallback.defaultOceanWeeks,
+        finalWeeks: fallback.defaultFinalWeeks,
+      }
+      const fallbackTotal =
+        Number(fallbackProfile.productionWeeks) +
+        Number(fallbackProfile.sourceWeeks) +
+        Number(fallbackProfile.oceanWeeks) +
+        Number(fallbackProfile.finalWeeks)
+
+      const resolved = profileTotal > 0 ? profile : fallbackProfile
+      const totalWeeks = profileTotal > 0 ? profileTotal : fallbackTotal
+
+      return [
+        product.id,
+        {
+          productionWeeks: Number(resolved.productionWeeks ?? 0),
+          sourceWeeks: Number(resolved.sourceWeeks ?? 0),
+          oceanWeeks: Number(resolved.oceanWeeks ?? 0),
+          finalWeeks: Number(resolved.finalWeeks ?? 0),
+          totalWeeks: Number(totalWeeks ?? 0),
+        },
+      ]
+    })
+  ) as Record<
+    string,
+    {
+      productionWeeks: number
+      sourceWeeks: number
+      oceanWeeks: number
+      finalWeeks: number
+      totalWeeks: number
+    }
+  >
   const weeks = buildWeekRange(activeSegment, planning.calendar)
   const weekNumbers = weeks.length
     ? weeks
@@ -1295,6 +1341,7 @@ function getSalesPlanningView(
     nestedHeaders,
     productOptions: productList.map((product) => ({ id: product.id, name: product.name })),
     stockWarningWeeks: context.parameters.stockWarningWeeks,
+    leadTimeByProduct,
     batchAllocations,
   }
 }
@@ -1560,6 +1607,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           nestedHeaders={view.nestedHeaders}
           productOptions={view.productOptions}
           stockWarningWeeks={view.stockWarningWeeks}
+          leadTimeByProduct={view.leadTimeByProduct}
           batchAllocations={view.batchAllocations}
         />
       )
