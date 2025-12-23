@@ -10,6 +10,7 @@ import {
   type KeyboardEvent,
 } from 'react'
 import { toast } from 'sonner'
+import Flatpickr from 'react-flatpickr'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { deriveIsoWeek, formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
@@ -217,7 +218,7 @@ export function CustomPurchasePaymentsGrid({
     setEditValue('')
   }
 
-  const commitEdit = useCallback(() => {
+  const commitEdit = useCallback((nextValue?: string) => {
     if (!editingCell) return
 
     const { rowId, colKey } = editingCell
@@ -233,7 +234,7 @@ export function CustomPurchasePaymentsGrid({
       return
     }
 
-    let finalValue = editValue
+    let finalValue = nextValue ?? editValue
 
     // Validate and normalize based on column type
     if (column.type === 'currency') {
@@ -487,24 +488,46 @@ export function CustomPurchasePaymentsGrid({
       .join(' ')
 
     if (isEditing) {
-      const inputType = column.type === 'date' ? 'date' : 'text'
-
       return (
         <td
           key={column.key}
           className={cellClasses}
           style={{ width: column.width, minWidth: column.width }}
         >
-          <input
-            ref={inputRef}
-            type={inputType}
-            value={editValue}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            onBlur={handleCellBlur}
-            className="ops-cell-input"
-            placeholder={column.type === 'date' ? 'Select date' : undefined}
-          />
+          {column.type === 'date' ? (
+            <Flatpickr
+              value={editValue}
+              options={{ dateFormat: 'Y-m-d', allowInput: true, disableMobile: true }}
+              onChange={(_dates: Date[], dateStr: string) => {
+                commitEdit(dateStr)
+              }}
+              render={(_props: any, handleNodeChange: (node: HTMLElement | null) => void) => (
+                <input
+                  ref={(node) => {
+                    handleNodeChange(node)
+                    inputRef.current = node as HTMLInputElement | null
+                  }}
+                  type="text"
+                  value={editValue}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onBlur={handleCellBlur}
+                  className="ops-cell-input"
+                  placeholder="YYYY-MM-DD"
+                />
+              )}
+            />
+          ) : (
+            <input
+              ref={inputRef}
+              type="text"
+              value={editValue}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              onBlur={handleCellBlur}
+              className="ops-cell-input"
+            />
+          )}
         </td>
       )
     }
