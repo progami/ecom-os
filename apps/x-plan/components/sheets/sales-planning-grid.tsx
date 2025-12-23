@@ -193,7 +193,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
       const batchId = alloc.batchCode || alloc.orderCode
       const qty = Number(alloc.quantity).toFixed(0)
       const price = Number(alloc.sellingPrice).toFixed(2)
-      const cost = Number(alloc.landedUnitCost).toFixed(2)
+      const cost = Number(alloc.landedUnitCost).toFixed(3)
       return `${batchId}: ${qty} units @ $${price} (cost: $${cost})`
     })
     return `FIFO Batch Allocation:\n${lines.join('\n')}`
