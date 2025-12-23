@@ -25,10 +25,12 @@ export function Badge({ children, variant = 'default', className = '' }: BadgePr
 // Helper to get variant from status string
 export function getStatusVariant(status: string): BadgeVariant {
   const s = status.toLowerCase()
-  if (s === 'active' || s === 'published' || s === 'approved' || s === 'completed' || s === 'acknowledged') return 'success'
-  if (s === 'draft' || s === 'pending' || s === 'review') return 'warning'
-  if (s === 'archived' || s === 'inactive' || s === 'suspended') return 'default'
-  if (s === 'rejected' || s === 'error' || s === 'failed') return 'error'
+
+  if (/(active|published|approved|completed|acknowledged|done)\b/.test(s)) return 'success'
+  if (/(pending|review|in[_ -]?progress|awaiting|overdue)\b/.test(s)) return 'warning'
+  if (/(rejected|dismissed|denied|error|failed|cancelled|canceled)\b/.test(s)) return 'error'
+  if (/(archived|inactive|suspended|closed)\b/.test(s)) return 'default'
+
   return 'info'
 }
 

@@ -328,6 +328,13 @@ export async function POST(req: Request, context: RouteContext) {
         )
       }
 
+      if (action.status !== 'PENDING_ACKNOWLEDGMENT') {
+        return NextResponse.json(
+          { error: `Cannot appeal: action is in ${action.status} status, expected PENDING_ACKNOWLEDGMENT` },
+          { status: 400 }
+        )
+      }
+
       if (action.employeeAcknowledged) {
         return NextResponse.json(
           { error: 'Cannot appeal after acknowledging' },
@@ -435,6 +442,7 @@ export async function GET(req: Request, context: RouteContext) {
       where: { id },
       select: {
         employeeId: true,
+        status: true,
         employeeAcknowledged: true,
         appealReason: true,
         appealedAt: true,
@@ -466,10 +474,28 @@ export async function GET(req: Request, context: RouteContext) {
                       isManager
 
     // Employee can appeal if they haven't acknowledged AND haven't already appealed
-    const canAppeal = isEmployee && !action.employeeAcknowledged && !action.appealedAt
+    const canAppeal = isEmployee &&
+      action.status === 'PENDING_ACKNOWLEDGMENT' &&
+      !action.employeeAcknowledged &&
+      !action.appealedAt
 
-    // Can resolve if appeal is pending and user has permission
-    const canResolveAppeal = canResolve && action.appealedAt && !action.appealResolvedAt
+    const hrPermission = await canHRReview(currentEmployeeId)
+    const superAdminPermission = await canFinalApprove(currentEmployeeId)
+
+    const canReviewAsHR = Boolean(action.appealedAt) &&
+      action.status === 'APPEAL_PENDING_HR' &&
+      hrPermission.allowed
+
+    const canDecideAsSuperAdmin = Boolean(action.appealedAt) &&
+      action.status === 'APPEAL_PENDING_SUPER_ADMIN' &&
+      superAdminPermission.allowed
+
+    const canResolveLegacy = Boolean(action.appealedAt) &&
+      action.status === 'APPEALED' &&
+      canResolve &&
+      !action.appealResolvedAt
+
+    const canResolveAppeal = canReviewAsHR || canDecideAsSuperAdmin || canResolveLegacy
 
     return NextResponse.json({
       appealReason: action.appealReason,
@@ -479,8 +505,11 @@ export async function GET(req: Request, context: RouteContext) {
       appealResolvedAt: action.appealResolvedAt,
       canAppeal,
       canResolveAppeal,
+      canReviewAsHR,
+      canDecideAsSuperAdmin,
       hasAppealed: Boolean(action.appealedAt),
       appealResolved: Boolean(action.appealResolvedAt),
+      status: action.status,
     })
   } catch (e) {
     return safeErrorResponse(e, 'Failed to get appeal status')
