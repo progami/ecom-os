@@ -45,7 +45,7 @@ export function FinancialTrendsSection({ title, description, metrics, defaultMet
   const storagePrefix = storageKey ?? `xplan:financial-trends:${title}`
   const [granularity, setGranularity, granularityHydrated] = usePersistentState<TrendGranularity>(
     `${storagePrefix}:granularity`,
-    'monthly',
+    'weekly',
   )
   const [activeMetric, setActiveMetric, metricHydrated] = usePersistentState<string>(
     `${storagePrefix}:metric`,
