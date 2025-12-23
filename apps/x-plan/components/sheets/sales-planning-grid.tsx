@@ -119,6 +119,17 @@ type BatchAllocationMeta = {
   landedUnitCost: number
 }
 
+type LeadTimeByProduct = Record<
+  string,
+  {
+    productionWeeks: number
+    sourceWeeks: number
+    oceanWeeks: number
+    finalWeeks: number
+    totalWeeks: number
+  }
+>
+
 interface SalesPlanningGridProps {
   strategyId: string
   rows: SalesRow[]
@@ -127,10 +138,11 @@ interface SalesPlanningGridProps {
   columnKeys: string[]
   productOptions: Array<{ id: string; name: string }>
   stockWarningWeeks: number
+  leadTimeByProduct: LeadTimeByProduct
   batchAllocations: Map<string, BatchAllocationMeta[]>
 }
 
-export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders, columnKeys, productOptions, stockWarningWeeks, batchAllocations }: SalesPlanningGridProps) {
+export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders, columnKeys, productOptions, stockWarningWeeks, leadTimeByProduct, batchAllocations }: SalesPlanningGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const focusContext = useContext(SalesPlanningFocusContext)
   const [activeStockMetric, setActiveStockMetric] = usePersistentState<StockMetricId>('xplan:sales-grid:metric', 'stockWeeks')
@@ -154,6 +166,15 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
   }, [])
 
   const data = useMemo(() => rows, [rows])
+  const weekDateByNumber = useMemo(() => {
+    const map = new Map<number, string>()
+    data.forEach((row) => {
+      const week = Number(row.weekNumber)
+      if (!Number.isFinite(week)) return
+      map.set(week, row.weekDate ?? '')
+    })
+    return map
+  }, [data])
   const hasInboundByWeek = useMemo(() => {
     const set = new Set<number>()
     rows.forEach((row) => {
@@ -598,6 +619,35 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
 
               if (isBelowThreshold && isStockColumn) {
                 cell.className = cell.className ? `${cell.className} cell-warning` : 'cell-warning'
+
+                const leadProfile = leadTimeByProduct[meta.productId]
+                const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : 0
+                if (leadTimeWeeks > 0) {
+                  const coverageWeeks = Math.max(0, Math.floor(weeksNumeric))
+                  const stockoutWeek = coverageWeeks > 0 ? weekNumber + coverageWeeks - 1 : weekNumber
+                  const stockoutDate = weekDateByNumber.get(stockoutWeek) ?? ''
+                  const startWeekRaw = stockoutWeek - leadTimeWeeks
+                  const startWeek = Math.max(1, startWeekRaw)
+                  const startDate = weekDateByNumber.get(startWeek) ?? ''
+                  const leadBreakdown = leadProfile
+                    ? `${leadTimeWeeks}w (prod ${leadProfile.productionWeeks}w + source ${leadProfile.sourceWeeks}w + ocean ${leadProfile.oceanWeeks}w + final ${leadProfile.finalWeeks}w)`
+                    : `${leadTimeWeeks}w`
+
+                  const stockoutLabel = `W${stockoutWeek}${stockoutDate ? ` (${stockoutDate})` : ''}`
+                  const startLabel =
+                    startWeekRaw < 1
+                      ? 'ASAP (before W1)'
+                      : `W${startWeek}${startDate ? ` (${startDate})` : ''}`
+
+                  cell.comment = {
+                    value:
+                      `Low stock warning (≤ ${warningThreshold}w).\n` +
+                      `Projected stockout: ${stockoutLabel}.\n` +
+                      `Suggested production start: ${startLabel}.\n` +
+                      `Lead time: ${leadBreakdown}.`,
+                    readOnly: true,
+                  }
+                }
               }
             }
 
