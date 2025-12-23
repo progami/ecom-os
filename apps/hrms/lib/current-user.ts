@@ -2,6 +2,7 @@ import { headers } from 'next/headers'
 import { decodePortalSession, getCandidateSessionCookieNames, type PortalJwtPayload } from '@ecom-os/auth'
 import { Prisma } from '@ecom-os/prisma-hrms'
 import { prisma } from './prisma'
+import { createTemporaryEmployeeId, formatEmployeeId } from './employee-identifiers'
 
 export type CurrentEmployee = {
   id: string
@@ -35,26 +36,6 @@ function splitNameFromSession(sessionName: string | undefined, email: string): {
   return { firstName: guessed[0]!, lastName: guessed.slice(1).join(' ') }
 }
 
-async function getNextEmployeeId(): Promise<string> {
-  const existing = await prisma.employee.findMany({
-    where: { employeeId: { startsWith: 'EMP-' } },
-    select: { employeeId: true },
-  })
-
-  let maxEmployeeNum = 0
-  for (const emp of existing) {
-    const match = emp.employeeId.match(/EMP-(\d+)/)
-    if (!match) continue
-    const num = Number.parseInt(match[1] ?? '', 10)
-    if (!Number.isNaN(num) && num > maxEmployeeNum) {
-      maxEmployeeNum = num
-    }
-  }
-
-  const nextNum = maxEmployeeNum + 1
-  return `EMP-${String(nextNum).padStart(3, '0')}`
-}
-
 async function ensureEmployeeProfile(session: PortalJwtPayload): Promise<CurrentEmployee | null> {
   const email = session.email?.trim().toLowerCase()
   if (!email) return null
@@ -82,33 +63,38 @@ async function ensureEmployeeProfile(session: PortalJwtPayload): Promise<Current
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const employeeId = await getNextEmployeeId()
-      const created = await prisma.employee.create({
-        data: {
-          employeeId,
-          firstName,
-          lastName,
-          email,
-          department: 'Unassigned',
-          position: isBootstrap ? 'Super Admin' : 'Employee',
-          joinDate: new Date(),
-          permissionLevel: isBootstrap ? 100 : 0,
-          isSuperAdmin: isBootstrap,
-        },
-        select: {
-          id: true,
-          employeeId: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          department: true,
-          position: true,
-          reportsToId: true,
-          avatar: true,
-        },
-      })
+      return await prisma.$transaction(async (tx) => {
+        const created = await tx.employee.create({
+          data: {
+            employeeId: createTemporaryEmployeeId(),
+            firstName,
+            lastName,
+            email,
+            department: 'Unassigned',
+            position: isBootstrap ? 'Super Admin' : 'Employee',
+            joinDate: new Date(),
+            permissionLevel: isBootstrap ? 100 : 0,
+            isSuperAdmin: isBootstrap,
+          },
+          select: { id: true, employeeNumber: true },
+        })
 
-      return created
+        return tx.employee.update({
+          where: { id: created.id },
+          data: { employeeId: formatEmployeeId(created.employeeNumber) },
+          select: {
+            id: true,
+            employeeId: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            department: true,
+            position: true,
+            reportsToId: true,
+            avatar: true,
+          },
+        })
+      })
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
         const fetched = await prisma.employee.findUnique({
