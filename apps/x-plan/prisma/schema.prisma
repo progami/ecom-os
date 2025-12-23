@@ -43,13 +43,13 @@ model Product {
   name               String
   sku                String
   sellingPrice       Decimal            @db.Decimal(10, 2)
-  manufacturingCost  Decimal            @db.Decimal(10, 2)
-  freightCost        Decimal            @db.Decimal(10, 2)
+  manufacturingCost  Decimal            @db.Decimal(10, 3)
+  freightCost        Decimal            @db.Decimal(10, 3)
   tariffRate         Decimal            @db.Decimal(5, 4)
   tacosPercent       Decimal            @db.Decimal(5, 4)
-  fbaFee             Decimal            @db.Decimal(10, 2)
+  fbaFee             Decimal            @db.Decimal(10, 3)
   amazonReferralRate Decimal            @db.Decimal(5, 4)
-  storagePerMonth    Decimal            @db.Decimal(10, 2)
+  storagePerMonth    Decimal            @db.Decimal(10, 3)
   isActive           Boolean            @default(true)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
@@ -143,13 +143,13 @@ model PurchaseOrder {
   createdAt                 DateTime               @default(now())
   updatedAt                 DateTime               @updatedAt
   overrideSellingPrice      Decimal?               @db.Decimal(10, 2)
-  overrideManufacturingCost Decimal?               @db.Decimal(10, 2)
-  overrideFreightCost       Decimal?               @db.Decimal(10, 2)
+  overrideManufacturingCost Decimal?               @db.Decimal(10, 3)
+  overrideFreightCost       Decimal?               @db.Decimal(10, 3)
   overrideTariffRate        Decimal?               @db.Decimal(5, 4)
   overrideTacosPercent      Decimal?               @db.Decimal(5, 4)
-  overrideFbaFee            Decimal?               @db.Decimal(10, 2)
+  overrideFbaFee            Decimal?               @db.Decimal(10, 3)
   overrideReferralRate      Decimal?               @db.Decimal(5, 4)
-  overrideStoragePerMonth   Decimal?               @db.Decimal(10, 2)
+  overrideStoragePerMonth   Decimal?               @db.Decimal(10, 3)
   strategy                  Strategy               @relation(fields: [strategyId], references: [id], onDelete: Cascade)
   logisticsEvents           LogisticsEvent[]
   product                   Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
@@ -169,13 +169,13 @@ model BatchTableRow {
   productId                 String
   quantity                  Int
   overrideSellingPrice      Decimal?      @db.Decimal(10, 2)
-  overrideManufacturingCost Decimal?      @db.Decimal(10, 2)
-  overrideFreightCost       Decimal?      @db.Decimal(10, 2)
+  overrideManufacturingCost Decimal?      @db.Decimal(10, 3)
+  overrideFreightCost       Decimal?      @db.Decimal(10, 3)
   overrideTariffRate        Decimal?      @db.Decimal(5, 4)
   overrideTacosPercent      Decimal?      @db.Decimal(5, 4)
-  overrideFbaFee            Decimal?      @db.Decimal(10, 2)
+  overrideFbaFee            Decimal?      @db.Decimal(10, 3)
   overrideReferralRate      Decimal?      @db.Decimal(5, 4)
-  overrideStoragePerMonth   Decimal?      @db.Decimal(10, 2)
+  overrideStoragePerMonth   Decimal?      @db.Decimal(10, 3)
   createdAt                 DateTime      @default(now())
   updatedAt                 DateTime      @updatedAt
   product                   Product       @relation(fields: [productId], references: [id], onDelete: Cascade)

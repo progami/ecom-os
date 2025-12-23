@@ -60,10 +60,10 @@ type NumericField = (typeof NUMERIC_FIELDS)[number]
 const NUMERIC_PRECISION: Record<NumericField, number> = {
   quantity: 0,
   sellingPrice: 2,
-  manufacturingCost: 2,
-  freightCost: 2,
-  fbaFee: 2,
-  storagePerMonth: 2,
+  manufacturingCost: 3,
+  freightCost: 3,
+  fbaFee: 3,
+  storagePerMonth: 3,
 }
 
 const PERCENT_FIELDS = ['tariffRate', 'tacosPercent', 'referralRate'] as const
@@ -126,13 +126,13 @@ const COLUMNS: ColumnDef[] = [
   { key: 'productName', header: 'Product', width: 200, type: 'dropdown', editable: true },
   { key: 'quantity', header: 'Qty', width: 110, type: 'numeric', editable: true, precision: 0 },
   { key: 'sellingPrice', header: 'Sell $', width: 120, type: 'numeric', editable: true, precision: 2 },
-  { key: 'manufacturingCost', header: 'Mfg $', width: 120, type: 'numeric', editable: true, precision: 2 },
-  { key: 'freightCost', header: 'Freight $', width: 120, type: 'numeric', editable: true, precision: 2 },
+  { key: 'manufacturingCost', header: 'Mfg $', width: 120, type: 'numeric', editable: true, precision: 3 },
+  { key: 'freightCost', header: 'Freight $', width: 120, type: 'numeric', editable: true, precision: 3 },
   { key: 'tariffRate', header: 'Tariff %', width: 110, type: 'percent', editable: true, precision: 2 },
   { key: 'tacosPercent', header: 'TACoS %', width: 110, type: 'percent', editable: true, precision: 2 },
-  { key: 'fbaFee', header: 'FBA $', width: 110, type: 'numeric', editable: true, precision: 2 },
+  { key: 'fbaFee', header: 'FBA $', width: 110, type: 'numeric', editable: true, precision: 3 },
   { key: 'referralRate', header: 'Referral %', width: 110, type: 'percent', editable: true, precision: 2 },
-  { key: 'storagePerMonth', header: 'Storage $', width: 120, type: 'numeric', editable: true, precision: 2 },
+  { key: 'storagePerMonth', header: 'Storage $', width: 120, type: 'numeric', editable: true, precision: 3 },
 ]
 
 export function CustomOpsCostGrid({

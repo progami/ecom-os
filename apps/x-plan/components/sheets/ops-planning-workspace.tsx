@@ -43,10 +43,10 @@ import { withAppBasePath } from '@/lib/base-path'
 const BATCH_NUMERIC_PRECISION = {
   quantity: 0,
   sellingPrice: 2,
-  manufacturingCost: 2,
-  freightCost: 2,
-  fbaFee: 2,
-  storagePerMonth: 2,
+  manufacturingCost: 3,
+  freightCost: 3,
+  fbaFee: 3,
+  storagePerMonth: 3,
 } as const
 
 const BATCH_PERCENT_PRECISION = {
