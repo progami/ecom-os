@@ -39,8 +39,8 @@ for file in "${required_dev_host_files[@]}"; do
     print_error "Missing expected env file: $file"
     continue
   fi
-  require_contains "$file" 'https://dev\.ecomos\.targonglobal\.com' \
-    "Dev host https://dev.ecomos.targonglobal.com must appear in"
+  require_contains "$file" 'https://dev-ecomos\.targonglobal\.com' \
+    "Dev host https://dev-ecomos.targonglobal.com must appear in"
   forbid_contains "$file" 'https://ecomos\.targonglobal\.com' \
     "Prod host https://ecomos.targonglobal.com must not appear in"
 done
