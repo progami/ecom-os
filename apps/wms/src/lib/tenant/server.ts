@@ -46,7 +46,7 @@ export async function getCurrentTenant(): Promise<TenantConfig> {
  */
 export async function getTenantPrisma(): Promise<PrismaClient> {
   const tenantCode = await getCurrentTenantCode()
-  return getTenantPrismaClient(tenantCode)
+  return await getTenantPrismaClient(tenantCode)
 }
 
 /**

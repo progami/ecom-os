@@ -83,7 +83,7 @@ async function getCurrentTenantCode(): Promise<TenantCode> {
  */
 export async function getTenantPrisma(): Promise<PrismaClient> {
   const tenantCode = await getCurrentTenantCode()
-  return getTenantPrismaClient(tenantCode)
+  return await getTenantPrismaClient(tenantCode)
 }
 
 /**
@@ -93,8 +93,8 @@ export async function getTenantPrisma(): Promise<PrismaClient> {
  * const usDb = getPrismaForTenant('US')
  * const ukDb = getPrismaForTenant('UK')
  */
-export function getPrismaForTenant(tenantCode: TenantCode): PrismaClient {
-  return getTenantPrismaClient(tenantCode)
+export async function getPrismaForTenant(tenantCode: TenantCode): Promise<PrismaClient> {
+  return await getTenantPrismaClient(tenantCode)
 }
 
 export default prisma

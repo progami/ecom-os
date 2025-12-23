@@ -1,47 +1,53 @@
-import { NextResponse } from 'next/server';
-import { getTenantPrisma } from '@/lib/tenant/server';
+import { NextResponse } from 'next/server'
+import { TENANT_CODES, TENANTS, type TenantCode } from '@/lib/tenant/constants'
+import { getTenantPrismaClient } from '@/lib/tenant/prisma-factory'
 
 // Health check endpoint for monitoring and CI
 export async function GET() {
- const health = {
- status: 'ok',
- timestamp: new Date().toISOString(),
- environment: process.env.NODE_ENV,
- version: process.env.npm_package_version || 'unknown',
- checks: {
- server: true,
- database: false,
- redis: false,
- },
- };
+  const tenantChecks = TENANT_CODES.reduce<Record<TenantCode, boolean>>(
+    (acc, tenant) => ({ ...acc, [tenant]: false }),
+    {} as Record<TenantCode, boolean>
+  )
 
- // Check database connection
- if (process.env.DATABASE_URL) {
- try {
- const prisma = await getTenantPrisma()
- await prisma.$queryRaw`SELECT 1`;
- health.checks.database = true;
- } catch (error) {
- console.error('[health] database check failed', error);
- health.checks.database = false;
- }
- }
+  const configuredTenants = TENANT_CODES.filter((tenant) => {
+    const envKey = TENANTS[tenant].envKey
+    return Boolean(process.env[envKey] || process.env.DATABASE_URL)
+  })
 
- // Check Redis connection (if needed)
- if (process.env.REDIS_URL) {
- // For now, just check if URL is set
- // In production, you would actually test the connection
- health.checks.redis = true;
- }
+  await Promise.all(
+    configuredTenants.map(async (tenant) => {
+      try {
+        const prisma = await getTenantPrismaClient(tenant)
+        await prisma.user.findFirst({ select: { id: true } })
+        tenantChecks[tenant] = true
+      } catch (error) {
+        console.error(`[health] database check failed for ${tenant}`, error)
+        tenantChecks[tenant] = false
+      }
+    })
+  )
 
- // Determine overall health status
- const isHealthy = health.checks.server && 
- (process.env.CI || health.checks.database); // In CI, database check is optional
+  const checks = {
+    server: true,
+    database: configuredTenants.length > 0 ? configuredTenants.every((tenant) => tenantChecks[tenant]) : false,
+    redis: Boolean(process.env.REDIS_URL),
+    tenants: tenantChecks,
+  }
 
- return NextResponse.json(health, {
- status: isHealthy ? 200 : 503,
- headers: {
- 'Cache-Control': 'no-store, no-cache, must-revalidate',
- },
- });
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    version: process.env.npm_package_version || 'unknown',
+    checks,
+  }
+
+  const isHealthy = checks.server && (process.env.CI || checks.database)
+
+  return NextResponse.json(health, {
+    status: isHealthy ? 200 : 503,
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+    },
+  })
 }

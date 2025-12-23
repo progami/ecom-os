@@ -4,11 +4,13 @@
  */
 
 import { PrismaClient } from '@ecom-os/prisma-wms'
+import { Client } from 'pg'
 import { TenantCode, TENANTS, isValidTenantCode } from './constants'
 
 // Global cache for Prisma clients per tenant
 const globalForPrisma = global as unknown as {
   tenantClients: Map<TenantCode, PrismaClient> | undefined
+  tenantClientPromises: Map<TenantCode, Promise<PrismaClient>> | undefined
 }
 
 // Initialize client cache
@@ -16,7 +18,12 @@ if (!globalForPrisma.tenantClients) {
   globalForPrisma.tenantClients = new Map()
 }
 
+if (!globalForPrisma.tenantClientPromises) {
+  globalForPrisma.tenantClientPromises = new Map()
+}
+
 const clientCache = globalForPrisma.tenantClients
+const clientPromiseCache = globalForPrisma.tenantClientPromises
 
 /**
  * Get the database URL for a specific tenant
@@ -40,23 +47,134 @@ function getTenantDatabaseUrl(tenantCode: TenantCode): string {
 /**
  * Create a new Prisma client for a tenant
  */
-function createTenantClient(tenantCode: TenantCode): PrismaClient {
-  const databaseUrl = getTenantDatabaseUrl(tenantCode)
-  const schema = process.env.PRISMA_SCHEMA
+function withSchema(databaseUrl: string, schema: string): string {
+  try {
+    const url = new URL(databaseUrl)
+    url.searchParams.set('schema', schema)
+    return url.toString()
+  } catch {
+    const separator = databaseUrl.includes('?') ? '&' : '?'
+    return `${databaseUrl}${separator}schema=${schema}`
+  }
+}
 
-  // Apply schema if specified
-  const datasourceUrl = (() => {
-    if (!schema) return databaseUrl
+function withoutSchema(databaseUrl: string): string {
+  try {
+    const url = new URL(databaseUrl)
+    url.searchParams.delete('schema')
+    return url.toString()
+  } catch {
+    return databaseUrl
+  }
+}
 
-    try {
-      const url = new URL(databaseUrl)
-      url.searchParams.set('schema', schema)
-      return url.toString()
-    } catch {
-      const separator = databaseUrl.includes('?') ? '&' : '?'
-      return `${databaseUrl}${separator}schema=${schema}`
+async function schemaHasTable(
+  connectionString: string,
+  schema: string,
+  table: string
+): Promise<boolean> {
+  const client = new Client({ connectionString })
+  try {
+    await client.connect()
+    const result = await client.query(
+      'SELECT 1 FROM information_schema.tables WHERE table_schema = $1 AND table_name = $2 LIMIT 1',
+      [schema, table]
+    )
+    return result.rowCount > 0
+  } finally {
+    await client.end().catch(() => undefined)
+  }
+}
+
+async function findBestSchemaForTenant(
+  connectionString: string,
+  tenantCode: TenantCode,
+  currentSchema: string
+): Promise<string | null> {
+  const client = new Client({ connectionString })
+  try {
+    await client.connect()
+    const result = await client.query<{ table_schema: string }>(
+      'SELECT DISTINCT table_schema FROM information_schema.tables WHERE table_name = $1',
+      ['skus']
+    )
+
+    const schemas = result.rows.map((row) => row.table_schema).filter(Boolean)
+    if (schemas.length === 0) return null
+
+    const tenantSuffix = `_${tenantCode.toLowerCase()}`
+    const tenantSchemas = schemas.filter((schema) => schema.toLowerCase().endsWith(tenantSuffix))
+    const candidates = tenantSchemas.length > 0 ? tenantSchemas : schemas
+
+    const isProduction = process.env.NODE_ENV === 'production'
+    const score = (schema: string): number => {
+      const normalized = schema.toLowerCase()
+      let value = 0
+
+      if (normalized.endsWith(tenantSuffix)) value += 10
+
+      if (isProduction) {
+        if (normalized.includes('main') || normalized.includes('prod')) value += 3
+        if (normalized.includes('dev') || normalized.includes('test') || normalized.includes('local'))
+          value -= 3
+      } else {
+        if (normalized.includes('dev') || normalized.includes('test') || normalized.includes('local'))
+          value += 3
+        if (normalized.includes('main') || normalized.includes('prod')) value -= 3
+      }
+
+      if (schema === currentSchema) value += 1
+      return value
     }
-  })()
+
+    return candidates
+      .slice()
+      .sort((a, b) => score(b) - score(a) || a.localeCompare(b))[0] ?? null
+  } finally {
+    await client.end().catch(() => undefined)
+  }
+}
+
+async function resolveDatasourceUrl(databaseUrl: string, tenantCode: TenantCode): Promise<string> {
+  const schemaOverride = process.env.PRISMA_SCHEMA
+  if (schemaOverride) {
+    return withSchema(databaseUrl, schemaOverride)
+  }
+
+  let currentSchema: string | null = null
+  try {
+    currentSchema = new URL(databaseUrl).searchParams.get('schema')
+  } catch {
+    currentSchema = null
+  }
+
+  if (!currentSchema) {
+    return databaseUrl
+  }
+
+  const baseConnectionString = withoutSchema(databaseUrl)
+
+  try {
+    const hasRequiredTables = await schemaHasTable(baseConnectionString, currentSchema, 'skus')
+    if (hasRequiredTables) return databaseUrl
+
+    const bestSchema = await findBestSchemaForTenant(baseConnectionString, tenantCode, currentSchema)
+    if (bestSchema && bestSchema !== currentSchema) {
+      console.warn(
+        `[tenant] Schema "${currentSchema}" missing expected tables for ${tenantCode}; using "${bestSchema}" instead`
+      )
+      return withSchema(databaseUrl, bestSchema)
+    }
+  } catch {
+    // Fall back to provided schema URL if we cannot introspect (e.g., network/permissions)
+  }
+
+  return databaseUrl
+}
+
+async function createTenantClient(tenantCode: TenantCode): Promise<PrismaClient> {
+  const databaseUrl = getTenantDatabaseUrl(tenantCode)
+  const datasourceUrl = await resolveDatasourceUrl(databaseUrl, tenantCode)
 
   const client = new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
@@ -72,7 +190,7 @@ function createTenantClient(tenantCode: TenantCode): PrismaClient {
  * Get or create a Prisma client for a specific tenant.
  * Uses singleton pattern to prevent multiple instances per tenant.
  */
-export function getTenantPrismaClient(tenantCode: TenantCode): PrismaClient {
+export async function getTenantPrismaClient(tenantCode: TenantCode): Promise<PrismaClient> {
   if (!isValidTenantCode(tenantCode)) {
     throw new Error(`Invalid tenant code: ${tenantCode}`)
   }
@@ -82,10 +200,24 @@ export function getTenantPrismaClient(tenantCode: TenantCode): PrismaClient {
     return existing
   }
 
-  const client = createTenantClient(tenantCode)
-  clientCache.set(tenantCode, client)
+  const existingPromise = clientPromiseCache.get(tenantCode)
+  if (existingPromise) {
+    return existingPromise
+  }
 
-  return client
+  const promise = createTenantClient(tenantCode)
+    .then((client) => {
+      clientCache.set(tenantCode, client)
+      clientPromiseCache.delete(tenantCode)
+      return client
+    })
+    .catch((error) => {
+      clientPromiseCache.delete(tenantCode)
+      throw error
+    })
+
+  clientPromiseCache.set(tenantCode, promise)
+  return promise
 }
 
 /**
@@ -101,6 +233,7 @@ export async function disconnectAllTenants(): Promise<void> {
 
   await Promise.all(disconnectPromises)
   clientCache.clear()
+  clientPromiseCache.clear()
 }
 
 /**
@@ -108,7 +241,7 @@ export async function disconnectAllTenants(): Promise<void> {
  */
 export async function checkTenantConnection(tenantCode: TenantCode): Promise<boolean> {
   try {
-    const client = getTenantPrismaClient(tenantCode)
+    const client = await getTenantPrismaClient(tenantCode)
     await client.$queryRaw`SELECT 1`
     return true
   } catch (error) {
