@@ -76,17 +76,11 @@ const navigation: NavSection[] = [
     ]
   },
   {
-    title: 'Compliance',
+    title: 'Admin',
     requireHR: true,
     items: [
-      { name: 'Audit Logs', href: '/audit-logs', icon: LockClosedIcon, requireHR: true },
-    ]
-  },
-  {
-    title: 'Admin',
-    requireSuperAdmin: true,
-    items: [
       { name: 'Access Management', href: '/admin/access', icon: LockClosedIcon, requireSuperAdmin: true },
+      { name: 'Audit Logs', href: '/audit-logs', icon: LockClosedIcon, requireHR: true },
     ]
   },
 ]
