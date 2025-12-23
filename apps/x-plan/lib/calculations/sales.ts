@@ -137,6 +137,35 @@ function clampNonNegative(value: number): number {
   return value < 0 ? 0 : value
 }
 
+function consumeInventoryFIFO(consumptionQuantity: number, batchInventory: BatchInventory[]): BatchInventory[] {
+  if (consumptionQuantity <= 0 || batchInventory.length === 0) {
+    return [...batchInventory]
+  }
+
+  const remaining: BatchInventory[] = []
+  let remainingToConsume = consumptionQuantity
+
+  const sortedBatches = [...batchInventory].sort((a, b) => a.arrivalWeek - b.arrivalWeek)
+
+  for (const batch of sortedBatches) {
+    if (remainingToConsume <= 0) {
+      remaining.push(batch)
+      continue
+    }
+
+    const quantityToConsume = Math.min(remainingToConsume, batch.quantity)
+    const remainingQuantity = batch.quantity - quantityToConsume
+
+    if (remainingQuantity > 0) {
+      remaining.push({ ...batch, quantity: remainingQuantity })
+    }
+
+    remainingToConsume -= quantityToConsume
+  }
+
+  return remaining
+}
+
 /**
  * Allocate sales using FIFO from available batch inventory
  * Returns the batch allocations for the sales quantity
@@ -248,6 +277,11 @@ export function computeSalesPlan(
       const previousEnd = index > 0 ? stockEndSeries[index - 1] : coerceNumber(week?.stockStart)
       const manualStart = week?.stockStart
       const baseStart = manualStart != null ? coerceNumber(manualStart) : previousEnd
+      const backlog = baseStart < 0 ? Math.abs(baseStart) : 0
+
+      if (backlog > 0) {
+        batchInventory = consumeInventoryFIFO(backlog, batchInventory)
+      }
       const stockStart = baseStart + arrivals
 
       const actualSales = week?.actualSales != null ? coerceNumber(week.actualSales) : null
@@ -255,17 +289,17 @@ export function computeSalesPlan(
 
       let computedFinalSales: number
       if (week?.finalSales != null) {
-        computedFinalSales = clampNonNegative(Math.min(stockStart, coerceNumber(week.finalSales)))
+        computedFinalSales = clampNonNegative(coerceNumber(week.finalSales))
       } else {
         const demand = actualSales != null ? actualSales : forecastSales ?? 0
-        computedFinalSales = clampNonNegative(Math.min(stockStart, demand))
+        computedFinalSales = clampNonNegative(demand)
       }
 
       // Allocate sales using FIFO
       const { allocations, remainingBatches } = allocateSalesFIFO(computedFinalSales, batchInventory)
       batchInventory = remainingBatches
 
-      const stockEnd = clampNonNegative(stockStart - computedFinalSales)
+      const stockEnd = stockStart - computedFinalSales
       let percentError: number | null = null
       if (actualSales != null && forecastSales != null && forecastSales !== 0) {
         percentError = (actualSales - forecastSales) / Math.abs(forecastSales)
@@ -302,12 +336,12 @@ export function computeSalesPlan(
       if (depletionIndex == null) {
         productRows[i].stockWeeks = Number.POSITIVE_INFINITY
       } else {
-        const coverageWeeks = depletionIndex - i + 1
-        const current = productRows[i]
-        if (current.stockStart <= 0 && current.finalSales <= 0 && current.stockEnd <= 0) {
-          productRows[i].stockWeeks = 0
+        const depletionRow = productRows[depletionIndex]
+        if (depletionIndex === i) {
+          productRows[i].stockWeeks = depletionRow.finalSales > 0 ? depletionRow.stockStart / depletionRow.finalSales : 0
         } else {
-          productRows[i].stockWeeks = coverageWeeks
+          const fraction = depletionRow.finalSales > 0 ? depletionRow.stockStart / depletionRow.finalSales : 0
+          productRows[i].stockWeeks = depletionIndex - i + fraction
         }
       }
     }

@@ -4,7 +4,7 @@ import clsx from 'clsx'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { Plus, Check, X, Pencil, Trash2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { withAppBasePath } from '@/lib/base-path'
 
 const DEFAULT_STRATEGY_ID = 'default-strategy'
@@ -25,10 +25,12 @@ type Strategy = {
 
 interface StrategiesWorkspaceProps {
   strategies: Strategy[]
+  activeStrategyId?: string | null
 }
 
-export function StrategiesWorkspace({ strategies: initialStrategies }: StrategiesWorkspaceProps) {
+export function StrategiesWorkspace({ strategies: initialStrategies, activeStrategyId }: StrategiesWorkspaceProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [strategies, setStrategies] = useState<Strategy[]>(initialStrategies)
   const [isAdding, setIsAdding] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
@@ -67,6 +69,12 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
   }
 
   const handleUpdate = async (id: string) => {
+    const strategy = strategies.find((s) => s.id === id)
+    if (id === DEFAULT_STRATEGY_ID || strategy?.isDefault) {
+      toast.error('Default strategy cannot be edited')
+      return
+    }
+
     if (!editName.trim()) {
       toast.error('Enter a strategy name')
       return
@@ -91,8 +99,7 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
   }
 
   const handleDelete = async (id: string) => {
-    const strategy = strategies.find((s) => s.id === id)
-    if (id === DEFAULT_STRATEGY_ID || strategy?.isDefault) {
+    if (id === DEFAULT_STRATEGY_ID) {
       toast.error('Cannot delete the default strategy for existing data')
       return
     }
@@ -113,10 +120,16 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
   }
 
   const handleSelectStrategy = (id: string) => {
-    router.push(`/1-product-setup?strategy=${id}`)
+    const nextParams = new URLSearchParams(searchParams?.toString() ?? '')
+    nextParams.set('strategy', id)
+    router.push(`?${nextParams.toString()}`)
   }
 
   const startEdit = (strategy: Strategy) => {
+    if (strategy.id === DEFAULT_STRATEGY_ID || strategy.isDefault) {
+      toast.error('Default strategy cannot be edited')
+      return
+    }
     setEditingId(strategy.id)
     setEditName(strategy.name)
     setEditDescription(strategy.description ?? '')
@@ -127,6 +140,8 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
     setEditName('')
     setEditDescription('')
   }
+
+  const selectedStrategyId = activeStrategyId ?? searchParams?.get('strategy') ?? null
 
   return (
     <div className="space-y-6">
@@ -230,6 +245,8 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
                   onClick={() => editingId !== strategy.id && handleSelectStrategy(strategy.id)}
                   className={clsx(
                     'cursor-pointer bg-white transition hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5',
+                    selectedStrategyId === strategy.id &&
+                      'bg-cyan-50/60 ring-1 ring-inset ring-cyan-200 dark:bg-cyan-950/25 dark:ring-cyan-500/40',
                     strategy.isDefault && 'bg-cyan-50/30 dark:bg-cyan-950/20'
                   )}
                 >
@@ -308,7 +325,7 @@ export function StrategiesWorkspace({ strategies: initialStrategies }: Strategie
                           >
                             <Pencil className="h-4 w-4" />
                           </button>
-                          {strategy.id !== DEFAULT_STRATEGY_ID && !strategy.isDefault && (
+                          {strategy.id !== DEFAULT_STRATEGY_ID && (
                             <button
                               type="button"
                               onClick={() => handleDelete(strategy.id)}
