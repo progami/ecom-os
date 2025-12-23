@@ -4,6 +4,7 @@
  */
 
 import { createHash } from 'crypto'
+import { ValidationError } from '@/lib/api'
 
 export const SYSTEM_FALLBACK_ID = 'system'
 export const SYSTEM_FALLBACK_NAME = 'System'
@@ -41,7 +42,7 @@ export function generateBatchHash(seedParts: string[]): string {
 }
 
 /**
- * Resolve batch lot from raw input or generate from order details
+ * Resolve batch lot from raw input (required)
  */
 export function resolveBatchLot(params: {
   rawBatchLot?: string | null
@@ -51,13 +52,9 @@ export function resolveBatchLot(params: {
   transactionDate: Date
 }): string {
   const normalized = normalizeNullable(params.rawBatchLot)
-  if (normalized) {
-    return normalized
+  if (!normalized) {
+    throw new ValidationError(`Batch/Lot is required for SKU ${params.skuCode}`)
   }
-  const fallback = generateBatchHash([
-    params.orderNumber,
-    params.warehouseCode,
-    params.skuCode
-  ])
-  return fallback
+
+  return normalized
 }

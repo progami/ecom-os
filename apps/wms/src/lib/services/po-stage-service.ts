@@ -215,6 +215,7 @@ export async function generatePoNumber(): Promise<string> {
 export interface CreatePurchaseOrderLineInput {
   skuCode: string
   skuDescription?: string
+  batchLot: string
   quantity: number
   unitCost?: number
   currency?: string
@@ -234,6 +235,68 @@ export async function createPurchaseOrder(
   user: UserContext
 ): Promise<PurchaseOrder & { lines: any[] }> {
   const prisma = await getTenantPrisma()
+
+  if (input.lines && input.lines.length > 0) {
+    const normalizedLines = input.lines.map((line) => ({
+      ...line,
+      skuCode: line.skuCode.trim(),
+      batchLot: line.batchLot.trim(),
+    }))
+
+    const keySet = new Set<string>()
+    for (const line of normalizedLines) {
+      if (!line.skuCode) {
+        throw new ValidationError('SKU code is required for all line items')
+      }
+      if (!line.batchLot) {
+        throw new ValidationError(`Batch/Lot is required for SKU ${line.skuCode}`)
+      }
+
+      const key = `${line.skuCode}::${line.batchLot}`
+      if (keySet.has(key)) {
+        throw new ValidationError(`Duplicate SKU/Batch line detected: ${line.skuCode} / ${line.batchLot}`)
+      }
+      keySet.add(key)
+    }
+
+    const skuCodes = Array.from(new Set(normalizedLines.map((line) => line.skuCode)))
+    const skus = await prisma.sku.findMany({
+      where: { skuCode: { in: skuCodes } },
+      select: { id: true, skuCode: true },
+    })
+    const skuByCode = new Map(skus.map((sku) => [sku.skuCode, sku]))
+
+    for (const line of normalizedLines) {
+      if (!skuByCode.has(line.skuCode)) {
+        throw new ValidationError(`SKU ${line.skuCode} not found. Create the SKU first.`)
+      }
+    }
+
+    const batchCodes = Array.from(new Set(normalizedLines.map((line) => line.batchLot)))
+    const skuIds = skus.map((sku) => sku.id)
+    const batches = await prisma.skuBatch.findMany({
+      where: {
+        skuId: { in: skuIds },
+        batchCode: { in: batchCodes },
+        isActive: true,
+      },
+      select: { skuId: true, batchCode: true },
+    })
+    const batchKeySet = new Set(batches.map((batch) => `${batch.skuId}::${batch.batchCode}`))
+
+    for (const line of normalizedLines) {
+      const sku = skuByCode.get(line.skuCode)
+      if (!sku) continue
+      const key = `${sku.id}::${line.batchLot}`
+      if (!batchKeySet.has(key)) {
+        throw new ValidationError(
+          `Batch/Lot ${line.batchLot} is not configured for SKU ${line.skuCode}. Create it in Config → Products → SKUs → Batches.`
+        )
+      }
+    }
+
+    input.lines = normalizedLines
+  }
 
   const MAX_PO_NUMBER_ATTEMPTS = 5
   let order: (PurchaseOrder & { lines: any[] }) | null = null
@@ -261,6 +324,7 @@ export async function createPurchaseOrder(
                   create: input.lines.map((line) => ({
                     skuCode: line.skuCode,
                     skuDescription: line.skuDescription || '',
+                    batchLot: line.batchLot,
                     quantity: line.quantity,
                     unitCost: line.unitCost,
                     currency: line.currency || 'USD',

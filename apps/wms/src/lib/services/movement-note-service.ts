@@ -140,11 +140,55 @@ export async function createMovementNote(input: CreateMovementNoteInput, user: U
                 throw new ValidationError('Line does not belong to the purchase order')
               }
 
+              const poBatchLot = resolveBatchLot({
+                rawBatchLot: poLine.batchLot,
+                orderNumber: purchaseOrder.orderNumber,
+                warehouseCode: purchaseOrder.warehouseCode,
+                skuCode: poLine.skuCode,
+                transactionDate: receivedAt,
+              })
+
+              if (line.batchLot) {
+                const providedBatchLot = resolveBatchLot({
+                  rawBatchLot: line.batchLot,
+                  orderNumber: purchaseOrder.orderNumber,
+                  warehouseCode: purchaseOrder.warehouseCode,
+                  skuCode: poLine.skuCode,
+                  transactionDate: receivedAt,
+                })
+
+                if (providedBatchLot !== poBatchLot) {
+                  throw new ValidationError(
+                    `Batch/Lot mismatch for SKU ${poLine.skuCode}. Expected ${poBatchLot}.`
+                  )
+                }
+              }
+
+              const sku = await tx.sku.findFirst({
+                where: { skuCode: poLine.skuCode },
+                select: { id: true },
+              })
+
+              if (!sku) {
+                throw new ValidationError(`SKU not found: ${poLine.skuCode}`)
+              }
+
+              const batchRecord = await tx.skuBatch.findFirst({
+                where: { skuId: sku.id, batchCode: poBatchLot, isActive: true },
+                select: { id: true },
+              })
+
+              if (!batchRecord) {
+                throw new ValidationError(
+                  `Batch/Lot ${poBatchLot} is not configured for SKU ${poLine.skuCode}. Create it in Config → Products → SKUs → Batches.`
+                )
+              }
+
               return {
                 purchaseOrderLineId: line.purchaseOrderLineId,
                 skuCode: poLine.skuCode,
                 skuDescription: poLine.skuDescription,
-                batchLot: line.batchLot ?? null,
+                batchLot: poBatchLot,
                 quantity: line.quantity,
                 storageCartonsPerPallet: line.storageCartonsPerPallet ?? null,
                 shippingCartonsPerPallet: line.shippingCartonsPerPallet ?? null,
@@ -359,14 +403,45 @@ export async function postMovementNote(id: string, _user: UserContext) {
       }
 
       const sku = await tx.sku.findFirst({ where: { skuCode: poLine.skuCode } })
-      const unitsPerCarton = sku?.unitsPerCarton ?? 1
-      const batchLot = resolveBatchLot({
-        rawBatchLot: line.batchLot ?? poLine.batchLot,
+      if (!sku) {
+        throw new ValidationError(`SKU not found: ${poLine.skuCode}`)
+      }
+
+      const unitsPerCarton = sku.unitsPerCarton ?? 1
+      const poBatchLot = resolveBatchLot({
+        rawBatchLot: poLine.batchLot,
         orderNumber: po.orderNumber,
         warehouseCode: po.warehouseCode,
         skuCode: poLine.skuCode,
         transactionDate,
       })
+
+      if (line.batchLot) {
+        const providedBatchLot = resolveBatchLot({
+          rawBatchLot: line.batchLot,
+          orderNumber: po.orderNumber,
+          warehouseCode: po.warehouseCode,
+          skuCode: poLine.skuCode,
+          transactionDate,
+        })
+
+        if (providedBatchLot !== poBatchLot) {
+          throw new ValidationError(
+            `Batch/Lot mismatch for SKU ${poLine.skuCode}. Expected ${poBatchLot}.`
+          )
+        }
+      }
+
+      const batchRecord = await tx.skuBatch.findFirst({
+        where: { skuId: sku.id, batchCode: poBatchLot, isActive: true },
+        select: { id: true },
+      })
+
+      if (!batchRecord) {
+        throw new ValidationError(
+          `Batch/Lot ${poBatchLot} is not configured for SKU ${poLine.skuCode}. Create it in Config → Products → SKUs → Batches.`
+        )
+      }
 
       const createdTx = await tx.inventoryTransaction.create({
         data: {
@@ -381,7 +456,7 @@ export async function postMovementNote(id: string, _user: UserContext) {
           cartonWeightKg: sku?.cartonWeightKg ?? null,
           packagingType: sku?.packagingType ?? null,
           unitsPerCarton,
-          batchLot,
+          batchLot: poBatchLot,
           transactionType,
           referenceId: existingNote.referenceNumber ?? toPublicOrderNumber(po.orderNumber),
           cartonsIn: isInbound ? line.quantity : 0,

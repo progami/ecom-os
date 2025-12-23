@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { Edit2, Loader2, Package2, Plus, Search } from '@/lib/lucide-icons'
+import { cn } from '@/lib/utils'
 import { SkuBatchesModal } from './sku-batches-modal'
 
 interface SkuRow {
@@ -21,10 +22,10 @@ interface SkuRow {
   secondarySupplierId?: string | null
   material: string | null
   unitDimensionsCm: string | null
-  unitWeightKg: number | null
+  unitWeightKg: number | string | null
   unitsPerCarton: number
   cartonDimensionsCm: string | null
-  cartonWeightKg: number | null
+  cartonWeightKg: number | string | null
   packagingType: string | null
   isActive: boolean
   _count?: { inventoryTransactions: number }
@@ -42,6 +43,12 @@ type DimensionParts = {
   height: string
 }
 
+type UnitSystem = 'metric' | 'imperial'
+
+const UNIT_SYSTEM_STORAGE_KEY = 'wms:unit-system'
+const CM_PER_INCH = 2.54
+const LB_PER_KG = 2.2046226218
+
 const EMPTY_DIMENSIONS: DimensionParts = { length: '', width: '', height: '' }
 
 function parseDimensions(value: string | null | undefined): DimensionParts {
@@ -57,6 +64,51 @@ function parseDimensions(value: string | null | undefined): DimensionParts {
   }
 }
 
+function stripTrailingZeros(value: string): string {
+  return value.includes('.') ? value.replace(/\.?0+$/, '') : value
+}
+
+function formatNumber(value: number, decimals: number): string {
+  return stripTrailingZeros(value.toFixed(decimals))
+}
+
+function convertNumericString(value: string, convert: (value: number) => number, decimals: number): string {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  const parsed = Number(trimmed)
+  if (!Number.isFinite(parsed)) return value
+  return formatNumber(convert(parsed), decimals)
+}
+
+function convertDimensionValue(value: string, from: UnitSystem, to: UnitSystem): string {
+  if (from === to) return value
+  if (from === 'metric' && to === 'imperial') {
+    return convertNumericString(value, (num) => num / CM_PER_INCH, 2)
+  }
+  return convertNumericString(value, (num) => num * CM_PER_INCH, 2)
+}
+
+function convertWeightValue(value: string, from: UnitSystem, to: UnitSystem): string {
+  if (from === to) return value
+  if (from === 'metric' && to === 'imperial') {
+    return convertNumericString(value, (num) => num * LB_PER_KG, 3)
+  }
+  return convertNumericString(value, (num) => num / LB_PER_KG, 3)
+}
+
+function coerceFiniteNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  const fallback = Number((value as { toString?: () => string })?.toString?.() ?? NaN)
+  return Number.isFinite(fallback) ? fallback : null
+}
+
 interface SkuFormState {
   skuCode: string
   description: string
@@ -65,22 +117,37 @@ interface SkuFormState {
   defaultSupplierId: string
   secondarySupplierId: string
   material: string
-  unitLengthCm: string
-  unitWidthCm: string
-  unitHeightCm: string
-  unitWeightKg: string
+  unitLength: string
+  unitWidth: string
+  unitHeight: string
+  unitWeight: string
   unitsPerCarton: string
-  cartonLengthCm: string
-  cartonWidthCm: string
-  cartonHeightCm: string
-  cartonWeightKg: string
+  cartonLength: string
+  cartonWidth: string
+  cartonHeight: string
+  cartonWeight: string
   packagingType: string
   isActive: boolean
 }
 
-function buildFormState(sku?: SkuRow | null): SkuFormState {
+function buildFormState(sku?: SkuRow | null, unitSystem: UnitSystem = 'metric'): SkuFormState {
   const unitDims = parseDimensions(sku?.unitDimensionsCm)
   const cartonDims = parseDimensions(sku?.cartonDimensionsCm)
+
+  const resolvedUnitDims: DimensionParts = {
+    length: convertDimensionValue(unitDims.length, 'metric', unitSystem),
+    width: convertDimensionValue(unitDims.width, 'metric', unitSystem),
+    height: convertDimensionValue(unitDims.height, 'metric', unitSystem),
+  }
+
+  const resolvedCartonDims: DimensionParts = {
+    length: convertDimensionValue(cartonDims.length, 'metric', unitSystem),
+    width: convertDimensionValue(cartonDims.width, 'metric', unitSystem),
+    height: convertDimensionValue(cartonDims.height, 'metric', unitSystem),
+  }
+
+  const unitWeight = coerceFiniteNumber(sku?.unitWeightKg)
+  const cartonWeight = coerceFiniteNumber(sku?.cartonWeightKg)
 
   return {
     skuCode: sku?.skuCode ?? '',
@@ -90,17 +157,39 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
     defaultSupplierId: sku?.defaultSupplierId ?? '',
     secondarySupplierId: sku?.secondarySupplierId ?? '',
     material: sku?.material ?? '',
-    unitLengthCm: unitDims.length,
-    unitWidthCm: unitDims.width,
-    unitHeightCm: unitDims.height,
-    unitWeightKg: sku?.unitWeightKg?.toString() ?? '',
+    unitLength: resolvedUnitDims.length,
+    unitWidth: resolvedUnitDims.width,
+    unitHeight: resolvedUnitDims.height,
+    unitWeight:
+      unitWeight === null
+        ? ''
+        : formatNumber(unitSystem === 'imperial' ? unitWeight * LB_PER_KG : unitWeight, 3),
     unitsPerCarton: sku?.unitsPerCarton?.toString() ?? '1',
-    cartonLengthCm: cartonDims.length,
-    cartonWidthCm: cartonDims.width,
-    cartonHeightCm: cartonDims.height,
-    cartonWeightKg: sku?.cartonWeightKg?.toString() ?? '',
+    cartonLength: resolvedCartonDims.length,
+    cartonWidth: resolvedCartonDims.width,
+    cartonHeight: resolvedCartonDims.height,
+    cartonWeight:
+      cartonWeight === null
+        ? ''
+        : formatNumber(unitSystem === 'imperial' ? cartonWeight * LB_PER_KG : cartonWeight, 3),
     packagingType: sku?.packagingType ?? '',
     isActive: sku?.isActive ?? true,
+  }
+}
+
+function convertFormStateUnits(state: SkuFormState, from: UnitSystem, to: UnitSystem): SkuFormState {
+  if (from === to) return state
+
+  return {
+    ...state,
+    unitLength: convertDimensionValue(state.unitLength, from, to),
+    unitWidth: convertDimensionValue(state.unitWidth, from, to),
+    unitHeight: convertDimensionValue(state.unitHeight, from, to),
+    unitWeight: convertWeightValue(state.unitWeight, from, to),
+    cartonLength: convertDimensionValue(state.cartonLength, from, to),
+    cartonWidth: convertDimensionValue(state.cartonWidth, from, to),
+    cartonHeight: convertDimensionValue(state.cartonHeight, from, to),
+    cartonWeight: convertWeightValue(state.cartonWeight, from, to),
   }
 }
 
@@ -137,6 +226,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
   const [suppliersLoading, setSuppliersLoading] = useState(false)
   const [batchesSku, setBatchesSku] = useState<SkuRow | null>(null)
 
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingSku, setEditingSku] = useState<SkuRow | null>(null)
@@ -147,14 +237,46 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
     nextActive: boolean
   } | null>(null)
 
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(UNIT_SYSTEM_STORAGE_KEY)
+      if (saved === 'metric' || saved === 'imperial') {
+        setUnitSystem(saved)
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  const applyUnitSystem = useCallback(
+    (nextSystem: UnitSystem) => {
+      setUnitSystem((prevSystem) => {
+        if (prevSystem === nextSystem) return prevSystem
+
+        if (isModalOpen) {
+          setFormState((prev) => convertFormStateUnits(prev, prevSystem, nextSystem))
+        }
+
+        try {
+          window.localStorage.setItem(UNIT_SYSTEM_STORAGE_KEY, nextSystem)
+        } catch {
+          // ignore
+        }
+
+        return nextSystem
+      })
+    },
+    [isModalOpen]
+  )
+
   // Handle external modal open trigger
   useEffect(() => {
     if (externalModalOpen) {
       setEditingSku(null)
-      setFormState(buildFormState())
+      setFormState(buildFormState(null, unitSystem))
       setIsModalOpen(true)
     }
-  }, [externalModalOpen])
+  }, [externalModalOpen, unitSystem])
 
   const buildQuery = useCallback(() => {
     const params = new URLSearchParams()
@@ -232,13 +354,13 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
 
   const openCreate = () => {
     setEditingSku(null)
-    setFormState(buildFormState())
+    setFormState(buildFormState(null, unitSystem))
     setIsModalOpen(true)
   }
 
   const openEdit = (sku: SkuRow) => {
     setEditingSku(sku)
-    setFormState(buildFormState(sku))
+    setFormState(buildFormState(sku, unitSystem))
     setIsModalOpen(true)
   }
 
@@ -246,7 +368,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
     if (isSubmitting) return
     setIsModalOpen(false)
     setEditingSku(null)
-    setFormState(buildFormState())
+    setFormState(buildFormState(null, unitSystem))
     onExternalModalClose?.()
   }
 
@@ -274,17 +396,25 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       return
     }
 
-    const unitWeightKg = parseOptionalNumber(formState.unitWeightKg)
-    if (unitWeightKg !== undefined && !parsePositiveNumber(formState.unitWeightKg)) {
+    const unitWeight = parseOptionalNumber(formState.unitWeight)
+    if (unitWeight !== undefined && !parsePositiveNumber(formState.unitWeight)) {
       toast.error('Unit weight must be a positive number')
       return
     }
 
-    const cartonWeightKg = parseOptionalNumber(formState.cartonWeightKg)
-    if (cartonWeightKg !== undefined && !parsePositiveNumber(formState.cartonWeightKg)) {
+    const cartonWeight = parseOptionalNumber(formState.cartonWeight)
+    if (cartonWeight !== undefined && !parsePositiveNumber(formState.cartonWeight)) {
       toast.error('Carton weight must be a positive number')
       return
     }
+
+    const resolveWeightKg = (value: number) => {
+      const normalized = unitSystem === 'imperial' ? value / LB_PER_KG : value
+      return Number(normalized.toFixed(3))
+    }
+
+    const unitWeightKg = unitWeight === undefined ? undefined : resolveWeightKg(unitWeight)
+    const cartonWeightKg = cartonWeight === undefined ? undefined : resolveWeightKg(cartonWeight)
 
     const buildDimensionsValue = (dims: DimensionParts, label: string): string | null | undefined => {
       const parts = [dims.length.trim(), dims.width.trim(), dims.height.trim()]
@@ -295,24 +425,31 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         toast.error(`${label} dimensions require L, W, and H`)
         return undefined
       }
-      if (parts.some(part => parsePositiveNumber(part) === null)) {
+      if (parts.some((part) => parsePositiveNumber(part) === null)) {
         toast.error(`${label} dimensions must be positive numbers`)
         return undefined
       }
-      return `${parts[0]}x${parts[1]}x${parts[2]}`
+
+      const resolved = parts.map((part) => {
+        const value = Number(part)
+        const normalized = unitSystem === 'imperial' ? value * CM_PER_INCH : value
+        return formatNumber(normalized, 2)
+      })
+
+      return `${resolved[0]}x${resolved[1]}x${resolved[2]}`
     }
 
     const unitDimensionsCm = buildDimensionsValue(
-      { length: formState.unitLengthCm, width: formState.unitWidthCm, height: formState.unitHeightCm },
+      { length: formState.unitLength, width: formState.unitWidth, height: formState.unitHeight },
       'Unit'
     )
     if (unitDimensionsCm === undefined) return
 
     const cartonDimensionsCm = buildDimensionsValue(
       {
-        length: formState.cartonLengthCm,
-        width: formState.cartonWidthCm,
-        height: formState.cartonHeightCm,
+        length: formState.cartonLength,
+        width: formState.cartonWidth,
+        height: formState.cartonHeight,
       },
       'Carton'
     )
@@ -352,7 +489,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       toast.success(editingSku ? 'SKU updated' : 'SKU created')
       setIsModalOpen(false)
       setEditingSku(null)
-      setFormState(buildFormState())
+      setFormState(buildFormState(null, unitSystem))
       onExternalModalClose?.()
       await fetchSkus()
     } catch (error) {
@@ -547,17 +684,49 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       </div>
 
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-3xl overflow-hidden rounded-lg bg-white shadow-xl">
+        <div className="fixed inset-0 z-50 bg-black/50">
+          <div className="flex h-full w-full items-start justify-center overflow-y-auto p-4">
+            <div className="flex max-h-[calc(100vh-2rem)] w-full max-w-3xl flex-col overflow-hidden rounded-lg bg-white shadow-xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <h2 className="text-lg font-semibold text-slate-900">{editingSku ? 'Edit SKU' : 'New SKU'}</h2>
-              <Button variant="ghost" onClick={closeModal} disabled={isSubmitting}>
-                Close
-              </Button>
+              <div className="flex items-center gap-3">
+                <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
+                  <button
+                    type="button"
+                    onClick={() => applyUnitSystem('metric')}
+                    className={cn(
+                      'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                      unitSystem === 'metric'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    )}
+                    aria-pressed={unitSystem === 'metric'}
+                  >
+                    cm/kg
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyUnitSystem('imperial')}
+                    className={cn(
+                      'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                      unitSystem === 'imperial'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    )}
+                    aria-pressed={unitSystem === 'imperial'}
+                  >
+                    in/lb
+                  </button>
+                </div>
+                <Button variant="ghost" onClick={closeModal} disabled={isSubmitting}>
+                  Close
+                </Button>
+              </div>
             </div>
 
-            <form onSubmit={submitSku} className="space-y-6 p-6">
-              <div className="grid gap-4 md:grid-cols-2">
+            <form onSubmit={submitSku} className="flex min-h-0 flex-1 flex-col">
+              <div className="flex-1 space-y-6 overflow-y-auto p-6">
+                <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1">
                   <Label htmlFor="skuCode">SKU Code</Label>
                   <Input
@@ -677,23 +846,23 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                 </div>
 
                 <div className="space-y-1 md:col-span-2">
-                  <Label>Unit Dimensions (cm)</Label>
+                  <Label>Unit Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
                   <div className="grid grid-cols-3 gap-2">
                     <Input
-                      value={formState.unitLengthCm}
-                      onChange={(event) => setFormState((prev) => ({ ...prev, unitLengthCm: event.target.value }))}
+                      value={formState.unitLength}
+                      onChange={(event) => setFormState((prev) => ({ ...prev, unitLength: event.target.value }))}
                       placeholder="L"
                       inputMode="decimal"
                     />
                     <Input
-                      value={formState.unitWidthCm}
-                      onChange={(event) => setFormState((prev) => ({ ...prev, unitWidthCm: event.target.value }))}
+                      value={formState.unitWidth}
+                      onChange={(event) => setFormState((prev) => ({ ...prev, unitWidth: event.target.value }))}
                       placeholder="W"
                       inputMode="decimal"
                     />
                     <Input
-                      value={formState.unitHeightCm}
-                      onChange={(event) => setFormState((prev) => ({ ...prev, unitHeightCm: event.target.value }))}
+                      value={formState.unitHeight}
+                      onChange={(event) => setFormState((prev) => ({ ...prev, unitHeight: event.target.value }))}
                       placeholder="H"
                       inputMode="decimal"
                     />
@@ -701,38 +870,38 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="unitWeightKg">Unit Weight (kg)</Label>
+                  <Label htmlFor="unitWeight">Unit Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})</Label>
                   <Input
-                    id="unitWeightKg"
+                    id="unitWeight"
                     type="number"
                     step="0.001"
                     min={0.001}
-                    value={formState.unitWeightKg}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, unitWeightKg: event.target.value }))}
+                    value={formState.unitWeight}
+                    onChange={(event) => setFormState((prev) => ({ ...prev, unitWeight: event.target.value }))}
                     placeholder="Optional"
                   />
                 </div>
 
                 <div className="space-y-1 md:col-span-2">
-                  <Label>Carton Dimensions (cm)</Label>
+                  <Label>Carton Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
                   <div className="grid grid-cols-3 gap-2">
                     <Input
-                      value={formState.cartonLengthCm}
+                      value={formState.cartonLength}
                       onChange={(event) =>
-                        setFormState((prev) => ({ ...prev, cartonLengthCm: event.target.value }))
+                        setFormState((prev) => ({ ...prev, cartonLength: event.target.value }))
                       }
                       placeholder="L"
                       inputMode="decimal"
                     />
                     <Input
-                      value={formState.cartonWidthCm}
-                      onChange={(event) => setFormState((prev) => ({ ...prev, cartonWidthCm: event.target.value }))}
+                      value={formState.cartonWidth}
+                      onChange={(event) => setFormState((prev) => ({ ...prev, cartonWidth: event.target.value }))}
                       placeholder="W"
                       inputMode="decimal"
                     />
                     <Input
-                      value={formState.cartonHeightCm}
-                      onChange={(event) => setFormState((prev) => ({ ...prev, cartonHeightCm: event.target.value }))}
+                      value={formState.cartonHeight}
+                      onChange={(event) => setFormState((prev) => ({ ...prev, cartonHeight: event.target.value }))}
                       placeholder="H"
                       inputMode="decimal"
                     />
@@ -740,20 +909,21 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                 </div>
 
                 <div className="space-y-1">
-                  <Label htmlFor="cartonWeightKg">Carton Weight (kg)</Label>
+                  <Label htmlFor="cartonWeight">Carton Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})</Label>
                   <Input
-                    id="cartonWeightKg"
+                    id="cartonWeight"
                     type="number"
                     step="0.001"
                     min={0.001}
-                    value={formState.cartonWeightKg}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, cartonWeightKg: event.target.value }))}
+                    value={formState.cartonWeight}
+                    onChange={(event) => setFormState((prev) => ({ ...prev, cartonWeight: event.target.value }))}
                     placeholder="Optional"
                   />
                 </div>
               </div>
+            </div>
 
-              <div className="flex items-center justify-between gap-3 border-t pt-6">
+              <div className="flex items-center justify-between gap-3 border-t px-6 py-4">
                 <label className="inline-flex items-center gap-2 text-sm text-slate-700">
                   <input
                     type="checkbox"
@@ -780,6 +950,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                 </div>
               </div>
             </form>
+            </div>
           </div>
         </div>
       ) : null}

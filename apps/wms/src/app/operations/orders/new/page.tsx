@@ -25,14 +25,23 @@ interface Sku {
   description: string
 }
 
+interface BatchOption {
+  id: string
+  batchCode: string
+  isActive: boolean
+}
+
 interface LineItem {
   id: string
+  skuId?: string
   skuCode: string
   skuDescription: string
+  batchLot: string
   quantity: number
   unitCost: string
   currency: string
   notes: string
+  loadingBatches: boolean
 }
 
 const CURRENCIES = ['USD', 'GBP', 'EUR']
@@ -55,14 +64,18 @@ export default function NewPurchaseOrderPage() {
   const [lineItems, setLineItems] = useState<LineItem[]>([
     {
       id: generateTempId(),
+      skuId: undefined,
       skuCode: '',
       skuDescription: '',
+      batchLot: '',
       quantity: 1,
       unitCost: '',
       currency: 'USD',
       notes: '',
+      loadingBatches: false,
     },
   ])
+  const [batchesBySkuId, setBatchesBySkuId] = useState<Record<string, BatchOption[]>>({})
 
   useEffect(() => {
     if (status === 'loading') return
@@ -107,34 +120,106 @@ export default function NewPurchaseOrderPage() {
       ...lineItems,
       {
         id: generateTempId(),
+        skuId: undefined,
         skuCode: '',
         skuDescription: '',
+        batchLot: '',
         quantity: 1,
         unitCost: '',
         currency: 'USD',
         notes: '',
+        loadingBatches: false,
       },
     ])
   }
 
-  const updateLineItem = (id: string, field: keyof LineItem, value: string | number) => {
-    setLineItems(
-      lineItems.map((item) => {
-        if (item.id !== id) return item
+  const fetchBatchesForSku = async (sku: Sku): Promise<BatchOption[]> => {
+    if (batchesBySkuId[sku.id]) {
+      return batchesBySkuId[sku.id]
+    }
 
-        // If SKU is selected, auto-fill description
-        if (field === 'skuCode') {
-          const selectedSku = skus.find((s) => s.skuCode === value)
+    const response = await fetch(`/api/skus/${sku.id}/batches`, { credentials: 'include' })
+    if (!response.ok) {
+      throw new Error('Failed to load batches')
+    }
+
+    const payload = await response.json().catch(() => null)
+    const batches: BatchOption[] = Array.isArray(payload?.batches) ? payload.batches : []
+    setBatchesBySkuId((prev) => ({ ...prev, [sku.id]: batches }))
+    return batches
+  }
+
+  const loadBatchesForLine = async (lineId: string, sku: Sku) => {
+    setLineItems((prev) =>
+      prev.map((item) =>
+        item.id === lineId
+          ? {
+              ...item,
+              skuId: sku.id,
+              skuCode: sku.skuCode,
+              skuDescription: sku.description || '',
+              batchLot: '',
+              loadingBatches: true,
+            }
+          : item
+      )
+    )
+
+    try {
+      const batches = await fetchBatchesForSku(sku)
+
+      setLineItems((prev) =>
+        prev.map((item) => {
+          if (item.id !== lineId) return item
+          const defaultBatch = batches.length === 1 ? batches[0] : null
           return {
             ...item,
-            skuCode: value as string,
-            skuDescription: selectedSku?.description || '',
+            batchLot: defaultBatch?.batchCode ?? '',
+            loadingBatches: false,
           }
-        }
+        })
+      )
 
-        return { ...item, [field]: value }
-      })
-    )
+      if (batches.length === 0) {
+        toast.error(
+          `No batches configured for ${sku.skuCode}. Create one in Config → Products → SKUs → Batches.`
+        )
+      }
+    } catch (_error) {
+      setLineItems((prev) =>
+        prev.map((item) => (item.id === lineId ? { ...item, loadingBatches: false } : item))
+      )
+      toast.error(`Failed to load batches for ${sku.skuCode}`)
+    }
+  }
+
+  const updateLineItem = (id: string, field: keyof LineItem, value: string | number) => {
+    if (field === 'skuCode') {
+      const skuCode = String(value)
+      const selectedSku = skus.find((s) => s.skuCode === skuCode)
+      if (!selectedSku) {
+        setLineItems((prev) =>
+          prev.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  skuId: undefined,
+                  skuCode: '',
+                  skuDescription: '',
+                  batchLot: '',
+                  loadingBatches: false,
+                }
+              : item
+          )
+        )
+        return
+      }
+
+      void loadBatchesForLine(id, selectedSku)
+      return
+    }
+
+    setLineItems((prev) => prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)))
   }
 
   const removeLineItem = (id: string) => {
@@ -154,9 +239,11 @@ export default function NewPurchaseOrderPage() {
       return
     }
 
-    const invalidLines = lineItems.filter((item) => !item.skuCode || item.quantity <= 0)
+    const invalidLines = lineItems.filter(
+      (item) => !item.skuCode || !item.batchLot || item.quantity <= 0
+    )
     if (invalidLines.length > 0) {
-      toast.error('Please fill in SKU and quantity for all line items')
+      toast.error('Please fill in SKU, batch, and quantity for all line items')
       return
     }
 
@@ -177,6 +264,7 @@ export default function NewPurchaseOrderPage() {
           lines: lineItems.map((item) => ({
             skuCode: item.skuCode,
             skuDescription: item.skuDescription,
+            batchLot: item.batchLot,
             quantity: item.quantity,
             unitCost: item.unitCost ? parseFloat(item.unitCost) : undefined,
             currency: item.currency,
@@ -280,8 +368,9 @@ export default function NewPurchaseOrderPage() {
 
             <div className="space-y-3">
               {/* Table Header */}
-              <div className="grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground pb-2 border-b">
+              <div className="grid grid-cols-14 gap-2 text-xs font-medium text-muted-foreground pb-2 border-b">
                 <div className="col-span-3">SKU</div>
+                <div className="col-span-2">Batch / Lot</div>
                 <div className="col-span-3">Description</div>
                 <div className="col-span-1">Qty</div>
                 <div className="col-span-2">Unit Cost</div>
@@ -291,7 +380,7 @@ export default function NewPurchaseOrderPage() {
 
               {/* Line Items */}
               {lineItems.map((item) => (
-                <div key={item.id} className="grid grid-cols-12 gap-2 items-center">
+                <div key={item.id} className="grid grid-cols-14 gap-2 items-center">
                   <div className="col-span-3">
                     <select
                       value={item.skuCode}
@@ -305,7 +394,40 @@ export default function NewPurchaseOrderPage() {
                           {sku.skuCode}
                         </option>
                       ))}
-                    </select>
+                      </select>
+                  </div>
+                  <div className="col-span-2">
+                    {(() => {
+                      const options = item.skuId ? batchesBySkuId[item.skuId] ?? [] : []
+                      const disabled = !item.skuId || item.loadingBatches || options.length === 0
+
+                      return (
+                        <select
+                          value={item.batchLot}
+                          onChange={(e) => updateLineItem(item.id, 'batchLot', e.target.value)}
+                          className="w-full px-2 py-1.5 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm disabled:bg-slate-100 disabled:text-slate-500"
+                          required
+                          disabled={disabled}
+                        >
+                          {!item.skuId ? (
+                            <option value="">Select SKU first</option>
+                          ) : item.loadingBatches ? (
+                            <option value="">Loading…</option>
+                          ) : options.length === 0 ? (
+                            <option value="">No batches</option>
+                          ) : (
+                            <>
+                              <option value="">Select batch</option>
+                              {options.map((batch) => (
+                                <option key={batch.id} value={batch.batchCode}>
+                                  {batch.batchCode}
+                                </option>
+                              ))}
+                            </>
+                          )}
+                        </select>
+                      )
+                    })()}
                   </div>
                   <div className="col-span-3">
                     <Input
