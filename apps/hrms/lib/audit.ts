@@ -2,12 +2,13 @@ import type {
   AuditAction,
   AuditEntityType,
   Prisma,
-  PrismaClient,
 } from '@ecom-os/prisma-hrms'
 
 import { prisma } from '@/lib/prisma'
 
-type AuditDbClient = PrismaClient | Prisma.TransactionClient
+type TransactionCallback = Parameters<typeof prisma.$transaction>[0]
+type TransactionClient = Parameters<TransactionCallback>[0]
+type AuditDbClient = typeof prisma | TransactionClient
 
 export type AuditLogInput = {
   actorId: string | null

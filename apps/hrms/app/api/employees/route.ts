@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
-import { EmploymentType, EmployeeStatus, TransactionClient } from '@/lib/hrms-prisma-types'
+import { EmploymentType, EmployeeStatus } from '@/lib/hrms-prisma-types'
 import {
   CreateEmployeeSchema,
   PaginationSchema,
@@ -140,7 +140,7 @@ export async function POST(req: Request) {
     const roles = data.roles || []
 
     // Use transaction for atomic operation
-    const emp = await prisma.$transaction(async (tx: TransactionClient) => {
+    const emp = await prisma.$transaction(async (tx) => {
       const created = await tx.employee.create({
         data: {
           employeeId: createTemporaryEmployeeId(),

@@ -7,7 +7,9 @@ export async function register() {
       initializeQuarterlyReviewAutomation,
       startQuarterlyReviewReminders,
       initializeTaskReminders,
-      startTaskReminders
+      startTaskReminders,
+      initializeNotificationEmailDispatch,
+      startNotificationEmailDispatch
     } = await import('./lib/startup')
 
     // Run initial sync after a short delay to let the server fully start
@@ -22,6 +24,10 @@ export async function register() {
       // Task reminders
       await initializeTaskReminders()
       startTaskReminders() // Every 6 hours
+
+      // Notification email dispatch (near-real-time)
+      await initializeNotificationEmailDispatch()
+      startNotificationEmailDispatch() // Every 60s
     }, 5000)
   }
 }

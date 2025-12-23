@@ -11,7 +11,6 @@ import {
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canRaiseViolation, getHREmployees } from '@/lib/permissions'
-import { publish } from '@/lib/notification-service'
 import { writeAuditLog } from '@/lib/audit'
 
 export async function GET(req: Request) {
@@ -235,14 +234,6 @@ export async function POST(req: Request) {
         },
       })
     }
-
-    // Also publish legacy notification for backwards compatibility
-    await publish({
-      type: 'DISCIPLINARY_CREATED',
-      actionId: item.id,
-      employeeId: data.employeeId,
-      severity: data.severity,
-    })
 
     return NextResponse.json(item, { status: 201 })
   } catch (e) {
