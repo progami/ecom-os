@@ -1,16 +1,13 @@
 import { prisma } from './prisma'
 import { listAllUsers, isAdminConfigured, patchUser, type GoogleUser } from './google-admin'
 import { publish } from './notification-service'
+import { createTemporaryEmployeeId, formatEmployeeId } from './employee-identifiers'
 
 export type SyncResult = {
   created: number
   updated: number
   deactivated: number
   errors: string[]
-}
-
-function generateEmployeeId(index: number): string {
-  return `EMP-${String(index).padStart(3, '0')}`
 }
 
 export async function syncGoogleAdminUsers(): Promise<SyncResult> {
@@ -50,16 +47,6 @@ export async function syncGoogleAdminUsers(): Promise<SyncResult> {
         positionLocalOverride: true,
       }
     })
-
-    // Find the highest employee ID number for generating new IDs
-    let maxEmployeeNum = 0
-    for (const emp of existingEmployees) {
-      const match = emp.employeeId.match(/EMP-(\d+)/)
-      if (match) {
-        const num = parseInt(match[1], 10)
-        if (num > maxEmployeeNum) maxEmployeeNum = num
-      }
-    }
 
     // Create maps for quick lookup
     const employeeByGoogleId = new Map(existingEmployees.filter((e) => e.googleId).map((e) => [e.googleId, e]))
@@ -111,25 +98,32 @@ export async function syncGoogleAdminUsers(): Promise<SyncResult> {
           result.updated++
         } else {
           // Create new employee with Google values (no overrides yet)
-          maxEmployeeNum++
-          await prisma.employee.create({
-            data: {
-              googleId: gUser.id,
-              email: gUser.primaryEmail,
-              phone: gUser.phones?.[0]?.value || null,
-              avatar: gUser.thumbnailPhotoUrl || null,
-              firstName: gUser.name?.givenName || gUser.primaryEmail.split('@')[0],
-              lastName: gUser.name?.familyName || '',
-              department: gUser.organizations?.[0]?.department || '',
-              position: gUser.organizations?.[0]?.title || 'Employee',
-              employeeId: generateEmployeeId(maxEmployeeNum),
-              employmentType: 'FULL_TIME',
-              joinDate: new Date(gUser.creationTime),
-              status: 'ACTIVE',
-              nameLocalOverride: false,
-              departmentLocalOverride: false,
-              positionLocalOverride: false,
-            },
+          await prisma.$transaction(async (tx) => {
+            const created = await tx.employee.create({
+              data: {
+                employeeId: createTemporaryEmployeeId(),
+                googleId: gUser.id,
+                email: gUser.primaryEmail,
+                phone: gUser.phones?.[0]?.value || null,
+                avatar: gUser.thumbnailPhotoUrl || null,
+                firstName: gUser.name?.givenName || gUser.primaryEmail.split('@')[0],
+                lastName: gUser.name?.familyName || '',
+                department: gUser.organizations?.[0]?.department || '',
+                position: gUser.organizations?.[0]?.title || 'Employee',
+                employmentType: 'FULL_TIME',
+                joinDate: new Date(gUser.creationTime),
+                status: 'ACTIVE',
+                nameLocalOverride: false,
+                departmentLocalOverride: false,
+                positionLocalOverride: false,
+              },
+              select: { id: true, employeeNumber: true },
+            })
+
+            await tx.employee.update({
+              where: { id: created.id },
+              data: { employeeId: formatEmployeeId(created.employeeNumber) },
+            })
           })
           result.created++
         }
