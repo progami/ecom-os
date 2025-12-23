@@ -165,6 +165,9 @@ Each app has `.env.local` with environment-specific config. Key variables:
 | `scripts/sync-versions.js` | Keeps app versions aligned with root |
 | `scripts/open-db-tunnel.sh` | SSH tunnel to RDS |
 | `scripts/update-deploy-metadata.sh` | Updates nginx headers, purges Cloudflare |
+| `scripts/cloudflared-watchdog.sh` | Restarts cloudflared if tunnel is down (macOS) |
+| `scripts/install-cloudflared-watchdog-macos.sh` | Installs a LaunchAgent watchdog (macOS) |
+| `scripts/uninstall-cloudflared-watchdog-macos.sh` | Removes the LaunchAgent watchdog (macOS) |
 
 ## Troubleshooting
 
@@ -173,6 +176,13 @@ Add `AUTH_TRUST_HOST=true` to `.env.local` and ensure `trustHost: true` is in th
 
 ### 502 Bad Gateway
 Check PM2 status — app may have crashed. View logs with `pm2 logs <app-name>`.
+
+### Cloudflare Error 1033 (Tunnel error)
+Cloudflare couldn’t reach the origin tunnel (cloudflared) — commonly a transient network/UDP hiccup on the host.
+
+- Check local tunnel health: `curl -fsS http://127.0.0.1:20241/ready` (metrics port may be 20241–20245)
+- Restart cloudflared: `launchctl kickstart -k gui/$UID/homebrew.mxcl.cloudflared` (or `brew services restart cloudflared`)
+- Optional: install watchdog: `scripts/install-cloudflared-watchdog-macos.sh`
 
 ### Auth cookies not working
 Ensure `COOKIE_DOMAIN=.targonglobal.com` is set and portal is running.
