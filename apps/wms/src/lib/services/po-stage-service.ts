@@ -2,12 +2,14 @@ import { getTenantPrisma } from '@/lib/tenant/server'
 import {
   PurchaseOrder,
   PurchaseOrderStatus,
+  PurchaseOrderLineStatus,
   Prisma,
 } from '@ecom-os/prisma-wms'
 import { NotFoundError, ValidationError, ConflictError } from '@/lib/api'
 import { canApproveStageTransition, hasPermission, isSuperAdmin } from './permission-service'
 import { auditLog } from '@/lib/security/audit-logger'
 import { toPublicOrderNumber } from './purchase-order-utils'
+import { recalculateStorageLedgerForTransactions } from './storage-ledger-sync'
 
 // Valid stage transitions for new 5-stage workflow
 export const VALID_TRANSITIONS: Partial<Record<PurchaseOrderStatus, PurchaseOrderStatus[]>> = {
@@ -352,14 +354,71 @@ export async function transitionPurchaseOrderStage(
     }
   }
 
+  if (targetStatus === PurchaseOrderStatus.CANCELLED) {
+    const storageRecalcInputs = await prisma.inventoryTransaction.findMany({
+      where: { purchaseOrderId: order.id },
+      select: {
+        warehouseCode: true,
+        warehouseName: true,
+        skuCode: true,
+        skuDescription: true,
+        batchLot: true,
+        transactionDate: true,
+      },
+    })
+
+    const updatedOrder = await prisma.$transaction(async tx => {
+      await tx.inventoryTransaction.deleteMany({
+        where: { purchaseOrderId: order.id },
+      })
+
+      await tx.purchaseOrderLine.updateMany({
+        where: { purchaseOrderId: order.id },
+        data: {
+          status: PurchaseOrderLineStatus.CANCELLED,
+          postedQuantity: 0,
+          quantityReceived: 0,
+        },
+      })
+
+      return tx.purchaseOrder.update({
+        where: { id: order.id },
+        data: {
+          status: targetStatus,
+          postedAt: null,
+        },
+        include: { lines: true },
+      })
+    })
+
+    await auditLog({
+      userId: user.id,
+      action: 'STATUS_TRANSITION',
+      entityType: 'PurchaseOrder',
+      entityId: orderId,
+      data: { fromStatus: currentStatus, toStatus: targetStatus, approvedBy: user.name },
+    })
+
+    await recalculateStorageLedgerForTransactions(
+      storageRecalcInputs.map(transaction => ({
+        warehouseCode: transaction.warehouseCode,
+        warehouseName: transaction.warehouseName,
+        skuCode: transaction.skuCode,
+        skuDescription: transaction.skuDescription,
+        batchLot: transaction.batchLot,
+        transactionDate: transaction.transactionDate,
+      }))
+    )
+
+    return updatedOrder
+  }
+
   // Validate stage data requirements
-  if (targetStatus !== PurchaseOrderStatus.CANCELLED) {
-    const validation = validateStageData(targetStatus, stageData, order)
-    if (!validation.valid) {
-      throw new ValidationError(
-        `Missing required fields for ${targetStatus}: ${validation.missingFields.join(', ')}`
-      )
-    }
+  const validation = validateStageData(targetStatus, stageData, order)
+  if (!validation.valid) {
+    throw new ValidationError(
+      `Missing required fields for ${targetStatus}: ${validation.missingFields.join(', ')}`
+    )
   }
 
   // Build the update data
