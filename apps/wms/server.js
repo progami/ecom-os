@@ -3,16 +3,25 @@ const { parse } = require('url');
 const next = require('next');
 const path = require('path');
 
-// Load environment variables only if not in CI
-// This prevents dotenv from overriding DATABASE_URL set by CI
-if (!process.env.CI) {
-  // Load .env.local first (overrides everything)
-  require('dotenv').config({
-    path: path.join(__dirname, `.env.local`)
+const isTruthy = (value) =>
+  typeof value === 'string' && ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
+
+// Load environment variables unless explicitly disabled.
+// Dotenv does not override existing env vars unless `override: true` is set.
+if (!isTruthy(process.env.SKIP_DOTENV)) {
+  const dotenv = require('dotenv');
+  const baseOptions = { override: false, quiet: true };
+
+  // Load .env.local first (highest precedence for local/prod deployments)
+  dotenv.config({
+    ...baseOptions,
+    path: path.join(__dirname, `.env.local`),
   });
+
   // Then load environment-specific file
-  require('dotenv').config({
-    path: path.join(__dirname, `.env.${process.env.NODE_ENV || 'development'}`)
+  dotenv.config({
+    ...baseOptions,
+    path: path.join(__dirname, `.env.${process.env.NODE_ENV || 'development'}`),
   });
 }
 
