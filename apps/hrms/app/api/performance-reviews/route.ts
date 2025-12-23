@@ -11,7 +11,6 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canRaiseViolation, getHREmployees } from '@/lib/permissions'
 import { getReviewWeights, calculateValuesScore, applyValuesVeto } from '@/lib/standing'
-import { publish } from '@/lib/notification-service'
 import { writeAuditLog } from '@/lib/audit'
 import { formatReviewPeriod, type ReviewPeriodType } from '@/lib/review-period'
 
@@ -281,12 +280,17 @@ export async function POST(req: Request) {
         })
       }
 
-      // Also publish legacy notification for backwards compatibility
-      await publish({
-        type: 'REVIEW_SUBMITTED',
-        reviewId: item.id,
-        employeeId: data.employeeId,
-        reviewerName: data.reviewerName,
+      // Notify the employee being reviewed
+      await prisma.notification.create({
+        data: {
+          type: 'REVIEW_SUBMITTED',
+          title: 'Performance Review Submitted',
+          message: `A performance review has been submitted for you by ${data.reviewerName}.`,
+          link: `/performance/reviews/${item.id}`,
+          employeeId: data.employeeId,
+          relatedId: item.id,
+          relatedType: 'REVIEW',
+        },
       })
     }
 

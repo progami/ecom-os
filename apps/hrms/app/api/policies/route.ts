@@ -9,7 +9,6 @@ import {
   RegionEnum,
 } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
-import { publish } from '@/lib/notification-service'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { isHROrAbove } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
@@ -139,11 +138,17 @@ export async function POST(req: Request) {
       },
     })
 
-    // Publish policy created event (creates company-wide notification)
-    await publish({
-      type: 'POLICY_CREATED',
-      policyId: item.id,
-      policyTitle: item.title,
+    // Company-wide notification
+    await prisma.notification.create({
+      data: {
+        type: 'POLICY_CREATED',
+        title: 'New Policy Published',
+        message: `The policy "${item.title}" has been published.`,
+        link: `/policies/${item.id}`,
+        employeeId: null, // Broadcast
+        relatedId: item.id,
+        relatedType: 'POLICY',
+      },
     })
 
     await writeAuditLog({
