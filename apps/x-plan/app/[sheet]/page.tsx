@@ -1301,7 +1301,7 @@ function getSalesPlanningView(
             } else if (!Number.isFinite(derived.stockWeeks)) {
               row[key] = '∞'
             } else {
-              row[key] = String(derived.stockWeeks)
+              row[key] = formatNumeric(derived.stockWeeks, 2)
             }
             break
           case 'stockEnd':
@@ -1544,7 +1544,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         if (aDefault !== bDefault) return aDefault ? -1 : 1
         return b.updatedAt.localeCompare(a.updatedAt)
       })
-      tabularContent = <StrategiesWorkspace strategies={strategies} />
+      tabularContent = <StrategiesWorkspace strategies={strategies} activeStrategyId={strategyId} />
       visualContent = null
       break
     }

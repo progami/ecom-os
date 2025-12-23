@@ -1,7 +1,9 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { clsx } from 'clsx'
+import { useSearchParams } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import {
   SHEET_TOOLBAR_GROUP,
@@ -9,7 +11,6 @@ import {
   SHEET_TOOLBAR_SELECT,
 } from '@/components/sheet-toolbar'
 import { usePersistentState } from '@/hooks/usePersistentState'
-import { withAppBasePath } from '@/lib/base-path'
 
 type SalesRow = {
   weekNumber: string
@@ -35,6 +36,8 @@ type ShipmentMarker = {
 
 export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptions }: SalesPlanningVisualProps) {
   const { theme } = useTheme()
+  const searchParams = useSearchParams()
+  const productSetupHref = searchParams ? `/1-product-setup?${searchParams.toString()}` : '/1-product-setup'
   const defaultProductId = productOptions[0]?.id ?? ''
   const [selectedProductId, setSelectedProductId] = usePersistentState<string>(
     'xplan:sales-visual:selected-product',
@@ -200,12 +203,12 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
           <p className="text-sm text-slate-600 dark:text-[#6F7B8B]">
             Set up your first product in the Product Setup sheet to start tracking stock levels and sales planning.
           </p>
-          <a
-            href={withAppBasePath('/1-product-setup')}
+          <Link
+            href={productSetupHref}
             className="inline-flex items-center gap-2 rounded-lg border border-cyan-600 bg-cyan-600/20 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-cyan-600/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 dark:border-[#00C2B9] dark:bg-[#00C2B9]/20 dark:text-white dark:hover:bg-[#00C2B9]/30 dark:focus-visible:outline-[#00C2B9]"
           >
             <span>→</span> Go to Product Setup
-          </a>
+          </Link>
         </div>
       </div>
     )
