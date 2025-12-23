@@ -705,8 +705,8 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   <Input
                     id="unitWeightKg"
                     type="number"
-                    step="0.01"
-                    min={0.01}
+                    step="0.001"
+                    min={0.001}
                     value={formState.unitWeightKg}
                     onChange={(event) => setFormState((prev) => ({ ...prev, unitWeightKg: event.target.value }))}
                     placeholder="Optional"
@@ -744,8 +744,8 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   <Input
                     id="cartonWeightKg"
                     type="number"
-                    step="0.01"
-                    min={0.01}
+                    step="0.001"
+                    min={0.001}
                     value={formState.cartonWeightKg}
                     onChange={(event) => setFormState((prev) => ({ ...prev, cartonWeightKg: event.target.value }))}
                     placeholder="Optional"
