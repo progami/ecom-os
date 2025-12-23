@@ -1,191 +1,216 @@
-# Ecom OS Monorepo
+# Ecom OS
 
-Ecom OS is a single pnpm + Turborepo workspace that hosts every customer-facing app. All apps live under `apps/` and share utilities under `packages/` (auth helpers, the design theme, configuration, etc.).
+Ecom OS is a pnpm + Turborepo monorepo that powers Targon Global’s internal products and public-facing web properties. The codebase runs multiple independent Next.js apps (Portal, WMS, X‑Plan, HRMS, Website) with shared authentication and shared libraries.
 
-## Apps & Environments
+This repo is currently hosted from a macOS laptop for development and “live” environments (main + dev). The hosting setup is documented here so it’s reproducible and debuggable.
 
-| App | Package | Main Port | Dev Port | Status |
-| --- | --- | --- | --- | --- |
-| Portal / Navigation Hub | `apps/ecomos` | 3000 | 3100 | Active |
-| Warehouse Management | `apps/wms` | 3001 | 3101 | Active |
-| Marketing Website | `apps/website` | 3005 | 3105 | Active |
-| HRMS | `apps/hrms` | 3006 | 3106 | Development |
-| X-Plan | `apps/x-plan` | 3008 | 3108 | Active |
-| Finance Console | `apps/archived/fcc` | — | — | Archived |
-| Margin Master | `apps/archived/margin-master` | — | — | Archived |
-| Jason (AI assistant) | `apps/jason` | — | — | Archived |
+## Architecture (End-to-end)
 
-### Hosted URLs
+```text
+User Browser
+  ↓
+Cloudflare (DNS + Edge)
+  ↓
+cloudflared (Tunnel on laptop)
+  ↓
+nginx (local reverse proxy; hostname + path routing)
+  ↓
+PM2 (process manager)
+  ↓
+Next.js apps (ports 30xx main / 31xx dev)
+  ↓
+PostgreSQL (5432) + Redis (6379) + external APIs (S3, etc.)
+```
 
-| Environment | Portal URL | Branch |
+### Public hostnames (via Cloudflare Tunnel)
+
+Cloudflared routes hostnames to local nginx listener ports (`~/.cloudflared/config.yml`):
+
+| Hostname | Purpose | Origin |
 | --- | --- | --- |
-| **Main** | `https://ecomos.targonglobal.com` | `main` |
-| **Dev** | `https://dev-ecomos.targonglobal.com` | `dev` |
+| `ecomos.targonglobal.com` | Main Portal (+ `/wms`, `/x-plan`, `/hrms`) | `http://localhost:8080` |
+| `dev-ecomos.targonglobal.com` | Dev Portal (+ `/wms`, `/x-plan`, `/hrms`) | `http://localhost:8081` |
+| `www.targonglobal.com` / `targonglobal.com` | Main Website | `http://localhost:8082` |
+| `dev.targonglobal.com` | Dev Website | `http://localhost:8083` |
+| `db.targonglobal.com` | PostgreSQL (TCP) | `tcp://localhost:5432` |
 
-Child apps are accessed via path-based routing: `/wms`, `/hrms`, `/x-plan`.
+nginx then routes paths to the correct app ports (macOS/Homebrew default path: `/opt/homebrew/etc/nginx/servers/ecom-os.conf`):
 
-### App Lifecycles
+- Main: `3000` (portal), `3001` (wms), `3006` (hrms), `3008` (x-plan), `3005` (website)
+- Dev: `3100` (portal), `3101` (wms), `3106` (hrms), `3108` (x-plan), `3105` (website)
 
-- **Active**: Deployed, validated, and in use. Runs in both main and dev environments.
-- **Development**: Actively iterated, participates in CI, deployed to dev only.
-- **Archived**: Kept for reference, excluded from CI/builds/deployments.
+### “Two environments” on one host
 
-`app-manifest.json` is the source of truth for lifecycles. The `scripts/run-turbo-task.js` script filters archived apps from lint/type-check/build tasks.
+The laptop keeps two long-lived working directories (“worktrees”) so `dev` and `main` can be running at the same time:
 
-## Deployment Directories
-
-Two directories on the server correspond to two environments:
-
-| Directory | Environment | Ports | URL |
+| Directory | Branch | Environment | App ports |
 | --- | --- | --- | --- |
-| `ecom-os-dev` | Dev | 31xx | dev-ecomos.targonglobal.com |
-| `ecom-os-main` | Main | 30xx | ecomos.targonglobal.com |
+| `~/ecom-os-dev` | `dev` | Dev | `31xx` |
+| `~/ecom-os-main` | `main` | Main | `30xx` |
 
-Each directory tracks its respective git branch (`dev` or `main`).
+PM2 process definitions live in `ecosystem.config.js` and reference these directories via `ECOM_OS_DEV_DIR` / `ECOM_OS_MAIN_DIR`.
 
-## Tech Stack
+## Monorepo layout
 
-- **Next.js 16** / **React 19** for all frontends
-- **NextAuth v5** (beta.30) for authentication — requires `trustHost: true` behind reverse proxy
-- **pnpm workspaces** + **Turborepo** for builds
-- **TypeScript 5.9** everywhere
-- **Prisma ORM** + **PostgreSQL** (single cluster, multi-schema)
-- **Tailwind CSS** + **Radix UI** for design
-- **PM2** + **nginx** on EC2; GitHub Actions for CI
+```text
+apps/
+  ecomos/       # Portal (auth + navigation hub)
+  wms/          # Warehouse Management (custom server.js)
+  x-plan/       # X‑Plan (Next.js app)
+  hrms/         # HRMS (Next.js app)
+  website/      # Marketing site
+  archived/     # Historical apps (excluded from pnpm workspace)
+packages/
+  auth/         # Shared NextAuth + session helpers
+  theme/        # Design tokens + Tailwind theme helpers
+  ui/           # Shared UI primitives
+  prisma-*/     # Generated Prisma clients per app
+scripts/        # CI/CD + operational helpers
+```
 
-## Shared Packages
+`apps/archived/*` is excluded from the pnpm workspace (`pnpm-workspace.yaml`). App “lifecycles” are tracked in `app-manifest.json` for tooling and portal navigation.
 
-Everything under `packages/` is built so apps never re-implement the same glue:
+## Apps
 
-- `@ecom-os/auth` – shared NextAuth config, cookie helpers, `hasPortalSession`, etc.
-- `@ecom-os/theme` – brand tokens, Tailwind extensions, spacing/radii definitions.
+All product apps are Next.js 16 + React 19 and are designed to run either standalone (local dev) or behind nginx under a base path.
 
-## Database & Schemas
+| App | Workspace | Base path | Notes |
+| --- | --- | --- | --- |
+| Portal | `@ecom-os/ecomos` | `/` | Central auth (NextAuth v5) + app navigation |
+| WMS | `@ecom-os/wms` | `/wms` | Uses `apps/wms/server.js`, Redis, and S3 presigned uploads |
+| X‑Plan | `@ecom-os/x-plan` | `/x-plan` | Prisma schema `xplan`; vitest tests |
+| HRMS | `@ecom-os/hrms` | `/hrms` | Prisma schema `hrms`; Playwright tests |
+| Website | `@ecom-os/website` | `/` | Separate hostname (`targonglobal.com`) |
 
-One PostgreSQL cluster (`portal_db`) backs every environment. Each app owns its own schema:
+## Authentication model (Portal as the source of truth)
 
-| App | Main Schema | Dev Schema |
-| --- | --- | --- |
-| Portal / Auth | `auth` | `dev_auth` |
-| WMS | `wms` | `dev_wms` |
-| X-Plan | `xplan` | `dev_xplan` |
-| HRMS | `hrms` | `dev_hrms` |
+- The portal (`apps/ecomos`) is the canonical NextAuth app; other apps validate the portal session.
+- Cookie domain is shared (`COOKIE_DOMAIN=.targonglobal.com`) so a user signs in once and can use multiple apps.
+- Shared secret: `PORTAL_AUTH_SECRET` (and/or `NEXTAUTH_SECRET`) must match across apps.
+- Reverse proxy support: nginx forwards `X-Forwarded-Host` / `X-Forwarded-Proto`; NextAuth v5 requires `AUTH_TRUST_HOST=true` behind a proxy.
+- The shared library `@ecom-os/auth` includes helpers for consistent cookie naming and session checks (JWT decode + portal `/api/auth/session` probe).
 
-Environment files (`.env.local`) in each app directory configure the correct schema via `DATABASE_URL` query param.
+## Data/services
 
-## PM2 Process Management
+- PostgreSQL runs locally (Homebrew `postgresql@14`), exposed on `localhost:5432` and optionally via `db.targonglobal.com` through the tunnel.
+- Schemas are per-app (and per-environment): `auth`, `wms`, `xplan`, `hrms` (dev schemas may be prefixed `dev_*` depending on env).
+- Prisma clients are generated into `packages/prisma-*` and imported by apps (e.g., `@ecom-os/prisma-wms`).
+- Redis runs locally (Homebrew `redis`) and is used by WMS.
 
-All apps run via PM2 using `ecosystem.config.js`:
+## Environment configuration (high level)
+
+`.env*` files are gitignored; CI uses committed `*.env.dev.ci` templates for builds. In hosted mode (PM2), apps run with `NODE_ENV=production` and rely on `.env.local` / `.env.production` being present per app.
+
+Common variables across apps:
+
+- `PORT`, `HOST`
+- `BASE_PATH`, `NEXT_PUBLIC_BASE_PATH` (for path-based apps like `/wms`, `/x-plan`, `/hrms`)
+- `NEXTAUTH_URL`, `NEXTAUTH_SECRET`
+- `PORTAL_AUTH_URL`, `NEXT_PUBLIC_PORTAL_AUTH_URL`, `PORTAL_AUTH_SECRET`
+- `COOKIE_DOMAIN`
+- `DATABASE_URL` (Postgres)
+- `REDIS_URL` (WMS)
+
+Portal app-link configuration:
+
+- `PORTAL_APPS_CONFIG` points at a JSON file (example: `dev.local.apps.json`) that tells the portal where each child app lives in dev.
+
+## Local development
+
+### Prerequisites
+
+- Node.js `>= 20` (repo uses Node 20 in CI)
+- pnpm via Corepack (`corepack enable`)
+- PostgreSQL + Redis (only needed for flows that hit them)
+
+### Install
 
 ```bash
-# View all processes
+pnpm install
+```
+
+### Run (dev mode)
+
+```bash
+# All apps (parallel)
+pnpm dev
+
+# Single app
+pnpm --filter @ecom-os/ecomos dev
+pnpm --filter @ecom-os/wms dev
+pnpm --filter @ecom-os/x-plan dev
+pnpm --filter @ecom-os/hrms dev
+pnpm --filter @ecom-os/website dev
+```
+
+For local-only URL wiring, set `PORTAL_APPS_CONFIG=dev.local.apps.json` so the portal can link to other apps running on localhost.
+
+## CI/CD (GitHub Actions)
+
+### CI (PR checks)
+
+Workflow: `.github/workflows/ci.yml`
+
+- Runs on `pull_request`
+- Installs via pnpm and populates `.env.dev`/`.env.local` from `*.env.dev.ci` templates
+- Generates Prisma clients
+- Lints / type-checks / builds only the workspaces changed in the PR (via `APP_CHANGED_SINCE` + turbo filters)
+
+### CD (deploy to the laptop)
+
+Workflow: `.github/workflows/cd.yml`
+
+- Triggers on `push` to `dev` or `main` and runs deploy steps on a `self-hosted` GitHub Actions runner on the laptop (`~/actions-runner`).
+- Detects which apps/packages changed and deploys only what’s necessary.
+- Uses `scripts/deploy-app.sh` to:
+  - sync the correct worktree (`~/ecom-os-dev` or `~/ecom-os-main`)
+  - run `pnpm install` (once per deploy run)
+  - build the app(s)
+  - restart the matching PM2 process(es)
+  - run `pm2 save` once at the end
+- On `main`, computes a semver tag from commit messages and creates a GitHub Release.
+
+### Branch / PR policy
+
+- All work merges into `dev` via PR.
+- Production releases are PRs from `dev` → `main` (enforced by `.github/workflows/pr-policy-main-from-dev.yml`).
+- Direct pushes to `dev`/`main` are blocked (`.github/workflows/block-direct-push.yml`).
+- After releasing to `main`, an automation opens a sync PR `main → dev` (`.github/workflows/auto-sync-dev.yml`).
+
+## Operations (laptop hosting)
+
+### PM2
+
+```bash
 pm2 status
-
-# Restart dev environment
-pm2 restart dev-ecomos dev-wms dev-website dev-hrms dev-x-plan --update-env
-
-# Restart main environment
-pm2 restart main-ecomos main-wms main-website main-hrms main-x-plan --update-env
-
-# View logs
-pm2 logs main-ecomos --lines 50
-
-# Save config (persists across reboots)
+pm2 logs main-ecomos --lines 100
+pm2 restart dev-ecomos dev-wms dev-x-plan dev-hrms dev-website --update-env
+pm2 restart main-ecomos main-wms main-x-plan main-hrms main-website --update-env
 pm2 save
 ```
 
-The `ecosystem.config.js` uses environment variables for paths:
-- `ECOM_OS_DEV_DIR` – defaults to `/Users/jarraramjad/ecom-os-dev`
-- `ECOM_OS_MAIN_DIR` – defaults to `/Users/jarraramjad/ecom-os-main`
+### Tunnel health (Cloudflare Error 1033)
 
-## Branching & Releases
-
-1. All work branches off `dev`: `git checkout dev && git pull origin dev`
-2. Branch as `app-name/feature-name` (e.g., `wms/inline-sku-modal`)
-3. Open PR into `dev` — CI must pass (lint, type-check, build)
-4. After merge to `dev`, create PR from `dev` → `main` for production release
-5. Direct pushes to `dev`/`main` are blocked
-
-### Deployment Workflow
+`cloudflared` exports a readiness endpoint on `127.0.0.1:20241`:
 
 ```bash
-# After PR merged to dev:
-cd ~/ecom-os-dev
-git pull origin dev
-pnpm --filter ecomos --filter wms --filter website --filter hrms --filter x-plan build
-pm2 restart dev-ecomos dev-wms dev-website dev-hrms dev-x-plan --update-env
-
-# After PR merged to main:
-cd ~/ecom-os-main
-git pull origin main
-pnpm --filter ecomos --filter wms --filter website --filter hrms --filter x-plan build
-pm2 restart main-ecomos main-wms main-website main-hrms main-x-plan --update-env
+curl -fsS http://127.0.0.1:20241/ready
 ```
 
-## Auth & Local Dev
-
-- Portal (`apps/ecomos`) is the source of truth for NextAuth cookies
-- All apps share `PORTAL_AUTH_SECRET` / `NEXTAUTH_SECRET`
-- NextAuth v5 requires `AUTH_TRUST_HOST=true` when behind nginx/reverse proxy
-- WMS/X-Plan guard every route — use `BYPASS_AUTH=true` for local testing without auth
-
-### Running Apps Locally
+If it’s unhealthy:
 
 ```bash
-# Install dependencies
-pnpm install
-
-# Run portal
-pnpm --filter @ecom-os/ecomos dev
-
-# Run other apps (needs portal for auth)
-pnpm --filter @ecom-os/wms dev
-pnpm --filter @ecom-os/hrms dev
-pnpm --filter @ecom-os/x-plan dev
+launchctl kickstart -k gui/$UID/homebrew.mxcl.cloudflared
 ```
 
-## Environment Variables
+Optional watchdog (macOS LaunchAgent) for auto-recovery:
 
-Each app has `.env.local` with environment-specific config. Key variables:
+```bash
+scripts/install-cloudflared-watchdog-macos.sh
+```
 
-| Variable | Purpose |
-| --- | --- |
-| `PORT` | App port (30xx for main, 31xx for dev) |
-| `AUTH_TRUST_HOST` | Must be `true` for NextAuth v5 behind proxy |
-| `NEXTAUTH_URL` | Full URL to the app's auth endpoint |
-| `PORTAL_AUTH_URL` | Portal URL for cross-app auth |
-| `DATABASE_URL` | Postgres connection with schema param |
-| `PORTAL_APPS_CONFIG` | `prod.apps.json` or `dev.apps.json` |
+### Common failure modes
 
-## Scripts
-
-| Script | Purpose |
-| --- | --- |
-| `scripts/run-turbo-task.js` | Runs turbo tasks, filtering archived apps |
-| `scripts/sync-versions.js` | Keeps app versions aligned with root |
-| `scripts/open-db-tunnel.sh` | SSH tunnel to RDS |
-| `scripts/update-deploy-metadata.sh` | Updates nginx headers, purges Cloudflare |
-| `scripts/cloudflared-watchdog.sh` | Restarts cloudflared if tunnel is down (macOS) |
-| `scripts/install-cloudflared-watchdog-macos.sh` | Installs a LaunchAgent watchdog (macOS) |
-| `scripts/uninstall-cloudflared-watchdog-macos.sh` | Removes the LaunchAgent watchdog (macOS) |
-
-## Troubleshooting
-
-### "UntrustedHost" error
-Add `AUTH_TRUST_HOST=true` to `.env.local` and ensure `trustHost: true` is in the NextAuth config.
-
-### 502 Bad Gateway
-Check PM2 status — app may have crashed. View logs with `pm2 logs <app-name>`.
-
-### Cloudflare Error 1033 (Tunnel error)
-Cloudflare couldn’t reach the origin tunnel (cloudflared) — commonly a transient network/UDP hiccup on the host.
-
-- Check local tunnel health: `curl -fsS http://127.0.0.1:20241/ready` (metrics port may be 20241–20245)
-- Restart cloudflared: `launchctl kickstart -k gui/$UID/homebrew.mxcl.cloudflared` (or `brew services restart cloudflared`)
-- Optional: install watchdog: `scripts/install-cloudflared-watchdog-macos.sh`
-
-### Auth cookies not working
-Ensure `COOKIE_DOMAIN=.targonglobal.com` is set and portal is running.
-
-### Database connection failed
-Verify `DATABASE_URL` points to correct host/schema and PostgreSQL is accessible.
+- `502 Bad Gateway`: check nginx (`brew services list`) and the target PM2 process (`pm2 status`, `pm2 logs <name>`).
+- NextAuth `UntrustedHost`: set `AUTH_TRUST_HOST=true` and ensure nginx forwards `X-Forwarded-*` headers.
+- Cookies not shared across apps: ensure `COOKIE_DOMAIN=.targonglobal.com` and that all apps share `PORTAL_AUTH_SECRET`.
