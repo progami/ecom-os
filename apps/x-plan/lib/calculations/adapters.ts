@@ -13,7 +13,7 @@ import type {
   QuarterlySummary,
   PurchaseOrderStatus,
 } from '@ecom-os/prisma-x-plan'
-import { coerceNumber } from '@/lib/utils/numbers'
+import { coerceNumber, parseNumber } from '@/lib/utils/numbers'
 import {
   BusinessParameterInput,
   CashFlowWeekInput,
@@ -28,6 +28,12 @@ import {
   SalesWeekInput,
   QuarterlySummaryInput,
 } from './types'
+
+function normalizePositiveDecimal(value: unknown): number | null {
+  const numeric = parseNumber(value)
+  if (numeric == null || !Number.isFinite(numeric) || numeric <= 0) return null
+  return numeric
+}
 
 export function mapProducts(products: Product[]): ProductInput[] {
   return products.map((product) => ({
@@ -104,10 +110,10 @@ export function mapPurchaseOrders(
       productId: primaryBatch?.productId ?? order.productId,
       quantity: batches.length > 0 ? totalBatchQuantity : coerceNumber(order.quantity),
       poDate: order.poDate ?? null,
-      productionWeeks: order.productionWeeks != null ? coerceNumber(order.productionWeeks) : null,
-      sourceWeeks: order.sourceWeeks != null ? coerceNumber(order.sourceWeeks) : null,
-      oceanWeeks: order.oceanWeeks != null ? coerceNumber(order.oceanWeeks) : null,
-      finalWeeks: order.finalWeeks != null ? coerceNumber(order.finalWeeks) : null,
+      productionWeeks: normalizePositiveDecimal(order.productionWeeks),
+      sourceWeeks: normalizePositiveDecimal(order.sourceWeeks),
+      oceanWeeks: normalizePositiveDecimal(order.oceanWeeks),
+      finalWeeks: normalizePositiveDecimal(order.finalWeeks),
       pay1Percent: order.pay1Percent != null ? coerceNumber(order.pay1Percent) : null,
       pay2Percent: order.pay2Percent != null ? coerceNumber(order.pay2Percent) : null,
       pay3Percent: order.pay3Percent != null ? coerceNumber(order.pay3Percent) : null,

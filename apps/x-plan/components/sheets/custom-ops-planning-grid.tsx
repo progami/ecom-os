@@ -52,8 +52,10 @@ interface CustomOpsPlanningGridProps {
   onSelectOrder?: (orderId: string) => void
   onRowsChange?: (rows: OpsInputRow[]) => void
   onCreateOrder?: () => void
+  onDuplicateOrder?: (orderId: string) => void
   onDeleteOrder?: (orderId: string) => void
   disableCreate?: boolean
+  disableDuplicate?: boolean
   disableDelete?: boolean
 }
 
@@ -190,6 +192,12 @@ function validateNumeric(value: string): boolean {
   return !Number.isNaN(parsed)
 }
 
+function validatePositiveNumeric(value: string): boolean {
+  if (!value || value.trim() === '') return false
+  const parsed = sanitizeNumeric(value)
+  return !Number.isNaN(parsed) && parsed > 0
+}
+
 function validateDate(value: string): boolean {
   if (!value || value.trim() === '') return true
   const date = parseIsoDate(value)
@@ -261,8 +269,10 @@ export function CustomOpsPlanningGrid({
   onSelectOrder,
   onRowsChange,
   onCreateOrder,
+  onDuplicateOrder,
   onDeleteOrder,
   disableCreate,
+  disableDuplicate,
   disableDelete,
 }: CustomOpsPlanningGridProps) {
   const [stageMode, setStageMode] = useState<'weeks' | 'dates'>('weeks')
@@ -341,6 +351,11 @@ export function CustomOpsPlanningGrid({
     onDeleteOrder(activeOrderId)
   }
 
+  const handleDuplicateClick = () => {
+    if (!onDuplicateOrder || !activeOrderId || disableDuplicate) return
+    onDuplicateOrder(activeOrderId)
+  }
+
   const startEditing = (rowId: string, colKey: keyof OpsInputRow, currentValue: string) => {
     setEditingCell({ rowId, colKey })
     setEditValue(currentValue)
@@ -371,8 +386,10 @@ export function CustomOpsPlanningGrid({
 
     // Validate and normalize based on column type
     if (column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')) {
-      if (!validateNumeric(finalValue)) {
-        toast.error('Invalid number')
+      const isStageWeeks = column.type === 'stage' && stageMode === 'weeks'
+      const validator = isStageWeeks ? validatePositiveNumeric : validateNumeric
+      if (!validator(finalValue)) {
+        toast.error(isStageWeeks ? 'Weeks must be a positive number' : 'Invalid number')
         cancelEditing()
         return
       }
@@ -425,8 +442,18 @@ export function CustomOpsPlanningGrid({
         const picked = new Date(`${iso}T00:00:00Z`)
         const stageStart = resolveStageStart(row, stageField)
         if (stageStart) {
+          if (picked.getTime() < stageStart.getTime()) {
+            toast.error('Stage end date cannot be before the stage start')
+            cancelEditing()
+            return
+          }
           const diffDays = (picked.getTime() - stageStart.getTime()) / (24 * 60 * 60 * 1000)
           const weeks = diffDays / 7
+          if (weeks < 0) {
+            toast.error('Stage weeks cannot be negative')
+            cancelEditing()
+            return
+          }
           const normalized = formatNumericInput(weeks, 2)
           entry.values[colKey] = normalized
         }
@@ -752,7 +779,7 @@ export function CustomOpsPlanningGrid({
             PO Table
           </h2>
         </div>
-        {(onCreateOrder || onDeleteOrder) && (
+        {(onCreateOrder || onDuplicateOrder || onDeleteOrder) && (
           <div className="flex flex-wrap gap-2">
             {onCreateOrder ? (
               <button
@@ -762,6 +789,16 @@ export function CustomOpsPlanningGrid({
                 className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-1 enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:focus:ring-cyan-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
               >
                 Add purchase order
+              </button>
+            ) : null}
+            {onDuplicateOrder ? (
+              <button
+                type="button"
+                onClick={handleDuplicateClick}
+                disabled={Boolean(disableDuplicate) || !activeOrderId}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-1 enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:focus:ring-cyan-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
+              >
+                Duplicate selected
               </button>
             ) : null}
             {onDeleteOrder ? (
