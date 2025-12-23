@@ -10,6 +10,7 @@ import {
   type KeyboardEvent,
 } from 'react'
 import { toast } from 'sonner'
+import Flatpickr from 'react-flatpickr'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { toIsoDate, formatDateDisplay } from '@/lib/utils/dates'
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
@@ -366,7 +367,7 @@ export function CustomOpsPlanningGrid({
     setEditValue('')
   }
 
-  const commitEdit = useCallback(() => {
+  const commitEdit = useCallback((nextValue?: string) => {
     if (!editingCell) return
 
     const { rowId, colKey } = editingCell
@@ -382,7 +383,7 @@ export function CustomOpsPlanningGrid({
       return
     }
 
-    let finalValue = editValue
+    let finalValue = nextValue ?? editValue
 
     // Validate and normalize based on column type
     if (column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')) {
@@ -395,7 +396,19 @@ export function CustomOpsPlanningGrid({
       }
       const precision = column.precision ?? NUMERIC_PRECISION[colKey] ?? 2
       finalValue = normalizeNumeric(finalValue, precision)
-    } else if (column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')) {
+    } else if (column.type === 'date') {
+      if (!finalValue || finalValue.trim() === '') {
+        finalValue = ''
+      } else {
+        const iso = toIsoDate(finalValue)
+        if (!iso) {
+          toast.error('Invalid date')
+          cancelEditing()
+          return
+        }
+        finalValue = iso
+      }
+    } else if (column.type === 'stage' && stageMode === 'dates') {
       if (!validateDate(finalValue)) {
         toast.error('Invalid date')
         cancelEditing()
@@ -638,13 +651,9 @@ export function CustomOpsPlanningGrid({
         return toIsoDate(endDate) ?? ''
       }
     }
-    // Format date columns for display
+    // Date columns store ISO strings; keep ISO for editing.
     if (column.type === 'date') {
-      const isoValue = row[column.key]
-      if (isoValue) {
-        return formatDateDisplay(isoValue)
-      }
-      return ''
+      return row[column.key] ?? ''
     }
     return row[column.key] ?? ''
   }
@@ -691,10 +700,7 @@ export function CustomOpsPlanningGrid({
       .join(' ')
 
     if (isEditing) {
-      const inputType =
-        column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')
-          ? 'date'
-          : 'text'
+      const isDateCell = column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')
 
       return (
         <td
@@ -702,16 +708,40 @@ export function CustomOpsPlanningGrid({
           className={cellClasses}
           style={{ width: column.width, minWidth: column.width }}
         >
-          <input
-            ref={inputRef}
-            type={inputType}
-            value={editValue}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            onBlur={handleCellBlur}
-            className="ops-cell-input"
-            placeholder={column.type === 'date' ? 'Select date' : undefined}
-          />
+          {isDateCell ? (
+            <Flatpickr
+              value={editValue}
+              options={{ dateFormat: 'Y-m-d', allowInput: true, disableMobile: true }}
+              onChange={(_dates: Date[], dateStr: string) => {
+                commitEdit(dateStr)
+              }}
+              render={(_props: any, handleNodeChange: (node: HTMLElement | null) => void) => (
+                <input
+                  ref={(node) => {
+                    handleNodeChange(node)
+                    inputRef.current = node as HTMLInputElement | null
+                  }}
+                  type="text"
+                  value={editValue}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onBlur={handleCellBlur}
+                  className="ops-cell-input"
+                  placeholder="YYYY-MM-DD"
+                />
+              )}
+            />
+          ) : (
+            <input
+              ref={inputRef}
+              type="text"
+              value={editValue}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              onBlur={handleCellBlur}
+              className="ops-cell-input"
+            />
+          )}
         </td>
       )
     }
