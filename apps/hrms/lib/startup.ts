@@ -2,6 +2,7 @@ import { syncGoogleAdminUsers } from './google-admin-sync'
 import { isAdminConfigured } from './google-admin'
 import { runProfileCompletionCheckForAll } from './notification-service'
 import { processTaskDueReminders } from './task-reminders'
+import { runNotificationEmailDispatchOnce } from './notification-email-dispatch'
 import {
   checkAndCreateQuarterlyReviews,
   processRemindersAndEscalations
@@ -11,6 +12,7 @@ import { runWithCronLock } from './cron-lock'
 let syncInitialized = false
 let quarterlyReviewsInitialized = false
 let taskRemindersInitialized = false
+let notificationEmailDispatchInitialized = false
 
 export async function initializeGoogleAdminSync() {
   if (syncInitialized) return
@@ -210,5 +212,50 @@ export function stopTaskReminders() {
   if (taskReminderInterval) {
     clearInterval(taskReminderInterval)
     taskReminderInterval = null
+  }
+}
+
+// ============ NOTIFICATION EMAIL DISPATCH ============
+
+export async function initializeNotificationEmailDispatch() {
+  if (notificationEmailDispatchInitialized) return
+  notificationEmailDispatchInitialized = true
+
+  console.log('[Startup] Running initial notification email dispatch...')
+  try {
+    const run = await runNotificationEmailDispatchOnce()
+    if (!run.ran) {
+      console.log('[Startup] Skipping initial notification email dispatch (lock not acquired)')
+    }
+  } catch (e) {
+    console.error('[Startup] Notification email dispatch failed:', e)
+  }
+}
+
+let notificationEmailDispatchInterval: NodeJS.Timeout | null = null
+
+export function startNotificationEmailDispatch(intervalMs = 60_000) {
+  if (notificationEmailDispatchInterval) return
+
+  notificationEmailDispatchInterval = setInterval(async () => {
+    try {
+      const run = await runNotificationEmailDispatchOnce()
+      if (run.ran && (run.dispatchesCreated > 0 || (run.result?.claimed ?? 0) > 0)) {
+        console.log(
+          `[Notification Email] created=${run.dispatchesCreated} claimed=${run.result?.claimed ?? 0} sent=${run.result?.sent ?? 0} failed=${run.result?.failed ?? 0}`
+        )
+      }
+    } catch (e) {
+      console.error('[Notification Email] Periodic dispatch failed:', e)
+    }
+  }, intervalMs)
+
+  console.log(`[Startup] Notification email dispatch scheduled every ${Math.round(intervalMs / 1000)}s`)
+}
+
+export function stopNotificationEmailDispatch() {
+  if (notificationEmailDispatchInterval) {
+    clearInterval(notificationEmailDispatchInterval)
+    notificationEmailDispatchInterval = null
   }
 }

@@ -994,7 +994,7 @@ async function getOpsPlanningView(strategyId: string, planning?: PlanningCalenda
   const visibleOrders = derivedOrders
   const visibleOrderIds = new Set(visibleOrders.map((item) => item.derived.id))
 
-  const inputRows: OpsInputRow[] = visibleOrders.map(({ input, productName }) => ({
+  const inputRows: OpsInputRow[] = visibleOrders.map(({ input, derived, productName }) => ({
     id: input.id,
     productId: input.productId,
     orderCode: input.orderCode,
@@ -1008,10 +1008,10 @@ async function getOpsPlanningView(strategyId: string, planning?: PlanningCalenda
     containerNumber: input.containerNumber ?? input.transportReference ?? '',
     quantity: formatNumeric(input.quantity ?? null, 0),
     pay1Date: formatDate(input.pay1Date ?? null),
-    productionWeeks: formatNumeric(input.productionWeeks ?? null),
-    sourceWeeks: formatNumeric(input.sourceWeeks ?? null),
-    oceanWeeks: formatNumeric(input.oceanWeeks ?? null),
-    finalWeeks: formatNumeric(input.finalWeeks ?? null),
+    productionWeeks: formatNumeric(derived.stageProfile.productionWeeks),
+    sourceWeeks: formatNumeric(derived.stageProfile.sourceWeeks),
+    oceanWeeks: formatNumeric(derived.stageProfile.oceanWeeks),
+    finalWeeks: formatNumeric(derived.stageProfile.finalWeeks),
     sellingPrice: formatNumeric(input.overrideSellingPrice ?? null),
     manufacturingCost: formatNumeric(input.overrideManufacturingCost ?? null),
     freightCost: formatNumeric(input.overrideFreightCost ?? null),
@@ -1301,7 +1301,7 @@ function getSalesPlanningView(
             } else if (!Number.isFinite(derived.stockWeeks)) {
               row[key] = '∞'
             } else {
-              row[key] = String(derived.stockWeeks)
+              row[key] = formatNumeric(derived.stockWeeks, 2)
             }
             break
           case 'stockEnd':
@@ -1544,7 +1544,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         if (aDefault !== bDefault) return aDefault ? -1 : 1
         return b.updatedAt.localeCompare(a.updatedAt)
       })
-      tabularContent = <StrategiesWorkspace strategies={strategies} />
+      tabularContent = <StrategiesWorkspace strategies={strategies} activeStrategyId={strategyId} />
       visualContent = null
       break
     }

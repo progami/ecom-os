@@ -1,6 +1,5 @@
 import { prisma } from './prisma'
 import { listAllUsers, isAdminConfigured, patchUser, type GoogleUser } from './google-admin'
-import { publish } from './notification-service'
 import { createTemporaryEmployeeId, formatEmployeeId } from './employee-identifiers'
 
 export type SyncResult = {

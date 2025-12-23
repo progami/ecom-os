@@ -10,6 +10,7 @@ import {
   type KeyboardEvent,
 } from 'react'
 import { toast } from 'sonner'
+import Flatpickr from 'react-flatpickr'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { toIsoDate, formatDateDisplay } from '@/lib/utils/dates'
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
@@ -52,8 +53,10 @@ interface CustomOpsPlanningGridProps {
   onSelectOrder?: (orderId: string) => void
   onRowsChange?: (rows: OpsInputRow[]) => void
   onCreateOrder?: () => void
+  onDuplicateOrder?: (orderId: string) => void
   onDeleteOrder?: (orderId: string) => void
   disableCreate?: boolean
+  disableDuplicate?: boolean
   disableDelete?: boolean
 }
 
@@ -190,6 +193,12 @@ function validateNumeric(value: string): boolean {
   return !Number.isNaN(parsed)
 }
 
+function validatePositiveNumeric(value: string): boolean {
+  if (!value || value.trim() === '') return false
+  const parsed = sanitizeNumeric(value)
+  return !Number.isNaN(parsed) && parsed > 0
+}
+
 function validateDate(value: string): boolean {
   if (!value || value.trim() === '') return true
   const date = parseIsoDate(value)
@@ -261,8 +270,10 @@ export function CustomOpsPlanningGrid({
   onSelectOrder,
   onRowsChange,
   onCreateOrder,
+  onDuplicateOrder,
   onDeleteOrder,
   disableCreate,
+  disableDuplicate,
   disableDelete,
 }: CustomOpsPlanningGridProps) {
   const [stageMode, setStageMode] = useState<'weeks' | 'dates'>('weeks')
@@ -341,6 +352,11 @@ export function CustomOpsPlanningGrid({
     onDeleteOrder(activeOrderId)
   }
 
+  const handleDuplicateClick = () => {
+    if (!onDuplicateOrder || !activeOrderId || disableDuplicate) return
+    onDuplicateOrder(activeOrderId)
+  }
+
   const startEditing = (rowId: string, colKey: keyof OpsInputRow, currentValue: string) => {
     setEditingCell({ rowId, colKey })
     setEditValue(currentValue)
@@ -351,7 +367,7 @@ export function CustomOpsPlanningGrid({
     setEditValue('')
   }
 
-  const commitEdit = useCallback(() => {
+  const commitEdit = useCallback((nextValue?: string) => {
     if (!editingCell) return
 
     const { rowId, colKey } = editingCell
@@ -367,18 +383,32 @@ export function CustomOpsPlanningGrid({
       return
     }
 
-    let finalValue = editValue
+    let finalValue = nextValue ?? editValue
 
     // Validate and normalize based on column type
     if (column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')) {
-      if (!validateNumeric(finalValue)) {
-        toast.error('Invalid number')
+      const isStageWeeks = column.type === 'stage' && stageMode === 'weeks'
+      const validator = isStageWeeks ? validatePositiveNumeric : validateNumeric
+      if (!validator(finalValue)) {
+        toast.error(isStageWeeks ? 'Weeks must be a positive number' : 'Invalid number')
         cancelEditing()
         return
       }
       const precision = column.precision ?? NUMERIC_PRECISION[colKey] ?? 2
       finalValue = normalizeNumeric(finalValue, precision)
-    } else if (column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')) {
+    } else if (column.type === 'date') {
+      if (!finalValue || finalValue.trim() === '') {
+        finalValue = ''
+      } else {
+        const iso = toIsoDate(finalValue)
+        if (!iso) {
+          toast.error('Invalid date')
+          cancelEditing()
+          return
+        }
+        finalValue = iso
+      }
+    } else if (column.type === 'stage' && stageMode === 'dates') {
       if (!validateDate(finalValue)) {
         toast.error('Invalid date')
         cancelEditing()
@@ -425,8 +455,18 @@ export function CustomOpsPlanningGrid({
         const picked = new Date(`${iso}T00:00:00Z`)
         const stageStart = resolveStageStart(row, stageField)
         if (stageStart) {
+          if (picked.getTime() < stageStart.getTime()) {
+            toast.error('Stage end date cannot be before the stage start')
+            cancelEditing()
+            return
+          }
           const diffDays = (picked.getTime() - stageStart.getTime()) / (24 * 60 * 60 * 1000)
           const weeks = diffDays / 7
+          if (weeks < 0) {
+            toast.error('Stage weeks cannot be negative')
+            cancelEditing()
+            return
+          }
           const normalized = formatNumericInput(weeks, 2)
           entry.values[colKey] = normalized
         }
@@ -611,13 +651,9 @@ export function CustomOpsPlanningGrid({
         return toIsoDate(endDate) ?? ''
       }
     }
-    // Format date columns for display
+    // Date columns store ISO strings; keep ISO for editing.
     if (column.type === 'date') {
-      const isoValue = row[column.key]
-      if (isoValue) {
-        return formatDateDisplay(isoValue)
-      }
-      return ''
+      return row[column.key] ?? ''
     }
     return row[column.key] ?? ''
   }
@@ -664,10 +700,7 @@ export function CustomOpsPlanningGrid({
       .join(' ')
 
     if (isEditing) {
-      const inputType =
-        column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')
-          ? 'date'
-          : 'text'
+      const isDateCell = column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')
 
       return (
         <td
@@ -675,16 +708,40 @@ export function CustomOpsPlanningGrid({
           className={cellClasses}
           style={{ width: column.width, minWidth: column.width }}
         >
-          <input
-            ref={inputRef}
-            type={inputType}
-            value={editValue}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            onBlur={handleCellBlur}
-            className="ops-cell-input"
-            placeholder={column.type === 'date' ? 'Select date' : undefined}
-          />
+          {isDateCell ? (
+            <Flatpickr
+              value={editValue}
+              options={{ dateFormat: 'Y-m-d', allowInput: true, disableMobile: true }}
+              onChange={(_dates: Date[], dateStr: string) => {
+                commitEdit(dateStr)
+              }}
+              render={(_props: any, handleNodeChange: (node: HTMLElement | null) => void) => (
+                <input
+                  ref={(node) => {
+                    handleNodeChange(node)
+                    inputRef.current = node as HTMLInputElement | null
+                  }}
+                  type="text"
+                  value={editValue}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onBlur={handleCellBlur}
+                  className="ops-cell-input"
+                  placeholder="YYYY-MM-DD"
+                />
+              )}
+            />
+          ) : (
+            <input
+              ref={inputRef}
+              type="text"
+              value={editValue}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              onBlur={handleCellBlur}
+              className="ops-cell-input"
+            />
+          )}
         </td>
       )
     }
@@ -752,7 +809,7 @@ export function CustomOpsPlanningGrid({
             PO Table
           </h2>
         </div>
-        {(onCreateOrder || onDeleteOrder) && (
+        {(onCreateOrder || onDuplicateOrder || onDeleteOrder) && (
           <div className="flex flex-wrap gap-2">
             {onCreateOrder ? (
               <button
@@ -762,6 +819,16 @@ export function CustomOpsPlanningGrid({
                 className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-1 enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:focus:ring-cyan-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
               >
                 Add purchase order
+              </button>
+            ) : null}
+            {onDuplicateOrder ? (
+              <button
+                type="button"
+                onClick={handleDuplicateClick}
+                disabled={Boolean(disableDuplicate) || !activeOrderId}
+                className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-900 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:ring-offset-1 enabled:hover:border-cyan-500 enabled:hover:bg-cyan-50 enabled:hover:text-cyan-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:focus:ring-cyan-400/60 dark:focus:ring-offset-slate-900 dark:enabled:hover:border-cyan-300/50 dark:enabled:hover:bg-white/10"
+              >
+                Duplicate selected
               </button>
             ) : null}
             {onDeleteOrder ? (

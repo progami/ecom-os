@@ -103,6 +103,7 @@ const deleteSchema = z.object({
 })
 
 const STAGE_DEFAULT_LABEL_SET = Object.values(OPS_STAGE_DEFAULT_LABELS)
+const REQUIRED_STAGE_WEEK_FIELDS = new Set(['productionWeeks', 'sourceWeeks', 'oceanWeeks', 'finalWeeks'])
 
 function parseNumber(value: string | null | undefined) {
   if (!value) return null
@@ -172,6 +173,18 @@ export const PUT = withXPlanAuth(async (request: Request) => {
     return NextResponse.json({ error: 'Invalid payload', details: parsed.error.format() }, { status: 400 })
   }
 
+  for (const update of parsed.data.updates) {
+    for (const field of REQUIRED_STAGE_WEEK_FIELDS) {
+      if (!(field in update.values)) continue
+      const incoming = update.values[field]
+      if (incoming === null || incoming === undefined || incoming === '') continue
+      const parsedNumber = parseNumber(incoming)
+      if (parsedNumber == null || !Number.isFinite(parsedNumber) || parsedNumber <= 0) {
+        return NextResponse.json({ error: `${field} must be a positive number` }, { status: 400 })
+      }
+    }
+  }
+
   try {
     // Pre-validate orderCode uniqueness before attempting batch update
     const orderCodeUpdates = parsed.data.updates
@@ -223,6 +236,9 @@ export const PUT = withXPlanAuth(async (request: Request) => {
           if (!(field in values)) continue
           const incoming = values[field]
           if (incoming === null || incoming === undefined || incoming === '') {
+            if (REQUIRED_STAGE_WEEK_FIELDS.has(field)) {
+              continue
+            }
             data[field] = null
             continue
           }

@@ -5,7 +5,6 @@ import { getCurrentEmployeeId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
 import { isHROrAbove, isManagerOf } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
-import { sendNotificationEmail } from '@/lib/email-service'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -210,20 +209,6 @@ export async function PATCH(req: Request, context: RouteContext) {
           relatedType: 'TASK',
         },
       })
-
-      const assignee = await prisma.employee.findUnique({
-        where: { id: updated.assignedToId },
-        select: { email: true, firstName: true },
-      })
-
-      if (assignee?.email) {
-        await sendNotificationEmail(
-          assignee.email,
-          assignee.firstName,
-          'TASK_ASSIGNED',
-          `/tasks/${updated.id}`
-        )
-      }
     }
 
     return NextResponse.json(updated)

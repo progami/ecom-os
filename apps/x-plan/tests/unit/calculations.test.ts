@@ -312,6 +312,30 @@ describe('computeSalesPlan', () => {
     expect(zeroWeek?.stockWeeks).toBe(0)
   })
 
+  it('supports negative inventory and fractional stock weeks', () => {
+    const fractionalInput: SalesWeekInput[] = [
+      { id: 'f1', productId: product.id, weekNumber: 1, stockStart: 10, forecastSales: 20 },
+    ]
+
+    const fractionalPlan = computeSalesPlan(fractionalInput, [])
+    const week1 = fractionalPlan.find((row) => row.weekNumber === 1)
+
+    expect(week1?.finalSales).toBe(20)
+    expect(week1?.stockEnd).toBe(-10)
+    expect(week1?.stockWeeks).toBeCloseTo(0.5)
+
+    const negativeInput: SalesWeekInput[] = [
+      { id: 'n1', productId: product.id, weekNumber: 1, stockStart: 10, forecastSales: 30 },
+      { id: 'n2', productId: product.id, weekNumber: 2, forecastSales: 10 },
+    ]
+
+    const negativePlan = computeSalesPlan(negativeInput, [])
+    const week2 = negativePlan.find((row) => row.weekNumber === 2)
+
+    expect(week2?.stockStart).toBe(-20)
+    expect(week2?.stockWeeks).toBeCloseTo(-2)
+  })
+
   it('carries ending inventory into the next planning year', () => {
     const multiYearInput: SalesWeekInput[] = [
       { id: 'y52', productId: product.id, weekNumber: 52, stockStart: 40, forecastSales: 10 },

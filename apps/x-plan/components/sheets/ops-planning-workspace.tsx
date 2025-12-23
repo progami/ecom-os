@@ -24,6 +24,7 @@ import {
 } from '@/components/sheets/custom-purchase-payments-grid'
 import { createTimelineOrderFromDerived, type PurchaseTimelineOrder } from '@/lib/planning/timeline'
 import { getISOWeek } from 'date-fns'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
   buildProductCostIndex,
   computePurchaseOrderDerived,
@@ -169,6 +170,11 @@ interface OpsPlanningWorkspaceProps {
   timelineMonths: { start: string; end: string; label: string }[]
   mode?: 'tabular' | 'visual'
 }
+
+type ConfirmAction =
+  | { kind: 'delete-order'; orderId: string }
+  | { kind: 'delete-batch'; batchId: string }
+  | null
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -739,6 +745,7 @@ export function OpsPlanningWorkspace({
   const [newOrderCode, setNewOrderCode] = useState('')
   const [isAddingPayment, setIsAddingPayment] = useState(false)
   const [isRemovingPayment, setIsRemovingPayment] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null)
   const [isPending, startTransition] = useTransition()
 
   const inputRowsRef = useRef(inputRows)
@@ -1140,14 +1147,9 @@ useEffect(() => {
     })
   }, [activeOrderId, applyTimelineUpdate, productNameIndex, productOptions, startTransition])
 
-  const handleDeleteBatch = useCallback(() => {
-    const batchId = activeBatchId
-    if (!batchId) return
+  const performDeleteBatch = useCallback((batchId: string) => {
     const batch = batchRowsRef.current.find((row) => row.id === batchId)
     if (!batch) return
-
-    const confirmRemoval = window.confirm('Remove this batch from the purchase order?')
-    if (!confirmRemoval) return
 
     startTransition(async () => {
       try {
@@ -1163,26 +1165,33 @@ useEffect(() => {
           return next
         })
         setOrders((previous) => {
-        const next = previous.map((order) => {
-          if (order.id !== batch.purchaseOrderId) return order
-          const batches = (order.batchTableRows ?? []).filter((item) => item.id !== batchId)
-          return {
-            ...order,
-            batchTableRows: batches,
-            quantity: batches.reduce((sum, item) => sum + (item.quantity ?? 0), 0),
-          }
-        })
+          const next = previous.map((order) => {
+            if (order.id !== batch.purchaseOrderId) return order
+            const batches = (order.batchTableRows ?? []).filter((item) => item.id !== batchId)
+            return {
+              ...order,
+              batchTableRows: batches,
+              quantity: batches.reduce((sum, item) => sum + (item.quantity ?? 0), 0),
+            }
+          })
           ordersRef.current = next
           return next
         })
         applyTimelineUpdate(ordersRef.current, inputRowsRef.current, paymentRowsRef.current)
+        setConfirmAction(null)
         toast.success('Batch removed')
       } catch (error) {
         console.error(error)
         toast.error('Unable to delete batch')
       }
     })
-  }, [activeBatchId, applyTimelineUpdate, startTransition])
+  }, [applyTimelineUpdate, startTransition])
+
+  const handleDeleteBatch = useCallback(() => {
+    const batchId = activeBatchId
+    if (!batchId) return
+    setConfirmAction({ kind: 'delete-batch', batchId })
+  }, [activeBatchId])
 
   const orderSummaries = useMemo(() => {
     type DraftSummary = PaymentSummary & { fallbackAmount: number }
@@ -1385,13 +1394,9 @@ useEffect(() => {
     })
   }, [router])
 
-  const handleDeleteOrder = useCallback(
+  const performDeleteOrder = useCallback(
     (orderId: string) => {
       if (!orderId) return
-      const confirmRemoval = window.confirm(
-        'Remove this purchase order? Associated payments and timeline stages will also be deleted.'
-      )
-      if (!confirmRemoval) return
 
       startTransition(async () => {
         try {
@@ -1409,6 +1414,7 @@ useEffect(() => {
             batchRowsRef.current = next
             return next
           })
+          setConfirmAction(null)
           toast.success('Purchase order removed')
           router.refresh()
         } catch (error) {
@@ -1418,6 +1424,53 @@ useEffect(() => {
       })
     },
     [activeOrderId, router, startTransition]
+  )
+
+  const handleDeleteOrder = useCallback((orderId: string) => {
+    if (!orderId) return
+    setConfirmAction({ kind: 'delete-order', orderId })
+  }, [])
+
+  const handleDuplicateOrder = useCallback(
+    (orderId: string) => {
+      if (!orderId) return
+
+      startTransition(async () => {
+        try {
+          const response = await fetch(withAppBasePath('/api/v1/x-plan/purchase-orders/duplicate'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: orderId }),
+          })
+
+          if (!response.ok) {
+            let message = 'Failed to duplicate purchase order'
+            try {
+              const errorPayload = await response.json()
+              if (typeof errorPayload?.error === 'string') {
+                message = errorPayload.error
+              }
+            } catch (error) {
+              // ignore JSON parse errors
+            }
+            toast.error(message)
+            return
+          }
+
+          const result = await response.json().catch(() => null)
+          const createdId = result?.order?.id as string | undefined
+          if (createdId) {
+            setActiveOrderId(createdId)
+          }
+          toast.success('Purchase order duplicated')
+          router.refresh()
+        } catch (error) {
+          console.error(error)
+          toast.error('Unable to duplicate purchase order')
+        }
+      })
+    },
+    [router, startTransition],
   )
 
   const handleCreateOrder = useCallback(() => {
@@ -1482,8 +1535,10 @@ useEffect(() => {
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}
             onRowsChange={handleInputRowsChange}
             onCreateOrder={() => setIsCreateOrderOpen(true)}
+            onDuplicateOrder={handleDuplicateOrder}
             onDeleteOrder={handleDeleteOrder}
             disableCreate={isPending || productOptions.length === 0}
+            disableDuplicate={isPending}
             disableDelete={isPending}
           />
 
@@ -1570,6 +1625,31 @@ useEffect(() => {
           months={timelineMonths}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmAction != null}
+        title={confirmAction?.kind === 'delete-order' ? 'Remove purchase order?' : 'Remove batch?'}
+        description={
+          confirmAction?.kind === 'delete-order'
+            ? 'Associated payments and timeline stages will also be deleted.'
+            : 'This batch will be removed from the purchase order.'
+        }
+        confirmLabel="Remove"
+        cancelLabel="Cancel"
+        tone="danger"
+        isBusy={isPending}
+        onOpenChange={(open) => {
+          if (!open) setConfirmAction(null)
+        }}
+        onConfirm={() => {
+          if (!confirmAction) return
+          if (confirmAction.kind === 'delete-order') {
+            performDeleteOrder(confirmAction.orderId)
+            return
+          }
+          performDeleteBatch(confirmAction.batchId)
+        }}
+      />
     </div>
   )
 }

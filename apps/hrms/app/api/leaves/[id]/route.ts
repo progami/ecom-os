@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { sendNotificationEmail } from '@/lib/email-service'
 import { writeAuditLog } from '@/lib/audit'
 import { z } from 'zod'
 
@@ -246,16 +245,6 @@ export async function PATCH(req: Request, context: RouteContext) {
           relatedType: 'LEAVE',
         },
       })
-
-      // Send email
-      if (leaveRequest.employee.email) {
-        await sendNotificationEmail(
-          leaveRequest.employee.email,
-          leaveRequest.employee.firstName,
-          'LEAVE_APPROVED',
-          `/leaves/${id}`
-        )
-      }
     } else if (status === 'REJECTED') {
       // Notify the employee that their leave was rejected
       await prisma.notification.create({
@@ -269,16 +258,6 @@ export async function PATCH(req: Request, context: RouteContext) {
           relatedType: 'LEAVE',
         },
       })
-
-      // Send email
-      if (leaveRequest.employee.email) {
-        await sendNotificationEmail(
-          leaveRequest.employee.email,
-          leaveRequest.employee.firstName,
-          'LEAVE_REJECTED',
-          `/leaves/${id}`
-        )
-      }
     } else if (status === 'CANCELLED' && leaveRequest.employee.reportsToId) {
       // Notify the manager that the employee cancelled their leave
       await prisma.notification.create({

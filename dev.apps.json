@@ -1,5 +1,5 @@
 {
-  "host": "https://dev.ecomos.targonglobal.com",
+  "host": "https://dev-ecomos.targonglobal.com",
   "apps": {
     "wms": "/wms",
     "hrms": "/hrms",

@@ -3,7 +3,7 @@ import prisma from '../../../../lib/prisma'
 import { UpdateEmployeeSchema } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { EmploymentType, EmployeeStatus } from '@/lib/hrms-prisma-types'
-import { checkAndNotifyMissingFields, publish } from '@/lib/notification-service'
+import { checkAndNotifyMissingFields } from '@/lib/notification-service'
 import { patchUser, isAdminConfigured } from '@/lib/google-admin'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { filterAllowedFields, canReassignEmployee, isHROrAbove, isSuperAdmin } from '@/lib/permissions'
@@ -288,21 +288,36 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
     // Re-check profile completion after update
     await checkAndNotifyMissingFields(id)
 
-    // Publish employee updated event
-    await publish({
-      type: 'EMPLOYEE_UPDATED',
-      employeeId: id,
-    })
-
     // Check if hierarchy changed and publish event
     const newManagerId = e.reportsToId ?? null
     if (data.reportsToId !== undefined && oldManagerId !== newManagerId) {
-      await publish({
-        type: 'HIERARCHY_CHANGED',
-        employeeId: id,
-        oldManagerId,
-        newManagerId,
+      await prisma.notification.create({
+        data: {
+          type: 'HIERARCHY_CHANGED',
+          title: 'Reporting Structure Changed',
+          message: e.manager
+            ? `You now report to ${e.manager.firstName} ${e.manager.lastName}.`
+            : 'Your reporting structure has been updated.',
+          link: `/employees/${e.id}`,
+          employeeId: e.id,
+          relatedId: e.id,
+          relatedType: 'EMPLOYEE',
+        },
       })
+
+      if (e.manager) {
+        await prisma.notification.create({
+          data: {
+            type: 'HIERARCHY_CHANGED',
+            title: 'New Team Member',
+            message: `${e.firstName} ${e.lastName} now reports to you.`,
+            link: `/employees/${e.id}`,
+            employeeId: e.manager.id,
+            relatedId: e.id,
+            relatedType: 'EMPLOYEE',
+          },
+        })
+      }
     }
 
     await writeAuditLog({
