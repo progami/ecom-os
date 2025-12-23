@@ -48,6 +48,14 @@ const SEVERITY_COLORS: Record<string, string> = {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  PENDING_HR_REVIEW: 'Pending HR Review',
+  PENDING_SUPER_ADMIN: 'Pending Final Approval',
+  PENDING_ACKNOWLEDGMENT: 'Pending Acknowledgment',
+  ACTIVE: 'Active',
+
+  APPEAL_PENDING_HR: 'Appeal - HR Review',
+  APPEAL_PENDING_SUPER_ADMIN: 'Appeal - Final Decision',
+
   OPEN: 'Open',
   UNDER_INVESTIGATION: 'Investigating',
   ACTION_TAKEN: 'Action Taken',
@@ -181,7 +189,7 @@ export default function DisciplinaryActionsPage() {
                   </TableCell>
                   <TableCell className="text-gray-500">{formatDate(d.incidentDate)}</TableCell>
                   <TableCell>
-                    <StatusBadge status={STATUS_LABELS[d.status] || d.status} />
+                    <StatusBadge status={STATUS_LABELS[d.status] || d.status.replace(/_/g, ' ')} />
                   </TableCell>
                 </TableRow>
               ))
