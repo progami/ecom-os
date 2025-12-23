@@ -79,6 +79,10 @@ type SalesPlanningFocusContextValue = {
 
 const SalesPlanningFocusContext = createContext<SalesPlanningFocusContextValue | null>(null)
 
+export function useSalesPlanningFocus() {
+  return useContext(SalesPlanningFocusContext)
+}
+
 export function SalesPlanningFocusProvider({ children }: { children: ReactNode }) {
   const [focusProductId, setFocusProductId] = usePersistentState<string>('xplan:sales-grid:focus-product', 'ALL')
   const value = useMemo(
