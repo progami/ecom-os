@@ -3,11 +3,15 @@
 import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { clsx } from 'clsx'
 import { useSearchParams } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import { Check, Download } from 'lucide-react'
-import { SHEET_TOOLBAR_GROUP } from '@/components/sheet-toolbar'
+import { Download } from 'lucide-react'
+import {
+  SHEET_TOOLBAR_BUTTON,
+  SHEET_TOOLBAR_GROUP,
+  SHEET_TOOLBAR_LABEL,
+  SHEET_TOOLBAR_SEGMENTED,
+} from '@/components/sheet-toolbar'
 import { useSalesPlanningFocus } from '@/components/sheets/sales-planning-grid'
 
 type SalesRow = {
@@ -66,6 +70,8 @@ function niceScale(min: number, max: number, tickCount: number): number[] {
   return ticks
 }
 
+type ShowMode = 'all' | 'stock' | 'shipments'
+
 export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptions }: SalesPlanningVisualProps) {
   const { theme } = useTheme()
   const searchParams = useSearchParams()
@@ -81,13 +87,17 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
     ? contextProductId
     : defaultProductId
 
+  const selectedProduct = productOptions.find((p) => p.id === selectedProductId)
+
   const [hoveredShipment, setHoveredShipment] = useState<ShipmentMarker | null>(null)
   const [hoveredStock, setHoveredStock] = useState<{ weekNumber: number; weekDate: string; stockEnd: number } | null>(null)
   const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null)
-  const [showShipments, setShowShipments] = useState(true)
-  const [showStockLine, setShowStockLine] = useState(true)
+  const [showMode, setShowMode] = useState<ShowMode>('all')
   const [mounted, setMounted] = useState(false)
   const svgRef = useRef<SVGSVGElement>(null)
+
+  const showStockLine = showMode === 'all' || showMode === 'stock'
+  const showShipments = showMode === 'all' || showMode === 'shipments'
 
   useEffect(() => {
     setMounted(true)
@@ -158,7 +168,28 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
     }
   }, [stockDataPoints])
 
-  const chartHeight = 600
+  // Compute stats for side panel
+  const stats = useMemo(() => {
+    if (stockDataPoints.length === 0) {
+      return { latestWeek: null, latestDate: null, currentStock: 0, avgStock: 0, peakStock: 0, shipmentsCount: 0 }
+    }
+
+    const latest = stockDataPoints[stockDataPoints.length - 1]
+    const stockValues = stockDataPoints.map((p) => p.stockEnd).filter((v) => v > 0)
+    const avgStock = stockValues.length > 0 ? stockValues.reduce((a, b) => a + b, 0) / stockValues.length : 0
+    const peakStock = Math.max(...stockDataPoints.map((p) => p.stockEnd))
+
+    return {
+      latestWeek: latest?.weekNumber ?? null,
+      latestDate: latest?.weekDate ?? null,
+      currentStock: latest?.stockEnd ?? 0,
+      avgStock: Math.round(avgStock),
+      peakStock,
+      shipmentsCount: shipmentMarkers.length,
+    }
+  }, [stockDataPoints, shipmentMarkers])
+
+  const chartHeight = 400
   const padding = { top: 40, right: 40, bottom: 60, left: 80 }
 
   const xScale = (weekNumber: number, containerWidth: number) => {
@@ -227,342 +258,336 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
 
   if (productOptions.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-100 p-12 text-center dark:border-[#6F7B8B]/40 dark:bg-[#002C51]/20">
-        <div className="mx-auto max-w-md space-y-4">
-          <div className="text-6xl">📦</div>
-          <h3 className="text-xl font-semibold text-slate-900 dark:text-white">No Products Available</h3>
+      <section className="rounded-3xl border border-slate-200 dark:border-[#0b3a52] bg-white dark:bg-[#041324] p-6 text-sm text-slate-400 shadow-lg dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)]">
+        <header className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Stock Analysis</p>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">No Products Available</h2>
+        </header>
+        <div className="mt-6 text-center">
           <p className="text-sm text-slate-600 dark:text-[#6F7B8B]">
-            Set up your first product in the Product Setup sheet to start tracking stock levels and sales planning.
+            Set up your first product in the Product Setup sheet to start tracking stock levels.
           </p>
           <Link
             href={productSetupHref}
-            className="inline-flex items-center gap-2 rounded-lg border border-cyan-600 bg-cyan-600/20 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-cyan-600/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 dark:border-[#00C2B9] dark:bg-[#00C2B9]/20 dark:text-white dark:hover:bg-[#00C2B9]/30 dark:focus-visible:outline-[#00C2B9]"
+            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-cyan-600 bg-cyan-600/20 px-4 py-2 text-sm font-medium text-slate-900 transition hover:bg-cyan-600/30 dark:border-[#00C2B9] dark:bg-[#00C2B9]/20 dark:text-white dark:hover:bg-[#00C2B9]/30"
           >
             <span>→</span> Go to Product Setup
           </Link>
         </div>
-      </div>
+      </section>
     )
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <div className={SHEET_TOOLBAR_GROUP}>
-          <span className="text-xs font-semibold uppercase tracking-[0.1em] text-cyan-700 dark:text-cyan-300/90">Show</span>
-          <button
-            type="button"
-            onClick={() => setShowStockLine(!showStockLine)}
-            className={clsx(
-              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all',
-              showStockLine
-                ? 'bg-cyan-100 text-cyan-800 shadow-sm dark:bg-cyan-900/30 dark:text-cyan-200'
-                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5'
-            )}
-          >
-            {showStockLine && <Check className="h-3 w-3" />}
-            Stock
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowShipments(!showShipments)}
-            className={clsx(
-              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all',
-              showShipments
-                ? 'bg-emerald-100 text-emerald-800 shadow-sm dark:bg-emerald-900/30 dark:text-emerald-200'
-                : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5'
-            )}
-          >
-            {showShipments && <Check className="h-3 w-3" />}
-            Shipments
-          </button>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => {
-            const svg = document.querySelector('.sales-chart-svg') as SVGElement
-            if (!svg) return
-            const data = new XMLSerializer().serializeToString(svg)
-            const blob = new Blob([data], { type: 'image/svg+xml' })
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = `sales-planning-${selectedProductId}.svg`
-            a.click()
-            URL.revokeObjectURL(url)
-          }}
-          className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
-        >
-          <Download className="h-3.5 w-3.5" />
-          Export SVG
-        </button>
-      </div>
-
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 backdrop-blur-sm dark:border-[#0b3a52] dark:bg-[#06182b]/60">
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Stock Level Over Time</h3>
-          <p className="text-sm text-slate-600 dark:text-[#6F7B8B]">
-            Tracking inventory levels with shipment arrival markers
+    <section className="space-y-6 rounded-3xl border border-slate-200 dark:border-[#0b3a52] bg-white dark:bg-[#041324] p-6 shadow-lg dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)]">
+      {/* Header */}
+      <header className="space-y-4 lg:flex lg:items-end lg:justify-between lg:space-y-0">
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Stock Analysis</p>
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Stock Level Over Time</h2>
+          <p className="text-sm text-slate-700 dark:text-slate-200/80">
+            Track inventory levels and shipment arrivals for planning
           </p>
         </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+          {/* Show Mode Toggle */}
+          <div className={SHEET_TOOLBAR_GROUP}>
+            <span className={SHEET_TOOLBAR_LABEL}>Display</span>
+            <div role="group" aria-label="Select display mode" className={SHEET_TOOLBAR_SEGMENTED}>
+              {[
+                { value: 'all' as const, label: 'All' },
+                { value: 'stock' as const, label: 'Stock' },
+                { value: 'shipments' as const, label: 'Shipments' },
+              ].map((option) => {
+                const isActive = option.value === showMode
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`${SHEET_TOOLBAR_BUTTON} rounded-none first:rounded-l-full last:rounded-r-full ${
+                      isActive
+                        ? 'border-[#00c2b9] bg-cyan-600 text-white shadow-[0_12px_24px_rgba(0,194,185,0.15)] dark:bg-[#00c2b9]/15 dark:text-cyan-100'
+                        : 'text-slate-700 hover:text-cyan-700 dark:text-slate-200 dark:hover:text-cyan-100'
+                    }`}
+                    onClick={() => setShowMode(option.value)}
+                    aria-pressed={isActive}
+                  >
+                    {option.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
 
-        <div className="w-full">
-          <svg
-            ref={svgRef}
-            width="100%"
-            height={chartHeight}
-            className="sales-chart-svg text-slate-900 dark:text-white"
-            preserveAspectRatio="none"
-            viewBox={`0 0 1400 ${chartHeight}`}
+          {/* Export Button */}
+          <button
+            type="button"
+            onClick={() => {
+              const svg = document.querySelector('.sales-chart-svg') as SVGElement
+              if (!svg) return
+              const data = new XMLSerializer().serializeToString(svg)
+              const blob = new Blob([data], { type: 'image/svg+xml' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `sales-planning-${selectedProductId}.svg`
+              a.click()
+              URL.revokeObjectURL(url)
+            }}
+            className={`${SHEET_TOOLBAR_BUTTON} gap-1.5`}
           >
-            {/* Grid lines */}
-            <g className="opacity-40">
-              {yAxisTicks.map((tick, index) => (
-                <line
-                  key={`grid-y-${index}-${tick}`}
-                  x1={padding.left}
-                  y1={yScale(tick)}
-                  x2={1400 - padding.right}
-                  y2={yScale(tick)}
-                  stroke={colors.gridLine}
-                  strokeWidth="1"
-                  strokeDasharray="4 4"
-                />
-              ))}
-            </g>
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </button>
+        </div>
+      </header>
 
-            {/* Area fill */}
-            {showStockLine && (
-              <path
-                d={getAreaPathData(1400)}
-                fill="url(#stockGradient)"
-                opacity="0.3"
-              />
-            )}
+      {/* Chart and Stats Grid */}
+      <article className="space-y-6">
+        {/* Legend badges */}
+        <div className="flex flex-wrap items-center gap-2">
+          {showStockLine && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-semibold text-cyan-800 dark:bg-cyan-500/20 dark:text-cyan-200">
+              <span className="h-2 w-2 rounded-full bg-cyan-600 dark:bg-[#00C2B9]" />
+              Stock Level
+            </span>
+          )}
+          {showShipments && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200">
+              <span className="h-2 w-2 rounded-full bg-emerald-600 dark:bg-emerald-500" />
+              Shipment Arrivals
+            </span>
+          )}
+          {selectedProduct && (
+            <span className="text-sm text-slate-700 dark:text-slate-200/80">
+              {selectedProduct.name}
+            </span>
+          )}
+        </div>
 
-            {/* Stock line */}
-            {showStockLine && (
-              <path
-                d={getPathData(1400)}
-                fill="none"
-                stroke={colors.stockLine}
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            )}
-
-            {/* Data points */}
-            {showStockLine && stockDataPoints.map((point, index) => {
-              const isHovered = hoveredStock?.weekNumber === point.weekNumber
-              return (
-                <g key={`point-${index}`}>
-                  {/* Large invisible hitbox for easy hovering */}
-                  <circle
-                    cx={xScale(point.weekNumber, 1400)}
-                    cy={yScale(point.stockEnd)}
-                    r="20"
-                    fill="transparent"
-                    className="cursor-pointer"
-                    onMouseEnter={(e) => {
-                      setHoveredStock(point)
-                      setTooltipPosition({ x: e.clientX, y: e.clientY })
-                    }}
-                    onMouseMove={(e) => setTooltipPosition({ x: e.clientX, y: e.clientY })}
-                    onMouseLeave={() => {
-                      setHoveredStock(null)
-                      setTooltipPosition(null)
-                    }}
-                  />
-                  {/* Visible data point */}
-                  <circle
-                    cx={xScale(point.weekNumber, 1400)}
-                    cy={yScale(point.stockEnd)}
-                    r={isHovered ? "7" : "5"}
-                    fill={colors.stockLine}
-                    stroke={colors.stroke}
-                    strokeWidth="2"
-                    className="pointer-events-none transition-all duration-150"
-                  />
-                </g>
-              )
-            })}
-
-            {/* Shipment markers */}
-            {showShipments && shipmentMarkers.map((marker, index) => {
-              const x = xScale(marker.weekNumber, 1400)
-              const isHovered = hoveredShipment?.weekNumber === marker.weekNumber
-
-              return (
-                <g key={`shipment-${index}`}>
-                  {/* Invisible wider hitbox for better hover - much larger */}
+        {/* Chart + Side Panel Grid */}
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
+          {/* Chart Container */}
+          <div className="relative h-[400px] w-full overflow-hidden rounded-3xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 backdrop-blur-sm">
+            <svg
+              ref={svgRef}
+              viewBox={`0 0 1000 ${chartHeight}`}
+              className="sales-chart-svg h-full w-full"
+            >
+              {/* Grid lines */}
+              <g className="opacity-40">
+                {yAxisTicks.map((tick, index) => (
                   <line
-                    x1={x}
-                    y1={padding.top}
-                    x2={x}
-                    y2={chartHeight - padding.bottom}
-                    stroke="transparent"
-                    strokeWidth="32"
-                    className="cursor-pointer"
-                    onMouseEnter={(e) => {
-                      setHoveredShipment(marker)
-                      setTooltipPosition({ x: e.clientX, y: e.clientY })
-                    }}
-                    onMouseMove={(e) => setTooltipPosition({ x: e.clientX, y: e.clientY })}
-                    onMouseLeave={() => {
-                      setHoveredShipment(null)
-                      setTooltipPosition(null)
-                    }}
-                  />
-                  {/* Visible line */}
-                  <line
-                    x1={x}
-                    y1={padding.top}
-                    x2={x}
-                    y2={chartHeight - padding.bottom}
-                    stroke={colors.shipmentLine}
-                    strokeWidth={isHovered ? "4" : "2"}
-                    strokeDasharray="6 4"
-                    className="pointer-events-none transition-all duration-150"
-                  />
-                  {/* Large invisible circle hitbox at top */}
-                  <circle
-                    cx={x}
-                    cy={padding.top - 10}
-                    r="20"
-                    fill="transparent"
-                    className="cursor-pointer"
-                    onMouseEnter={(e) => {
-                      setHoveredShipment(marker)
-                      setTooltipPosition({ x: e.clientX, y: e.clientY })
-                    }}
-                    onMouseMove={(e) => setTooltipPosition({ x: e.clientX, y: e.clientY })}
-                    onMouseLeave={() => {
-                      setHoveredShipment(null)
-                      setTooltipPosition(null)
-                    }}
-                  />
-                  {/* Visible circle marker */}
-                  <circle
-                    cx={x}
-                    cy={padding.top - 10}
-                    r={isHovered ? "9" : "7"}
-                    fill={colors.shipmentLine}
-                    stroke={colors.stroke}
-                    strokeWidth="2"
-                    className="pointer-events-none transition-all duration-150"
-                  />
-                </g>
-              )
-            })}
-
-            {/* Y-axis */}
-            <g>
-              <line
-                x1={padding.left}
-                y1={padding.top}
-                x2={padding.left}
-                y2={chartHeight - padding.bottom}
-                stroke={colors.axis}
-                strokeWidth="2"
-              />
-              {yAxisTicks.map((tick, index) => (
-                <g key={`y-tick-${index}-${tick}`}>
-                  <line
-                    x1={padding.left - 5}
+                    key={`grid-y-${index}-${tick}`}
+                    x1={padding.left}
                     y1={yScale(tick)}
-                    x2={padding.left}
+                    x2={1000 - padding.right}
                     y2={yScale(tick)}
-                    stroke={colors.axis}
-                    strokeWidth="2"
+                    stroke={colors.gridLine}
+                    strokeWidth="1"
+                    strokeDasharray="4 4"
                   />
+                ))}
+              </g>
+
+              {/* Area fill */}
+              {showStockLine && (
+                <path
+                  d={getAreaPathData(1000)}
+                  fill="url(#stockGradient)"
+                  opacity="0.5"
+                />
+              )}
+
+              {/* Stock line */}
+              {showStockLine && (
+                <path
+                  d={getPathData(1000)}
+                  fill="none"
+                  stroke={colors.stockLine}
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              )}
+
+              {/* Data points */}
+              {showStockLine && stockDataPoints.map((point, index) => {
+                const isHovered = hoveredStock?.weekNumber === point.weekNumber
+                return (
+                  <g key={`point-${index}`}>
+                    <circle
+                      cx={xScale(point.weekNumber, 1000)}
+                      cy={yScale(point.stockEnd)}
+                      r="16"
+                      fill="transparent"
+                      className="cursor-pointer"
+                      onMouseEnter={(e) => {
+                        setHoveredStock(point)
+                        setTooltipPosition({ x: e.clientX, y: e.clientY })
+                      }}
+                      onMouseMove={(e) => setTooltipPosition({ x: e.clientX, y: e.clientY })}
+                      onMouseLeave={() => {
+                        setHoveredStock(null)
+                        setTooltipPosition(null)
+                      }}
+                    />
+                    <circle
+                      cx={xScale(point.weekNumber, 1000)}
+                      cy={yScale(point.stockEnd)}
+                      r={isHovered ? 6 : 4}
+                      fill={colors.stockLine}
+                      opacity={isHovered ? 1 : 0.7}
+                      className="pointer-events-none transition-all duration-150"
+                    />
+                  </g>
+                )
+              })}
+
+              {/* Shipment markers */}
+              {showShipments && shipmentMarkers.map((marker, index) => {
+                const x = xScale(marker.weekNumber, 1000)
+                const isHovered = hoveredShipment?.weekNumber === marker.weekNumber
+
+                return (
+                  <g key={`shipment-${index}`}>
+                    <line
+                      x1={x}
+                      y1={padding.top}
+                      x2={x}
+                      y2={chartHeight - padding.bottom}
+                      stroke="transparent"
+                      strokeWidth="24"
+                      className="cursor-pointer"
+                      onMouseEnter={(e) => {
+                        setHoveredShipment(marker)
+                        setTooltipPosition({ x: e.clientX, y: e.clientY })
+                      }}
+                      onMouseMove={(e) => setTooltipPosition({ x: e.clientX, y: e.clientY })}
+                      onMouseLeave={() => {
+                        setHoveredShipment(null)
+                        setTooltipPosition(null)
+                      }}
+                    />
+                    <line
+                      x1={x}
+                      y1={padding.top}
+                      x2={x}
+                      y2={chartHeight - padding.bottom}
+                      stroke={colors.shipmentLine}
+                      strokeWidth={isHovered ? 3 : 2}
+                      strokeDasharray="6 4"
+                      opacity={isHovered ? 1 : 0.6}
+                      className="pointer-events-none transition-all duration-150"
+                    />
+                    <circle
+                      cx={x}
+                      cy={padding.top - 8}
+                      r={isHovered ? 7 : 5}
+                      fill={colors.shipmentLine}
+                      opacity={isHovered ? 1 : 0.7}
+                      className="pointer-events-none transition-all duration-150"
+                    />
+                  </g>
+                )
+              })}
+
+              {/* Y-axis */}
+              <g>
+                {yAxisTicks.map((tick, index) => (
                   <text
+                    key={`y-tick-${index}-${tick}`}
                     x={padding.left - 10}
                     y={yScale(tick)}
                     textAnchor="end"
                     alignmentBaseline="middle"
-                    className="text-xs font-mono fill-slate-600 dark:fill-[#6F7B8B]"
+                    className="text-[11px] font-medium fill-slate-500 dark:fill-[#6F7B8B]"
                   >
-                    {Math.round(tick)}
+                    {tick.toLocaleString()}
                   </text>
-                </g>
-              ))}
-              <text
-                x={20}
-                y={chartHeight / 2}
-                textAnchor="middle"
-                className="fill-white text-sm font-semibold"
-                transform={`rotate(-90, 20, ${chartHeight / 2})`}
-              >
-                Stock Level (Units)
-              </text>
-            </g>
+                ))}
+              </g>
 
-            {/* X-axis */}
-            <g>
-              <line
-                x1={padding.left}
-                y1={chartHeight - padding.bottom}
-                x2={1400 - padding.right}
-                y2={chartHeight - padding.bottom}
-                stroke="#6F7B8B"
-                strokeWidth="2"
-              />
-              {xAxisTicks.map((tick, index) => (
-                <g key={`x-tick-${index}-${tick.weekNumber}`}>
-                  <line
-                    x1={xScale(tick.weekNumber, 1400)}
-                    y1={chartHeight - padding.bottom}
-                    x2={xScale(tick.weekNumber, 1400)}
-                    y2={chartHeight - padding.bottom + 5}
-                    stroke="#6F7B8B"
-                    strokeWidth="2"
-                  />
-                  <text
-                    x={xScale(tick.weekNumber, 1400)}
-                    y={chartHeight - padding.bottom + 20}
-                    textAnchor="middle"
-                    className="fill-[#6F7B8B] text-xs"
-                  >
-                    W{tick.weekNumber}
-                  </text>
-                  {tick.weekDate && (
+              {/* X-axis */}
+              <g>
+                <line
+                  x1={padding.left}
+                  x2={1000 - padding.right}
+                  y1={chartHeight - padding.bottom}
+                  y2={chartHeight - padding.bottom}
+                  stroke="rgba(100, 116, 139, 0.4)"
+                  strokeWidth="1.5"
+                  strokeDasharray="4 4"
+                />
+                {xAxisTicks.map((tick, index) => (
+                  <g key={`x-tick-${index}-${tick.weekNumber}`}>
                     <text
-                      x={xScale(tick.weekNumber, 1400)}
-                      y={chartHeight - padding.bottom + 35}
+                      x={xScale(tick.weekNumber, 1000)}
+                      y={chartHeight - padding.bottom + 16}
                       textAnchor="middle"
-                      className="fill-[#6F7B8B] text-xs"
+                      className="text-[10px] font-medium fill-slate-500 dark:fill-[#6F7B8B]"
+                    >
+                      W{tick.weekNumber}
+                    </text>
+                    <text
+                      x={xScale(tick.weekNumber, 1000)}
+                      y={chartHeight - padding.bottom + 28}
+                      textAnchor="middle"
+                      className="text-[9px] fill-slate-400 dark:fill-[#6F7B8B]/70"
                     >
                       {tick.weekDate}
                     </text>
-                  )}
-                </g>
-              ))}
-            </g>
+                  </g>
+                ))}
+              </g>
 
-            {/* Gradient definition */}
-            <defs>
-              <linearGradient id="stockGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#00C2B9" stopOpacity="0.6" />
-                <stop offset="100%" stopColor="#00C2B9" stopOpacity="0.05" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
+              {/* Gradient definition */}
+              <defs>
+                <linearGradient id="stockGradient" gradientTransform="rotate(90)">
+                  <stop offset="0%" stopColor={colors.stockLine} stopOpacity={0.4} />
+                  <stop offset="100%" stopColor={colors.stockLine} stopOpacity={0.05} />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
 
-        {/* Legend */}
-        <div className="mt-6 flex items-center gap-6 border-t border-slate-200 pt-4 dark:border-[#0b3a52]">
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-8 rounded-sm bg-cyan-600 dark:bg-[#00C2B9]" />
-            <span className="text-xs text-slate-600 dark:text-[#6F7B8B]">Stock Level</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-8 border-2 border-dashed border-emerald-600 rounded-sm dark:border-emerald-500" />
-            <span className="text-xs text-slate-600 dark:text-[#6F7B8B]">Shipment Arrival</span>
-          </div>
+          {/* Side Stats Panel */}
+          <aside className="space-y-4 rounded-3xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 p-4 text-sm backdrop-blur-sm">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Latest week</p>
+              <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
+                {stats.latestWeek ? `W${stats.latestWeek}` : '—'}
+              </p>
+              <p className="text-xs text-slate-600 dark:text-slate-200/80">{stats.latestDate ?? ''}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Current stock</p>
+              <p className="text-2xl font-semibold text-slate-900 dark:text-white">
+                {stats.currentStock.toLocaleString()}
+              </p>
+              <p className="text-xs text-slate-600 dark:text-slate-200/80">units</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Peak stock</p>
+              <p className="text-lg font-medium text-slate-900 dark:text-white">
+                {stats.peakStock.toLocaleString()}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Avg stock</p>
+              <p className="text-lg font-medium text-slate-900 dark:text-white">
+                {stats.avgStock.toLocaleString()}
+              </p>
+            </div>
+            <div className="space-y-1 border-t border-slate-200 pt-4 dark:border-[#0b3a52]">
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-emerald-700 dark:text-emerald-300/80">Shipments</p>
+              <p className="text-lg font-medium text-slate-900 dark:text-white">
+                {stats.shipmentsCount} <span className="text-xs font-normal text-slate-600 dark:text-slate-200/80">arrivals</span>
+              </p>
+            </div>
+          </aside>
         </div>
-      </div>
+      </article>
 
       {/* Portal-based tooltips that follow cursor */}
       {mounted && tooltipPosition && hoveredStock && createPortal(
@@ -620,6 +645,6 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
         </div>,
         document.body
       )}
-    </div>
+    </section>
   )
 }
