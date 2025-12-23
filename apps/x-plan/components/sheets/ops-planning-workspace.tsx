@@ -1420,6 +1420,48 @@ useEffect(() => {
     [activeOrderId, router, startTransition]
   )
 
+  const handleDuplicateOrder = useCallback(
+    (orderId: string) => {
+      if (!orderId) return
+
+      startTransition(async () => {
+        try {
+          const response = await fetch(withAppBasePath('/api/v1/x-plan/purchase-orders/duplicate'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: orderId }),
+          })
+
+          if (!response.ok) {
+            let message = 'Failed to duplicate purchase order'
+            try {
+              const errorPayload = await response.json()
+              if (typeof errorPayload?.error === 'string') {
+                message = errorPayload.error
+              }
+            } catch (error) {
+              // ignore JSON parse errors
+            }
+            toast.error(message)
+            return
+          }
+
+          const result = await response.json().catch(() => null)
+          const createdId = result?.order?.id as string | undefined
+          if (createdId) {
+            setActiveOrderId(createdId)
+          }
+          toast.success('Purchase order duplicated')
+          router.refresh()
+        } catch (error) {
+          console.error(error)
+          toast.error('Unable to duplicate purchase order')
+        }
+      })
+    },
+    [router, startTransition],
+  )
+
   const handleCreateOrder = useCallback(() => {
     const trimmedCode = newOrderCode.trim()
 
@@ -1482,8 +1524,10 @@ useEffect(() => {
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}
             onRowsChange={handleInputRowsChange}
             onCreateOrder={() => setIsCreateOrderOpen(true)}
+            onDuplicateOrder={handleDuplicateOrder}
             onDeleteOrder={handleDeleteOrder}
             disableCreate={isPending || productOptions.length === 0}
+            disableDuplicate={isPending}
             disableDelete={isPending}
           />
 
