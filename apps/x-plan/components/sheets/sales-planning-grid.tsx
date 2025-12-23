@@ -29,14 +29,15 @@ function getHandsontableScroll(hot: Handsontable | null): { top: number; left: n
   return { top: holder.scrollTop, left: holder.scrollLeft }
 }
 
-function restoreHandsontableScroll(hot: Handsontable | null, scroll: { top: number; left: number }) {
-  if (!hot?.rootElement) return
+function restoreHandsontableScroll(hot: Handsontable | null, scroll: { top: number; left: number }): boolean {
+  if (!hot?.rootElement) return false
   const holder =
     (hot.rootElement.querySelector('.ht_master .wtHolder') as HTMLElement | null) ??
     (hot.rootElement.querySelector('.wtHolder') as HTMLElement | null)
-  if (!holder) return
+  if (!holder) return false
   holder.scrollTop = scroll.top
   holder.scrollLeft = scroll.left
+  return true
 }
 
 type SalesRow = {
@@ -158,11 +159,17 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
     const scroll = getHandsontableScroll(hotRef.current)
     action()
     if (!scroll) return
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        restoreHandsontableScroll(hotRef.current, scroll)
-      })
-    })
+
+    let attempts = 0
+    const attemptRestore = () => {
+      attempts += 1
+      if (attempts > 24) return
+      if (!restoreHandsontableScroll(hotRef.current, scroll)) {
+        requestAnimationFrame(attemptRestore)
+      }
+    }
+
+    requestAnimationFrame(() => requestAnimationFrame(attemptRestore))
   }, [])
 
   const data = useMemo(() => rows, [rows])
@@ -623,7 +630,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
                 const leadProfile = leadTimeByProduct[meta.productId]
                 const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : 0
                 if (leadTimeWeeks > 0) {
-                  const coverageWeeks = Math.max(0, Math.floor(weeksNumeric))
+                  const coverageWeeks = Math.max(0, Math.ceil(weeksNumeric))
                   const stockoutWeek = coverageWeeks > 0 ? weekNumber + coverageWeeks - 1 : weekNumber
                   const stockoutDate = weekDateByNumber.get(stockoutWeek) ?? ''
                   const startWeekRaw = stockoutWeek - leadTimeWeeks

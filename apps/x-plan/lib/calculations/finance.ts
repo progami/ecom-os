@@ -106,6 +106,7 @@ export function computeProfitAndLoss(
       (acc, row) => {
         // Use batch allocations if available (FIFO costing)
         if (row.batchAllocations && row.batchAllocations.length > 0) {
+          let allocatedUnits = 0
           for (const allocation of row.batchAllocations) {
             const units = allocation.quantity
             const revenue = units * allocation.sellingPrice
@@ -121,6 +122,27 @@ export function computeProfitAndLoss(
             acc.cogs += landedCost
             acc.amazonFees += amazonFees
             acc.ppcSpend += advertising
+            allocatedUnits += units
+          }
+
+          const remainingUnits = row.finalSales - allocatedUnits
+          if (remainingUnits > 0) {
+            const product = products.get(row.productId)
+            if (product) {
+              const revenue = remainingUnits * product.sellingPrice
+              const landedCost = remainingUnits * product.landedUnitCost
+              const referralFee = revenue * product.amazonReferralRate
+              const fbaFees = remainingUnits * product.fbaFee
+              const storageFees = remainingUnits * product.storagePerMonth
+              const amazonFees = referralFee + fbaFees + storageFees
+              const advertising = remainingUnits * product.sellingPrice * product.tacosPercent
+
+              acc.units += remainingUnits
+              acc.revenue += revenue
+              acc.cogs += landedCost
+              acc.amazonFees += amazonFees
+              acc.ppcSpend += advertising
+            }
           }
         } else {
           // Fallback to product defaults (for backwards compatibility)
