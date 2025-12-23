@@ -4,7 +4,6 @@ import { DisciplinaryStatus } from '@ecom-os/prisma-hrms'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { SubmitAppealSchema, ResolveAppealSchema } from '@/lib/validations'
-import { publish } from '@/lib/notification-service'
 import { canHRReview, canFinalApprove, getHREmployees, getSuperAdminEmployees } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
 
@@ -227,14 +226,6 @@ export async function POST(req: Request, context: RouteContext) {
           })
         }
 
-        // Legacy notification
-        await publish({
-          type: 'DISCIPLINARY_UPDATED',
-          actionId: id,
-          employeeId: action.employeeId,
-          status: `APPEAL_${appealStatus}`,
-        })
-
         await writeAuditLog({
           actorId: currentEmployeeId,
           action: 'APPROVE',
@@ -318,13 +309,6 @@ export async function POST(req: Request, context: RouteContext) {
           },
         })
 
-        await publish({
-          type: 'DISCIPLINARY_UPDATED',
-          actionId: id,
-          employeeId: action.employeeId,
-          status: `APPEAL_${appealStatus}`,
-        })
-
         return NextResponse.json({
           ...updated,
           message: `Appeal ${appealStatus.toLowerCase()}`,
@@ -403,14 +387,6 @@ export async function POST(req: Request, context: RouteContext) {
           },
         })
       }
-
-      // Also publish legacy notification for backwards compatibility
-      await publish({
-        type: 'DISCIPLINARY_UPDATED',
-        actionId: id,
-        employeeId: action.employeeId,
-        status: 'APPEALED',
-      })
 
       await writeAuditLog({
         actorId: currentEmployeeId,

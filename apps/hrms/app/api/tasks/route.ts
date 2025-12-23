@@ -5,7 +5,6 @@ import { getCurrentEmployeeId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
 import { isHROrAbove, isManagerOf } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
-import { sendNotificationEmail } from '@/lib/email-service'
 
 const TaskStatusEnum = z.enum(['OPEN', 'IN_PROGRESS', 'DONE', 'CANCELLED'])
 const TaskCategoryEnum = z.enum(['GENERAL', 'ONBOARDING', 'OFFBOARDING', 'CASE', 'POLICY'])
@@ -172,20 +171,6 @@ export async function POST(req: Request) {
           relatedType: 'TASK',
         },
       })
-
-      const assignee = await prisma.employee.findUnique({
-        where: { id: task.assignedToId },
-        select: { email: true, firstName: true },
-      })
-
-      if (assignee?.email) {
-        await sendNotificationEmail(
-          assignee.email,
-          assignee.firstName,
-          'TASK_ASSIGNED',
-          `/tasks/${task.id}`
-        )
-      }
     }
 
     return NextResponse.json(task, { status: 201 })

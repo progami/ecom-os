@@ -1,10 +1,8 @@
 import { prisma } from '@/lib/prisma'
-import { sendNotificationEmail } from '@/lib/email-service'
 
 type TaskReminderResult = {
   dueSoonCreated: number
   overdueCreated: number
-  emailsQueued: number
 }
 
 function formatDay(date: Date): string {
@@ -60,7 +58,7 @@ export async function processTaskDueReminders(options?: {
 
   const allTaskIds = Array.from(new Set([...dueSoonTasks, ...overdueTasks].map((t) => t.id)))
   if (allTaskIds.length === 0) {
-    return { dueSoonCreated: 0, overdueCreated: 0, emailsQueued: 0 }
+    return { dueSoonCreated: 0, overdueCreated: 0 }
   }
 
   const existing = await prisma.notification.findMany({
@@ -82,16 +80,8 @@ export async function processTaskDueReminders(options?: {
     existing.map((n) => `${n.employeeId}:${n.relatedId}:${n.title}`)
   )
 
-  const assigneeIds = Array.from(new Set([...dueSoonTasks, ...overdueTasks].map((t) => t.assignedToId!).filter(Boolean)))
-  const assignees = await prisma.employee.findMany({
-    where: { id: { in: assigneeIds } },
-    select: { id: true, email: true, firstName: true },
-  })
-  const assigneeById = new Map(assignees.map((a) => [a.id, a]))
-
   let dueSoonCreated = 0
   let overdueCreated = 0
-  let emailsQueued = 0
 
   for (const t of dueSoonTasks) {
     const assigneeId = t.assignedToId
@@ -112,12 +102,6 @@ export async function processTaskDueReminders(options?: {
       },
     })
     dueSoonCreated += 1
-
-    const assignee = assigneeById.get(assigneeId)
-    if (assignee?.email) {
-      await sendNotificationEmail(assignee.email, assignee.firstName, 'TASK_DUE_SOON', `/tasks/${t.id}`)
-      emailsQueued += 1
-    }
   }
 
   for (const t of overdueTasks) {
@@ -139,14 +123,7 @@ export async function processTaskDueReminders(options?: {
       },
     })
     overdueCreated += 1
-
-    const assignee = assigneeById.get(assigneeId)
-    if (assignee?.email) {
-      await sendNotificationEmail(assignee.email, assignee.firstName, 'TASK_OVERDUE', `/tasks/${t.id}`)
-      emailsQueued += 1
-    }
   }
 
-  return { dueSoonCreated, overdueCreated, emailsQueued }
+  return { dueSoonCreated, overdueCreated }
 }
-
