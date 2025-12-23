@@ -3,6 +3,7 @@ import { NotFoundError, ConflictError, ValidationError } from '@/lib/api'
 import { Prisma, PurchaseOrderLineStatus, PurchaseOrderStatus } from '@ecom-os/prisma-wms'
 import { auditLog } from '@/lib/security/audit-logger'
 import { toPublicOrderNumber } from './purchase-order-utils'
+import { recalculateStorageLedgerForTransactions } from './storage-ledger-sync'
 
 export interface UserContext {
   id?: string | null
@@ -142,7 +143,8 @@ export async function voidPurchaseOrder(
   voidedAt: Date
 }> {
   const prisma = await getTenantPrisma()
-  return prisma.$transaction(async tx => {
+
+  const result = await prisma.$transaction(async tx => {
     const order = await tx.purchaseOrder.findUnique({
       where: { id },
       include: { lines: true },
@@ -156,23 +158,62 @@ export async function voidPurchaseOrder(
       throw new Error('Closed purchase orders cannot be voided')
     }
 
-    if (order.status === PurchaseOrderStatus.CANCELLED) {
-      return {
-        order,
-        voidedFromStatus: order.status,
-        voidedAt: new Date(),
-      }
-    }
-
+    const voidedAt = new Date()
     const previousStatus = order.status
     const targetStatus =
       previousStatus === PurchaseOrderStatus.POSTED
         ? PurchaseOrderStatus.CLOSED
         : PurchaseOrderStatus.CANCELLED
 
-    const voidedAt = new Date()
+    const lineNeedsCleanup = order.lines.some(line => {
+      return (
+        line.status !== PurchaseOrderLineStatus.CANCELLED ||
+        line.postedQuantity > 0 ||
+        (line.quantityReceived != null && line.quantityReceived > 0)
+      )
+    })
+
+    const transactionCount = await tx.inventoryTransaction.count({
+      where: { purchaseOrderId: order.id },
+    })
+
+    const hasLedgerEntries = transactionCount > 0
+
+    if (order.status === PurchaseOrderStatus.CANCELLED && !lineNeedsCleanup && !hasLedgerEntries) {
+      return {
+        order,
+        voidedFromStatus: order.status,
+        voidedAt,
+        storageRecalcInputs: [] as Parameters<typeof recalculateStorageLedgerForTransactions>[0],
+      }
+    }
+
+    const storageRecalcInputs: Parameters<typeof recalculateStorageLedgerForTransactions>[0] = []
 
     if (previousStatus !== PurchaseOrderStatus.POSTED) {
+      const affectedTransactions = await tx.inventoryTransaction.findMany({
+        where: { purchaseOrderId: order.id },
+        select: {
+          warehouseCode: true,
+          warehouseName: true,
+          skuCode: true,
+          skuDescription: true,
+          batchLot: true,
+          transactionDate: true,
+        },
+      })
+
+      storageRecalcInputs.push(
+        ...affectedTransactions.map(transaction => ({
+          warehouseCode: transaction.warehouseCode,
+          warehouseName: transaction.warehouseName,
+          skuCode: transaction.skuCode,
+          skuDescription: transaction.skuDescription,
+          batchLot: transaction.batchLot,
+          transactionDate: transaction.transactionDate,
+        }))
+      )
+
       await tx.inventoryTransaction.deleteMany({
         where: { purchaseOrderId: order.id },
       })
@@ -182,6 +223,7 @@ export async function voidPurchaseOrder(
         data: {
           status: PurchaseOrderLineStatus.CANCELLED,
           postedQuantity: 0,
+          quantityReceived: 0,
         },
       })
     }
@@ -212,8 +254,17 @@ export async function voidPurchaseOrder(
       order: updated,
       voidedFromStatus: previousStatus,
       voidedAt,
+      storageRecalcInputs,
     }
   })
+
+  await recalculateStorageLedgerForTransactions(result.storageRecalcInputs)
+
+  return {
+    order: result.order,
+    voidedFromStatus: result.voidedFromStatus,
+    voidedAt: result.voidedAt,
+  }
 }
 
 export async function getPurchaseOrderVoidMetadata(id: string): Promise<{
