@@ -177,3 +177,58 @@ export const PATCH = withAuth(async (request, session) => {
   }
 })
 
+export const DELETE = withAuth(async (request, session) => {
+  if (!['admin', 'staff'].includes(session.user.role)) {
+    return ApiResponses.forbidden('Insufficient permissions')
+  }
+
+  const supplierId = request.nextUrl.searchParams.get('id')
+  if (!supplierId) {
+    return ApiResponses.badRequest('Supplier ID is required')
+  }
+
+  const prisma = await getTenantPrisma()
+
+  const supplier = await prisma.supplier.findUnique({
+    where: { id: supplierId },
+    select: { id: true, name: true },
+  })
+
+  if (!supplier) {
+    return ApiResponses.notFound('Supplier not found')
+  }
+
+  const [skuRefs, poRefs, txRefs] = await Promise.all([
+    prisma.sku.count({
+      where: {
+        OR: [{ defaultSupplierId: supplierId }, { secondarySupplierId: supplierId }],
+      },
+    }),
+    prisma.purchaseOrder.count({
+      where: {
+        counterpartyName: {
+          equals: supplier.name,
+          mode: 'insensitive',
+        },
+      },
+    }),
+    prisma.inventoryTransaction.count({
+      where: {
+        supplier: {
+          equals: supplier.name,
+          mode: 'insensitive',
+        },
+      },
+    }),
+  ])
+
+  if (skuRefs > 0 || poRefs > 0 || txRefs > 0) {
+    return ApiResponses.conflict(
+      `Cannot delete supplier "${supplier.name}". References found: SKUs=${skuRefs}, POs=${poRefs}, transactions=${txRefs}. Deactivate instead.`
+    )
+  }
+
+  await prisma.supplier.delete({ where: { id: supplierId } })
+
+  return ApiResponses.success({ deleted: true })
+})

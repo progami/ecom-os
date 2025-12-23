@@ -16,6 +16,32 @@ const DateInputSchema = z
     message: 'Invalid date',
   })
 
+const emptyToUndefined = (value: unknown) =>
+  typeof value === 'string' && value.trim().length === 0 ? undefined : value
+
+const OptionalString = z.preprocess(emptyToUndefined, z.string().trim().optional())
+const OptionalDateString = z.preprocess(emptyToUndefined, DateInputSchema.optional())
+
+const OptionalNumber = z.preprocess((value) => {
+  const cleaned = emptyToUndefined(value)
+  if (cleaned === undefined || cleaned === null) return undefined
+  if (typeof cleaned === 'string') {
+    const parsed = Number(cleaned)
+    return Number.isNaN(parsed) ? cleaned : parsed
+  }
+  return cleaned
+}, z.number().optional())
+
+const OptionalInt = z.preprocess((value) => {
+  const cleaned = emptyToUndefined(value)
+  if (cleaned === undefined || cleaned === null) return undefined
+  if (typeof cleaned === 'string') {
+    const parsed = Number(cleaned)
+    return Number.isNaN(parsed) ? cleaned : parsed
+  }
+  return cleaned
+}, z.number().int().optional())
+
 const StageTransitionSchema = z.object({
   targetStatus: z.enum([
     'DRAFT',
@@ -30,77 +56,77 @@ const StageTransitionSchema = z.object({
       // ===========================================
       // Stage 2: Manufacturing
       // ===========================================
-      proformaInvoiceNumber: z.string().optional(),
-      proformaInvoiceDate: DateInputSchema.optional(),
-      factoryName: z.string().optional(),
-      manufacturingStartDate: DateInputSchema.optional(),
-      expectedCompletionDate: DateInputSchema.optional(),
-      actualCompletionDate: DateInputSchema.optional(),
-      totalWeightKg: z.number().optional(),
-      totalVolumeCbm: z.number().optional(),
-      totalCartons: z.number().int().optional(),
-      totalPallets: z.number().int().optional(),
-      packagingNotes: z.string().optional(),
+      proformaInvoiceNumber: OptionalString,
+      proformaInvoiceDate: OptionalDateString,
+      factoryName: OptionalString,
+      manufacturingStartDate: OptionalDateString,
+      expectedCompletionDate: OptionalDateString,
+      actualCompletionDate: OptionalDateString,
+      totalWeightKg: OptionalNumber,
+      totalVolumeCbm: OptionalNumber,
+      totalCartons: OptionalInt,
+      totalPallets: OptionalInt,
+      packagingNotes: OptionalString,
 
       // ===========================================
       // Stage 3: Ocean
       // ===========================================
-      houseBillOfLading: z.string().optional(),
-      masterBillOfLading: z.string().optional(),
-      commercialInvoiceNumber: z.string().optional(),
-      packingListRef: z.string().optional(),
-      vesselName: z.string().optional(),
-      voyageNumber: z.string().optional(),
-      portOfLoading: z.string().optional(),
-      portOfDischarge: z.string().optional(),
-      estimatedDeparture: DateInputSchema.optional(),
-      estimatedArrival: DateInputSchema.optional(),
-      actualDeparture: DateInputSchema.optional(),
-      actualArrival: DateInputSchema.optional(),
+      houseBillOfLading: OptionalString,
+      masterBillOfLading: OptionalString,
+      commercialInvoiceNumber: OptionalString,
+      packingListRef: OptionalString,
+      vesselName: OptionalString,
+      voyageNumber: OptionalString,
+      portOfLoading: OptionalString,
+      portOfDischarge: OptionalString,
+      estimatedDeparture: OptionalDateString,
+      estimatedArrival: OptionalDateString,
+      actualDeparture: OptionalDateString,
+      actualArrival: OptionalDateString,
 
       // ===========================================
       // Stage 4: Warehouse (warehouse selected here)
       // ===========================================
-      warehouseCode: z.string().optional(),
-      warehouseName: z.string().optional(),
-      customsEntryNumber: z.string().optional(),
-      customsClearedDate: DateInputSchema.optional(),
-      dutyAmount: z.number().optional(),
-      dutyCurrency: z.string().optional(),
-      surrenderBlDate: DateInputSchema.optional(),
-      transactionCertNumber: z.string().optional(),
-      receivedDate: DateInputSchema.optional(),
-      discrepancyNotes: z.string().optional(),
+      warehouseCode: OptionalString,
+      warehouseName: OptionalString,
+      customsEntryNumber: OptionalString,
+      customsClearedDate: OptionalDateString,
+      dutyAmount: OptionalNumber,
+      dutyCurrency: OptionalString,
+      surrenderBlDate: OptionalDateString,
+      transactionCertNumber: OptionalString,
+      receivedDate: OptionalDateString,
+      discrepancyNotes: OptionalString,
 
       // ===========================================
       // Stage 5: Shipped
       // ===========================================
-      shipToName: z.string().optional(),
-      shipToAddress: z.string().optional(),
-      shipToCity: z.string().optional(),
-      shipToCountry: z.string().optional(),
-      shipToPostalCode: z.string().optional(),
-      shippingCarrier: z.string().optional(),
-      shippingMethod: z.string().optional(),
-      trackingNumber: z.string().optional(),
-      shippedDate: DateInputSchema.optional(),
-      proofOfDeliveryRef: z.string().optional(),
-      deliveredDate: DateInputSchema.optional(),
+      shipToName: OptionalString,
+      shipToAddress: OptionalString,
+      shipToCity: OptionalString,
+      shipToCountry: OptionalString,
+      shipToPostalCode: OptionalString,
+      shippingCarrier: OptionalString,
+      shippingMethod: OptionalString,
+      trackingNumber: OptionalString,
+      shippedDate: OptionalDateString,
+      proofOfDeliveryRef: OptionalString,
+      deliveredDate: OptionalDateString,
 
       // ===========================================
       // Legacy fields (backward compatibility)
       // ===========================================
-      proformaInvoiceId: z.string().optional(),
+      proformaInvoiceId: OptionalString,
       proformaInvoiceData: z.any().optional(),
-      manufacturingStart: DateInputSchema.optional(),
-      manufacturingEnd: DateInputSchema.optional(),
+      manufacturingStart: OptionalDateString,
+      manufacturingEnd: OptionalDateString,
       cargoDetails: z.any().optional(),
-      commercialInvoiceId: z.string().optional(),
-      warehouseInvoiceId: z.string().optional(),
-      surrenderBL: z.string().optional(),
-      transactionCertificate: z.string().optional(),
-      customsDeclaration: z.string().optional(),
-      proofOfDelivery: z.string().optional(),
+      commercialInvoiceId: OptionalString,
+      warehouseInvoiceId: OptionalString,
+      surrenderBL: OptionalString,
+      transactionCertificate: OptionalString,
+      customsDeclaration: OptionalString,
+      proofOfDelivery: OptionalString,
     })
     .optional()
     .default({}),
@@ -127,9 +153,9 @@ export const PATCH = withAuthAndParams(
     const result = StageTransitionSchema.safeParse(payload)
 
     if (!result.success) {
-      return ApiResponses.badRequest(
-        `Invalid stage transition payload: ${result.error.message}`
-      )
+      const issue = result.error.issues[0]
+      const path = issue?.path?.length ? issue.path.join('.') : 'payload'
+      return ApiResponses.badRequest(issue?.message ? `Invalid ${path}: ${issue.message}` : 'Invalid stage transition payload')
     }
 
     const userContext: UserContext = {

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
-import { Edit2, Loader2, Plus, Search, Users } from '@/lib/lucide-icons'
+import { Edit2, Loader2, Plus, Search, Trash2, Users } from '@/lib/lucide-icons'
 
 interface SupplierRow {
   id: string
@@ -71,6 +71,8 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
     supplier: SupplierRow
     nextActive: boolean
   } | null>(null)
+
+  const [confirmDelete, setConfirmDelete] = useState<SupplierRow | null>(null)
 
   // Handle external modal open trigger
   useEffect(() => {
@@ -229,6 +231,26 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
     }
   }
 
+  const deleteSupplier = async (supplier: SupplierRow) => {
+    try {
+      const response = await fetchWithCSRF(`/api/suppliers?id=${encodeURIComponent(supplier.id)}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error ?? 'Failed to delete supplier')
+      }
+
+      toast.success('Supplier deleted')
+      await fetchSuppliers()
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete supplier')
+    } finally {
+      setConfirmDelete(null)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
@@ -341,6 +363,14 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
                           onClick={() => setConfirmToggle({ supplier, nextActive: !supplier.isActive })}
                         >
                           {supplier.isActive ? 'Deactivate' : 'Activate'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setConfirmDelete(supplier)}
+                          className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </td>
@@ -481,6 +511,23 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
         }
         confirmText={confirmToggle?.nextActive ? 'Activate' : 'Deactivate'}
         type={confirmToggle?.nextActive ? 'info' : 'warning'}
+      />
+
+      <ConfirmDialog
+        isOpen={confirmDelete !== null}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={() => {
+          if (!confirmDelete) return
+          void deleteSupplier(confirmDelete)
+        }}
+        title="Delete supplier?"
+        message={
+          confirmDelete
+            ? `Delete ${confirmDelete.name}? This is permanent and only allowed when there are no references.`
+            : ''
+        }
+        confirmText="Delete"
+        type="danger"
       />
     </div>
   )
