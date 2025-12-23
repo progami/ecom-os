@@ -42,6 +42,7 @@ function getDefaults(type: 'ops' | 'sales' | 'finance') {
 }
 
 export interface ProductSetupParametersPanelProps {
+  strategyId: string
   parameterType: 'ops' | 'sales' | 'finance'
   parameters: BusinessParameter[]
   className?: string
@@ -71,6 +72,7 @@ function initializeRecords(parameters: BusinessParameter[], type: 'ops' | 'sales
 }
 
 export function ProductSetupParametersPanel({
+  strategyId,
   parameterType,
   parameters,
   className,
@@ -159,6 +161,7 @@ export function ProductSetupParametersPanel({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            strategyId,
             label: item.label,
             valueNumeric: value ? Number(value) : 0,
           }),
@@ -208,7 +211,7 @@ export function ProductSetupParametersPanel({
         void flushUpdates()
       }
     }
-  }, [])
+  }, [strategyId])
 
   const scheduleFlush = useCallback(() => {
     if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current)
