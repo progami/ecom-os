@@ -36,6 +36,27 @@ interface SupplierOption {
   isActive: boolean
 }
 
+type DimensionParts = {
+  length: string
+  width: string
+  height: string
+}
+
+const EMPTY_DIMENSIONS: DimensionParts = { length: '', width: '', height: '' }
+
+function parseDimensions(value: string | null | undefined): DimensionParts {
+  if (!value) return EMPTY_DIMENSIONS
+  const normalized = value.replace(/[×]/g, 'x')
+  const matches = normalized.match(/(\d+(?:\.\d+)?)/g)
+  if (!matches) return EMPTY_DIMENSIONS
+  const [length, width, height] = matches
+  return {
+    length: length ?? '',
+    width: width ?? '',
+    height: height ?? '',
+  }
+}
+
 interface SkuFormState {
   skuCode: string
   description: string
@@ -44,16 +65,23 @@ interface SkuFormState {
   defaultSupplierId: string
   secondarySupplierId: string
   material: string
-  unitDimensionsCm: string
+  unitLengthCm: string
+  unitWidthCm: string
+  unitHeightCm: string
   unitWeightKg: string
   unitsPerCarton: string
-  cartonDimensionsCm: string
+  cartonLengthCm: string
+  cartonWidthCm: string
+  cartonHeightCm: string
   cartonWeightKg: string
   packagingType: string
   isActive: boolean
 }
 
 function buildFormState(sku?: SkuRow | null): SkuFormState {
+  const unitDims = parseDimensions(sku?.unitDimensionsCm)
+  const cartonDims = parseDimensions(sku?.cartonDimensionsCm)
+
   return {
     skuCode: sku?.skuCode ?? '',
     description: sku?.description ?? '',
@@ -62,10 +90,14 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
     defaultSupplierId: sku?.defaultSupplierId ?? '',
     secondarySupplierId: sku?.secondarySupplierId ?? '',
     material: sku?.material ?? '',
-    unitDimensionsCm: sku?.unitDimensionsCm ?? '',
+    unitLengthCm: unitDims.length,
+    unitWidthCm: unitDims.width,
+    unitHeightCm: unitDims.height,
     unitWeightKg: sku?.unitWeightKg?.toString() ?? '',
     unitsPerCarton: sku?.unitsPerCarton?.toString() ?? '1',
-    cartonDimensionsCm: sku?.cartonDimensionsCm ?? '',
+    cartonLengthCm: cartonDims.length,
+    cartonWidthCm: cartonDims.width,
+    cartonHeightCm: cartonDims.height,
     cartonWeightKg: sku?.cartonWeightKg?.toString() ?? '',
     packagingType: sku?.packagingType ?? '',
     isActive: sku?.isActive ?? true,
@@ -254,6 +286,38 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       return
     }
 
+    const buildDimensionsValue = (dims: DimensionParts, label: string): string | null | undefined => {
+      const parts = [dims.length.trim(), dims.width.trim(), dims.height.trim()]
+      const any = parts.some(Boolean)
+      if (!any) return null
+      const all = parts.every(Boolean)
+      if (!all) {
+        toast.error(`${label} dimensions require L, W, and H`)
+        return undefined
+      }
+      if (parts.some(part => parsePositiveNumber(part) === null)) {
+        toast.error(`${label} dimensions must be positive numbers`)
+        return undefined
+      }
+      return `${parts[0]}x${parts[1]}x${parts[2]}`
+    }
+
+    const unitDimensionsCm = buildDimensionsValue(
+      { length: formState.unitLengthCm, width: formState.unitWidthCm, height: formState.unitHeightCm },
+      'Unit'
+    )
+    if (unitDimensionsCm === undefined) return
+
+    const cartonDimensionsCm = buildDimensionsValue(
+      {
+        length: formState.cartonLengthCm,
+        width: formState.cartonWidthCm,
+        height: formState.cartonHeightCm,
+      },
+      'Carton'
+    )
+    if (cartonDimensionsCm === undefined) return
+
     setIsSubmitting(true)
     try {
       const payload = {
@@ -264,12 +328,10 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         defaultSupplierId: formState.defaultSupplierId ? formState.defaultSupplierId : null,
         secondarySupplierId: formState.secondarySupplierId ? formState.secondarySupplierId : null,
         material: formState.material.trim() ? formState.material.trim() : null,
-        unitDimensionsCm: formState.unitDimensionsCm.trim() ? formState.unitDimensionsCm.trim() : null,
+        unitDimensionsCm,
         unitWeightKg: unitWeightKg ?? null,
         unitsPerCarton,
-        cartonDimensionsCm: formState.cartonDimensionsCm.trim()
-          ? formState.cartonDimensionsCm.trim()
-          : null,
+        cartonDimensionsCm,
         cartonWeightKg: cartonWeightKg ?? null,
         packagingType: formState.packagingType.trim() ? formState.packagingType.trim() : null,
         isActive: formState.isActive,
@@ -291,6 +353,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       setIsModalOpen(false)
       setEditingSku(null)
       setFormState(buildFormState())
+      onExternalModalClose?.()
       await fetchSkus()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save SKU')
@@ -394,6 +457,12 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   <th className="px-4 py-3 text-left font-semibold">SKU</th>
                   <th className="px-4 py-3 text-left font-semibold">Description</th>
                   <th className="px-4 py-3 text-left font-semibold">ASIN</th>
+                  <th className="px-4 py-3 text-right font-semibold">Item L</th>
+                  <th className="px-4 py-3 text-right font-semibold">Item W</th>
+                  <th className="px-4 py-3 text-right font-semibold">Item H</th>
+                  <th className="px-4 py-3 text-right font-semibold">Carton L</th>
+                  <th className="px-4 py-3 text-right font-semibold">Carton W</th>
+                  <th className="px-4 py-3 text-right font-semibold">Carton H</th>
                   <th className="px-4 py-3 text-right font-semibold">Pack</th>
                   <th className="px-4 py-3 text-right font-semibold">Units/Carton</th>
                   <th className="px-4 py-3 text-right font-semibold">Txns</th>
@@ -402,50 +471,75 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredSkus.map((sku) => (
-                  <tr key={sku.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">{sku.skuCode}</td>
-                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{sku.description}</td>
-                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{sku.asin ?? '—'}</td>
-                    <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
-                      {sku.packSize ?? '—'}
-                    </td>
-                    <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
-                      {sku.unitsPerCarton}
-                    </td>
-                    <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
-                      {sku._count?.inventoryTransactions ?? 0}
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <Badge
-                        className={
-                          sku.isActive
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-slate-100 text-slate-600 border-slate-200'
-                        }
-                      >
-                        {sku.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </td>
-                    <td className="px-4 py-3 text-right whitespace-nowrap">
-                      <div className="inline-flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => setBatchesSku(sku)}>
-                          Batches
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => openEdit(sku)}>
-                          <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setConfirmToggle({ sku, nextActive: !sku.isActive })}
+                {filteredSkus.map((sku) => {
+                  const unitDims = parseDimensions(sku.unitDimensionsCm)
+                  const cartonDims = parseDimensions(sku.cartonDimensionsCm)
+
+                  return (
+                    <tr key={sku.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">
+                        {sku.skuCode}
+                      </td>
+                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{sku.description}</td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{sku.asin ?? '—'}</td>
+                      <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
+                        {unitDims.length || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
+                        {unitDims.width || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
+                        {unitDims.height || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
+                        {cartonDims.length || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
+                        {cartonDims.width || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
+                        {cartonDims.height || '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
+                        {sku.packSize ?? '—'}
+                      </td>
+                      <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
+                        {sku.unitsPerCarton}
+                      </td>
+                      <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
+                        {sku._count?.inventoryTransactions ?? 0}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <Badge
+                          className={
+                            sku.isActive
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-slate-100 text-slate-600 border-slate-200'
+                          }
                         >
-                          {sku.isActive ? 'Deactivate' : 'Activate'}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {sku.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setBatchesSku(sku)}>
+                            Batches
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => openEdit(sku)}>
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setConfirmToggle({ sku, nextActive: !sku.isActive })}
+                          >
+                            {sku.isActive ? 'Deactivate' : 'Activate'}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -582,16 +676,28 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="unitDimensionsCm">Unit Dimensions (cm)</Label>
-                  <Input
-                    id="unitDimensionsCm"
-                    value={formState.unitDimensionsCm}
-                    onChange={(event) =>
-                      setFormState((prev) => ({ ...prev, unitDimensionsCm: event.target.value }))
-                    }
-                    placeholder="Optional"
-                  />
+                <div className="space-y-1 md:col-span-2">
+                  <Label>Unit Dimensions (cm)</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Input
+                      value={formState.unitLengthCm}
+                      onChange={(event) => setFormState((prev) => ({ ...prev, unitLengthCm: event.target.value }))}
+                      placeholder="L"
+                      inputMode="decimal"
+                    />
+                    <Input
+                      value={formState.unitWidthCm}
+                      onChange={(event) => setFormState((prev) => ({ ...prev, unitWidthCm: event.target.value }))}
+                      placeholder="W"
+                      inputMode="decimal"
+                    />
+                    <Input
+                      value={formState.unitHeightCm}
+                      onChange={(event) => setFormState((prev) => ({ ...prev, unitHeightCm: event.target.value }))}
+                      placeholder="H"
+                      inputMode="decimal"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-1">
@@ -607,16 +713,30 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <Label htmlFor="cartonDimensionsCm">Carton Dimensions (cm)</Label>
-                  <Input
-                    id="cartonDimensionsCm"
-                    value={formState.cartonDimensionsCm}
-                    onChange={(event) =>
-                      setFormState((prev) => ({ ...prev, cartonDimensionsCm: event.target.value }))
-                    }
-                    placeholder="Optional"
-                  />
+                <div className="space-y-1 md:col-span-2">
+                  <Label>Carton Dimensions (cm)</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Input
+                      value={formState.cartonLengthCm}
+                      onChange={(event) =>
+                        setFormState((prev) => ({ ...prev, cartonLengthCm: event.target.value }))
+                      }
+                      placeholder="L"
+                      inputMode="decimal"
+                    />
+                    <Input
+                      value={formState.cartonWidthCm}
+                      onChange={(event) => setFormState((prev) => ({ ...prev, cartonWidthCm: event.target.value }))}
+                      placeholder="W"
+                      inputMode="decimal"
+                    />
+                    <Input
+                      value={formState.cartonHeightCm}
+                      onChange={(event) => setFormState((prev) => ({ ...prev, cartonHeightCm: event.target.value }))}
+                      placeholder="H"
+                      inputMode="decimal"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-1">
