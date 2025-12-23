@@ -197,7 +197,26 @@ log "Build complete"
 
 # Step 7: Restart PM2 app
 log "Step 7: Starting $pm2_name"
-pm2 start "$pm2_name" --update-env 2>/dev/null || pm2 restart "$pm2_name" --update-env
+CI= \
+GITHUB_ACTIONS= \
+GITHUB_PERSONAL_ACCESS_TOKEN= \
+GITHUB_TOKEN= \
+GH_TOKEN= \
+GEMINI_API_KEY= \
+CLAUDECODE= \
+CLAUDE_CODE_ENTRYPOINT= \
+CLAUDE_CODE_MAX_OUTPUT_TOKENS= \
+pm2 start "$pm2_name" --update-env 2>/dev/null || \
+CI= \
+GITHUB_ACTIONS= \
+GITHUB_PERSONAL_ACCESS_TOKEN= \
+GITHUB_TOKEN= \
+GH_TOKEN= \
+GEMINI_API_KEY= \
+CLAUDECODE= \
+CLAUDE_CODE_ENTRYPOINT= \
+CLAUDE_CODE_MAX_OUTPUT_TOKENS= \
+pm2 restart "$pm2_name" --update-env
 log "$pm2_name started"
 
 # Step 8: Save PM2 state
