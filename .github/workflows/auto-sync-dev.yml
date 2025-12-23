@@ -49,14 +49,53 @@ jobs:
 
       - name: Wait for deployment checks on merge commit
         if: steps.deploy-scope.outputs.should_wait == 'true'
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
-          check-name: 'deploy'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10
-          allowed-conclusions: success
-          verbose: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CHECK_NAME: deploy
+          REF: ${{ github.event.pull_request.merge_commit_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repo="${{ github.repository }}"
+          interval=10
+          max_seconds=900
+          deadline=$(( $(date +%s) + max_seconds ))
+
+          echo "Waiting for '${CHECK_NAME}' check on ${REF} (timeout ${max_seconds}s)..."
+
+          while true; do
+            now="$(date +%s)"
+            if (( now > deadline )); then
+              echo "Timed out waiting for '${CHECK_NAME}' check on ${REF}"
+              exit 1
+            fi
+
+            line="$(gh api "repos/${repo}/commits/${REF}/check-runs?per_page=100" --jq ".check_runs[] | select(.name==\"${CHECK_NAME}\") | [.status, (.conclusion // \"\")] | @tsv" | head -n 1 || true)"
+            if [[ -z "$line" ]]; then
+              echo "Check '${CHECK_NAME}' not started yet; waiting..."
+              sleep "$interval"
+              continue
+            fi
+
+            status="$(printf '%s' "$line" | cut -f1)"
+            conclusion="$(printf '%s' "$line" | cut -f2)"
+
+            echo "Check '${CHECK_NAME}' status=${status} conclusion=${conclusion:-<none>}"
+
+            if [[ "$status" != "completed" ]]; then
+              sleep "$interval"
+              continue
+            fi
+
+            if [[ "$conclusion" == "success" ]]; then
+              echo "Deploy check succeeded."
+              break
+            fi
+
+            echo "Deploy check concluded with '${conclusion}'"
+            exit 1
+          done
 
       - name: Open sync PR (main → dev)
         env:
