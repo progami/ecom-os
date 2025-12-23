@@ -68,9 +68,27 @@ export function ProductSetupWorkspace({
   const tabPanels = useMemo(() => {
     return {
       catalogue: <ProductSetupGrid strategyId={strategyId} products={products} />,
-      operations: <ProductSetupParametersPanel parameterType="ops" parameters={operationsParameters} />,
-      sales: <ProductSetupParametersPanel parameterType="sales" parameters={salesParameters} />,
-      finance: <ProductSetupParametersPanel parameterType="finance" parameters={financeParameters} />,
+      operations: (
+        <ProductSetupParametersPanel
+          strategyId={strategyId}
+          parameterType="ops"
+          parameters={operationsParameters}
+        />
+      ),
+      sales: (
+        <ProductSetupParametersPanel
+          strategyId={strategyId}
+          parameterType="sales"
+          parameters={salesParameters}
+        />
+      ),
+      finance: (
+        <ProductSetupParametersPanel
+          strategyId={strategyId}
+          parameterType="finance"
+          parameters={financeParameters}
+        />
+      ),
     } satisfies Record<TabKey, ReactNode>
   }, [strategyId, financeParameters, operationsParameters, products, salesParameters])
 
