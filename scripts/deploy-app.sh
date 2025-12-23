@@ -23,6 +23,7 @@ skip_git="${DEPLOY_SKIP_GIT:-false}"
 skip_install="${DEPLOY_SKIP_INSTALL:-false}"
 skip_pm2_save="${DEPLOY_SKIP_PM2_SAVE:-false}"
 deploy_git_sha="${DEPLOY_GIT_SHA:-}"
+migrate_cmd=""
 
 # Determine directories based on environment
 if [[ "$environment" == "dev" ]]; then
@@ -73,6 +74,7 @@ case "$app_key" in
     app_dir="$REPO_DIR/apps/hrms"
     pm2_name="${PM2_PREFIX}-hrms"
     prisma_cmd="cd $app_dir && npx prisma generate"
+    migrate_cmd="cd $app_dir && pnpm run db:migrate:deploy --schema prisma/schema.prisma"
     build_cmd="cd $app_dir && pnpm run build"
     ;;
   *)
@@ -84,6 +86,36 @@ esac
 log() { printf '\033[36m[deploy-%s-%s]\033[0m %s\n' "$app_key" "$environment" "$*"; }
 warn() { printf '\033[33m[deploy-%s-%s]\033[0m %s\n' "$app_key" "$environment" "$*"; }
 error() { printf '\033[31m[deploy-%s-%s]\033[0m %s\n' "$app_key" "$environment" "$*" >&2; }
+
+load_env_file() {
+  local file="$1"
+  if [[ -f "$file" ]]; then
+    # shellcheck disable=SC1090
+    set -a
+    source "$file"
+    set +a
+    return 0
+  fi
+  return 1
+}
+
+ensure_database_url() {
+  if [[ -n "${DATABASE_URL:-}" ]]; then
+    return 0
+  fi
+
+  # Match Next.js env precedence: .env.local overrides everything in production.
+  local candidates=("$app_dir/.env.local" "$app_dir/.env.production" "$app_dir/.env.dev" "$app_dir/.env")
+
+  for file in "${candidates[@]}"; do
+    if load_env_file "$file" && [[ -n "${DATABASE_URL:-}" ]]; then
+      log "Loaded DATABASE_URL from $(basename "$file")"
+      return 0
+    fi
+  done
+
+  return 1
+}
 
 log "=========================================="
 log "Starting deployment of $app_key to $environment"
@@ -127,6 +159,21 @@ if [[ -n "$prisma_cmd" ]]; then
   log "Prisma client generated"
 else
   log "Step 3: Skipping Prisma generation (not needed)"
+fi
+
+# Step 3b: Apply Prisma migrations if needed
+if [[ -n "$migrate_cmd" ]]; then
+  log "Step 3b: Applying Prisma migrations"
+  if ensure_database_url; then
+    cd "$REPO_DIR"
+    eval "$migrate_cmd"
+    log "Migrations applied"
+  else
+    error "DATABASE_URL is not set and no env file found; cannot apply migrations"
+    exit 1
+  fi
+else
+  log "Step 3b: Skipping Prisma migrations (not needed)"
 fi
 
 # Step 4: Stop PM2 app

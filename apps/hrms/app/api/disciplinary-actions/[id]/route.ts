@@ -91,6 +91,8 @@ export async function PATCH(req: Request, context: RouteContext) {
     if (data.violationType !== undefined) updates.violationType = data.violationType
     if (data.violationReason !== undefined) updates.violationReason = data.violationReason
     if (data.severity !== undefined) updates.severity = data.severity
+    if (data.valuesBreached !== undefined) updates.valuesBreached = data.valuesBreached
+    if (data.employeeTookOwnership !== undefined) updates.employeeTookOwnership = data.employeeTookOwnership
     if (data.incidentDate !== undefined) updates.incidentDate = new Date(data.incidentDate)
     if (data.reportedBy !== undefined) updates.reportedBy = data.reportedBy
     if (data.description !== undefined) updates.description = data.description
