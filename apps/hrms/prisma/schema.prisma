@@ -11,6 +11,7 @@ datasource db {
 model Employee {
   id               String         @id @default(cuid())
   employeeId       String         @unique
+  employeeNumber   Int            @unique @default(autoincrement())
   googleId         String?        @unique  // Google Workspace user ID for sync
   firstName        String
   lastName         String
