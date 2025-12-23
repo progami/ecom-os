@@ -3,7 +3,6 @@ import prisma from '@/lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canFinalApprove, getHREmployees } from '@/lib/permissions'
-import { sendNotificationEmail } from '@/lib/email-service'
 import { writeAuditLog } from '@/lib/audit'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -106,16 +105,6 @@ export async function POST(req: Request, context: RouteContext) {
           relatedType: 'REVIEW',
         },
       })
-
-      // Send email to employee
-      if (review.employee.email) {
-        await sendNotificationEmail(
-          review.employee.email,
-          review.employee.firstName,
-          'REVIEW_SUBMITTED',
-          `/performance/reviews/${id}`
-        )
-      }
 
       await writeAuditLog({
         actorId: currentEmployeeId,

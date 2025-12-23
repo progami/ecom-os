@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { UpdatePolicySchema, bumpVersion } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
-import { publish } from '@/lib/notification-service'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { isHROrAbove } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
@@ -112,21 +111,20 @@ export async function PATCH(req: Request, context: PolicyRouteContext) {
       data: updates,
     })
 
-    // Check if status changed to ARCHIVED
-    if (data.status === 'ARCHIVED') {
-      await publish({
-        type: 'POLICY_ARCHIVED',
-        policyId: p.id,
-        policyTitle: p.title,
-      })
-    } else {
-      // Publish policy updated event (creates company-wide notification)
-      await publish({
-        type: 'POLICY_UPDATED',
-        policyId: p.id,
-        policyTitle: p.title,
-      })
-    }
+    const notificationType = data.status === 'ARCHIVED' ? 'POLICY_ARCHIVED' : 'POLICY_UPDATED'
+    const verb = notificationType === 'POLICY_ARCHIVED' ? 'archived' : 'updated'
+
+    await prisma.notification.create({
+      data: {
+        type: notificationType,
+        title: notificationType === 'POLICY_ARCHIVED' ? 'Policy Archived' : 'Policy Updated',
+        message: `The policy "${p.title}" has been ${verb}.`,
+        link: `/policies/${p.id}`,
+        employeeId: null, // Broadcast
+        relatedId: p.id,
+        relatedType: 'POLICY',
+      },
+    })
 
     await writeAuditLog({
       actorId,

@@ -74,6 +74,7 @@ model Employee {
   disciplinaryActions DisciplinaryAction[]
   notifications    Notification[]
   notificationReadReceipts NotificationReadReceipt[]
+  notificationEmailDispatches NotificationEmailDispatch[]
   departmentsLed   Department[]    @relation("DepartmentHead")
   projectsLed      Project[]       @relation("ProjectLead")
   projectMemberships ProjectMember[]
@@ -274,6 +275,7 @@ model Notification {
 
   // Per-employee read receipts for broadcast notifications (employeeId = null)
   readReceipts  NotificationReadReceipt[]
+  emailDispatches NotificationEmailDispatch[]
 
   isRead        Boolean          @default(false)
   createdAt     DateTime         @default(now())
@@ -295,6 +297,37 @@ model NotificationReadReceipt {
   readAt         DateTime      @default(now())
 
   @@unique([notificationId, employeeId])
+  @@index([employeeId])
+  @@index([notificationId])
+}
+
+enum NotificationEmailDispatchStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
+model NotificationEmailDispatch {
+  id             String                        @id @default(cuid())
+  notificationId String
+  notification   Notification                  @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  employeeId     String
+  employee       Employee                      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  status         NotificationEmailDispatchStatus @default(PENDING)
+  attempts       Int                           @default(0)
+  lastError      String?
+  lastAttemptAt  DateTime?
+  nextAttemptAt  DateTime                      @default(now())
+  sentAt         DateTime?
+
+  createdAt      DateTime                      @default(now())
+  updatedAt      DateTime                      @updatedAt
+
+  @@unique([notificationId, employeeId])
+  @@index([status, nextAttemptAt])
   @@index([employeeId])
   @@index([notificationId])
 }

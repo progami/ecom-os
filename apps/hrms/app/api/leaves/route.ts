@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { sendNotificationEmail } from '@/lib/email-service'
 import { writeAuditLog } from '@/lib/audit'
 import { z } from 'zod'
 
@@ -337,16 +336,6 @@ export async function POST(req: Request) {
             relatedType: 'LEAVE',
           },
         })
-
-        // Send email notification
-        if (manager.email) {
-          await sendNotificationEmail(
-            manager.email,
-            manager.firstName,
-            'LEAVE_REQUESTED',
-            `/leaves/${leaveRequest.id}`
-          )
-        }
       }
     }
 
