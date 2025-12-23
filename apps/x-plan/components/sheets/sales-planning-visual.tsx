@@ -1,16 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { clsx } from 'clsx'
 import { useSearchParams } from 'next/navigation'
 import { useTheme } from 'next-themes'
-import {
-  SHEET_TOOLBAR_GROUP,
-  SHEET_TOOLBAR_LABEL,
-  SHEET_TOOLBAR_SELECT,
-} from '@/components/sheet-toolbar'
-import { usePersistentState } from '@/hooks/usePersistentState'
+import { Check, Download } from 'lucide-react'
+import { SHEET_TOOLBAR_GROUP } from '@/components/sheet-toolbar'
+import { useSalesPlanningFocus } from '@/components/sheets/sales-planning-grid'
 
 type SalesRow = {
   weekNumber: string
@@ -34,30 +32,67 @@ type ShipmentMarker = {
   arrivalDetail: string
 }
 
+// Calculate "nice" rounded numbers for axis labels
+function niceNumber(range: number, round: boolean): number {
+  const exponent = Math.floor(Math.log10(range))
+  const fraction = range / Math.pow(10, exponent)
+  let niceFraction: number
+
+  if (round) {
+    if (fraction < 1.5) niceFraction = 1
+    else if (fraction < 3) niceFraction = 2
+    else if (fraction < 7) niceFraction = 5
+    else niceFraction = 10
+  } else {
+    if (fraction <= 1) niceFraction = 1
+    else if (fraction <= 2) niceFraction = 2
+    else if (fraction <= 5) niceFraction = 5
+    else niceFraction = 10
+  }
+
+  return niceFraction * Math.pow(10, exponent)
+}
+
+function niceScale(min: number, max: number, tickCount: number): number[] {
+  const range = niceNumber(max - min, false)
+  const tickSpacing = niceNumber(range / (tickCount - 1), true)
+  const niceMin = Math.floor(min / tickSpacing) * tickSpacing
+  const niceMax = Math.ceil(max / tickSpacing) * tickSpacing
+
+  const ticks: number[] = []
+  for (let tick = niceMin; tick <= niceMax + tickSpacing * 0.5; tick += tickSpacing) {
+    ticks.push(Math.round(tick))
+  }
+  return ticks
+}
+
 export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptions }: SalesPlanningVisualProps) {
   const { theme } = useTheme()
   const searchParams = useSearchParams()
   const productSetupHref = searchParams ? `/1-product-setup?${searchParams.toString()}` : '/1-product-setup'
   const defaultProductId = productOptions[0]?.id ?? ''
-  const [selectedProductId, setSelectedProductId] = usePersistentState<string>(
-    'xplan:sales-visual:selected-product',
-    () => defaultProductId,
-  )
+
+  // Use shared focus context from toolbar (synced with FOCUS SKU selector)
+  const focusContext = useSalesPlanningFocus()
+  const contextProductId = focusContext?.focusProductId
+
+  // Derive selected product: use context if set to a specific product, otherwise use first product
+  const selectedProductId = contextProductId && contextProductId !== 'ALL'
+    ? contextProductId
+    : defaultProductId
+
   const [hoveredShipment, setHoveredShipment] = useState<ShipmentMarker | null>(null)
   const [hoveredStock, setHoveredStock] = useState<{ weekNumber: number; weekDate: string; stockEnd: number } | null>(null)
-  const [showShipments, setShowShipments] = usePersistentState<boolean>('xplan:sales-visual:show-shipments', true)
-  const [showStockLine, setShowStockLine] = usePersistentState<boolean>('xplan:sales-visual:show-stock', true)
+  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null)
+  const [showShipments, setShowShipments] = useState(true)
+  const [showStockLine, setShowStockLine] = useState(true)
+  const [mounted, setMounted] = useState(false)
+  const svgRef = useRef<SVGSVGElement>(null)
 
   useEffect(() => {
-    if (!selectedProductId && defaultProductId) {
-      setSelectedProductId(defaultProductId)
-      return
-    }
-    const exists = productOptions.some((option) => option.id === selectedProductId)
-    if (!exists) {
-      setSelectedProductId(defaultProductId)
-    }
-  }, [defaultProductId, productOptions, selectedProductId, setSelectedProductId])
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
 
   const isDark = theme === 'dark'
   const colors = {
@@ -107,15 +142,17 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
     const stockValues = stockDataPoints.map((p) => p.stockEnd)
     const weekNumbers = stockDataPoints.map((p) => p.weekNumber)
 
-    const maxStock = Math.max(...stockValues)
+    const rawMaxStock = Math.max(...stockValues)
     const minWeek = Math.min(...weekNumbers)
     const maxWeek = Math.max(...weekNumbers)
 
-    // Always anchor at 0 for stock levels, add 10% padding to max
-    const stockPadding = maxStock * 0.1
+    // Use nice scale to get clean max value
+    const niceTicks = rawMaxStock > 0 ? niceScale(0, rawMaxStock, 6) : [0, 100]
+    const maxStock = niceTicks[niceTicks.length - 1]
+
     return {
       minStock: 0,
-      maxStock: maxStock + stockPadding,
+      maxStock,
       minWeek,
       maxWeek,
     }
@@ -169,14 +206,8 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
   }
 
   const yAxisTicks = useMemo(() => {
-    const ticks: number[] = []
-    const tickCount = 6
-    for (let i = 0; i <= tickCount; i++) {
-      const value = chartBounds.minStock + (i * (chartBounds.maxStock - chartBounds.minStock)) / tickCount
-      // Round to avoid duplicate keys from floating point precision
-      ticks.push(Math.round(value * 100) / 100)
-    }
-    return ticks
+    if (chartBounds.maxStock <= 0) return [0]
+    return niceScale(chartBounds.minStock, chartBounds.maxStock, 6)
   }, [chartBounds])
 
   const xAxisTicks = useMemo(() => {
@@ -218,44 +249,31 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3">
         <div className={SHEET_TOOLBAR_GROUP}>
-          <span className={SHEET_TOOLBAR_LABEL}>Product</span>
-          <select
-            value={selectedProductId}
-            onChange={(e) => setSelectedProductId(e.target.value)}
-            className={SHEET_TOOLBAR_SELECT}
-          >
-            {productOptions.map((option) => (
-              <option key={option.id} value={option.id}>
-                {option.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className={SHEET_TOOLBAR_GROUP}>
-          <span className={SHEET_TOOLBAR_LABEL}>Show</span>
+          <span className="text-xs font-semibold uppercase tracking-[0.1em] text-cyan-700 dark:text-cyan-300/90">Show</span>
           <button
             type="button"
             onClick={() => setShowStockLine(!showStockLine)}
             className={clsx(
-              'rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all',
+              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all',
               showStockLine
                 ? 'bg-cyan-100 text-cyan-800 shadow-sm dark:bg-cyan-900/30 dark:text-cyan-200'
                 : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5'
             )}
           >
+            {showStockLine && <Check className="h-3 w-3" />}
             Stock
           </button>
           <button
             type="button"
             onClick={() => setShowShipments(!showShipments)}
             className={clsx(
-              'rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all',
+              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all',
               showShipments
                 ? 'bg-emerald-100 text-emerald-800 shadow-sm dark:bg-emerald-900/30 dark:text-emerald-200'
                 : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5'
             )}
           >
+            {showShipments && <Check className="h-3 w-3" />}
             Shipments
           </button>
         </div>
@@ -276,7 +294,8 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
           }}
           className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
         >
-          <span>⬇</span> Export SVG
+          <Download className="h-3.5 w-3.5" />
+          Export SVG
         </button>
       </div>
 
@@ -290,6 +309,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
 
         <div className="w-full">
           <svg
+            ref={svgRef}
             width="100%"
             height={chartHeight}
             className="sales-chart-svg text-slate-900 dark:text-white"
@@ -297,7 +317,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
             viewBox={`0 0 1400 ${chartHeight}`}
           >
             {/* Grid lines */}
-            <g className="opacity-20">
+            <g className="opacity-40">
               {yAxisTicks.map((tick, index) => (
                 <line
                   key={`grid-y-${index}-${tick}`}
@@ -345,8 +365,15 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                     r="20"
                     fill="transparent"
                     className="cursor-pointer"
-                    onMouseEnter={() => setHoveredStock(point)}
-                    onMouseLeave={() => setHoveredStock(null)}
+                    onMouseEnter={(e) => {
+                      setHoveredStock(point)
+                      setTooltipPosition({ x: e.clientX, y: e.clientY })
+                    }}
+                    onMouseMove={(e) => setTooltipPosition({ x: e.clientX, y: e.clientY })}
+                    onMouseLeave={() => {
+                      setHoveredStock(null)
+                      setTooltipPosition(null)
+                    }}
                   />
                   {/* Visible data point */}
                   <circle
@@ -378,8 +405,15 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                     stroke="transparent"
                     strokeWidth="32"
                     className="cursor-pointer"
-                    onMouseEnter={() => setHoveredShipment(marker)}
-                    onMouseLeave={() => setHoveredShipment(null)}
+                    onMouseEnter={(e) => {
+                      setHoveredShipment(marker)
+                      setTooltipPosition({ x: e.clientX, y: e.clientY })
+                    }}
+                    onMouseMove={(e) => setTooltipPosition({ x: e.clientX, y: e.clientY })}
+                    onMouseLeave={() => {
+                      setHoveredShipment(null)
+                      setTooltipPosition(null)
+                    }}
                   />
                   {/* Visible line */}
                   <line
@@ -399,8 +433,15 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                     r="20"
                     fill="transparent"
                     className="cursor-pointer"
-                    onMouseEnter={() => setHoveredShipment(marker)}
-                    onMouseLeave={() => setHoveredShipment(null)}
+                    onMouseEnter={(e) => {
+                      setHoveredShipment(marker)
+                      setTooltipPosition({ x: e.clientX, y: e.clientY })
+                    }}
+                    onMouseMove={(e) => setTooltipPosition({ x: e.clientX, y: e.clientY })}
+                    onMouseLeave={() => {
+                      setHoveredShipment(null)
+                      setTooltipPosition(null)
+                    }}
                   />
                   {/* Visible circle marker */}
                   <circle
@@ -523,52 +564,62 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
         </div>
       </div>
 
-      {/* Tooltips - positioned to avoid viewport edges */}
-      <div className="flex flex-wrap gap-4">
-        {/* Stock hover tooltip */}
-        {hoveredStock && (
-          <div className="rounded-xl border border-cyan-600 bg-white/95 p-4 shadow-lg backdrop-blur-sm dark:border-[#00C2B9] dark:bg-[#002C51]/95">
-            <div className="mb-2 flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-cyan-600 dark:bg-[#00C2B9]" />
-              <h4 className="font-semibold text-slate-900 dark:text-white">Stock Level</h4>
+      {/* Portal-based tooltips that follow cursor */}
+      {mounted && tooltipPosition && hoveredStock && createPortal(
+        <div
+          className="fixed z-[9999] pointer-events-none animate-in fade-in-0 zoom-in-95 duration-100"
+          style={{
+            left: `${tooltipPosition.x + 16}px`,
+            top: `${tooltipPosition.y - 16}px`,
+            transform: 'translateY(-100%)',
+          }}
+        >
+          <div className="rounded-lg border border-cyan-600 bg-white/95 p-3 shadow-lg backdrop-blur-sm dark:border-[#00C2B9] dark:bg-[#0d2a3f]/95 max-w-xs">
+            <div className="mb-1.5 flex items-center gap-2">
+              <div className="h-2.5 w-2.5 rounded-full bg-cyan-600 dark:bg-[#00C2B9]" />
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Stock Level</h4>
             </div>
-            <div className="space-y-1 text-sm">
-              <p className="text-slate-700 dark:text-[#6F7B8B]">
-                <span className="font-medium text-slate-900 dark:text-white">Week:</span> {hoveredStock.weekNumber}
+            <div className="space-y-0.5 text-xs">
+              <p className="text-slate-600 dark:text-slate-300">
+                <span className="font-medium text-slate-900 dark:text-white">Week {hoveredStock.weekNumber}</span> · {hoveredStock.weekDate}
               </p>
-              <p className="text-slate-700 dark:text-[#6F7B8B]">
-                <span className="font-medium text-slate-900 dark:text-white">Date:</span> {hoveredStock.weekDate}
-              </p>
-              <p className="text-slate-700 dark:text-[#6F7B8B]">
-                <span className="font-medium text-slate-900 dark:text-white">Stock:</span> <span className="font-bold text-cyan-700 dark:text-[#00C2B9]">{Math.round(hoveredStock.stockEnd)}</span> units
+              <p className="text-lg font-bold text-cyan-700 dark:text-[#00C2B9]">
+                {Math.round(hoveredStock.stockEnd).toLocaleString()} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">units</span>
               </p>
             </div>
           </div>
-        )}
+        </div>,
+        document.body
+      )}
 
-        {/* Shipment hover tooltip */}
-        {hoveredShipment && (
-          <div className="rounded-xl border border-emerald-600 bg-white/95 p-4 shadow-lg backdrop-blur-sm dark:border-emerald-500 dark:bg-[#002C51]/95">
-            <div className="mb-2 flex items-center gap-2">
-              <div className="h-3 w-3 rounded-full bg-emerald-600 dark:bg-emerald-500" />
-              <h4 className="font-semibold text-slate-900 dark:text-white">Shipment Arrival</h4>
+      {mounted && tooltipPosition && hoveredShipment && createPortal(
+        <div
+          className="fixed z-[9999] pointer-events-none animate-in fade-in-0 zoom-in-95 duration-100"
+          style={{
+            left: `${tooltipPosition.x + 16}px`,
+            top: `${tooltipPosition.y - 16}px`,
+            transform: 'translateY(-100%)',
+          }}
+        >
+          <div className="rounded-lg border border-emerald-600 bg-white/95 p-3 shadow-lg backdrop-blur-sm dark:border-emerald-500 dark:bg-[#0d2a3f]/95 max-w-sm">
+            <div className="mb-1.5 flex items-center gap-2">
+              <div className="h-2.5 w-2.5 rounded-full bg-emerald-600 dark:bg-emerald-500" />
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Shipment Arrival</h4>
             </div>
-            <div className="space-y-1 text-sm">
-              <p className="text-slate-700 dark:text-[#6F7B8B]">
-                <span className="font-medium text-slate-900 dark:text-white">Week:</span> {hoveredShipment.weekNumber}
+            <div className="space-y-1 text-xs">
+              <p className="text-slate-600 dark:text-slate-300">
+                <span className="font-medium text-slate-900 dark:text-white">Week {hoveredShipment.weekNumber}</span> · {hoveredShipment.weekDate}
               </p>
-              <p className="text-slate-700 dark:text-[#6F7B8B]">
-                <span className="font-medium text-slate-900 dark:text-white">Date:</span> {hoveredShipment.weekDate}
-              </p>
-              <div className="mt-2 rounded-lg bg-slate-100 p-2 dark:bg-[#041324]/60">
+              <div className="mt-1.5 rounded bg-slate-100 p-2 dark:bg-[#041324]/60">
                 <p className="whitespace-pre-line text-xs text-slate-700 dark:text-emerald-100">
                   {hoveredShipment.arrivalDetail}
                 </p>
               </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>,
+        document.body
+      )}
     </div>
   )
 }
