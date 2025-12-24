@@ -198,6 +198,69 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
     return set
   }, [rows])
 
+  const minWeekAvailable = useMemo(() => {
+    if (!weekDateByNumber.size) return null
+    return Math.min(...Array.from(weekDateByNumber.keys()))
+  }, [weekDateByNumber])
+
+  const stockWeeksKeyByProduct = useMemo(() => {
+    const map = new Map<string, string>()
+    columnKeys.forEach((columnKey) => {
+      const meta = columnMeta[columnKey]
+      if (meta?.field === 'stockWeeks') {
+        map.set(meta.productId, columnKey)
+      }
+    })
+    return map
+  }, [columnKeys, columnMeta])
+
+  const reorderStartByProduct = useMemo(() => {
+    const result = new Map<string, Map<number, { breachWeek: number; breachDate: string; startWeekRaw: number }>>()
+    if (!Number.isFinite(warningThreshold)) return result
+
+    const weekNumbers = data
+      .map((row) => Number(row.weekNumber))
+      .filter((week) => Number.isFinite(week)) as number[]
+    const minWeek = weekNumbers.length ? Math.min(...weekNumbers) : null
+    const maxWeek = weekNumbers.length ? Math.max(...weekNumbers) : null
+
+    stockWeeksKeyByProduct.forEach((weeksKey, productId) => {
+      const leadProfile = leadTimeByProduct[productId]
+      const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : 0
+      if (leadTimeWeeks <= 0) return
+
+      let wasBelow = false
+      data.forEach((row) => {
+        const week = Number(row.weekNumber)
+        if (!Number.isFinite(week)) return
+        const rawWeeks = row[weeksKey]
+        const weeksNumeric = rawWeeks !== undefined ? Number(rawWeeks) : Number.NaN
+        if (!Number.isFinite(weeksNumeric)) return
+
+        const isBelow = weeksNumeric <= warningThreshold
+        if (isBelow && !wasBelow) {
+          const breachWeek = week
+          const breachDate = weekDateByNumber.get(breachWeek) ?? ''
+          const startWeekRaw = breachWeek - leadTimeWeeks
+
+          const startWeek =
+            minWeek != null && maxWeek != null
+              ? Math.max(minWeek, Math.min(maxWeek, startWeekRaw))
+              : startWeekRaw
+
+          if (!result.has(productId)) {
+            result.set(productId, new Map())
+          }
+          result.get(productId)?.set(startWeek, { breachWeek, breachDate, startWeekRaw })
+        }
+
+        wasBelow = isBelow
+      })
+    })
+
+    return result
+  }, [data, leadTimeByProduct, stockWeeksKeyByProduct, warningThreshold, weekDateByNumber])
+
   const formatBatchComment = useCallback((allocations: BatchAllocationMeta[]): string => {
     if (!allocations || allocations.length === 0) return ''
     const lines = allocations.map((alloc) => {
@@ -332,17 +395,6 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
       ),
     [columns],
   )
-
-  const stockWeeksKeyByProduct = useMemo(() => {
-    const map = new Map<string, string>()
-    columnKeys.forEach((columnKey) => {
-      const meta = columnMeta[columnKey]
-      if (meta?.field === 'stockWeeks') {
-        map.set(meta.productId, columnKey)
-      }
-    })
-    return map
-  }, [columnKeys, columnMeta])
 
   const clampStretchWidth = useCallback((width: number, column: number) => {
     if (column === 0) return WEEK_COLUMN_WIDTH
@@ -594,16 +646,16 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
           autoColumnSize={false}
           colWidths={columnWidths}
           beforeStretchingColumnWidth={clampStretchWidth}
-          cells={(row, col) => {
-            const cell: Handsontable.CellMeta = {}
-            const offset = 3
-            const weekNumber = Number(data[row]?.weekNumber)
-            const hasInbound = Number.isFinite(weekNumber) && hasInboundByWeek.has(weekNumber)
+	          cells={(row, col) => {
+	            const cell: Handsontable.CellMeta = {}
+	            const offset = 3
+	            const weekNumber = Number(data[row]?.weekNumber)
+	            const hasInbound = Number.isFinite(weekNumber) && hasInboundByWeek.has(weekNumber)
 
-            if (col < offset) {
-              if (hasInbound) {
-                cell.className = cell.className ? `${cell.className} row-inbound-sales` : 'row-inbound-sales'
-              }
+	            if (col < offset) {
+	              if (hasInbound) {
+	                cell.className = cell.className ? `${cell.className} row-inbound-sales` : 'row-inbound-sales'
+	              }
               if (col === 2) {
                 const note = data[row]?.arrivalNote
                 if (note && note.trim().length > 0) {
@@ -624,42 +676,65 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
               const rawWeeks = weeksKey ? data[row]?.[weeksKey] : undefined
               const weeksNumeric = rawWeeks !== undefined ? Number(rawWeeks) : Number.NaN
               const isBelowThreshold = !Number.isNaN(weeksNumeric) && weeksNumeric <= warningThreshold
-              const isStockColumn =
-                (meta.field === 'stockWeeks' && activeStockMetric === 'stockWeeks') ||
-                (meta.field === 'stockEnd' && activeStockMetric === 'stockEnd')
+	              const isStockColumn =
+	                (meta.field === 'stockWeeks' && activeStockMetric === 'stockWeeks') ||
+	                (meta.field === 'stockEnd' && activeStockMetric === 'stockEnd')
 
-              if (isBelowThreshold && isStockColumn) {
-                cell.className = cell.className ? `${cell.className} cell-warning` : 'cell-warning'
+                const reorderInfo = reorderStartByProduct.get(meta.productId)?.get(weekNumber)
+                if (reorderInfo && isStockColumn) {
+                  cell.className = cell.className ? `${cell.className} cell-reorder-suggest` : 'cell-reorder-suggest'
 
-                const leadProfile = leadTimeByProduct[meta.productId]
-                const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : 0
-                if (leadTimeWeeks > 0) {
-                  const coverageWeeks = Math.max(0, Math.ceil(weeksNumeric))
-                  const stockoutWeek = coverageWeeks > 0 ? weekNumber + coverageWeeks - 1 : weekNumber
-                  const stockoutDate = weekDateByNumber.get(stockoutWeek) ?? ''
-                  const startWeekRaw = stockoutWeek - leadTimeWeeks
-                  const startWeek = Math.max(1, startWeekRaw)
-                  const startDate = weekDateByNumber.get(startWeek) ?? ''
+                  const leadProfile = leadTimeByProduct[meta.productId]
+                  const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : 0
                   const leadBreakdown = leadProfile
                     ? `${leadTimeWeeks}w (prod ${leadProfile.productionWeeks}w + source ${leadProfile.sourceWeeks}w + ocean ${leadProfile.oceanWeeks}w + final ${leadProfile.finalWeeks}w)`
                     : `${leadTimeWeeks}w`
 
-                  const stockoutLabel = `W${stockoutWeek}${stockoutDate ? ` (${stockoutDate})` : ''}`
+                  const breachLabel = `W${reorderInfo.breachWeek}${reorderInfo.breachDate ? ` (${reorderInfo.breachDate})` : ''}`
                   const startLabel =
-                    startWeekRaw < 1
-                      ? 'ASAP (before W1)'
-                      : `W${startWeek}${startDate ? ` (${startDate})` : ''}`
+                    minWeekAvailable != null && reorderInfo.startWeekRaw < minWeekAvailable
+                      ? `ASAP (before W${minWeekAvailable})`
+                      : `W${weekNumber}${weekDateByNumber.get(weekNumber) ? ` (${weekDateByNumber.get(weekNumber)})` : ''}`
 
-                  cell.comment = {
-                    value:
-                      `Low stock warning (≤ ${warningThreshold}w).\n` +
-                      `Projected stockout: ${stockoutLabel}.\n` +
-                      `Suggested production start: ${startLabel}.\n` +
-                      `Lead time: ${leadBreakdown}.`,
-                    readOnly: true,
+                  if (!cell.comment) {
+                    cell.comment = {
+                      value:
+                        `Reorder signal (target ≥ ${warningThreshold}w).\n` +
+                        `Start production: ${startLabel}.\n` +
+                        `Threshold breach: ${breachLabel}.\n` +
+                        `Lead time: ${leadBreakdown}.`,
+                      readOnly: true,
+                    }
                   }
                 }
-              }
+
+	              if (isBelowThreshold && isStockColumn) {
+	                cell.className = cell.className ? `${cell.className} cell-warning` : 'cell-warning'
+
+	                const leadProfile = leadTimeByProduct[meta.productId]
+	                const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : 0
+	                if (leadTimeWeeks > 0) {
+	                  const startWeekRaw = weekNumber - leadTimeWeeks
+	                  const startWeek =
+	                    minWeekAvailable != null ? Math.max(minWeekAvailable, startWeekRaw) : startWeekRaw
+	                  const startDate = weekDateByNumber.get(startWeek) ?? ''
+	                  const leadBreakdown = leadProfile
+	                    ? `${leadTimeWeeks}w (prod ${leadProfile.productionWeeks}w + source ${leadProfile.sourceWeeks}w + ocean ${leadProfile.oceanWeeks}w + final ${leadProfile.finalWeeks}w)`
+	                    : `${leadTimeWeeks}w`
+
+	                  const startLabel = startWeekRaw < (minWeekAvailable ?? startWeekRaw)
+	                    ? `ASAP (before W${minWeekAvailable})`
+	                    : `W${startWeek}${startDate ? ` (${startDate})` : ''}`
+
+	                  cell.comment = {
+	                    value:
+	                      `Low stock warning (≤ ${warningThreshold}w).\n` +
+	                      `Suggested production start: ${startLabel}.\n` +
+	                      `Lead time: ${leadBreakdown}.`,
+	                    readOnly: true,
+	                  }
+	                }
+	              }
             }
 
             if (meta?.field === 'finalSales') {
