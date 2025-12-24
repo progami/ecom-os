@@ -3,7 +3,7 @@
 import clsx from 'clsx'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Check, X, Pencil, Trash2, CheckCircle2 } from 'lucide-react'
+import { Plus, Check, X, Pencil, Trash2, CheckCircle2, Target } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { withAppBasePath } from '@/lib/base-path'
 
@@ -39,6 +39,9 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editName, setEditName] = useState('')
   const [editDescription, setEditDescription] = useState('')
+
+  const selectedStrategyId = activeStrategyId ?? searchParams?.get('strategy') ?? null
+  const activeStrategy = strategies.find((s) => s.id === selectedStrategyId)
 
   const handleCreate = async () => {
     if (!newName.trim()) {
@@ -119,10 +122,12 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
     }
   }
 
-  const handleSelectStrategy = (id: string) => {
+  const handleSelectStrategy = (id: string, name: string) => {
+    if (id === selectedStrategyId) return
     const nextParams = new URLSearchParams(searchParams?.toString() ?? '')
     nextParams.set('strategy', id)
     router.push(`?${nextParams.toString()}`)
+    toast.success(`Switched to "${name}"`)
   }
 
   const startEdit = (strategy: Strategy) => {
@@ -141,15 +146,45 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
     setEditDescription('')
   }
 
-  const selectedStrategyId = activeStrategyId ?? searchParams?.get('strategy') ?? null
-
   return (
     <div className="space-y-6">
+      {/* Active Strategy Banner */}
+      {activeStrategy && (
+        <div className="rounded-xl border-2 border-cyan-500 bg-gradient-to-r from-cyan-50 to-cyan-100/50 p-4 dark:border-[#00C2B9] dark:from-cyan-950/40 dark:to-cyan-900/20">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-cyan-600 text-white dark:bg-[#00C2B9]">
+              <Target className="h-6 w-6" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-cyan-700 dark:text-cyan-300">
+                Currently Active Strategy
+              </p>
+              <p className="mt-0.5 text-lg font-bold text-slate-900 dark:text-white">
+                {activeStrategy.name}
+              </p>
+              {activeStrategy.description && (
+                <p className="text-sm text-slate-600 dark:text-slate-300">{activeStrategy.description}</p>
+              )}
+            </div>
+            <div className="hidden shrink-0 sm:flex sm:items-center sm:gap-6">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{activeStrategy._count.products}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Products</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-slate-900 dark:text-white">{activeStrategy._count.purchaseOrders}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Orders</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Planning Strategies</h2>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Each strategy is an isolated planning session with its own products, orders, and forecasts
+            Click a row to switch strategies. Each strategy has its own products, orders, and forecasts.
           </p>
         </div>
         {!isAdding && (
@@ -239,116 +274,119 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                 </td>
               </tr>
             ) : (
-              strategies.map((strategy) => (
-                <tr
-                  key={strategy.id}
-                  onClick={() => editingId !== strategy.id && handleSelectStrategy(strategy.id)}
-                  className={clsx(
-                    'cursor-pointer transition',
-                    selectedStrategyId === strategy.id
-                      ? 'bg-emerald-50/70 ring-2 ring-inset ring-emerald-300 dark:bg-emerald-950/30 dark:ring-emerald-500/50'
-                      : 'bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5',
-                    strategy.isDefault && selectedStrategyId !== strategy.id && 'bg-cyan-50/30 dark:bg-cyan-950/20'
-                  )}
-                >
-                  <td className="px-4 py-3">
-                    {editingId === strategy.id ? (
-                      <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="w-full rounded border border-cyan-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-cyan-500/50 dark:bg-white/5 dark:text-slate-100"
-                        />
-                        <input
-                          value={editDescription}
-                          onChange={(e) => setEditDescription(e.target.value)}
-                          placeholder="Description"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleUpdate(strategy.id)
-                            if (e.key === 'Escape') cancelEdit()
-                          }}
-                          className="w-full rounded border border-cyan-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-cyan-500/50 dark:bg-white/5 dark:text-slate-100"
-                        />
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        {selectedStrategyId === strategy.id && (
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                        )}
-                        <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                          {strategy.name}
-                        </span>
-                        {selectedStrategyId === strategy.id && (
-                          <span className="rounded-full bg-emerald-600/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
-                            Active
-                          </span>
-                        )}
-                        {strategy.isDefault && (
-                          <span className="rounded-full bg-cyan-600/15 px-2 py-0.5 text-[11px] font-semibold text-cyan-700 dark:bg-[#00C2B9]/20 dark:text-cyan-100">
-                            Default
-                          </span>
-                        )}
-                        {strategy.description && (
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            — {strategy.description}
-                          </span>
-                        )}
-                      </div>
+              strategies.map((strategy) => {
+                const isActive = selectedStrategyId === strategy.id
+                return (
+                  <tr
+                    key={strategy.id}
+                    onClick={() => editingId !== strategy.id && handleSelectStrategy(strategy.id, strategy.name)}
+                    className={clsx(
+                      'cursor-pointer transition',
+                      isActive
+                        ? 'bg-cyan-50 dark:bg-cyan-950/40'
+                        : 'bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5',
+                      strategy.isDefault && !isActive && 'bg-slate-50/50 dark:bg-white/[0.02]'
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className="text-sm tabular-nums text-slate-700 dark:text-slate-300">
-                      {strategy._count.products}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className="text-sm tabular-nums text-slate-700 dark:text-slate-300">
-                      {strategy._count.purchaseOrders}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex justify-end gap-1">
+                  >
+                    <td className={clsx('py-3 pr-4', isActive ? 'border-l-4 border-l-cyan-500 pl-3 dark:border-l-[#00C2B9]' : 'pl-4')}>
                       {editingId === strategy.id ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => handleUpdate(strategy.id)}
-                            className="rounded p-1.5 text-emerald-600 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
-                          >
-                            <Check className="h-4 w-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={cancelEdit}
-                            className="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5"
-                          >
-                            <X className="h-4 w-4" />
-                          </button>
-                        </>
+                        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="w-full rounded border border-cyan-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-cyan-500/50 dark:bg-white/5 dark:text-slate-100"
+                          />
+                          <input
+                            value={editDescription}
+                            onChange={(e) => setEditDescription(e.target.value)}
+                            placeholder="Description"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleUpdate(strategy.id)
+                              if (e.key === 'Escape') cancelEdit()
+                            }}
+                            className="w-full rounded border border-cyan-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-cyan-500/50 dark:bg-white/5 dark:text-slate-100"
+                          />
+                        </div>
                       ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => startEdit(strategy)}
-                            className="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </button>
-                          {strategy.id !== DEFAULT_STRATEGY_ID && (
+                        <div className="flex items-center gap-2">
+                          {isActive && (
+                            <CheckCircle2 className="h-5 w-5 shrink-0 text-cyan-600 dark:text-[#00C2B9]" />
+                          )}
+                          <span className={clsx('text-sm font-medium', isActive ? 'text-cyan-900 dark:text-cyan-100' : 'text-slate-900 dark:text-slate-100')}>
+                            {strategy.name}
+                          </span>
+                          {isActive && (
+                            <span className="rounded-full bg-cyan-600 px-2 py-0.5 text-[11px] font-semibold text-white dark:bg-[#00C2B9]">
+                              Active
+                            </span>
+                          )}
+                          {strategy.isDefault && (
+                            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300">
+                              Default
+                            </span>
+                          )}
+                          {strategy.description && (
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              — {strategy.description}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-sm tabular-nums text-slate-700 dark:text-slate-300">
+                        {strategy._count.products}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-sm tabular-nums text-slate-700 dark:text-slate-300">
+                        {strategy._count.purchaseOrders}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex justify-end gap-1">
+                        {editingId === strategy.id ? (
+                          <>
                             <button
                               type="button"
-                              onClick={() => handleDelete(strategy.id)}
-                              className="rounded p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20 dark:hover:text-rose-400"
+                              onClick={() => handleUpdate(strategy.id)}
+                              className="rounded p-1.5 text-emerald-600 transition hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Check className="h-4 w-4" />
                             </button>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
+                            <button
+                              type="button"
+                              onClick={cancelEdit}
+                              className="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => startEdit(strategy)}
+                              className="rounded p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/5"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </button>
+                            {strategy.id !== DEFAULT_STRATEGY_ID && (
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(strategy.id)}
+                                className="rounded p-1.5 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/20 dark:hover:text-rose-400"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>
