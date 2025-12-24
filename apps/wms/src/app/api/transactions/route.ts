@@ -9,6 +9,7 @@ import { parseLocalDateTime } from '@/lib/utils/date-helpers'
 import { recordStorageCostEntry } from '@/services/storageCost.service'
 import { resolveBatchLot } from '@/lib/services/purchase-order-utils'
 import { buildTacticalCostLedgerEntries } from '@/lib/costing/tactical-costing'
+import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 import {
   isRecord,
   asString,
@@ -930,6 +931,20 @@ export const POST = withAuth(async (request, session) => {
             throw new Error('Missing SKU or batch payload for new SKU creation')
           }
 
+          const unitTriplet = resolveDimensionTripletCm({
+            legacy: skuData.unitDimensionsCm,
+          })
+          if (skuData.unitDimensionsCm && !unitTriplet) {
+            throw new Error(`Invalid unit dimensions for new SKU ${item.skuCode}`)
+          }
+
+          const cartonTriplet = resolveDimensionTripletCm({
+            legacy: skuData.cartonDimensionsCm,
+          })
+          if (skuData.cartonDimensionsCm && !cartonTriplet) {
+            throw new Error(`Invalid carton dimensions for new SKU ${item.skuCode}`)
+          }
+
           const skuRecord = await tx.sku.create({
             data: {
               skuCode: sanitizeRequiredString(item.skuCode),
@@ -937,10 +952,16 @@ export const POST = withAuth(async (request, session) => {
               description: sanitizeRequiredString(skuData.description ?? ''),
               packSize: skuData.packSize ?? null,
               material: sanitizeNullableString(skuData.material),
-              unitDimensionsCm: sanitizeNullableString(skuData.unitDimensionsCm),
+              unitDimensionsCm: unitTriplet ? formatDimensionTripletCm(unitTriplet) : null,
+              unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
+              unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
+              unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
               unitWeightKg: skuData.unitWeightKg ?? null,
               unitsPerCarton: skuData.unitsPerCarton ?? 1,
-              cartonDimensionsCm: sanitizeNullableString(skuData.cartonDimensionsCm),
+              cartonDimensionsCm: cartonTriplet ? formatDimensionTripletCm(cartonTriplet) : null,
+              cartonLengthCm: cartonTriplet ? cartonTriplet.lengthCm : null,
+              cartonWidthCm: cartonTriplet ? cartonTriplet.widthCm : null,
+              cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
               cartonWeightKg: skuData.cartonWeightKg ?? null,
               packagingType: sanitizeNullableString(skuData.packagingType),
               isActive: true,
