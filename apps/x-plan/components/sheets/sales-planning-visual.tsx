@@ -307,8 +307,9 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
           </p>
         </div>
 
-        <div className="w-full">
-          <svg
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+          <div className="w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85">
+            <svg
             ref={svgRef}
             width="100%"
             height={chartHeight}
@@ -549,6 +550,85 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
               </linearGradient>
             </defs>
           </svg>
+          </div>
+
+          {/* Side panel - like P&L/Cash Flow */}
+          <aside className="space-y-4 rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 p-4 text-sm backdrop-blur-sm">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
+                {hoveredStock ? 'Selected week' : 'Latest week'}
+              </p>
+              <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
+                {hoveredStock
+                  ? `W${hoveredStock.weekNumber} · ${hoveredStock.weekDate}`
+                  : stockDataPoints.length > 0
+                    ? `W${stockDataPoints[stockDataPoints.length - 1].weekNumber} · ${stockDataPoints[stockDataPoints.length - 1].weekDate}`
+                    : '—'
+                }
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Stock level</p>
+              <p className="text-2xl font-semibold text-slate-900 dark:text-white">
+                {(() => {
+                  const value = hoveredStock?.stockEnd ?? stockDataPoints[stockDataPoints.length - 1]?.stockEnd
+                  return value != null ? Math.round(value).toLocaleString() : '—'
+                })()}
+                <span className="ml-1 text-sm font-normal text-slate-500 dark:text-slate-400">units</span>
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Change vs. prior</p>
+              {(() => {
+                const currentIndex = hoveredStock
+                  ? stockDataPoints.findIndex(p => p.weekNumber === hoveredStock.weekNumber)
+                  : stockDataPoints.length - 1
+                const currentValue = stockDataPoints[currentIndex]?.stockEnd
+                const priorValue = currentIndex > 0 ? stockDataPoints[currentIndex - 1]?.stockEnd : null
+
+                if (currentValue == null || priorValue == null) {
+                  return (
+                    <>
+                      <p className="text-lg font-medium text-slate-900 dark:text-white">—</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">—</p>
+                    </>
+                  )
+                }
+
+                const change = currentValue - priorValue
+                const changePercent = priorValue !== 0 ? (change / Math.abs(priorValue)) * 100 : null
+                const isPositive = change > 0
+                const isNegative = change < 0
+
+                return (
+                  <>
+                    <p className={clsx(
+                      'text-lg font-medium',
+                      isPositive && 'text-emerald-600 dark:text-emerald-400',
+                      isNegative && 'text-red-600 dark:text-red-400',
+                      !isPositive && !isNegative && 'text-slate-900 dark:text-white'
+                    )}>
+                      {isPositive ? '+' : ''}{Math.round(change).toLocaleString()}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {changePercent != null ? `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}%` : '—'}
+                    </p>
+                  </>
+                )
+              })()}
+            </div>
+            {hoveredShipment && (
+              <div className="space-y-1 border-t border-slate-200 pt-4 dark:border-[#0b3a52]">
+                <p className="text-xs font-bold uppercase tracking-[0.28em] text-emerald-700 dark:text-emerald-300/80">Shipment</p>
+                <p className="text-sm font-medium text-slate-900 dark:text-white">
+                  W{hoveredShipment.weekNumber} · {hoveredShipment.weekDate}
+                </p>
+                <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-line">
+                  {hoveredShipment.arrivalDetail}
+                </p>
+              </div>
+            )}
+          </aside>
         </div>
 
         {/* Legend */}
