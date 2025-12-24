@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/auth-wrapper'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
 export const dynamic = 'force-dynamic'
 
 // GET /api/rates - List cost rates
-export const GET = withAuth(async (req, session) => {
+export const GET = withAuth(async (req, _session) => {
  try {
 
  const prisma = await getTenantPrisma()
