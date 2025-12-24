@@ -30,6 +30,14 @@ Amazon Selling Partner API (SP-API) sync (optional) requires:
 - `AMAZON_SP_APP_CLIENT_SECRET`
 - `AMAZON_REFRESH_TOKEN`
 
+WMS is multi-tenant; set refresh tokens per tenant:
+- `AMAZON_REFRESH_TOKEN_US`
+- `AMAZON_REFRESH_TOKEN_UK`
+
+Optional per-tenant overrides (defaults exist for US/UK):
+- `AMAZON_SP_API_REGION_US`, `AMAZON_MARKETPLACE_ID_US`
+- `AMAZON_SP_API_REGION_UK`, `AMAZON_MARKETPLACE_ID_UK`
+
 ## Tech Stack & Core Dependencies
 
 ### Framework & Runtime

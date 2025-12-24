@@ -18,7 +18,7 @@ export const POST = withAuth(async (request, session) => {
       case 'inventory':
         return await syncInventory(session)
       case 'products':
-        return await syncProducts()
+        return await syncProducts(session)
       default:
         return NextResponse.json({ message: 'Invalid sync type' }, { status: 400 })
     }
@@ -42,7 +42,7 @@ async function syncInventory(session: Session) {
 
     const prisma = await getTenantPrisma()
     // Get FBA inventory from Amazon
-    const inventoryData = await getInventory()
+    const inventoryData = await getInventory(session.user.region)
 
     if (!inventoryData || !inventoryData.inventorySummaries) {
       return NextResponse.json({
@@ -105,7 +105,7 @@ async function syncInventory(session: Session) {
   }
 }
 
-async function syncProducts() {
+async function syncProducts(session: Session) {
   try {
     const prisma = await getTenantPrisma()
     // Get all SKUs with ASINs
@@ -122,7 +122,7 @@ async function syncProducts() {
       if (!sku.asin) continue
 
       try {
-        const catalogItem = await getCatalogItem(sku.asin)
+        const catalogItem = await getCatalogItem(sku.asin, session.user.region)
 
         if (catalogItem?.item?.attributes) {
           const attributes = catalogItem.item.attributes
