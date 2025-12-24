@@ -122,21 +122,7 @@ async function applyForTenant(tenant: TenantCode, options: ScriptOptions) {
       )
     `,
     `CREATE INDEX IF NOT EXISTS "suppliers_is_active_idx" ON "suppliers"("is_active")`,
-    `
-      DO $$
-      BEGIN
-        IF NOT EXISTS (
-          SELECT 1
-          FROM pg_constraint c
-          JOIN pg_class t ON t.oid = c.conrelid
-          JOIN pg_namespace n ON n.oid = t.relnamespace
-          WHERE c.conname = 'suppliers_name_key'
-            AND n.nspname = current_schema()
-        ) THEN
-          ALTER TABLE "suppliers" ADD CONSTRAINT "suppliers_name_key" UNIQUE ("name");
-        END IF;
-      END $$;
-    `,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "suppliers_name_key" ON "suppliers"("name")`,
 
     // link skus -> suppliers
     `ALTER TABLE "skus" ADD COLUMN IF NOT EXISTS "default_supplier_id" text`,
