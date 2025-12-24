@@ -1224,7 +1224,9 @@ function getSalesPlanningView(
   const weeks = buildWeekRange(activeSegment, planning.calendar)
   const weekNumbers = weeks.length
     ? weeks
-    : Array.from(new Set(financialData.salesPlan.map((row) => row.weekNumber))).sort((a, b) => a - b)
+    : activeSegment
+      ? []
+      : Array.from(new Set(financialData.salesPlan.map((row) => row.weekNumber))).sort((a, b) => a - b)
   const weekSet = new Set(weekNumbers)
   const columnMeta: Record<string, { productId: string; field: string }> = {}
   const columnKeys: string[] = []
@@ -1599,6 +1601,16 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       break
     }
     case '3-sales-planning': {
+      if (activeSegment && activeSegment.weekCount === 0) {
+        tabularContent = (
+          <VisualPlaceholder
+            title="No planning weeks for this year"
+            description={`No planning calendar coverage found for ${activeYear ?? 'this year'}. Select another year to continue.`}
+          />
+        )
+        visualContent = tabularContent
+        break
+      }
       const data = await getFinancialData()
       const view = getSalesPlanningView(data, planningCalendar, activeSegment)
       controls.push(<SalesPlanningFocusControl key="sales-focus" productOptions={view.productOptions} />)
@@ -1627,6 +1639,16 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       break
     }
     case '4-fin-planning-pl': {
+      if (activeSegment && activeSegment.weekCount === 0) {
+        tabularContent = (
+          <VisualPlaceholder
+            title="No planning weeks for this year"
+            description={`No planning calendar coverage found for ${activeYear ?? 'this year'}. Select another year to continue.`}
+          />
+        )
+        visualContent = tabularContent
+        break
+      }
       const data = await getFinancialData()
       const view = getProfitAndLossView(data, activeSegment, activeYear)
       tabularContent = (
@@ -1681,6 +1703,16 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       break
     }
     case '5-fin-planning-cash-flow': {
+      if (activeSegment && activeSegment.weekCount === 0) {
+        tabularContent = (
+          <VisualPlaceholder
+            title="No planning weeks for this year"
+            description={`No planning calendar coverage found for ${activeYear ?? 'this year'}. Select another year to continue.`}
+          />
+        )
+        visualContent = tabularContent
+        break
+      }
       const data = await getFinancialData()
       const view = getCashFlowView(data, activeSegment, activeYear)
       tabularContent = (
