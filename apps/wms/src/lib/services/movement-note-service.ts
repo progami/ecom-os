@@ -407,7 +407,6 @@ export async function postMovementNote(id: string, _user: UserContext) {
         throw new ValidationError(`SKU not found: ${poLine.skuCode}`)
       }
 
-      const unitsPerCarton = sku.unitsPerCarton ?? 1
       const poBatchLot = resolveBatchLot({
         rawBatchLot: poLine.batchLot,
         orderNumber: po.orderNumber,
@@ -434,7 +433,15 @@ export async function postMovementNote(id: string, _user: UserContext) {
 
       const batchRecord = await tx.skuBatch.findFirst({
         where: { skuId: sku.id, batchCode: poBatchLot, isActive: true },
-        select: { id: true },
+        select: {
+          id: true,
+          unitsPerCarton: true,
+          unitDimensionsCm: true,
+          unitWeightKg: true,
+          cartonDimensionsCm: true,
+          cartonWeightKg: true,
+          packagingType: true,
+        },
       })
 
       if (!batchRecord) {
@@ -443,6 +450,8 @@ export async function postMovementNote(id: string, _user: UserContext) {
         )
       }
 
+      const unitsPerCarton = batchRecord.unitsPerCarton ?? sku.unitsPerCarton ?? 1
+
       const createdTx = await tx.inventoryTransaction.create({
         data: {
           warehouseCode: po.warehouseCode,
@@ -450,11 +459,11 @@ export async function postMovementNote(id: string, _user: UserContext) {
           warehouseAddress: null,
           skuCode: poLine.skuCode,
           skuDescription: poLine.skuDescription ?? sku?.description ?? '',
-          unitDimensionsCm: sku?.unitDimensionsCm ?? null,
-          unitWeightKg: sku?.unitWeightKg ?? null,
-          cartonDimensionsCm: sku?.cartonDimensionsCm ?? null,
-          cartonWeightKg: sku?.cartonWeightKg ?? null,
-          packagingType: sku?.packagingType ?? null,
+          unitDimensionsCm: batchRecord.unitDimensionsCm ?? sku?.unitDimensionsCm ?? null,
+          unitWeightKg: batchRecord.unitWeightKg ?? sku?.unitWeightKg ?? null,
+          cartonDimensionsCm: batchRecord.cartonDimensionsCm ?? sku?.cartonDimensionsCm ?? null,
+          cartonWeightKg: batchRecord.cartonWeightKg ?? sku?.cartonWeightKg ?? null,
+          packagingType: batchRecord.packagingType ?? sku?.packagingType ?? null,
           unitsPerCarton,
           batchLot: poBatchLot,
           transactionType,

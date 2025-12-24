@@ -1,4 +1,4 @@
-import { getTenantPrisma } from '@/lib/tenant/server'
+import { getTenantPrisma, getCurrentTenant } from '@/lib/tenant/server'
 import {
   PurchaseOrder,
   PurchaseOrderStatus,
@@ -26,7 +26,14 @@ export const STAGE_REQUIREMENTS: Record<string, string[]> = {
   // Stage 2: Manufacturing
   MANUFACTURING: ['proformaInvoiceNumber', 'manufacturingStartDate'],
   // Stage 3: Ocean
-  OCEAN: ['houseBillOfLading', 'commercialInvoiceNumber', 'packingListRef', 'vesselName', 'portOfLoading', 'portOfDischarge'],
+  OCEAN: [
+    'houseBillOfLading',
+    'commercialInvoiceNumber',
+    'packingListRef',
+    'vesselName',
+    'portOfLoading',
+    'portOfDischarge',
+  ],
   // Stage 4: Warehouse - now requires selecting the warehouse
   WAREHOUSE: ['warehouseCode', 'customsEntryNumber', 'customsClearedDate', 'receivedDate'],
   // Stage 5: Shipped
@@ -146,9 +153,7 @@ export function isValidTransition(
 /**
  * Get valid next stages from current status
  */
-export function getValidNextStages(
-  currentStatus: PurchaseOrderStatus
-): PurchaseOrderStatus[] {
+export function getValidNextStages(currentStatus: PurchaseOrderStatus): PurchaseOrderStatus[] {
   return VALID_TRANSITIONS[currentStatus] ?? []
 }
 
@@ -234,10 +239,11 @@ export async function createPurchaseOrder(
   },
   user: UserContext
 ): Promise<PurchaseOrder & { lines: any[] }> {
+  const tenant = await getCurrentTenant()
   const prisma = await getTenantPrisma()
 
   if (input.lines && input.lines.length > 0) {
-    const normalizedLines = input.lines.map((line) => ({
+    const normalizedLines = input.lines.map(line => ({
       ...line,
       skuCode: line.skuCode.trim(),
       batchLot: line.batchLot.trim(),
@@ -254,17 +260,19 @@ export async function createPurchaseOrder(
 
       const key = `${line.skuCode}::${line.batchLot}`
       if (keySet.has(key)) {
-        throw new ValidationError(`Duplicate SKU/Batch line detected: ${line.skuCode} / ${line.batchLot}`)
+        throw new ValidationError(
+          `Duplicate SKU/Batch line detected: ${line.skuCode} / ${line.batchLot}`
+        )
       }
       keySet.add(key)
     }
 
-    const skuCodes = Array.from(new Set(normalizedLines.map((line) => line.skuCode)))
+    const skuCodes = Array.from(new Set(normalizedLines.map(line => line.skuCode)))
     const skus = await prisma.sku.findMany({
       where: { skuCode: { in: skuCodes } },
       select: { id: true, skuCode: true },
     })
-    const skuByCode = new Map(skus.map((sku) => [sku.skuCode, sku]))
+    const skuByCode = new Map(skus.map(sku => [sku.skuCode, sku]))
 
     for (const line of normalizedLines) {
       if (!skuByCode.has(line.skuCode)) {
@@ -272,8 +280,8 @@ export async function createPurchaseOrder(
       }
     }
 
-    const batchCodes = Array.from(new Set(normalizedLines.map((line) => line.batchLot)))
-    const skuIds = skus.map((sku) => sku.id)
+    const batchCodes = Array.from(new Set(normalizedLines.map(line => line.batchLot)))
+    const skuIds = skus.map(sku => sku.id)
     const batches = await prisma.skuBatch.findMany({
       where: {
         skuId: { in: skuIds },
@@ -282,7 +290,7 @@ export async function createPurchaseOrder(
       },
       select: { skuId: true, batchCode: true },
     })
-    const batchKeySet = new Set(batches.map((batch) => `${batch.skuId}::${batch.batchCode}`))
+    const batchKeySet = new Set(batches.map(batch => `${batch.skuId}::${batch.batchCode}`))
 
     for (const line of normalizedLines) {
       const sku = skuByCode.get(line.skuCode)
@@ -321,13 +329,13 @@ export async function createPurchaseOrder(
           lines:
             input.lines && input.lines.length > 0
               ? {
-                  create: input.lines.map((line) => ({
+                  create: input.lines.map(line => ({
                     skuCode: line.skuCode,
                     skuDescription: line.skuDescription || '',
                     batchLot: line.batchLot,
                     quantity: line.quantity,
                     unitCost: line.unitCost,
-                    currency: line.currency || 'USD',
+                    currency: line.currency || tenant.currency,
                     lineNotes: line.notes,
                     status: 'PENDING',
                   })),
@@ -405,11 +413,7 @@ export async function transitionPurchaseOrderStage(
       throw new ValidationError(`You don't have permission to cancel purchase orders`)
     }
   } else {
-    const canApprove = await canApproveStageTransition(
-      user.id,
-      currentStatus,
-      targetStatus
-    )
+    const canApprove = await canApproveStageTransition(user.id, currentStatus, targetStatus)
 
     if (!canApprove && !isSuperAdmin(user.email)) {
       throw new ValidationError(
@@ -911,7 +915,12 @@ function serializeStageData(data: ReturnType<typeof getStageData>): Record<strin
 /**
  * Serialize a PurchaseOrder for API responses
  */
-export function serializePurchaseOrder(order: PurchaseOrder & { lines?: any[] }): Record<string, any> {
+export function serializePurchaseOrder(
+  order: PurchaseOrder & { lines?: any[] },
+  options?: { defaultCurrency?: string }
+): Record<string, any> {
+  const defaultCurrency = options?.defaultCurrency ?? 'USD'
+
   return {
     id: order.id,
     orderNumber: toPublicOrderNumber(order.orderNumber),
@@ -940,14 +949,14 @@ export function serializePurchaseOrder(order: PurchaseOrder & { lines?: any[] })
     createdByName: order.createdByName,
 
     // Lines if included
-    lines: order.lines?.map((line) => ({
+    lines: order.lines?.map(line => ({
       id: line.id,
       skuCode: line.skuCode,
       skuDescription: line.skuDescription,
       batchLot: line.batchLot,
       quantity: line.quantity,
       unitCost: line.unitCost ? Number(line.unitCost) : null,
-      currency: line.currency || 'USD',
+      currency: line.currency || defaultCurrency,
       status: line.status,
       postedQuantity: line.postedQuantity,
       quantityReceived: line.quantityReceived,

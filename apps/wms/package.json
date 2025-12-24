@@ -32,6 +32,7 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:tenant-schema": "tsx scripts/migrations/ensure-wms-tenant-schema.ts",
     "db:migrate:sku-dimensions": "tsx scripts/migrations/add-sku-dimension-columns.ts",
+    "db:migrate:sku-batch-attributes": "tsx scripts/migrations/add-sku-batch-attribute-columns.ts",
     "db:studio": "prisma studio",
     "demo": "tsx scripts/demo.ts",
     "demo:headed": "tsx scripts/demo.ts --headed",
@@ -48,6 +49,7 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "calculate:storage:weekly": "tsx scripts/production/weekly-storage-calculation.ts",
     "po:cleanup-legacy": "tsx scripts/maintenance/cleanup-legacy-purchase-orders.ts",
+    "warehouses:normalize-uk": "tsx scripts/maintenance/normalize-uk-warehouses.ts",
     "migrate:files-to-s3": "tsx scripts/migrations/archive/migrate-files-to-s3.ts",
     "migrate:files-to-s3:dry-run": "tsx scripts/migrations/archive/migrate-files-to-s3.ts --dry-run"
   },
