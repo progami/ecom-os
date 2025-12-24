@@ -235,7 +235,7 @@ export function CustomOpsCostGrid({
     setEditValue('')
   }
 
-  const commitEdit = useCallback(() => {
+  const commitEdit = useCallback((overrideValue?: string) => {
     if (!editingCell) return
 
     const { rowId, colKey } = editingCell
@@ -251,7 +251,7 @@ export function CustomOpsCostGrid({
       return
     }
 
-    let finalValue = editValue
+    let finalValue = overrideValue ?? editValue
 
     // Validate and normalize based on column type
     if (column.type === 'numeric') {
@@ -462,9 +462,10 @@ export function CustomOpsCostGrid({
   }
 
   const handleSelectChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setEditValue(e.target.value)
-    // Auto-commit on select change
-    setTimeout(() => commitEdit(), 0)
+    const nextValue = e.target.value
+    setEditValue(nextValue)
+    // Commit with the selected value (avoid stale `editValue` closures)
+    commitEdit(nextValue)
   }
 
   const formatDisplayValue = (row: OpsBatchRow, column: ColumnDef): string => {
