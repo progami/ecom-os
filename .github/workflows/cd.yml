@@ -125,6 +125,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          fetch-tags: true
 
       - name: Compute build metadata
         id: meta
@@ -135,8 +136,11 @@ jobs:
           build_time="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
           commit_sha="$(git rev-parse --short=8 HEAD)"
 
-          exact_tag="$(git describe --tags --exact-match --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || true)"
-          base_tag="$(git describe --tags --abbrev=0 --match 'v[0-9]*.[0-9]*.[0-9]*' 2>/dev/null || true)"
+          # NOTE:
+          # - `git describe` picks the *nearest* tag by commit distance, not the highest semver tag.
+          # - We want a monotonically increasing version on `main`, even when tags are not on the first-parent path.
+          exact_tag="$(git tag --points-at HEAD | grep -E '^v[0-9]+\\.[0-9]+\\.[0-9]+$' | head -n 1 || true)"
+          base_tag="$(git tag -l --sort=-v:refname | grep -E '^v[0-9]+\\.[0-9]+\\.[0-9]+$' | head -n 1 || true)"
           create_release="false"
 
           if [[ -n "$exact_tag" ]]; then
@@ -144,8 +148,14 @@ jobs:
             tag="$exact_tag"
           elif [[ "${GITHUB_REF_NAME}" == "main" ]]; then
             if [[ -n "$base_tag" ]]; then
-              range="${base_tag}..HEAD"
               base_version="${base_tag#v}"
+              if git merge-base --is-ancestor "$base_tag" HEAD; then
+                range="${base_tag}..HEAD"
+              else
+                base_sha="$(git rev-list -n 1 "$base_tag")"
+                merge_base="$(git merge-base "$base_sha" HEAD)"
+                range="${merge_base}..HEAD"
+              fi
             else
               range="HEAD"
               base_version="0.0.0"
@@ -160,6 +170,11 @@ jobs:
               bump="minor"
             elif echo "$commit_messages" | grep -qE '^fix(\\(.+\\))?:'; then
               bump="patch"
+            fi
+
+            if ! [[ "$base_version" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then
+              echo "::warning::Latest semver tag '$base_tag' is not strict semver; defaulting base_version to 0.0.0"
+              base_version="0.0.0"
             fi
 
             IFS='.' read -r major minor patch <<< "$base_version"
@@ -184,6 +199,14 @@ jobs:
 
             version="${major}.${minor}.${patch}"
             tag="v${version}"
+
+            # Ensure we never reuse an existing tag (e.g., if older tags are off the mainline history).
+            while git show-ref --tags --verify --quiet "refs/tags/${tag}"; do
+              patch=$((patch + 1))
+              version="${major}.${minor}.${patch}"
+              tag="v${version}"
+            done
+
             create_release="true"
           else
             if [[ -n "$base_tag" ]]; then
