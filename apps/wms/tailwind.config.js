@@ -17,6 +17,9 @@ module.exports = {
       },
     },
     extend: {
+      gridTemplateColumns: {
+        '14': 'repeat(14, minmax(0, 1fr))',
+      },
       fontFamily: {
         sans: ["Inter", "var(--font-sans)", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "Monaco", "Consolas", "monospace"],
