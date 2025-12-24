@@ -5,14 +5,45 @@ import { ZodError, ZodSchema } from 'zod'
 // For production, use Redis-based solution
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
 
-const RATE_LIMIT_WINDOW_MS = 60 * 1000 // 1 minute
-const RATE_LIMIT_MAX_REQUESTS = 100 // 100 requests per minute
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  if (!value) return fallback
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback
+  return parsed
+}
+
+const RATE_LIMIT_WINDOW_MS = parsePositiveInt(process.env.HRMS_RATE_LIMIT_WINDOW_MS, 60 * 1000) // 1 minute
+// Defaults intentionally generous to avoid blocking normal UI navigation/polling.
+const RATE_LIMIT_MAX_REQUESTS = parsePositiveInt(process.env.HRMS_RATE_LIMIT_MAX_REQUESTS, 1000) // 1000 requests/minute
+
+function stableHash(input: string): string {
+  // Fast, non-crypto hash (djb2) – good enough for in-memory rate-limit keys.
+  let hash = 5381
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash * 33) ^ input.charCodeAt(i)
+  }
+  return (hash >>> 0).toString(16)
+}
 
 export function getRateLimitKey(request: Request): string {
-  // Use X-Forwarded-For header or fall back to a default
-  const forwarded = request.headers.get('x-forwarded-for')
-  const ip = forwarded?.split(',')[0]?.trim() || 'unknown'
-  return ip
+  const headers = request.headers
+
+  const forwardedFor = headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+  const ipCandidate = (
+    headers.get('cf-connecting-ip') ||
+    headers.get('x-real-ip') ||
+    headers.get('x-client-ip') ||
+    forwardedFor
+  )?.trim()
+
+  // If IPs are missing/flattened by the proxy, fall back to a per-session identifier.
+  const cookie = headers.get('cookie') ?? ''
+  const userAgent = headers.get('user-agent') ?? ''
+  const identitySource = cookie || userAgent || 'anonymous'
+  const identityHash = stableHash(identitySource)
+
+  const ipPart = ipCandidate ? `ip:${ipCandidate}` : 'ip:unknown'
+  return `${ipPart}|id:${identityHash}`
 }
 
 export function checkRateLimit(key: string): { allowed: boolean; remaining: number; resetIn: number } {
