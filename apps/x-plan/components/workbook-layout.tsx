@@ -7,15 +7,12 @@ import type { YearSegment } from '@/lib/calculations/calendar'
 import type { WorkbookSheetStatus } from '@/lib/workbook'
 import { usePersistentScroll } from '@/hooks/usePersistentScroll'
 import { usePersistentState } from '@/hooks/usePersistentState'
-import { clsx } from 'clsx'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight, FileText } from 'lucide-react'
 import {
-  SHEET_TOOLBAR_BUTTON,
-  SHEET_TOOLBAR_CONTAINER,
   SHEET_TOOLBAR_GROUP,
-  SHEET_TOOLBAR_ICON_BUTTON,
   SHEET_TOOLBAR_LABEL,
+  SHEET_TOOLBAR_SELECT,
 } from '@/components/sheet-toolbar'
 import { ThemeToggle } from '@/components/theme-toggle'
 
@@ -157,62 +154,50 @@ export function WorkbookLayout({ sheets, activeSlug, planningYears, activeYear, 
 
   const isYearAwareSheet = YEAR_AWARE_SHEETS.has(activeSlug)
 
-  const yearSwitcher = useMemo(() => {
-    if (!sortedYears.length || !isYearAwareSheet) return null
-    const previous = activeYearIndex > 0 ? sortedYears[activeYearIndex - 1] : null
-    const next =
-      activeYearIndex >= 0 && activeYearIndex < sortedYears.length - 1 ? sortedYears[activeYearIndex + 1] : null
-
-    return (
-      <div className={`${SHEET_TOOLBAR_GROUP} gap-2`}>
-        <span className="text-xs font-semibold uppercase tracking-[0.1em] text-cyan-700 dark:text-cyan-300/90">Year</span>
-        <button
-          type="button"
-          onClick={() => goToAdjacentYear(-1)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
-          aria-label="Previous year"
-          disabled={!previous || isPending}
-        >
-          <ChevronLeft aria-hidden className="h-4 w-4" />
-        </button>
-        <div className="flex items-center gap-2">
-          {sortedYears.map((segment) => {
-            const isActiveYear = resolvedYear === segment.year
-            return (
-              <button
-                key={segment.year}
-                type="button"
-                onClick={() => handleYearSelect(segment.year)}
-                className={clsx(
-                  'rounded-lg px-3 py-1.5 text-xs font-bold transition-all',
-                  isActiveYear
-                    ? 'border border-cyan-600 bg-cyan-600/20 text-slate-900 shadow-md dark:border-[#00C2B9] dark:bg-[#00C2B9]/30 dark:text-white dark:shadow-[0_18px_40px_rgba(0,194,185,0.3)]'
-                    : 'border border-slate-300 bg-white text-slate-600 hover:border-cyan-500 hover:bg-slate-50 hover:text-slate-900 dark:border-[#6F7B8B]/50 dark:bg-[#002C51]/70 dark:text-[#6F7B8B] dark:hover:border-[#00C2B9]/70 dark:hover:bg-[#002C51] dark:hover:text-white'
-                )}
-                aria-pressed={isActiveYear}
-                disabled={isPending && isActiveYear}
-              >
-                <span>{segment.year}</span>
-                <span className={clsx(
-                  "ml-2 text-xs font-semibold",
-                  isActiveYear ? "text-cyan-700 dark:text-[#00C2B9]/90" : "text-slate-500 dark:text-[#6F7B8B]/70"
-                )}>{segment.weekCount}w</span>
-              </button>
-            )
-          })}
-        </div>
-        <button
-          type="button"
-          onClick={() => goToAdjacentYear(1)}
-          className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
-          aria-label="Next year"
-          disabled={!next || isPending}
-        >
-          <ChevronRight aria-hidden className="h-4 w-4" />
-        </button>
-      </div>
-    )
-  }, [activeYearIndex, goToAdjacentYear, handleYearSelect, isPending, isYearAwareSheet, resolvedYear, sortedYears])
+	  const yearSwitcher = useMemo(() => {
+	    if (!sortedYears.length || !isYearAwareSheet || resolvedYear == null) return null
+	    const previous = activeYearIndex > 0 ? sortedYears[activeYearIndex - 1] : null
+	    const next =
+	      activeYearIndex >= 0 && activeYearIndex < sortedYears.length - 1 ? sortedYears[activeYearIndex + 1] : null
+	
+	    return (
+	      <div className={`${SHEET_TOOLBAR_GROUP} gap-2`}>
+	        <span className={SHEET_TOOLBAR_LABEL}>Year</span>
+	        <button
+	          type="button"
+	          onClick={() => goToAdjacentYear(-1)}
+	          className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
+	          aria-label="Previous year"
+	          disabled={!previous || isPending}
+	        >
+	          <ChevronLeft aria-hidden className="h-4 w-4" />
+	        </button>
+	        <select
+	          className={`${SHEET_TOOLBAR_SELECT} min-w-[7rem]`}
+	          value={String(resolvedYear)}
+	          onChange={(event) => handleYearSelect(Number(event.target.value))}
+	          disabled={isPending}
+	          aria-label="Select year"
+	        >
+	          {sortedYears.map((segment) => (
+	            <option key={segment.year} value={segment.year}>
+	              {segment.year}
+	              {segment.weekCount > 0 ? ` (${segment.weekCount}w)` : ''}
+	            </option>
+	          ))}
+	        </select>
+	        <button
+	          type="button"
+	          onClick={() => goToAdjacentYear(1)}
+	          className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 disabled:opacity-40 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
+	          aria-label="Next year"
+	          disabled={!next || isPending}
+	        >
+	          <ChevronRight aria-hidden className="h-4 w-4" />
+	        </button>
+	      </div>
+	    )
+	  }, [activeYearIndex, goToAdjacentYear, handleYearSelect, isPending, isYearAwareSheet, resolvedYear, sortedYears])
 
   const hasControls = Boolean(yearSwitcher || headerControls)
 
