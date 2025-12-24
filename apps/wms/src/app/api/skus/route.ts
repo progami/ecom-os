@@ -1,6 +1,6 @@
 import { withAuth, withRole, ApiResponses, z } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma, type Sku } from '@ecom-os/prisma-wms'
+import { Prisma, type Sku, type SkuBatch } from '@ecom-os/prisma-wms'
 import {
   sanitizeForDisplay,
   sanitizeSearchQuery,
@@ -9,7 +9,7 @@ import {
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 export const dynamic = 'force-dynamic'
 
-type SkuWithCounts = Sku & { _count: { inventoryTransactions: number } }
+type SkuWithCounts = Sku & { batches: SkuBatch[]; _count: { inventoryTransactions: number } }
 type DeleteSkuResponse = { message: string } | { message: string; sku: Sku }
 
 // Validation schemas with sanitization
@@ -186,6 +186,12 @@ export const GET = withAuth(async (request, _session) => {
   const skus = await prisma.sku.findMany({
     where,
     orderBy: { skuCode: 'asc' },
+    include: {
+      batches: {
+        where: { isActive: true },
+        orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
+      },
+    },
   })
 
   // Get transaction counts for all SKUs in a single query
@@ -328,6 +334,20 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
       data: normalizedBatchCodes.map(batchCode => ({
         skuId: record.id,
         batchCode,
+        packSize: validatedData.packSize,
+        unitsPerCarton: validatedData.unitsPerCarton,
+        material: validatedData.material ?? null,
+        unitDimensionsCm: unitTriplet ? formatDimensionTripletCm(unitTriplet) : null,
+        unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
+        unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
+        unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
+        unitWeightKg: validatedData.unitWeightKg ?? null,
+        cartonDimensionsCm: cartonTriplet ? formatDimensionTripletCm(cartonTriplet) : null,
+        cartonLengthCm: cartonTriplet ? cartonTriplet.lengthCm : null,
+        cartonWidthCm: cartonTriplet ? cartonTriplet.widthCm : null,
+        cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
+        cartonWeightKg: validatedData.cartonWeightKg ?? null,
+        packagingType: validatedData.packagingType ?? null,
         isActive: true,
       })),
     })

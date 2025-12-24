@@ -6,9 +6,6 @@ import { useState, useEffect, useRef } from 'react'
 // Third-party libraries
 import { toast } from 'react-hot-toast'
 
-// Components
-import { CreateSkuBatchModal } from './create-sku-batch-modal'
-
 // Icons
 import { Package2, Loader2, AlertCircle, Plus, Trash2 } from '@/lib/lucide-icons'
 
@@ -17,25 +14,6 @@ interface Sku {
   skuCode: string
   description: string
   unitsPerCarton: number
-}
-
-interface SkuBatchData {
-  // SKU Master Data
-  skuCode: string
-  description: string
-  asin?: string
-  packSize: number
-  material?: string
-  unitDimensionsCm?: string
-  unitWeightKg?: number
-  unitsPerCarton: number
-  cartonDimensionsCm?: string
-  cartonWeightKg?: number
-  packagingType?: string
-
-  // Batch Data
-  batchCode: string
-  batchDescription?: string
 }
 
 interface LineItem {
@@ -51,10 +29,6 @@ interface LineItem {
   shippingCartonsPerPallet: number
   configLoaded: boolean
   loadingBatch: boolean
-
-  // New fields for SKU+Batch creation
-  isNewSku?: boolean
-  skuData?: SkuBatchData
 }
 
 interface BatchOption {
@@ -63,6 +37,7 @@ interface BatchOption {
   description: string | null
   productionDate: string | null
   expiryDate: string | null
+  unitsPerCarton: number | null
   storageCartonsPerPallet: number | null
   shippingCartonsPerPallet: number | null
   isActive: boolean
@@ -95,10 +70,6 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
 
   const [items, setItems] = useState<LineItem[]>(() => [createEmptyItem()])
   const [batchesBySku, setBatchesBySku] = useState<Record<string, BatchOption[]>>({})
-
-  // Modal state
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [currentEditingItemId, setCurrentEditingItemId] = useState<string | null>(null)
 
   const addNewItem = () => {
     setItems(prev => [...prev, createEmptyItem()])
@@ -154,8 +125,8 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
               ...item,
               skuId: sku.id,
               skuCode: sku.skuCode,
-              unitsPerCarton: sku.unitsPerCarton || 0,
-              units: (item.cartons || 0) * (sku.unitsPerCarton || 0),
+              unitsPerCarton: 0,
+              units: 0,
               batchLot: '',
               storageCartonsPerPallet: 0,
               shippingCartonsPerPallet: 0,
@@ -176,7 +147,7 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
 
         const defaultBatch = batches.length === 1 ? batches[0] : null
         const cartons = item.cartons || 0
-        const unitsPerCarton = sku.unitsPerCarton || item.unitsPerCarton || 0
+        const unitsPerCarton = defaultBatch?.unitsPerCarton ?? 0
         const storageCartonsPerPallet = defaultBatch?.storageCartonsPerPallet ?? 0
         const shippingCartonsPerPallet = defaultBatch?.shippingCartonsPerPallet ?? 0
 
@@ -201,36 +172,10 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
     )
 
     if (batches.length === 0) {
-      toast.error(`No batches configured for ${sku.skuCode}. Create one in Config → Products → SKUs → Batches.`)
+      toast.error(
+        `No batches configured for ${sku.skuCode}. Create one in Config → Products → SKUs → Batches.`
+      )
     }
-  }
-
-  const handleCreateNewSkuBatch = (itemId: string) => {
-    setCurrentEditingItemId(itemId)
-    setIsModalOpen(true)
-  }
-
-  const handleSkuBatchSave = (data: SkuBatchData) => {
-    if (!currentEditingItemId) return
-
-    setItems(prev =>
-      prev.map(item => {
-        if (item.id !== currentEditingItemId) return item
-
-        return {
-          ...item,
-          skuCode: data.skuCode,
-          batchLot: data.batchCode,
-          unitsPerCarton: data.unitsPerCarton,
-          units: item.cartons * data.unitsPerCarton,
-          isNewSku: true,
-          skuData: data,
-          configLoaded: false,
-        }
-      })
-    )
-
-    toast.success('SKU + Batch will be created with this receive transaction')
   }
 
   const updateItem = async (id: string, field: keyof LineItem, value: string | number | null) => {
@@ -266,12 +211,15 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
           const selectedCode = String(value ?? '')
           const selected = options.find(batch => batch.batchCode === selectedCode)
 
+          const unitsPerCarton = selected?.unitsPerCarton ?? item.unitsPerCarton
           const storageCartonsPerPallet = selected?.storageCartonsPerPallet ?? 0
           const shippingCartonsPerPallet = selected?.shippingCartonsPerPallet ?? 0
 
           const next = {
             ...item,
             batchLot: selectedCode,
+            unitsPerCarton,
+            units: item.cartons * unitsPerCarton,
             storageCartonsPerPallet,
             shippingCartonsPerPallet,
             configLoaded: true,
@@ -357,35 +305,37 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
             <Package2 className="h-5 w-5" />
             Cargo Details
           </h3>
-          <p className="text-sm text-slate-600 mt-1">Add SKUs and batch information for receiving</p>
+          <p className="text-sm text-slate-600 mt-1">
+            Add SKUs and batch information for receiving
+          </p>
         </div>
 
-      <div className="p-6">
-        {!warehouseId ? (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <div className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
-              <p className="text-sm text-amber-800">
-                Please select a warehouse in the Details tab first to add inventory items.
-              </p>
+        <div className="p-6">
+          {!warehouseId ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                <p className="text-sm text-amber-800">
+                  Please select a warehouse in the Details tab first to add inventory items.
+                </p>
+              </div>
             </div>
-          </div>
-        ) : skusLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            <span className="ml-3 text-sm text-slate-600">Loading data...</span>
-          </div>
-        ) : (
+          ) : skusLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <span className="ml-3 text-sm text-slate-600">Loading data...</span>
+            </div>
+          ) : (
             <>
               <div className="overflow-auto">
                 <table className="min-w-[1100px] w-full divide-y divide-gray-200">
                   <thead className="bg-slate-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase whitespace-nowrap">
-                        SKU / Batch
+                        SKU
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase whitespace-nowrap">
-                        New Batch
+                        Batch/Lot
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase whitespace-nowrap">
                         Cartons
@@ -414,55 +364,26 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                     {items.map(item => (
                       <tr key={item.id}>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          {item.isNewSku ? (
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1">
-                                <div className="font-medium text-slate-900">{item.skuCode}</div>
-                                <div className="text-xs text-green-600">✓ New SKU+Batch</div>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => handleCreateNewSkuBatch(item.id)}
-                                className="text-xs text-primary hover:underline whitespace-nowrap"
-                                title="Edit SKU+Batch details"
-                              >
-                                Edit
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <select
-                                name={`sku-${item.id}`}
-                                value={item.skuCode}
-                                onChange={e => updateItem(item.id, 'skuCode', e.target.value)}
-                                className="flex-1 px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
-                                required
-                                disabled={skus.length === 0}
-                              >
-                                <option value="">
-                                  {skus.length === 0 ? 'No SKUs available' : 'Select SKU...'}
-                                </option>
-                                {(skus || []).map(sku => (
-                                  <option key={sku.id} value={sku.skuCode}>
-                                    {sku.skuCode}
-                                  </option>
-                                ))}
-                              </select>
-                              <button
-                                type="button"
-                                onClick={() => handleCreateNewSkuBatch(item.id)}
-                                className="text-xs text-primary hover:underline whitespace-nowrap"
-                                title="Create new SKU+Batch"
-                              >
-                                + New
-                              </button>
-                            </div>
-                          )}
+                          <select
+                            name={`sku-${item.id}`}
+                            value={item.skuCode}
+                            onChange={e => updateItem(item.id, 'skuCode', e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm focus:ring-2 focus:ring-primary focus:border-primary"
+                            required
+                            disabled={skus.length === 0}
+                          >
+                            <option value="">
+                              {skus.length === 0 ? 'No SKUs available' : 'Select SKU...'}
+                            </option>
+                            {(skus || []).map(sku => (
+                              <option key={sku.id} value={sku.skuCode}>
+                                {sku.skuCode}
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
-                          {item.isNewSku ? (
-                            <div className="text-sm font-medium text-slate-900">{item.batchLot || '—'}</div>
-                          ) : (() => {
+                          {(() => {
                             const options = item.skuId ? (batchesBySku[item.skuId] ?? []) : []
 
                             if (item.loadingBatch) {
@@ -639,7 +560,10 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
                   </tbody>
                   <tfoot className="bg-slate-50">
                     <tr>
-                      <td className="px-4 py-3 text-right font-semibold whitespace-nowrap" colSpan={2}>
+                      <td
+                        className="px-4 py-3 text-right font-semibold whitespace-nowrap"
+                        colSpan={2}
+                      >
                         Totals:
                       </td>
                       <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">
@@ -676,16 +600,6 @@ export function CargoTab({ warehouseId, skus = [], skusLoading, onItemsChange }:
           )}
         </div>
       </div>
-
-      {/* SKU+Batch Creation Modal */}
-      <CreateSkuBatchModal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false)
-          setCurrentEditingItemId(null)
-        }}
-        onSave={handleSkuBatchSave}
-      />
     </>
   )
 }

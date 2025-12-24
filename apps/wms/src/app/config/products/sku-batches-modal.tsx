@@ -10,6 +10,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { Boxes, Edit2, Loader2, Plus, RefreshCw, X } from '@/lib/lucide-icons'
+import { cn } from '@/lib/utils'
+import { coerceFiniteNumber, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 
 interface SkuSummary {
   id: string
@@ -23,6 +25,20 @@ interface BatchRow {
   description: string | null
   productionDate: string | null
   expiryDate: string | null
+  packSize: number | null
+  unitsPerCarton: number | null
+  material: string | null
+  packagingType: string | null
+  unitDimensionsCm: string | null
+  unitLengthCm: number | string | null
+  unitWidthCm: number | string | null
+  unitHeightCm: number | string | null
+  unitWeightKg: number | string | null
+  cartonDimensionsCm: string | null
+  cartonLengthCm: number | string | null
+  cartonWidthCm: number | string | null
+  cartonHeightCm: number | string | null
+  cartonWeightKg: number | string | null
   storageCartonsPerPallet: number | null
   shippingCartonsPerPallet: number | null
   isActive: boolean
@@ -35,17 +51,127 @@ interface BatchFormState {
   description: string
   productionDate: string
   expiryDate: string
+  packSize: string
+  unitsPerCarton: string
+  material: string
+  packagingType: string
+  unitLength: string
+  unitWidth: string
+  unitHeight: string
+  unitWeight: string
+  cartonLength: string
+  cartonWidth: string
+  cartonHeight: string
+  cartonWeight: string
   storageCartonsPerPallet: string
   shippingCartonsPerPallet: string
   isActive: boolean
 }
 
-function buildBatchFormState(batch?: BatchRow | null): BatchFormState {
+type UnitSystem = 'metric' | 'imperial'
+
+type BatchMeasurementState = {
+  unitLengthCm: number | null
+  unitWidthCm: number | null
+  unitHeightCm: number | null
+  unitWeightKg: number | null
+  cartonLengthCm: number | null
+  cartonWidthCm: number | null
+  cartonHeightCm: number | null
+  cartonWeightKg: number | null
+}
+
+const UNIT_SYSTEM_STORAGE_KEY = 'wms:unit-system'
+const CM_PER_INCH = 2.54
+const LB_PER_KG = 2.2046226218
+
+function stripTrailingZeros(value: string): string {
+  return value.includes('.') ? value.replace(/\.?0+$/, '') : value
+}
+
+function formatNumber(value: number, decimals: number): string {
+  return stripTrailingZeros(value.toFixed(decimals))
+}
+
+function buildMeasurementState(batch?: BatchRow | null): BatchMeasurementState {
+  const unitTriplet = resolveDimensionTripletCm({
+    lengthCm: batch?.unitLengthCm,
+    widthCm: batch?.unitWidthCm,
+    heightCm: batch?.unitHeightCm,
+    legacy: batch?.unitDimensionsCm,
+  })
+  const cartonTriplet = resolveDimensionTripletCm({
+    lengthCm: batch?.cartonLengthCm,
+    widthCm: batch?.cartonWidthCm,
+    heightCm: batch?.cartonHeightCm,
+    legacy: batch?.cartonDimensionsCm,
+  })
+
+  return {
+    unitLengthCm: unitTriplet?.lengthCm ?? null,
+    unitWidthCm: unitTriplet?.widthCm ?? null,
+    unitHeightCm: unitTriplet?.heightCm ?? null,
+    unitWeightKg: coerceFiniteNumber(batch?.unitWeightKg),
+    cartonLengthCm: cartonTriplet?.lengthCm ?? null,
+    cartonWidthCm: cartonTriplet?.widthCm ?? null,
+    cartonHeightCm: cartonTriplet?.heightCm ?? null,
+    cartonWeightKg: coerceFiniteNumber(batch?.cartonWeightKg),
+  }
+}
+
+function formatDimensionFromCm(valueCm: number | null, unitSystem: UnitSystem): string {
+  if (valueCm === null) return ''
+  const resolved = unitSystem === 'imperial' ? valueCm / CM_PER_INCH : valueCm
+  return formatNumber(resolved, 2)
+}
+
+function formatWeightFromKg(valueKg: number | null, unitSystem: UnitSystem): string {
+  if (valueKg === null) return ''
+  const resolved = unitSystem === 'imperial' ? valueKg * LB_PER_KG : valueKg
+  return formatNumber(resolved, 3)
+}
+
+function formatMeasurementFields(
+  measurements: BatchMeasurementState,
+  unitSystem: UnitSystem
+): Pick<
+  BatchFormState,
+  | 'unitLength'
+  | 'unitWidth'
+  | 'unitHeight'
+  | 'unitWeight'
+  | 'cartonLength'
+  | 'cartonWidth'
+  | 'cartonHeight'
+  | 'cartonWeight'
+> {
+  return {
+    unitLength: formatDimensionFromCm(measurements.unitLengthCm, unitSystem),
+    unitWidth: formatDimensionFromCm(measurements.unitWidthCm, unitSystem),
+    unitHeight: formatDimensionFromCm(measurements.unitHeightCm, unitSystem),
+    unitWeight: formatWeightFromKg(measurements.unitWeightKg, unitSystem),
+    cartonLength: formatDimensionFromCm(measurements.cartonLengthCm, unitSystem),
+    cartonWidth: formatDimensionFromCm(measurements.cartonWidthCm, unitSystem),
+    cartonHeight: formatDimensionFromCm(measurements.cartonHeightCm, unitSystem),
+    cartonWeight: formatWeightFromKg(measurements.cartonWeightKg, unitSystem),
+  }
+}
+
+function buildBatchFormState(
+  batch: BatchRow | null | undefined,
+  unitSystem: UnitSystem,
+  measurements: BatchMeasurementState
+): BatchFormState {
   return {
     batchCode: batch?.batchCode ?? '',
     description: batch?.description ?? '',
     productionDate: batch?.productionDate ? batch.productionDate.slice(0, 10) : '',
     expiryDate: batch?.expiryDate ? batch.expiryDate.slice(0, 10) : '',
+    packSize: batch?.packSize?.toString() ?? '1',
+    unitsPerCarton: batch?.unitsPerCarton?.toString() ?? '1',
+    material: batch?.material ?? '',
+    packagingType: batch?.packagingType ?? '',
+    ...formatMeasurementFields(measurements, unitSystem),
     storageCartonsPerPallet: batch?.storageCartonsPerPallet?.toString() ?? '',
     shippingCartonsPerPallet: batch?.shippingCartonsPerPallet?.toString() ?? '',
     isActive: batch?.isActive ?? true,
@@ -60,6 +186,14 @@ function parsePositiveInt(value: string): number | null {
   return parsed
 }
 
+function parsePositiveNumber(value: string): number | null {
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const parsed = Number(trimmed)
+  if (!Number.isFinite(parsed) || parsed <= 0) return null
+  return parsed
+}
+
 function formatDate(value: string | null): string {
   if (!value) return '—'
   const date = new Date(value)
@@ -69,10 +203,12 @@ function formatDate(value: string | null): string {
 export function SkuBatchesModal({
   isOpen,
   onClose,
+  onBatchesUpdated,
   sku,
 }: {
   isOpen: boolean
   onClose: () => void
+  onBatchesUpdated?: () => void
   sku: SkuSummary | null
 }) {
   const [includeInactive, setIncludeInactive] = useState(false)
@@ -80,12 +216,51 @@ export function SkuBatchesModal({
   const [batches, setBatches] = useState<BatchRow[]>([])
   const [loading, setLoading] = useState(false)
 
+  const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric')
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingBatch, setEditingBatch] = useState<BatchRow | null>(null)
-  const [formState, setFormState] = useState<BatchFormState>(() => buildBatchFormState())
+  const [measurements, setMeasurements] = useState<BatchMeasurementState>(() =>
+    buildMeasurementState(null)
+  )
+  const [formState, setFormState] = useState<BatchFormState>(() =>
+    buildBatchFormState(null, 'metric', buildMeasurementState(null))
+  )
 
   const [confirmDeactivate, setConfirmDeactivate] = useState<BatchRow | null>(null)
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(UNIT_SYSTEM_STORAGE_KEY)
+      if (saved === 'metric' || saved === 'imperial') {
+        setUnitSystem(saved)
+      }
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  const applyUnitSystem = useCallback(
+    (nextSystem: UnitSystem) => {
+      setUnitSystem(prevSystem => {
+        if (prevSystem === nextSystem) return prevSystem
+        try {
+          window.localStorage.setItem(UNIT_SYSTEM_STORAGE_KEY, nextSystem)
+        } catch {
+          // ignore
+        }
+        return nextSystem
+      })
+
+      if (isFormOpen) {
+        setFormState(prev => ({
+          ...prev,
+          ...formatMeasurementFields(measurements, nextSystem),
+        }))
+      }
+    },
+    [isFormOpen, measurements]
+  )
 
   const filteredBatches = useMemo(() => {
     const term = batchSearch.trim().toLowerCase()
@@ -138,22 +313,78 @@ export function SkuBatchesModal({
   }, [includeInactive])
 
   const openCreate = () => {
+    const nextMeasurements = buildMeasurementState(null)
     setEditingBatch(null)
-    setFormState(buildBatchFormState())
+    setMeasurements(nextMeasurements)
+    setFormState(buildBatchFormState(null, unitSystem, nextMeasurements))
     setIsFormOpen(true)
   }
 
   const openEdit = (batch: BatchRow) => {
+    const nextMeasurements = buildMeasurementState(batch)
     setEditingBatch(batch)
-    setFormState(buildBatchFormState(batch))
+    setMeasurements(nextMeasurements)
+    setFormState(buildBatchFormState(batch, unitSystem, nextMeasurements))
     setIsFormOpen(true)
   }
 
   const closeForm = () => {
     if (isSubmitting) return
+    const nextMeasurements = buildMeasurementState(null)
     setIsFormOpen(false)
     setEditingBatch(null)
-    setFormState(buildBatchFormState())
+    setMeasurements(nextMeasurements)
+    setFormState(buildBatchFormState(null, unitSystem, nextMeasurements))
+  }
+
+  type DimensionFieldKey =
+    | 'unitLength'
+    | 'unitWidth'
+    | 'unitHeight'
+    | 'cartonLength'
+    | 'cartonWidth'
+    | 'cartonHeight'
+
+  type WeightFieldKey = 'unitWeight' | 'cartonWeight'
+
+  const dimensionFieldToMeasurementKey: Record<DimensionFieldKey, keyof BatchMeasurementState> = {
+    unitLength: 'unitLengthCm',
+    unitWidth: 'unitWidthCm',
+    unitHeight: 'unitHeightCm',
+    cartonLength: 'cartonLengthCm',
+    cartonWidth: 'cartonWidthCm',
+    cartonHeight: 'cartonHeightCm',
+  }
+
+  const weightFieldToMeasurementKey: Record<WeightFieldKey, keyof BatchMeasurementState> = {
+    unitWeight: 'unitWeightKg',
+    cartonWeight: 'cartonWeightKg',
+  }
+
+  const handleDimensionChange = (field: DimensionFieldKey, raw: string) => {
+    setFormState(prev => ({ ...prev, [field]: raw }))
+    const trimmed = raw.trim()
+    if (!trimmed) {
+      setMeasurements(prev => ({ ...prev, [dimensionFieldToMeasurementKey[field]]: null }))
+      return
+    }
+    const parsed = Number(trimmed)
+    if (!Number.isFinite(parsed)) return
+    const resolved = unitSystem === 'imperial' ? parsed * CM_PER_INCH : parsed
+    setMeasurements(prev => ({ ...prev, [dimensionFieldToMeasurementKey[field]]: resolved }))
+  }
+
+  const handleWeightChange = (field: WeightFieldKey, raw: string) => {
+    setFormState(prev => ({ ...prev, [field]: raw }))
+    const trimmed = raw.trim()
+    if (!trimmed) {
+      setMeasurements(prev => ({ ...prev, [weightFieldToMeasurementKey[field]]: null }))
+      return
+    }
+    const parsed = Number(trimmed)
+    if (!Number.isFinite(parsed)) return
+    const resolved = unitSystem === 'imperial' ? parsed / LB_PER_KG : parsed
+    setMeasurements(prev => ({ ...prev, [weightFieldToMeasurementKey[field]]: resolved }))
   }
 
   const submitBatch = async (event: React.FormEvent) => {
@@ -166,16 +397,99 @@ export function SkuBatchesModal({
       return
     }
 
+    const packSize = parsePositiveInt(formState.packSize)
+    if (!packSize) {
+      toast.error('Pack size must be a positive integer')
+      return
+    }
+
+    const unitsPerCarton = parsePositiveInt(formState.unitsPerCarton)
+    if (!unitsPerCarton) {
+      toast.error('Units per carton must be a positive integer')
+      return
+    }
+
+    const unitWeightProvided = Boolean(formState.unitWeight.trim())
+    if (unitWeightProvided && !parsePositiveNumber(formState.unitWeight)) {
+      toast.error('Unit weight must be a positive number')
+      return
+    }
+
+    const cartonWeightProvided = Boolean(formState.cartonWeight.trim())
+    if (cartonWeightProvided && !parsePositiveNumber(formState.cartonWeight)) {
+      toast.error('Carton weight must be a positive number')
+      return
+    }
+
+    const validateDimensions = (
+      dims: { length: string; width: string; height: string },
+      label: string
+    ) => {
+      const parts = [dims.length.trim(), dims.width.trim(), dims.height.trim()]
+      const any = parts.some(Boolean)
+      if (!any) return true
+      const all = parts.every(Boolean)
+      if (!all) {
+        toast.error(`${label} dimensions require L, W, and H`)
+        return false
+      }
+      if (parts.some(part => parsePositiveNumber(part) === null)) {
+        toast.error(`${label} dimensions must be positive numbers`)
+        return false
+      }
+      return true
+    }
+
+    if (
+      !validateDimensions(
+        { length: formState.unitLength, width: formState.unitWidth, height: formState.unitHeight },
+        'Unit'
+      )
+    ) {
+      return
+    }
+
+    if (
+      !validateDimensions(
+        {
+          length: formState.cartonLength,
+          width: formState.cartonWidth,
+          height: formState.cartonHeight,
+        },
+        'Carton'
+      )
+    ) {
+      return
+    }
+
     const storage = parsePositiveInt(formState.storageCartonsPerPallet)
     const shipping = parsePositiveInt(formState.shippingCartonsPerPallet)
 
     setIsSubmitting(true)
     try {
+      const roundDimensionCm = (value: number | null): number | null =>
+        value === null ? null : Number(value.toFixed(2))
+
+      const roundWeightKg = (value: number | null): number | null =>
+        value === null ? null : Number(value.toFixed(3))
+
       const payload = {
         batchCode: formState.batchCode.trim(),
         description: formState.description.trim() ? formState.description.trim() : null,
         productionDate: formState.productionDate ? formState.productionDate : null,
         expiryDate: formState.expiryDate ? formState.expiryDate : null,
+        packSize,
+        unitsPerCarton,
+        material: formState.material.trim() ? formState.material.trim() : null,
+        packagingType: formState.packagingType.trim() ? formState.packagingType.trim() : null,
+        unitLengthCm: roundDimensionCm(measurements.unitLengthCm),
+        unitWidthCm: roundDimensionCm(measurements.unitWidthCm),
+        unitHeightCm: roundDimensionCm(measurements.unitHeightCm),
+        unitWeightKg: roundWeightKg(measurements.unitWeightKg),
+        cartonLengthCm: roundDimensionCm(measurements.cartonLengthCm),
+        cartonWidthCm: roundDimensionCm(measurements.cartonWidthCm),
+        cartonHeightCm: roundDimensionCm(measurements.cartonHeightCm),
+        cartonWeightKg: roundWeightKg(measurements.cartonWeightKg),
         storageCartonsPerPallet: storage,
         shippingCartonsPerPallet: shipping,
         isActive: formState.isActive,
@@ -199,6 +513,7 @@ export function SkuBatchesModal({
       toast.success(editingBatch ? 'Batch updated' : 'Batch created')
       closeForm()
       await fetchBatches()
+      onBatchesUpdated?.()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save batch')
     } finally {
@@ -221,6 +536,7 @@ export function SkuBatchesModal({
 
       toast.success('Batch deactivated')
       await fetchBatches()
+      onBatchesUpdated?.()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to deactivate batch')
     }
@@ -228,9 +544,11 @@ export function SkuBatchesModal({
 
   const handleClose = () => {
     if (isSubmitting) return
+    const nextMeasurements = buildMeasurementState(null)
     setIsFormOpen(false)
     setEditingBatch(null)
-    setFormState(buildBatchFormState())
+    setMeasurements(nextMeasurements)
+    setFormState(buildBatchFormState(null, unitSystem, nextMeasurements))
     setIncludeInactive(false)
     setBatchSearch('')
     setBatches([])
@@ -297,7 +615,7 @@ export function SkuBatchesModal({
                     description={
                       batchSearch
                         ? 'Clear your search or create a new batch.'
-                        : 'Create a batch to set default cartons-per-pallet values for receiving.'
+                        : 'Create a batch to define pack specs, dimensions, and cartons-per-pallet defaults.'
                     }
                   />
                 </div>
@@ -310,6 +628,10 @@ export function SkuBatchesModal({
                         <th className="px-3 py-2 text-left font-semibold">Description</th>
                         <th className="px-3 py-2 text-left font-semibold">Production</th>
                         <th className="px-3 py-2 text-left font-semibold">Expiry</th>
+                        <th className="px-3 py-2 text-right font-semibold">Pack</th>
+                        <th className="px-3 py-2 text-right font-semibold">Units/Carton</th>
+                        <th className="px-3 py-2 text-right font-semibold">Item Dims (cm)</th>
+                        <th className="px-3 py-2 text-right font-semibold">Carton Dims (cm)</th>
                         <th className="px-3 py-2 text-right font-semibold">Storage C/P</th>
                         <th className="px-3 py-2 text-right font-semibold">Shipping C/P</th>
                         <th className="px-3 py-2 text-left font-semibold">Status</th>
@@ -317,54 +639,89 @@ export function SkuBatchesModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredBatches.map(batch => (
-                        <tr key={batch.id} className="odd:bg-muted/20">
-                          <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">
-                            {batch.batchCode}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
-                            {batch.description ?? '—'}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
-                            {formatDate(batch.productionDate)}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
-                            {formatDate(batch.expiryDate)}
-                          </td>
-                          <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
-                            {batch.storageCartonsPerPallet ?? '—'}
-                          </td>
-                          <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
-                            {batch.shippingCartonsPerPallet ?? '—'}
-                          </td>
-                          <td className="px-3 py-2 whitespace-nowrap">
-                            <Badge
-                              className={
-                                batch.isActive
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : 'bg-slate-100 text-slate-600 border border-slate-200'
-                              }
-                            >
-                              {batch.isActive ? 'Active' : 'Inactive'}
-                            </Badge>
-                          </td>
-                          <td className="px-3 py-2 text-right whitespace-nowrap">
-                            <div className="inline-flex items-center gap-2">
-                              <Button variant="outline" size="sm" onClick={() => openEdit(batch)}>
-                                <Edit2 className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setConfirmDeactivate(batch)}
-                                disabled={!batch.isActive}
+                      {filteredBatches.map(batch => {
+                        const unitTriplet = resolveDimensionTripletCm({
+                          lengthCm: batch.unitLengthCm,
+                          widthCm: batch.unitWidthCm,
+                          heightCm: batch.unitHeightCm,
+                          legacy: batch.unitDimensionsCm,
+                        })
+                        const cartonTriplet = resolveDimensionTripletCm({
+                          lengthCm: batch.cartonLengthCm,
+                          widthCm: batch.cartonWidthCm,
+                          heightCm: batch.cartonHeightCm,
+                          legacy: batch.cartonDimensionsCm,
+                        })
+
+                        const formatTriplet = (triplet: typeof unitTriplet) => {
+                          if (!triplet) return '—'
+                          return `${formatNumber(triplet.lengthCm, 2)}×${formatNumber(
+                            triplet.widthCm,
+                            2
+                          )}×${formatNumber(triplet.heightCm, 2)}`
+                        }
+
+                        return (
+                          <tr key={batch.id} className="odd:bg-muted/20">
+                            <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">
+                              {batch.batchCode}
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                              {batch.description ?? '—'}
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                              {formatDate(batch.productionDate)}
+                            </td>
+                            <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                              {formatDate(batch.expiryDate)}
+                            </td>
+                            <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
+                              {batch.packSize ?? '—'}
+                            </td>
+                            <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
+                              {batch.unitsPerCarton ?? '—'}
+                            </td>
+                            <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
+                              {formatTriplet(unitTriplet)}
+                            </td>
+                            <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
+                              {formatTriplet(cartonTriplet)}
+                            </td>
+                            <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
+                              {batch.storageCartonsPerPallet ?? '—'}
+                            </td>
+                            <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
+                              {batch.shippingCartonsPerPallet ?? '—'}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              <Badge
+                                className={
+                                  batch.isActive
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : 'bg-slate-100 text-slate-600 border border-slate-200'
+                                }
                               >
-                                Deactivate
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                                {batch.isActive ? 'Active' : 'Inactive'}
+                              </Badge>
+                            </td>
+                            <td className="px-3 py-2 text-right whitespace-nowrap">
+                              <div className="inline-flex items-center gap-2">
+                                <Button variant="outline" size="sm" onClick={() => openEdit(batch)}>
+                                  <Edit2 className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setConfirmDeactivate(batch)}
+                                  disabled={!batch.isActive}
+                                >
+                                  Deactivate
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -384,9 +741,39 @@ export function SkuBatchesModal({
                 </h2>
                 <p className="text-xs text-muted-foreground">{sku.skuCode}</p>
               </div>
-              <Button variant="ghost" onClick={closeForm} disabled={isSubmitting}>
-                <X className="h-4 w-4" />
-              </Button>
+              <div className="flex items-center gap-3">
+                <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
+                  <button
+                    type="button"
+                    onClick={() => applyUnitSystem('metric')}
+                    className={cn(
+                      'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                      unitSystem === 'metric'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    )}
+                    aria-pressed={unitSystem === 'metric'}
+                  >
+                    cm/kg
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => applyUnitSystem('imperial')}
+                    className={cn(
+                      'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                      unitSystem === 'imperial'
+                        ? 'bg-white text-slate-900 shadow-sm'
+                        : 'text-slate-600 hover:text-slate-900'
+                    )}
+                    aria-pressed={unitSystem === 'imperial'}
+                  >
+                    in/lb
+                  </button>
+                </div>
+                <Button variant="ghost" onClick={closeForm} disabled={isSubmitting}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
             <form onSubmit={submitBatch} className="space-y-6 p-6">
@@ -436,6 +823,136 @@ export function SkuBatchesModal({
                     onChange={event =>
                       setFormState(prev => ({ ...prev, expiryDate: event.target.value }))
                     }
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="packSize">Pack Size</Label>
+                  <Input
+                    id="packSize"
+                    type="number"
+                    min={1}
+                    value={formState.packSize}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, packSize: event.target.value }))
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="unitsPerCarton">Units per Carton</Label>
+                  <Input
+                    id="unitsPerCarton"
+                    type="number"
+                    min={1}
+                    value={formState.unitsPerCarton}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, unitsPerCarton: event.target.value }))
+                    }
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="material">Material</Label>
+                  <Input
+                    id="material"
+                    value={formState.material}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, material: event.target.value }))
+                    }
+                    placeholder="Optional"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="packagingType">Packaging Type</Label>
+                  <Input
+                    id="packagingType"
+                    value={formState.packagingType}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, packagingType: event.target.value }))
+                    }
+                    placeholder="Optional"
+                  />
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <Label>Unit Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Input
+                      value={formState.unitLength}
+                      onChange={event => handleDimensionChange('unitLength', event.target.value)}
+                      placeholder="L"
+                      inputMode="decimal"
+                    />
+                    <Input
+                      value={formState.unitWidth}
+                      onChange={event => handleDimensionChange('unitWidth', event.target.value)}
+                      placeholder="W"
+                      inputMode="decimal"
+                    />
+                    <Input
+                      value={formState.unitHeight}
+                      onChange={event => handleDimensionChange('unitHeight', event.target.value)}
+                      placeholder="H"
+                      inputMode="decimal"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="unitWeight">
+                    Unit Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
+                  </Label>
+                  <Input
+                    id="unitWeight"
+                    type="number"
+                    step="0.001"
+                    min={0.001}
+                    value={formState.unitWeight}
+                    onChange={event => handleWeightChange('unitWeight', event.target.value)}
+                    placeholder="Optional"
+                  />
+                </div>
+
+                <div className="space-y-1 md:col-span-2">
+                  <Label>Carton Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Input
+                      value={formState.cartonLength}
+                      onChange={event => handleDimensionChange('cartonLength', event.target.value)}
+                      placeholder="L"
+                      inputMode="decimal"
+                    />
+                    <Input
+                      value={formState.cartonWidth}
+                      onChange={event => handleDimensionChange('cartonWidth', event.target.value)}
+                      placeholder="W"
+                      inputMode="decimal"
+                    />
+                    <Input
+                      value={formState.cartonHeight}
+                      onChange={event => handleDimensionChange('cartonHeight', event.target.value)}
+                      placeholder="H"
+                      inputMode="decimal"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="cartonWeight">
+                    Carton Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
+                  </Label>
+                  <Input
+                    id="cartonWeight"
+                    type="number"
+                    step="0.001"
+                    min={0.001}
+                    value={formState.cartonWeight}
+                    onChange={event => handleWeightChange('cartonWeight', event.target.value)}
+                    placeholder="Optional"
                   />
                 </div>
 

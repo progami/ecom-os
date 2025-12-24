@@ -1,13 +1,14 @@
 import { NextRequest } from 'next/server'
 import { withAuthAndParams, ApiResponses, z } from '@/lib/api'
-import { getTenantPrisma } from '@/lib/tenant/server'
+import { getTenantPrisma, getCurrentTenant } from '@/lib/tenant/server'
 import { NotFoundError } from '@/lib/api'
 import { hasPermission } from '@/lib/services/permission-service'
 import { Prisma } from '@ecom-os/prisma-wms'
 
 const UpdateLineSchema = z.object({
-  skuCode: z.string().min(1).optional(),
+  skuCode: z.string().trim().min(1).optional(),
   skuDescription: z.string().optional(),
+  batchLot: z.string().trim().min(1, 'Batch/Lot is required').optional(),
   quantity: z.number().int().positive().optional(),
   unitCost: z.number().optional(),
   currency: z.string().optional(),
@@ -22,6 +23,7 @@ const UpdateLineSchema = z.object({
 export const GET = withAuthAndParams(async (request: NextRequest, params, _session) => {
   const id = params.id as string
   const lineId = params.lineId as string
+  const tenant = await getCurrentTenant()
   const prisma = await getTenantPrisma()
 
   const line = await prisma.purchaseOrderLine.findFirst({
@@ -42,7 +44,7 @@ export const GET = withAuthAndParams(async (request: NextRequest, params, _sessi
     batchLot: line.batchLot,
     quantity: line.quantity,
     unitCost: line.unitCost ? Number(line.unitCost) : null,
-    currency: line.currency || 'USD',
+    currency: line.currency || tenant.currency,
     status: line.status,
     quantityReceived: line.quantityReceived,
     lineNotes: line.lineNotes,
@@ -91,7 +93,7 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
 
   if (!result.success) {
     return ApiResponses.badRequest(
-      `Invalid payload: ${result.error.errors.map((e) => e.message).join(', ')}`
+      `Invalid payload: ${result.error.errors.map(e => e.message).join(', ')}`
     )
   }
 
@@ -100,7 +102,9 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
   // Core fields - only editable in DRAFT
   if (order.status === 'DRAFT') {
     if (result.data.skuCode !== undefined) updateData.skuCode = result.data.skuCode
-    if (result.data.skuDescription !== undefined) updateData.skuDescription = result.data.skuDescription
+    if (result.data.skuDescription !== undefined)
+      updateData.skuDescription = result.data.skuDescription
+    if (result.data.batchLot !== undefined) updateData.batchLot = result.data.batchLot
     if (result.data.quantity !== undefined) updateData.quantity = result.data.quantity
     if (result.data.unitCost !== undefined) updateData.unitCost = result.data.unitCost
     if (result.data.currency !== undefined) updateData.currency = result.data.currency
@@ -119,15 +123,53 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     return ApiResponses.badRequest('No valid fields to update for current order status')
   }
 
-  const updated = await prisma.purchaseOrderLine.update({
-    where: { id: lineId },
-    data: updateData,
-  })
+  if (order.status === 'DRAFT' && (result.data.skuCode !== undefined || result.data.batchLot !== undefined)) {
+    const nextSkuCode = (result.data.skuCode ?? line.skuCode).trim()
+    const nextBatchLot = (result.data.batchLot ?? line.batchLot).trim()
+
+    const sku = await prisma.sku.findFirst({
+      where: { skuCode: nextSkuCode },
+      select: { id: true },
+    })
+
+    if (!sku) {
+      return ApiResponses.badRequest(`SKU ${nextSkuCode} not found. Create the SKU first.`)
+    }
+
+    const batchRecord = await prisma.skuBatch.findFirst({
+      where: {
+        skuId: sku.id,
+        batchCode: nextBatchLot,
+        isActive: true,
+      },
+      select: { id: true },
+    })
+
+    if (!batchRecord) {
+      return ApiResponses.badRequest(
+        `Batch/Lot ${nextBatchLot} is not configured for SKU ${nextSkuCode}. Create it in Config → Products → SKUs → Batches.`
+      )
+    }
+  }
+
+  let updated
+  try {
+    updated = await prisma.purchaseOrderLine.update({
+      where: { id: lineId },
+      data: updateData,
+    })
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return ApiResponses.conflict('A line with this SKU and batch already exists for the purchase order')
+    }
+    throw error
+  }
 
   return ApiResponses.success({
     id: updated.id,
     skuCode: updated.skuCode,
     skuDescription: updated.skuDescription,
+    batchLot: updated.batchLot,
     quantity: updated.quantity,
     unitCost: updated.unitCost ? Number(updated.unitCost) : null,
     currency: updated.currency,
