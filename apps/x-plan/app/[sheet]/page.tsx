@@ -84,6 +84,11 @@ function formatDate(value: Date | string | null | undefined): string {
   return formatDateDisplay(value)
 }
 
+function productLabel(product: { sku?: string | null; name: string }): string {
+  const sku = typeof product.sku === 'string' ? product.sku.trim() : ''
+  return sku.length ? sku : product.name
+}
+
 function toNumberSafe(value: number | bigint | null | undefined): number {
   if (value == null) return 0
   if (typeof value === 'number') return value
@@ -591,7 +596,7 @@ async function loadOperationsContext(strategyId: string) {
 
   const productInputs = mapProducts(products)
   const productIndex = buildProductCostIndex(productInputs)
-  const productNameById = new Map(products.map((product) => [product.id, product.name]))
+  const productNameById = new Map(products.map((product) => [product.id, productLabel(product)]))
   const leadProfiles = buildLeadTimeProfiles(
     mapLeadStageTemplates(leadStages),
     mapLeadOverrides(overrides),
@@ -1169,7 +1174,7 @@ function getSalesPlanningView(
   activeSegment: YearSegment | null
 ) {
   const context = financialData.operations
-  const productList = [...context.productInputs].sort((a, b) => a.name.localeCompare(b.name))
+  const productList = [...context.productInputs].sort((a, b) => productLabel(a).localeCompare(productLabel(b)))
   const leadTimeByProduct = Object.fromEntries(
     productList.map((product) => {
       const profile = getLeadTimeProfile(product.id, context.leadProfiles)
@@ -1232,7 +1237,7 @@ function getSalesPlanningView(
     : [['Week', 'Date', 'Inbound PO']]
 
   productList.forEach((product, productIdx) => {
-    nestedHeaders[0].push({ label: product.name, colspan: SALES_METRICS.length })
+    nestedHeaders[0].push({ label: productLabel(product), colspan: SALES_METRICS.length })
     if (hasProducts) {
       nestedHeaders[1]?.push(...SALES_METRICS.map((metric) => metricHeader(metric)))
     }
@@ -1261,7 +1266,7 @@ function getSalesPlanningView(
     for (const product of productList) {
       const derived = salesLookup.get(`${product.id}-${weekNumber}`)
       for (const order of derived?.arrivalOrders ?? []) {
-        addToInboundSummary(inboundSummary, order.shipName, product.name, order.quantity)
+        addToInboundSummary(inboundSummary, order.shipName, productLabel(product), order.quantity)
       }
     }
     const inboundFormatted = formatInboundSummary(inboundSummary)
@@ -1339,7 +1344,7 @@ function getSalesPlanningView(
     columnMeta,
     columnKeys,
     nestedHeaders,
-    productOptions: productList.map((product) => ({ id: product.id, name: product.name })),
+    productOptions: productList.map((product) => ({ id: product.id, name: productLabel(product) })),
     stockWarningWeeks: context.parameters.stockWarningWeeks,
     leadTimeByProduct,
     batchAllocations,

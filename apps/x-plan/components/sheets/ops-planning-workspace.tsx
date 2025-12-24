@@ -648,9 +648,19 @@ export function OpsPlanningWorkspace({
 }: OpsPlanningWorkspaceProps) {
   const isVisualMode = mode === 'visual'
   const router = useRouter()
+  const productLabel = useCallback((product: { sku?: string | null; name: string }) => {
+    const sku = typeof product.sku === 'string' ? product.sku.trim() : ''
+    return sku.length ? sku : product.name
+  }, [])
   const productIndex = useMemo(() => buildProductCostIndex(calculator.products), [calculator.products])
-  const productNameIndex = useMemo(() => new Map(calculator.products.map((product) => [product.id, product.name])), [calculator.products])
-  const productOptions = useMemo(() => calculator.products.map((product) => ({ id: product.id, name: product.name })), [calculator.products])
+  const productNameIndex = useMemo(
+    () => new Map(calculator.products.map((product) => [product.id, productLabel(product)])),
+    [calculator.products, productLabel]
+  )
+  const productOptions = useMemo(
+    () => calculator.products.map((product) => ({ id: product.id, name: productLabel(product) })),
+    [calculator.products, productLabel]
+  )
   const leadProfileMap = useMemo(() => {
     const map = new Map<string, LeadTimeProfile>()
     for (const profile of calculator.leadProfiles) {
