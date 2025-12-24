@@ -11,7 +11,7 @@ const updateSchema = z.object({
   strategyId: z.string().min(1),
   updates: z.array(
     z.object({
-      weekNumber: z.number().int().min(1),
+      weekNumber: z.number().int(),
       values: z.record(z.string(), z.string().nullable().optional()),
     })
   ),

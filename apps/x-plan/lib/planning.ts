@@ -5,20 +5,27 @@ import type { SalesWeekInput } from '@/lib/calculations/types'
 import prisma from '@/lib/prisma'
 
 const DEFAULT_PLANNING_ANCHOR = new Date('2025-01-06T00:00:00.000Z')
-const DEFAULT_PLANNING_WEEK_COUNT = 156 // 2025–2027 inclusive
+const DEFAULT_PLANNING_ANCHOR_WEEK = 1
+const DEFAULT_PLANNING_MIN_WEEK_NUMBER = -104 // covers 2023-01-02
+const DEFAULT_PLANNING_MAX_WEEK_NUMBER = 156 // 2025–2027 inclusive
 const DEFAULT_PLANNING_PRODUCT_ID = '__planning__'
 const EXTRA_PLANNING_YEARS = [2023, 2024] as const
 
 function buildFallbackSalesWeeks(): SalesWeekInput[] {
-  return Array.from({ length: DEFAULT_PLANNING_WEEK_COUNT }, (_, index) => {
-    const weekNumber = index + 1
-    return {
+  const weeks: SalesWeekInput[] = []
+  for (
+    let weekNumber = DEFAULT_PLANNING_MIN_WEEK_NUMBER;
+    weekNumber <= DEFAULT_PLANNING_MAX_WEEK_NUMBER;
+    weekNumber += 1
+  ) {
+    weeks.push({
       id: `planning-week-${weekNumber}`,
       productId: DEFAULT_PLANNING_PRODUCT_ID,
       weekNumber,
-      weekDate: addWeeks(DEFAULT_PLANNING_ANCHOR, index),
-    }
-  })
+      weekDate: addWeeks(DEFAULT_PLANNING_ANCHOR, weekNumber - DEFAULT_PLANNING_ANCHOR_WEEK),
+    })
+  }
+  return weeks
 }
 
 const FALLBACK_WEEKS = buildFallbackSalesWeeks()
@@ -108,12 +115,23 @@ export function resolveActiveYear(
   segments: YearSegment[],
 ): number | null {
   if (!segments.length) return null
+  const sorted = [...segments].sort((a, b) => a.year - b.year)
   const requestedYear = coerceYearValue(requested)
-  if (requestedYear != null && segments.some((segment) => segment.year === requestedYear)) {
+  if (requestedYear != null && sorted.some((segment) => segment.year === requestedYear)) {
     return requestedYear
   }
-  const defaultSegment = segments.find((segment) => segment.weekCount > 0) ?? segments[0]
-  return defaultSegment?.year ?? null
+
+  const withWeeks = sorted.filter((segment) => segment.weekCount > 0)
+  const candidateSegments = withWeeks.length > 0 ? withWeeks : sorted
+  const currentYear = new Date().getFullYear()
+
+  const current = candidateSegments.find((segment) => segment.year === currentYear)
+  if (current) return current.year
+
+  const next = candidateSegments.find((segment) => segment.year >= currentYear)
+  if (next) return next.year
+
+  return candidateSegments.at(-1)?.year ?? null
 }
 
 export function findYearSegment(year: number | null, segments: YearSegment[]): YearSegment | null {
