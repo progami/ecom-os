@@ -278,6 +278,8 @@ jobs:
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
           name: Release ${{ steps.meta.outputs.tag }}
+          # Repo default branch is `dev`, so explicitly tag the commit that triggered this workflow on `main`.
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
 
   # ===========================================
