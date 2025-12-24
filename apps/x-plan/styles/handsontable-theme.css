@@ -246,6 +246,17 @@
   font-weight: 700 !important;
 }
 
+/* Reorder suggestion cells */
+.x-plan-hot .cell-reorder-suggest {
+  border: 2px dotted #22c55e !important;
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.25);
+}
+
+.dark .x-plan-hot .cell-reorder-suggest {
+  border-color: rgba(34, 197, 94, 0.85) !important;
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.25);
+}
+
 /* Dimmed text */
 .x-plan-hot .htDimmed {
   color: #94a3b8 !important;
