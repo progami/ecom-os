@@ -63,20 +63,21 @@ export async function GET(req: Request) {
             name: true,
           },
         },
-        employees: {
-          where: {
-            employmentType: { in: ['FULL_TIME', 'PART_TIME'] },
-          },
-          select: {
-            id: true,
-            employeeId: true,
-            firstName: true,
-            lastName: true,
-            position: true,
-            avatar: true,
-          },
-          orderBy: { firstName: 'asc' },
-        },
+	        employees: {
+	          where: {
+	            employmentType: { in: ['FULL_TIME', 'PART_TIME'] },
+	          },
+	          select: {
+	            id: true,
+	            employeeId: true,
+	            firstName: true,
+	            lastName: true,
+	            position: true,
+	            employmentType: true,
+	            avatar: true,
+	          },
+	          orderBy: { firstName: 'asc' },
+	        },
         _count: {
           select: {
             employees: {

@@ -170,7 +170,7 @@ export default function ViewReviewPage() {
                 {review.employee?.firstName} {review.employee?.lastName}
               </h2>
               <p className="text-sm text-gray-500">
-                {review.employee?.position} • {review.employee?.department}
+                {review.roleTitle} • {review.employee?.department}
               </p>
             </div>
             <StatusBadge status={STATUS_LABELS[review.status] || review.status} />
@@ -179,9 +179,10 @@ export default function ViewReviewPage() {
           <dl className="divide-y divide-gray-100">
             <DetailRow label="Review Type" value={REVIEW_TYPE_LABELS[review.reviewType] || review.reviewType} />
             <DetailRow label="Review Period" value={review.reviewPeriod} />
+            <DetailRow label="Role" value={review.roleTitle} />
             <DetailRow label="Review Date" value={formatDate(review.reviewDate)} />
             <DetailRow
-              label="Reviewer"
+              label="Manager"
               value={
                 review.assignedReviewer
                   ? `${review.assignedReviewer.firstName} ${review.assignedReviewer.lastName}${review.assignedReviewer.position ? ` (${review.assignedReviewer.position})` : ''}`
