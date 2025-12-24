@@ -14,27 +14,27 @@ case "$app_key" in
   wms)
     workspace="@ecom-os/wms"
     app_dir="$repo_root/apps/wms"
-    pm2_name="wms-dev"
+    pm2_name="dev-wms"
     ;;
   ecomos)
     workspace="@ecom-os/ecomos"
     app_dir="$repo_root/apps/ecomos"
-    pm2_name="ecomos-dev"
+    pm2_name="dev-ecomos"
     ;;
   website)
     workspace="@ecom-os/website"
     app_dir="$repo_root/apps/website"
-    pm2_name="website-dev"
+    pm2_name="dev-website"
     ;;
   xplan|x-plan)
     workspace="@ecom-os/x-plan"
     app_dir="$repo_root/apps/x-plan"
-    pm2_name="x-plan-dev"
+    pm2_name="dev-x-plan"
     ;;
   hrms)
     workspace="@ecom-os/hrms"
     app_dir="$repo_root/apps/hrms"
-    pm2_name="hrms-dev"
+    pm2_name="dev-hrms"
     ;;
   *)
     echo "Unknown app key: $app_key" >&2
