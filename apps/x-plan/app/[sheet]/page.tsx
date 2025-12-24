@@ -1481,10 +1481,8 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
 
   const parsedSearch = rawSearchParams as Record<string, string | string[] | undefined>
 
-  // Resolve strategyId from URL or get default (skip for strategies page itself)
-  const strategyId = config.slug === '0-strategies'
-    ? ''
-    : await resolveStrategyId(parsedSearch.strategy)
+  // Resolve strategyId from URL or get default
+  const strategyId = await resolveStrategyId(parsedSearch.strategy)
 
   const [workbookStatus, planningCalendar] = await Promise.all([
     getWorkbookStatus(),
