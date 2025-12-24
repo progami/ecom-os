@@ -7,11 +7,12 @@ import {
 } from '@/lib/services/po-stage-service'
 import type { UserContext } from '@/lib/services/po-stage-service'
 import { hasPermission } from '@/lib/services/permission-service'
+import { getCurrentTenant } from '@/lib/tenant/server'
 
 export const GET = withAuth(async (_request: NextRequest, _session) => {
   const orders = await getPurchaseOrders()
   return ApiResponses.success({
-    data: orders.map((order) => serializePurchaseOrder(order)),
+    data: orders.map(order => serializePurchaseOrder(order)),
   })
 })
 
@@ -62,7 +63,7 @@ export const POST = withAuth(async (request: NextRequest, session) => {
       {
         counterpartyName: result.data.counterpartyName,
         notes: result.data.notes,
-        lines: result.data.lines.map((line) => ({
+        lines: result.data.lines.map(line => ({
           skuCode: line.skuCode,
           skuDescription: line.skuDescription,
           batchLot: line.batchLot,
@@ -75,7 +76,8 @@ export const POST = withAuth(async (request: NextRequest, session) => {
       userContext
     )
 
-    return ApiResponses.success(serializeNewPO(order))
+    const tenant = await getCurrentTenant()
+    return ApiResponses.success(serializeNewPO(order, { defaultCurrency: tenant.currency }))
   } catch (error) {
     return ApiResponses.handleError(error)
   }

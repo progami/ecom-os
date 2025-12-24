@@ -12,6 +12,33 @@ import { Edit2, Loader2, Package2, Plus, Search } from '@/lib/lucide-icons'
 import { cn } from '@/lib/utils'
 import { SkuBatchesModal } from './sku-batches-modal'
 
+interface SkuBatchRow {
+  id: string
+  batchCode: string
+  description: string | null
+  productionDate: string | null
+  expiryDate: string | null
+  packSize: number | null
+  unitsPerCarton: number | null
+  material: string | null
+  unitDimensionsCm: string | null
+  unitLengthCm: number | string | null
+  unitWidthCm: number | string | null
+  unitHeightCm: number | string | null
+  unitWeightKg: number | string | null
+  cartonDimensionsCm: string | null
+  cartonLengthCm: number | string | null
+  cartonWidthCm: number | string | null
+  cartonHeightCm: number | string | null
+  cartonWeightKg: number | string | null
+  packagingType: string | null
+  storageCartonsPerPallet: number | null
+  shippingCartonsPerPallet: number | null
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 interface SkuRow {
   id: string
   skuCode: string
@@ -35,6 +62,7 @@ interface SkuRow {
   packagingType: string | null
   isActive: boolean
   _count?: { inventoryTransactions: number }
+  batches?: SkuBatchRow[]
 }
 
 interface SupplierOption {
@@ -97,8 +125,20 @@ type DimensionTripletCm = {
   heightCm: number | null
 }
 
+type DimensionCarrier = Pick<
+  SkuRow,
+  | 'unitDimensionsCm'
+  | 'unitLengthCm'
+  | 'unitWidthCm'
+  | 'unitHeightCm'
+  | 'cartonDimensionsCm'
+  | 'cartonLengthCm'
+  | 'cartonWidthCm'
+  | 'cartonHeightCm'
+>
+
 function resolveDimensionTripletCmFromSku(
-  sku: SkuRow | null | undefined,
+  sku: DimensionCarrier | null | undefined,
   kind: 'unit' | 'carton'
 ): DimensionTripletCm {
   if (!sku) {
@@ -295,6 +335,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([])
   const [suppliersLoading, setSuppliersLoading] = useState(false)
   const [batchesSku, setBatchesSku] = useState<SkuRow | null>(null)
+  const [selectedBatchBySkuId, setSelectedBatchBySkuId] = useState<Record<string, string>>({})
 
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric')
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -517,125 +558,152 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       return
     }
 
-    const packSize = parsePositiveInt(formState.packSize)
-    const unitsPerCarton = parsePositiveInt(formState.unitsPerCarton)
-    if (!packSize) {
-      toast.error('Pack size must be a positive integer')
-      return
-    }
-    if (!unitsPerCarton) {
-      toast.error('Units per carton must be a positive integer')
-      return
-    }
+    const skuCode = formState.skuCode.trim()
+    const description = formState.description.trim()
+    const asinValue = formState.asin.trim() ? formState.asin.trim() : null
 
-    const initialBatchCodes =
-      editingSku === null
-        ? formState.initialBatchCodes
-            .split(/[,\\n]/g)
-            .map(code => code.trim())
-            .filter(Boolean)
-        : []
-
-    if (!editingSku) {
-      if (initialBatchCodes.length === 0) {
-        toast.error('At least one initial batch/lot code is required')
-        return
-      }
-
-      const uniqueBatchCodes = new Set(initialBatchCodes.map(code => code.toLowerCase()))
-      if (uniqueBatchCodes.size !== initialBatchCodes.length) {
-        toast.error('Initial batch/lot codes must be unique')
-        return
-      }
-    }
-
-    const unitWeightProvided = Boolean(formState.unitWeight.trim())
-    if (unitWeightProvided && !parsePositiveNumber(formState.unitWeight)) {
-      toast.error('Unit weight must be a positive number')
+    if (!skuCode) {
+      toast.error('SKU code is required')
       return
     }
 
-    const cartonWeightProvided = Boolean(formState.cartonWeight.trim())
-    if (cartonWeightProvided && !parsePositiveNumber(formState.cartonWeight)) {
-      toast.error('Carton weight must be a positive number')
-      return
-    }
-
-    const validateDimensions = (dims: DimensionParts, label: string): boolean => {
-      const parts = [dims.length.trim(), dims.width.trim(), dims.height.trim()]
-      const any = parts.some(Boolean)
-      if (!any) return true
-      const all = parts.every(Boolean)
-      if (!all) {
-        toast.error(`${label} dimensions require L, W, and H`)
-        return false
-      }
-      if (parts.some(part => parsePositiveNumber(part) === null)) {
-        toast.error(`${label} dimensions must be positive numbers`)
-        return false
-      }
-      return true
-    }
-
-    if (
-      !validateDimensions(
-        { length: formState.unitLength, width: formState.unitWidth, height: formState.unitHeight },
-        'Unit'
-      )
-    ) {
+    if (!description) {
+      toast.error('Description is required')
       return
     }
 
     if (
-      !validateDimensions(
-        {
-          length: formState.cartonLength,
-          width: formState.cartonWidth,
-          height: formState.cartonHeight,
-        },
-        'Carton'
-      )
+      editingSku &&
+      formState.isActive &&
+      !editingSku.isActive &&
+      (editingSku.batches?.length ?? 0) === 0
     ) {
+      toast.error('Cannot activate SKU without at least one active batch')
       return
     }
-
-    const roundDimensionCm = (value: number | null): number | null =>
-      value === null ? null : Number(value.toFixed(2))
-
-    const roundWeightKg = (value: number | null): number | null =>
-      value === null ? null : Number(value.toFixed(3))
 
     setIsSubmitting(true)
     try {
+      const roundDimensionCm = (value: number | null): number | null =>
+        value === null ? null : Number(value.toFixed(2))
+
+      const roundWeightKg = (value: number | null): number | null =>
+        value === null ? null : Number(value.toFixed(3))
+
       const payload: Record<string, unknown> = {
-        skuCode: formState.skuCode.trim(),
-        asin: formState.asin.trim() ? formState.asin.trim() : null,
-        description: formState.description.trim(),
-        packSize,
+        skuCode,
+        asin: asinValue,
+        description,
         defaultSupplierId: formState.defaultSupplierId ? formState.defaultSupplierId : null,
         secondarySupplierId: formState.secondarySupplierId ? formState.secondarySupplierId : null,
-        material: formState.material.trim() ? formState.material.trim() : null,
-        unitLengthCm: roundDimensionCm(measurements.unitLengthCm),
-        unitWidthCm: roundDimensionCm(measurements.unitWidthCm),
-        unitHeightCm: roundDimensionCm(measurements.unitHeightCm),
-        unitWeightKg: roundWeightKg(measurements.unitWeightKg),
-        unitsPerCarton,
-        cartonLengthCm: roundDimensionCm(measurements.cartonLengthCm),
-        cartonWidthCm: roundDimensionCm(measurements.cartonWidthCm),
-        cartonHeightCm: roundDimensionCm(measurements.cartonHeightCm),
-        cartonWeightKg: roundWeightKg(measurements.cartonWeightKg),
-        packagingType: formState.packagingType.trim() ? formState.packagingType.trim() : null,
         isActive: formState.isActive,
       }
 
-      if (!editingSku) {
+      let endpoint = '/api/skus'
+      let method: 'POST' | 'PATCH' = 'POST'
+
+      if (editingSku) {
+        endpoint = `/api/skus?id=${encodeURIComponent(editingSku.id)}`
+        method = 'PATCH'
+      } else {
+        const packSize = parsePositiveInt(formState.packSize)
+        const unitsPerCarton = parsePositiveInt(formState.unitsPerCarton)
+        if (!packSize) {
+          toast.error('Pack size must be a positive integer')
+          return
+        }
+        if (!unitsPerCarton) {
+          toast.error('Units per carton must be a positive integer')
+          return
+        }
+
+        const initialBatchCodes = formState.initialBatchCodes
+          .split(/[,\\n]/g)
+          .map(code => code.trim())
+          .filter(Boolean)
+
+        if (initialBatchCodes.length === 0) {
+          toast.error('At least one initial batch/lot code is required')
+          return
+        }
+
+        const uniqueBatchCodes = new Set(initialBatchCodes.map(code => code.toLowerCase()))
+        if (uniqueBatchCodes.size !== initialBatchCodes.length) {
+          toast.error('Initial batch/lot codes must be unique')
+          return
+        }
+
+        const unitWeightProvided = Boolean(formState.unitWeight.trim())
+        if (unitWeightProvided && !parsePositiveNumber(formState.unitWeight)) {
+          toast.error('Unit weight must be a positive number')
+          return
+        }
+
+        const cartonWeightProvided = Boolean(formState.cartonWeight.trim())
+        if (cartonWeightProvided && !parsePositiveNumber(formState.cartonWeight)) {
+          toast.error('Carton weight must be a positive number')
+          return
+        }
+
+        const validateDimensions = (dims: DimensionParts, label: string): boolean => {
+          const parts = [dims.length.trim(), dims.width.trim(), dims.height.trim()]
+          const any = parts.some(Boolean)
+          if (!any) return true
+          const all = parts.every(Boolean)
+          if (!all) {
+            toast.error(`${label} dimensions require L, W, and H`)
+            return false
+          }
+          if (parts.some(part => parsePositiveNumber(part) === null)) {
+            toast.error(`${label} dimensions must be positive numbers`)
+            return false
+          }
+          return true
+        }
+
+        if (
+          !validateDimensions(
+            {
+              length: formState.unitLength,
+              width: formState.unitWidth,
+              height: formState.unitHeight,
+            },
+            'Unit'
+          )
+        ) {
+          return
+        }
+
+        if (
+          !validateDimensions(
+            {
+              length: formState.cartonLength,
+              width: formState.cartonWidth,
+              height: formState.cartonHeight,
+            },
+            'Carton'
+          )
+        ) {
+          return
+        }
+
         payload.initialBatchCodes = initialBatchCodes
+        payload.packSize = packSize
+        payload.material = formState.material.trim() ? formState.material.trim() : null
+        payload.unitLengthCm = roundDimensionCm(measurements.unitLengthCm)
+        payload.unitWidthCm = roundDimensionCm(measurements.unitWidthCm)
+        payload.unitHeightCm = roundDimensionCm(measurements.unitHeightCm)
+        payload.unitWeightKg = roundWeightKg(measurements.unitWeightKg)
+        payload.unitsPerCarton = unitsPerCarton
+        payload.cartonLengthCm = roundDimensionCm(measurements.cartonLengthCm)
+        payload.cartonWidthCm = roundDimensionCm(measurements.cartonWidthCm)
+        payload.cartonHeightCm = roundDimensionCm(measurements.cartonHeightCm)
+        payload.cartonWeightKg = roundWeightKg(measurements.cartonWeightKg)
+        payload.packagingType = formState.packagingType.trim()
+          ? formState.packagingType.trim()
+          : null
       }
 
-      const endpoint = editingSku
-        ? `/api/skus?id=${encodeURIComponent(editingSku.id)}`
-        : '/api/skus'
-      const method = editingSku ? 'PATCH' : 'POST'
       const response = await fetchWithCSRF(endpoint, {
         method,
         body: JSON.stringify(payload),
@@ -755,6 +823,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   <th className="px-4 py-3 text-left font-semibold">SKU</th>
                   <th className="px-4 py-3 text-left font-semibold">Description</th>
                   <th className="px-4 py-3 text-left font-semibold">ASIN</th>
+                  <th className="px-4 py-3 text-left font-semibold">Batch/Lot</th>
                   <th className="px-4 py-3 text-right font-semibold">Item Dims (cm)</th>
                   <th className="px-4 py-3 text-right font-semibold">Carton Dims (cm)</th>
                   <th className="px-4 py-3 text-right font-semibold">Pack</th>
@@ -766,8 +835,16 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredSkus.map(sku => {
-                  const unitDims = resolveDimensionTripletCmFromSku(sku, 'unit')
-                  const cartonDims = resolveDimensionTripletCmFromSku(sku, 'carton')
+                  const batches = Array.isArray(sku.batches) ? sku.batches : []
+                  const storedBatchId = selectedBatchBySkuId[sku.id]
+                  const selectedBatch =
+                    batches.find(batch => batch.id === storedBatchId) ?? batches[0] ?? null
+                  const selectedBatchId = selectedBatch?.id ?? ''
+                  const specSource: DimensionCarrier | null = selectedBatch ?? sku
+                  const unitDims = resolveDimensionTripletCmFromSku(specSource, 'unit')
+                  const cartonDims = resolveDimensionTripletCmFromSku(specSource, 'carton')
+                  const packSize = selectedBatch?.packSize ?? sku.packSize
+                  const unitsPerCarton = selectedBatch?.unitsPerCarton ?? sku.unitsPerCarton
 
                   return (
                     <tr key={sku.id} className="hover:bg-slate-50/50 transition-colors">
@@ -780,6 +857,28 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                         {sku.asin ?? '—'}
                       </td>
+                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                        {batches.length === 0 ? (
+                          <span className="text-amber-600">No batches</span>
+                        ) : (
+                          <select
+                            value={selectedBatchId}
+                            onChange={event =>
+                              setSelectedBatchBySkuId(prev => ({
+                                ...prev,
+                                [sku.id]: event.target.value,
+                              }))
+                            }
+                            className="h-9 w-44 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 shadow-soft focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100"
+                          >
+                            {batches.map(batch => (
+                              <option key={batch.id} value={batch.id}>
+                                {batch.batchCode}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
                         {formatDimensionTripletDisplay(unitDims, 'metric')}
                       </td>
@@ -787,10 +886,10 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                         {formatDimensionTripletDisplay(cartonDims, 'metric')}
                       </td>
                       <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
-                        {sku.packSize ?? '—'}
+                        {packSize ?? '—'}
                       </td>
                       <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
-                        {sku.unitsPerCarton}
+                        {unitsPerCarton ?? '—'}
                       </td>
                       <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
                         {sku._count?.inventoryTransactions ?? 0}
@@ -841,34 +940,36 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   {editingSku ? 'Edit SKU' : 'New SKU'}
                 </h2>
                 <div className="flex items-center gap-3">
-                  <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
-                    <button
-                      type="button"
-                      onClick={() => applyUnitSystem('metric')}
-                      className={cn(
-                        'rounded px-2.5 py-1 text-xs font-medium transition-colors',
-                        unitSystem === 'metric'
-                          ? 'bg-white text-slate-900 shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900'
-                      )}
-                      aria-pressed={unitSystem === 'metric'}
-                    >
-                      cm/kg
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => applyUnitSystem('imperial')}
-                      className={cn(
-                        'rounded px-2.5 py-1 text-xs font-medium transition-colors',
-                        unitSystem === 'imperial'
-                          ? 'bg-white text-slate-900 shadow-sm'
-                          : 'text-slate-600 hover:text-slate-900'
-                      )}
-                      aria-pressed={unitSystem === 'imperial'}
-                    >
-                      in/lb
-                    </button>
-                  </div>
+                  {!editingSku ? (
+                    <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
+                      <button
+                        type="button"
+                        onClick={() => applyUnitSystem('metric')}
+                        className={cn(
+                          'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                          unitSystem === 'metric'
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-600 hover:text-slate-900'
+                        )}
+                        aria-pressed={unitSystem === 'metric'}
+                      >
+                        cm/kg
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyUnitSystem('imperial')}
+                        className={cn(
+                          'rounded px-2.5 py-1 text-xs font-medium transition-colors',
+                          unitSystem === 'imperial'
+                            ? 'bg-white text-slate-900 shadow-sm'
+                            : 'text-slate-600 hover:text-slate-900'
+                        )}
+                        aria-pressed={unitSystem === 'imperial'}
+                      >
+                        in/lb
+                      </button>
+                    </div>
+                  ) : null}
                   {editingSku ? (
                     <Button
                       type="button"
@@ -994,145 +1095,165 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                       </select>
                     </div>
 
-                    <div className="space-y-1">
-                      <Label htmlFor="packSize">Pack Size</Label>
-                      <Input
-                        id="packSize"
-                        type="number"
-                        min={1}
-                        value={formState.packSize}
-                        onChange={event =>
-                          setFormState(prev => ({ ...prev, packSize: event.target.value }))
-                        }
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label htmlFor="unitsPerCarton">Units per Carton</Label>
-                      <Input
-                        id="unitsPerCarton"
-                        type="number"
-                        min={1}
-                        value={formState.unitsPerCarton}
-                        onChange={event =>
-                          setFormState(prev => ({ ...prev, unitsPerCarton: event.target.value }))
-                        }
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label htmlFor="material">Material</Label>
-                      <Input
-                        id="material"
-                        value={formState.material}
-                        onChange={event =>
-                          setFormState(prev => ({ ...prev, material: event.target.value }))
-                        }
-                        placeholder="Optional"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <Label htmlFor="packagingType">Packaging Type</Label>
-                      <Input
-                        id="packagingType"
-                        value={formState.packagingType}
-                        onChange={event =>
-                          setFormState(prev => ({ ...prev, packagingType: event.target.value }))
-                        }
-                        placeholder="Optional"
-                      />
-                    </div>
-
-                    <div className="space-y-1 md:col-span-2">
-                      <Label>Unit Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <Input
-                          value={formState.unitLength}
-                          onChange={event =>
-                            handleDimensionChange('unitLength', event.target.value)
-                          }
-                          placeholder="L"
-                          inputMode="decimal"
-                        />
-                        <Input
-                          value={formState.unitWidth}
-                          onChange={event => handleDimensionChange('unitWidth', event.target.value)}
-                          placeholder="W"
-                          inputMode="decimal"
-                        />
-                        <Input
-                          value={formState.unitHeight}
-                          onChange={event =>
-                            handleDimensionChange('unitHeight', event.target.value)
-                          }
-                          placeholder="H"
-                          inputMode="decimal"
-                        />
+                    {editingSku ? (
+                      <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                        Batch-specific specs (pack size, units/carton, dimensions, weights,
+                        packaging) are managed per batch. Use{' '}
+                        <span className="font-medium">Batches</span> to view or edit batches.
                       </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="space-y-1">
+                          <Label htmlFor="packSize">Pack Size</Label>
+                          <Input
+                            id="packSize"
+                            type="number"
+                            min={1}
+                            value={formState.packSize}
+                            onChange={event =>
+                              setFormState(prev => ({ ...prev, packSize: event.target.value }))
+                            }
+                            required
+                          />
+                        </div>
 
-                    <div className="space-y-1">
-                      <Label htmlFor="unitWeight">
-                        Unit Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
-                      </Label>
-                      <Input
-                        id="unitWeight"
-                        type="number"
-                        step="0.001"
-                        min={0.001}
-                        value={formState.unitWeight}
-                        onChange={event => handleWeightChange('unitWeight', event.target.value)}
-                        placeholder="Optional"
-                      />
-                    </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="unitsPerCarton">Units per Carton</Label>
+                          <Input
+                            id="unitsPerCarton"
+                            type="number"
+                            min={1}
+                            value={formState.unitsPerCarton}
+                            onChange={event =>
+                              setFormState(prev => ({
+                                ...prev,
+                                unitsPerCarton: event.target.value,
+                              }))
+                            }
+                            required
+                          />
+                        </div>
 
-                    <div className="space-y-1 md:col-span-2">
-                      <Label>Carton Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <Input
-                          value={formState.cartonLength}
-                          onChange={event =>
-                            handleDimensionChange('cartonLength', event.target.value)
-                          }
-                          placeholder="L"
-                          inputMode="decimal"
-                        />
-                        <Input
-                          value={formState.cartonWidth}
-                          onChange={event =>
-                            handleDimensionChange('cartonWidth', event.target.value)
-                          }
-                          placeholder="W"
-                          inputMode="decimal"
-                        />
-                        <Input
-                          value={formState.cartonHeight}
-                          onChange={event =>
-                            handleDimensionChange('cartonHeight', event.target.value)
-                          }
-                          placeholder="H"
-                          inputMode="decimal"
-                        />
-                      </div>
-                    </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="material">Material</Label>
+                          <Input
+                            id="material"
+                            value={formState.material}
+                            onChange={event =>
+                              setFormState(prev => ({ ...prev, material: event.target.value }))
+                            }
+                            placeholder="Optional"
+                          />
+                        </div>
 
-                    <div className="space-y-1">
-                      <Label htmlFor="cartonWeight">
-                        Carton Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
-                      </Label>
-                      <Input
-                        id="cartonWeight"
-                        type="number"
-                        step="0.001"
-                        min={0.001}
-                        value={formState.cartonWeight}
-                        onChange={event => handleWeightChange('cartonWeight', event.target.value)}
-                        placeholder="Optional"
-                      />
-                    </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="packagingType">Packaging Type</Label>
+                          <Input
+                            id="packagingType"
+                            value={formState.packagingType}
+                            onChange={event =>
+                              setFormState(prev => ({
+                                ...prev,
+                                packagingType: event.target.value,
+                              }))
+                            }
+                            placeholder="Optional"
+                          />
+                        </div>
+
+                        <div className="space-y-1 md:col-span-2">
+                          <Label>Unit Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
+                          <div className="grid grid-cols-3 gap-2">
+                            <Input
+                              value={formState.unitLength}
+                              onChange={event =>
+                                handleDimensionChange('unitLength', event.target.value)
+                              }
+                              placeholder="L"
+                              inputMode="decimal"
+                            />
+                            <Input
+                              value={formState.unitWidth}
+                              onChange={event =>
+                                handleDimensionChange('unitWidth', event.target.value)
+                              }
+                              placeholder="W"
+                              inputMode="decimal"
+                            />
+                            <Input
+                              value={formState.unitHeight}
+                              onChange={event =>
+                                handleDimensionChange('unitHeight', event.target.value)
+                              }
+                              placeholder="H"
+                              inputMode="decimal"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="unitWeight">
+                            Unit Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
+                          </Label>
+                          <Input
+                            id="unitWeight"
+                            type="number"
+                            step="0.001"
+                            min={0.001}
+                            value={formState.unitWeight}
+                            onChange={event => handleWeightChange('unitWeight', event.target.value)}
+                            placeholder="Optional"
+                          />
+                        </div>
+
+                        <div className="space-y-1 md:col-span-2">
+                          <Label>Carton Dimensions ({unitSystem === 'metric' ? 'cm' : 'in'})</Label>
+                          <div className="grid grid-cols-3 gap-2">
+                            <Input
+                              value={formState.cartonLength}
+                              onChange={event =>
+                                handleDimensionChange('cartonLength', event.target.value)
+                              }
+                              placeholder="L"
+                              inputMode="decimal"
+                            />
+                            <Input
+                              value={formState.cartonWidth}
+                              onChange={event =>
+                                handleDimensionChange('cartonWidth', event.target.value)
+                              }
+                              placeholder="W"
+                              inputMode="decimal"
+                            />
+                            <Input
+                              value={formState.cartonHeight}
+                              onChange={event =>
+                                handleDimensionChange('cartonHeight', event.target.value)
+                              }
+                              placeholder="H"
+                              inputMode="decimal"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <Label htmlFor="cartonWeight">
+                            Carton Weight ({unitSystem === 'metric' ? 'kg' : 'lb'})
+                          </Label>
+                          <Input
+                            id="cartonWeight"
+                            type="number"
+                            step="0.001"
+                            min={0.001}
+                            value={formState.cartonWeight}
+                            onChange={event =>
+                              handleWeightChange('cartonWeight', event.target.value)
+                            }
+                            placeholder="Optional"
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -1195,6 +1316,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       <SkuBatchesModal
         isOpen={batchesSku !== null}
         onClose={() => setBatchesSku(null)}
+        onBatchesUpdated={fetchSkus}
         sku={
           batchesSku
             ? {
