@@ -55,6 +55,7 @@ export default function NewPurchaseOrderPage() {
   const { data: session, status } = useSession()
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const [tenantCurrency, setTenantCurrency] = useState<string>('USD')
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [skus, setSkus] = useState<Sku[]>([])
   const [formData, setFormData] = useState({
@@ -90,15 +91,32 @@ export default function NewPurchaseOrderPage() {
 
     const loadData = async () => {
       try {
-        const [suppliersRes, skusRes] = await Promise.all([
+        const [tenantRes, suppliersRes, skusRes] = await Promise.all([
+          fetch('/api/tenant/current'),
           fetch('/api/suppliers'),
           fetch('/api/skus'),
         ])
 
+        if (tenantRes.ok) {
+          const tenantData = await tenantRes.json().catch(() => null)
+          const currency = tenantData?.current?.currency
+          if (typeof currency === 'string' && currency.trim()) {
+            const normalized = currency.trim().toUpperCase()
+            setTenantCurrency(normalized)
+            setLineItems(prev =>
+              prev.every(item => item.currency === 'USD')
+                ? prev.map(item => ({ ...item, currency: normalized }))
+                : prev
+            )
+          }
+        }
+
         if (suppliersRes.ok) {
           const suppliersData = await suppliersRes.json()
           const suppliersList = suppliersData?.data || suppliersData || []
-          setSuppliers(Array.isArray(suppliersList) ? suppliersList.filter((s: Supplier) => s.isActive) : [])
+          setSuppliers(
+            Array.isArray(suppliersList) ? suppliersList.filter((s: Supplier) => s.isActive) : []
+          )
         }
 
         if (skusRes.ok) {
@@ -116,8 +134,8 @@ export default function NewPurchaseOrderPage() {
   }, [router, session, status])
 
   const addLineItem = () => {
-    setLineItems([
-      ...lineItems,
+    setLineItems(prev => [
+      ...prev,
       {
         id: generateTempId(),
         skuId: undefined,
@@ -126,7 +144,7 @@ export default function NewPurchaseOrderPage() {
         batchLot: '',
         quantity: 1,
         unitCost: '',
-        currency: 'USD',
+        currency: tenantCurrency,
         notes: '',
         loadingBatches: false,
       },
@@ -145,13 +163,13 @@ export default function NewPurchaseOrderPage() {
 
     const payload = await response.json().catch(() => null)
     const batches: BatchOption[] = Array.isArray(payload?.batches) ? payload.batches : []
-    setBatchesBySkuId((prev) => ({ ...prev, [sku.id]: batches }))
+    setBatchesBySkuId(prev => ({ ...prev, [sku.id]: batches }))
     return batches
   }
 
   const loadBatchesForLine = async (lineId: string, sku: Sku) => {
-    setLineItems((prev) =>
-      prev.map((item) =>
+    setLineItems(prev =>
+      prev.map(item =>
         item.id === lineId
           ? {
               ...item,
@@ -168,8 +186,8 @@ export default function NewPurchaseOrderPage() {
     try {
       const batches = await fetchBatchesForSku(sku)
 
-      setLineItems((prev) =>
-        prev.map((item) => {
+      setLineItems(prev =>
+        prev.map(item => {
           if (item.id !== lineId) return item
           const defaultBatch = batches.length === 1 ? batches[0] : null
           return {
@@ -186,8 +204,8 @@ export default function NewPurchaseOrderPage() {
         )
       }
     } catch (_error) {
-      setLineItems((prev) =>
-        prev.map((item) => (item.id === lineId ? { ...item, loadingBatches: false } : item))
+      setLineItems(prev =>
+        prev.map(item => (item.id === lineId ? { ...item, loadingBatches: false } : item))
       )
       toast.error(`Failed to load batches for ${sku.skuCode}`)
     }
@@ -196,10 +214,10 @@ export default function NewPurchaseOrderPage() {
   const updateLineItem = (id: string, field: keyof LineItem, value: string | number) => {
     if (field === 'skuCode') {
       const skuCode = String(value)
-      const selectedSku = skus.find((s) => s.skuCode === skuCode)
+      const selectedSku = skus.find(s => s.skuCode === skuCode)
       if (!selectedSku) {
-        setLineItems((prev) =>
-          prev.map((item) =>
+        setLineItems(prev =>
+          prev.map(item =>
             item.id === id
               ? {
                   ...item,
@@ -219,11 +237,11 @@ export default function NewPurchaseOrderPage() {
       return
     }
 
-    setLineItems((prev) => prev.map((item) => (item.id === id ? { ...item, [field]: value } : item)))
+    setLineItems(prev => prev.map(item => (item.id === id ? { ...item, [field]: value } : item)))
   }
 
   const removeLineItem = (id: string) => {
-    setLineItems(lineItems.filter((item) => item.id !== id))
+    setLineItems(prev => prev.filter(item => item.id !== id))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -240,14 +258,14 @@ export default function NewPurchaseOrderPage() {
     }
 
     const invalidLines = lineItems.filter(
-      (item) => !item.skuCode || !item.batchLot || item.quantity <= 0
+      item => !item.skuCode || !item.batchLot || item.quantity <= 0
     )
     if (invalidLines.length > 0) {
       toast.error('Please fill in SKU, batch, and quantity for all line items')
       return
     }
 
-    const selectedSupplier = suppliers.find((s) => s.id === formData.supplierId)
+    const selectedSupplier = suppliers.find(s => s.id === formData.supplierId)
     if (!selectedSupplier) {
       toast.error('Invalid supplier selected')
       return
@@ -261,7 +279,7 @@ export default function NewPurchaseOrderPage() {
         body: JSON.stringify({
           counterpartyName: selectedSupplier.name,
           notes: formData.notes || undefined,
-          lines: lineItems.map((item) => ({
+          lines: lineItems.map(item => ({
             skuCode: item.skuCode,
             skuDescription: item.skuDescription,
             batchLot: item.batchLot,
@@ -325,12 +343,12 @@ export default function NewPurchaseOrderPage() {
               </label>
               <select
                 value={formData.supplierId}
-                onChange={(e) => setFormData((prev) => ({ ...prev, supplierId: e.target.value }))}
+                onChange={e => setFormData(prev => ({ ...prev, supplierId: e.target.value }))}
                 className="w-full px-3 py-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
                 required
               >
                 <option value="">Select a supplier</option>
-                {suppliers.map((supplier) => (
+                {suppliers.map(supplier => (
                   <option key={supplier.id} value={supplier.id}>
                     {supplier.name}
                     {supplier.contactName ? ` (${supplier.contactName})` : ''}
@@ -350,7 +368,7 @@ export default function NewPurchaseOrderPage() {
               <label className="block text-sm font-medium mb-1.5">Notes</label>
               <Input
                 value={formData.notes}
-                onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                onChange={e => setFormData(prev => ({ ...prev, notes: e.target.value }))}
                 placeholder="Optional notes..."
               />
             </div>
@@ -379,32 +397,32 @@ export default function NewPurchaseOrderPage() {
               </div>
 
               {/* Line Items */}
-              {lineItems.map((item) => (
+              {lineItems.map(item => (
                 <div key={item.id} className="grid grid-cols-14 gap-2 items-center">
                   <div className="col-span-3">
                     <select
                       value={item.skuCode}
-                      onChange={(e) => updateLineItem(item.id, 'skuCode', e.target.value)}
+                      onChange={e => updateLineItem(item.id, 'skuCode', e.target.value)}
                       className="w-full px-2 py-1.5 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
                       required
                     >
                       <option value="">Select SKU</option>
-                      {skus.map((sku) => (
+                      {skus.map(sku => (
                         <option key={sku.id} value={sku.skuCode}>
                           {sku.skuCode}
                         </option>
                       ))}
-                      </select>
+                    </select>
                   </div>
                   <div className="col-span-2">
                     {(() => {
-                      const options = item.skuId ? batchesBySkuId[item.skuId] ?? [] : []
+                      const options = item.skuId ? (batchesBySkuId[item.skuId] ?? []) : []
                       const disabled = !item.skuId || item.loadingBatches || options.length === 0
 
                       return (
                         <select
                           value={item.batchLot}
-                          onChange={(e) => updateLineItem(item.id, 'batchLot', e.target.value)}
+                          onChange={e => updateLineItem(item.id, 'batchLot', e.target.value)}
                           className="w-full px-2 py-1.5 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm disabled:bg-slate-100 disabled:text-slate-500"
                           required
                           disabled={disabled}
@@ -418,7 +436,7 @@ export default function NewPurchaseOrderPage() {
                           ) : (
                             <>
                               <option value="">Select batch</option>
-                              {options.map((batch) => (
+                              {options.map(batch => (
                                 <option key={batch.id} value={batch.batchCode}>
                                   {batch.batchCode}
                                 </option>
@@ -432,7 +450,7 @@ export default function NewPurchaseOrderPage() {
                   <div className="col-span-3">
                     <Input
                       value={item.skuDescription}
-                      onChange={(e) => updateLineItem(item.id, 'skuDescription', e.target.value)}
+                      onChange={e => updateLineItem(item.id, 'skuDescription', e.target.value)}
                       placeholder="Description"
                       className="text-sm h-8"
                     />
@@ -442,7 +460,9 @@ export default function NewPurchaseOrderPage() {
                       type="number"
                       min="1"
                       value={item.quantity}
-                      onChange={(e) => updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
+                      onChange={e =>
+                        updateLineItem(item.id, 'quantity', parseInt(e.target.value) || 0)
+                      }
                       className="text-sm h-8"
                       required
                     />
@@ -454,16 +474,16 @@ export default function NewPurchaseOrderPage() {
                         step="0.01"
                         min="0"
                         value={item.unitCost}
-                        onChange={(e) => updateLineItem(item.id, 'unitCost', e.target.value)}
+                        onChange={e => updateLineItem(item.id, 'unitCost', e.target.value)}
                         placeholder="0.00"
                         className="text-sm h-8 flex-1"
                       />
                       <select
                         value={item.currency}
-                        onChange={(e) => updateLineItem(item.id, 'currency', e.target.value)}
+                        onChange={e => updateLineItem(item.id, 'currency', e.target.value)}
                         className="w-16 px-1 py-1 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
                       >
-                        {CURRENCIES.map((curr) => (
+                        {CURRENCIES.map(curr => (
                           <option key={curr} value={curr}>
                             {curr}
                           </option>
@@ -474,7 +494,7 @@ export default function NewPurchaseOrderPage() {
                   <div className="col-span-2">
                     <Input
                       value={item.notes}
-                      onChange={(e) => updateLineItem(item.id, 'notes', e.target.value)}
+                      onChange={e => updateLineItem(item.id, 'notes', e.target.value)}
                       placeholder="Notes"
                       className="text-sm h-8"
                     />
@@ -506,7 +526,10 @@ export default function NewPurchaseOrderPage() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={submitting || !formData.supplierId || lineItems.length === 0}>
+            <Button
+              type="submit"
+              disabled={submitting || !formData.supplierId || lineItems.length === 0}
+            >
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

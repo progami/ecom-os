@@ -1,11 +1,15 @@
 #!/usr/bin/env tsx
 
+import dotenv from 'dotenv'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
-  PrismaClient,
   PurchaseOrderLineStatus,
   PurchaseOrderStatus,
   TenantCode,
 } from '@ecom-os/prisma-wms'
+import { getTenantPrismaClient } from '../../src/lib/tenant/prisma-factory'
 
 type CleanupMode = 'void' | 'hard-delete'
 
@@ -25,9 +29,16 @@ const LEGACY_STATUSES: PurchaseOrderStatus[] = [
   PurchaseOrderStatus.ARCHIVED,
 ]
 
-const TENANT_DB_ENV: Record<TenantCode, string> = {
-  US: 'DATABASE_URL_US',
-  UK: 'DATABASE_URL_UK',
+function loadEnv() {
+  const candidates = ['.env.local', '.env.production', '.env.dev', '.env']
+  const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
+  for (const candidate of candidates) {
+    const fullPath = path.join(appDir, candidate)
+    if (!fs.existsSync(fullPath)) continue
+    dotenv.config({ path: fullPath })
+    return
+  }
+  dotenv.config({ path: path.join(appDir, '.env') })
 }
 
 function parseArgs(): ScriptOptions {
@@ -115,38 +126,14 @@ Notes:
   - In void mode, non-POSTED legacy orders have their linked inventory transactions deleted
     (cost ledger rows cascade via FK) and their PO lines are marked CANCELLED.
   - In hard-delete mode, the purchase order record is deleted (lines/containers/movement notes cascade).
-  - Requires DATABASE_URL_US / DATABASE_URL_UK to be configured with the correct schema.
+  - Loads env from apps/wms/.env.local (or .env.*) and resolves tenant schema automatically.
 `)
 }
 
-function getDatabaseUrl(tenant: TenantCode): string {
-  const envKey = TENANT_DB_ENV[tenant]
-  const url = process.env[envKey]
-  if (!url) {
-    throw new Error(`Missing ${envKey} for tenant ${tenant}`)
-  }
-  return url
-}
-
-async function withTenantPrisma<T>(
-  tenant: TenantCode,
-  fn: (prisma: PrismaClient) => Promise<T>
-): Promise<T> {
-  const url = getDatabaseUrl(tenant)
-  const prisma = new PrismaClient({
-    log: ['error'],
-    datasources: { db: { url } },
-  })
+async function runTenant(tenant: TenantCode, options: ScriptOptions) {
+  const prisma = await getTenantPrismaClient(tenant)
 
   try {
-    return await fn(prisma)
-  } finally {
-    await prisma.$disconnect().catch(() => undefined)
-  }
-}
-
-async function runTenant(tenant: TenantCode, options: ScriptOptions) {
-  await withTenantPrisma(tenant, async prisma => {
     const where = {
       OR: [{ isLegacy: true }, { poNumber: null }, { status: { in: LEGACY_STATUSES } }],
     }
@@ -242,10 +229,13 @@ async function runTenant(tenant: TenantCode, options: ScriptOptions) {
     }
 
     console.log(`[${tenant}] Done`)
-  })
+  } finally {
+    await prisma.$disconnect().catch(() => undefined)
+  }
 }
 
 async function run() {
+  loadEnv()
   const options = parseArgs()
 
   if (options.help) {

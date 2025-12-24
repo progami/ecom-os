@@ -46,7 +46,7 @@ case "$app_key" in
     app_dir="$REPO_DIR/apps/wms"
     pm2_name="${PM2_PREFIX}-wms"
     prisma_cmd="pnpm --filter $workspace db:generate"
-    migrate_cmd="pnpm --filter $workspace db:migrate:tenant-schema && pnpm --filter $workspace db:migrate:sku-dimensions"
+    migrate_cmd="pnpm --filter $workspace db:migrate:tenant-schema && pnpm --filter $workspace db:migrate:sku-dimensions && pnpm --filter $workspace db:migrate:sku-batch-attributes"
     build_cmd="pnpm --filter $workspace build"
     ;;
   ecomos)
