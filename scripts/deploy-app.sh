@@ -90,14 +90,49 @@ error() { printf '\033[31m[deploy-%s-%s]\033[0m %s\n' "$app_key" "$environment" 
 
 load_env_file() {
   local file="$1"
-  if [[ -f "$file" ]]; then
-    # shellcheck disable=SC1090
-    set -a
-    source "$file"
-    set +a
-    return 0
+  if [[ ! -f "$file" ]]; then
+    return 1
   fi
-  return 1
+
+  # Parse dotenv-style env files safely (values may contain '&', '?', etc.).
+  # Avoid `source`, which treats those characters as shell operators.
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line#"${line%%[![:space:]]*}"}"
+    line="${line%"${line##*[![:space:]]}"}"
+
+    if [[ -z "$line" || "${line:0:1}" == "#" ]]; then
+      continue
+    fi
+
+    if [[ "$line" == export\ * ]]; then
+      line="${line#export }"
+      line="${line#"${line%%[![:space:]]*}"}"
+    fi
+
+    if [[ "$line" != *"="* ]]; then
+      continue
+    fi
+
+    local key="${line%%=*}"
+    local value="${line#*=}"
+
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+
+    if [[ -z "$key" || ! "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      continue
+    fi
+
+    if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+      value="${value:1:-1}"
+    elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+      value="${value:1:-1}"
+    fi
+
+    export "${key}=${value}"
+  done < "$file"
+
+  return 0
 }
 
 ensure_database_url() {
