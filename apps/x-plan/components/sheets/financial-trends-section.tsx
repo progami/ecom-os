@@ -331,8 +331,8 @@ function TrendChart({ title, description, helper, series, granularity, format, a
 
   const gradientId = useId()
   const width = Math.max(640, chartSize.width || 640)
-  const height = 320
-  const padding = { top: 24, right: 24, bottom: 48, left: 70 }
+  const height = 500
+  const padding = { top: 32, right: 24, bottom: 56, left: 70 }
   const innerWidth = width - padding.left - padding.right
   const innerHeight = height - padding.top - padding.bottom
   const color = palette.hex
@@ -398,7 +398,7 @@ function TrendChart({ title, description, helper, series, granularity, format, a
     if (!values.length) return [0]
     const minVal = Math.min(...values)
     const maxVal = Math.max(...values)
-    return niceScale(Math.min(0, minVal), maxVal, 5)
+    return niceScale(Math.min(0, minVal), maxVal, 6)
   }, [values])
 
   // Calculate X-axis tick indices (show subset to avoid crowding)
@@ -482,8 +482,8 @@ function TrendChart({ title, description, helper, series, granularity, format, a
         </span>
         <span className="text-sm text-slate-700 dark:text-slate-200/80">{description}</span>
       </div>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-        <div ref={chartRef} className="relative h-80 w-full overflow-hidden rounded-3xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 backdrop-blur-sm">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+        <div ref={chartRef} className="relative h-[500px] w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 backdrop-blur-sm">
           <TrendChartSvg
             width={width}
             height={height}
@@ -508,7 +508,7 @@ function TrendChart({ title, description, helper, series, granularity, format, a
             onKeyDown={handleKeyDown}
           />
         </div>
-        <aside className="space-y-4 rounded-3xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 p-4 text-sm text-slate-200/80 backdrop-blur-sm">
+        <aside className="space-y-4 rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 p-4 text-sm backdrop-blur-sm">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Latest cadence</p>
             <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
