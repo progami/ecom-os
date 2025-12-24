@@ -14,6 +14,23 @@ type Props = {
   departments: Department[]
 }
 
+function formatEmploymentType(value: string | null | undefined): string {
+  switch (value) {
+    case 'FULL_TIME':
+      return 'Full-time'
+    case 'PART_TIME':
+      return 'Part-time'
+    case 'CONTRACT':
+      return 'Contract'
+    case 'INTERN':
+      return 'Intern'
+    case 'WORKING_PARTNER':
+      return 'Working partner'
+    default:
+      return value ? value.replace(/_/g, ' ').toLowerCase() : ''
+  }
+}
+
 function buildDeptTree(departments: Department[]): DeptNode[] {
   const deptMap = new Map<string, DeptNode>()
 
@@ -96,7 +113,9 @@ function DepartmentCard({
             <p className="text-[11px] font-semibold text-gray-900 truncate">
               {node.head.firstName} {node.head.lastName}
             </p>
-            <p className="text-[9px] text-blue-600 font-medium truncate">Head</p>
+            <p className="text-[9px] text-blue-600 font-medium truncate">
+              Head{node.head.employmentType ? ` • ${formatEmploymentType(node.head.employmentType)}` : ''}
+            </p>
           </div>
         </Link>
       ) : (
@@ -126,7 +145,9 @@ function DepartmentCard({
                   <p className="text-[10px] font-medium text-gray-700 group-hover:text-blue-600 truncate">
                     {emp.firstName} {emp.lastName}
                   </p>
-                  <p className="text-[8px] text-gray-400 truncate">{emp.position}</p>
+                  <p className="text-[8px] text-gray-400 truncate">
+                    {emp.position}{emp.employmentType ? ` • ${formatEmploymentType(emp.employmentType)}` : ''}
+                  </p>
                 </div>
               </Link>
             ))}

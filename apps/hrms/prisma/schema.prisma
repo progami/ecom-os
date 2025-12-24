@@ -746,6 +746,7 @@ model PerformanceReview {
 
   reviewDate      DateTime
   reviewerName    String
+  roleTitle       String              // Employee role/job title at time of review
 
   // Legacy ratings (1-5 scale) - kept for backwards compatibility
   overallRating   Int                 // 1-5
@@ -835,9 +836,11 @@ model PerformanceReview {
   @@index([assignedReviewerId])
   @@index([deadline])
   @@index([escalatedToHR])
+  @@index([roleTitle])
   @@index([periodType])
   @@index([periodYear])
   @@index([periodType, periodYear])
+  @@index([employeeId, roleTitle, periodType, periodYear])
 }
 
 model DisciplinaryAction {

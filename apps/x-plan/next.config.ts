@@ -22,11 +22,6 @@ const nextConfig: NextConfig = {
     "@ecom-os/logger",
   ],
 
-  // Disable ESLint during production builds for deployment
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-
   serverExternalPackages: ['@ecom-os/prisma-x-plan'],
 };
 

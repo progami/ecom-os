@@ -439,6 +439,7 @@ export type PerformanceReview = {
   reviewPeriod: string
   reviewDate: string
   reviewerName: string
+  roleTitle: string
   assignedReviewerId?: string | null
   assignedReviewer?: {
     id: string
@@ -477,7 +478,9 @@ export type CreatePerformanceReviewInput = {
   periodType: string
   periodYear: number
   reviewDate: string
-  reviewerName: string
+  roleTitle?: string
+  assignedReviewerId?: string
+  reviewerName?: string
   overallRating: number
   qualityOfWork?: number | null
   productivity?: number | null
@@ -508,6 +511,7 @@ export type UpdatePerformanceReviewInput = {
   periodYear?: number
   reviewDate?: string
   reviewerName?: string
+  roleTitle?: string
   overallRating?: number
   qualityOfWork?: number | null
   productivity?: number | null
@@ -946,6 +950,7 @@ export type DepartmentHead = {
   lastName: string
   email: string
   position: string
+  employmentType: string
   avatar?: string | null
 }
 
@@ -955,6 +960,7 @@ export type DepartmentEmployee = {
   firstName: string
   lastName: string
   position: string
+  employmentType: string
   avatar?: string | null
 }
 

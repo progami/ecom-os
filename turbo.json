@@ -8,6 +8,7 @@
         "NEXTAUTH_SECRET",
         "PORTAL_AUTH_SECRET",
         "PORTAL_AUTH_URL",
+        "PORTAL_DB_URL",
         "NEXTAUTH_URL",
         "COOKIE_DOMAIN",
         "BASE_PATH",
