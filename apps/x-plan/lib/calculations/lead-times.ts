@@ -36,7 +36,7 @@ export function buildLeadTimeProfiles(
   for (const template of templates) {
     const stage = identifyStage(template.label)
     if (!stage) continue
-    templateDefaults[stage] = coerceNumber(template.defaultWeeks)
+    templateDefaults[stage] = Math.max(0, coerceNumber(template.defaultWeeks))
     templateStageMap.set(template.id, stage)
   }
 
@@ -51,7 +51,7 @@ export function buildLeadTimeProfiles(
     if (!stage) continue
     const profile = profiles.get(override.productId)
     if (!profile) continue
-    profile[stage] = coerceNumber(override.durationWeeks)
+    profile[stage] = Math.max(0, coerceNumber(override.durationWeeks))
   }
 
   return profiles
