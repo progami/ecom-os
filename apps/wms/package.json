@@ -30,6 +30,8 @@
     "test:performance": "echo 'Performance tests placeholder - no performance tests configured'",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:tenant-schema": "tsx scripts/migrations/ensure-wms-tenant-schema.ts",
+    "db:migrate:sku-dimensions": "tsx scripts/migrations/add-sku-dimension-columns.ts",
     "db:studio": "prisma studio",
     "demo": "tsx scripts/demo.ts",
     "demo:headed": "tsx scripts/demo.ts --headed",

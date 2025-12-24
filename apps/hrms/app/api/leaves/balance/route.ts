@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
+import { isHROrAbove } from '@/lib/permissions'
 
 /**
  * GET /api/leaves/balance
@@ -25,22 +26,17 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const isHR = await isHROrAbove(currentEmployeeId)
+
     // Default to current employee
     if (!employeeId) {
       employeeId = currentEmployeeId
     }
 
     // Check access
-    const currentEmployee = await prisma.employee.findUnique({
-      where: { id: currentEmployeeId },
-      select: { isSuperAdmin: true, permissionLevel: true },
-    })
+    const isSelf = employeeId === currentEmployeeId
 
-    const canView = currentEmployee?.isSuperAdmin ||
-                   (currentEmployee?.permissionLevel ?? 0) >= 50 ||
-                   employeeId === currentEmployeeId
-
-    if (!canView) {
+    if (!isSelf && !isHR) {
       // Check if manager
       const targetEmployee = await prisma.employee.findUnique({
         where: { id: employeeId },
@@ -128,12 +124,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const currentEmployee = await prisma.employee.findUnique({
-      where: { id: currentEmployeeId },
-      select: { isSuperAdmin: true, permissionLevel: true },
-    })
-
-    if (!currentEmployee?.isSuperAdmin && (currentEmployee?.permissionLevel ?? 0) < 50) {
+    const isHR = await isHROrAbove(currentEmployeeId)
+    if (!isHR) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403 })
     }
 

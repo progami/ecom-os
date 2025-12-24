@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../../lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { getHREmployees } from '@/lib/permissions'
+import { getHREmployees, isManagerOf } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -65,11 +65,11 @@ export async function POST(req: Request, context: RouteContext) {
       // Check if current user is higher up in the chain (can act as manager)
       const currentEmployee = await prisma.employee.findUnique({
         where: { id: currentEmployeeId },
-        select: { isSuperAdmin: true, permissionLevel: true },
+        select: { isSuperAdmin: true },
       })
 
-      // Super admin or high permission level can acknowledge as manager
-      const canActAsManager = currentEmployee?.isSuperAdmin || (currentEmployee?.permissionLevel ?? 0) >= 50
+      // Super admin or manager chain can acknowledge as manager
+      const canActAsManager = currentEmployee?.isSuperAdmin || await isManagerOf(currentEmployeeId, action.employeeId)
 
       if (!canActAsManager) {
         return NextResponse.json(
@@ -376,9 +376,9 @@ export async function GET(req: Request, context: RouteContext) {
     // Check if current user is higher up
     const currentEmployee = await prisma.employee.findUnique({
       where: { id: currentEmployeeId },
-      select: { isSuperAdmin: true, permissionLevel: true },
+      select: { isSuperAdmin: true },
     })
-    const canActAsManager = currentEmployee?.isSuperAdmin || (currentEmployee?.permissionLevel ?? 0) >= 50
+    const canActAsManager = currentEmployee?.isSuperAdmin || await isManagerOf(currentEmployeeId, action.employeeId)
     const isPendingAck = action.status === 'PENDING_ACKNOWLEDGMENT'
 
     return NextResponse.json({
