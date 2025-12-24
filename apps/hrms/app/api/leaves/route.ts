@@ -262,9 +262,11 @@ export async function POST(req: Request) {
       })
     }
 
+    const skipBalanceCheck = leaveType === 'UNPAID' || leaveType === 'JURY_DUTY'
+
     // Check if enough balance
     const available = balance.allocated + balance.carriedOver - balance.used - balance.pending
-    if (computedTotalDays > available && leaveType !== 'UNPAID') {
+    if (!skipBalanceCheck && computedTotalDays > available) {
       return NextResponse.json(
         { error: `Insufficient leave balance. Available: ${available} days, Requested: ${computedTotalDays} days` },
         { status: 400 }
