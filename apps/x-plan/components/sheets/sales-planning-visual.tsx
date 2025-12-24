@@ -1,8 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useMemo, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import { clsx } from 'clsx'
 import { useSearchParams } from 'next/navigation'
 import { useTheme } from 'next-themes'
@@ -81,18 +80,9 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
     ? contextProductId
     : defaultProductId
 
-  const [hoveredShipment, setHoveredShipment] = useState<ShipmentMarker | null>(null)
-  const [hoveredStock, setHoveredStock] = useState<{ weekNumber: number; weekDate: string; stockEnd: number } | null>(null)
-  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number } | null>(null)
+  const [activeWeekIndex, setActiveWeekIndex] = useState<number | null>(null)
   const [showShipments, setShowShipments] = useState(true)
   const [showStockLine, setShowStockLine] = useState(true)
-  const [mounted, setMounted] = useState(false)
-  const svgRef = useRef<SVGSVGElement>(null)
-
-  useEffect(() => {
-    setMounted(true)
-    return () => setMounted(false)
-  }, [])
 
   const isDark = theme === 'dark'
   const colors = {
@@ -134,6 +124,24 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
       .filter((marker) => Number.isFinite(marker.weekNumber))
   }, [rows])
 
+  const shipmentByWeek = useMemo(() => {
+    const map = new Map<number, ShipmentMarker>()
+    shipmentMarkers.forEach((marker) => {
+      if (!map.has(marker.weekNumber)) {
+        map.set(marker.weekNumber, marker)
+      }
+    })
+    return map
+  }, [shipmentMarkers])
+
+  const weekIndexByWeekNumber = useMemo(() => {
+    const map = new Map<number, number>()
+    stockDataPoints.forEach((point, index) => {
+      map.set(point.weekNumber, index)
+    })
+    return map
+  }, [stockDataPoints])
+
   const chartBounds = useMemo(() => {
     if (stockDataPoints.length === 0) {
       return { minStock: 0, maxStock: 100, minWeek: 1, maxWeek: 52 }
@@ -160,6 +168,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
 
   const chartHeight = 600
   const padding = { top: 40, right: 40, bottom: 60, left: 80 }
+  const viewBoxWidth = 1400
 
   const xScale = (weekNumber: number, containerWidth: number) => {
     const range = chartBounds.maxWeek - chartBounds.minWeek
@@ -224,6 +233,64 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
 
     return ticks
   }, [chartBounds, stockDataPoints])
+
+  const activeStock = activeWeekIndex != null ? stockDataPoints[activeWeekIndex] ?? null : null
+  const activeShipment =
+    showShipments && activeStock ? shipmentByWeek.get(activeStock.weekNumber) ?? null : null
+
+  const handlePointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    if (stockDataPoints.length === 0) return
+
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const relativeX = event.clientX - bounds.left
+    const clampedX = Math.max(0, Math.min(bounds.width, relativeX))
+    const svgX = (clampedX / Math.max(1, bounds.width)) * viewBoxWidth
+
+    const minX = padding.left
+    const maxX = viewBoxWidth - padding.right
+    const clampedSvgX = Math.max(minX, Math.min(maxX, svgX))
+    const normalized = (clampedSvgX - minX) / Math.max(1, maxX - minX)
+
+    const weekSpan = chartBounds.maxWeek - chartBounds.minWeek || 1
+    const estimatedWeek = chartBounds.minWeek + normalized * weekSpan
+    const roundedWeek = Math.round(estimatedWeek)
+
+    const directIndex = weekIndexByWeekNumber.get(roundedWeek)
+    if (directIndex != null) {
+      setActiveWeekIndex((prev) => (prev === directIndex ? prev : directIndex))
+      return
+    }
+
+    let nearestIndex = 0
+    let nearestDelta = Infinity
+    for (let index = 0; index < stockDataPoints.length; index++) {
+      const delta = Math.abs(stockDataPoints[index]?.weekNumber - estimatedWeek)
+      if (delta < nearestDelta) {
+        nearestDelta = delta
+        nearestIndex = index
+      }
+    }
+    setActiveWeekIndex((prev) => (prev === nearestIndex ? prev : nearestIndex))
+  }
+
+  const handlePointerLeave = () => setActiveWeekIndex(null)
+
+  const handleKeyDown = (event: KeyboardEvent<SVGSVGElement>) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+    if (stockDataPoints.length === 0) return
+
+    event.preventDefault()
+    setActiveWeekIndex((prev) => {
+      const maxIndex = Math.max(0, stockDataPoints.length - 1)
+      if (prev == null) {
+        return event.key === 'ArrowLeft' ? maxIndex : 0
+      }
+      if (event.key === 'ArrowLeft') {
+        return Math.max(0, prev - 1)
+      }
+      return Math.min(maxIndex, prev + 1)
+    })
+  }
 
   if (productOptions.length === 0) {
     return (
@@ -299,28 +366,34 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
         </button>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 backdrop-blur-sm dark:border-[#0b3a52] dark:bg-[#06182b]/60">
-        <div className="mb-4">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Stock Level Over Time</h3>
-          <p className="text-sm text-slate-600 dark:text-[#6F7B8B]">
-            Tracking inventory levels with shipment arrival markers
+	      <div className="rounded-2xl border border-slate-200 bg-white p-6 backdrop-blur-sm dark:border-[#0b3a52] dark:bg-[#06182b]/60">
+	        <div className="mb-4">
+	          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Stock Level Over Time</h3>
+	          <p className="text-sm text-slate-600 dark:text-[#6F7B8B]">
+	            Tracking inventory levels with shipment arrival markers
           </p>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-          <div className="w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85">
-            <svg
-            ref={svgRef}
-            width="100%"
-            height={chartHeight}
-            className="sales-chart-svg text-slate-900 dark:text-white"
-            preserveAspectRatio="none"
-            viewBox={`0 0 1400 ${chartHeight}`}
-          >
-            {/* Grid lines */}
-            <g className="opacity-40">
-              {yAxisTicks.map((tick, index) => (
-                <line
+	          <div className="w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85">
+	            <svg
+	            width="100%"
+	            height={chartHeight}
+	            className="sales-chart-svg text-slate-900 dark:text-white"
+	            preserveAspectRatio="none"
+	            viewBox={`0 0 ${viewBoxWidth} ${chartHeight}`}
+              role="img"
+              aria-label="Stock level over time"
+              tabIndex={0}
+              onPointerMove={handlePointerMove}
+              onPointerDown={handlePointerMove}
+              onPointerLeave={handlePointerLeave}
+              onKeyDown={handleKeyDown}
+	          >
+	            {/* Grid lines */}
+	            <g className="opacity-40">
+	              {yAxisTicks.map((tick, index) => (
+	                <line
                   key={`grid-y-${index}-${tick}`}
                   x1={padding.left}
                   y1={yScale(tick)}
@@ -342,126 +415,89 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
               />
             )}
 
-            {/* Stock line */}
-            {showStockLine && (
-              <path
-                d={getPathData(1400)}
-                fill="none"
-                stroke={colors.stockLine}
-                strokeWidth="3"
-                strokeLinecap="round"
+	            {/* Stock line */}
+	            {showStockLine && (
+	              <path
+	                d={getPathData(viewBoxWidth)}
+	                fill="none"
+	                stroke={colors.stockLine}
+	                strokeWidth="3"
+	                strokeLinecap="round"
                 strokeLinejoin="round"
               />
             )}
 
-            {/* Data points */}
-            {showStockLine && stockDataPoints.map((point, index) => {
-              const isHovered = hoveredStock?.weekNumber === point.weekNumber
-              return (
-                <g key={`point-${index}`}>
-                  {/* Large invisible hitbox for easy hovering */}
-                  <circle
-                    cx={xScale(point.weekNumber, 1400)}
-                    cy={yScale(point.stockEnd)}
-                    r="20"
-                    fill="transparent"
-                    className="cursor-pointer"
-                    onMouseEnter={(e) => {
-                      setHoveredStock(point)
-                      setTooltipPosition({ x: e.clientX, y: e.clientY })
-                    }}
-                    onMouseMove={(e) => setTooltipPosition({ x: e.clientX, y: e.clientY })}
-                    onMouseLeave={() => {
-                      setHoveredStock(null)
-                      setTooltipPosition(null)
-                    }}
-                  />
-                  {/* Visible data point */}
-                  <circle
-                    cx={xScale(point.weekNumber, 1400)}
-                    cy={yScale(point.stockEnd)}
-                    r={isHovered ? "7" : "5"}
-                    fill={colors.stockLine}
-                    stroke={colors.stroke}
-                    strokeWidth="2"
-                    className="pointer-events-none transition-all duration-150"
-                  />
-                </g>
-              )
-            })}
+              {/* Active week indicator */}
+              {activeStock ? (
+                <line
+                  x1={xScale(activeStock.weekNumber, viewBoxWidth)}
+                  x2={xScale(activeStock.weekNumber, viewBoxWidth)}
+                  y1={padding.top}
+                  y2={chartHeight - padding.bottom}
+                  stroke={colors.stockLine}
+                  strokeWidth="3"
+                  strokeDasharray="6 4"
+                  opacity="0.35"
+                  className="pointer-events-none"
+                />
+              ) : null}
 
-            {/* Shipment markers */}
-            {showShipments && shipmentMarkers.map((marker, index) => {
-              const x = xScale(marker.weekNumber, 1400)
-              const isHovered = hoveredShipment?.weekNumber === marker.weekNumber
+	            {/* Shipment markers */}
+	            {showShipments && shipmentMarkers.map((marker, index) => {
+	              const x = xScale(marker.weekNumber, viewBoxWidth)
+	              const isHovered = activeShipment?.weekNumber === marker.weekNumber
 
-              return (
-                <g key={`shipment-${index}`}>
-                  {/* Invisible wider hitbox for better hover - much larger */}
-                  <line
-                    x1={x}
-                    y1={padding.top}
+	              return (
+	                <g key={`shipment-${index}`}>
+	                  {/* Visible line */}
+	                  <line
+	                    x1={x}
+	                    y1={padding.top}
                     x2={x}
                     y2={chartHeight - padding.bottom}
-                    stroke="transparent"
-                    strokeWidth="32"
-                    className="cursor-pointer"
-                    onMouseEnter={(e) => {
-                      setHoveredShipment(marker)
-                      setTooltipPosition({ x: e.clientX, y: e.clientY })
-                    }}
-                    onMouseMove={(e) => setTooltipPosition({ x: e.clientX, y: e.clientY })}
-                    onMouseLeave={() => {
-                      setHoveredShipment(null)
-                      setTooltipPosition(null)
-                    }}
-                  />
-                  {/* Visible line */}
-                  <line
-                    x1={x}
-                    y1={padding.top}
-                    x2={x}
-                    y2={chartHeight - padding.bottom}
-                    stroke={colors.shipmentLine}
-                    strokeWidth={isHovered ? "4" : "2"}
-                    strokeDasharray="6 4"
-                    className="pointer-events-none transition-all duration-150"
-                  />
-                  {/* Large invisible circle hitbox at top */}
-                  <circle
-                    cx={x}
-                    cy={padding.top - 10}
-                    r="20"
-                    fill="transparent"
-                    className="cursor-pointer"
-                    onMouseEnter={(e) => {
-                      setHoveredShipment(marker)
-                      setTooltipPosition({ x: e.clientX, y: e.clientY })
-                    }}
-                    onMouseMove={(e) => setTooltipPosition({ x: e.clientX, y: e.clientY })}
-                    onMouseLeave={() => {
-                      setHoveredShipment(null)
-                      setTooltipPosition(null)
-                    }}
-                  />
-                  {/* Visible circle marker */}
-                  <circle
-                    cx={x}
-                    cy={padding.top - 10}
+	                    stroke={colors.shipmentLine}
+	                    strokeWidth={isHovered ? "4" : "2"}
+	                    strokeDasharray="6 4"
+	                    className="pointer-events-none transition-all duration-150"
+	                  />
+	                  {/* Visible circle marker */}
+	                  <circle
+	                    cx={x}
+	                    cy={padding.top - 10}
                     r={isHovered ? "9" : "7"}
                     fill={colors.shipmentLine}
                     stroke={colors.stroke}
                     strokeWidth="2"
                     className="pointer-events-none transition-all duration-150"
-                  />
-                </g>
-              )
-            })}
+	                  />
+	                </g>
+	              )
+	            })}
 
-            {/* Y-axis */}
-            <g>
-              <line
-                x1={padding.left}
+              {/* Data points */}
+              {showStockLine
+                ? stockDataPoints.map((point, index) => {
+                    const isHovered = activeStock?.weekNumber === point.weekNumber
+                    return (
+                      <circle
+                        key={`point-${index}`}
+                        cx={xScale(point.weekNumber, viewBoxWidth)}
+                        cy={yScale(point.stockEnd)}
+                        r={isHovered ? 7 : 5}
+                        fill={colors.stockLine}
+                        stroke={colors.stroke}
+                        strokeWidth="2"
+                        opacity={isHovered ? 1 : 0.75}
+                        className="pointer-events-none transition-all duration-150"
+                      />
+                    )
+                  })
+                : null}
+
+	            {/* Y-axis */}
+	            <g>
+	              <line
+	                x1={padding.left}
                 y1={padding.top}
                 x2={padding.left}
                 y2={chartHeight - padding.bottom}
@@ -489,52 +525,52 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                   </text>
                 </g>
               ))}
-              <text
-                x={20}
-                y={chartHeight / 2}
-                textAnchor="middle"
-                className="fill-white text-sm font-semibold"
-                transform={`rotate(-90, 20, ${chartHeight / 2})`}
-              >
-                Stock Level (Units)
-              </text>
+	              <text
+	                x={20}
+	                y={chartHeight / 2}
+	                textAnchor="middle"
+	                className="fill-slate-600 dark:fill-[#6F7B8B] text-sm font-semibold"
+	                transform={`rotate(-90, 20, ${chartHeight / 2})`}
+	              >
+	                Stock Level (Units)
+	              </text>
             </g>
 
             {/* X-axis */}
             <g>
-              <line
-                x1={padding.left}
-                y1={chartHeight - padding.bottom}
-                x2={1400 - padding.right}
-                y2={chartHeight - padding.bottom}
-                stroke="#6F7B8B"
-                strokeWidth="2"
-              />
+	              <line
+	                x1={padding.left}
+	                y1={chartHeight - padding.bottom}
+	                x2={viewBoxWidth - padding.right}
+	                y2={chartHeight - padding.bottom}
+	                stroke="#6F7B8B"
+	                strokeWidth="2"
+	              />
               {xAxisTicks.map((tick, index) => (
-                <g key={`x-tick-${index}-${tick.weekNumber}`}>
-                  <line
-                    x1={xScale(tick.weekNumber, 1400)}
-                    y1={chartHeight - padding.bottom}
-                    x2={xScale(tick.weekNumber, 1400)}
-                    y2={chartHeight - padding.bottom + 5}
-                    stroke="#6F7B8B"
-                    strokeWidth="2"
-                  />
-                  <text
-                    x={xScale(tick.weekNumber, 1400)}
-                    y={chartHeight - padding.bottom + 20}
-                    textAnchor="middle"
-                    className="fill-[#6F7B8B] text-xs"
-                  >
-                    W{tick.weekNumber}
-                  </text>
-                  {tick.weekDate && (
-                    <text
-                      x={xScale(tick.weekNumber, 1400)}
-                      y={chartHeight - padding.bottom + 35}
-                      textAnchor="middle"
-                      className="fill-[#6F7B8B] text-xs"
-                    >
+	                <g key={`x-tick-${index}-${tick.weekNumber}`}>
+	                  <line
+	                    x1={xScale(tick.weekNumber, viewBoxWidth)}
+	                    y1={chartHeight - padding.bottom}
+	                    x2={xScale(tick.weekNumber, viewBoxWidth)}
+	                    y2={chartHeight - padding.bottom + 5}
+	                    stroke="#6F7B8B"
+	                    strokeWidth="2"
+	                  />
+	                  <text
+	                    x={xScale(tick.weekNumber, viewBoxWidth)}
+	                    y={chartHeight - padding.bottom + 20}
+	                    textAnchor="middle"
+	                    className="fill-[#6F7B8B] text-xs"
+	                  >
+	                    W{tick.weekNumber}
+	                  </text>
+	                  {tick.weekDate && (
+	                    <text
+	                      x={xScale(tick.weekNumber, viewBoxWidth)}
+	                      y={chartHeight - padding.bottom + 35}
+	                      textAnchor="middle"
+	                      className="fill-[#6F7B8B] text-xs"
+	                    >
                       {tick.weekDate}
                     </text>
                   )}
@@ -553,38 +589,36 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
           </div>
 
           {/* Side panel - like P&L/Cash Flow */}
-          <aside className="space-y-4 rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 p-4 text-sm backdrop-blur-sm">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
-                {hoveredStock ? 'Selected week' : 'Latest week'}
-              </p>
-              <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
-                {hoveredStock
-                  ? `W${hoveredStock.weekNumber} · ${hoveredStock.weekDate}`
-                  : stockDataPoints.length > 0
-                    ? `W${stockDataPoints[stockDataPoints.length - 1].weekNumber} · ${stockDataPoints[stockDataPoints.length - 1].weekDate}`
-                    : '—'
-                }
-              </p>
-            </div>
+	          <aside className="space-y-4 rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 p-4 text-sm backdrop-blur-sm">
+	            <div>
+	              <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
+	                {activeStock ? 'Selected week' : 'Latest week'}
+	              </p>
+	              <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
+	                {activeStock
+	                  ? `W${activeStock.weekNumber} · ${activeStock.weekDate}`
+	                  : stockDataPoints.length > 0
+	                    ? `W${stockDataPoints[stockDataPoints.length - 1].weekNumber} · ${stockDataPoints[stockDataPoints.length - 1].weekDate}`
+	                    : '—'
+	                }
+	              </p>
+	            </div>
             <div className="space-y-1">
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Stock level</p>
-              <p className="text-2xl font-semibold text-slate-900 dark:text-white">
-                {(() => {
-                  const value = hoveredStock?.stockEnd ?? stockDataPoints[stockDataPoints.length - 1]?.stockEnd
-                  return value != null ? Math.round(value).toLocaleString() : '—'
-                })()}
-                <span className="ml-1 text-sm font-normal text-slate-500 dark:text-slate-400">units</span>
-              </p>
-            </div>
+	              <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Stock level</p>
+	              <p className="text-2xl font-semibold text-slate-900 dark:text-white">
+	                {(() => {
+	                  const value = activeStock?.stockEnd ?? stockDataPoints[stockDataPoints.length - 1]?.stockEnd
+	                  return value != null ? Math.round(value).toLocaleString() : '—'
+	                })()}
+	                <span className="ml-1 text-sm font-normal text-slate-500 dark:text-slate-400">units</span>
+	              </p>
+	            </div>
             <div className="space-y-1">
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Change vs. prior</p>
-              {(() => {
-                const currentIndex = hoveredStock
-                  ? stockDataPoints.findIndex(p => p.weekNumber === hoveredStock.weekNumber)
-                  : stockDataPoints.length - 1
-                const currentValue = stockDataPoints[currentIndex]?.stockEnd
-                const priorValue = currentIndex > 0 ? stockDataPoints[currentIndex - 1]?.stockEnd : null
+	              <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Change vs. prior</p>
+	              {(() => {
+	                const currentIndex = activeWeekIndex != null ? activeWeekIndex : stockDataPoints.length - 1
+	                const currentValue = stockDataPoints[currentIndex]?.stockEnd
+	                const priorValue = currentIndex > 0 ? stockDataPoints[currentIndex - 1]?.stockEnd : null
 
                 if (currentValue == null || priorValue == null) {
                   return (
@@ -614,22 +648,22 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                       {changePercent != null ? `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}%` : '—'}
                     </p>
                   </>
-                )
-              })()}
-            </div>
-            {hoveredShipment && (
-              <div className="space-y-1 border-t border-slate-200 pt-4 dark:border-[#0b3a52]">
-                <p className="text-xs font-bold uppercase tracking-[0.28em] text-emerald-700 dark:text-emerald-300/80">Shipment</p>
-                <p className="text-sm font-medium text-slate-900 dark:text-white">
-                  W{hoveredShipment.weekNumber} · {hoveredShipment.weekDate}
-                </p>
-                <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-line">
-                  {hoveredShipment.arrivalDetail}
-                </p>
-              </div>
-            )}
-          </aside>
-        </div>
+	                )
+	              })()}
+	            </div>
+	            {activeShipment && (
+	              <div className="space-y-1 border-t border-slate-200 pt-4 dark:border-[#0b3a52]">
+	                <p className="text-xs font-bold uppercase tracking-[0.28em] text-emerald-700 dark:text-emerald-300/80">Shipment</p>
+	                <p className="text-sm font-medium text-slate-900 dark:text-white">
+	                  W{activeShipment.weekNumber} · {activeShipment.weekDate}
+	                </p>
+	                <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-line">
+	                  {activeShipment.arrivalDetail}
+	                </p>
+	              </div>
+	            )}
+	          </aside>
+	        </div>
 
         {/* Legend */}
         <div className="mt-6 flex items-center gap-6 border-t border-slate-200 pt-4 dark:border-[#0b3a52]">
@@ -641,65 +675,8 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
             <div className="h-3 w-8 border-2 border-dashed border-emerald-600 rounded-sm dark:border-emerald-500" />
             <span className="text-xs text-slate-600 dark:text-[#6F7B8B]">Shipment Arrival</span>
           </div>
-        </div>
-      </div>
-
-      {/* Portal-based tooltips that follow cursor */}
-      {mounted && tooltipPosition && hoveredStock && createPortal(
-        <div
-          className="fixed z-[9999] pointer-events-none animate-in fade-in-0 zoom-in-95 duration-100"
-          style={{
-            left: `${tooltipPosition.x + 16}px`,
-            top: `${tooltipPosition.y - 16}px`,
-            transform: 'translateY(-100%)',
-          }}
-        >
-          <div className="rounded-lg border border-cyan-600 bg-white/95 p-3 shadow-lg backdrop-blur-sm dark:border-[#00C2B9] dark:bg-[#0d2a3f]/95 max-w-xs">
-            <div className="mb-1.5 flex items-center gap-2">
-              <div className="h-2.5 w-2.5 rounded-full bg-cyan-600 dark:bg-[#00C2B9]" />
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Stock Level</h4>
-            </div>
-            <div className="space-y-0.5 text-xs">
-              <p className="text-slate-600 dark:text-slate-300">
-                <span className="font-medium text-slate-900 dark:text-white">Week {hoveredStock.weekNumber}</span> · {hoveredStock.weekDate}
-              </p>
-              <p className="text-lg font-bold text-cyan-700 dark:text-[#00C2B9]">
-                {Math.round(hoveredStock.stockEnd).toLocaleString()} <span className="text-xs font-normal text-slate-500 dark:text-slate-400">units</span>
-              </p>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {mounted && tooltipPosition && hoveredShipment && createPortal(
-        <div
-          className="fixed z-[9999] pointer-events-none animate-in fade-in-0 zoom-in-95 duration-100"
-          style={{
-            left: `${tooltipPosition.x + 16}px`,
-            top: `${tooltipPosition.y - 16}px`,
-            transform: 'translateY(-100%)',
-          }}
-        >
-          <div className="rounded-lg border border-emerald-600 bg-white/95 p-3 shadow-lg backdrop-blur-sm dark:border-emerald-500 dark:bg-[#0d2a3f]/95 max-w-sm">
-            <div className="mb-1.5 flex items-center gap-2">
-              <div className="h-2.5 w-2.5 rounded-full bg-emerald-600 dark:bg-emerald-500" />
-              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Shipment Arrival</h4>
-            </div>
-            <div className="space-y-1 text-xs">
-              <p className="text-slate-600 dark:text-slate-300">
-                <span className="font-medium text-slate-900 dark:text-white">Week {hoveredShipment.weekNumber}</span> · {hoveredShipment.weekDate}
-              </p>
-              <div className="mt-1.5 rounded bg-slate-100 p-2 dark:bg-[#041324]/60">
-                <p className="whitespace-pre-line text-xs text-slate-700 dark:text-emerald-100">
-                  {hoveredShipment.arrivalDetail}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-    </div>
-  )
-}
+	        </div>
+	      </div>
+	    </div>
+	  )
+	}
