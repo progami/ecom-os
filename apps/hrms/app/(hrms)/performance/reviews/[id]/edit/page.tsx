@@ -15,7 +15,7 @@ import {
   TextareaField,
 } from '@/components/ui/FormField'
 import { useNavigationHistory } from '@/lib/navigation-history'
-import { REVIEW_PERIOD_TYPES, REVIEW_PERIOD_TYPE_LABELS, inferReviewPeriodParts } from '@/lib/review-period'
+import { REVIEW_PERIOD_TYPES, REVIEW_PERIOD_TYPE_LABELS, getAllowedReviewPeriodTypes, inferReviewPeriodParts } from '@/lib/review-period'
 
 const reviewTypeOptions = [
   { value: 'PROBATION', label: 'Probation (90-day)' },
@@ -102,6 +102,9 @@ export default function EditReviewPage() {
     value: String(y),
     label: String(y),
   }))
+  const [reviewType, setReviewType] = useState('ANNUAL')
+  const [periodType, setPeriodType] = useState('ANNUAL')
+  const [periodYear, setPeriodYear] = useState(String(currentYear))
 
   useEffect(() => {
     async function load() {
@@ -137,6 +140,17 @@ export default function EditReviewPage() {
     }
     load()
   }, [id])
+
+  useEffect(() => {
+    if (!review) return
+    setReviewType(review.reviewType)
+
+    const inferredPeriod = inferReviewPeriodParts(review.reviewPeriod)
+    const nextPeriodType = review.periodType || inferredPeriod.periodType || 'ANNUAL'
+    const nextPeriodYear = review.periodYear ?? inferredPeriod.periodYear ?? currentYear
+    setPeriodType(nextPeriodType)
+    setPeriodYear(String(nextPeriodYear))
+  }, [currentYear, review])
 
   // Check if review is editable
   const isEditable = review && ['NOT_STARTED', 'IN_PROGRESS', 'DRAFT'].includes(review.status)
@@ -279,10 +293,11 @@ export default function EditReviewPage() {
     return null
   }
 
-  const inferredPeriod = inferReviewPeriodParts(review.reviewPeriod)
-  const periodTypeValue = review.periodType || inferredPeriod.periodType || 'ANNUAL'
-  const periodYearValue = review.periodYear ?? inferredPeriod.periodYear ?? currentYear
   const isPeriodLocked = !!review.quarterlyCycleId
+  const allowedPeriodTypes = getAllowedReviewPeriodTypes(reviewType)
+  const periodTypeOptions = reviewPeriodTypeOptions.filter((opt) =>
+    allowedPeriodTypes.includes(opt.value as any)
+  )
 
   return (
     <>
@@ -327,26 +342,36 @@ export default function EditReviewPage() {
                 name="reviewType"
                 required
                 options={reviewTypeOptions}
-                defaultValue={review.reviewType}
+                value={reviewType}
+                onChange={(e) => {
+                  const nextReviewType = e.target.value
+                  setReviewType(nextReviewType)
+                  const nextAllowed = getAllowedReviewPeriodTypes(nextReviewType)
+                  if (!nextAllowed.includes(periodType as any)) {
+                    setPeriodType(nextAllowed[0] ?? 'ANNUAL')
+                  }
+                }}
               />
               <SelectField
                 label="Review Period"
                 name="periodType"
                 required
-                options={reviewPeriodTypeOptions}
-                defaultValue={periodTypeValue}
+                options={periodTypeOptions}
+                value={periodType}
+                onChange={(e) => setPeriodType(e.target.value)}
                 disabled={isPeriodLocked}
               />
-              {isPeriodLocked && <input type="hidden" name="periodType" value={periodTypeValue} />}
+              {isPeriodLocked && <input type="hidden" name="periodType" value={periodType} />}
               <SelectField
                 label="Year"
                 name="periodYear"
                 required
                 options={periodYearOptions}
-                defaultValue={String(periodYearValue)}
+                value={periodYear}
+                onChange={(e) => setPeriodYear(e.target.value)}
                 disabled={isPeriodLocked}
               />
-              {isPeriodLocked && <input type="hidden" name="periodYear" value={String(periodYearValue)} />}
+              {isPeriodLocked && <input type="hidden" name="periodYear" value={periodYear} />}
               <FormField
                 label="Review Date"
                 name="reviewDate"

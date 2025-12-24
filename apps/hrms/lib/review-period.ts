@@ -24,6 +24,20 @@ export const REVIEW_PERIOD_TYPE_LABELS: Record<ReviewPeriodType, string> = {
   CUSTOM: 'Custom',
 }
 
+export const REVIEW_PERIOD_TYPES_BY_REVIEW_TYPE: Record<string, readonly ReviewPeriodType[]> = {
+  PROBATION: ['PROBATION'],
+  QUARTERLY: ['Q1', 'Q2', 'Q3', 'Q4'],
+  SEMI_ANNUAL: ['H1', 'H2'],
+  ANNUAL: ['ANNUAL'],
+  PROMOTION: ['CUSTOM', 'ANNUAL'],
+  PIP: ['CUSTOM', 'ANNUAL'],
+}
+
+export function getAllowedReviewPeriodTypes(reviewType: string): ReviewPeriodType[] {
+  const allowed = REVIEW_PERIOD_TYPES_BY_REVIEW_TYPE[reviewType]
+  return allowed ? [...allowed] : [...REVIEW_PERIOD_TYPES]
+}
+
 export function formatReviewPeriod(periodType: ReviewPeriodType, periodYear: number): string {
   const year = String(periodYear)
   switch (periodType) {
@@ -62,4 +76,3 @@ export function inferReviewPeriodParts(reviewPeriod: string): {
 
   return { periodType: null, periodYear: null }
 }
-
