@@ -30,7 +30,6 @@ export type HrmsNotificationEmailPayload = {
   to: string
   firstName: string
   category: string
-  title: string
   actionUrl: string
   actionRequired?: boolean
 }
@@ -45,17 +44,20 @@ export async function sendHrmsNotificationEmail(
   const to = payload.to.trim()
   const firstName = payload.firstName.trim() || 'there'
   const category = payload.category.trim() || 'Notification'
-  const title = payload.title.trim() || 'New update'
   const actionUrl = payload.actionUrl.trim() || HRMS_URL
   const actionRequired = payload.actionRequired ?? false
 
   if (!resend) {
-    console.log(`[Email] Not configured. Would send to ${to}: ${category} - ${title}`)
+    const message = 'Email not configured'
+    if (process.env.NODE_ENV === 'production') {
+      return { success: false, error: message }
+    }
+
+    console.log(`[Email] ${message}. Would send to ${to}: ${category}`)
     return { success: true }
   }
 
   const safeCategory = escapeHtml(category)
-  const safeTitle = escapeHtml(title)
   const safeFirstName = escapeHtml(firstName)
   const safeActionUrl = escapeHtml(actionUrl)
 
@@ -76,7 +78,6 @@ export async function sendHrmsNotificationEmail(
         `Hi ${firstName},`,
         '',
         `You have a new ${category} notification in HRMS.`,
-        `Title: ${title}`,
         '',
         'For security reasons, details are not included in this email.',
         `Open HRMS to view and respond: ${actionUrl}`,
@@ -123,8 +124,11 @@ export async function sendHrmsNotificationEmail(
                         <p style="margin: 0 0 14px 0; font-size: 14px; color:#334155;">Hi ${safeFirstName},</p>
 
                         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 16px; margin: 0 0 18px 0;">
-                          <div style="font-size: 12px; color:#64748b; margin: 0 0 6px 0;">Notification</div>
-                          <div style="font-size: 16px; font-weight: 700; color:#0f172a; margin: 0;">${safeTitle}</div>
+                          <div style="font-size: 12px; color:#64748b; margin: 0 0 6px 0;">Category</div>
+                          <div style="font-size: 16px; font-weight: 700; color:#0f172a; margin: 0;">${safeCategory}</div>
+                          <div style="margin: 10px 0 0 0; font-size: 13px; color:#475569;">
+                            ${actionRequired ? 'Action required — please open HRMS to review.' : 'Open HRMS to view the update.'}
+                          </div>
                         </div>
 
                         <p style="margin: 0 0 18px 0; font-size: 13px; color:#475569;">
@@ -165,7 +169,7 @@ export async function sendHrmsNotificationEmail(
       `,
     })
 
-    console.log(`[Email] Sent to ${to}: ${category} - ${title}`)
+    console.log(`[Email] Sent to ${to}: ${category}`)
     return { success: true }
   } catch (error: any) {
     console.error(`[Email] Failed to send to ${to}:`, error)

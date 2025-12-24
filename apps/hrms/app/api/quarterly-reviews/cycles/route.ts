@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
+import { isHROrAbove } from '@/lib/permissions'
 
 // GET /api/quarterly-reviews/cycles - List all cycles with stats (HR/Admin only)
 export async function GET(req: Request) {
@@ -15,12 +16,8 @@ export async function GET(req: Request) {
     }
 
     // Check if user has HR-level access
-    const currentEmployee = await prisma.employee.findUnique({
-      where: { id: currentEmployeeId },
-      select: { isSuperAdmin: true, permissionLevel: true },
-    })
-
-    if (!currentEmployee?.isSuperAdmin && (currentEmployee?.permissionLevel ?? 0) < 50) {
+    const isHR = await isHROrAbove(currentEmployeeId)
+    if (!isHR) {
       return NextResponse.json({ error: 'Forbidden - HR access required' }, { status: 403 })
     }
 

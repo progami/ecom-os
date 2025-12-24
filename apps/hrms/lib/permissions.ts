@@ -636,12 +636,10 @@ export async function canRaiseViolation(
     return { allowed: true, reason: 'HR' }
   }
 
-  // Manager can only raise for their direct/indirect reports
-  if (actor.permissionLevel >= PermissionLevel.MANAGER) {
-    const isManager = await isManagerOf(actorId, targetEmployeeId)
-    if (isManager) {
-      return { allowed: true, reason: 'Manager of employee' }
-    }
+  // Managers can raise only for their direct/indirect reports (org-chart derived)
+  const isManager = await isManagerOf(actorId, targetEmployeeId)
+  if (isManager) {
+    return { allowed: true, reason: 'Manager of employee' }
   }
 
   return { allowed: false, reason: 'You can only raise violations for employees who report to you' }

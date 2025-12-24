@@ -20,21 +20,26 @@ import {
 } from '@/components/ui/Table'
 import { TableEmptyState } from '@/components/ui/EmptyState'
 import { StatusBadge } from '@/components/ui/Badge'
+import { TabButton } from '@/components/ui/TabButton'
 
 function labelCaseType(type: string) {
   return type.replaceAll('_', ' ').toLowerCase()
 }
 
+type CaseTab = 'ALL' | 'VIOLATION' | 'GRIEVANCE' | 'INVESTIGATION' | 'INCIDENT' | 'REQUEST' | 'OTHER'
+
 export default function CasesPage() {
   const router = useRouter()
   const [items, setItems] = useState<Case[]>([])
   const [q, setQ] = useState('')
+  const [activeTab, setActiveTab] = useState<CaseTab>('ALL')
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     try {
       setLoading(true)
-      const data = await CasesApi.list({ q })
+      const caseType = activeTab === 'ALL' ? undefined : activeTab
+      const data = await CasesApi.list({ q, caseType })
       setItems(data.items || [])
     } catch (e) {
       console.error('Failed to load cases', e)
@@ -42,7 +47,7 @@ export default function CasesPage() {
     } finally {
       setLoading(false)
     }
-  }, [q])
+  }, [activeTab, q])
 
   useEffect(() => {
     load()
@@ -62,6 +67,30 @@ export default function CasesPage() {
       />
 
       <div className="space-y-6">
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          <TabButton active={activeTab === 'ALL'} onClick={() => setActiveTab('ALL')} icon={ExclamationTriangleIcon}>
+            All
+          </TabButton>
+          <TabButton active={activeTab === 'VIOLATION'} onClick={() => setActiveTab('VIOLATION')} icon={ExclamationTriangleIcon}>
+            Violations
+          </TabButton>
+          <TabButton active={activeTab === 'GRIEVANCE'} onClick={() => setActiveTab('GRIEVANCE')} icon={ExclamationTriangleIcon}>
+            Grievances
+          </TabButton>
+          <TabButton active={activeTab === 'INVESTIGATION'} onClick={() => setActiveTab('INVESTIGATION')} icon={ExclamationTriangleIcon}>
+            Investigations
+          </TabButton>
+          <TabButton active={activeTab === 'INCIDENT'} onClick={() => setActiveTab('INCIDENT')} icon={ExclamationTriangleIcon}>
+            Incidents
+          </TabButton>
+          <TabButton active={activeTab === 'REQUEST'} onClick={() => setActiveTab('REQUEST')} icon={ExclamationTriangleIcon}>
+            Requests
+          </TabButton>
+          <TabButton active={activeTab === 'OTHER'} onClick={() => setActiveTab('OTHER')} icon={ExclamationTriangleIcon}>
+            Other
+          </TabButton>
+        </div>
+
         <Card padding="md">
           <SearchForm
             value={q}
@@ -120,4 +149,3 @@ export default function CasesPage() {
     </>
   )
 }
-

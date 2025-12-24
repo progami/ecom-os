@@ -131,7 +131,6 @@ export async function processPendingNotificationEmailDispatches(options?: { take
         to: dispatch.employee.email,
         firstName: dispatch.employee.firstName,
         category,
-        title: dispatch.notification.title,
         actionUrl,
         actionRequired,
       })
@@ -245,4 +244,3 @@ export async function runNotificationEmailDispatchOnce(): Promise<{
     result: lock.result?.result ?? null,
   }
 }
-

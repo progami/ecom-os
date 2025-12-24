@@ -4,6 +4,7 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { writeAuditLog } from '@/lib/audit'
 import { z } from 'zod'
+import { isHROrAbove } from '@/lib/permissions'
 
 const CreateLeaveRequestSchema = z.object({
   employeeId: z.string().min(1).max(100),
@@ -59,11 +60,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get current user's permission level
-    const currentEmployee = await prisma.employee.findUnique({
-      where: { id: currentEmployeeId },
-      select: { isSuperAdmin: true, permissionLevel: true },
-    })
+    const isHR = await isHROrAbove(currentEmployeeId)
 
     // Build where clause
     const where: any = {}
@@ -71,12 +68,9 @@ export async function GET(req: Request) {
     // If specific employee requested
     if (employeeId) {
       // Check if current user can view this employee's leaves
-      const canView = currentEmployee?.isSuperAdmin ||
-                     (currentEmployee?.permissionLevel ?? 0) >= 50 ||
-                     employeeId === currentEmployeeId
-
-      if (!canView) {
-        // Check if manager of the employee
+      const isSelf = employeeId === currentEmployeeId
+      if (!isSelf && !isHR) {
+        // Direct manager can view a report's leave
         const targetEmployee = await prisma.employee.findUnique({
           where: { id: employeeId },
           select: { reportsToId: true },
@@ -87,8 +81,8 @@ export async function GET(req: Request) {
       }
       where.employeeId = employeeId
     } else {
-      // If not super admin or HR, only show own leaves or direct reports
-      if (!currentEmployee?.isSuperAdmin && (currentEmployee?.permissionLevel ?? 0) < 50) {
+      // If not HR, only show own leaves or direct reports
+      if (!isHR) {
         const directReportIds = await prisma.employee.findMany({
           where: { reportsToId: currentEmployeeId },
           select: { id: true },
@@ -186,17 +180,11 @@ export async function POST(req: Request) {
       )
     }
 
-    // Check if current user can create leave for this employee
-    const currentEmployee = await prisma.employee.findUnique({
-      where: { id: currentEmployeeId },
-      select: { isSuperAdmin: true, permissionLevel: true },
-    })
+    const isHR = await isHROrAbove(currentEmployeeId)
+    const isSelf = employeeId === currentEmployeeId
 
-    const canCreate = currentEmployee?.isSuperAdmin ||
-                     (currentEmployee?.permissionLevel ?? 0) >= 50 ||
-                     employeeId === currentEmployeeId
-
-    if (!canCreate) {
+    // Only self (or HR) can create a leave request
+    if (!isSelf && !isHR) {
       return NextResponse.json({ error: 'Cannot create leave for other employees' }, { status: 403 })
     }
 

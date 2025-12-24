@@ -16,7 +16,7 @@ import {
   FormActions,
 } from '@/components/ui/FormField'
 import { useNavigationHistory } from '@/lib/navigation-history'
-import { REVIEW_PERIOD_TYPES, REVIEW_PERIOD_TYPE_LABELS } from '@/lib/review-period'
+import { REVIEW_PERIOD_TYPES, REVIEW_PERIOD_TYPE_LABELS, getAllowedReviewPeriodTypes } from '@/lib/review-period'
 
 const reviewTypeOptions = [
   { value: 'PROBATION', label: 'Probation (90-day)' },
@@ -75,6 +75,8 @@ function AddReviewForm() {
   const [error, setError] = useState<string | null>(null)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loadingEmployees, setLoadingEmployees] = useState(true)
+  const [reviewType, setReviewType] = useState('ANNUAL')
+  const [periodType, setPeriodType] = useState('ANNUAL')
 
   // Rating states
   const [overallRating, setOverallRating] = useState(3)
@@ -146,6 +148,11 @@ function AddReviewForm() {
     label: `${e.firstName} ${e.lastName} (${e.employeeId})`,
   }))
 
+  const allowedPeriodTypes = getAllowedReviewPeriodTypes(reviewType)
+  const periodTypeOptions = reviewPeriodTypeOptions.filter((opt) =>
+    allowedPeriodTypes.includes(opt.value as any)
+  )
+
   return (
     <Card padding="lg">
       {error && (
@@ -172,14 +179,23 @@ function AddReviewForm() {
               name="reviewType"
               required
               options={reviewTypeOptions}
-              defaultValue="ANNUAL"
+              value={reviewType}
+              onChange={(e) => {
+                const nextReviewType = e.target.value
+                setReviewType(nextReviewType)
+                const nextAllowed = getAllowedReviewPeriodTypes(nextReviewType)
+                if (!nextAllowed.includes(periodType as any)) {
+                  setPeriodType(nextAllowed[0] ?? 'ANNUAL')
+                }
+              }}
             />
             <SelectField
               label="Review Period"
               name="periodType"
               required
-              options={reviewPeriodTypeOptions}
-              defaultValue="ANNUAL"
+              options={periodTypeOptions}
+              value={periodType}
+              onChange={(e) => setPeriodType(e.target.value)}
             />
             <SelectField
               label="Year"

@@ -170,6 +170,18 @@ export const ReviewPeriodTypeEnum = z.enum([
   'CUSTOM',
 ])
 
+const REVIEW_PERIOD_TYPES_BY_REVIEW_TYPE: Record<
+  z.infer<typeof ReviewTypeEnum>,
+  readonly z.infer<typeof ReviewPeriodTypeEnum>[]
+> = {
+  PROBATION: ['PROBATION'],
+  QUARTERLY: ['Q1', 'Q2', 'Q3', 'Q4'],
+  SEMI_ANNUAL: ['H1', 'H2'],
+  ANNUAL: ['ANNUAL'],
+  PROMOTION: ['CUSTOM', 'ANNUAL'],
+  PIP: ['CUSTOM', 'ANNUAL'],
+}
+
 const RatingSchema = z.coerce.number().int().min(1).max(5)
 const PeriodYearSchema = z.coerce.number().int().min(2000).max(2100)
 
@@ -205,6 +217,15 @@ export const CreatePerformanceReviewSchema = z.object({
   goals: z.string().max(2000).trim().optional().nullable(),
   comments: z.string().max(5000).trim().optional().nullable(),
   status: ReviewStatusEnum.default('DRAFT'),
+}).superRefine((data, ctx) => {
+  const allowedPeriodTypes = REVIEW_PERIOD_TYPES_BY_REVIEW_TYPE[data.reviewType]
+  if (!allowedPeriodTypes.includes(data.periodType)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Invalid review period for ${data.reviewType}`,
+      path: ['periodType'],
+    })
+  }
 })
 
 export const UpdatePerformanceReviewSchema = z.object({
@@ -247,6 +268,17 @@ export const UpdatePerformanceReviewSchema = z.object({
       message: 'periodType and periodYear must be provided together',
       path: ['periodType'],
     })
+  }
+
+  if (data.reviewType && data.periodType) {
+    const allowedPeriodTypes = REVIEW_PERIOD_TYPES_BY_REVIEW_TYPE[data.reviewType]
+    if (!allowedPeriodTypes.includes(data.periodType)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Invalid review period for ${data.reviewType}`,
+        path: ['periodType'],
+      })
+    }
   }
 })
 
