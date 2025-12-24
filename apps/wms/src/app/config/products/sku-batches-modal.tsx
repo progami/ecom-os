@@ -90,7 +90,7 @@ export function SkuBatchesModal({
   const filteredBatches = useMemo(() => {
     const term = batchSearch.trim().toLowerCase()
     if (!term) return batches
-    return batches.filter((batch) => {
+    return batches.filter(batch => {
       return (
         batch.batchCode.toLowerCase().includes(term) ||
         (batch.description ?? '').toLowerCase().includes(term)
@@ -104,9 +104,12 @@ export function SkuBatchesModal({
       setLoading(true)
       const params = new URLSearchParams()
       if (includeInactive) params.set('includeInactive', 'true')
-      const response = await fetch(`/api/skus/${encodeURIComponent(sku.id)}/batches?${params.toString()}`, {
-        credentials: 'include',
-      })
+      const response = await fetch(
+        `/api/skus/${encodeURIComponent(sku.id)}/batches?${params.toString()}`,
+        {
+          credentials: 'include',
+        }
+      )
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
@@ -238,7 +241,7 @@ export function SkuBatchesModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4">
         <div className="w-full max-w-5xl overflow-hidden rounded-lg bg-white shadow-xl">
           <div className="flex items-start justify-between border-b px-6 py-4">
             <div className="flex flex-col gap-1">
@@ -258,7 +261,7 @@ export function SkuBatchesModal({
                 <div className="w-72">
                   <Input
                     value={batchSearch}
-                    onChange={(event) => setBatchSearch(event.target.value)}
+                    onChange={event => setBatchSearch(event.target.value)}
                     placeholder="Search batch code or description"
                   />
                 </div>
@@ -266,7 +269,7 @@ export function SkuBatchesModal({
                   <input
                     type="checkbox"
                     checked={includeInactive}
-                    onChange={(event) => setIncludeInactive(event.target.checked)}
+                    onChange={event => setIncludeInactive(event.target.checked)}
                   />
                   Include inactive
                 </label>
@@ -314,9 +317,11 @@ export function SkuBatchesModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredBatches.map((batch) => (
+                      {filteredBatches.map(batch => (
                         <tr key={batch.id} className="odd:bg-muted/20">
-                          <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">{batch.batchCode}</td>
+                          <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">
+                            {batch.batchCode}
+                          </td>
                           <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
                             {batch.description ?? '—'}
                           </td>
@@ -370,7 +375,7 @@ export function SkuBatchesModal({
       </div>
 
       {isFormOpen ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-2xl overflow-hidden rounded-lg bg-white shadow-xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <div className="flex flex-col">
@@ -391,7 +396,9 @@ export function SkuBatchesModal({
                   <Input
                     id="batchCode"
                     value={formState.batchCode}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, batchCode: event.target.value }))}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, batchCode: event.target.value }))
+                    }
                     required
                   />
                 </div>
@@ -401,7 +408,9 @@ export function SkuBatchesModal({
                   <Input
                     id="batchDescription"
                     value={formState.description}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, description: event.target.value }))}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, description: event.target.value }))
+                    }
                     placeholder="Optional"
                   />
                 </div>
@@ -412,8 +421,8 @@ export function SkuBatchesModal({
                     id="productionDate"
                     type="date"
                     value={formState.productionDate}
-                    onChange={(event) =>
-                      setFormState((prev) => ({ ...prev, productionDate: event.target.value }))
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, productionDate: event.target.value }))
                     }
                   />
                 </div>
@@ -424,7 +433,9 @@ export function SkuBatchesModal({
                     id="expiryDate"
                     type="date"
                     value={formState.expiryDate}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, expiryDate: event.target.value }))}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, expiryDate: event.target.value }))
+                    }
                   />
                 </div>
 
@@ -435,8 +446,11 @@ export function SkuBatchesModal({
                     type="number"
                     min={1}
                     value={formState.storageCartonsPerPallet}
-                    onChange={(event) =>
-                      setFormState((prev) => ({ ...prev, storageCartonsPerPallet: event.target.value }))
+                    onChange={event =>
+                      setFormState(prev => ({
+                        ...prev,
+                        storageCartonsPerPallet: event.target.value,
+                      }))
                     }
                     placeholder="Optional"
                   />
@@ -449,8 +463,11 @@ export function SkuBatchesModal({
                     type="number"
                     min={1}
                     value={formState.shippingCartonsPerPallet}
-                    onChange={(event) =>
-                      setFormState((prev) => ({ ...prev, shippingCartonsPerPallet: event.target.value }))
+                    onChange={event =>
+                      setFormState(prev => ({
+                        ...prev,
+                        shippingCartonsPerPallet: event.target.value,
+                      }))
                     }
                     placeholder="Optional"
                   />
@@ -462,13 +479,20 @@ export function SkuBatchesModal({
                   <input
                     type="checkbox"
                     checked={formState.isActive}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, isActive: event.target.checked }))}
+                    onChange={event =>
+                      setFormState(prev => ({ ...prev, isActive: event.target.checked }))
+                    }
                   />
                   Active
                 </label>
 
                 <div className="flex items-center gap-2">
-                  <Button type="button" variant="outline" onClick={closeForm} disabled={isSubmitting}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={closeForm}
+                    disabled={isSubmitting}
+                  >
                     Cancel
                   </Button>
                   <Button type="submit" disabled={isSubmitting}>
@@ -503,4 +527,3 @@ export function SkuBatchesModal({
     </>
   )
 }
-
