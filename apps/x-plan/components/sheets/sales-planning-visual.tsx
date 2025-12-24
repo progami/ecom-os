@@ -375,11 +375,11 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-          <div className="w-full h-[500px] overflow-hidden rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85">
+          <div className="w-full aspect-[7/3] overflow-hidden rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85">
             <svg
               className="sales-chart-svg text-slate-900 dark:text-white w-full h-full"
               viewBox={`0 0 ${viewBoxWidth} ${chartHeight}`}
-              preserveAspectRatio="xMidYMid meet"
+              preserveAspectRatio="none"
               role="img"
               aria-label="Stock level over time"
               tabIndex={0}
@@ -545,33 +545,23 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
 	                strokeWidth="2"
 	              />
               {xAxisTicks.map((tick, index) => (
-	                <g key={`x-tick-${index}-${tick.weekNumber}`}>
-	                  <line
-	                    x1={xScale(tick.weekNumber, viewBoxWidth)}
-	                    y1={chartHeight - padding.bottom}
-	                    x2={xScale(tick.weekNumber, viewBoxWidth)}
-	                    y2={chartHeight - padding.bottom + 5}
-	                    stroke="#6F7B8B"
-	                    strokeWidth="2"
-	                  />
-	                  <text
-	                    x={xScale(tick.weekNumber, viewBoxWidth)}
-	                    y={chartHeight - padding.bottom + 20}
-	                    textAnchor="middle"
-	                    className="fill-[#6F7B8B] text-xs"
-	                  >
-	                    W{tick.weekNumber}
-	                  </text>
-	                  {tick.weekDate && (
-	                    <text
-	                      x={xScale(tick.weekNumber, viewBoxWidth)}
-	                      y={chartHeight - padding.bottom + 35}
-	                      textAnchor="middle"
-	                      className="fill-[#6F7B8B] text-xs"
-	                    >
-                      {tick.weekDate}
-                    </text>
-                  )}
+                <g key={`x-tick-${index}-${tick.weekNumber}`}>
+                  <line
+                    x1={xScale(tick.weekNumber, viewBoxWidth)}
+                    y1={chartHeight - padding.bottom}
+                    x2={xScale(tick.weekNumber, viewBoxWidth)}
+                    y2={chartHeight - padding.bottom + 5}
+                    stroke="#6F7B8B"
+                    strokeWidth="2"
+                  />
+                  <text
+                    x={xScale(tick.weekNumber, viewBoxWidth)}
+                    y={chartHeight - padding.bottom + 20}
+                    textAnchor="middle"
+                    className="fill-[#6F7B8B] text-xs"
+                  >
+                    W{tick.weekNumber}
+                  </text>
                 </g>
               ))}
             </g>
