@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '../../../lib/prisma'
-import { withRateLimit } from '@/lib/api-helpers'
+import { safeErrorResponse, withRateLimit } from '@/lib/api-helpers'
 import { getCurrentUser } from '@/lib/current-user'
 import { checkAndNotifyMissingFields } from '@/lib/notification-service'
 
@@ -9,33 +9,15 @@ export async function GET(req: Request) {
   const rateLimitError = withRateLimit(req)
   if (rateLimitError) return rateLimitError
 
-  // Default fallback data when database is unavailable
-  const fallbackData = {
-    user: null,
-    isManager: false,
-    currentEmployee: null,
-    directReports: [],
-    notifications: [],
-    unreadNotificationCount: 0,
-    pendingReviews: [],
-    pendingQuarterlyReviews: [],
-    pendingLeaveRequests: [],
-    leaveApprovalHistory: [],
-    myLeaveBalance: [],
-    upcomingLeaves: [],
-    stats: [
-      { label: 'Direct Reports', value: 0 },
-      { label: 'Pending Reviews', value: 0 },
-      { label: 'Unread Notifications', value: 0 },
-    ],
-  }
-
   try {
     const currentUser = await getCurrentUser()
     const employeeId = currentUser?.employee?.id
 
     if (!employeeId) {
-      return NextResponse.json(fallbackData)
+      return NextResponse.json(
+        { error: 'Your employee profile is still being set up. Please retry in a moment.' },
+        { status: 409 }
+      )
     }
 
     // Fetch personalized data
@@ -307,10 +289,6 @@ export async function GET(req: Request) {
       stats,
     })
   } catch (e) {
-    // Log error server-side but return fallback data to keep UI functional
-    console.error('[HRMS Dashboard] Database error:', e instanceof Error ? e.message : e)
-
-    // Return fallback data instead of error so UI renders
-    return NextResponse.json(fallbackData)
+    return safeErrorResponse(e, 'Failed to load dashboard')
   }
 }

@@ -9,7 +9,7 @@ import {
 } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { canRaiseViolation, getHREmployees } from '@/lib/permissions'
+import { canRaiseViolation, getHREmployees, getSubtreeEmployeeIds, isHROrAbove, isManagerOf } from '@/lib/permissions'
 import { getReviewWeights, calculateValuesScore, applyValuesVeto } from '@/lib/standing'
 import { writeAuditLog } from '@/lib/audit'
 import { formatReviewPeriod, type ReviewPeriodType } from '@/lib/review-period'
@@ -27,11 +27,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Get current user's permission level
-    const currentEmployee = await prisma.employee.findUnique({
-      where: { id: currentEmployeeId },
-      select: { isSuperAdmin: true, permissionLevel: true },
-    })
+    const isHR = await isHROrAbove(currentEmployeeId)
 
     const paginationResult = PaginationSchema.safeParse({
       take: searchParams.get('take') || undefined,
@@ -49,32 +45,19 @@ export async function GET(req: Request) {
     const employeeIdParam = searchParams.get('employeeId')
 
     if (employeeIdParam) {
-      // Requesting specific employee's reviews - check permission
-      const canView = currentEmployee?.isSuperAdmin ||
-                     (currentEmployee?.permissionLevel ?? 0) >= 50 ||
-                     employeeIdParam === currentEmployeeId
-
-      if (!canView) {
-        // Check if manager of the employee
-        const targetEmployee = await prisma.employee.findUnique({
-          where: { id: employeeIdParam },
-          select: { reportsToId: true },
-        })
-        if (targetEmployee?.reportsToId !== currentEmployeeId) {
+      const isSelf = employeeIdParam === currentEmployeeId
+      if (!isSelf && !isHR) {
+        const isManager = await isManagerOf(currentEmployeeId, employeeIdParam)
+        if (!isManager) {
           return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
       }
       where.employeeId = employeeIdParam
     } else {
-      // No specific employee - restrict to own + direct reports unless admin/HR
-      if (!currentEmployee?.isSuperAdmin && (currentEmployee?.permissionLevel ?? 0) < 50) {
-        const directReportIds = await prisma.employee.findMany({
-          where: { reportsToId: currentEmployeeId },
-          select: { id: true },
-        })
-        where.employeeId = {
-          in: [currentEmployeeId, ...directReportIds.map(d => d.id)],
-        }
+      // No specific employee - restrict to own + subtree unless HR
+      if (!isHR) {
+        const subtreeIds = await getSubtreeEmployeeIds(currentEmployeeId)
+        where.employeeId = { in: [currentEmployeeId, ...subtreeIds] }
       }
     }
 

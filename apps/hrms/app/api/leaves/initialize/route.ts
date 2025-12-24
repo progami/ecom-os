@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
+import { isHROrAbove } from '@/lib/permissions'
 
 /**
  * POST /api/leaves/initialize
@@ -19,12 +20,8 @@ export async function POST(req: Request) {
     }
 
     // Check admin permissions
-    const currentEmployee = await prisma.employee.findUnique({
-      where: { id: currentEmployeeId },
-      select: { isSuperAdmin: true, permissionLevel: true },
-    })
-
-    if (!currentEmployee?.isSuperAdmin && (currentEmployee?.permissionLevel ?? 0) < 50) {
+    const isHR = await isHROrAbove(currentEmployeeId)
+    if (!isHR) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403 })
     }
 
