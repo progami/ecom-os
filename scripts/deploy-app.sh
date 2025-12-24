@@ -124,9 +124,11 @@ load_env_file() {
     fi
 
     if [[ "$value" == \"*\" && "$value" == *\" ]]; then
-      value="${value:1:-1}"
+      value="${value#\"}"
+      value="${value%\"}"
     elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
-      value="${value:1:-1}"
+      value="${value#\'}"
+      value="${value%\'}"
     fi
 
     export "${key}=${value}"
