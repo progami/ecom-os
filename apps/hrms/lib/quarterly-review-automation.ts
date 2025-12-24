@@ -115,6 +115,7 @@ export async function checkAndCreateQuarterlyReviews(): Promise<{
       id: true,
       firstName: true,
       lastName: true,
+      position: true,
       reportsToId: true,
       manager: {
         select: { id: true, firstName: true, lastName: true, email: true }
@@ -133,6 +134,20 @@ export async function checkAndCreateQuarterlyReviews(): Promise<{
     try {
       const reviewerName = `${employee.manager.firstName} ${employee.manager.lastName}`
 
+      const duplicate = await prisma.performanceReview.findFirst({
+        where: {
+          employeeId: employee.id,
+          roleTitle: employee.position,
+          periodType: QUARTER_TO_PERIOD_TYPE[prevQuarter],
+          periodYear: prevYear,
+        },
+        select: { id: true },
+      })
+
+      if (duplicate) {
+        continue
+      }
+
       // Create review in NOT_STARTED state - manager must actively start it
       await prisma.performanceReview.create({
         data: {
@@ -145,6 +160,7 @@ export async function checkAndCreateQuarterlyReviews(): Promise<{
           reviewPeriod: cycle.reviewPeriod,
           reviewDate: quarterEndDate,
           reviewerName,
+          roleTitle: employee.position,
           assignedReviewerId: employee.manager.id,
           // No ratings set - manager fills these when they start
           overallRating: 0,
@@ -451,6 +467,7 @@ export async function createQuarterlyReviewsForPeriod(
       id: true,
       firstName: true,
       lastName: true,
+      position: true,
       reportsToId: true,
       manager: {
         select: { id: true, firstName: true, lastName: true }
@@ -467,6 +484,20 @@ export async function createQuarterlyReviewsForPeriod(
     try {
       const reviewerName = `${employee.manager.firstName} ${employee.manager.lastName}`
 
+      const duplicate = await prisma.performanceReview.findFirst({
+        where: {
+          employeeId: employee.id,
+          roleTitle: employee.position,
+          periodType: QUARTER_TO_PERIOD_TYPE[quarter],
+          periodYear: year,
+        },
+        select: { id: true },
+      })
+
+      if (duplicate) {
+        continue
+      }
+
       await prisma.performanceReview.create({
         data: {
           employeeId: employee.id,
@@ -478,6 +509,7 @@ export async function createQuarterlyReviewsForPeriod(
           reviewPeriod: cycle.reviewPeriod,
           reviewDate: quarterEndDate,
           reviewerName,
+          roleTitle: employee.position,
           assignedReviewerId: employee.manager.id,
           overallRating: 0,
           status: 'NOT_STARTED',

@@ -74,7 +74,7 @@ export async function PATCH(req: Request, context: RouteContext) {
     // Check if current user has permission to manage this employee
     const existing = await prisma.performanceReview.findUnique({
       where: { id },
-      select: { employeeId: true },
+      select: { employeeId: true, roleTitle: true, periodType: true, periodYear: true },
     })
     if (!existing) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -104,6 +104,34 @@ export async function PATCH(req: Request, context: RouteContext) {
     const updates: Record<string, unknown> = {}
 
     if (data.reviewType !== undefined) updates.reviewType = data.reviewType
+
+    const willUpdatePeriod = data.periodType !== undefined && data.periodYear !== undefined
+
+    const nextRoleTitle = data.roleTitle !== undefined ? data.roleTitle.trim() : existing.roleTitle
+    const nextPeriodType = willUpdatePeriod ? data.periodType : existing.periodType
+    const nextPeriodYear = willUpdatePeriod ? data.periodYear : existing.periodYear
+
+    if ((willUpdatePeriod || data.roleTitle !== undefined) && nextPeriodType && nextPeriodYear) {
+      const duplicate = await prisma.performanceReview.findFirst({
+        where: {
+          id: { not: id },
+          employeeId: existing.employeeId,
+          roleTitle: nextRoleTitle,
+          periodType: nextPeriodType,
+          periodYear: nextPeriodYear,
+        },
+        select: { id: true },
+      })
+      if (duplicate) {
+        return NextResponse.json(
+          { error: 'A performance review already exists for this role and period.' },
+          { status: 409 }
+        )
+      }
+    }
+
+    if (data.roleTitle !== undefined) updates.roleTitle = data.roleTitle.trim()
+
     if (data.periodType !== undefined && data.periodYear !== undefined) {
       updates.periodType = data.periodType
       updates.periodYear = data.periodYear

@@ -167,7 +167,7 @@ export default function PerformanceReviewsPage() {
             value={q}
             onChange={setQ}
             onSubmit={load}
-            placeholder="Search by employee name or reviewer..."
+            placeholder="Search by employee name or manager..."
           />
         </Card>
 
