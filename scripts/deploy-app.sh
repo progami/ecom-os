@@ -46,6 +46,7 @@ case "$app_key" in
     app_dir="$REPO_DIR/apps/wms"
     pm2_name="${PM2_PREFIX}-wms"
     prisma_cmd="pnpm --filter $workspace db:generate"
+    migrate_cmd="pnpm --filter $workspace db:migrate:tenant-schema && pnpm --filter $workspace db:migrate:sku-dimensions"
     build_cmd="pnpm --filter $workspace build"
     ;;
   ecomos)
@@ -100,7 +101,7 @@ load_env_file() {
 }
 
 ensure_database_url() {
-  if [[ -n "${DATABASE_URL:-}" ]]; then
+  if [[ -n "${DATABASE_URL:-}" || -n "${DATABASE_URL_US:-}" || -n "${DATABASE_URL_UK:-}" ]]; then
     return 0
   fi
 
@@ -108,8 +109,12 @@ ensure_database_url() {
   local candidates=("$app_dir/.env.local" "$app_dir/.env.production" "$app_dir/.env.dev" "$app_dir/.env")
 
   for file in "${candidates[@]}"; do
-    if load_env_file "$file" && [[ -n "${DATABASE_URL:-}" ]]; then
-      log "Loaded DATABASE_URL from $(basename "$file")"
+    if load_env_file "$file" && [[ -n "${DATABASE_URL:-}" || -n "${DATABASE_URL_US:-}" || -n "${DATABASE_URL_UK:-}" ]]; then
+      if [[ -n "${DATABASE_URL:-}" ]]; then
+        log "Loaded DATABASE_URL from $(basename "$file")"
+      else
+        log "Loaded tenant database URLs from $(basename "$file")"
+      fi
       return 0
     fi
   done
