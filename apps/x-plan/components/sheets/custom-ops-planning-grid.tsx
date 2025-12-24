@@ -279,6 +279,7 @@ export function CustomOpsPlanningGrid({
   const [stageMode, setStageMode] = useState<'weeks' | 'dates'>('weeks')
   const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof OpsInputRow } | null>(null)
   const [editValue, setEditValue] = useState<string>('')
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFlush = useCallback(
@@ -358,11 +359,13 @@ export function CustomOpsPlanningGrid({
   }
 
   const startEditing = (rowId: string, colKey: keyof OpsInputRow, currentValue: string) => {
+    setIsDatePickerOpen(false)
     setEditingCell({ rowId, colKey })
     setEditValue(currentValue)
   }
 
   const cancelEditing = () => {
+    setIsDatePickerOpen(false)
     setEditingCell(null)
     setEditValue('')
   }
@@ -699,38 +702,51 @@ export function CustomOpsPlanningGrid({
       .filter(Boolean)
       .join(' ')
 
-    if (isEditing) {
-      const isDateCell = column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')
+	    if (isEditing) {
+	      const isDateCell = column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')
 
-      return (
+	      return (
         <td
           key={column.key}
           className={cellClasses}
           style={{ width: column.width, minWidth: column.width }}
         >
-          {isDateCell ? (
-            <Flatpickr
-              value={editValue}
-              options={{ dateFormat: 'Y-m-d', allowInput: true, disableMobile: true }}
-              onChange={(_dates: Date[], dateStr: string) => {
-                commitEdit(dateStr)
-              }}
-              render={(_props: any, handleNodeChange: (node: HTMLElement | null) => void) => (
-                <input
-                  ref={(node) => {
-                    handleNodeChange(node)
-                    inputRef.current = node as HTMLInputElement | null
-                  }}
-                  type="text"
-                  value={editValue}
-                  onChange={handleInputChange}
-                  onKeyDown={handleKeyDown}
-                  onBlur={handleCellBlur}
-                  className="ops-cell-input"
-                  placeholder="YYYY-MM-DD"
-                />
-              )}
-            />
+	          {isDateCell ? (
+	            <Flatpickr
+	              value={editValue}
+	              options={{
+	                dateFormat: 'Y-m-d',
+	                allowInput: true,
+	                disableMobile: true,
+	                onOpen: () => setIsDatePickerOpen(true),
+	                onClose: (_dates: Date[], dateStr: string) => {
+	                  setIsDatePickerOpen(false)
+	                  commitEdit(dateStr || editValue)
+	                },
+	              }}
+	              onChange={(_dates: Date[], dateStr: string) => {
+	                setEditValue(dateStr)
+	              }}
+	              render={(_props: any, handleNodeChange: (node: HTMLElement | null) => void) => (
+	                <input
+	                  ref={(node) => {
+	                    handleNodeChange(node)
+	                    inputRef.current = node as HTMLInputElement | null
+	                  }}
+	                  type="text"
+	                  value={editValue}
+	                  onChange={handleInputChange}
+	                  onKeyDown={handleKeyDown}
+	                  onBlur={() => {
+	                    if (!isDatePickerOpen) {
+	                      handleCellBlur()
+	                    }
+	                  }}
+	                  className="ops-cell-input"
+	                  placeholder="YYYY-MM-DD"
+	                />
+	              )}
+	            />
           ) : (
             <input
               ref={inputRef}
