@@ -386,7 +386,7 @@ export default function Dashboard() {
             onClick={() => setActiveTab('violations')}
             icon={ShieldExclamationIcon}
           >
-            Violations
+            Disciplinary
           </TabButton>
         </div>
 
