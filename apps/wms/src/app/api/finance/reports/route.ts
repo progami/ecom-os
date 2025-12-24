@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/auth-wrapper'
 
 // Finance reports functionality reduced in v0.5.0 - Invoice models removed
