@@ -23,6 +23,13 @@ The auth bootstrap fails fast when a required variable is missing. Make sure eve
 - `COOKIE_DOMAIN` (use `localhost` for local dev, `.targonglobal.com` for shared environments)
 - `PRISMA_SCHEMA` (per-environment Postgres schema, e.g. `wms_dev` or `wms`)
 
+Amazon Selling Partner API (SP-API) sync (optional) requires:
+- `AMAZON_SP_API_REGION` (`eu`, `na`, or `fe`)
+- `AMAZON_MARKETPLACE_ID`
+- `AMAZON_SP_APP_CLIENT_ID`
+- `AMAZON_SP_APP_CLIENT_SECRET`
+- `AMAZON_REFRESH_TOKEN`
+
 ## Tech Stack & Core Dependencies
 
 ### Framework & Runtime
