@@ -113,6 +113,23 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
     }).filter((point) => Number.isFinite(point.weekNumber) && Number.isFinite(point.stockEnd))
   }, [selectedProductId, rows, columnKeys, columnMeta])
 
+  const globalMaxStock = useMemo(() => {
+    const stockEndKeys = columnKeys.filter((key) => columnMeta[key]?.field === 'stockEnd')
+    if (stockEndKeys.length === 0) return 0
+
+    let max = 0
+    for (const row of rows) {
+      for (const key of stockEndKeys) {
+        const value = row[key]
+        if (!value) continue
+        const numeric = Number(value)
+        if (!Number.isFinite(numeric)) continue
+        if (numeric > max) max = numeric
+      }
+    }
+    return max
+  }, [rows, columnKeys, columnMeta])
+
   const shipmentMarkers = useMemo(() => {
     return rows
       .filter((row) => row.arrivalDetail && row.arrivalDetail.trim().length > 0)
@@ -150,7 +167,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
     const stockValues = stockDataPoints.map((p) => p.stockEnd)
     const weekNumbers = stockDataPoints.map((p) => p.weekNumber)
 
-    const rawMaxStock = Math.max(...stockValues)
+    const rawMaxStock = Math.max(globalMaxStock, Math.max(...stockValues))
     const minWeek = Math.min(...weekNumbers)
     const maxWeek = Math.max(...weekNumbers)
 
@@ -164,7 +181,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
       minWeek,
       maxWeek,
     }
-  }, [stockDataPoints])
+  }, [stockDataPoints, globalMaxStock])
 
   const chartHeight = 600
   const padding = { top: 40, right: 40, bottom: 60, left: 80 }
