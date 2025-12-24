@@ -8,10 +8,11 @@ on:
 
 jobs:
   sync-dev:
-    # Only run if PR was merged (not just closed) and came from dev
+    # Only run if PR was merged (not just closed) and did NOT come from dev.
+    # Release PRs are expected to be dev → main; those should not create a noisy "main → dev" sync PR.
     if: >-
       ${{ github.event.pull_request.merged == true &&
-          github.event.pull_request.head.ref == 'dev' }}
+          github.event.pull_request.head.ref != 'dev' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
