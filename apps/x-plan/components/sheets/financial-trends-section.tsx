@@ -9,6 +9,7 @@ import {
   type KeyboardEvent,
   type PointerEvent,
 } from 'react'
+import { Check, Download } from 'lucide-react'
 import {
   SHEET_TOOLBAR_BUTTON,
   SHEET_TOOLBAR_GROUP,
@@ -124,6 +125,26 @@ export function FinancialTrendsSection({ title, description, metrics, defaultMet
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
           <MetricSelect options={metrics} value={resolvedMetric.key} onChange={setActiveMetric} />
           <GranularityToggle value={granularity} onChange={setGranularity} availability={granularityAvailability} />
+          <button
+            type="button"
+            onClick={() => {
+              const svg = document.querySelector('.financial-trend-svg') as SVGElement
+              if (!svg) return
+              const data = new XMLSerializer().serializeToString(svg)
+              const blob = new Blob([data], { type: 'image/svg+xml' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              const safeName = title.toLowerCase().replace(/\s+/g, '-')
+              a.download = `${safeName}-${resolvedMetric.key}-${granularity}.svg`
+              a.click()
+              URL.revokeObjectURL(url)
+            }}
+            className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export SVG
+          </button>
         </div>
       </header>
       <TrendChart
@@ -170,7 +191,7 @@ function GranularityToggle({
             <button
               key={option.value}
               type="button"
-              className={`${SHEET_TOOLBAR_BUTTON} rounded-none first:rounded-l-full last:rounded-r-full ${
+              className={`${SHEET_TOOLBAR_BUTTON} flex items-center gap-1.5 rounded-none first:rounded-l-full last:rounded-r-full ${
                 isActive
                   ? 'border-[#00c2b9] bg-cyan-600 text-white shadow-[0_12px_24px_rgba(0,194,185,0.15)] dark:bg-[#00c2b9]/15 dark:text-cyan-100'
                   : 'text-slate-700 hover:text-cyan-700 dark:text-slate-200 dark:hover:text-cyan-100'
@@ -180,6 +201,7 @@ function GranularityToggle({
               aria-disabled={!isAvailable}
               title={!isAvailable ? 'No data available for this cadence yet' : option.helper}
             >
+              {isActive && <Check className="h-3 w-3" />}
               {option.label}
             </button>
           )
@@ -532,7 +554,7 @@ function TrendChartSvg({
       viewBox={`0 0 ${width} ${height}`}
       role="img"
       aria-label={ariaLabel}
-      className="h-full w-full"
+      className="financial-trend-svg h-full w-full"
       tabIndex={0}
       onPointerMove={onPointerMove}
       onPointerDown={onPointerMove}
