@@ -4,6 +4,7 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { writeAuditLog } from '@/lib/audit'
 import { z } from 'zod'
+import { isHROrAbove } from '@/lib/permissions'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -56,16 +57,9 @@ export async function GET(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    // Check access
-    const currentEmployee = await prisma.employee.findUnique({
-      where: { id: currentEmployeeId },
-      select: { isSuperAdmin: true, permissionLevel: true },
-    })
-
-    const canView = currentEmployee?.isSuperAdmin ||
-                   (currentEmployee?.permissionLevel ?? 0) >= 50 ||
-                   leaveRequest.employeeId === currentEmployeeId ||
-                   leaveRequest.employee.reportsToId === currentEmployeeId
+    const isHR = await isHROrAbove(currentEmployeeId)
+    const canView =
+      isHR || leaveRequest.employeeId === currentEmployeeId || leaveRequest.employee.reportsToId === currentEmployeeId
 
     if (!canView) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -125,14 +119,10 @@ export async function PATCH(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    const currentEmployee = await prisma.employee.findUnique({
-      where: { id: currentEmployeeId },
-      select: { isSuperAdmin: true, permissionLevel: true },
-    })
-
+    const isHR = await isHROrAbove(currentEmployeeId)
     const isOwner = leaveRequest.employeeId === currentEmployeeId
     const isManager = leaveRequest.employee.reportsToId === currentEmployeeId
-    const isAdmin = currentEmployee?.isSuperAdmin || (currentEmployee?.permissionLevel ?? 0) >= 50
+    const isAdmin = isHR
 
     // Determine what actions are allowed
     if (status === 'CANCELLED') {
@@ -316,12 +306,8 @@ export async function DELETE(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const currentEmployee = await prisma.employee.findUnique({
-      where: { id: currentEmployeeId },
-      select: { isSuperAdmin: true, permissionLevel: true },
-    })
-
-    if (!currentEmployee?.isSuperAdmin && (currentEmployee?.permissionLevel ?? 0) < 50) {
+    const isHR = await isHROrAbove(currentEmployeeId)
+    if (!isHR) {
       return NextResponse.json({ error: 'Admin only' }, { status: 403 })
     }
 

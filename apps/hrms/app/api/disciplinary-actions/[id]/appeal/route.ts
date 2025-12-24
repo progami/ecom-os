@@ -4,7 +4,7 @@ import { DisciplinaryStatus } from '@ecom-os/prisma-hrms'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { SubmitAppealSchema, ResolveAppealSchema } from '@/lib/validations'
-import { canHRReview, canFinalApprove, getHREmployees, getSuperAdminEmployees } from '@/lib/permissions'
+import { canFinalApprove, canHRReview, getHREmployees, getSuperAdminEmployees, isHROrAbove, isManagerOf } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
 
 type RouteContext = { params: Promise<{ id: string }> }
@@ -247,15 +247,8 @@ export async function POST(req: Request, context: RouteContext) {
 
       // Legacy resolution for old status (backwards compatibility)
       if (body.appealStatus && action.status === 'APPEALED') {
-        const currentEmployee = await prisma.employee.findUnique({
-          where: { id: currentEmployeeId },
-          select: { isSuperAdmin: true, permissionLevel: true },
-        })
-
         const isManager = currentEmployeeId === action.employee.reportsToId
-        const canResolve = currentEmployee?.isSuperAdmin ||
-                          (currentEmployee?.permissionLevel ?? 0) >= 50 ||
-                          isManager
+        const canResolve = await isHROrAbove(currentEmployeeId) || isManager || await isManagerOf(currentEmployeeId, action.employeeId)
 
         if (!canResolve) {
           return NextResponse.json(
@@ -464,14 +457,7 @@ export async function GET(req: Request, context: RouteContext) {
 
     const isEmployee = currentEmployeeId === action.employeeId
     const isManager = currentEmployeeId === action.employee.reportsToId
-
-    const currentEmployee = await prisma.employee.findUnique({
-      where: { id: currentEmployeeId },
-      select: { isSuperAdmin: true, permissionLevel: true },
-    })
-    const canResolve = currentEmployee?.isSuperAdmin ||
-                      (currentEmployee?.permissionLevel ?? 0) >= 50 ||
-                      isManager
+    const canResolve = await isHROrAbove(currentEmployeeId) || isManager || await isManagerOf(currentEmployeeId, action.employeeId)
 
     // Employee can appeal if they haven't acknowledged AND haven't already appealed
     const canAppeal = isEmployee &&

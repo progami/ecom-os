@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
+import { isHROrAbove } from '@/lib/permissions'
 
 // GET /api/quarterly-reviews/pending - Pending reviews for current manager
 export async function GET(req: Request) {
@@ -15,17 +16,7 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url)
-    const currentEmployee = await prisma.employee.findUnique({
-      where: { id: currentEmployeeId },
-      select: {
-        isSuperAdmin: true,
-        permissionLevel: true,
-        firstName: true,
-        lastName: true,
-      },
-    })
-
-    const isHROrAdmin = currentEmployee?.isSuperAdmin || (currentEmployee?.permissionLevel ?? 0) >= 50
+    const isHR = await isHROrAbove(currentEmployeeId)
 
     // Build where clause - include NOT_STARTED and IN_PROGRESS
     const where: Record<string, unknown> = {
@@ -34,12 +25,12 @@ export async function GET(req: Request) {
     }
 
     // If viewing all (HR/Admin) or just own assigned reviews
-    const viewAll = searchParams.get('all') === 'true' && isHROrAdmin
+    const viewAll = searchParams.get('all') === 'true' && isHR
 
     if (!viewAll) {
       // Show only reviews assigned to this manager at cron time (immutable)
       // OR reviews assigned to "HR" if they're HR
-      if (isHROrAdmin) {
+      if (isHR) {
         where.OR = [
           { assignedReviewerId: currentEmployeeId },
           { reviewerName: 'HR' },
