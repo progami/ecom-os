@@ -158,11 +158,16 @@ jobs:
                 }
               }
               END { for (tag in sha_by_tag) print tag "\t" sha_by_tag[tag] }
-            ' || true
+            ' | tr -d '\r'
           )"
 
-          exact_tag="$(printf '%s\n' "$remote_semver_tags" | awk -v sha="$head_sha" '$2==sha {print $1}' | head -n 1 || true)"
-          base_tag_line="$(printf '%s\n' "$remote_semver_tags" | sort -V -k1,1 | tail -n 1 || true)"
+          if [[ "${GITHUB_REF_NAME}" == "main" ]] && [[ -z "${remote_semver_tags//[[:space:]]/}" ]]; then
+            echo "::error::No remote semver tags discovered; refusing to create a v0.0.x release."
+            exit 1
+          fi
+
+          exact_tag="$(printf '%s\n' "$remote_semver_tags" | awk -v sha="$head_sha" '$2==sha {print $1}' | LC_ALL=C sort -V | tail -n 1 || true)"
+          base_tag_line="$(printf '%s\n' "$remote_semver_tags" | LC_ALL=C sort -V -k1,1 | tail -n 1 || true)"
           base_tag=""
           base_sha=""
           if [[ -n "$base_tag_line" ]]; then
@@ -194,17 +199,18 @@ jobs:
             bump="patch"
             commit_messages="$(git log "$range" --pretty=%s%n%b)"
 
-            if echo "$commit_messages" | grep -qE 'BREAKING CHANGE|^[a-zA-Z]+(\(.+\))?!:'; then
+            if grep -qE 'BREAKING CHANGE|^[a-zA-Z]+(\(.+\))?!:' <<< "$commit_messages"; then
               bump="major"
-            elif echo "$commit_messages" | grep -qE '^feat(\(.+\))?:'; then
+            elif grep -qE '^feat(\(.+\))?:' <<< "$commit_messages"; then
               bump="minor"
-            elif echo "$commit_messages" | grep -qE '^fix(\(.+\))?:'; then
+            elif grep -qE '^fix(\(.+\))?:' <<< "$commit_messages"; then
               bump="patch"
             fi
 
-            if ! [[ "$base_version" =~ ^[0-9]+\\.[0-9]+\\.[0-9]+$ ]]; then
-              echo "::warning::Latest semver tag '$base_tag' is not strict semver; defaulting base_version to 0.0.0"
-              base_version="0.0.0"
+            base_version="$(printf '%s' "$base_version" | tr -d '\r\n\t ')"
+            if ! [[ "$base_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Expected base_version to be strict semver, got '$base_version' from base_tag '$base_tag'"
+              exit 1
             fi
 
             IFS='.' read -r major minor patch <<< "$base_version"
@@ -272,6 +278,8 @@ jobs:
         with:
           tag_name: ${{ steps.meta.outputs.tag }}
           name: Release ${{ steps.meta.outputs.tag }}
+          # Repo default branch is `dev`, so explicitly tag the commit that triggered this workflow on `main`.
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
 
   # ===========================================
@@ -296,6 +304,11 @@ jobs:
           BUILD_TIME: ${{ needs.build-metadata.outputs.build_time }}
         run: |
           set -euo pipefail
+          if command -v caffeinate >/dev/null 2>&1; then
+            caffeinate -dimsu &
+            caffeinate_pid="$!"
+            trap 'kill "$caffeinate_pid" >/dev/null 2>&1 || true' EXIT
+          fi
 
           TARGET_ENV="${{ github.ref_name }}"
 
@@ -349,6 +362,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if command -v caffeinate >/dev/null 2>&1; then
+            caffeinate -dimsu &
+            caffeinate_pid="$!"
+            trap 'kill "$caffeinate_pid" >/dev/null 2>&1 || true' EXIT
+          fi
 
           requested_app="${{ inputs.app }}"
           target_env="${{ inputs.environment }}"
