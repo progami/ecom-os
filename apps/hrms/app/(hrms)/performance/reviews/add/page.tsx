@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { PerformanceReviewsApi, EmployeesApi, type Employee } from '@/lib/api-client'
+import { PerformanceReviewsApi, EmployeesApi, MeApi, type Employee, type Me } from '@/lib/api-client'
 import { ClipboardDocumentCheckIcon, StarIcon, StarFilledIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, CardDivider } from '@/components/ui/Card'
@@ -74,9 +74,13 @@ function AddReviewForm() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [employees, setEmployees] = useState<Employee[]>([])
+  const [me, setMe] = useState<Me | null>(null)
   const [loadingEmployees, setLoadingEmployees] = useState(true)
   const [reviewType, setReviewType] = useState('ANNUAL')
   const [periodType, setPeriodType] = useState('ANNUAL')
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(preselectedEmployeeId || '')
+  const [assignedReviewerId, setAssignedReviewerId] = useState('')
+  const [roleTitle, setRoleTitle] = useState('')
 
   // Rating states
   const [overallRating, setOverallRating] = useState(3)
@@ -96,7 +100,11 @@ function AddReviewForm() {
     async function loadEmployees() {
       try {
         // Only load employees the current user can manage
-        const data = await EmployeesApi.listManageable()
+        const [meData, data] = await Promise.all([
+          MeApi.get(),
+          EmployeesApi.listManageable(),
+        ])
+        setMe(meData)
         setEmployees(data.items || [])
       } catch (e) {
         console.error('Failed to load manageable employees:', e)
@@ -106,6 +114,22 @@ function AddReviewForm() {
     }
     loadEmployees()
   }, [])
+
+  useEffect(() => {
+    async function hydrateRoleAndManager() {
+      if (!selectedEmployeeId) return
+      try {
+        const e = await EmployeesApi.get(selectedEmployeeId)
+        setRoleTitle(e.position || '')
+        setAssignedReviewerId(e.reportsToId || '')
+      } catch (err) {
+        console.error('Failed to load employee details:', err)
+        setRoleTitle('')
+        setAssignedReviewerId('')
+      }
+    }
+    hydrateRoleAndManager()
+  }, [selectedEmployeeId])
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -121,7 +145,8 @@ function AddReviewForm() {
         periodType: String(payload.periodType),
         periodYear: parseInt(String(payload.periodYear), 10),
         reviewDate: String(payload.reviewDate),
-        reviewerName: String(payload.reviewerName),
+        roleTitle: String(payload.roleTitle),
+        assignedReviewerId: String(payload.assignedReviewerId),
         overallRating: parseInt(payload.overallRating, 10),
         qualityOfWork: parseInt(payload.qualityOfWork, 10),
         productivity: parseInt(payload.productivity, 10),
@@ -148,6 +173,11 @@ function AddReviewForm() {
     label: `${e.firstName} ${e.lastName} (${e.employeeId})`,
   }))
 
+  const managerOptions = [
+    ...(me ? [{ value: me.id, label: `Me (${me.employeeId})` }] : []),
+    ...employees.map((e) => ({ value: e.id, label: `${e.firstName} ${e.lastName} (${e.employeeId})` })),
+  ]
+
   const allowedPeriodTypes = getAllowedReviewPeriodTypes(reviewType)
   const periodTypeOptions = reviewPeriodTypeOptions.filter((opt) =>
     allowedPeriodTypes.includes(opt.value as any)
@@ -171,9 +201,17 @@ function AddReviewForm() {
                 required
                 options={employeeOptions}
                 placeholder={loadingEmployees ? 'Loading employees...' : 'Select employee...'}
-                defaultValue={preselectedEmployeeId || undefined}
+                value={selectedEmployeeId}
+                onChange={(e) => setSelectedEmployeeId(e.target.value)}
               />
             </div>
+            <FormField
+              label="Role"
+              name="roleTitle"
+              required
+              value={roleTitle}
+              onChange={(e) => setRoleTitle(e.target.value)}
+            />
             <SelectField
               label="Review Type"
               name="reviewType"
@@ -210,11 +248,14 @@ function AddReviewForm() {
               type="date"
               required
             />
-            <FormField
-              label="Reviewer Name"
-              name="reviewerName"
+            <SelectField
+              label="Manager"
+              name="assignedReviewerId"
               required
-              placeholder="Manager name"
+              options={managerOptions}
+              placeholder={loadingEmployees ? 'Loading employees...' : 'Select manager...'}
+              value={assignedReviewerId}
+              onChange={(e) => setAssignedReviewerId(e.target.value)}
             />
             <SelectField
               label="Status"

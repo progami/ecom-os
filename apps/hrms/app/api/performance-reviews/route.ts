@@ -138,6 +138,13 @@ export async function POST(req: Request) {
     // Verify employee exists
     const employee = await prisma.employee.findUnique({
       where: { id: data.employeeId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        position: true,
+        reportsToId: true,
+      },
     })
     if (!employee) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
@@ -157,6 +164,47 @@ export async function POST(req: Request) {
         { status: 403 }
       )
     }
+
+    const roleTitle = data.roleTitle ?? employee.position
+    if (!roleTitle || !roleTitle.trim()) {
+      return NextResponse.json({ error: 'Role is required' }, { status: 400 })
+    }
+
+    const assignedReviewerId = data.assignedReviewerId ?? employee.reportsToId
+    if (!assignedReviewerId) {
+      return NextResponse.json({ error: 'Employee has no manager. Select a manager to continue.' }, { status: 400 })
+    }
+
+    const assignedReviewer = await prisma.employee.findUnique({
+      where: { id: assignedReviewerId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+      },
+    })
+    if (!assignedReviewer) {
+      return NextResponse.json({ error: 'Selected manager was not found' }, { status: 400 })
+    }
+
+    // Prevent multiple reviews for the same role in the same period
+    const duplicate = await prisma.performanceReview.findFirst({
+      where: {
+        employeeId: data.employeeId,
+        roleTitle: roleTitle.trim(),
+        periodType: data.periodType,
+        periodYear: data.periodYear,
+      },
+      select: { id: true },
+    })
+    if (duplicate) {
+      return NextResponse.json(
+        { error: 'A performance review already exists for this role and period.' },
+        { status: 409 }
+      )
+    }
+
+    const reviewerName = `${assignedReviewer.firstName} ${assignedReviewer.lastName}`
 
     // Calculate values score if values-based ratings are provided
     let valuesScore: number | null = null
@@ -180,20 +228,22 @@ export async function POST(req: Request) {
       }
     }
 
-    const item = await prisma.performanceReview.create({
-      data: {
-        employeeId: data.employeeId,
-        reviewType: data.reviewType,
-        periodType: data.periodType,
-        periodYear: data.periodYear,
-        reviewPeriod: formatReviewPeriod(data.periodType as ReviewPeriodType, data.periodYear),
-        reviewDate: new Date(data.reviewDate),
-        reviewerName: data.reviewerName,
-        overallRating: data.overallRating,
-        qualityOfWork: data.qualityOfWork ?? null,
-        productivity: data.productivity ?? null,
-        communication: data.communication ?? null,
-        teamwork: data.teamwork ?? null,
+	    const item = await prisma.performanceReview.create({
+	      data: {
+	        employeeId: data.employeeId,
+	        reviewType: data.reviewType,
+	        periodType: data.periodType,
+	        periodYear: data.periodYear,
+	        reviewPeriod: formatReviewPeriod(data.periodType as ReviewPeriodType, data.periodYear),
+	        reviewDate: new Date(data.reviewDate),
+	        reviewerName,
+	        roleTitle: roleTitle.trim(),
+	        assignedReviewerId: assignedReviewer.id,
+	        overallRating: data.overallRating,
+	        qualityOfWork: data.qualityOfWork ?? null,
+	        productivity: data.productivity ?? null,
+	        communication: data.communication ?? null,
+	        teamwork: data.teamwork ?? null,
         initiative: data.initiative ?? null,
         attendance: data.attendance ?? null,
         // Values-based ratings
@@ -218,8 +268,8 @@ export async function POST(req: Request) {
         goals: data.goals ?? null,
         comments: data.comments ?? null,
         // If not DRAFT, start approval chain with PENDING_HR_REVIEW
-        status: data.status === 'DRAFT' ? 'DRAFT' : 'PENDING_HR_REVIEW',
-      },
+	        status: data.status === 'DRAFT' ? 'DRAFT' : 'PENDING_HR_REVIEW',
+	      },
       include: {
         employee: {
           select: {
@@ -246,8 +296,8 @@ export async function POST(req: Request) {
       req,
     })
 
-    // Notify HR if review is submitted for approval
-    if (data.status !== 'DRAFT') {
+	    // Notify HR if review is submitted for approval
+	    if (data.status !== 'DRAFT') {
       const hrEmployees = await getHREmployees()
       for (const hr of hrEmployees) {
         await prisma.notification.create({
@@ -263,17 +313,17 @@ export async function POST(req: Request) {
         })
       }
 
-      // Notify the employee being reviewed
-      await prisma.notification.create({
-        data: {
-          type: 'REVIEW_SUBMITTED',
-          title: 'Performance Review Submitted',
-          message: `A performance review has been submitted for you by ${data.reviewerName}.`,
-          link: `/performance/reviews/${item.id}`,
-          employeeId: data.employeeId,
-          relatedId: item.id,
-          relatedType: 'REVIEW',
-        },
+	      // Notify the employee being reviewed
+	      await prisma.notification.create({
+	        data: {
+	          type: 'REVIEW_SUBMITTED',
+	          title: 'Performance Review Submitted',
+	          message: `A performance review has been submitted for you by ${reviewerName}.`,
+	          link: `/performance/reviews/${item.id}`,
+	          employeeId: data.employeeId,
+	          relatedId: item.id,
+	          relatedType: 'REVIEW',
+	        },
       })
     }
 

@@ -105,6 +105,7 @@ export default function EditReviewPage() {
   const [reviewType, setReviewType] = useState('ANNUAL')
   const [periodType, setPeriodType] = useState('ANNUAL')
   const [periodYear, setPeriodYear] = useState(String(currentYear))
+  const [roleTitle, setRoleTitle] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -150,6 +151,7 @@ export default function EditReviewPage() {
     const nextPeriodYear = review.periodYear ?? inferredPeriod.periodYear ?? currentYear
     setPeriodType(nextPeriodType)
     setPeriodYear(String(nextPeriodYear))
+    setRoleTitle(review.roleTitle || review.employee?.position || '')
   }, [currentYear, review])
 
   // Check if review is editable
@@ -172,6 +174,7 @@ export default function EditReviewPage() {
         periodType: String(payload.periodType),
         periodYear: parseInt(String(payload.periodYear), 10),
         reviewDate: String(payload.reviewDate),
+        roleTitle: String(payload.roleTitle),
         overallRating: parseInt(payload.overallRating, 10),
         qualityOfWork: parseInt(payload.qualityOfWork, 10),
         productivity: parseInt(payload.productivity, 10),
@@ -212,6 +215,7 @@ export default function EditReviewPage() {
         periodType: String(payload.periodType),
         periodYear: parseInt(String(payload.periodYear), 10),
         reviewDate: String(payload.reviewDate),
+        roleTitle: String(payload.roleTitle),
         overallRating: parseInt(payload.overallRating, 10),
         qualityOfWork: parseInt(payload.qualityOfWork, 10),
         productivity: parseInt(payload.productivity, 10),
@@ -290,10 +294,9 @@ export default function EditReviewPage() {
   // Non-editable state - redirect to view page
   if (!isEditable) {
     router.replace(`/performance/reviews/${id}`)
-    return null
-  }
+      return null
+    }
 
-  const isPeriodLocked = !!review.quarterlyCycleId
   const allowedPeriodTypes = getAllowedReviewPeriodTypes(reviewType)
   const periodTypeOptions = reviewPeriodTypeOptions.filter((opt) =>
     allowedPeriodTypes.includes(opt.value as any)
@@ -330,7 +333,7 @@ export default function EditReviewPage() {
                   {review.employee?.firstName} {review.employee?.lastName}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  {review.employee?.position} • {review.employee?.department}
+                  {roleTitle} • {review.employee?.department}
                 </p>
               </div>
               <StatusBadge status={STATUS_LABELS[review.status] || review.status} />
@@ -359,9 +362,7 @@ export default function EditReviewPage() {
                 options={periodTypeOptions}
                 value={periodType}
                 onChange={(e) => setPeriodType(e.target.value)}
-                disabled={isPeriodLocked}
               />
-              {isPeriodLocked && <input type="hidden" name="periodType" value={periodType} />}
               <SelectField
                 label="Year"
                 name="periodYear"
@@ -369,9 +370,14 @@ export default function EditReviewPage() {
                 options={periodYearOptions}
                 value={periodYear}
                 onChange={(e) => setPeriodYear(e.target.value)}
-                disabled={isPeriodLocked}
               />
-              {isPeriodLocked && <input type="hidden" name="periodYear" value={periodYear} />}
+              <FormField
+                label="Role"
+                name="roleTitle"
+                required
+                value={roleTitle}
+                onChange={(e) => setRoleTitle(e.target.value)}
+              />
               <FormField
                 label="Review Date"
                 name="reviewDate"
@@ -381,7 +387,7 @@ export default function EditReviewPage() {
               />
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Reviewer
+                  Manager
                 </label>
                 <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-900">
                   {review.assignedReviewer

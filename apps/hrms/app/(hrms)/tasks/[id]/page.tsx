@@ -59,6 +59,40 @@ export default function TaskDetailPage() {
     return task.assignedToId === me.id
   }, [me, task])
 
+  const employeeOptions = useMemo(() => {
+    const options: { value: string; label: string }[] = []
+    const seen = new Set<string>()
+
+    if (me) {
+      options.push({ value: me.id, label: `Me (${me.employeeId})` })
+      seen.add(me.id)
+    }
+
+    for (const e of employees) {
+      if (seen.has(e.id)) continue
+      options.push({ value: e.id, label: `${e.firstName} ${e.lastName} (${e.employeeId})` })
+      seen.add(e.id)
+    }
+
+    if (task?.assignedTo && !seen.has(task.assignedTo.id)) {
+      options.push({
+        value: task.assignedTo.id,
+        label: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
+      })
+      seen.add(task.assignedTo.id)
+    }
+
+    if (task?.subjectEmployee && !seen.has(task.subjectEmployee.id)) {
+      options.push({
+        value: task.subjectEmployee.id,
+        label: `${task.subjectEmployee.firstName} ${task.subjectEmployee.lastName}`,
+      })
+      seen.add(task.subjectEmployee.id)
+    }
+
+    return options
+  }, [employees, me, task])
+
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -188,40 +222,6 @@ export default function TaskDetailPage() {
       </>
     )
   }
-
-  const employeeOptions = useMemo(() => {
-    const options: { value: string; label: string }[] = []
-    const seen = new Set<string>()
-
-    if (me) {
-      options.push({ value: me.id, label: `Me (${me.employeeId})` })
-      seen.add(me.id)
-    }
-
-    for (const e of employees) {
-      if (seen.has(e.id)) continue
-      options.push({ value: e.id, label: `${e.firstName} ${e.lastName} (${e.employeeId})` })
-      seen.add(e.id)
-    }
-
-    if (task?.assignedTo && !seen.has(task.assignedTo.id)) {
-      options.push({
-        value: task.assignedTo.id,
-        label: `${task.assignedTo.firstName} ${task.assignedTo.lastName}`,
-      })
-      seen.add(task.assignedTo.id)
-    }
-
-    if (task?.subjectEmployee && !seen.has(task.subjectEmployee.id)) {
-      options.push({
-        value: task.subjectEmployee.id,
-        label: `${task.subjectEmployee.firstName} ${task.subjectEmployee.lastName}`,
-      })
-      seen.add(task.subjectEmployee.id)
-    }
-
-    return options
-  }, [employees, me, task])
 
   return (
     <>
