@@ -1,4 +1,5 @@
 import 'server-only'
+import type { TenantCode } from '@/lib/tenant/constants'
 
 type SellingPartnerApiRegion = 'eu' | 'na' | 'fe'
 
@@ -37,8 +38,8 @@ type AmazonFinancialEventsResponse = {
   }
 }
 
-async function callAmazonApi<T>(params: Record<string, unknown>): Promise<T> {
-  const client = getAmazonClient()
+async function callAmazonApi<T>(tenantCode: TenantCode | undefined, params: Record<string, unknown>): Promise<T> {
+  const client = getAmazonClient(tenantCode)
   return (await client.callAPI(params)) as T
 }
 
@@ -50,12 +51,12 @@ type AmazonSpApiConfig = {
   appClientSecret: string
 }
 
-const AMAZON_REQUIRED_ENV_VARS = [
+const AMAZON_BASE_REQUIRED_ENV_VARS = [
   'AMAZON_SP_APP_CLIENT_ID',
   'AMAZON_SP_APP_CLIENT_SECRET',
-  'AMAZON_REFRESH_TOKEN',
-  'AMAZON_MARKETPLACE_ID',
 ] as const
+
+const AMAZON_TENANT_REQUIRED_ENV_VARS = ['AMAZON_REFRESH_TOKEN'] as const
 
 const clientCache = new Map<string, SellingPartnerApiClient>()
 
@@ -67,39 +68,83 @@ function normalizeRegion(value: string): SellingPartnerApiRegion | null {
   return null
 }
 
-function getAmazonSpApiConfigFromEnv(): AmazonSpApiConfig | null {
+function readEnvVar(name: string): string | undefined {
+  const value = process.env[name]
+  if (!value) return undefined
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : undefined
+}
+
+function getDefaultMarketplaceId(tenantCode: TenantCode | undefined): string | undefined {
+  if (tenantCode === 'US') return 'ATVPDKIKX0DER'
+  if (tenantCode === 'UK') return 'A1F83G8C2ARO7P'
+  return undefined
+}
+
+function getDefaultRegion(tenantCode: TenantCode | undefined): SellingPartnerApiRegion {
+  if (tenantCode === 'US') return 'na'
+  if (tenantCode === 'UK') return 'eu'
+  return 'eu'
+}
+
+function getAmazonSpApiConfigFromEnv(tenantCode?: TenantCode): AmazonSpApiConfig | null {
   const isProduction = process.env.NODE_ENV === 'production'
-  const anyAmazonEnvConfigured = AMAZON_REQUIRED_ENV_VARS.some((name) => Boolean(process.env[name]))
+  const anyAmazonEnvConfigured =
+    AMAZON_BASE_REQUIRED_ENV_VARS.some((name) => Boolean(readEnvVar(name))) ||
+    AMAZON_TENANT_REQUIRED_ENV_VARS.some((name) => Boolean(readEnvVar(name) || readEnvVar(`${name}_US`) || readEnvVar(`${name}_UK`)))
 
   if (!anyAmazonEnvConfigured) {
     if (isProduction) {
       throw new Error(
-        `Amazon SP-API not configured. Missing env vars: ${AMAZON_REQUIRED_ENV_VARS.join(', ')}`
+        'Amazon SP-API not configured. Missing env vars: AMAZON_SP_APP_CLIENT_ID, AMAZON_SP_APP_CLIENT_SECRET, AMAZON_REFRESH_TOKEN[_US|_UK]'
       )
     }
 
     return null
   }
 
-  const missing = AMAZON_REQUIRED_ENV_VARS.filter((name) => !process.env[name])
+  const appClientId = readEnvVar('AMAZON_SP_APP_CLIENT_ID')
+  const appClientSecret = readEnvVar('AMAZON_SP_APP_CLIENT_SECRET')
+
+  const refreshToken = tenantCode
+    ? readEnvVar(`AMAZON_REFRESH_TOKEN_${tenantCode}`)
+    : readEnvVar('AMAZON_REFRESH_TOKEN')
+
+  const marketplaceId =
+    (tenantCode ? readEnvVar(`AMAZON_MARKETPLACE_ID_${tenantCode}`) : readEnvVar('AMAZON_MARKETPLACE_ID')) ||
+    getDefaultMarketplaceId(tenantCode)
+
+  const regionRaw =
+    (tenantCode ? readEnvVar(`AMAZON_SP_API_REGION_${tenantCode}`) : readEnvVar('AMAZON_SP_API_REGION')) ||
+    getDefaultRegion(tenantCode)
+  const region = normalizeRegion(regionRaw)
+
+  const missing: string[] = []
+  if (!appClientId) missing.push('AMAZON_SP_APP_CLIENT_ID')
+  if (!appClientSecret) missing.push('AMAZON_SP_APP_CLIENT_SECRET')
+
+  if (!refreshToken) {
+    missing.push(tenantCode ? `AMAZON_REFRESH_TOKEN_${tenantCode}` : 'AMAZON_REFRESH_TOKEN')
+  }
+  if (!marketplaceId) {
+    missing.push(tenantCode ? `AMAZON_MARKETPLACE_ID_${tenantCode}` : 'AMAZON_MARKETPLACE_ID')
+  }
+
   if (missing.length > 0) {
     throw new Error(`Amazon SP-API not configured. Missing env vars: ${missing.join(', ')}`)
   }
 
-  const regionRaw = process.env.AMAZON_SP_API_REGION ?? 'eu'
-  const region = normalizeRegion(regionRaw)
   if (!region) {
-    throw new Error(
-      `Invalid AMAZON_SP_API_REGION value "${regionRaw}". Expected one of: eu, na, fe.`
-    )
+    const key = tenantCode ? `AMAZON_SP_API_REGION_${tenantCode}` : 'AMAZON_SP_API_REGION'
+    throw new Error(`Invalid ${key} value "${regionRaw}". Expected one of: eu, na, fe.`)
   }
 
   return {
     region,
-    refreshToken: process.env.AMAZON_REFRESH_TOKEN!,
-    marketplaceId: process.env.AMAZON_MARKETPLACE_ID!,
-    appClientId: process.env.AMAZON_SP_APP_CLIENT_ID!,
-    appClientSecret: process.env.AMAZON_SP_APP_CLIENT_SECRET!,
+    refreshToken,
+    marketplaceId,
+    appClientId,
+    appClientSecret,
   }
 }
 
@@ -126,8 +171,8 @@ function createAmazonClient(config: AmazonSpApiConfig): SellingPartnerApiClient 
   })
 }
 
-export function getAmazonClient(): SellingPartnerApiClient {
-  const config = getAmazonSpApiConfigFromEnv()
+export function getAmazonClient(tenantCode?: TenantCode): SellingPartnerApiClient {
+  const config = getAmazonSpApiConfigFromEnv(tenantCode)
   if (!config) {
     // Use mock client for local dev/testing when not configured.
     // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
@@ -145,15 +190,16 @@ export function getAmazonClient(): SellingPartnerApiClient {
 }
 
 // Helper functions for common operations
-export async function getInventory() {
+export async function getInventory(tenantCode?: TenantCode) {
   try {
-    const response = await callAmazonApi<AmazonInventorySummariesResponse>({
+    const config = getAmazonSpApiConfigFromEnv(tenantCode)
+    const response = await callAmazonApi<AmazonInventorySummariesResponse>(tenantCode, {
       operation: 'getInventorySummaries',
       endpoint: 'fbaInventory',
       query: {
-        marketplaceIds: [process.env.AMAZON_MARKETPLACE_ID],
+        marketplaceIds: [config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID],
         granularityType: 'Marketplace',
-        granularityId: process.env.AMAZON_MARKETPLACE_ID,
+        granularityId: config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID,
       },
     })
     return response
@@ -163,13 +209,14 @@ export async function getInventory() {
   }
 }
 
-export async function getInboundShipments() {
+export async function getInboundShipments(tenantCode?: TenantCode) {
   try {
-    const response = await callAmazonApi<unknown>({
+    const config = getAmazonSpApiConfigFromEnv(tenantCode)
+    const response = await callAmazonApi<unknown>(tenantCode, {
       operation: 'getShipments',
       endpoint: 'fbaInbound',
       query: {
-        marketplaceIds: [process.env.AMAZON_MARKETPLACE_ID],
+        marketplaceIds: [config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID],
         shipmentStatusList: ['WORKING', 'SHIPPED', 'RECEIVING', 'CLOSED'],
       },
     })
@@ -180,13 +227,14 @@ export async function getInboundShipments() {
   }
 }
 
-export async function getOrders(createdAfter?: Date) {
+export async function getOrders(createdAfter?: Date, tenantCode?: TenantCode) {
   try {
-    const response = await callAmazonApi<unknown>({
+    const config = getAmazonSpApiConfigFromEnv(tenantCode)
+    const response = await callAmazonApi<unknown>(tenantCode, {
       operation: 'getOrders',
       endpoint: 'orders',
       query: {
-        marketplaceIds: [process.env.AMAZON_MARKETPLACE_ID],
+        marketplaceIds: [config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID],
         createdAfter: createdAfter || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Default to last 7 days
       },
     })
@@ -197,16 +245,17 @@ export async function getOrders(createdAfter?: Date) {
   }
 }
 
-export async function getCatalogItem(asin: string) {
+export async function getCatalogItem(asin: string, tenantCode?: TenantCode) {
   try {
-    const response = await callAmazonApi<AmazonCatalogItemResponse>({
+    const config = getAmazonSpApiConfigFromEnv(tenantCode)
+    const response = await callAmazonApi<AmazonCatalogItemResponse>(tenantCode, {
       operation: 'getCatalogItem',
       endpoint: 'catalogItems',
       path: {
         asin,
       },
       query: {
-        marketplaceIds: [process.env.AMAZON_MARKETPLACE_ID],
+        marketplaceIds: [config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID],
       },
     })
     return response
@@ -216,9 +265,10 @@ export async function getCatalogItem(asin: string) {
   }
 }
 
-export async function getProductFees(asin: string, price: number) {
+export async function getProductFees(asin: string, price: number, tenantCode?: TenantCode) {
   try {
-    const response = await callAmazonApi<unknown>({
+    const config = getAmazonSpApiConfigFromEnv(tenantCode)
+    const response = await callAmazonApi<unknown>(tenantCode, {
       operation: 'getMyFeesEstimateForASIN',
       endpoint: 'productFees',
       path: {
@@ -226,7 +276,7 @@ export async function getProductFees(asin: string, price: number) {
       },
       body: {
         FeesEstimateRequest: {
-          MarketplaceId: process.env.AMAZON_MARKETPLACE_ID,
+          MarketplaceId: config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID,
           PriceToEstimateFees: {
             ListingPrice: {
               CurrencyCode: 'GBP',
@@ -244,10 +294,14 @@ export async function getProductFees(asin: string, price: number) {
   }
 }
 
-export async function getMonthlyStorageFees(startDate?: Date, endDate?: Date) {
+export async function getMonthlyStorageFees(
+  startDate?: Date,
+  endDate?: Date,
+  tenantCode?: TenantCode
+) {
   try {
     // This would fetch financial events including storage fees
-    const response = await callAmazonApi<AmazonFinancialEventsResponse>({
+    const response = await callAmazonApi<AmazonFinancialEventsResponse>(tenantCode, {
       operation: 'listFinancialEvents',
       endpoint: 'finances',
       query: {
@@ -269,16 +323,17 @@ export async function getMonthlyStorageFees(startDate?: Date, endDate?: Date) {
   }
 }
 
-export async function getInventoryAgedData() {
+export async function getInventoryAgedData(tenantCode?: TenantCode) {
   try {
+    const config = getAmazonSpApiConfigFromEnv(tenantCode)
     // Get aged inventory data which includes storage fee preview
-    const response = await callAmazonApi<AmazonInventorySummariesResponse>({
+    const response = await callAmazonApi<AmazonInventorySummariesResponse>(tenantCode, {
       operation: 'getInventorySummaries',
       endpoint: 'fbaInventory',
       query: {
-        marketplaceIds: [process.env.AMAZON_MARKETPLACE_ID],
+        marketplaceIds: [config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID],
         granularityType: 'Marketplace',
-        granularityId: process.env.AMAZON_MARKETPLACE_ID,
+        granularityId: config?.marketplaceId ?? process.env.AMAZON_MARKETPLACE_ID,
       },
     })
     return response
