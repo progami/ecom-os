@@ -17,21 +17,6 @@ interface DashboardStatsResponse {
   }
 }
 
-const emptyDashboardStats: DashboardStatsResponse = {
-  totalInventory: 0,
-  inventoryChange: '0.0',
-  inventoryTrend: 'neutral',
-  storageCost: '0.00',
-  costChange: '0.0',
-  costTrend: 'neutral',
-  activeSkus: 0,
-  chartData: {
-    inventoryTrend: [],
-    costTrend: [],
-    warehouseDistribution: [],
-  },
-}
-
 export const GET = withAuth(async (request, session) => {
   const prisma = await getTenantPrisma()
 
