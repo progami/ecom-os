@@ -483,7 +483,7 @@ function TrendChart({ title, description, helper, series, granularity, format, a
         <span className="text-sm text-slate-700 dark:text-slate-200/80">{description}</span>
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-        <div ref={chartRef} className="relative h-[500px] w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 backdrop-blur-sm">
+        <div ref={chartRef} className="relative aspect-[7/3] w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 backdrop-blur-sm">
           <TrendChartSvg
             width={width}
             height={height}
@@ -618,6 +618,7 @@ function TrendChartSvg({
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="none"
       role="img"
       aria-label={ariaLabel}
       className="financial-trend-svg h-full w-full"
