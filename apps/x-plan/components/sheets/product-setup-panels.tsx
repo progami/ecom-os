@@ -1,10 +1,11 @@
 'use client'
 
 import clsx from 'clsx'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { OPS_STAGE_DEFAULT_LABELS } from '@/lib/business-parameter-labels'
 import { withAppBasePath } from '@/lib/base-path'
+import { parseNumber, parsePercent } from '@/lib/utils/numbers'
 
 interface BusinessParameter {
   id: string
@@ -35,6 +36,21 @@ const FINANCE_DEFAULTS = [
   { label: 'Supplier Payment Split 3 (%)', defaultValue: '20' },
 ]
 
+const SUPPLIER_SPLIT_DEFAULTS = [50, 30, 20] as const
+const SUPPLIER_SPLIT_LABELS = [
+  'Supplier Payment Split 1 (%)',
+  'Supplier Payment Split 2 (%)',
+  'Supplier Payment Split 3 (%)',
+] as const
+const SUPPLIER_SPLIT_LABEL_SET = new Set(SUPPLIER_SPLIT_LABELS.map((label) => label.toLowerCase()))
+const SUPPLIER_SPLIT_EPSILON = 1e-6
+
+function supplierSplitIndex(label: string): number | null {
+  const normalized = label.trim().toLowerCase()
+  const idx = SUPPLIER_SPLIT_LABELS.findIndex((item) => item.toLowerCase() === normalized)
+  return idx === -1 ? null : idx
+}
+
 function getDefaults(type: 'ops' | 'sales' | 'finance') {
   if (type === 'ops') return OPS_DEFAULTS
   if (type === 'sales') return SALES_DEFAULTS
@@ -48,7 +64,7 @@ export interface ProductSetupParametersPanelProps {
   className?: string
 }
 
-type ParameterStatus = 'idle' | 'dirty' | 'saving' | 'error'
+type ParameterStatus = 'idle' | 'dirty' | 'saving' | 'error' | 'blocked'
 
 interface ParameterRecord extends BusinessParameter {
   status: ParameterStatus
@@ -99,7 +115,7 @@ export function ProductSetupParametersPanel({
 
   const flushUpdates = useCallback(async () => {
     const currentItems = itemsRef.current
-    const dirtyItems = currentItems.filter((item) => item.status === 'dirty')
+    const dirtyItems = currentItems.filter((item) => item.status === 'dirty' || item.status === 'blocked')
     if (dirtyItems.length === 0) {
       flushTimeoutRef.current = null
       return
@@ -138,21 +154,56 @@ export function ProductSetupParametersPanel({
       return
     }
 
-    if (validItems.length === 0) {
+    let itemsToPersist = validItems
+
+    if (parameterType === 'finance') {
+      const splitItems = currentItems.filter((item) => SUPPLIER_SPLIT_LABEL_SET.has(item.label.trim().toLowerCase()))
+      const hasDirtySplit = dirtyItems.some((item) => SUPPLIER_SPLIT_LABEL_SET.has(item.label.trim().toLowerCase()))
+
+      if (hasDirtySplit && splitItems.length === SUPPLIER_SPLIT_LABELS.length) {
+        const splitDecimals = SUPPLIER_SPLIT_DEFAULTS.map((fallback) => parsePercent(fallback) ?? 0) as number[]
+
+        splitItems.forEach((item) => {
+          const idx = supplierSplitIndex(item.label)
+          if (idx == null) return
+          const key = item.id || item.label
+          const raw = sanitizedValues.get(key) ?? item.value
+          const numeric = parseNumber(raw)
+          const percentDecimal = parsePercent(numeric ?? SUPPLIER_SPLIT_DEFAULTS[idx]) ?? 0
+          splitDecimals[idx] = percentDecimal
+        })
+
+        const total = splitDecimals.reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0)
+        if (total > 1 + SUPPLIER_SPLIT_EPSILON) {
+          const splitKeySet = new Set(splitItems.map((item) => item.id || item.label))
+          setItems((previous) =>
+            previous.map((item) => {
+              const key = item.id || item.label
+              if (!splitKeySet.has(key)) return item
+              return item.status === 'saving' ? item : { ...item, status: 'blocked' }
+            })
+          )
+          toast.error('Supplier payment splits must total 100% or less')
+          itemsToPersist = validItems.filter((item) => !SUPPLIER_SPLIT_LABEL_SET.has(item.label.trim().toLowerCase()))
+        }
+      }
+    }
+
+    if (itemsToPersist.length === 0) {
       flushTimeoutRef.current = null
       isFlushingRef.current = false
       return
     }
 
-    const dirtyKeys = new Set(validItems.map((item) => item.id || item.label))
+    const dirtyKeys = new Set(itemsToPersist.map((item) => item.id || item.label))
 
     setItems((previous) =>
       previous.map((item) => (dirtyKeys.has(item.id || item.label) ? { ...item, status: 'saving' } : item))
     )
 
     try {
-      const toCreate = validItems.filter((item) => !item.id)
-      const toUpdate = validItems.filter((item) => item.id)
+      const toCreate = itemsToPersist.filter((item) => !item.id)
+      const toUpdate = itemsToPersist.filter((item) => item.id)
 
       for (const item of toCreate) {
         const key = item.label
@@ -211,7 +262,7 @@ export function ProductSetupParametersPanel({
         void flushUpdates()
       }
     }
-  }, [strategyId])
+  }, [strategyId, parameterType])
 
   const scheduleFlush = useCallback(() => {
     if (flushTimeoutRef.current) clearTimeout(flushTimeoutRef.current)
@@ -231,12 +282,12 @@ export function ProductSetupParametersPanel({
   }, [flushUpdates])
 
   const handleValueChange = useCallback(
-    (key: string, value: string) => {
-      setItems((previous) =>
-        previous.map((item) => ((item.id || item.label) === key ? { ...item, value, status: 'dirty' } : item))
-      )
-      scheduleFlush()
-    },
+      (key: string, value: string) => {
+        setItems((previous) =>
+          previous.map((item) => ((item.id || item.label) === key ? { ...item, value, status: 'dirty' } : item))
+        )
+        scheduleFlush()
+      },
     [scheduleFlush]
   )
 
@@ -263,7 +314,7 @@ export function ProductSetupParametersPanel({
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-white/5">
           {items.map((item) => {
-            const isError = item.status === 'error'
+            const isError = item.status === 'error' || item.status === 'blocked'
             const isSaving = item.status === 'saving'
             const isDirty = item.status === 'dirty'
             const key = item.id || item.label
