@@ -5,7 +5,7 @@ import { Prisma } from '@ecom-os/prisma-wms'
 export const dynamic = 'force-dynamic'
 
 // GET /api/rates - List cost rates
-export const GET = withAuth(async (req, session) => {
+export const GET = withAuth(async (req, _session) => {
  try {
 
  const prisma = await getTenantPrisma()
