@@ -139,8 +139,8 @@ jobs:
           # NOTE:
           # - `git describe` picks the *nearest* tag by commit distance, not the highest semver tag.
           # - We want a monotonically increasing version on `main`, even when tags are not on the first-parent path.
-          exact_tag="$(git tag --points-at HEAD | grep -E '^v[0-9]+\\.[0-9]+\\.[0-9]+$' | head -n 1 || true)"
-          base_tag="$(git tag -l --sort=-v:refname | grep -E '^v[0-9]+\\.[0-9]+\\.[0-9]+$' | head -n 1 || true)"
+          exact_tag="$(git tag --points-at HEAD | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)"
+          base_tag="$(git tag -l --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)"
           create_release="false"
 
           if [[ -n "$exact_tag" ]]; then
@@ -164,11 +164,11 @@ jobs:
             bump="patch"
             commit_messages="$(git log "$range" --pretty=%s%n%b)"
 
-            if echo "$commit_messages" | grep -qE 'BREAKING CHANGE|^[a-zA-Z]+(\\(.+\\))?!:'; then
+            if echo "$commit_messages" | grep -qE 'BREAKING CHANGE|^[a-zA-Z]+(\(.+\))?!:'; then
               bump="major"
-            elif echo "$commit_messages" | grep -qE '^feat(\\(.+\\))?:'; then
+            elif echo "$commit_messages" | grep -qE '^feat(\(.+\))?:'; then
               bump="minor"
-            elif echo "$commit_messages" | grep -qE '^fix(\\(.+\\))?:'; then
+            elif echo "$commit_messages" | grep -qE '^fix(\(.+\))?:'; then
               bump="patch"
             fi
 
