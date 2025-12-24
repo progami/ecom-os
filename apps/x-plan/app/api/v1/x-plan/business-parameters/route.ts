@@ -2,6 +2,40 @@ import { NextResponse } from 'next/server'
 import { Prisma } from '@ecom-os/prisma-x-plan'
 import prisma from '@/lib/prisma'
 import { withXPlanAuth } from '@/lib/api/auth'
+import { parseNumber, parsePercent } from '@/lib/utils/numbers'
+
+const SUPPLIER_SPLIT_LABELS = [
+  'Supplier Payment Split 1 (%)',
+  'Supplier Payment Split 2 (%)',
+  'Supplier Payment Split 3 (%)',
+] as const
+const SUPPLIER_SPLIT_DEFAULTS = [50, 30, 20] as const
+const SUPPLIER_SPLIT_EPSILON = 1e-6
+
+function normalizeLabel(label: string): string {
+  return label.trim().toLowerCase()
+}
+
+const SUPPLIER_SPLIT_LABEL_MAP = Object.fromEntries(
+  SUPPLIER_SPLIT_LABELS.map((label, index) => [normalizeLabel(label), index])
+) as Record<string, number>
+
+function supplierSplitIndex(label: string | null | undefined): number | null {
+  if (!label) return null
+  const idx = SUPPLIER_SPLIT_LABEL_MAP[normalizeLabel(label)]
+  return typeof idx === 'number' ? idx : null
+}
+
+function toPercentDecimal(value: unknown, fallbackPercent: number): number {
+  const numeric = parseNumber(value)
+  const percent = numeric ?? fallbackPercent
+  return parsePercent(percent) ?? 0
+}
+
+function supplierSplitTotalWithinLimit(splits: number[]): boolean {
+  const total = splits.reduce((sum, value) => sum + (Number.isFinite(value) ? value : 0), 0)
+  return total <= 1 + SUPPLIER_SPLIT_EPSILON
+}
 
 type UpdatePayload = {
   id: string
@@ -27,6 +61,30 @@ export const POST = withXPlanAuth(async (request: Request) => {
 
     if (!payload?.label) {
       return NextResponse.json({ error: 'Label is required' }, { status: 400 })
+    }
+
+    const splitIdx = supplierSplitIndex(payload.label)
+    if (splitIdx != null) {
+      const existing = await prisma.businessParameter.findMany({
+        where: {
+          strategyId: payload.strategyId,
+          OR: SUPPLIER_SPLIT_LABELS.map((label) => ({ label: { equals: label, mode: 'insensitive' } })),
+        },
+        select: { label: true, valueNumeric: true, valueText: true },
+      })
+
+      const splitDecimals = SUPPLIER_SPLIT_DEFAULTS.map((fallback) => parsePercent(fallback) ?? 0) as number[]
+      for (const record of existing) {
+        const idx = supplierSplitIndex(record.label)
+        if (idx == null) continue
+        splitDecimals[idx] = toPercentDecimal(record.valueNumeric ?? record.valueText, SUPPLIER_SPLIT_DEFAULTS[idx])
+      }
+
+      splitDecimals[splitIdx] = toPercentDecimal(payload.valueNumeric ?? payload.valueText, SUPPLIER_SPLIT_DEFAULTS[splitIdx])
+
+      if (!supplierSplitTotalWithinLimit(splitDecimals)) {
+        return NextResponse.json({ error: 'Supplier payment splits must total 100% or less.' }, { status: 400 })
+      }
     }
 
     const numericValue =
@@ -63,6 +121,69 @@ export const PUT = withXPlanAuth(async (request: Request) => {
     const updates = Array.isArray(body?.updates) ? (body.updates as UpdatePayload[]) : []
     if (updates.length === 0) {
       return NextResponse.json({ ok: true })
+    }
+
+    const ids = updates.map((update) => update?.id).filter((id): id is string => typeof id === 'string' && id.length > 0)
+    if (ids.length > 0) {
+      const existing = await prisma.businessParameter.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, strategyId: true, label: true },
+      })
+      const recordById = new Map(existing.map((record) => [record.id, record]))
+
+      const strategiesToValidate = new Set<string>()
+      const updatesByStrategy = new Map<string, Array<{ idx: number; raw: string | null | undefined }>>()
+
+      updates.forEach((update) => {
+        if (!update?.id) return
+        if (!('valueNumeric' in update)) return
+        const record = recordById.get(update.id)
+        if (!record) return
+        const strategyId = record.strategyId
+        if (!strategyId) return
+        const idx = supplierSplitIndex(record.label)
+        if (idx == null) return
+        strategiesToValidate.add(strategyId)
+        const list = updatesByStrategy.get(strategyId) ?? []
+        list.push({ idx, raw: update.valueNumeric })
+        updatesByStrategy.set(strategyId, list)
+      })
+
+      if (strategiesToValidate.size > 0) {
+        const splitRecords = await prisma.businessParameter.findMany({
+          where: {
+            strategyId: { in: Array.from(strategiesToValidate) },
+            OR: SUPPLIER_SPLIT_LABELS.map((label) => ({ label: { equals: label, mode: 'insensitive' } })),
+          },
+          select: { strategyId: true, label: true, valueNumeric: true, valueText: true },
+        })
+
+        const splitsByStrategy = new Map<string, number[]>()
+        for (const record of splitRecords) {
+          const idx = supplierSplitIndex(record.label)
+          if (idx == null) continue
+          const strategyId = record.strategyId
+          if (!strategyId) continue
+          const splits =
+            splitsByStrategy.get(strategyId) ??
+            (SUPPLIER_SPLIT_DEFAULTS.map((fallback) => parsePercent(fallback) ?? 0) as number[])
+          splits[idx] = toPercentDecimal(record.valueNumeric ?? record.valueText, SUPPLIER_SPLIT_DEFAULTS[idx])
+          splitsByStrategy.set(strategyId, splits)
+        }
+
+        for (const strategyId of strategiesToValidate) {
+          const splits = splitsByStrategy.get(strategyId) ?? (SUPPLIER_SPLIT_DEFAULTS.map((fallback) => parsePercent(fallback) ?? 0) as number[])
+          const pending = updatesByStrategy.get(strategyId) ?? []
+          for (const update of pending) {
+            const numeric = parseNumber(update.raw)
+            const rounded = numeric != null && Number.isFinite(numeric) ? Number(numeric.toFixed(2)) : null
+            splits[update.idx] = toPercentDecimal(rounded, SUPPLIER_SPLIT_DEFAULTS[update.idx])
+          }
+          if (!supplierSplitTotalWithinLimit(splits)) {
+            return NextResponse.json({ error: 'Supplier payment splits must total 100% or less.' }, { status: 400 })
+          }
+        }
+      }
     }
 
     await Promise.all(
