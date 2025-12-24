@@ -3,7 +3,7 @@
 import clsx from 'clsx'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Check, X, Pencil, Trash2, CheckCircle2, Target } from 'lucide-react'
+import { Plus, Check, X, Pencil, Trash2, CheckCircle2 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { withAppBasePath } from '@/lib/base-path'
 
@@ -41,7 +41,6 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
   const [editDescription, setEditDescription] = useState('')
 
   const selectedStrategyId = activeStrategyId ?? searchParams?.get('strategy') ?? null
-  const activeStrategy = strategies.find((s) => s.id === selectedStrategyId)
 
   const handleCreate = async () => {
     if (!newName.trim()) {
@@ -148,38 +147,6 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
 
   return (
     <div className="space-y-6">
-      {/* Active Strategy Banner */}
-      {activeStrategy && (
-        <div className="rounded-xl border-2 border-cyan-500 bg-gradient-to-r from-cyan-50 to-cyan-100/50 p-4 dark:border-[#00C2B9] dark:from-cyan-950/40 dark:to-cyan-900/20">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-cyan-600 text-white dark:bg-[#00C2B9]">
-              <Target className="h-6 w-6" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold uppercase tracking-wider text-cyan-700 dark:text-cyan-300">
-                Currently Active Strategy
-              </p>
-              <p className="mt-0.5 text-lg font-bold text-slate-900 dark:text-white">
-                {activeStrategy.name}
-              </p>
-              {activeStrategy.description && (
-                <p className="text-sm text-slate-600 dark:text-slate-300">{activeStrategy.description}</p>
-              )}
-            </div>
-            <div className="hidden shrink-0 sm:flex sm:items-center sm:gap-6">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">{activeStrategy._count.products}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Products</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-slate-900 dark:text-white">{activeStrategy._count.purchaseOrders}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Orders</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Planning Strategies</h2>
@@ -212,7 +179,7 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
               <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Orders
               </th>
-              <th className="w-48 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              <th className="w-32 px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Actions
               </th>
             </tr>
@@ -284,8 +251,7 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                       'cursor-pointer transition',
                       isActive
                         ? 'bg-cyan-50 dark:bg-cyan-950/40'
-                        : 'bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5',
-                      strategy.isDefault && !isActive && 'bg-slate-50/50 dark:bg-white/[0.02]'
+                        : 'bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5'
                     )}
                   >
                     <td className={clsx('py-3 pr-4', isActive ? 'border-l-4 border-l-cyan-500 pl-3 dark:border-l-[#00C2B9]' : 'pl-4')}>
@@ -308,38 +274,42 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                           />
                         </div>
                       ) : (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2.5">
                           {isActive && (
                             <CheckCircle2 className="h-5 w-5 shrink-0 text-cyan-600 dark:text-[#00C2B9]" />
                           )}
-                          <span className={clsx('text-sm font-medium', isActive ? 'text-cyan-900 dark:text-cyan-100' : 'text-slate-900 dark:text-slate-100')}>
-                            {strategy.name}
-                          </span>
-                          {isActive && (
-                            <span className="rounded-full bg-cyan-600 px-2 py-0.5 text-[11px] font-semibold text-white dark:bg-[#00C2B9]">
-                              Active
-                            </span>
-                          )}
-                          {strategy.isDefault && (
-                            <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300">
-                              Default
-                            </span>
-                          )}
-                          {strategy.description && (
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
-                              — {strategy.description}
-                            </span>
-                          )}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={clsx('text-sm font-medium', isActive ? 'text-cyan-900 dark:text-cyan-100' : 'text-slate-900 dark:text-slate-100')}>
+                                {strategy.name}
+                              </span>
+                              {isActive && (
+                                <span className="rounded-full bg-cyan-600 px-2 py-0.5 text-[11px] font-semibold text-white dark:bg-[#00C2B9]">
+                                  Active
+                                </span>
+                              )}
+                              {strategy.isDefault && (
+                                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-semibold text-slate-600 dark:bg-white/10 dark:text-slate-300">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                            {strategy.description && (
+                              <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                                {strategy.description}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       )}
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className="text-sm tabular-nums text-slate-700 dark:text-slate-300">
+                      <span className={clsx('text-sm tabular-nums', isActive ? 'font-semibold text-cyan-700 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-300')}>
                         {strategy._count.products}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <span className="text-sm tabular-nums text-slate-700 dark:text-slate-300">
+                      <span className={clsx('text-sm tabular-nums', isActive ? 'font-semibold text-cyan-700 dark:text-cyan-300' : 'text-slate-700 dark:text-slate-300')}>
                         {strategy._count.purchaseOrders}
                       </span>
                     </td>
