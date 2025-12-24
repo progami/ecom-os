@@ -50,6 +50,7 @@ declare module '@ecom-os/prisma-x-plan' {
 
   export interface BusinessParameter {
     id: string;
+    strategyId?: string;
     label: string;
     valueNumeric?: number | null;
     valueText?: string | null;
