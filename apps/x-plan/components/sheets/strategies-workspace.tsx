@@ -3,7 +3,7 @@
 import clsx from 'clsx'
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Plus, Check, X, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Check, X, Pencil, Trash2, CheckCircle2 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { withAppBasePath } from '@/lib/base-path'
 
@@ -244,10 +244,11 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                   key={strategy.id}
                   onClick={() => editingId !== strategy.id && handleSelectStrategy(strategy.id)}
                   className={clsx(
-                    'cursor-pointer bg-white transition hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5',
-                    selectedStrategyId === strategy.id &&
-                      'bg-cyan-50/60 ring-1 ring-inset ring-cyan-200 dark:bg-cyan-950/25 dark:ring-cyan-500/40',
-                    strategy.isDefault && 'bg-cyan-50/30 dark:bg-cyan-950/20'
+                    'cursor-pointer transition',
+                    selectedStrategyId === strategy.id
+                      ? 'bg-emerald-50/70 ring-2 ring-inset ring-emerald-300 dark:bg-emerald-950/30 dark:ring-emerald-500/50'
+                      : 'bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5',
+                    strategy.isDefault && selectedStrategyId !== strategy.id && 'bg-cyan-50/30 dark:bg-cyan-950/20'
                   )}
                 >
                   <td className="px-4 py-3">
@@ -271,9 +272,17 @@ export function StrategiesWorkspace({ strategies: initialStrategies, activeStrat
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
+                        {selectedStrategyId === strategy.id && (
+                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        )}
                         <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
                           {strategy.name}
                         </span>
+                        {selectedStrategyId === strategy.id && (
+                          <span className="rounded-full bg-emerald-600/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
+                            Active
+                          </span>
+                        )}
                         {strategy.isDefault && (
                           <span className="rounded-full bg-cyan-600/15 px-2 py-0.5 text-[11px] font-semibold text-cyan-700 dark:bg-[#00C2B9]/20 dark:text-cyan-100">
                             Default
