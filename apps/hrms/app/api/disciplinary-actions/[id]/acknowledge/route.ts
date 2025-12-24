@@ -50,6 +50,13 @@ export async function POST(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
+    if (action.status !== 'PENDING_ACKNOWLEDGMENT') {
+      return NextResponse.json(
+        { error: `Cannot acknowledge: action is in ${action.status} status, expected PENDING_ACKNOWLEDGMENT` },
+        { status: 400 }
+      )
+    }
+
     const isEmployee = currentEmployeeId === action.employeeId
     const isManager = currentEmployeeId === action.employee.reportsToId
 
@@ -97,6 +104,25 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
+      const finalized = updated.employeeAcknowledged && updated.managerAcknowledged
+        ? await prisma.disciplinaryAction.update({
+            where: { id },
+            data: { status: 'ACTIVE' },
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  employeeId: true,
+                  department: true,
+                  position: true,
+                },
+              },
+            },
+          })
+        : updated
+
       await writeAuditLog({
         actorId: currentEmployeeId,
         action: 'ACKNOWLEDGE',
@@ -111,9 +137,9 @@ export async function POST(req: Request, context: RouteContext) {
       })
 
       return NextResponse.json({
-        ...updated,
+        ...finalized,
         acknowledgedAs: 'manager',
-        message: 'Acknowledged as manager',
+        message: finalized.status === 'ACTIVE' ? 'Acknowledged (record now active)' : 'Acknowledged as manager',
       })
     }
 
@@ -142,6 +168,25 @@ export async function POST(req: Request, context: RouteContext) {
           },
         },
       })
+
+      const finalized = updated.employeeAcknowledged && updated.managerAcknowledged
+        ? await prisma.disciplinaryAction.update({
+            where: { id },
+            data: { status: 'ACTIVE' },
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  employeeId: true,
+                  department: true,
+                  position: true,
+                },
+              },
+            },
+          })
+        : updated
 
       // Notify HR and manager that employee acknowledged
       const hrEmployees = await getHREmployees()
@@ -188,9 +233,9 @@ export async function POST(req: Request, context: RouteContext) {
       })
 
       return NextResponse.json({
-        ...updated,
+        ...finalized,
         acknowledgedAs: 'employee',
-        message: 'Acknowledged as employee',
+        message: finalized.status === 'ACTIVE' ? 'Acknowledged (record now active)' : 'Acknowledged as employee',
       })
     }
 
@@ -220,6 +265,25 @@ export async function POST(req: Request, context: RouteContext) {
           },
         },
       })
+
+      const finalized = updated.employeeAcknowledged && updated.managerAcknowledged
+        ? await prisma.disciplinaryAction.update({
+            where: { id },
+            data: { status: 'ACTIVE' },
+            include: {
+              employee: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  employeeId: true,
+                  department: true,
+                  position: true,
+                },
+              },
+            },
+          })
+        : updated
 
       // Notify HR that manager acknowledged
       const hrEmployees = await getHREmployees()
@@ -251,9 +315,9 @@ export async function POST(req: Request, context: RouteContext) {
       })
 
       return NextResponse.json({
-        ...updated,
+        ...finalized,
         acknowledgedAs: 'manager',
-        message: 'Acknowledged as manager',
+        message: finalized.status === 'ACTIVE' ? 'Acknowledged (record now active)' : 'Acknowledged as manager',
       })
     }
 
@@ -288,6 +352,7 @@ export async function GET(req: Request, context: RouteContext) {
       where: { id },
       select: {
         employeeId: true,
+        status: true,
         employeeAcknowledged: true,
         employeeAcknowledgedAt: true,
         managerAcknowledged: true,
@@ -314,15 +379,17 @@ export async function GET(req: Request, context: RouteContext) {
       select: { isSuperAdmin: true, permissionLevel: true },
     })
     const canActAsManager = currentEmployee?.isSuperAdmin || (currentEmployee?.permissionLevel ?? 0) >= 50
+    const isPendingAck = action.status === 'PENDING_ACKNOWLEDGMENT'
 
     return NextResponse.json({
       employeeAcknowledged: action.employeeAcknowledged,
       employeeAcknowledgedAt: action.employeeAcknowledgedAt,
       managerAcknowledged: action.managerAcknowledged,
       managerAcknowledgedAt: action.managerAcknowledgedAt,
-      canAcknowledgeAsEmployee: isEmployee && !action.employeeAcknowledged,
-      canAcknowledgeAsManager: (isManager || canActAsManager) && !action.managerAcknowledged,
+      canAcknowledgeAsEmployee: isPendingAck && isEmployee && !action.employeeAcknowledged,
+      canAcknowledgeAsManager: isPendingAck && (isManager || canActAsManager) && !action.managerAcknowledged,
       fullyAcknowledged: action.employeeAcknowledged && action.managerAcknowledged,
+      status: action.status,
     })
   } catch (e) {
     return safeErrorResponse(e, 'Failed to get acknowledgment status')

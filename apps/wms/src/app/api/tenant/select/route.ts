@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic'
  */
 async function userExistsInTenant(email: string, tenantCode: TenantCode): Promise<boolean> {
   try {
-    const prisma = getTenantPrismaClient(tenantCode)
+    const prisma = await getTenantPrismaClient(tenantCode)
     const user = await prisma.user.findUnique({
       where: { email },
       select: { id: true },

@@ -305,6 +305,8 @@ type AppealStatus = {
   appealResolvedAt: string | null
   canAppeal: boolean
   canResolveAppeal: boolean
+  canReviewAsHR?: boolean
+  canDecideAsSuperAdmin?: boolean
   hasAppealed: boolean
   appealResolved: boolean
 }
@@ -620,10 +622,34 @@ export default function ViewDisciplinaryPage() {
     )
   }
 
-  const canShowHRReview = action.status === 'PENDING_HR_REVIEW' && hrReviewStatus?.canReview
-  const canShowSAApproval = action.status === 'PENDING_SUPER_ADMIN' && superAdminStatus?.canApprove
-  const canShowAppealHRReview = action.status === 'APPEAL_PENDING_HR' && hrReviewStatus?.canReview
-  const canShowAppealSADecision = action.status === 'APPEAL_PENDING_SUPER_ADMIN' && superAdminStatus?.canApprove
+  const canShowHRReview = Boolean(hrReviewStatus?.canReview)
+  const canShowSAApproval = Boolean(superAdminStatus?.canApprove)
+  const canShowAppealHRReview = action.status === 'APPEAL_PENDING_HR' && Boolean(appealStatus?.canReviewAsHR)
+  const canShowAppealSADecision = action.status === 'APPEAL_PENDING_SUPER_ADMIN' && Boolean(appealStatus?.canDecideAsSuperAdmin)
+
+  const nextStepText = (() => {
+    switch (action.status) {
+      case 'PENDING_HR_REVIEW':
+        return 'Next: HR review required.'
+      case 'PENDING_SUPER_ADMIN':
+        return 'Next: Super Admin final approval required.'
+      case 'PENDING_ACKNOWLEDGMENT':
+        return 'Next: Employee (and manager) must acknowledge or appeal.'
+      case 'APPEAL_PENDING_HR':
+      case 'APPEALED':
+        return 'Next: HR must review the appeal.'
+      case 'APPEAL_PENDING_SUPER_ADMIN':
+        return 'Next: Super Admin must decide the appeal.'
+      case 'ACTIVE':
+        return 'This record is active.'
+      case 'CLOSED':
+        return 'This record is closed.'
+      case 'DISMISSED':
+        return 'This record was dismissed.'
+      default:
+        return null
+    }
+  })()
 
   return (
     <>
@@ -658,6 +684,9 @@ export default function ViewDisciplinaryPage() {
               <p className="text-sm text-gray-500">
                 {action.employee?.position} • {action.employee?.department}
               </p>
+              {nextStepText && (
+                <p className="text-sm text-gray-600 mt-2">{nextStepText}</p>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <SeverityBadge severity={action.severity} />
@@ -665,6 +694,31 @@ export default function ViewDisciplinaryPage() {
             </div>
           </div>
         </Card>
+
+        {/* Waiting states (no permissions) */}
+        {action.status === 'PENDING_HR_REVIEW' && !canShowHRReview && (
+          <Card padding="lg" className="border border-amber-200 bg-amber-50">
+            <div className="flex items-center gap-2 mb-2">
+              <ClockIcon className="h-5 w-5 text-amber-600" />
+              <h3 className="text-lg font-medium text-gray-900">Pending HR Review</h3>
+            </div>
+            <p className="text-sm text-gray-600">
+              This violation is waiting for HR to review. You&apos;ll be notified once HR approves or rejects it.
+            </p>
+          </Card>
+        )}
+
+        {action.status === 'PENDING_SUPER_ADMIN' && !canShowSAApproval && (
+          <Card padding="lg" className="border border-purple-200 bg-purple-50">
+            <div className="flex items-center gap-2 mb-2">
+              <ClockIcon className="h-5 w-5 text-purple-600" />
+              <h3 className="text-lg font-medium text-gray-900">Pending Final Approval</h3>
+            </div>
+            <p className="text-sm text-gray-600">
+              HR has reviewed this violation. It is now waiting for Super Admin final approval.
+            </p>
+          </Card>
+        )}
 
         {/* HR Review Section */}
         {canShowHRReview && (
@@ -918,8 +972,8 @@ export default function ViewDisciplinaryPage() {
           </dl>
         </Card>
 
-        {/* Employee Response Card - Only show when pending acknowledgment */}
-        {action.status === 'PENDING_ACKNOWLEDGMENT' && (
+        {/* Employee Response Card */}
+        {['PENDING_ACKNOWLEDGMENT', 'ACTIVE'].includes(action.status) && (
           <Card padding="lg">
             <h3 className="text-lg font-medium text-gray-900 mb-4">Employee Response</h3>
 

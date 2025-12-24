@@ -228,6 +228,11 @@ export async function GET(req: Request, context: RouteContext) {
   try {
     const { id } = await context.params
 
+    const currentEmployeeId = await getCurrentEmployeeId()
+    if (!currentEmployeeId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
     const action = await prisma.disciplinaryAction.findUnique({
       where: { id },
       select: {
@@ -244,8 +249,10 @@ export async function GET(req: Request, context: RouteContext) {
       return NextResponse.json({ error: 'Disciplinary action not found' }, { status: 404 })
     }
 
+    const permissionCheck = await canFinalApprove(currentEmployeeId)
+
     return NextResponse.json({
-      canApprove: action.status === 'PENDING_SUPER_ADMIN',
+      canApprove: action.status === 'PENDING_SUPER_ADMIN' && permissionCheck.allowed,
       superAdminApproval: {
         approvedAt: action.superAdminApprovedAt,
         approvedById: action.superAdminApprovedById,
