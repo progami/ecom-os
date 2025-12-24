@@ -15,6 +15,7 @@ import {
   computePurchaseOrderDerived,
   computeSalesPlan,
 } from '@/lib/calculations'
+import { buildLeadTimeProfiles } from '@/lib/calculations/lead-times'
 import type {
   BusinessParameterMap,
   LeadTimeProfile,
@@ -368,6 +369,26 @@ describe('computeSalesPlan', () => {
     expect(week53).toBeDefined()
     expect(week53?.stockStart).toBe(30)
     expect(week53?.finalSales).toBe(0)
+  })
+})
+
+describe('buildLeadTimeProfiles', () => {
+  it('clamps negative lead-time durations to zero', () => {
+    const templates = [
+      { id: 'prod', label: 'Production', defaultWeeks: -8.68, sequence: 1 },
+      { id: 'source', label: 'Source Prep', defaultWeeks: 4.43, sequence: 2 },
+      { id: 'ocean', label: 'Ocean Transit', defaultWeeks: 3.29, sequence: 3 },
+      { id: 'final', label: 'Final Mile', defaultWeeks: -3, sequence: 4 },
+    ]
+
+    const profiles = buildLeadTimeProfiles(templates, [], ['prod-1'])
+
+    expect(profiles.get('prod-1')).toEqual({
+      productionWeeks: 0,
+      sourceWeeks: 4.43,
+      oceanWeeks: 3.29,
+      finalWeeks: 0,
+    })
   })
 })
 
