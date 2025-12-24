@@ -375,13 +375,11 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-	          <div className="w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85">
-	            <svg
-	            width="100%"
-	            height={chartHeight}
-	            className="sales-chart-svg text-slate-900 dark:text-white"
-	            preserveAspectRatio="none"
-	            viewBox={`0 0 ${viewBoxWidth} ${chartHeight}`}
+          <div className="w-full h-[500px] overflow-hidden rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85">
+            <svg
+              className="sales-chart-svg text-slate-900 dark:text-white w-full h-full"
+              viewBox={`0 0 ${viewBoxWidth} ${chartHeight}`}
+              preserveAspectRatio="xMidYMid meet"
               role="img"
               aria-label="Stock level over time"
               tabIndex={0}
@@ -389,7 +387,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
               onPointerDown={handlePointerMove}
               onPointerLeave={handlePointerLeave}
               onKeyDown={handleKeyDown}
-	          >
+            >
 	            {/* Grid lines */}
 	            <g className="opacity-40">
 	              {yAxisTicks.map((tick, index) => (
