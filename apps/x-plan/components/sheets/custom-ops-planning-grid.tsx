@@ -224,8 +224,8 @@ const COLUMNS: ColumnDef[] = [
   {
     key: 'productionWeeks',
     header: 'Prod.',
-    headerWeeks: 'Prod. (wk)',
-    headerDates: 'Prod. (date)',
+    headerWeeks: 'Production (wk)',
+    headerDates: 'Prod Complete (Date)',
     width: 120,
     type: 'stage',
     editable: true,
@@ -233,9 +233,9 @@ const COLUMNS: ColumnDef[] = [
   },
   {
     key: 'sourceWeeks',
-    header: 'Source',
-    headerWeeks: 'Source (wk)',
-    headerDates: 'Source (date)',
+    header: 'Ocean Departure',
+    headerWeeks: 'Ocean Departure (wk)',
+    headerDates: 'Ocean Departure (Date)',
     width: 120,
     type: 'stage',
     editable: true,
@@ -244,8 +244,8 @@ const COLUMNS: ColumnDef[] = [
   {
     key: 'oceanWeeks',
     header: 'Ocean',
-    headerWeeks: 'Ocean (wk)',
-    headerDates: 'Ocean (date)',
+    headerWeeks: 'Port ETA (wk)',
+    headerDates: 'Port ETA (Date)',
     width: 120,
     type: 'stage',
     editable: true,
@@ -253,9 +253,9 @@ const COLUMNS: ColumnDef[] = [
   },
   {
     key: 'finalWeeks',
-    header: 'Final',
-    headerWeeks: 'Final (wk)',
-    headerDates: 'Final (date)',
+    header: 'Warehouse Arrival',
+    headerWeeks: 'Warehouse Arrival (wk)',
+    headerDates: 'Warehouse Arrival (Date)',
     width: 120,
     type: 'stage',
     editable: true,
@@ -276,7 +276,7 @@ export function CustomOpsPlanningGrid({
   disableDuplicate,
   disableDelete,
 }: CustomOpsPlanningGridProps) {
-  const [stageMode, setStageMode] = useState<'weeks' | 'dates'>('weeks')
+  const [stageMode, setStageMode] = useState<'weeks' | 'dates'>('dates')
   const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof OpsInputRow } | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
