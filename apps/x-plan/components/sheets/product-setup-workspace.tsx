@@ -26,21 +26,13 @@ interface SectionCardProps {
   description: string
   children: ReactNode
   className?: string
-  accentColor?: 'cyan' | 'emerald' | 'violet' | 'amber'
 }
 
-function SectionCard({ icon: Icon, title, description, children, className, accentColor = 'cyan' }: SectionCardProps) {
-  const accentClasses = {
-    cyan: 'bg-cyan-600 dark:bg-cyan-500',
-    emerald: 'bg-emerald-600 dark:bg-emerald-500',
-    violet: 'bg-violet-600 dark:bg-violet-500',
-    amber: 'bg-amber-600 dark:bg-amber-500',
-  }
-
+function SectionCard({ icon: Icon, title, description, children, className }: SectionCardProps) {
   return (
     <section className={clsx('flex flex-col', className)}>
       <header className="mb-3 flex items-center gap-3">
-        <div className={clsx('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white', accentClasses[accentColor])}>
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-cyan-600 text-white dark:bg-[#00C2B9]">
           <Icon className="h-4 w-4" />
         </div>
         <div className="min-w-0">
@@ -67,7 +59,6 @@ export function ProductSetupWorkspace({
         icon={Package}
         title="Products"
         description="Manage your product catalog"
-        accentColor="cyan"
       >
         <ProductSetupGrid strategyId={strategyId} products={products} />
       </SectionCard>
@@ -78,7 +69,6 @@ export function ProductSetupWorkspace({
           icon={Settings}
           title="Operations"
           description="Lead times & logistics"
-          accentColor="emerald"
         >
           <ProductSetupParametersPanel
             strategyId={strategyId}
@@ -91,7 +81,6 @@ export function ProductSetupWorkspace({
           icon={TrendingUp}
           title="Sales"
           description="Inventory thresholds"
-          accentColor="violet"
         >
           <ProductSetupParametersPanel
             strategyId={strategyId}
@@ -104,7 +93,6 @@ export function ProductSetupWorkspace({
           icon={Wallet}
           title="Finance"
           description="Cash flow settings"
-          accentColor="amber"
         >
           <ProductSetupParametersPanel
             strategyId={strategyId}
