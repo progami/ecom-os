@@ -130,8 +130,8 @@ const nextConfig = {
     ]
   },
 
-  // Rewrites removed - Next.js basePath handles routing automatically
-  // The previous rewrite was causing double basePath prefixing (/wms/wms/api/...)
+  // Support legacy `/wms/*` URLs when BASE_PATH is not set.
+  // When BASE_PATH is `/wms`, Next strips the basePath before matching rewrites.
   async rewrites() {
     return [
       {
@@ -208,11 +208,6 @@ const nextConfig = {
   
   // Removed standalone output - incompatible with custom server.js
   // output: 'standalone',
-  
-  // Disable TypeScript errors during production builds for deployment
-  typescript: {
-    ignoreBuildErrors: true,
-  },
 }
 
 module.exports = nextConfig
