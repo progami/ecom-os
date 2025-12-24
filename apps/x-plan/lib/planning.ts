@@ -7,6 +7,7 @@ import prisma from '@/lib/prisma'
 const DEFAULT_PLANNING_ANCHOR = new Date('2025-01-06T00:00:00.000Z')
 const DEFAULT_PLANNING_WEEK_COUNT = 156 // 2025–2027 inclusive
 const DEFAULT_PLANNING_PRODUCT_ID = '__planning__'
+const EXTRA_PLANNING_YEARS = [2023, 2024] as const
 
 function buildFallbackSalesWeeks(): SalesWeekInput[] {
   return Array.from({ length: DEFAULT_PLANNING_WEEK_COUNT }, (_, index) => {
@@ -69,8 +70,27 @@ export async function loadPlanningCalendar(): Promise<PlanningCalendar> {
   const mappedWeeks = mapSalesWeeks(salesWeekRecords)
   const salesWeeks = ensurePlanningCalendarCoverage(mappedWeeks)
   const calendar = buildWeekCalendar(salesWeeks)
-  const yearSegments = buildYearSegments(calendar)
+  const yearSegments = ensureYearSegmentCoverage(buildYearSegments(calendar))
   return { salesWeeks, yearSegments, calendar }
+}
+
+function ensureYearSegmentCoverage(segments: YearSegment[]): YearSegment[] {
+  const coveredYears = new Set(segments.map((segment) => segment.year))
+  const missing: YearSegment[] = []
+
+  for (const year of EXTRA_PLANNING_YEARS) {
+    if (!coveredYears.has(year)) {
+      missing.push({
+        year,
+        startWeekNumber: 1,
+        endWeekNumber: 0,
+        weekCount: 0,
+      })
+    }
+  }
+
+  if (missing.length === 0) return segments
+  return [...segments, ...missing].sort((a, b) => a.year - b.year)
 }
 
 function coerceYearValue(value: string | string[] | undefined): number | null {
@@ -92,7 +112,8 @@ export function resolveActiveYear(
   if (requestedYear != null && segments.some((segment) => segment.year === requestedYear)) {
     return requestedYear
   }
-  return segments[0]?.year ?? null
+  const defaultSegment = segments.find((segment) => segment.weekCount > 0) ?? segments[0]
+  return defaultSegment?.year ?? null
 }
 
 export function findYearSegment(year: number | null, segments: YearSegment[]): YearSegment | null {
