@@ -153,6 +153,7 @@ Workflow: `.github/workflows/ci.yml`
 
 - Runs on `pull_request`
 - Installs via pnpm and populates `.env.dev`/`.env.local` from `*.env.dev.ci` templates
+- Verifies workspace `package.json` versions are kept in sync (root is the source of truth)
 - Generates Prisma clients
 - Lints / type-checks / builds only the workspaces changed in the PR (via `APP_CHANGED_SINCE` + turbo filters)
 
@@ -168,14 +169,14 @@ Workflow: `.github/workflows/cd.yml`
   - build the app(s)
   - restart the matching PM2 process(es)
   - run `pm2 save` once at the end
-- On `main`, computes a semver tag from commit messages and creates a GitHub Release.
+- On `main`, computes a semver tag from commit messages and creates a GitHub Release (tags the exact `main` commit SHA even though the repo default branch is `dev`).
 
 ### Branch / PR policy
 
 - All work merges into `dev` via PR.
 - Production releases are PRs from `dev` → `main` (enforced by `.github/workflows/pr-policy-main-from-dev.yml`).
 - Direct pushes to `dev`/`main` are blocked (`.github/workflows/block-direct-push.yml`).
-- After releasing to `main`, an automation opens a sync PR `main → dev` (`.github/workflows/auto-sync-dev.yml`).
+- After merging *non-release* PRs to `main` (i.e., head branch is not `dev`), an automation opens a sync PR `main → dev` (`.github/workflows/auto-sync-dev.yml`).
 
 ## Operations (laptop hosting)
 
