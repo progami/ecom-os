@@ -332,10 +332,9 @@ function TrendChart({ title, description, helper, series, granularity, format, a
   const gradientId = useId()
   const width = Math.max(640, chartSize.width || 640)
   const height = 320
-  const paddingX = 32
-  const paddingY = 24
-  const innerWidth = width - paddingX * 2
-  const innerHeight = height - paddingY * 2
+  const padding = { top: 24, right: 24, bottom: 48, left: 70 }
+  const innerWidth = width - padding.left - padding.right
+  const innerHeight = height - padding.top - padding.bottom
   const color = palette.hex
 
   const { domainMin, domainMax, minValue, maxValue } = useMemo(() => {
@@ -381,18 +380,42 @@ function TrendChart({ title, description, helper, series, granularity, format, a
   const range = domainMax - domainMin || 1
   const zeroLineY =
     minValue <= 0 && domainMin < 0 && domainMax > 0
-      ? paddingY + innerHeight - ((0 - domainMin) / range) * innerHeight
+      ? padding.top + innerHeight - ((0 - domainMin) / range) * innerHeight
       : null
   const points = useMemo(
     () =>
       values.map((value, index) => {
-        const x = paddingX + (values.length === 1 ? innerWidth / 2 : (index / (values.length - 1)) * innerWidth)
+        const x = padding.left + (values.length === 1 ? innerWidth / 2 : (index / (values.length - 1)) * innerWidth)
         const normalized = range === 0 ? 0.5 : (value - domainMin) / range
-        const y = paddingY + innerHeight - normalized * innerHeight
+        const y = padding.top + innerHeight - normalized * innerHeight
         return { x, y }
       }),
-    [values, paddingX, paddingY, innerHeight, innerWidth, range, domainMin]
+    [values, padding.left, padding.top, innerHeight, innerWidth, range, domainMin]
   )
+
+  // Calculate Y-axis ticks using nice scale
+  const yAxisTicks = useMemo(() => {
+    if (!values.length) return [0]
+    const minVal = Math.min(...values)
+    const maxVal = Math.max(...values)
+    return niceScale(Math.min(0, minVal), maxVal, 5)
+  }, [values])
+
+  // Calculate X-axis tick indices (show subset to avoid crowding)
+  const xAxisTickIndices = useMemo(() => {
+    const count = labels.length
+    if (count <= 6) return labels.map((_, i) => i)
+    const stride = Math.max(1, Math.floor(count / 6))
+    const indices: number[] = []
+    for (let i = 0; i < count; i += stride) {
+      indices.push(i)
+    }
+    // Always include the last point
+    if (indices[indices.length - 1] !== count - 1) {
+      indices.push(count - 1)
+    }
+    return indices
+  }, [labels])
   const latestPoint = points.at(-1)
   const activePoint = activeIndex != null ? points[activeIndex] ?? null : null
   const ariaLabel = `${title} trend: ${values
@@ -403,9 +426,10 @@ function TrendChart({ title, description, helper, series, granularity, format, a
     const bounds = event.currentTarget.getBoundingClientRect()
     const relativeX = event.clientX - bounds.left
     const scaleX = bounds.width / width || 1
-    const paddingXPx = paddingX * scaleX
-    const clampedX = Math.max(paddingXPx, Math.min(bounds.width - paddingXPx, relativeX))
-    const normalized = (clampedX - paddingXPx) / Math.max(1, bounds.width - paddingXPx * 2)
+    const paddingLeftPx = padding.left * scaleX
+    const paddingRightPx = padding.right * scaleX
+    const clampedX = Math.max(paddingLeftPx, Math.min(bounds.width - paddingRightPx, relativeX))
+    const normalized = (clampedX - paddingLeftPx) / Math.max(1, bounds.width - paddingLeftPx - paddingRightPx)
     const maxIndex = Math.max(0, values.length - 1)
     const index = Math.round(normalized * maxIndex)
     const point = points[index]
@@ -463,8 +487,7 @@ function TrendChart({ title, description, helper, series, granularity, format, a
           <TrendChartSvg
             width={width}
             height={height}
-            paddingX={paddingX}
-            paddingY={paddingY}
+            padding={padding}
             color={color}
             gradientId={gradientId}
             points={points}
@@ -475,6 +498,10 @@ function TrendChart({ title, description, helper, series, granularity, format, a
             labels={labels}
             values={values}
             format={format}
+            yAxisTicks={yAxisTicks}
+            xAxisTickIndices={xAxisTickIndices}
+            domainMin={domainMin}
+            domainMax={domainMax}
             ariaLabel={ariaLabel}
             onPointerMove={handlePointerMove}
             onPointerLeave={handlePointerLeave}
@@ -513,8 +540,7 @@ function TrendChart({ title, description, helper, series, granularity, format, a
 function TrendChartSvg({
   width,
   height,
-  paddingX,
-  paddingY,
+  padding,
   color,
   gradientId,
   points,
@@ -525,6 +551,10 @@ function TrendChartSvg({
   labels,
   values,
   format,
+  yAxisTicks,
+  xAxisTickIndices,
+  domainMin,
+  domainMax,
   ariaLabel,
   onPointerMove,
   onPointerLeave,
@@ -532,8 +562,7 @@ function TrendChartSvg({
 }: {
   width: number
   height: number
-  paddingX: number
-  paddingY: number
+  padding: { top: number; right: number; bottom: number; left: number }
   color: string
   gradientId: string
   points: Array<{ x: number; y: number }>
@@ -544,11 +573,48 @@ function TrendChartSvg({
   labels: string[]
   values: number[]
   format: TrendFormat
+  yAxisTicks: number[]
+  xAxisTickIndices: number[]
+  domainMin: number
+  domainMax: number
   ariaLabel: string
   onPointerMove: (event: PointerEvent<SVGSVGElement>) => void
   onPointerLeave: () => void
   onKeyDown: (event: KeyboardEvent<SVGSVGElement>) => void
 }) {
+  const innerWidth = width - padding.left - padding.right
+  const innerHeight = height - padding.top - padding.bottom
+  const range = domainMax - domainMin || 1
+
+  // Helper to convert a value to Y coordinate
+  const valueToY = (value: number) => {
+    const normalized = range === 0 ? 0.5 : (value - domainMin) / range
+    return padding.top + innerHeight - normalized * innerHeight
+  }
+
+  // Format axis label based on format type
+  const formatAxisLabel = (value: number) => {
+    if (format === 'currency') {
+      if (Math.abs(value) >= 1000000) {
+        return `$${(value / 1000000).toFixed(1)}M`
+      }
+      if (Math.abs(value) >= 1000) {
+        return `$${(value / 1000).toFixed(0)}K`
+      }
+      return `$${value.toFixed(0)}`
+    }
+    if (format === 'percent') {
+      return `${(value * 100).toFixed(0)}%`
+    }
+    if (Math.abs(value) >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}M`
+    }
+    if (Math.abs(value) >= 1000) {
+      return `${(value / 1000).toFixed(0)}K`
+    }
+    return value.toLocaleString('en-US', { maximumFractionDigits: 0 })
+  }
+
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
@@ -565,15 +631,35 @@ function TrendChartSvg({
         <stop offset="0%" stopColor={color} stopOpacity={0.4} />
         <stop offset="100%" stopColor={color} stopOpacity={0.05} />
       </linearGradient>
+
+      {/* Horizontal grid lines */}
+      <g className="opacity-40">
+        {yAxisTicks.map((tick, index) => (
+          <line
+            key={`grid-y-${index}-${tick}`}
+            x1={padding.left}
+            y1={valueToY(tick)}
+            x2={width - padding.right}
+            y2={valueToY(tick)}
+            stroke="#64748b"
+            strokeWidth="1"
+            strokeDasharray="4 4"
+          />
+        ))}
+      </g>
+
+      {/* Area fill */}
       <path
-        d={`M${paddingX} ${height - paddingY} ${points
+        d={`M${padding.left} ${height - padding.bottom} ${points
           .map((point) => `L${point.x} ${point.y}`)
-          .join(' ')} L${width - paddingX} ${height - paddingY} Z`}
+          .join(' ')} L${width - padding.right} ${height - padding.bottom} Z`}
         fill={`url(#${gradientId})`}
         opacity={0.85}
       />
+
+      {/* Line */}
       <path
-        d={`M${points[0]?.x ?? paddingX} ${points[0]?.y ?? height - paddingY} ${points
+        d={`M${points[0]?.x ?? padding.left} ${points[0]?.y ?? height - padding.bottom} ${points
           .slice(1)
           .map((point) => `L${point.x} ${point.y}`)
           .join(' ')}`}
@@ -583,10 +669,12 @@ function TrendChartSvg({
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+
+      {/* Zero line if needed */}
       {zeroLineY != null ? (
         <line
-          x1={paddingX}
-          x2={width - paddingX}
+          x1={padding.left}
+          x2={width - padding.right}
           y1={zeroLineY}
           y2={zeroLineY}
           stroke="rgba(100, 116, 139, 0.5)"
@@ -594,6 +682,8 @@ function TrendChartSvg({
           strokeDasharray="4 4"
         />
       ) : null}
+
+      {/* Data points */}
       {points.map((point, index) => (
         <circle
           key={index}
@@ -604,30 +694,95 @@ function TrendChartSvg({
           opacity={index === activeIndex ? 1 : 0.7}
         />
       ))}
+
+      {/* Active point indicator */}
       {activePoint ? (
         <line
           x1={activePoint.x}
           x2={activePoint.x}
-          y1={paddingY}
-          y2={height - paddingY}
+          y1={padding.top}
+          y2={height - padding.bottom}
           stroke={color}
           strokeWidth={2}
           strokeDasharray="4 4"
           opacity={0.6}
         />
       ) : null}
+
+      {/* Latest point highlight */}
       {latestPoint ? (
         <circle cx={latestPoint.x} cy={latestPoint.y} r={5} fill={color} opacity={activeIndex == null ? 1 : 0.7} />
       ) : null}
-      <line
-        x1={paddingX}
-        x2={width - paddingX}
-        y1={height - paddingY}
-        y2={height - paddingY}
-        stroke="rgba(100, 116, 139, 0.4)"
-        strokeWidth={1.5}
-        strokeDasharray="4 4"
-      />
+
+      {/* Y-axis */}
+      <g>
+        <line
+          x1={padding.left}
+          y1={padding.top}
+          x2={padding.left}
+          y2={height - padding.bottom}
+          stroke="#64748b"
+          strokeWidth="1.5"
+        />
+        {yAxisTicks.map((tick, index) => (
+          <g key={`y-tick-${index}-${tick}`}>
+            <line
+              x1={padding.left - 4}
+              y1={valueToY(tick)}
+              x2={padding.left}
+              y2={valueToY(tick)}
+              stroke="#64748b"
+              strokeWidth="1.5"
+            />
+            <text
+              x={padding.left - 8}
+              y={valueToY(tick)}
+              textAnchor="end"
+              dominantBaseline="middle"
+              className="fill-slate-500 dark:fill-slate-400 text-[10px] font-mono"
+            >
+              {formatAxisLabel(tick)}
+            </text>
+          </g>
+        ))}
+      </g>
+
+      {/* X-axis */}
+      <g>
+        <line
+          x1={padding.left}
+          y1={height - padding.bottom}
+          x2={width - padding.right}
+          y2={height - padding.bottom}
+          stroke="#64748b"
+          strokeWidth="1.5"
+        />
+        {xAxisTickIndices.map((tickIndex) => {
+          const point = points[tickIndex]
+          const label = labels[tickIndex]
+          if (!point || !label) return null
+          return (
+            <g key={`x-tick-${tickIndex}`}>
+              <line
+                x1={point.x}
+                y1={height - padding.bottom}
+                x2={point.x}
+                y2={height - padding.bottom + 4}
+                stroke="#64748b"
+                strokeWidth="1.5"
+              />
+              <text
+                x={point.x}
+                y={height - padding.bottom + 16}
+                textAnchor="middle"
+                className="fill-slate-500 dark:fill-slate-400 text-[10px]"
+              >
+                {label}
+              </text>
+            </g>
+          )
+        })}
+      </g>
     </svg>
   )
 }
@@ -656,4 +811,41 @@ function formatChangeValue(value: number, format: TrendFormat) {
 function formatPercentValue(value: number | null) {
   if (value == null || !Number.isFinite(value)) return '—'
   return `${(value * 100).toFixed(1)}%`
+}
+
+// Calculate "nice" rounded numbers for axis labels
+function niceNumber(range: number, round: boolean): number {
+  const exponent = Math.floor(Math.log10(range))
+  const fraction = range / Math.pow(10, exponent)
+  let niceFraction: number
+
+  if (round) {
+    if (fraction < 1.5) niceFraction = 1
+    else if (fraction < 3) niceFraction = 2
+    else if (fraction < 7) niceFraction = 5
+    else niceFraction = 10
+  } else {
+    if (fraction <= 1) niceFraction = 1
+    else if (fraction <= 2) niceFraction = 2
+    else if (fraction <= 5) niceFraction = 5
+    else niceFraction = 10
+  }
+
+  return niceFraction * Math.pow(10, exponent)
+}
+
+function niceScale(min: number, max: number, tickCount: number): number[] {
+  if (max - min === 0) {
+    return [min - 1, min, min + 1]
+  }
+  const range = niceNumber(max - min, false)
+  const tickSpacing = niceNumber(range / (tickCount - 1), true)
+  const niceMin = Math.floor(min / tickSpacing) * tickSpacing
+  const niceMax = Math.ceil(max / tickSpacing) * tickSpacing
+
+  const ticks: number[] = []
+  for (let tick = niceMin; tick <= niceMax + tickSpacing * 0.5; tick += tickSpacing) {
+    ticks.push(Math.round(tick * 100) / 100)
+  }
+  return ticks
 }
