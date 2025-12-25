@@ -494,7 +494,6 @@ export const POST = withAuth(async (request, session) => {
 
           const defaults = await prisma.skuBatch.findFirst({
             where: {
-              isActive: true,
               sku: {
                 skuCode: {
                   equals: normalizedSkuCode || item.skuCode,
@@ -665,7 +664,6 @@ export const POST = withAuth(async (request, session) => {
           where: {
             skuId: sku.id,
             batchCode: item.batchLot,
-            isActive: true,
           },
           select: { id: true },
         })
@@ -730,7 +728,6 @@ export const POST = withAuth(async (request, session) => {
         where: {
           skuId: { in: skus.map(sku => sku.id) },
           batchCode: { in: batchLots },
-          isActive: true,
         },
         select: {
           skuId: true,
