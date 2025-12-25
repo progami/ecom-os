@@ -384,8 +384,8 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
 
       {isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl overflow-hidden rounded-lg bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b bg-slate-50 px-6 py-4">
+          <div className="w-full max-w-2xl overflow-hidden rounded-lg shadow-xl">
+            <div className="flex items-center justify-between border-b bg-slate-50 px-6 py-4 rounded-t-lg">
               <h2 className="text-lg font-semibold text-slate-900">
                 {editingSupplier ? 'Edit Supplier' : 'New Supplier'}
               </h2>
@@ -394,7 +394,7 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
               </Button>
             </div>
 
-            <form onSubmit={submitSupplier} className="space-y-6 p-6">
+            <form onSubmit={submitSupplier} className="space-y-6 p-6 bg-white rounded-b-lg">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-1 md:col-span-2">
                   <Label htmlFor="supplier-name">Name</Label>
