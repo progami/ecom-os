@@ -19,7 +19,6 @@ export const GET = withAuth(async (_request: NextRequest, _session) => {
 const LineItemSchema = z.object({
   skuCode: z.string().min(1),
   skuDescription: z.string().optional(),
-  batchLot: z.string().trim().min(1, 'Batch/Lot is required'),
   quantity: z.number().int().positive(),
   unitCost: z.number().optional(),
   currency: z.string().optional(),
@@ -66,7 +65,6 @@ export const POST = withAuth(async (request: NextRequest, session) => {
         lines: result.data.lines.map(line => ({
           skuCode: line.skuCode,
           skuDescription: line.skuDescription,
-          batchLot: line.batchLot,
           quantity: line.quantity,
           unitCost: line.unitCost,
           currency: line.currency,

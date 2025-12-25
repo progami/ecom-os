@@ -673,7 +673,7 @@ export const POST = withAuth(async (request, session) => {
         if (!batchRecord) {
           return NextResponse.json(
             {
-              error: `Batch/Lot ${item.batchLot} is not configured for SKU ${item.skuCode}. Create it in Config → Products → SKUs → Batches.`,
+              error: `Batch/Lot ${item.batchLot} is not configured for SKU ${item.skuCode}. Create it in Config → Products → Batches.`,
             },
             { status: 400 }
           )

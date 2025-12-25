@@ -253,7 +253,6 @@ export async function generatePoNumber(): Promise<string> {
 export interface CreatePurchaseOrderLineInput {
   skuCode: string
   skuDescription?: string
-  batchLot: string
   quantity: number
   unitCost?: number
   currency?: string
@@ -274,12 +273,29 @@ export async function createPurchaseOrder(
 ): Promise<PurchaseOrder & { lines: any[] }> {
   const tenant = await getCurrentTenant()
   const prisma = await getTenantPrisma()
+  let skuRecordsForLines: Array<{
+    id: string
+    skuCode: string
+    packSize: number | null
+    unitsPerCarton: number
+    material: string | null
+    unitDimensionsCm: string | null
+    unitLengthCm: Prisma.Decimal | null
+    unitWidthCm: Prisma.Decimal | null
+    unitHeightCm: Prisma.Decimal | null
+    unitWeightKg: Prisma.Decimal | null
+    cartonDimensionsCm: string | null
+    cartonLengthCm: Prisma.Decimal | null
+    cartonWidthCm: Prisma.Decimal | null
+    cartonHeightCm: Prisma.Decimal | null
+    cartonWeightKg: Prisma.Decimal | null
+    packagingType: string | null
+  }> = []
 
   if (input.lines && input.lines.length > 0) {
     const normalizedLines = input.lines.map(line => ({
       ...line,
       skuCode: line.skuCode.trim(),
-      batchLot: line.batchLot.trim(),
     }))
 
     const keySet = new Set<string>()
@@ -287,14 +303,11 @@ export async function createPurchaseOrder(
       if (!line.skuCode) {
         throw new ValidationError('SKU code is required for all line items')
       }
-      if (!line.batchLot) {
-        throw new ValidationError(`Batch/Lot is required for SKU ${line.skuCode}`)
-      }
 
-      const key = `${line.skuCode}::${line.batchLot}`
+      const key = line.skuCode.toLowerCase()
       if (keySet.has(key)) {
         throw new ValidationError(
-          `Duplicate SKU/Batch line detected: ${line.skuCode} / ${line.batchLot}`
+          `Duplicate SKU line detected: ${line.skuCode}. Combine quantities into a single line.`
         )
       }
       keySet.add(key)
@@ -303,7 +316,24 @@ export async function createPurchaseOrder(
     const skuCodes = Array.from(new Set(normalizedLines.map(line => line.skuCode)))
     const skus = await prisma.sku.findMany({
       where: { skuCode: { in: skuCodes } },
-      select: { id: true, skuCode: true },
+      select: {
+        id: true,
+        skuCode: true,
+        packSize: true,
+        unitsPerCarton: true,
+        material: true,
+        unitDimensionsCm: true,
+        unitLengthCm: true,
+        unitWidthCm: true,
+        unitHeightCm: true,
+        unitWeightKg: true,
+        cartonDimensionsCm: true,
+        cartonLengthCm: true,
+        cartonWidthCm: true,
+        cartonHeightCm: true,
+        cartonWeightKg: true,
+        packagingType: true,
+      },
     })
     const skuByCode = new Map(skus.map(sku => [sku.skuCode, sku]))
 
@@ -313,30 +343,8 @@ export async function createPurchaseOrder(
       }
     }
 
-    const batchCodes = Array.from(new Set(normalizedLines.map(line => line.batchLot)))
-    const skuIds = skus.map(sku => sku.id)
-    const batches = await prisma.skuBatch.findMany({
-      where: {
-        skuId: { in: skuIds },
-        batchCode: { in: batchCodes },
-        isActive: true,
-      },
-      select: { skuId: true, batchCode: true },
-    })
-    const batchKeySet = new Set(batches.map(batch => `${batch.skuId}::${batch.batchCode}`))
-
-    for (const line of normalizedLines) {
-      const sku = skuByCode.get(line.skuCode)
-      if (!sku) continue
-      const key = `${sku.id}::${line.batchLot}`
-      if (!batchKeySet.has(key)) {
-        throw new ValidationError(
-          `Batch/Lot ${line.batchLot} is not configured for SKU ${line.skuCode}. Create it in Config → Products → SKUs → Batches.`
-        )
-      }
-    }
-
     input.lines = normalizedLines
+    skuRecordsForLines = skus
   }
 
   const MAX_PO_NUMBER_ATTEMPTS = 5
@@ -345,39 +353,83 @@ export async function createPurchaseOrder(
   for (let attempt = 0; attempt < MAX_PO_NUMBER_ATTEMPTS; attempt += 1) {
     const poNumber = await generatePoNumber()
     const orderNumber = poNumber // Order number is just the PO number now
+    const batchLot = poNumber
 
     try {
-      order = await prisma.purchaseOrder.create({
-        data: {
-          orderNumber,
-          poNumber,
-          type: 'PURCHASE',
-          status: 'DRAFT',
-          counterpartyName: input.counterpartyName,
-          notes: input.notes,
-          createdById: user.id,
-          createdByName: user.name,
-          isLegacy: false,
-          // Create lines if provided
-          lines:
-            input.lines && input.lines.length > 0
-              ? {
-                  create: input.lines.map(line => ({
-                    skuCode: line.skuCode,
-                    skuDescription: line.skuDescription || '',
-                    batchLot: line.batchLot,
-                    quantity: line.quantity,
-                    unitCost: line.unitCost,
-                    currency: line.currency || tenant.currency,
-                    lineNotes: line.notes,
-                    status: 'PENDING',
-                  })),
-                }
-              : undefined,
-        },
-        include: {
-          lines: true,
-        },
+      order = await prisma.$transaction(async tx => {
+        if (input.lines && input.lines.length > 0) {
+          const uniqueSkuIds = Array.from(new Set(skuRecordsForLines.map(sku => sku.id)))
+          const skuMap = new Map(skuRecordsForLines.map(sku => [sku.id, sku]))
+
+          for (const skuId of uniqueSkuIds) {
+            const sku = skuMap.get(skuId)
+            if (!sku) continue
+
+            await tx.skuBatch.upsert({
+              where: {
+                skuId_batchCode: {
+                  skuId,
+                  batchCode: batchLot,
+                },
+              },
+              create: {
+                skuId,
+                batchCode: batchLot,
+                packSize: sku.packSize,
+                unitsPerCarton: sku.unitsPerCarton,
+                material: sku.material,
+                unitDimensionsCm: sku.unitDimensionsCm,
+                unitLengthCm: sku.unitLengthCm,
+                unitWidthCm: sku.unitWidthCm,
+                unitHeightCm: sku.unitHeightCm,
+                unitWeightKg: sku.unitWeightKg,
+                cartonDimensionsCm: sku.cartonDimensionsCm,
+                cartonLengthCm: sku.cartonLengthCm,
+                cartonWidthCm: sku.cartonWidthCm,
+                cartonHeightCm: sku.cartonHeightCm,
+                cartonWeightKg: sku.cartonWeightKg,
+                packagingType: sku.packagingType,
+                isActive: true,
+              },
+              update: {
+                isActive: true,
+              },
+            })
+          }
+        }
+
+        return tx.purchaseOrder.create({
+          data: {
+            orderNumber,
+            poNumber,
+            type: 'PURCHASE',
+            status: 'DRAFT',
+            counterpartyName: input.counterpartyName,
+            notes: input.notes,
+            createdById: user.id,
+            createdByName: user.name,
+            isLegacy: false,
+            // Create lines if provided
+            lines:
+              input.lines && input.lines.length > 0
+                ? {
+                    create: input.lines.map(line => ({
+                      skuCode: line.skuCode,
+                      skuDescription: line.skuDescription || '',
+                      batchLot,
+                      quantity: line.quantity,
+                      unitCost: line.unitCost,
+                      currency: line.currency || tenant.currency,
+                      lineNotes: line.notes,
+                      status: 'PENDING',
+                    })),
+                  }
+                : undefined,
+          },
+          include: {
+            lines: true,
+          },
+        })
       })
       break
     } catch (error) {
@@ -930,7 +982,7 @@ export async function transitionPurchaseOrderStage(
         const batch = batchMap.get(`${sku.id}::${batchLot}`)
         if (!batch) {
           throw new ValidationError(
-            `Batch/Lot ${batchLot} is not configured for SKU ${line.skuCode}. Create it in Config → Products → SKUs → Batches.`
+            `Batch/Lot ${batchLot} is not configured for SKU ${line.skuCode}. Create it in Config → Products → Batches.`
           )
         }
 
@@ -1202,7 +1254,7 @@ export async function transitionPurchaseOrderStage(
         const batch = batchMap.get(`${sku.id}::${batchLot}`)
         if (!batch) {
           throw new ValidationError(
-            `Batch/Lot ${batchLot} is not configured for SKU ${line.skuCode}. Create it in Config → Products → SKUs → Batches.`
+            `Batch/Lot ${batchLot} is not configured for SKU ${line.skuCode}. Create it in Config → Products → Batches.`
           )
         }
 

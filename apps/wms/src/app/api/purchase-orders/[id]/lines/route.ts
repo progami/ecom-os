@@ -8,7 +8,6 @@ import { Prisma } from '@ecom-os/prisma-wms'
 const LineItemSchema = z.object({
   skuCode: z.string().trim().min(1),
   skuDescription: z.string().optional(),
-  batchLot: z.string().trim().min(1, 'Batch/Lot is required'),
   quantity: z.number().int().positive(),
   unitCost: z.number().optional(),
   currency: z.string().optional(),
@@ -89,27 +88,58 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
 
   const sku = await prisma.sku.findFirst({
     where: { skuCode: result.data.skuCode },
-    select: { id: true },
+    select: {
+      id: true,
+      packSize: true,
+      unitsPerCarton: true,
+      material: true,
+      unitDimensionsCm: true,
+      unitLengthCm: true,
+      unitWidthCm: true,
+      unitHeightCm: true,
+      unitWeightKg: true,
+      cartonDimensionsCm: true,
+      cartonLengthCm: true,
+      cartonWidthCm: true,
+      cartonHeightCm: true,
+      cartonWeightKg: true,
+      packagingType: true,
+    },
   })
 
   if (!sku) {
     return ApiResponses.badRequest(`SKU ${result.data.skuCode} not found. Create the SKU first.`)
   }
 
-  const batchRecord = await prisma.skuBatch.findFirst({
+  const derivedBatchLot = (order.poNumber ?? order.orderNumber).trim()
+  await prisma.skuBatch.upsert({
     where: {
+      skuId_batchCode: {
+        skuId: sku.id,
+        batchCode: derivedBatchLot,
+      },
+    },
+    create: {
       skuId: sku.id,
-      batchCode: result.data.batchLot,
+      batchCode: derivedBatchLot,
+      packSize: sku.packSize,
+      unitsPerCarton: sku.unitsPerCarton,
+      material: sku.material,
+      unitDimensionsCm: sku.unitDimensionsCm,
+      unitLengthCm: sku.unitLengthCm,
+      unitWidthCm: sku.unitWidthCm,
+      unitHeightCm: sku.unitHeightCm,
+      unitWeightKg: sku.unitWeightKg,
+      cartonDimensionsCm: sku.cartonDimensionsCm,
+      cartonLengthCm: sku.cartonLengthCm,
+      cartonWidthCm: sku.cartonWidthCm,
+      cartonHeightCm: sku.cartonHeightCm,
+      cartonWeightKg: sku.cartonWeightKg,
+      packagingType: sku.packagingType,
       isActive: true,
     },
-    select: { id: true },
+    update: { isActive: true },
   })
-
-  if (!batchRecord) {
-    return ApiResponses.badRequest(
-      `Batch/Lot ${result.data.batchLot} is not configured for SKU ${result.data.skuCode}. Create it in Config → Products → SKUs → Batches.`
-    )
-  }
 
   let line
   try {
@@ -118,7 +148,7 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
         purchaseOrderId: id,
         skuCode: result.data.skuCode,
         skuDescription: result.data.skuDescription || '',
-        batchLot: result.data.batchLot,
+        batchLot: derivedBatchLot,
         quantity: result.data.quantity,
         unitCost: result.data.unitCost,
         currency: result.data.currency ?? tenant.currency,
@@ -129,7 +159,7 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       return ApiResponses.conflict(
-        'A line with this SKU and batch already exists for the purchase order'
+        'A line with this SKU already exists for the purchase order'
       )
     }
     throw error
