@@ -1,24 +1,25 @@
-import { Avatar } from '@/components/ui/Avatar'
-import type { WorkflowTimelineEntry } from '@/lib/contracts/workflow-record'
+import { Avatar } from '@/components/ui/Avatar';
+import type { WorkflowTimelineEntry } from '@/lib/contracts/workflow-record';
 
 type WorkflowTimelineProps = {
-  items: WorkflowTimelineEntry[]
-}
+  items: WorkflowTimelineEntry[];
+};
 
 function formatWhen(isoString: string) {
-  const date = new Date(isoString)
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return '—';
   return date.toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  })
+  });
 }
 
 export function WorkflowTimeline({ items }: WorkflowTimelineProps) {
   if (!items.length) {
-    return <p className="text-sm text-gray-500">No activity yet.</p>
+    return <p className="text-sm text-gray-500">No activity yet.</p>;
   }
 
   return (
@@ -30,7 +31,9 @@ export function WorkflowTimeline({ items }: WorkflowTimelineProps) {
               <Avatar src={item.actor.avatarUrl} alt={item.actor.name} size="sm" />
             ) : (
               <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-semibold text-gray-600">
-                {item.actor.type === 'system' ? 'SYS' : item.actor.name.slice(0, 1).toUpperCase()}
+                {item.actor.type === 'system'
+                  ? 'SYS'
+                  : (item.actor.name?.slice(0, 1) || '?').toUpperCase()}
               </div>
             )}
           </div>
@@ -44,7 +47,9 @@ export function WorkflowTimeline({ items }: WorkflowTimelineProps) {
                 {item.transition.from} → {item.transition.to}
               </p>
             ) : null}
-            {item.note ? <p className="text-sm text-gray-700 mt-1 whitespace-pre-line">{item.note}</p> : null}
+            {item.note ? (
+              <p className="text-sm text-gray-700 mt-1 whitespace-pre-line">{item.note}</p>
+            ) : null}
             {item.attachments?.length ? (
               <div className="mt-2 flex flex-col gap-1">
                 {item.attachments.map((att) => (
@@ -62,6 +67,5 @@ export function WorkflowTimeline({ items }: WorkflowTimelineProps) {
         </li>
       ))}
     </ol>
-  )
+  );
 }
-

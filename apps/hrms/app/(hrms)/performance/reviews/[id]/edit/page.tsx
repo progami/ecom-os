@@ -1,21 +1,28 @@
-'use client'
+'use client';
 
-import { useState, useEffect } from 'react'
-import { useRouter, useParams } from 'next/navigation'
-import { MeApi, PerformanceReviewsApi, type Me, type PerformanceReview } from '@/lib/api-client'
-import { ClipboardDocumentCheckIcon, StarIcon, StarFilledIcon } from '@/components/ui/Icons'
-import { PageHeader } from '@/components/ui/PageHeader'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { Alert } from '@/components/ui/Alert'
-import { StatusBadge } from '@/components/ui/Badge'
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import {
-  FormField,
-  SelectField,
-  TextareaField,
-} from '@/components/ui/FormField'
-import { useNavigationHistory } from '@/lib/navigation-history'
-import { REVIEW_PERIOD_TYPES, REVIEW_PERIOD_TYPE_LABELS, getAllowedReviewPeriodTypes, inferReviewPeriodParts } from '@/lib/review-period'
+  ApiError,
+  MeApi,
+  PerformanceReviewsApi,
+  type Me,
+  type PerformanceReview,
+} from '@/lib/api-client';
+import { ClipboardDocumentCheckIcon, StarIcon, StarFilledIcon } from '@/components/ui/Icons';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { Alert } from '@/components/ui/Alert';
+import { StatusBadge } from '@/components/ui/Badge';
+import { FormField, SelectField, TextareaField } from '@/components/ui/FormField';
+import { useNavigationHistory } from '@/lib/navigation-history';
+import {
+  REVIEW_PERIOD_TYPES,
+  REVIEW_PERIOD_TYPE_LABELS,
+  getAllowedReviewPeriodTypes,
+  inferReviewPeriodParts,
+} from '@/lib/review-period';
 
 const reviewTypeOptions = [
   { value: 'PROBATION', label: 'Probation (90-day)' },
@@ -24,7 +31,7 @@ const reviewTypeOptions = [
   { value: 'ANNUAL', label: 'Annual' },
   { value: 'PROMOTION', label: 'Promotion' },
   { value: 'PIP', label: 'Performance Improvement Plan' },
-]
+];
 
 const STATUS_LABELS: Record<string, string> = {
   NOT_STARTED: 'Not Started',
@@ -35,25 +42,33 @@ const STATUS_LABELS: Record<string, string> = {
   PENDING_ACKNOWLEDGMENT: 'Pending Acknowledgment',
   ACKNOWLEDGED: 'Acknowledged',
   COMPLETED: 'Completed',
-}
+};
 
 const reviewPeriodTypeOptions = REVIEW_PERIOD_TYPES.map((value) => ({
   value,
   label: REVIEW_PERIOD_TYPE_LABELS[value],
-}))
+}));
 
-function RatingInput({ name, label, value, onChange, required = false, disabled = false }: {
-  name: string
-  label: string
-  value: number
-  onChange: (v: number) => void
-  required?: boolean
-  disabled?: boolean
+function RatingInput({
+  name,
+  label,
+  value,
+  onChange,
+  required = false,
+  disabled = false,
+}: {
+  name: string;
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  required?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1.5">
-        {label}{required && <span className="text-red-500 ml-1">*</span>}
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       <div className="flex items-center gap-1">
         {[1, 2, 3, 4, 5].map((star) => (
@@ -75,40 +90,42 @@ function RatingInput({ name, label, value, onChange, required = false, disabled 
       </div>
       <input type="hidden" name={name} value={value} />
     </div>
-  )
+  );
 }
 
 export default function EditReviewPage() {
-  const router = useRouter()
-  const params = useParams()
-  const id = params.id as string
-  const { goBack } = useNavigationHistory()
+  const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
+  const { goBack } = useNavigationHistory();
 
-  const [review, setReview] = useState<PerformanceReview | null>(null)
-  const [me, setMe] = useState<Me | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [review, setReview] = useState<PerformanceReview | null>(null);
+  const [me, setMe] = useState<Me | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Rating states
-  const [overallRating, setOverallRating] = useState(3)
-  const [qualityOfWork, setQualityOfWork] = useState(3)
-  const [productivity, setProductivity] = useState(3)
-  const [communication, setCommunication] = useState(3)
-  const [teamwork, setTeamwork] = useState(3)
-  const [initiative, setInitiative] = useState(3)
-  const [attendance, setAttendance] = useState(3)
-  const currentYear = new Date().getFullYear()
-  const periodYearOptions = Array.from({ length: 8 }, (_, idx) => currentYear - 5 + idx).map((y) => ({
-    value: String(y),
-    label: String(y),
-  }))
-  const [reviewType, setReviewType] = useState('ANNUAL')
-  const [periodType, setPeriodType] = useState('ANNUAL')
-  const [periodYear, setPeriodYear] = useState(String(currentYear))
-  const [roleTitle, setRoleTitle] = useState('')
+  const [overallRating, setOverallRating] = useState(3);
+  const [qualityOfWork, setQualityOfWork] = useState(3);
+  const [productivity, setProductivity] = useState(3);
+  const [communication, setCommunication] = useState(3);
+  const [teamwork, setTeamwork] = useState(3);
+  const [initiative, setInitiative] = useState(3);
+  const [attendance, setAttendance] = useState(3);
+  const currentYear = new Date().getFullYear();
+  const periodYearOptions = Array.from({ length: 8 }, (_, idx) => currentYear - 5 + idx).map(
+    (y) => ({
+      value: String(y),
+      label: String(y),
+    }),
+  );
+  const [reviewType, setReviewType] = useState('ANNUAL');
+  const [periodType, setPeriodType] = useState('ANNUAL');
+  const [periodYear, setPeriodYear] = useState(String(currentYear));
+  const [roleTitle, setRoleTitle] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -116,115 +133,117 @@ export default function EditReviewPage() {
         const [data, meData] = await Promise.all([
           PerformanceReviewsApi.get(id),
           MeApi.get().catch(() => null),
-        ])
-        setReview(data)
-        setMe(meData)
+        ]);
+        setReview(data);
+        setMe(meData);
 
         // Initialize rating states from loaded data
-        setOverallRating(data.overallRating || 3)
-        setQualityOfWork(data.qualityOfWork || 3)
-        setProductivity(data.productivity || 3)
-        setCommunication(data.communication || 3)
-        setTeamwork(data.teamwork || 3)
-        setInitiative(data.initiative || 3)
-        setAttendance(data.attendance || 3)
+        setOverallRating(data.overallRating || 3);
+        setQualityOfWork(data.qualityOfWork || 3);
+        setProductivity(data.productivity || 3);
+        setCommunication(data.communication || 3);
+        setTeamwork(data.teamwork || 3);
+        setInitiative(data.initiative || 3);
+        setAttendance(data.attendance || 3);
 
         // Auto-start review if NOT_STARTED
         if (data.status === 'NOT_STARTED') {
           try {
-            const started = await PerformanceReviewsApi.start(id)
-            setReview(started)
-            setSuccessMessage('Review started. Fill in the ratings and feedback below.')
+            const started = await PerformanceReviewsApi.start(id);
+            setReview(started);
+            setSuccessMessage('Review started. Fill in the ratings and feedback below.');
           } catch (e: any) {
-            console.error('Failed to auto-start review:', e)
+            console.error('Failed to auto-start review:', e);
             // Non-fatal - continue with editing
           }
         }
       } catch (e: any) {
-        setError(e.message || 'Failed to load review')
+        setError(e.message || 'Failed to load review');
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
-    load()
-  }, [id])
+    load();
+  }, [id]);
 
   useEffect(() => {
-    if (!review) return
-    setReviewType(review.reviewType)
+    if (!review) return;
+    setReviewType(review.reviewType);
 
-    const inferredPeriod = inferReviewPeriodParts(review.reviewPeriod)
-    const nextPeriodType = review.periodType || inferredPeriod.periodType || 'ANNUAL'
-    const nextPeriodYear = review.periodYear ?? inferredPeriod.periodYear ?? currentYear
-    setPeriodType(nextPeriodType)
-    setPeriodYear(String(nextPeriodYear))
-    setRoleTitle(review.roleTitle || review.employee?.position || '')
-  }, [currentYear, review])
+    const inferredPeriod = inferReviewPeriodParts(review.reviewPeriod);
+    const nextPeriodType = review.periodType || inferredPeriod.periodType || 'ANNUAL';
+    const nextPeriodYear = review.periodYear ?? inferredPeriod.periodYear ?? currentYear;
+    setPeriodType(nextPeriodType);
+    setPeriodYear(String(nextPeriodYear));
+    setRoleTitle(review.roleTitle || review.employee?.position || '');
+  }, [currentYear, review]);
 
-  const isDraft = Boolean(review && ['NOT_STARTED', 'IN_PROGRESS', 'DRAFT'].includes(review.status))
-  const isHrOrAdmin = Boolean(me?.isHR || me?.isSuperAdmin)
+  const isDraft = Boolean(
+    review && ['NOT_STARTED', 'IN_PROGRESS', 'DRAFT'].includes(review.status),
+  );
+  const isHrOrAdmin = Boolean(me?.isHR || me?.isSuperAdmin);
 
   // Managers can edit draft/in-progress reviews; HR/Admin can edit metadata in later stages.
-  const canEditMeta = Boolean(review) && (isDraft || isHrOrAdmin)
-  const canEditContent = isDraft
+  const canEditMeta = Boolean(review) && (isDraft || isHrOrAdmin);
+  const canEditContent = isDraft;
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    if (!review || !canEditMeta) return
+    e.preventDefault();
+    if (!review || !canEditMeta) return;
 
-    setSaving(true)
-    setError(null)
-    setSuccessMessage(null)
+    setSaving(true);
+    setError(null);
+    setSuccessMessage(null);
 
-    const fd = new FormData(e.currentTarget)
-    const payload = Object.fromEntries(fd.entries()) as any
+    const fd = new FormData(e.currentTarget);
+    const payload = Object.fromEntries(fd.entries()) as any;
 
     try {
-      const update: Record<string, unknown> = {}
+      const update: Record<string, unknown> = {};
 
       if (canEditMeta) {
-        update.reviewType = String(payload.reviewType)
-        update.periodType = String(payload.periodType)
-        update.periodYear = parseInt(String(payload.periodYear), 10)
-        update.reviewDate = String(payload.reviewDate)
-        update.roleTitle = String(payload.roleTitle)
+        update.reviewType = String(payload.reviewType);
+        update.periodType = String(payload.periodType);
+        update.periodYear = parseInt(String(payload.periodYear), 10);
+        update.reviewDate = String(payload.reviewDate);
+        update.roleTitle = String(payload.roleTitle);
       }
 
       if (canEditContent) {
-        update.overallRating = parseInt(payload.overallRating, 10)
-        update.qualityOfWork = parseInt(payload.qualityOfWork, 10)
-        update.productivity = parseInt(payload.productivity, 10)
-        update.communication = parseInt(payload.communication, 10)
-        update.teamwork = parseInt(payload.teamwork, 10)
-        update.initiative = parseInt(payload.initiative, 10)
-        update.attendance = parseInt(payload.attendance, 10)
-        update.strengths = payload.strengths || null
-        update.areasToImprove = payload.areasToImprove || null
-        update.goals = payload.goals || null
-        update.comments = payload.comments || null
+        update.overallRating = parseInt(payload.overallRating, 10);
+        update.qualityOfWork = parseInt(payload.qualityOfWork, 10);
+        update.productivity = parseInt(payload.productivity, 10);
+        update.communication = parseInt(payload.communication, 10);
+        update.teamwork = parseInt(payload.teamwork, 10);
+        update.initiative = parseInt(payload.initiative, 10);
+        update.attendance = parseInt(payload.attendance, 10);
+        update.strengths = payload.strengths || null;
+        update.areasToImprove = payload.areasToImprove || null;
+        update.goals = payload.goals || null;
+        update.comments = payload.comments || null;
       }
 
-      const updated = await PerformanceReviewsApi.update(id, update)
-      setReview(updated)
-      setSuccessMessage(canEditContent ? 'Review saved as draft' : 'Review metadata updated')
+      const updated = await PerformanceReviewsApi.update(id, update);
+      setReview(updated);
+      setSuccessMessage(canEditContent ? 'Review saved as draft' : 'Review metadata updated');
     } catch (e: any) {
-      setError(e.message || 'Failed to save review')
+      setError(e.message || 'Failed to save review');
     } finally {
-      setSaving(false)
+      setSaving(false);
     }
   }
 
   async function handleSubmit() {
-    if (!review || !canEditContent) return
+    if (!review || !canEditContent) return;
 
     // First save the current form state
-    const form = document.querySelector('form') as HTMLFormElement
-    const fd = new FormData(form)
-    const payload = Object.fromEntries(fd.entries()) as any
+    const form = document.querySelector('form') as HTMLFormElement;
+    const fd = new FormData(form);
+    const payload = Object.fromEntries(fd.entries()) as any;
 
-    setSubmitting(true)
-    setError(null)
-    setSuccessMessage(null)
+    setSubmitting(true);
+    setError(null);
+    setSuccessMessage(null);
 
     try {
       // Save first
@@ -245,28 +264,33 @@ export default function EditReviewPage() {
         areasToImprove: payload.areasToImprove || null,
         goals: payload.goals || null,
         comments: payload.comments || null,
-      })
+      });
 
       // Then submit for review
-      await PerformanceReviewsApi.submit(id)
-      router.push('/performance/reviews')
+      await PerformanceReviewsApi.submit(id);
+      router.push('/performance/reviews');
     } catch (e: any) {
-      // Show validation errors if present
-      if (e.details && Array.isArray(e.details)) {
-        setError(e.details.join(', '))
-      } else {
-        setError(e.message || 'Failed to submit review')
+      if (e instanceof ApiError && Array.isArray(e.body?.details)) {
+        const details = e.body.details.filter((d: unknown) => typeof d === 'string' && d.trim());
+        setError(
+          details.length
+            ? details.join(', ')
+            : e.body?.error || e.message || 'Failed to submit review',
+        );
+        return;
       }
+
+      setError(e.message || 'Failed to submit review');
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
   }
 
   const formatDateForInput = (dateStr?: string) => {
-    if (!dateStr) return ''
-    const date = new Date(dateStr)
-    return date.toISOString().split('T')[0]
-  }
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toISOString().split('T')[0];
+  };
 
   if (loading) {
     return (
@@ -288,7 +312,7 @@ export default function EditReviewPage() {
           </Card>
         </div>
       </>
-    )
+    );
   }
 
   if (!review) {
@@ -306,19 +330,19 @@ export default function EditReviewPage() {
           </Card>
         </div>
       </>
-    )
+    );
   }
 
   // Non-editable for current viewer - redirect to view page
   if (!canEditMeta) {
-    router.replace(`/performance/reviews/${id}`)
-    return null
+    router.replace(`/performance/reviews/${id}`);
+    return null;
   }
 
-  const allowedPeriodTypes = getAllowedReviewPeriodTypes(reviewType)
+  const allowedPeriodTypes = getAllowedReviewPeriodTypes(reviewType);
   const periodTypeOptions = reviewPeriodTypeOptions.filter((opt) =>
-    allowedPeriodTypes.includes(opt.value as any)
-  )
+    allowedPeriodTypes.includes(opt.value as any),
+  );
 
   return (
     <>
@@ -338,8 +362,8 @@ export default function EditReviewPage() {
 
         {!canEditContent && (
           <Alert variant="info">
-            This review is in workflow stage ({STATUS_LABELS[review.status] || review.status}). You can update review period and role
-            metadata, but ratings and feedback are read-only.
+            This review is in workflow stage ({STATUS_LABELS[review.status] || review.status}). You
+            can update review period and role metadata, but ratings and feedback are read-only.
           </Alert>
         )}
 
@@ -372,11 +396,11 @@ export default function EditReviewPage() {
                 options={reviewTypeOptions}
                 value={reviewType}
                 onChange={(e) => {
-                  const nextReviewType = e.target.value
-                  setReviewType(nextReviewType)
-                  const nextAllowed = getAllowedReviewPeriodTypes(nextReviewType)
+                  const nextReviewType = e.target.value;
+                  setReviewType(nextReviewType);
+                  const nextAllowed = getAllowedReviewPeriodTypes(nextReviewType);
                   if (!nextAllowed.includes(periodType as any)) {
-                    setPeriodType(nextAllowed[0] ?? 'ANNUAL')
+                    setPeriodType(nextAllowed[0] ?? 'ANNUAL');
                   }
                 }}
                 disabled={!canEditMeta}
@@ -416,9 +440,7 @@ export default function EditReviewPage() {
                 disabled={!canEditMeta}
               />
               <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Manager
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Manager</label>
                 <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-900">
                   {review.assignedReviewer
                     ? `${review.assignedReviewer.firstName} ${review.assignedReviewer.lastName}`
@@ -548,11 +570,7 @@ export default function EditReviewPage() {
               {canEditContent ? 'Save Draft' : 'Save Changes'}
             </Button>
             {canEditContent && (
-              <Button
-                type="button"
-                onClick={handleSubmit}
-                loading={submitting}
-              >
+              <Button type="button" onClick={handleSubmit} loading={submitting}>
                 Submit for Review
               </Button>
             )}
@@ -560,5 +578,5 @@ export default function EditReviewPage() {
         </form>
       </div>
     </>
-  )
+  );
 }

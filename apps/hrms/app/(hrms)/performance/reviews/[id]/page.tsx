@@ -1,23 +1,28 @@
-'use client'
+'use client';
 
-import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'next/navigation'
-import { PerformanceReviewsApi } from '@/lib/api-client'
-import type { ActionId } from '@/lib/contracts/action-ids'
-import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
-import { executeAction } from '@/lib/actions/execute-action'
-import { WorkflowRecordLayout } from '@/components/layouts/WorkflowRecordLayout'
-import { Alert } from '@/components/ui/Alert'
-import { Card } from '@/components/ui/Card'
-import { StarFilledIcon } from '@/components/ui/Icons'
+import { useCallback, useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { ApiError, PerformanceReviewsApi } from '@/lib/api-client';
+import type { ActionId } from '@/lib/contracts/action-ids';
+import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record';
+import { executeAction } from '@/lib/actions/execute-action';
+import { WorkflowRecordLayout } from '@/components/layouts/WorkflowRecordLayout';
+import { Alert } from '@/components/ui/Alert';
+import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { StarFilledIcon } from '@/components/ui/Icons';
 
 function formatDate(value: string | null | undefined): string {
-  if (!value) return '—'
-  return new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  if (!value) return '—';
+  return new Date(value).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
 }
 
 function RatingDisplay({ label, value }: { label: string; value: number | null | undefined }) {
-  const hasRating = value != null && value > 0
+  const hasRating = value != null && value > 0;
   return (
     <div className="flex items-center justify-between py-2">
       <span className="text-sm text-gray-600">{label}</span>
@@ -35,52 +40,63 @@ function RatingDisplay({ label, value }: { label: string; value: number | null |
         <span className="text-sm text-gray-400">Not rated</span>
       )}
     </div>
-  )
+  );
 }
 
 export default function PerformanceReviewWorkflowPage() {
-  const params = useParams()
-  const id = params.id as string
+  const params = useParams();
+  const id = params.id as string;
 
-  const [dto, setDto] = useState<WorkflowRecordDTO | null>(null)
-  const [review, setReview] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [dto, setDto] = useState<WorkflowRecordDTO | null>(null);
+  const [review, setReview] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string[] | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
       const [workflow, raw] = await Promise.all([
         PerformanceReviewsApi.getWorkflowRecord(id),
         PerformanceReviewsApi.get(id),
-      ])
-      setDto(workflow)
-      setReview(raw)
+      ]);
+      setDto(workflow);
+      setReview(raw);
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Failed to load performance review'
-      setError(message)
-      setDto(null)
-      setReview(null)
+      const message = e instanceof Error ? e.message : 'Failed to load performance review';
+      setError(message);
+      setDto(null);
+      setReview(null);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [id])
+  }, [id]);
 
   useEffect(() => {
-    void load()
-  }, [load])
+    void load();
+  }, [load]);
 
-  const onAction = useCallback(async (actionId: ActionId) => {
-    setError(null)
-    try {
-      await executeAction(actionId, { type: 'PERFORMANCE_REVIEW', id })
-      await load()
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Failed to complete action'
-      setError(message)
-    }
-  }, [id, load])
+  const onAction = useCallback(
+    async (actionId: ActionId) => {
+      setError(null);
+      setErrorDetails(null);
+      try {
+        await executeAction(actionId, { type: 'PERFORMANCE_REVIEW', id });
+        await load();
+      } catch (e) {
+        if (e instanceof ApiError && Array.isArray(e.body?.details)) {
+          setError(e.body?.error || 'Validation failed');
+          setErrorDetails(e.body.details.filter((d: unknown) => typeof d === 'string' && d.trim()));
+          return;
+        }
+
+        const message = e instanceof Error ? e.message : 'Failed to complete action';
+        setError(message);
+      }
+    },
+    [id, load],
+  );
 
   if (loading) {
     return (
@@ -91,7 +107,7 @@ export default function PerformanceReviewWorkflowPage() {
           <div className="h-40 bg-gray-200 rounded" />
         </div>
       </Card>
-    )
+    );
   }
 
   if (!dto) {
@@ -100,26 +116,57 @@ export default function PerformanceReviewWorkflowPage() {
         <p className="text-sm font-medium text-gray-900">Performance review</p>
         <p className="text-sm text-gray-600 mt-1">{error ?? 'Not found'}</p>
       </Card>
-    )
+    );
   }
 
   return (
     <>
       {error ? (
-        <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
-          {error}
+        <Alert
+          variant="error"
+          className="mb-6"
+          title={errorDetails?.length ? error : undefined}
+          onDismiss={() => {
+            setError(null);
+            setErrorDetails(null);
+          }}
+        >
+          {errorDetails?.length ? (
+            <div className="space-y-3">
+              <ul className="list-disc pl-5 space-y-1">
+                {errorDetails.map((d, idx) => (
+                  <li key={`${idx}:${d}`}>{d}</li>
+                ))}
+              </ul>
+              <div>
+                <Button variant="secondary" href={`/performance/reviews/${id}/edit`}>
+                  Edit review
+                </Button>
+              </div>
+            </div>
+          ) : (
+            error
+          )}
         </Alert>
       ) : null}
 
       <WorkflowRecordLayout data={dto} onAction={onAction}>
         {review ? (
           <div className="space-y-6">
+            <div className="flex items-center justify-end">
+              <Button variant="secondary" href={`/performance/reviews/${id}/edit`}>
+                Edit review
+              </Button>
+            </div>
+
             <Card padding="lg">
               <h3 className="text-sm font-semibold text-gray-900 mb-3">Review details</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="text-xs font-medium text-gray-500">Review type</p>
-                  <p className="text-sm text-gray-900 mt-0.5">{review.reviewType?.replaceAll('_', ' ') || '—'}</p>
+                  <p className="text-sm text-gray-900 mt-0.5">
+                    {review.reviewType?.replaceAll('_', ' ') || '—'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs font-medium text-gray-500">Period</p>
@@ -157,32 +204,40 @@ export default function PerformanceReviewWorkflowPage() {
               </div>
             </Card>
 
-            {(review.strengths || review.areasToImprove || review.goals || review.comments) ? (
+            {review.strengths || review.areasToImprove || review.goals || review.comments ? (
               <Card padding="lg">
                 <h3 className="text-sm font-semibold text-gray-900 mb-3">Feedback</h3>
                 <div className="space-y-4 text-sm">
                   {review.strengths ? (
                     <div>
                       <p className="text-xs font-medium text-gray-500">Strengths</p>
-                      <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">{review.strengths}</p>
+                      <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">
+                        {review.strengths}
+                      </p>
                     </div>
                   ) : null}
                   {review.areasToImprove ? (
                     <div>
                       <p className="text-xs font-medium text-gray-500">Areas to improve</p>
-                      <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">{review.areasToImprove}</p>
+                      <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">
+                        {review.areasToImprove}
+                      </p>
                     </div>
                   ) : null}
                   {review.goals ? (
                     <div>
                       <p className="text-xs font-medium text-gray-500">Goals</p>
-                      <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">{review.goals}</p>
+                      <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">
+                        {review.goals}
+                      </p>
                     </div>
                   ) : null}
                   {review.comments ? (
                     <div>
                       <p className="text-xs font-medium text-gray-500">Additional comments</p>
-                      <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">{review.comments}</p>
+                      <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">
+                        {review.comments}
+                      </p>
                     </div>
                   ) : null}
                 </div>
@@ -192,6 +247,5 @@ export default function PerformanceReviewWorkflowPage() {
         ) : null}
       </WorkflowRecordLayout>
     </>
-  )
+  );
 }
-
