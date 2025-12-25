@@ -42,6 +42,12 @@ export class S3Service {
                 const month = String(date.getMonth() + 1).padStart(2, '0');
                 return `transactions/${year}/${month}/${context.transactionId}/${context.documentType}_${timestamp}_${hash}_${sanitizedFilename}`;
             }
+            case 'purchase-order': {
+                const date = new Date();
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                return `purchase-orders/${year}/${month}/${context.purchaseOrderId}/${context.stage}/${context.documentType}_${timestamp}_${hash}_${sanitizedFilename}`;
+            }
             case 'export-temp': {
                 return `exports/temp/${context.userId}/${context.exportType}_${timestamp}_${sanitizedFilename}`;
             }
@@ -313,6 +319,12 @@ export function isValidFileContext(context) {
     switch (c.type) {
         case 'transaction':
             return typeof c.transactionId === 'string' && typeof c.documentType === 'string';
+        case 'purchase-order':
+            return (typeof c.purchaseOrderId === 'string' &&
+                ['MANUFACTURING', 'OCEAN', 'WAREHOUSE', 'SHIPPED'].includes(c.stage) &&
+                typeof c.documentType === 'string');
+        case 'warehouse-rate-list':
+            return typeof c.warehouseId === 'string';
         case 'export-temp':
             return typeof c.userId === 'string' && typeof c.exportType === 'string';
         case 'export-scheduled':

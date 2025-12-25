@@ -3,6 +3,10 @@ import {
   PurchaseOrder,
   PurchaseOrderStatus,
   PurchaseOrderLineStatus,
+  PurchaseOrderDocumentStage,
+  TransactionType,
+  InboundReceiveType,
+  OutboundShipMode,
   Prisma,
 } from '@ecom-os/prisma-wms'
 import { NotFoundError, ValidationError, ConflictError } from '@/lib/api'
@@ -10,6 +14,9 @@ import { canApproveStageTransition, hasPermission, isSuperAdmin } from './permis
 import { auditLog } from '@/lib/security/audit-logger'
 import { toPublicOrderNumber } from './purchase-order-utils'
 import { recalculateStorageLedgerForTransactions } from './storage-ledger-sync'
+import { buildTacticalCostLedgerEntries } from '@/lib/costing/tactical-costing'
+import { calculatePalletValues } from '@/lib/utils/pallet-calculations'
+import { recordStorageCostEntry } from '@/services/storageCost.service'
 
 // Valid stage transitions for new 5-stage workflow
 export const VALID_TRANSITIONS: Partial<Record<PurchaseOrderStatus, PurchaseOrderStatus[]>> = {
@@ -35,9 +42,16 @@ export const STAGE_REQUIREMENTS: Record<string, string[]> = {
     'portOfDischarge',
   ],
   // Stage 4: Warehouse - now requires selecting the warehouse
-  WAREHOUSE: ['warehouseCode', 'customsEntryNumber', 'customsClearedDate', 'receivedDate'],
+  WAREHOUSE: ['warehouseCode', 'receiveType', 'customsEntryNumber', 'customsClearedDate', 'receivedDate'],
   // Stage 5: Shipped
-  SHIPPED: ['shipToName', 'shippingCarrier', 'trackingNumber', 'shippedDate'],
+  SHIPPED: ['shipToName', 'shipMode', 'shippingCarrier', 'trackingNumber', 'shippedDate'],
+}
+
+export const STAGE_DOCUMENT_REQUIREMENTS: Partial<Record<PurchaseOrderStatus, string[]>> = {
+  MANUFACTURING: ['proforma_invoice'],
+  OCEAN: ['commercial_invoice', 'bill_of_lading', 'packing_list'],
+  WAREHOUSE: ['movement_note', 'custom_declaration'],
+  SHIPPED: ['proof_of_pickup'],
 }
 
 // Field labels for error messages
@@ -55,15 +69,32 @@ const FIELD_LABELS: Record<string, string> = {
   portOfDischarge: 'Port of Discharge',
   // Stage 4
   warehouseCode: 'Warehouse',
+  receiveType: 'Inbound Type',
   customsEntryNumber: 'Customs Entry Number',
   customsClearedDate: 'Customs Cleared Date',
   receivedDate: 'Received Date',
   // Stage 5
   shipToName: 'Ship To Name',
+  shipMode: 'Outbound Mode',
   shippingCarrier: 'Shipping Carrier',
   trackingNumber: 'Tracking Number',
   shippedDate: 'Shipped Date',
   proofOfDeliveryRef: 'Proof of Delivery Reference',
+}
+
+function toDocumentStage(status: PurchaseOrderStatus): PurchaseOrderDocumentStage {
+  switch (status) {
+    case PurchaseOrderStatus.MANUFACTURING:
+      return PurchaseOrderDocumentStage.MANUFACTURING
+    case PurchaseOrderStatus.OCEAN:
+      return PurchaseOrderDocumentStage.OCEAN
+    case PurchaseOrderStatus.WAREHOUSE:
+      return PurchaseOrderDocumentStage.WAREHOUSE
+    case PurchaseOrderStatus.SHIPPED:
+      return PurchaseOrderDocumentStage.SHIPPED
+    default:
+      throw new ValidationError(`Unsupported stage for document validation: ${status}`)
+  }
 }
 
 export interface StageTransitionInput {
@@ -97,6 +128,7 @@ export interface StageTransitionInput {
   // Stage 4: Warehouse
   warehouseCode?: string
   warehouseName?: string
+  receiveType?: InboundReceiveType | string
   customsEntryNumber?: string
   customsClearedDate?: Date | string
   dutyAmount?: number
@@ -112,6 +144,7 @@ export interface StageTransitionInput {
   shipToCity?: string
   shipToCountry?: string
   shipToPostalCode?: string
+  shipMode?: OutboundShipMode | string
   shippingCarrier?: string
   shippingMethod?: string
   trackingNumber?: string
@@ -489,6 +522,68 @@ export async function transitionPurchaseOrderStage(
     )
   }
 
+  const requiredDocs = STAGE_DOCUMENT_REQUIREMENTS[targetStatus]
+  if (requiredDocs && requiredDocs.length > 0) {
+    const stageDocs = await prisma.purchaseOrderDocument.findMany({
+      where: {
+        purchaseOrderId: order.id,
+        stage: toDocumentStage(targetStatus),
+        documentType: { in: requiredDocs },
+      },
+      select: { documentType: true },
+    })
+
+    const present = new Set(stageDocs.map(doc => doc.documentType))
+    const missing = requiredDocs.filter(docType => !present.has(docType))
+
+    if (missing.length > 0) {
+      throw new ValidationError(
+        `Missing required documents for ${targetStatus}: ${missing.join(', ')}`
+      )
+    }
+  }
+
+  if (targetStatus === PurchaseOrderStatus.SHIPPED) {
+    const shippedDate = stageData.shippedDate
+      ? new Date(stageData.shippedDate)
+      : order.shippedDate
+        ? new Date(order.shippedDate)
+        : null
+
+    const receivedDate = order.receivedDate ? new Date(order.receivedDate) : null
+
+    if (shippedDate && Number.isNaN(shippedDate.getTime())) {
+      throw new ValidationError('Invalid shipped date')
+    }
+
+    if (receivedDate && shippedDate && shippedDate < receivedDate) {
+      throw new ValidationError('Shipped date cannot be earlier than received date')
+    }
+
+    if (!order.lines || order.lines.length === 0) {
+      throw new ValidationError('Cannot ship an order with no cargo lines')
+    }
+
+    for (const line of order.lines) {
+      if (line.status === PurchaseOrderLineStatus.CANCELLED) continue
+      if (!line.batchLot) {
+        throw new ValidationError(`Batch/Lot is required for SKU ${line.skuCode}`)
+      }
+    }
+  }
+
+  if (targetStatus === PurchaseOrderStatus.WAREHOUSE) {
+    if (!order.lines || order.lines.length === 0) {
+      throw new ValidationError('Cannot receive an order with no cargo lines')
+    }
+
+    for (const line of order.lines) {
+      if (!line.batchLot) {
+        throw new ValidationError(`Batch/Lot is required for SKU ${line.skuCode}`)
+      }
+    }
+  }
+
   // Build the update data
   const updateData: Prisma.PurchaseOrderUpdateInput = {
     status: targetStatus,
@@ -583,6 +678,9 @@ export async function transitionPurchaseOrderStage(
   if (stageData.warehouseName !== undefined && stageData.warehouseCode === undefined) {
     updateData.warehouseName = stageData.warehouseName
   }
+  if (stageData.receiveType !== undefined) {
+    updateData.receiveType = stageData.receiveType as InboundReceiveType
+  }
   if (stageData.customsEntryNumber !== undefined) {
     updateData.customsEntryNumber = stageData.customsEntryNumber
   }
@@ -623,6 +721,9 @@ export async function transitionPurchaseOrderStage(
   }
   if (stageData.shipToPostalCode !== undefined) {
     updateData.shipToPostalCode = stageData.shipToPostalCode
+  }
+  if (stageData.shipMode !== undefined) {
+    updateData.shipMode = stageData.shipMode as OutboundShipMode
   }
   if (stageData.shippingCarrier !== undefined) {
     updateData.shippingCarrier = stageData.shippingCarrier
@@ -715,11 +816,591 @@ export async function transitionPurchaseOrderStage(
       break
   }
 
-  // Execute the transition
-  const updatedOrder = await prisma.purchaseOrder.update({
-    where: { id: orderId },
-    data: updateData,
-    include: { lines: true },
+  const storageCostInputs: Array<{
+    warehouseCode: string
+    warehouseName: string
+    skuCode: string
+    skuDescription: string
+    batchLot: string
+    transactionDate: Date
+  }> = []
+
+  // Execute the transition + inventory impacts atomically.
+  const updatedOrder = await prisma.$transaction(async tx => {
+    const nextOrder = await tx.purchaseOrder.update({
+      where: { id: orderId },
+      data: updateData,
+      include: { lines: true },
+    })
+
+    if (targetStatus === PurchaseOrderStatus.WAREHOUSE) {
+      if (!nextOrder.warehouseCode || !nextOrder.warehouseName) {
+        throw new ValidationError('Warehouse is required before receiving inventory')
+      }
+
+      if (!nextOrder.receiveType) {
+        throw new ValidationError('Inbound type is required before receiving inventory')
+      }
+
+      const receivedAt = nextOrder.receivedDate ? new Date(nextOrder.receivedDate) : now
+
+      const warehouse = await tx.warehouse.findFirst({
+        where: { code: nextOrder.warehouseCode },
+        select: { id: true, code: true, name: true, address: true },
+      })
+
+      if (!warehouse) {
+        throw new ValidationError(`Invalid warehouse code: ${nextOrder.warehouseCode}`)
+      }
+
+      const activeLines = nextOrder.lines.filter(line => line.status !== PurchaseOrderLineStatus.CANCELLED)
+      if (activeLines.length === 0) {
+        throw new ValidationError('Cannot receive an order with no active cargo lines')
+      }
+
+      const skuCodes = activeLines.map(line => line.skuCode)
+      const skus = await tx.sku.findMany({
+        where: { skuCode: { in: skuCodes } },
+        select: {
+          id: true,
+          skuCode: true,
+          description: true,
+          unitsPerCarton: true,
+          unitDimensionsCm: true,
+          unitWeightKg: true,
+          cartonDimensionsCm: true,
+          cartonWeightKg: true,
+          packagingType: true,
+        },
+      })
+      const skuMap = new Map(skus.map(sku => [sku.skuCode, sku]))
+
+      for (const line of activeLines) {
+        if (!skuMap.has(line.skuCode)) {
+          throw new ValidationError(`SKU ${line.skuCode} not found. Create the SKU first.`)
+        }
+      }
+
+      const batchCodes = Array.from(new Set(activeLines.map(line => String(line.batchLot))))
+      const batchRecords = await tx.skuBatch.findMany({
+        where: {
+          skuId: { in: skus.map(sku => sku.id) },
+          batchCode: { in: batchCodes },
+          isActive: true,
+        },
+        select: {
+          skuId: true,
+          batchCode: true,
+          unitsPerCarton: true,
+          unitDimensionsCm: true,
+          unitWeightKg: true,
+          cartonDimensionsCm: true,
+          cartonWeightKg: true,
+          packagingType: true,
+          storageCartonsPerPallet: true,
+          shippingCartonsPerPallet: true,
+        },
+      })
+      const batchMap = new Map(batchRecords.map(batch => [`${batch.skuId}::${batch.batchCode}`, batch]))
+
+      const createdTransactions: Array<{
+        id: string
+        skuCode: string
+        cartons: number
+        pallets: number
+        cartonDimensionsCm: string | null
+        warehouseCode: string
+        warehouseName: string
+        skuDescription: string
+        batchLot: string
+        transactionDate: Date
+      }> = []
+
+      let totalStoragePalletsIn = 0
+      const referenceId =
+        nextOrder.commercialInvoiceNumber ??
+        nextOrder.proformaInvoiceNumber ??
+        toPublicOrderNumber(nextOrder.orderNumber)
+
+      for (const line of activeLines) {
+        const sku = skuMap.get(line.skuCode)
+        if (!sku) continue
+
+        const batchLot = String(line.batchLot)
+        const batch = batchMap.get(`${sku.id}::${batchLot}`)
+        if (!batch) {
+          throw new ValidationError(
+            `Batch/Lot ${batchLot} is not configured for SKU ${line.skuCode}. Create it in Config → Products → SKUs → Batches.`
+          )
+        }
+
+        if (!batch.storageCartonsPerPallet || batch.storageCartonsPerPallet <= 0) {
+          throw new ValidationError(
+            `Storage cartons per pallet is required for SKU ${line.skuCode} batch ${batchLot}`
+          )
+        }
+
+        if (!batch.shippingCartonsPerPallet || batch.shippingCartonsPerPallet <= 0) {
+          throw new ValidationError(
+            `Shipping cartons per pallet is required for SKU ${line.skuCode} batch ${batchLot}`
+          )
+        }
+
+        const cartons = line.quantity
+        if (!Number.isInteger(cartons) || cartons <= 0) {
+          throw new ValidationError(`Invalid cartons quantity for SKU ${line.skuCode}`)
+        }
+
+        const unitsPerCarton = batch.unitsPerCarton ?? sku.unitsPerCarton ?? 1
+
+        const { storagePalletsIn } = calculatePalletValues({
+          transactionType: 'RECEIVE',
+          cartons,
+          storageCartonsPerPallet: batch.storageCartonsPerPallet,
+        })
+
+        if (storagePalletsIn <= 0) {
+          throw new ValidationError(`Storage pallet count is required for inbound transactions`)
+        }
+
+        const txRow = await tx.inventoryTransaction.create({
+          data: {
+            warehouseCode: warehouse.code,
+            warehouseName: warehouse.name,
+            warehouseAddress: warehouse.address,
+            skuCode: sku.skuCode,
+            skuDescription: line.skuDescription ?? sku.description,
+            unitDimensionsCm: batch.unitDimensionsCm ?? sku.unitDimensionsCm,
+            unitWeightKg: batch.unitWeightKg ?? sku.unitWeightKg,
+            cartonDimensionsCm: batch.cartonDimensionsCm ?? sku.cartonDimensionsCm,
+            cartonWeightKg: batch.cartonWeightKg ?? sku.cartonWeightKg,
+            packagingType: batch.packagingType ?? sku.packagingType,
+            unitsPerCarton,
+            batchLot,
+            transactionType: TransactionType.RECEIVE,
+            referenceId,
+            cartonsIn: cartons,
+            cartonsOut: 0,
+            storagePalletsIn,
+            shippingPalletsOut: 0,
+            storageCartonsPerPallet: batch.storageCartonsPerPallet,
+            shippingCartonsPerPallet: batch.shippingCartonsPerPallet,
+            shipName: null,
+            trackingNumber: null,
+            supplier: nextOrder.counterpartyName ?? null,
+            attachments: null,
+            transactionDate: receivedAt,
+            pickupDate: receivedAt,
+            createdById: user.id,
+            createdByName: user.name,
+            purchaseOrderId: nextOrder.id,
+            purchaseOrderLineId: line.id,
+            isReconciled: false,
+            isDemo: false,
+          },
+          select: {
+            id: true,
+            skuCode: true,
+            cartonDimensionsCm: true,
+            storagePalletsIn: true,
+            warehouseCode: true,
+            warehouseName: true,
+            skuDescription: true,
+            batchLot: true,
+            transactionDate: true,
+          },
+        })
+
+        totalStoragePalletsIn += Number(txRow.storagePalletsIn || 0)
+
+        createdTransactions.push({
+          id: txRow.id,
+          skuCode: txRow.skuCode,
+          cartons,
+          pallets: Number(txRow.storagePalletsIn || 0),
+          cartonDimensionsCm: txRow.cartonDimensionsCm,
+          warehouseCode: txRow.warehouseCode,
+          warehouseName: txRow.warehouseName,
+          skuDescription: txRow.skuDescription,
+          batchLot: txRow.batchLot,
+          transactionDate: txRow.transactionDate,
+        })
+
+        await tx.purchaseOrderLine.update({
+          where: { id: line.id },
+          data: {
+            postedQuantity: cartons,
+            quantityReceived: cartons,
+            status:
+              cartons >= line.quantity
+                ? PurchaseOrderLineStatus.POSTED
+                : PurchaseOrderLineStatus.PENDING,
+          },
+        })
+      }
+
+      if (createdTransactions.length === 0) {
+        throw new ValidationError('No inventory transactions were created for this receipt')
+      }
+
+      if (totalStoragePalletsIn <= 0) {
+        throw new ValidationError('Storage pallet count is required for inbound transactions')
+      }
+
+      const rates = await tx.costRate.findMany({
+        where: {
+          warehouseId: warehouse.id,
+          isActive: true,
+          effectiveDate: { lte: receivedAt },
+          OR: [{ endDate: null }, { endDate: { gte: receivedAt } }],
+        },
+        orderBy: [{ costName: 'asc' }, { effectiveDate: 'desc' }],
+      })
+
+      const ratesByCostName = new Map<string, { costName: string; costValue: number; unitOfMeasure: string }>()
+      for (const rate of rates) {
+        if (!ratesByCostName.has(rate.costName)) {
+          ratesByCostName.set(rate.costName, {
+            costName: rate.costName,
+            costValue: Number(rate.costValue),
+            unitOfMeasure: rate.unitOfMeasure,
+          })
+        }
+      }
+
+      const costLedgerEntries = buildTacticalCostLedgerEntries({
+        transactionType: 'RECEIVE',
+        receiveType: nextOrder.receiveType,
+        shipMode: null,
+        ratesByCostName,
+        lines: createdTransactions.map(row => ({
+          transactionId: row.id,
+          skuCode: row.skuCode,
+          cartons: row.cartons,
+          pallets: row.pallets,
+          cartonDimensionsCm: row.cartonDimensionsCm,
+        })),
+        warehouseCode: warehouse.code,
+        warehouseName: warehouse.name,
+        createdAt: receivedAt,
+        createdByName: user.name,
+      })
+
+      if (costLedgerEntries.length > 0) {
+        await tx.costLedger.createMany({ data: costLedgerEntries })
+      }
+
+      await tx.purchaseOrder.update({
+        where: { id: nextOrder.id },
+        data: {
+          postedAt: nextOrder.postedAt ?? receivedAt,
+        },
+      })
+
+      storageCostInputs.push(
+        ...createdTransactions.map(row => ({
+          warehouseCode: row.warehouseCode,
+          warehouseName: row.warehouseName,
+          skuCode: row.skuCode,
+          skuDescription: row.skuDescription,
+          batchLot: row.batchLot,
+          transactionDate: row.transactionDate,
+        }))
+      )
+    }
+
+    if (targetStatus === PurchaseOrderStatus.SHIPPED) {
+      if (!nextOrder.warehouseCode || !nextOrder.warehouseName) {
+        throw new ValidationError('Warehouse is required before shipping inventory')
+      }
+
+      if (!nextOrder.shipMode) {
+        throw new ValidationError('Outbound mode is required before shipping inventory')
+      }
+
+      const shippedAt = nextOrder.shippedDate ? new Date(nextOrder.shippedDate) : now
+
+      const warehouse = await tx.warehouse.findFirst({
+        where: { code: nextOrder.warehouseCode },
+        select: { id: true, code: true, name: true, address: true },
+      })
+
+      if (!warehouse) {
+        throw new ValidationError(`Invalid warehouse code: ${nextOrder.warehouseCode}`)
+      }
+
+      const activeLines = nextOrder.lines.filter(line => line.status !== PurchaseOrderLineStatus.CANCELLED)
+      if (activeLines.length === 0) {
+        throw new ValidationError('Cannot ship an order with no active cargo lines')
+      }
+
+      const skuCodes = activeLines.map(line => line.skuCode)
+      const skus = await tx.sku.findMany({
+        where: { skuCode: { in: skuCodes } },
+        select: {
+          id: true,
+          skuCode: true,
+          description: true,
+          unitsPerCarton: true,
+          unitDimensionsCm: true,
+          unitWeightKg: true,
+          cartonDimensionsCm: true,
+          cartonWeightKg: true,
+          packagingType: true,
+        },
+      })
+      const skuMap = new Map(skus.map(sku => [sku.skuCode, sku]))
+
+      for (const line of activeLines) {
+        if (!skuMap.has(line.skuCode)) {
+          throw new ValidationError(`SKU ${line.skuCode} not found. Create the SKU first.`)
+        }
+      }
+
+      const batchCodes = Array.from(new Set(activeLines.map(line => String(line.batchLot))))
+      const batchRecords = await tx.skuBatch.findMany({
+        where: {
+          skuId: { in: skus.map(sku => sku.id) },
+          batchCode: { in: batchCodes },
+          isActive: true,
+        },
+        select: {
+          skuId: true,
+          batchCode: true,
+          unitsPerCarton: true,
+          unitDimensionsCm: true,
+          unitWeightKg: true,
+          cartonDimensionsCm: true,
+          cartonWeightKg: true,
+          packagingType: true,
+          shippingCartonsPerPallet: true,
+        },
+      })
+      const batchMap = new Map(batchRecords.map(batch => [`${batch.skuId}::${batch.batchCode}`, batch]))
+
+      const createdTransactions: Array<{
+        id: string
+        skuCode: string
+        cartons: number
+        pallets: number
+        cartonDimensionsCm: string | null
+        warehouseCode: string
+        warehouseName: string
+        skuDescription: string
+        batchLot: string
+        transactionDate: Date
+      }> = []
+
+      let totalShippingPalletsOut = 0
+      const referenceId = nextOrder.trackingNumber ?? toPublicOrderNumber(nextOrder.orderNumber)
+
+      for (const line of activeLines) {
+        const sku = skuMap.get(line.skuCode)
+        if (!sku) continue
+
+        const batchLot = String(line.batchLot)
+        const batch = batchMap.get(`${sku.id}::${batchLot}`)
+        if (!batch) {
+          throw new ValidationError(
+            `Batch/Lot ${batchLot} is not configured for SKU ${line.skuCode}. Create it in Config → Products → SKUs → Batches.`
+          )
+        }
+
+        const cartons = line.quantityReceived ?? line.postedQuantity ?? line.quantity
+        if (!Number.isInteger(cartons) || cartons <= 0) {
+          throw new ValidationError(`Invalid cartons quantity for SKU ${line.skuCode}`)
+        }
+
+        const unitsPerCarton = batch.unitsPerCarton ?? sku.unitsPerCarton ?? 1
+
+        const originalReceive = await tx.inventoryTransaction.findFirst({
+          where: {
+            warehouseCode: warehouse.code,
+            skuCode: sku.skuCode,
+            batchLot,
+            transactionType: TransactionType.RECEIVE,
+          },
+          orderBy: { transactionDate: 'asc' },
+          select: { shippingCartonsPerPallet: true },
+        })
+
+        const shippingCartonsPerPallet =
+          originalReceive?.shippingCartonsPerPallet ?? batch.shippingCartonsPerPallet ?? null
+
+        if (!shippingCartonsPerPallet || shippingCartonsPerPallet <= 0) {
+          throw new ValidationError(
+            `Shipping cartons per pallet is required for SKU ${line.skuCode} batch ${batchLot}`
+          )
+        }
+
+        const transactions = await tx.inventoryTransaction.findMany({
+          where: {
+            warehouseCode: warehouse.code,
+            skuCode: sku.skuCode,
+            batchLot,
+            transactionDate: { lte: shippedAt },
+          },
+          select: { cartonsIn: true, cartonsOut: true },
+        })
+
+        const currentCartons = transactions.reduce(
+          (sum, txn) => sum + Number(txn.cartonsIn || 0) - Number(txn.cartonsOut || 0),
+          0
+        )
+
+        if (currentCartons < cartons) {
+          throw new ValidationError(
+            `Insufficient inventory for SKU ${sku.skuCode} batch ${batchLot}. Available: ${currentCartons}, Requested: ${cartons}`
+          )
+        }
+
+        const { shippingPalletsOut } = calculatePalletValues({
+          transactionType: 'SHIP',
+          cartons,
+          shippingCartonsPerPallet,
+        })
+
+        if (nextOrder.shipMode === OutboundShipMode.PALLETS && shippingPalletsOut <= 0) {
+          throw new ValidationError('Total pallets is required for pallet outbound shipments')
+        }
+
+        const txRow = await tx.inventoryTransaction.create({
+          data: {
+            warehouseCode: warehouse.code,
+            warehouseName: warehouse.name,
+            warehouseAddress: warehouse.address,
+            skuCode: sku.skuCode,
+            skuDescription: line.skuDescription ?? sku.description,
+            unitDimensionsCm: batch.unitDimensionsCm ?? sku.unitDimensionsCm,
+            unitWeightKg: batch.unitWeightKg ?? sku.unitWeightKg,
+            cartonDimensionsCm: batch.cartonDimensionsCm ?? sku.cartonDimensionsCm,
+            cartonWeightKg: batch.cartonWeightKg ?? sku.cartonWeightKg,
+            packagingType: batch.packagingType ?? sku.packagingType,
+            unitsPerCarton,
+            batchLot,
+            transactionType: TransactionType.SHIP,
+            referenceId,
+            cartonsIn: 0,
+            cartonsOut: cartons,
+            storagePalletsIn: 0,
+            shippingPalletsOut,
+            storageCartonsPerPallet: null,
+            shippingCartonsPerPallet,
+            shipName: nextOrder.shipToName ?? nextOrder.shippingCarrier ?? null,
+            trackingNumber: nextOrder.trackingNumber ?? null,
+            supplier: null,
+            attachments: null,
+            transactionDate: shippedAt,
+            pickupDate: shippedAt,
+            createdById: user.id,
+            createdByName: user.name,
+            purchaseOrderId: nextOrder.id,
+            purchaseOrderLineId: line.id,
+            isReconciled: false,
+            isDemo: false,
+          },
+          select: {
+            id: true,
+            skuCode: true,
+            cartonDimensionsCm: true,
+            shippingPalletsOut: true,
+            warehouseCode: true,
+            warehouseName: true,
+            skuDescription: true,
+            batchLot: true,
+            transactionDate: true,
+          },
+        })
+
+        totalShippingPalletsOut += Number(txRow.shippingPalletsOut || 0)
+
+        createdTransactions.push({
+          id: txRow.id,
+          skuCode: txRow.skuCode,
+          cartons,
+          pallets: Number(txRow.shippingPalletsOut || 0),
+          cartonDimensionsCm: txRow.cartonDimensionsCm,
+          warehouseCode: txRow.warehouseCode,
+          warehouseName: txRow.warehouseName,
+          skuDescription: txRow.skuDescription,
+          batchLot: txRow.batchLot,
+          transactionDate: txRow.transactionDate,
+        })
+      }
+
+      if (createdTransactions.length === 0) {
+        throw new ValidationError('No inventory transactions were created for this shipment')
+      }
+
+      if (nextOrder.shipMode === OutboundShipMode.PALLETS && totalShippingPalletsOut <= 0) {
+        throw new ValidationError('Total pallets is required for pallet outbound shipments')
+      }
+
+      const rates = await tx.costRate.findMany({
+        where: {
+          warehouseId: warehouse.id,
+          isActive: true,
+          effectiveDate: { lte: shippedAt },
+          OR: [{ endDate: null }, { endDate: { gte: shippedAt } }],
+        },
+        orderBy: [{ costName: 'asc' }, { effectiveDate: 'desc' }],
+      })
+
+      const ratesByCostName = new Map<string, { costName: string; costValue: number; unitOfMeasure: string }>()
+      for (const rate of rates) {
+        if (!ratesByCostName.has(rate.costName)) {
+          ratesByCostName.set(rate.costName, {
+            costName: rate.costName,
+            costValue: Number(rate.costValue),
+            unitOfMeasure: rate.unitOfMeasure,
+          })
+        }
+      }
+
+      const costLedgerEntries = buildTacticalCostLedgerEntries({
+        transactionType: 'SHIP',
+        receiveType: null,
+        shipMode: nextOrder.shipMode,
+        ratesByCostName,
+        lines: createdTransactions.map(row => ({
+          transactionId: row.id,
+          skuCode: row.skuCode,
+          cartons: row.cartons,
+          pallets: row.pallets,
+          cartonDimensionsCm: row.cartonDimensionsCm,
+        })),
+        warehouseCode: warehouse.code,
+        warehouseName: warehouse.name,
+        createdAt: shippedAt,
+        createdByName: user.name,
+      })
+
+      if (costLedgerEntries.length > 0) {
+        await tx.costLedger.createMany({ data: costLedgerEntries })
+      }
+
+      storageCostInputs.push(
+        ...createdTransactions.map(row => ({
+          warehouseCode: row.warehouseCode,
+          warehouseName: row.warehouseName,
+          skuCode: row.skuCode,
+          skuDescription: row.skuDescription,
+          batchLot: row.batchLot,
+          transactionDate: row.transactionDate,
+        }))
+      )
+    }
+
+    const refreshed = await tx.purchaseOrder.findUnique({
+      where: { id: nextOrder.id },
+      include: { lines: true },
+    })
+
+    if (!refreshed) {
+      throw new NotFoundError(`Purchase Order not found after transition: ${nextOrder.id}`)
+    }
+
+    return refreshed
   })
 
   // Audit log the transition
@@ -731,9 +1412,17 @@ export async function transitionPurchaseOrderStage(
     data: { fromStatus: currentStatus, toStatus: targetStatus, approvedBy: user.name },
   })
 
-  // TODO: Handle inventory ledger impacts
-  // - WAREHOUSE stage: Create inventory IN transactions
-  // - SHIPPED stage: Create inventory OUT transactions
+  await Promise.all(
+    storageCostInputs.map(input =>
+      recordStorageCostEntry(input).catch(storageError => {
+        const message = storageError instanceof Error ? storageError.message : 'Unknown error'
+        console.error(
+          `Storage cost recording failed for ${input.warehouseCode}/${input.skuCode}/${input.batchLot}:`,
+          message
+        )
+      })
+    )
+  )
 
   return updatedOrder
 }
