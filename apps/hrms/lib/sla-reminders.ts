@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { getHREmployees, getSuperAdminEmployees } from '@/lib/permissions'
 
 export type SlaReminderResult = {
+  policyAckRemindersCreated: number
   leaveApprovalRemindersCreated: number
   reviewRemindersCreated: number
   disciplinaryRemindersCreated: number
@@ -41,6 +42,7 @@ async function existingKeys(params: {
 
 export async function processSlaReminders(options?: {
   dedupeHours?: number
+  policyAckOverdueDays?: number
   leavePendingHours?: number
   reviewPendingHours?: number
   disciplinaryPendingHours?: number
@@ -48,6 +50,7 @@ export async function processSlaReminders(options?: {
   checklistOverdueDays?: number
 }): Promise<SlaReminderResult> {
   const dedupeHours = options?.dedupeHours ?? 20
+  const policyAckOverdueDays = options?.policyAckOverdueDays ?? 3
   const leavePendingHours = options?.leavePendingHours ?? 24
   const reviewPendingHours = options?.reviewPendingHours ?? 24
   const disciplinaryPendingHours = options?.disciplinaryPendingHours ?? 24
@@ -57,11 +60,149 @@ export async function processSlaReminders(options?: {
   const now = new Date()
   const since = new Date(now.getTime() - dedupeHours * 60 * 60 * 1000)
 
+  let policyAckRemindersCreated = 0
   let leaveApprovalRemindersCreated = 0
   let reviewRemindersCreated = 0
   let disciplinaryRemindersCreated = 0
   let acknowledgmentRemindersCreated = 0
   let checklistTaskRemindersCreated = 0
+
+  // ============ POLICY ACKNOWLEDGEMENT REMINDERS ============
+  const policyThreshold = new Date(now.getTime() - policyAckOverdueDays * 24 * 60 * 60 * 1000)
+  const overduePolicies = await prisma.policy.findMany({
+    where: {
+      status: 'ACTIVE',
+      effectiveDate: { lte: policyThreshold },
+      region: { in: ['ALL', 'KANSAS_US', 'PAKISTAN'] },
+    },
+    select: { id: true, version: true, region: true },
+    orderBy: [{ effectiveDate: 'asc' }, { updatedAt: 'desc' }],
+    take: 200,
+  })
+
+  const policyByRegion = {
+    ALL: overduePolicies.filter((p) => p.region === 'ALL'),
+    KANSAS_US: overduePolicies.filter((p) => p.region === 'KANSAS_US'),
+    PAKISTAN: overduePolicies.filter((p) => p.region === 'PAKISTAN'),
+  }
+
+  const policyKeysByRegion = {
+    KANSAS_US: [...policyByRegion.ALL, ...policyByRegion.KANSAS_US].map((p) => `${p.id}:${p.version}`),
+    PAKISTAN: [...policyByRegion.ALL, ...policyByRegion.PAKISTAN].map((p) => `${p.id}:${p.version}`),
+  }
+
+  const policyIdsByRegion = {
+    KANSAS_US: [...policyByRegion.ALL, ...policyByRegion.KANSAS_US].map((p) => p.id),
+    PAKISTAN: [...policyByRegion.ALL, ...policyByRegion.PAKISTAN].map((p) => p.id),
+  }
+
+  const mapEmployeeRegionToPolicyRegion = (region: string): 'KANSAS_US' | 'PAKISTAN' | null => {
+    if (region === 'PAKISTAN') return 'PAKISTAN'
+    if (region === 'KANSAS_USA') return 'KANSAS_US'
+    return null
+  }
+
+  if (overduePolicies.length > 0) {
+    const employees = await prisma.employee.findMany({
+      where: { status: 'ACTIVE' },
+      select: { id: true, region: true },
+      take: 10000,
+    })
+
+    const needsReminderByRegion: Record<'KANSAS_US' | 'PAKISTAN', string[]> = { KANSAS_US: [], PAKISTAN: [] }
+
+    const chunkSize = 500
+    for (const region of ['KANSAS_US', 'PAKISTAN'] as const) {
+      const policyKeys = policyKeysByRegion[region]
+      const policyIds = policyIdsByRegion[region]
+      if (policyKeys.length === 0 || policyIds.length === 0) continue
+
+      const regionEmployees = employees
+        .filter((e) => mapEmployeeRegionToPolicyRegion(e.region) === region)
+        .map((e) => e.id)
+
+      for (let i = 0; i < regionEmployees.length; i += chunkSize) {
+        const employeeChunk = regionEmployees.slice(i, i + chunkSize)
+        const acknowledgements = await prisma.policyAcknowledgement.findMany({
+          where: {
+            employeeId: { in: employeeChunk },
+            policyId: { in: policyIds },
+          },
+          select: { employeeId: true, policyId: true, policyVersion: true },
+        })
+
+        const ackByEmployee = new Map<string, Set<string>>()
+        for (const ack of acknowledgements) {
+          const key = `${ack.policyId}:${ack.policyVersion}`
+          const set = ackByEmployee.get(ack.employeeId) ?? new Set<string>()
+          set.add(key)
+          ackByEmployee.set(ack.employeeId, set)
+        }
+
+        for (const employeeId of employeeChunk) {
+          const acked = ackByEmployee.get(employeeId) ?? new Set<string>()
+          const hasMissing = policyKeys.some((k) => !acked.has(k))
+          if (hasMissing) {
+            needsReminderByRegion[region].push(employeeId)
+          }
+        }
+      }
+    }
+
+    const reminderEmployeeIds = [...new Set([...needsReminderByRegion.KANSAS_US, ...needsReminderByRegion.PAKISTAN])]
+
+    if (reminderEmployeeIds.length > 0) {
+      const title = 'Policy acknowledgement required'
+      const message = 'You have one or more policies awaiting acknowledgement. Please open HRMS to review and acknowledge.'
+
+      const existing = await prisma.notification.findMany({
+        where: {
+          createdAt: { gte: since },
+          title,
+          relatedType: 'POLICY',
+          relatedId: null,
+          employeeId: { in: reminderEmployeeIds },
+        },
+        select: { employeeId: true },
+      })
+
+      const existingEmployeeIds = new Set(existing.map((n) => n.employeeId!).filter(Boolean))
+
+      const toCreate = reminderEmployeeIds.filter((id) => !existingEmployeeIds.has(id))
+      if (toCreate.length > 0) {
+        for (const employeeId of toCreate) {
+          await prisma.notification.create({
+            data: {
+              type: 'SYSTEM',
+              title,
+              message,
+              link: '/policies',
+              employeeId,
+              relatedType: 'POLICY',
+              relatedId: null,
+            },
+          })
+          policyAckRemindersCreated += 1
+        }
+      }
+
+      if (existingEmployeeIds.size > 0) {
+        await prisma.notification.updateMany({
+          where: {
+            createdAt: { gte: since },
+            title,
+            relatedType: 'POLICY',
+            relatedId: null,
+            employeeId: { in: Array.from(existingEmployeeIds) },
+          },
+          data: {
+            message,
+            isRead: false,
+          },
+        })
+      }
+    }
+  }
 
   // ============ LEAVE APPROVAL REMINDERS ============
   const leaveThreshold = new Date(now.getTime() - leavePendingHours * 60 * 60 * 1000)
@@ -404,6 +545,7 @@ export async function processSlaReminders(options?: {
   }
 
   return {
+    policyAckRemindersCreated,
     leaveApprovalRemindersCreated,
     reviewRemindersCreated,
     disciplinaryRemindersCreated,

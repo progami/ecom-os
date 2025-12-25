@@ -3,7 +3,7 @@ import { isAdminConfigured } from './google-admin'
 import { runProfileCompletionCheckForAll } from './notification-service'
 import { processTaskDueReminders } from './task-reminders'
 import { runNotificationEmailDispatchOnce } from './notification-email-dispatch'
-import { processSlaReminders } from './sla-reminders'
+import { runSlaRemindersWithLock } from './jobs/sla-reminders'
 import { backfillDisciplinaryCases } from './disciplinary-case-backfill'
 import {
   checkAndCreateQuarterlyReviews,
@@ -272,24 +272,26 @@ export async function initializeSlaReminders() {
 
   console.log('[Startup] Running initial SLA reminders...')
   try {
-    const lock = await runWithCronLock('sla-reminders', 10 * 60 * 1000, async () => {
-      const result = await processSlaReminders()
+    const run = await runSlaRemindersWithLock({ lockTtlMs: 10 * 60 * 1000 })
+
+    if (!run.ran) {
+      console.log('[Startup] Skipping initial SLA reminders (lock not acquired)')
+      return
+    }
+
+    if (run.result) {
       const created =
-        result.leaveApprovalRemindersCreated +
-        result.reviewRemindersCreated +
-        result.disciplinaryRemindersCreated +
-        result.acknowledgmentRemindersCreated +
-        result.checklistTaskRemindersCreated
+        run.result.policyAckRemindersCreated +
+        run.result.leaveApprovalRemindersCreated +
+        run.result.reviewRemindersCreated +
+        run.result.disciplinaryRemindersCreated +
+        run.result.acknowledgmentRemindersCreated +
+        run.result.checklistTaskRemindersCreated
       if (created > 0) {
         console.log(
-          `[SLA Reminders] leave=${result.leaveApprovalRemindersCreated} review=${result.reviewRemindersCreated} disciplinary=${result.disciplinaryRemindersCreated} ack=${result.acknowledgmentRemindersCreated} checklist=${result.checklistTaskRemindersCreated}`
+          `[SLA Reminders] policy=${run.result.policyAckRemindersCreated} leave=${run.result.leaveApprovalRemindersCreated} review=${run.result.reviewRemindersCreated} disciplinary=${run.result.disciplinaryRemindersCreated} ack=${run.result.acknowledgmentRemindersCreated} checklist=${run.result.checklistTaskRemindersCreated}`
         )
       }
-      return result
-    })
-
-    if (!lock.ran) {
-      console.log('[Startup] Skipping initial SLA reminders (lock not acquired)')
     }
   } catch (e) {
     console.error('[Startup] SLA reminders failed:', e)
@@ -304,24 +306,26 @@ export function startSlaReminders(intervalMs = 6 * 60 * 60 * 1000) {
   slaReminderInterval = setInterval(async () => {
     console.log('[SLA Reminders] Running periodic check...')
     try {
-      const lock = await runWithCronLock('sla-reminders', 5 * 60 * 60 * 1000, async () => {
-        const result = await processSlaReminders()
+      const run = await runSlaRemindersWithLock({ lockTtlMs: 5 * 60 * 60 * 1000 })
+
+      if (!run.ran) {
+        console.log('[SLA Reminders] Skipping periodic check (lock not acquired)')
+        return
+      }
+
+      if (run.result) {
         const created =
-          result.leaveApprovalRemindersCreated +
-          result.reviewRemindersCreated +
-          result.disciplinaryRemindersCreated +
-          result.acknowledgmentRemindersCreated +
-          result.checklistTaskRemindersCreated
+          run.result.policyAckRemindersCreated +
+          run.result.leaveApprovalRemindersCreated +
+          run.result.reviewRemindersCreated +
+          run.result.disciplinaryRemindersCreated +
+          run.result.acknowledgmentRemindersCreated +
+          run.result.checklistTaskRemindersCreated
         if (created > 0) {
           console.log(
-            `[SLA Reminders] leave=${result.leaveApprovalRemindersCreated} review=${result.reviewRemindersCreated} disciplinary=${result.disciplinaryRemindersCreated} ack=${result.acknowledgmentRemindersCreated} checklist=${result.checklistTaskRemindersCreated}`
+            `[SLA Reminders] policy=${run.result.policyAckRemindersCreated} leave=${run.result.leaveApprovalRemindersCreated} review=${run.result.reviewRemindersCreated} disciplinary=${run.result.disciplinaryRemindersCreated} ack=${run.result.acknowledgmentRemindersCreated} checklist=${run.result.checklistTaskRemindersCreated}`
           )
         }
-        return result
-      })
-
-      if (!lock.ran) {
-        console.log('[SLA Reminders] Skipping periodic check (lock not acquired)')
       }
     } catch (e) {
       console.error('[SLA Reminders] Periodic check failed:', e)

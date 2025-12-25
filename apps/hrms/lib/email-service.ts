@@ -33,6 +33,7 @@ export type HrmsNotificationEmailPayload = {
   title: string
   actionUrl: string
   actionRequired?: boolean
+  subject?: string
 }
 
 /**
@@ -64,7 +65,11 @@ export async function sendHrmsNotificationEmail(
   const safeFirstName = escapeHtml(firstName)
   const safeActionUrl = escapeHtml(actionUrl)
 
-  const subject = actionRequired ? `Action required: ${category} — ${title}` : `HRMS: ${category} — ${title}`
+  const subject = payload.subject?.trim()
+    ? payload.subject.trim()
+    : actionRequired
+      ? `Action required: ${category} — ${title}`
+      : `HRMS: ${category} — ${title}`
 
   const preheader = actionRequired
     ? `Action required: ${category}`
