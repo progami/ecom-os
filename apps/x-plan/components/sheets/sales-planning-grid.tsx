@@ -218,6 +218,15 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
     })
     return map
   }, [data])
+  const weekLabelByNumber = useMemo(() => {
+    const map = new Map<number, string>()
+    data.forEach((row) => {
+      const week = Number(row.weekNumber)
+      if (!Number.isFinite(week)) return
+      map.set(week, row.weekLabel ?? '')
+    })
+    return map
+  }, [data])
   const hasInboundByWeek = useMemo(() => {
     const set = new Set<number>()
     rows.forEach((row) => {
@@ -240,6 +249,103 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
     })
     return map
   }, [columnKeys, columnMeta])
+
+  const reorderCueByProductLive = useMemo(() => {
+    const result = new Map<
+      string,
+      {
+        startWeekNumber: number
+        startWeekLabel: string | null
+        startYear: number | null
+        startDate: string
+        breachWeekNumber: number
+        breachWeekLabel: string | null
+        breachYear: number | null
+        breachDate: string
+        leadTimeWeeks: number
+      }
+    >()
+
+    if (!Number.isFinite(warningThreshold) || warningThreshold <= 0) {
+      return reorderCueByProduct
+    }
+
+    void derivedVersion
+
+    const extractYear = (label: string): number | null => {
+      const match = label.match(/(\d{4})\s*$/)
+      if (!match) return null
+      const year = Number(match[1])
+      return Number.isFinite(year) ? year : null
+    }
+
+    stockWeeksKeyByProduct.forEach((weeksKey, productId) => {
+      const leadProfile = leadTimeByProduct[productId]
+      const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : 0
+      if (leadTimeWeeks <= 0) return
+
+      let hasBeenAbove = false
+      for (const row of data) {
+        const weekNumber = Number(row.weekNumber)
+        if (!Number.isFinite(weekNumber)) continue
+
+        const rawWeeks = row[weeksKey]
+        if (rawWeeks === '∞') {
+          hasBeenAbove = true
+          continue
+        }
+
+        const weeksNumeric = rawWeeks !== undefined ? Number(rawWeeks) : Number.NaN
+        if (!Number.isFinite(weeksNumeric)) continue
+
+        const isBelow = weeksNumeric <= warningThreshold
+        if (isBelow && hasBeenAbove) {
+          const breachWeekNumber = weekNumber
+          const startWeekNumber = breachWeekNumber - leadTimeWeeks
+
+          const startDate = weekDateByNumber.get(startWeekNumber) || formatWeekDateFallback(startWeekNumber)
+          const breachDate = row.weekDate || weekDateByNumber.get(breachWeekNumber) || formatWeekDateFallback(breachWeekNumber)
+
+          const startWeekLabelRaw = weekLabelByNumber.get(startWeekNumber)
+          const breachWeekLabelRaw = weekLabelByNumber.get(breachWeekNumber)
+
+          result.set(productId, {
+            startWeekNumber,
+            startWeekLabel: startWeekLabelRaw ? startWeekLabelRaw : null,
+            startYear: extractYear(startDate),
+            startDate,
+            breachWeekNumber,
+            breachWeekLabel: breachWeekLabelRaw ? breachWeekLabelRaw : null,
+            breachYear: extractYear(breachDate),
+            breachDate,
+            leadTimeWeeks,
+          })
+          break
+        }
+
+        if (!isBelow) {
+          hasBeenAbove = true
+        }
+      }
+    })
+
+    reorderCueByProduct.forEach((value, productId) => {
+      if (!result.has(productId)) {
+        result.set(productId, value)
+      }
+    })
+
+    return result
+  }, [
+    data,
+    derivedVersion,
+    leadTimeByProduct,
+    reorderCueByProduct,
+    stockWeeksKeyByProduct,
+    warningThreshold,
+    weekDateByNumber,
+    weekLabelByNumber,
+  ])
 
   const firstBelowThresholdWeekByProduct = useMemo(() => {
     const result = new Map<string, number>()
@@ -837,7 +943,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
                 }
               }
 
-                const reorderInfo = reorderCueByProduct.get(meta.productId)
+                const reorderInfo = reorderCueByProductLive.get(meta.productId)
                 const isReorderWeek = reorderInfo != null && reorderInfo.startWeekNumber === weekNumber
 
                 if (isReorderWeek && visibleMetrics.has(meta.field)) {
