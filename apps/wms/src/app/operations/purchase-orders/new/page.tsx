@@ -30,6 +30,7 @@ interface LineItem {
   skuId?: string
   skuCode: string
   skuDescription: string
+  batchLot: string
   quantity: number
   unitCost: string
   currency: string
@@ -50,6 +51,8 @@ export default function NewPurchaseOrderPage() {
   const [tenantCurrency, setTenantCurrency] = useState<string>('USD')
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [skus, setSkus] = useState<Sku[]>([])
+  const [batchesBySkuId, setBatchesBySkuId] = useState<Record<string, string[]>>({})
+  const [batchesLoadingBySkuId, setBatchesLoadingBySkuId] = useState<Record<string, boolean>>({})
   const [formData, setFormData] = useState({
     supplierId: '',
     notes: '',
@@ -60,6 +63,7 @@ export default function NewPurchaseOrderPage() {
       skuId: undefined,
       skuCode: '',
       skuDescription: '',
+      batchLot: 'DEFAULT',
       quantity: 1,
       unitCost: '',
       currency: 'USD',
@@ -130,12 +134,49 @@ export default function NewPurchaseOrderPage() {
         skuId: undefined,
         skuCode: '',
         skuDescription: '',
+        batchLot: 'DEFAULT',
         quantity: 1,
         unitCost: '',
         currency: tenantCurrency,
         notes: '',
       },
     ])
+  }
+
+  const ensureSkuBatchesLoaded = async (skuId: string) => {
+    if (!skuId) return
+    if (batchesBySkuId[skuId]) return
+    if (batchesLoadingBySkuId[skuId]) return
+
+    setBatchesLoadingBySkuId(prev => ({ ...prev, [skuId]: true }))
+    try {
+      const response = await fetch(`/api/skus/${encodeURIComponent(skuId)}/batches`, {
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        throw new Error(payload?.error ?? 'Failed to load batches')
+      }
+
+      const payload = await response.json().catch(() => null)
+      const batches = Array.isArray(payload?.batches) ? payload.batches : []
+      const batchCodes: string[] = batches
+        .map((batch: { batchCode?: unknown }) => String(batch?.batchCode ?? '').trim().toUpperCase())
+        .filter((batchCode): batchCode is string => Boolean(batchCode))
+
+      const unique: string[] = Array.from(new Set(batchCodes))
+      if (!unique.includes('DEFAULT')) {
+        unique.unshift('DEFAULT')
+      }
+
+      setBatchesBySkuId(prev => ({ ...prev, [skuId]: unique }))
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load batches')
+      setBatchesBySkuId(prev => ({ ...prev, [skuId]: ['DEFAULT'] }))
+    } finally {
+      setBatchesLoadingBySkuId(prev => ({ ...prev, [skuId]: false }))
+    }
   }
 
   const updateLineItem = (id: string, field: keyof LineItem, value: string | number) => {
@@ -151,6 +192,7 @@ export default function NewPurchaseOrderPage() {
                   skuId: undefined,
                   skuCode: '',
                   skuDescription: '',
+                  batchLot: 'DEFAULT',
                 }
               : item
           )
@@ -166,10 +208,12 @@ export default function NewPurchaseOrderPage() {
                 skuId: selectedSku.id,
                 skuCode: selectedSku.skuCode,
                 skuDescription: selectedSku.description || '',
+                batchLot: 'DEFAULT',
               }
             : item
         )
       )
+      void ensureSkuBatchesLoaded(selectedSku.id)
       return
     }
 
@@ -193,11 +237,9 @@ export default function NewPurchaseOrderPage() {
       return
     }
 
-    const invalidLines = lineItems.filter(
-      item => !item.skuCode || item.quantity <= 0
-    )
+    const invalidLines = lineItems.filter(item => !item.skuCode || !item.batchLot || item.quantity <= 0)
     if (invalidLines.length > 0) {
-      toast.error('Please fill in SKU and quantity for all line items')
+      toast.error('Please fill in SKU, batch/lot, and quantity for all line items')
       return
     }
 
@@ -218,6 +260,7 @@ export default function NewPurchaseOrderPage() {
           lines: lineItems.map(item => ({
             skuCode: item.skuCode,
             skuDescription: item.skuDescription,
+            batchLot: item.batchLot.trim().toUpperCase(),
             quantity: item.quantity,
             unitCost: item.unitCost ? parseFloat(item.unitCost) : undefined,
             currency: item.currency,
@@ -323,10 +366,11 @@ export default function NewPurchaseOrderPage() {
               {/* Table Header */}
               <div className="grid grid-cols-14 gap-2 text-xs font-medium text-muted-foreground pb-2 border-b">
                 <div className="col-span-3">SKU</div>
-                <div className="col-span-4">Description</div>
+                <div className="col-span-2">Batch/Lot</div>
+                <div className="col-span-3">Description</div>
                 <div className="col-span-1">Qty</div>
                 <div className="col-span-2">Unit Cost</div>
-                <div className="col-span-3">Notes</div>
+                <div className="col-span-2">Notes</div>
                 <div className="col-span-1"></div>
               </div>
 
@@ -348,7 +392,30 @@ export default function NewPurchaseOrderPage() {
                       ))}
                     </select>
                   </div>
-                  <div className="col-span-4">
+                  <div className="col-span-2">
+                    <select
+                      value={item.batchLot}
+                      onChange={e => updateLineItem(item.id, 'batchLot', e.target.value)}
+                      className="w-full px-2 py-1.5 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm"
+                      required
+                      disabled={!item.skuId}
+                    >
+                      {item.skuId ? (
+                        batchesLoadingBySkuId[item.skuId] ? (
+                          <option value={item.batchLot || 'DEFAULT'}>Loading…</option>
+                        ) : (
+                          (batchesBySkuId[item.skuId] ?? ['DEFAULT']).map(batchCode => (
+                            <option key={batchCode} value={batchCode}>
+                              {batchCode}
+                            </option>
+                          ))
+                        )
+                      ) : (
+                        <option value="DEFAULT">DEFAULT</option>
+                      )}
+                    </select>
+                  </div>
+                  <div className="col-span-3">
                     <Input
                       value={item.skuDescription}
                       onChange={e => updateLineItem(item.id, 'skuDescription', e.target.value)}
@@ -392,7 +459,7 @@ export default function NewPurchaseOrderPage() {
                       </select>
                     </div>
                   </div>
-                  <div className="col-span-3">
+                  <div className="col-span-2">
                     <Input
                       value={item.notes}
                       onChange={e => updateLineItem(item.id, 'notes', e.target.value)}
