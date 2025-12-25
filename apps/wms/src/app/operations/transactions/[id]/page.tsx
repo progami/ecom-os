@@ -16,7 +16,7 @@ import {
 import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
 import { type ApiAttachment } from '@/components/operations/edit-attachments-tab'
 
-const ORDERS_INDEX_PATH = '/operations/orders'
+const INVENTORY_LEDGER_PATH = '/operations/inventory'
 
 interface TransactionData {
   id: string
@@ -174,7 +174,7 @@ const transformedData: TransactionData = {
  <div className="text-center py-12">
  <p className="text-slate-500">Transaction not found</p>
  <button
- onClick={() => router.push(ORDERS_INDEX_PATH)}
+ onClick={() => router.push(INVENTORY_LEDGER_PATH)}
  className="mt-4 text-primary hover:underline"
  >
  Return to Inventory
@@ -220,7 +220,7 @@ const transformedData: TransactionData = {
  <div className="flex items-center justify-between">
  <div className="flex items-center gap-2">
  <button
- onClick={() => router.push(ORDERS_INDEX_PATH)}
+ onClick={() => router.push(INVENTORY_LEDGER_PATH)}
  className="p-2 hover:bg-slate-100 rounded-lg"
  >
  <ArrowLeft className="h-5 w-5" />
@@ -247,7 +247,7 @@ const transformedData: TransactionData = {
       <div className="flex gap-2">
         <button
           type="button"
-          onClick={() => router.push(ORDERS_INDEX_PATH)}
+          onClick={() => router.push(INVENTORY_LEDGER_PATH)}
           className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50"
         >
           Close

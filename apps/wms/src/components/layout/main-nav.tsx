@@ -41,7 +41,7 @@ const baseNavigation: NavSection[] = [
  {
  title: 'Operations',
  items: [
- { name: 'Purchase Orders', href: '/operations/orders', icon: FileText },
+ { name: 'Purchase Orders', href: '/operations/purchase-orders', icon: FileText },
  { name: 'Fulfillment Orders', href: '/operations/fulfillment-orders', icon: Truck },
  { name: 'Inventory Ledger', href: '/operations/inventory', icon: BookOpen },
  ]

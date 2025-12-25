@@ -221,7 +221,7 @@ export function PurchaseOrdersPanel({
                     <tr key={order.id} className="odd:bg-muted/20">
                       <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">
                         <Link
-                          href={`/operations/orders/${order.id}`}
+                          href={`/operations/purchase-orders/${order.id}`}
                           className="text-primary hover:underline"
                           prefetch={false}
                         >
