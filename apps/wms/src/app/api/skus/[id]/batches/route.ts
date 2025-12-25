@@ -6,6 +6,15 @@ import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-d
 
 const optionalDimensionValueSchema = z.number().positive().nullable().optional()
 
+const IGNORED_BATCH_LOTS = new Set(['', '-', 'N/A', 'NA'])
+
+function normalizeObservedBatchLot(value: string | null | undefined): string | null {
+  const trimmed = value?.trim()
+  if (!trimmed) return null
+  if (IGNORED_BATCH_LOTS.has(trimmed.toUpperCase())) return null
+  return trimmed
+}
+
 type DimensionRefineShape = {
   unitLengthCm: z.ZodTypeAny
   unitWidthCm: z.ZodTypeAny
@@ -75,11 +84,107 @@ export const GET = withAuthAndParams(async (request, params, session) => {
 
   const sku = await prisma.sku.findUnique({
     where: { id: skuId },
-    select: { id: true },
+    select: {
+      id: true,
+      skuCode: true,
+      packSize: true,
+      unitsPerCarton: true,
+      material: true,
+      unitDimensionsCm: true,
+      unitLengthCm: true,
+      unitWidthCm: true,
+      unitHeightCm: true,
+      unitWeightKg: true,
+      cartonDimensionsCm: true,
+      cartonLengthCm: true,
+      cartonWidthCm: true,
+      cartonHeightCm: true,
+      cartonWeightKg: true,
+      packagingType: true,
+    },
   })
 
   if (!sku) {
     return ApiResponses.notFound('SKU not found')
+  }
+
+  const existingBatchCodes = await prisma.skuBatch.findMany({
+    where: { skuId },
+    select: { batchCode: true },
+  })
+  const existingBatchCodeSet = new Set(existingBatchCodes.map(row => row.batchCode))
+
+  const [poBatchLots, transactionBatchLots, ledgerBatchLots] = await Promise.all([
+    prisma.purchaseOrderLine.findMany({
+      where: { skuCode: sku.skuCode },
+      select: { batchLot: true },
+      distinct: ['batchLot'],
+    }),
+    prisma.inventoryTransaction.findMany({
+      where: { skuCode: sku.skuCode },
+      select: { batchLot: true },
+      distinct: ['batchLot'],
+    }),
+    prisma.storageLedger.findMany({
+      where: { skuCode: sku.skuCode },
+      select: { batchLot: true },
+      distinct: ['batchLot'],
+    }),
+  ])
+
+  const observedBatchLots = new Set<string>()
+  for (const row of poBatchLots) {
+    const normalized = normalizeObservedBatchLot(row.batchLot)
+    if (normalized) observedBatchLots.add(normalized)
+  }
+  for (const row of transactionBatchLots) {
+    const normalized = normalizeObservedBatchLot(row.batchLot)
+    if (normalized) observedBatchLots.add(normalized)
+  }
+  for (const row of ledgerBatchLots) {
+    const normalized = normalizeObservedBatchLot(row.batchLot)
+    if (normalized) observedBatchLots.add(normalized)
+  }
+
+  const missingBatchLots = Array.from(observedBatchLots).filter(
+    batchLot => !existingBatchCodeSet.has(batchLot)
+  )
+
+  if (missingBatchLots.length > 0) {
+    await prisma.$transaction(async tx => {
+      for (const batchLot of missingBatchLots) {
+        await tx.skuBatch.upsert({
+          where: {
+            skuId_batchCode: {
+              skuId,
+              batchCode: batchLot,
+            },
+          },
+          create: {
+            skuId,
+            batchCode: batchLot,
+            packSize: sku.packSize,
+            unitsPerCarton: sku.unitsPerCarton,
+            material: sku.material,
+            unitDimensionsCm: sku.unitDimensionsCm,
+            unitLengthCm: sku.unitLengthCm,
+            unitWidthCm: sku.unitWidthCm,
+            unitHeightCm: sku.unitHeightCm,
+            unitWeightKg: sku.unitWeightKg,
+            cartonDimensionsCm: sku.cartonDimensionsCm,
+            cartonLengthCm: sku.cartonLengthCm,
+            cartonWidthCm: sku.cartonWidthCm,
+            cartonHeightCm: sku.cartonHeightCm,
+            cartonWeightKg: sku.cartonWeightKg,
+            packagingType: sku.packagingType,
+            isActive: true,
+          },
+          update: {
+            isActive: true,
+          },
+        })
+      }
+    })
   }
 
   const batches = await prisma.skuBatch.findMany({
