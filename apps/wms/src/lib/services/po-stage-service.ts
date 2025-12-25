@@ -224,6 +224,144 @@ export function validateStageData(
   }
 }
 
+function resolveDateValue(
+  value: Date | string | undefined | null,
+  label: string
+): Date | null {
+  if (value === undefined || value === null) return null
+  if (typeof value === 'string' && value.trim().length === 0) return null
+
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    throw new ValidationError(`Invalid ${label}`)
+  }
+  return date
+}
+
+function resolveOrderDate(
+  key: keyof StageTransitionInput & keyof PurchaseOrder,
+  stageData: StageTransitionInput,
+  order: PurchaseOrder,
+  label: string
+): Date | null {
+  if (Object.prototype.hasOwnProperty.call(stageData, key)) {
+    return resolveDateValue(stageData[key] as Date | string | undefined | null, label)
+  }
+  return resolveDateValue(order[key] as unknown as Date | string | undefined | null, label)
+}
+
+function assertNotEarlierThan(
+  earlierLabel: string,
+  earlier: Date | null,
+  laterLabel: string,
+  later: Date | null
+) {
+  if (!earlier || !later) return
+  if (later < earlier) {
+    throw new ValidationError(`${laterLabel} cannot be earlier than ${earlierLabel}`)
+  }
+}
+
+function pickBaseline(
+  candidates: Array<{ label: string; date: Date | null }>
+): { label: string; date: Date } | null {
+  for (const candidate of candidates) {
+    if (candidate.date) return { label: candidate.label, date: candidate.date }
+  }
+  return null
+}
+
+function validateStageDateOrdering(
+  targetStatus: PurchaseOrderStatus,
+  stageData: StageTransitionInput,
+  order: PurchaseOrder
+) {
+  const manufacturingStartDate = resolveOrderDate(
+    'manufacturingStartDate',
+    stageData,
+    order,
+    'Manufacturing start date'
+  )
+  const expectedCompletionDate = resolveOrderDate(
+    'expectedCompletionDate',
+    stageData,
+    order,
+    'Expected completion date'
+  )
+  const actualCompletionDate = resolveOrderDate(
+    'actualCompletionDate',
+    stageData,
+    order,
+    'Actual completion date'
+  )
+
+  const manufacturingBaseline = pickBaseline([
+    { label: 'Actual completion date', date: actualCompletionDate },
+    { label: 'Expected completion date', date: expectedCompletionDate },
+    { label: 'Manufacturing start date', date: manufacturingStartDate },
+  ])
+
+  const estimatedDeparture = resolveOrderDate(
+    'estimatedDeparture',
+    stageData,
+    order,
+    'Estimated departure'
+  )
+  const estimatedArrival = resolveOrderDate('estimatedArrival', stageData, order, 'Estimated arrival')
+  const actualDeparture = resolveOrderDate('actualDeparture', stageData, order, 'Actual departure')
+  const actualArrival = resolveOrderDate('actualArrival', stageData, order, 'Actual arrival')
+
+  const inboundBaseline = pickBaseline([
+    { label: 'Actual arrival', date: actualArrival },
+    { label: 'Estimated arrival', date: estimatedArrival },
+    { label: 'Actual departure', date: actualDeparture },
+    { label: 'Estimated departure', date: estimatedDeparture },
+    { label: manufacturingBaseline?.label ?? 'Manufacturing stage', date: manufacturingBaseline?.date ?? null },
+  ])
+
+  const customsClearedDate = resolveOrderDate(
+    'customsClearedDate',
+    stageData,
+    order,
+    'Customs cleared date'
+  )
+  const receivedDate = resolveOrderDate('receivedDate', stageData, order, 'Received date')
+  const shippedDate = resolveOrderDate('shippedDate', stageData, order, 'Shipped date')
+  const deliveredDate = resolveOrderDate('deliveredDate', stageData, order, 'Delivered date')
+
+  if (targetStatus === PurchaseOrderStatus.MANUFACTURING) {
+    assertNotEarlierThan('Manufacturing start date', manufacturingStartDate, 'Expected completion date', expectedCompletionDate)
+    assertNotEarlierThan('Manufacturing start date', manufacturingStartDate, 'Actual completion date', actualCompletionDate)
+    return
+  }
+
+  if (targetStatus === PurchaseOrderStatus.OCEAN) {
+    if (manufacturingBaseline) {
+      assertNotEarlierThan(manufacturingBaseline.label, manufacturingBaseline.date, 'Estimated departure', estimatedDeparture)
+      assertNotEarlierThan(manufacturingBaseline.label, manufacturingBaseline.date, 'Actual departure', actualDeparture)
+    }
+
+    assertNotEarlierThan('Estimated departure', estimatedDeparture, 'Estimated arrival', estimatedArrival)
+    assertNotEarlierThan('Actual departure', actualDeparture, 'Actual arrival', actualArrival)
+    return
+  }
+
+  if (targetStatus === PurchaseOrderStatus.WAREHOUSE) {
+    if (inboundBaseline) {
+      assertNotEarlierThan(inboundBaseline.label, inboundBaseline.date, 'Customs cleared date', customsClearedDate)
+      assertNotEarlierThan(inboundBaseline.label, inboundBaseline.date, 'Received date', receivedDate)
+    }
+
+    assertNotEarlierThan('Customs cleared date', customsClearedDate, 'Received date', receivedDate)
+    return
+  }
+
+  if (targetStatus === PurchaseOrderStatus.SHIPPED) {
+    assertNotEarlierThan('Received date', receivedDate, 'Shipped date', shippedDate)
+    assertNotEarlierThan('Shipped date', shippedDate, 'Delivered date', deliveredDate)
+  }
+}
+
 /**
  * Generate the next PO number in sequence (PO-0001 format)
  */
@@ -574,6 +712,8 @@ export async function transitionPurchaseOrderStage(
     )
   }
 
+  validateStageDateOrdering(targetStatus, stageData, order)
+
   const requiredDocs = STAGE_DOCUMENT_REQUIREMENTS[targetStatus]
   if (requiredDocs && requiredDocs.length > 0) {
     const stageDocs = await prisma.purchaseOrderDocument.findMany({
@@ -596,22 +736,6 @@ export async function transitionPurchaseOrderStage(
   }
 
   if (targetStatus === PurchaseOrderStatus.SHIPPED) {
-    const shippedDate = stageData.shippedDate
-      ? new Date(stageData.shippedDate)
-      : order.shippedDate
-        ? new Date(order.shippedDate)
-        : null
-
-    const receivedDate = order.receivedDate ? new Date(order.receivedDate) : null
-
-    if (shippedDate && Number.isNaN(shippedDate.getTime())) {
-      throw new ValidationError('Invalid shipped date')
-    }
-
-    if (receivedDate && shippedDate && shippedDate < receivedDate) {
-      throw new ValidationError('Shipped date cannot be earlier than received date')
-    }
-
     if (!order.lines || order.lines.length === 0) {
       throw new ValidationError('Cannot ship an order with no cargo lines')
     }

@@ -500,6 +500,18 @@ function SkuBatchesManager({
     const storage = parsePositiveInt(formState.storageCartonsPerPallet)
     const shipping = parsePositiveInt(formState.shippingCartonsPerPallet)
 
+    if (formState.isActive) {
+      if (!storage) {
+        toast.error('Storage cartons per pallet must be a positive integer')
+        return
+      }
+
+      if (!shipping) {
+        toast.error('Shipping cartons per pallet must be a positive integer')
+        return
+      }
+    }
+
     setIsSubmitting(true)
     try {
       const roundDimensionCm = (value: number | null): number | null =>
@@ -994,6 +1006,7 @@ function SkuBatchesManager({
                     id="storageCartonsPerPallet"
                     type="number"
                     min={1}
+                    required={formState.isActive}
                     value={formState.storageCartonsPerPallet}
                     onChange={event =>
                       setFormState(prev => ({
@@ -1001,7 +1014,7 @@ function SkuBatchesManager({
                         storageCartonsPerPallet: event.target.value,
                       }))
                     }
-                    placeholder="Optional"
+                    placeholder="Required for active batches"
                   />
                 </div>
 
@@ -1011,6 +1024,7 @@ function SkuBatchesManager({
                     id="shippingCartonsPerPallet"
                     type="number"
                     min={1}
+                    required={formState.isActive}
                     value={formState.shippingCartonsPerPallet}
                     onChange={event =>
                       setFormState(prev => ({
@@ -1018,7 +1032,7 @@ function SkuBatchesManager({
                         shippingCartonsPerPallet: event.target.value,
                       }))
                     }
-                    placeholder="Optional"
+                    placeholder="Required for active batches"
                   />
                 </div>
               </div>

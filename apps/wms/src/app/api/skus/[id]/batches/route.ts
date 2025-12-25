@@ -121,6 +121,23 @@ export const POST = withAuthAndParams(async (request, params, session) => {
   }
 
   const payload = parsed.data
+  const isActive = payload.isActive ?? true
+  if (isActive) {
+    const errors: Record<string, string> = {}
+
+    if (!payload.storageCartonsPerPallet || payload.storageCartonsPerPallet <= 0) {
+      errors.storageCartonsPerPallet = 'Storage cartons per pallet is required for active batches'
+    }
+
+    if (!payload.shippingCartonsPerPallet || payload.shippingCartonsPerPallet <= 0) {
+      errors.shippingCartonsPerPallet = 'Shipping cartons per pallet is required for active batches'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      return ApiResponses.validationError(errors)
+    }
+  }
+
   const normalizedCode = sanitizeForDisplay(payload.batchCode.toUpperCase())
   const productionDate = payload.productionDate ? new Date(payload.productionDate) : null
   const expiryDate = payload.expiryDate ? new Date(payload.expiryDate) : null
@@ -186,7 +203,7 @@ export const POST = withAuthAndParams(async (request, params, session) => {
         packagingType: payload.packagingType ? sanitizeForDisplay(payload.packagingType) : null,
         storageCartonsPerPallet: payload.storageCartonsPerPallet ?? null,
         shippingCartonsPerPallet: payload.shippingCartonsPerPallet ?? null,
-        isActive: payload.isActive ?? true,
+        isActive,
       },
     })
 
