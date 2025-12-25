@@ -6,19 +6,23 @@ import { ensurePlanningCalendarCoverage } from '@/lib/planning'
 describe('planning calendar coverage', () => {
   it('generates default weeks when no sales data exists', () => {
     const weeks = ensurePlanningCalendarCoverage([])
-    expect(weeks).toHaveLength(156)
+    expect(weeks).toHaveLength(261)
 
     const calendar = buildWeekCalendar(weeks)
     const segments = buildYearSegments(calendar)
 
-    expect(segments.map((segment) => segment.year)).toEqual([2025, 2026, 2027])
+    expect(segments.map((segment) => segment.year)).toEqual([2023, 2024, 2025, 2026, 2027])
     expect(segments[0]?.weekCount).toBe(52)
-    expect(segments[1]?.weekCount).toBe(52)
+    expect(segments[1]?.weekCount).toBe(53)
     expect(segments[2]?.weekCount).toBe(52)
+    expect(segments[3]?.weekCount).toBe(52)
+    expect(segments[4]?.weekCount).toBe(52)
 
+    const first2023WeekDate = getCalendarDateForWeek(-104, calendar)
     const firstWeekDate = getCalendarDateForWeek(1, calendar)
     const lastWeekDate = getCalendarDateForWeek(156, calendar)
 
+    expect(first2023WeekDate?.toISOString()).toBe('2023-01-02T00:00:00.000Z')
     expect(firstWeekDate?.toISOString()).toBe('2025-01-06T00:00:00.000Z')
     expect(lastWeekDate?.toISOString()).toBe('2027-12-27T00:00:00.000Z')
   })

@@ -15,6 +15,7 @@ registerAllModules()
 
 type WeeklyRow = {
   weekNumber: string
+  weekLabel: string
   weekDate: string
   amazonPayout: string
   inventorySpend: string
@@ -39,6 +40,7 @@ const WEEK_COLUMN_WIDTH = 92
 const DATE_COLUMN_WIDTH = 136
 const COLUMN_WIDTHS: Record<keyof WeeklyRow, number> = {
   weekNumber: WEEK_COLUMN_WIDTH,
+  weekLabel: WEEK_COLUMN_WIDTH,
   weekDate: DATE_COLUMN_WIDTH,
   amazonPayout: 140,
   inventorySpend: 140,
@@ -79,7 +81,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
 
   const columns: Handsontable.ColumnSettings[] = useMemo(
     () => [
-      { data: 'weekNumber', readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.weekNumber },
+      { data: 'weekLabel', readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.weekLabel },
       { data: 'weekDate', readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.weekDate },
       {
         data: 'amazonPayout',

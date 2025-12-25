@@ -64,8 +64,8 @@ describe('WorkbookLayout year navigation', () => {
     const previousButtons = screen.getAllByRole('button', { name: 'Previous year' })
     previousButtons.forEach((button) => expect(button).toBeDisabled())
 
-    const yearButtons = screen.getAllByRole('button', { name: /2026/ })
-    fireEvent.click(yearButtons[0]!)
+    const yearSelects = screen.getAllByRole('combobox', { name: 'Select year' })
+    fireEvent.change(yearSelects[0]!, { target: { value: '2026' } })
     expect(pushMock).toHaveBeenCalledWith('/3-sales-planning?year=2026')
 
     pushMock.mockReset()

@@ -247,6 +247,16 @@
 }
 
 /* Reorder suggestion cells */
+.x-plan-hot .cell-reorder-band {
+  background: rgba(34, 197, 94, 0.12) !important;
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.12);
+}
+
+.dark .x-plan-hot .cell-reorder-band {
+  background: rgba(34, 197, 94, 0.16) !important;
+  box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.14);
+}
+
 .x-plan-hot .cell-reorder-suggest {
   border: 2px dotted #22c55e !important;
   box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.25);

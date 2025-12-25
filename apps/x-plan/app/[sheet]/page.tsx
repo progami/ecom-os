@@ -66,6 +66,7 @@ type SalesMetric = (typeof SALES_METRICS)[number]
 
 type SalesRow = {
   weekNumber: string
+  weekLabel: string
   weekDate: string
   arrivalNote?: string
   [key: string]: string | undefined
@@ -1258,9 +1259,11 @@ function getSalesPlanningView(
   })
 
   const rows = weekNumbers.map((weekNumber) => {
+    const weekLabel = activeSegment ? String(weekNumber - activeSegment.startWeekNumber + 1) : String(weekNumber)
     const calendarDate = getCalendarDateForWeek(weekNumber, planning.calendar)
     const row: SalesRow = {
       weekNumber: String(weekNumber),
+      weekLabel,
       weekDate: calendarDate ? formatDate(calendarDate) : '',
     }
 
@@ -1409,10 +1412,12 @@ function getProfitAndLossView(
   const filteredWeekly = weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
   const monthlySummary = filterSummaryByYear(monthly, activeYear)
   const quarterlySummary = filterSummaryByYear(quarterly, activeYear)
+  const segmentStart = activeSegment?.startWeekNumber ?? null
 
   return {
     weekly: filteredWeekly.map((entry) => ({
       weekNumber: String(entry.weekNumber),
+      weekLabel: segmentStart != null ? String(entry.weekNumber - segmentStart + 1) : String(entry.weekNumber),
       weekDate: entry.weekDate ? formatDate(entry.weekDate) : '',
       units: formatNumeric(entry.units, 0),
       revenue: formatNumeric(entry.revenue),
@@ -1457,10 +1462,12 @@ function getCashFlowView(
 ) {
   const { weekly } = financialData.cash
   const filteredWeekly = weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+  const segmentStart = activeSegment?.startWeekNumber ?? null
 
   return {
     weekly: filteredWeekly.map((entry) => ({
       weekNumber: String(entry.weekNumber),
+      weekLabel: segmentStart != null ? String(entry.weekNumber - segmentStart + 1) : String(entry.weekNumber),
       weekDate: entry.weekDate ? formatDate(entry.weekDate) : '',
       amazonPayout: formatNumeric(entry.amazonPayout),
       inventorySpend: formatNumeric(entry.inventorySpend),
