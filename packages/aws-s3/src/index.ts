@@ -42,6 +42,12 @@ export interface S3DownloadOptions {
 
 export type FileContext =
   | { type: 'transaction'; transactionId: string; documentType: string }
+  | {
+      type: 'purchase-order';
+      purchaseOrderId: string;
+      stage: 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED';
+      documentType: string;
+    }
   | { type: 'warehouse-rate-list'; warehouseId: string }
   | { type: 'export-temp'; userId: string; exportType: string }
   | { type: 'export-scheduled'; frequency: 'daily' | 'weekly' | 'monthly'; date: Date; reportType: string }
@@ -94,6 +100,12 @@ export class S3Service {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
         return `transactions/${year}/${month}/${context.transactionId}/${context.documentType}_${timestamp}_${hash}_${sanitizedFilename}`;
+      }
+      case 'purchase-order': {
+        const date = new Date();
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        return `purchase-orders/${year}/${month}/${context.purchaseOrderId}/${context.stage}/${context.documentType}_${timestamp}_${hash}_${sanitizedFilename}`;
       }
       case 'export-temp': {
         return `exports/temp/${context.userId}/${context.exportType}_${timestamp}_${sanitizedFilename}`;
@@ -382,6 +394,14 @@ export function isValidFileContext(context: unknown): context is FileContext {
   switch (c.type) {
     case 'transaction':
       return typeof c.transactionId === 'string' && typeof c.documentType === 'string';
+    case 'purchase-order':
+      return (
+        typeof c.purchaseOrderId === 'string' &&
+        ['MANUFACTURING', 'OCEAN', 'WAREHOUSE', 'SHIPPED'].includes(c.stage) &&
+        typeof c.documentType === 'string'
+      );
+    case 'warehouse-rate-list':
+      return typeof c.warehouseId === 'string';
     case 'export-temp':
       return typeof c.userId === 'string' && typeof c.exportType === 'string';
     case 'export-scheduled':

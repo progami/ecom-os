@@ -32,6 +32,18 @@ const OptionalNumber = z.preprocess((value) => {
   return cleaned
 }, z.number().optional())
 
+const OptionalInboundReceiveType = z.preprocess(
+  emptyToUndefined,
+  z
+    .enum(['CONTAINER_20', 'CONTAINER_40', 'CONTAINER_40_HQ', 'CONTAINER_45_HQ', 'LCL'] as const)
+    .optional()
+)
+
+const OptionalOutboundShipMode = z.preprocess(
+  emptyToUndefined,
+  z.enum(['PALLETS', 'CARTONS'] as const).optional()
+)
+
 const OptionalInt = z.preprocess((value) => {
   const cleaned = emptyToUndefined(value)
   if (cleaned === undefined || cleaned === null) return undefined
@@ -89,6 +101,7 @@ const StageTransitionSchema = z.object({
       // ===========================================
       warehouseCode: OptionalString,
       warehouseName: OptionalString,
+      receiveType: OptionalInboundReceiveType,
       customsEntryNumber: OptionalString,
       customsClearedDate: OptionalDateString,
       dutyAmount: OptionalNumber,
@@ -106,6 +119,7 @@ const StageTransitionSchema = z.object({
       shipToCity: OptionalString,
       shipToCountry: OptionalString,
       shipToPostalCode: OptionalString,
+      shipMode: OptionalOutboundShipMode,
       shippingCarrier: OptionalString,
       shippingMethod: OptionalString,
       trackingNumber: OptionalString,

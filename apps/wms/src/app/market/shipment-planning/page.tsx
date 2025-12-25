@@ -262,25 +262,9 @@ export default function ShipmentPlanningPage() {
  toast.error('Please select at least one item to ship')
  return
  }
- 
- // Prepare shipment data
- const shipmentItems = Array.from(selectedItems).map(skuCode => {
- const item = stockItems.find(i => i.skuCode === skuCode)
- const suggestion = suggestions.find(s => s.skuCode === skuCode)
- return {
- skuCode,
- suggestedCartons: suggestion?.suggestedCartons || item?.suggestedShipmentCartons || 0
- }
- })
- 
- // Store in sessionStorage for the ship page
- sessionStorage.setItem('shipmentPlan', JSON.stringify({
- items: shipmentItems,
- source: 'fba-planning',
- createdAt: new Date().toISOString()
- }))
- 
- router.push('/operations/ship')
+
+ // Shipping is handled via the Purchase Order workflow.
+ router.push('/operations/orders')
  }
 
  const filteredStockItems = stockItems.filter(item => {
@@ -345,24 +329,7 @@ export default function ShipmentPlanningPage() {
  Refresh FBA Data
  </button>
  <Link
- href="/operations/ship"
- onClick={() => {
- // Store selected items for the ship page
- if (selectedItems.size > 0) {
- const shipmentItems = Array.from(selectedItems).map(skuCode => {
- const item = stockItems.find(i => i.skuCode === skuCode)
- return {
- skuCode,
- suggestedCartons: item?.optimalShipmentCartons || 0
- }
- })
- sessionStorage.setItem('shipmentPlan', JSON.stringify({
- items: shipmentItems,
- source: 'fba-planning',
- createdAt: new Date().toISOString()
- }))
- }
- }}
+ href="/operations/orders"
  className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-soft text-sm font-medium text-white bg-primary hover:bg-primary/90 ${selectedItems.size === 0 ? 'opacity-50 pointer-events-none' : ''}`}
  >
  <ShoppingCart className="h-4 w-4 mr-2" />
