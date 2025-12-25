@@ -166,6 +166,9 @@ export const POST = withAuthAndParams(async (request, params, session) => {
   const payload = parsed.data
 
   const normalizedCode = sanitizeForDisplay(payload.batchCode.toUpperCase())
+  if (normalizedCode === 'DEFAULT') {
+    return ApiResponses.badRequest('DEFAULT batch is created automatically for every SKU')
+  }
   const productionDate = payload.productionDate ? new Date(payload.productionDate) : null
   const expiryDate = payload.expiryDate ? new Date(payload.expiryDate) : null
 
