@@ -656,12 +656,16 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
       }
 
       if (changes.length > 0) {
-        hot.setDataAtRowProp(changes, 'derived-update')
+        preserveScrollPosition(() => {
+          hot.setDataAtRowProp(changes, 'derived-update')
+          setDerivedVersion((prev) => prev + 1)
+        })
+        return
       }
 
       setDerivedVersion((prev) => prev + 1)
     },
-    [columnKeys, columnMeta],
+    [columnKeys, columnMeta, preserveScrollPosition],
   )
 
   const handleColHeader = useCallback(
