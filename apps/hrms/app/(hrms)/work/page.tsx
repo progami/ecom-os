@@ -1,63 +1,37 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { WorkItemsApi, type WorkItem } from '@/lib/api-client'
+import { WorkItemsApi } from '@/lib/api-client'
 import { BellIcon } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
-import { Card } from '@/components/ui/Card'
-import {
-  Table,
-  TableHeader,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableSkeleton,
-  ResultsCount,
-} from '@/components/ui/Table'
-import { TableEmptyState } from '@/components/ui/EmptyState'
-
-function formatWhen(isoString: string) {
-  const date = new Date(isoString)
-  return date.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-function formatDue(dueAt: string | null) {
-  if (!dueAt) return '—'
-  return formatWhen(dueAt)
-}
-
-function getTypeLabel(type: string) {
-  const map: Record<string, string> = {
-    TASK_ASSIGNED: 'Task',
-    POLICY_ACK_REQUIRED: 'Policy',
-    LEAVE_APPROVAL_REQUIRED: 'Leave',
-    REVIEW_DUE: 'Review',
-    REVIEW_PENDING_HR: 'HR Review',
-    REVIEW_PENDING_SUPER_ADMIN: 'Final Approval',
-    REVIEW_ACK_REQUIRED: 'Ack',
-    VIOLATION_PENDING_HR: 'HR Review',
-    VIOLATION_PENDING_SUPER_ADMIN: 'Final Approval',
-    VIOLATION_ACK_REQUIRED: 'Ack',
-    CASE_ASSIGNED: 'Case',
-  }
-  return map[type] ?? type
-}
+import { Alert } from '@/components/ui/Alert'
+import { WorkQueueDashboard } from '@/components/work-queue/WorkQueueDashboard'
+import type { WorkItemsResponse, WorkItemDTO } from '@/lib/contracts/work-items'
+import type { ActionId } from '@/lib/contracts/action-ids'
+import { executeAction } from '@/lib/actions/execute-action'
 
 export default function WorkQueuePage() {
-  const router = useRouter()
-  const [items, setItems] = useState<WorkItem[]>([])
+  const [data, setData] = useState<WorkItemsResponse | null>(null)
   const [loading, setLoading] = useState(true)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (options?: { force?: boolean }) => {
     try {
+      const force = options?.force ?? false
       setLoading(true)
-      const data = await WorkItemsApi.list()
-      setItems(data.items || [])
+      setError(null)
+      const next = await WorkItemsApi.list({ force })
+      setData(next)
+      setSelectedId((prev) => {
+        if (prev && next.items.some((i) => i.id === prev)) return prev
+        return next.items[0]?.id ?? null
+      })
     } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to load work items'
       console.error('Failed to load work items', e)
-      setItems([])
+      setError(message)
+      setData({ items: [], meta: { totalCount: 0, actionRequiredCount: 0, overdueCount: 0 } })
     } finally {
       setLoading(false)
     }
@@ -65,6 +39,17 @@ export default function WorkQueuePage() {
 
   useEffect(() => {
     load()
+  }, [load])
+
+  const handleAction = useCallback(async (actionId: ActionId, item: WorkItemDTO) => {
+    setError(null)
+    try {
+      await executeAction(actionId, item.entity)
+      await load({ force: true })
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to complete action'
+      setError(message)
+    }
   }, [load])
 
   return (
@@ -75,55 +60,20 @@ export default function WorkQueuePage() {
         icon={<BellIcon className="h-6 w-6 text-white" />}
       />
 
-      <div className="space-y-6">
-        <Card padding="md">
-          <p className="text-sm text-gray-600">
-            Review items that need your attention (approvals, acknowledgements, assigned tasks).
-          </p>
-        </Card>
+      {error ? (
+        <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
+          {error}
+        </Alert>
+      ) : null}
 
-        <ResultsCount count={items.length} singular="item" plural="items" loading={loading} />
-
-        <Table>
-          <TableHeader>
-            <TableHead>Item</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Due</TableHead>
-            <TableHead>Created</TableHead>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableSkeleton rows={6} columns={4} />
-            ) : items.length === 0 ? (
-              <TableEmptyState
-                colSpan={4}
-                icon={<BellIcon className="h-10 w-10" />}
-                title="You're all caught up"
-                description="No work items are pending for you right now."
-              />
-            ) : (
-              items.map((item) => (
-                <TableRow key={item.id} onClick={() => router.push(item.href)}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium text-gray-900">{item.title}</p>
-                      {item.description && (
-                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">
-                          {item.description}
-                        </p>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-gray-600">{getTypeLabel(item.type)}</TableCell>
-                  <TableCell className="text-gray-600">{formatDue(item.dueAt)}</TableCell>
-                  <TableCell className="text-gray-600">{formatWhen(item.createdAt)}</TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <WorkQueueDashboard
+        data={data}
+        loading={loading}
+        error={null}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        onAction={handleAction}
+      />
     </>
   )
 }
-

@@ -83,10 +83,10 @@ export async function POST(req: Request, context: RouteContext) {
 
         if (forwardToSuperAdmin) {
           // Forward to Super Admin for final decision
-          const updated = await prisma.disciplinaryAction.update({
-            where: { id },
-            data: {
-              status: 'APPEAL_PENDING_SUPER_ADMIN',
+	          const updated = await prisma.disciplinaryAction.update({
+	            where: { id },
+	            data: {
+	              status: 'APPEAL_PENDING_SUPER_ADMIN',
               appealHrReviewedAt: new Date(),
               appealHrReviewedById: currentEmployeeId,
               appealHrNotes: notes ?? null,
@@ -100,24 +100,26 @@ export async function POST(req: Request, context: RouteContext) {
                   employeeId: true,
                 },
               },
-            },
-          })
+	            },
+	          })
 
-          // Notify Super Admins
-          const superAdmins = await getSuperAdminEmployees()
-          for (const admin of superAdmins) {
-            await prisma.notification.create({
-              data: {
-                type: 'APPEAL_PENDING_ADMIN',
-                title: 'Appeal Pending Final Decision',
-                message: `An appeal from ${updated.employee.firstName} ${updated.employee.lastName} has been reviewed by HR and needs your final decision.`,
-                link: `/performance/disciplinary/${id}`,
-                employeeId: admin.id,
-                relatedId: id,
-                relatedType: 'DISCIPLINARY',
-              },
-            })
-          }
+          const recordLink = updated.caseId ? `/cases/${updated.caseId}` : `/performance/disciplinary/${id}`
+
+	          // Notify Super Admins
+	          const superAdmins = await getSuperAdminEmployees()
+	          for (const admin of superAdmins) {
+	            await prisma.notification.create({
+	              data: {
+	                type: 'APPEAL_PENDING_ADMIN',
+	                title: 'Appeal Pending Final Decision',
+	                message: `An appeal from ${updated.employee.firstName} ${updated.employee.lastName} has been reviewed by HR and needs your final decision.`,
+	                link: recordLink,
+	                employeeId: admin.id,
+	                relatedId: id,
+	                relatedType: 'DISCIPLINARY',
+	              },
+	            })
+	          }
 
           await writeAuditLog({
             actorId: currentEmployeeId,
@@ -170,9 +172,9 @@ export async function POST(req: Request, context: RouteContext) {
           newStatus = DisciplinaryStatus.CLOSED
         }
 
-        const updated = await prisma.disciplinaryAction.update({
-          where: { id },
-          data: {
+	        const updated = await prisma.disciplinaryAction.update({
+	          where: { id },
+	          data: {
             appealStatus,
             appealResolution,
             appealResolvedAt: new Date(),
@@ -194,37 +196,39 @@ export async function POST(req: Request, context: RouteContext) {
                 email: true,
               },
             },
-          },
-        })
+	          },
+	        })
 
-        // Notify employee of appeal decision
-        await prisma.notification.create({
-          data: {
-            type: 'APPEAL_DECIDED',
-            title: `Appeal ${appealStatus.charAt(0) + appealStatus.slice(1).toLowerCase()}`,
-            message: `Your appeal has been ${appealStatus.toLowerCase()}. ${appealResolution ?? ''}`,
-            link: `/performance/disciplinary/${id}`,
-            employeeId: action.employeeId,
-            relatedId: id,
-            relatedType: 'DISCIPLINARY',
-          },
-        })
+        const recordLink = updated.caseId ? `/cases/${updated.caseId}` : `/performance/disciplinary/${id}`
+
+	        // Notify employee of appeal decision
+	        await prisma.notification.create({
+	          data: {
+	            type: 'APPEAL_DECIDED',
+	            title: `Appeal ${appealStatus.charAt(0) + appealStatus.slice(1).toLowerCase()}`,
+	            message: `Your appeal has been ${appealStatus.toLowerCase()}. ${appealResolution ?? ''}`,
+	            link: recordLink,
+	            employeeId: action.employeeId,
+	            relatedId: id,
+	            relatedType: 'DISCIPLINARY',
+	          },
+	        })
 
         // Also notify HR
         const hrEmployees = await getHREmployees()
-        for (const hr of hrEmployees) {
-          await prisma.notification.create({
-            data: {
-              type: 'APPEAL_DECIDED',
-              title: 'Appeal Decision Made',
-              message: `Super Admin has ${appealStatus.toLowerCase()} the appeal for ${updated.employee.firstName} ${updated.employee.lastName}.`,
-              link: `/performance/disciplinary/${id}`,
-              employeeId: hr.id,
-              relatedId: id,
-              relatedType: 'DISCIPLINARY',
-            },
-          })
-        }
+	        for (const hr of hrEmployees) {
+	          await prisma.notification.create({
+	            data: {
+	              type: 'APPEAL_DECIDED',
+	              title: 'Appeal Decision Made',
+	              message: `Super Admin has ${appealStatus.toLowerCase()} the appeal for ${updated.employee.firstName} ${updated.employee.lastName}.`,
+	              link: recordLink,
+	              employeeId: hr.id,
+	              relatedId: id,
+	              relatedType: 'DISCIPLINARY',
+	            },
+	          })
+	        }
 
         await writeAuditLog({
           actorId: currentEmployeeId,
@@ -278,9 +282,9 @@ export async function POST(req: Request, context: RouteContext) {
           newStatus = DisciplinaryStatus.CLOSED
         }
 
-        const updated = await prisma.disciplinaryAction.update({
-          where: { id },
-          data: {
+	      const updated = await prisma.disciplinaryAction.update({
+	        where: { id },
+	        data: {
             appealStatus,
             appealResolution,
             appealResolvedAt: new Date(),
@@ -369,24 +373,26 @@ export async function POST(req: Request, context: RouteContext) {
               position: true,
             },
           },
-        },
-      })
+	        },
+	      })
 
-      // Notify HR about the appeal
-      const hrEmployees = await getHREmployees()
-      for (const hr of hrEmployees) {
-        await prisma.notification.create({
-          data: {
-            type: 'APPEAL_PENDING_HR',
-            title: 'Appeal Submitted - Review Required',
-            message: `${updated.employee.firstName} ${updated.employee.lastName} has submitted an appeal for a violation. Please review.`,
-            link: `/performance/disciplinary/${id}`,
-            employeeId: hr.id,
-            relatedId: id,
-            relatedType: 'DISCIPLINARY',
-          },
-        })
-      }
+      const recordLink = updated.caseId ? `/cases/${updated.caseId}` : `/performance/disciplinary/${id}`
+
+	      // Notify HR about the appeal
+	      const hrEmployees = await getHREmployees()
+	      for (const hr of hrEmployees) {
+	        await prisma.notification.create({
+	          data: {
+	            type: 'APPEAL_PENDING_HR',
+	            title: 'Appeal Submitted - Review Required',
+	            message: `${updated.employee.firstName} ${updated.employee.lastName} has submitted an appeal for a violation. Please review.`,
+	            link: recordLink,
+	            employeeId: hr.id,
+	            relatedId: id,
+	            relatedType: 'DISCIPLINARY',
+	          },
+	        })
+	      }
 
       await writeAuditLog({
         actorId: currentEmployeeId,

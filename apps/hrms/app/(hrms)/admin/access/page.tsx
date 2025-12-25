@@ -116,6 +116,9 @@ export default function AccessManagementPage() {
           emp.id === employeeId ? { ...emp, [field]: newValue } : emp
         )
       )
+      if (employeeId === currentUserId) {
+        window.dispatchEvent(new Event('hrms:me-updated'))
+      }
     } catch (e: any) {
       setError(e.message || 'Failed to update access')
     } finally {
@@ -166,6 +169,33 @@ export default function AccessManagementPage() {
           {error}
         </Alert>
       )}
+
+      <Card padding="md" className="mb-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                Super Admin
+              </span>
+              <span className="text-xs text-gray-500">System owner</span>
+            </div>
+            <p className="text-sm text-gray-700">
+              Full system access. Can manage access, view all records, and provide final approval for violations and reviews.
+            </p>
+          </div>
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                HR
+              </span>
+              <span className="text-xs text-gray-500">People ops</span>
+            </div>
+            <p className="text-sm text-gray-700">
+              Can review violations, access all employee records, and handle HR workflow steps and escalations.
+            </p>
+          </div>
+        </div>
+      </Card>
 
       <Card padding="lg">
         {/* Search */}

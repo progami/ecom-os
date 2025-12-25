@@ -3,6 +3,8 @@ import { isAdminConfigured } from './google-admin'
 import { runProfileCompletionCheckForAll } from './notification-service'
 import { processTaskDueReminders } from './task-reminders'
 import { runNotificationEmailDispatchOnce } from './notification-email-dispatch'
+import { processSlaReminders } from './sla-reminders'
+import { backfillDisciplinaryCases } from './disciplinary-case-backfill'
 import {
   checkAndCreateQuarterlyReviews,
   processRemindersAndEscalations
@@ -13,6 +15,8 @@ let syncInitialized = false
 let quarterlyReviewsInitialized = false
 let taskRemindersInitialized = false
 let notificationEmailDispatchInitialized = false
+let slaRemindersInitialized = false
+let workflowBackfillsInitialized = false
 
 export async function initializeGoogleAdminSync() {
   if (syncInitialized) return
@@ -257,5 +261,136 @@ export function stopNotificationEmailDispatch() {
   if (notificationEmailDispatchInterval) {
     clearInterval(notificationEmailDispatchInterval)
     notificationEmailDispatchInterval = null
+  }
+}
+
+// ============ SLA REMINDERS (WORKFLOW) ============
+
+export async function initializeSlaReminders() {
+  if (slaRemindersInitialized) return
+  slaRemindersInitialized = true
+
+  console.log('[Startup] Running initial SLA reminders...')
+  try {
+    const lock = await runWithCronLock('sla-reminders', 10 * 60 * 1000, async () => {
+      const result = await processSlaReminders()
+      const created =
+        result.leaveApprovalRemindersCreated +
+        result.reviewRemindersCreated +
+        result.disciplinaryRemindersCreated +
+        result.acknowledgmentRemindersCreated +
+        result.checklistTaskRemindersCreated
+      if (created > 0) {
+        console.log(
+          `[SLA Reminders] leave=${result.leaveApprovalRemindersCreated} review=${result.reviewRemindersCreated} disciplinary=${result.disciplinaryRemindersCreated} ack=${result.acknowledgmentRemindersCreated} checklist=${result.checklistTaskRemindersCreated}`
+        )
+      }
+      return result
+    })
+
+    if (!lock.ran) {
+      console.log('[Startup] Skipping initial SLA reminders (lock not acquired)')
+    }
+  } catch (e) {
+    console.error('[Startup] SLA reminders failed:', e)
+  }
+}
+
+let slaReminderInterval: NodeJS.Timeout | null = null
+
+export function startSlaReminders(intervalMs = 6 * 60 * 60 * 1000) {
+  if (slaReminderInterval) return
+
+  slaReminderInterval = setInterval(async () => {
+    console.log('[SLA Reminders] Running periodic check...')
+    try {
+      const lock = await runWithCronLock('sla-reminders', 5 * 60 * 60 * 1000, async () => {
+        const result = await processSlaReminders()
+        const created =
+          result.leaveApprovalRemindersCreated +
+          result.reviewRemindersCreated +
+          result.disciplinaryRemindersCreated +
+          result.acknowledgmentRemindersCreated +
+          result.checklistTaskRemindersCreated
+        if (created > 0) {
+          console.log(
+            `[SLA Reminders] leave=${result.leaveApprovalRemindersCreated} review=${result.reviewRemindersCreated} disciplinary=${result.disciplinaryRemindersCreated} ack=${result.acknowledgmentRemindersCreated} checklist=${result.checklistTaskRemindersCreated}`
+          )
+        }
+        return result
+      })
+
+      if (!lock.ran) {
+        console.log('[SLA Reminders] Skipping periodic check (lock not acquired)')
+      }
+    } catch (e) {
+      console.error('[SLA Reminders] Periodic check failed:', e)
+    }
+  }, intervalMs)
+
+  console.log(`[Startup] SLA reminders scheduled every ${intervalMs / 3600000} hours`)
+}
+
+export function stopSlaReminders() {
+  if (slaReminderInterval) {
+    clearInterval(slaReminderInterval)
+    slaReminderInterval = null
+  }
+}
+
+// ============ WORKFLOW BACKFILLS (DATA) ============
+
+export async function initializeWorkflowBackfills() {
+  if (workflowBackfillsInitialized) return
+  workflowBackfillsInitialized = true
+
+  console.log('[Startup] Running initial workflow backfills...')
+  try {
+    const lock = await runWithCronLock('workflow-backfills', 10 * 60 * 1000, async () => {
+      const result = await backfillDisciplinaryCases({ take: 50 })
+      if (result.linked > 0 || result.skipped > 0) {
+        console.log(`[Backfill] disciplinary cases linked=${result.linked}/${result.scanned} skipped=${result.skipped}`)
+      }
+      return result
+    })
+
+    if (!lock.ran) {
+      console.log('[Startup] Skipping initial workflow backfills (lock not acquired)')
+    }
+  } catch (e) {
+    console.error('[Startup] Workflow backfills failed:', e)
+  }
+}
+
+let workflowBackfillInterval: NodeJS.Timeout | null = null
+
+export function startWorkflowBackfills(intervalMs = 30 * 60 * 1000) {
+  if (workflowBackfillInterval) return
+
+  workflowBackfillInterval = setInterval(async () => {
+    try {
+      const lock = await runWithCronLock('workflow-backfills', 25 * 60 * 1000, async () => {
+        const result = await backfillDisciplinaryCases({ take: 50 })
+        if (result.linked > 0 || result.skipped > 0) {
+          console.log(`[Backfill] disciplinary cases linked=${result.linked}/${result.scanned} skipped=${result.skipped}`)
+        }
+        return result
+      })
+
+      if (!lock.ran) {
+        return
+      }
+    } catch (e) {
+      console.error('[Backfill] periodic run failed:', e)
+    }
+  }, intervalMs)
+
+  console.log(`[Startup] Workflow backfills scheduled every ${Math.round(intervalMs / 60000)} minutes`)
+}
+
+export function stopWorkflowBackfills() {
+  if (workflowBackfillInterval) {
+    clearInterval(workflowBackfillInterval)
+    workflowBackfillInterval = null
   }
 }

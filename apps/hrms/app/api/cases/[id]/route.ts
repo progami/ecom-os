@@ -5,6 +5,8 @@ import { getCurrentEmployeeId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
 import { isHROrAbove, isManagerOf } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
+import { getViewerContext } from '@/lib/domain/workflow/viewer'
+import { caseToWorkflowRecordDTO } from '@/lib/domain/cases/workflow-record'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -65,6 +67,8 @@ export async function GET(req: Request, context: RouteContext) {
   if (rateLimitError) return rateLimitError
 
   try {
+    const { searchParams } = new URL(req.url)
+    const format = searchParams.get('format')
     const { id } = await context.params
     if (!id || id.length > 100) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
@@ -81,6 +85,45 @@ export async function GET(req: Request, context: RouteContext) {
     }
     if (!access.allowed) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    if (format === 'workflow') {
+      const viewer = await getViewerContext(actorId)
+      const isCreator = access.base.createdById === actorId
+      const isAssignee = access.base.assignedToId === actorId
+      const canEdit = viewer.isHR || viewer.isSuperAdmin || isCreator || isAssignee
+
+      const c = await prisma.case.findUnique({
+        where: { id },
+        include: {
+          subjectEmployee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeId: true,
+              avatar: true,
+              department: true,
+              position: true,
+            },
+          },
+          assignedTo: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+        },
+      })
+
+      if (!c) {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
+
+      const dto = await caseToWorkflowRecordDTO(c as any, {
+        employeeId: actorId,
+        isHR: viewer.isHR,
+        isSuperAdmin: viewer.isSuperAdmin,
+        canEdit,
+        canView: true,
+      })
+
+      return NextResponse.json(dto)
     }
 
     const isCreator = access.base.createdById === actorId
@@ -114,7 +157,16 @@ export async function GET(req: Request, context: RouteContext) {
 
     const includeAttachments = access.isHR || managerLike
       ? {
-          include: {
+          select: {
+            id: true,
+            caseId: true,
+            uploadedById: true,
+            title: true,
+            fileName: true,
+            contentType: true,
+            size: true,
+            visibility: true,
+            createdAt: true,
             uploadedBy: { select: { id: true, firstName: true, lastName: true, avatar: true } },
           },
           orderBy: { createdAt: 'desc' as const },

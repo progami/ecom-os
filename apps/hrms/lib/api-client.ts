@@ -1,6 +1,9 @@
 // Centralized, typed API client for HRMS
 // Avoid direct fetch calls in UI components
 
+import type { WorkItemDTO, WorkItemsResponse } from '@/lib/contracts/work-items'
+import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
+
 export type Employee = {
   id: string
   employeeId: string
@@ -231,6 +234,9 @@ export const PoliciesApi = {
   },
   get(id: string) {
     return request<Policy>(`/api/policies/${encodeURIComponent(id)}`)
+  },
+  getWorkflowRecord(id: string) {
+    return request<WorkflowRecordDTO>(`/api/policies/${encodeURIComponent(id)}?format=workflow`)
   },
   create(payload: Partial<Policy> & { title: string; category: string; region: string; status?: string }) {
     return request<Policy>(`/api/policies`, {
@@ -558,6 +564,9 @@ export const PerformanceReviewsApi = {
   get(id: string) {
     return request<PerformanceReview>(`/api/performance-reviews/${encodeURIComponent(id)}`)
   },
+  getWorkflowRecord(id: string) {
+    return request<WorkflowRecordDTO>(`/api/performance-reviews/${encodeURIComponent(id)}?format=workflow`)
+  },
   create(payload: CreatePerformanceReviewInput) {
     return request<PerformanceReview>(`/api/performance-reviews`, {
       method: 'POST',
@@ -664,6 +673,9 @@ export const DisciplinaryActionsApi = {
   },
   get(id: string) {
     return request<DisciplinaryAction>(`/api/disciplinary-actions/${encodeURIComponent(id)}`)
+  },
+  getWorkflowRecord(id: string) {
+    return request<WorkflowRecordDTO>(`/api/disciplinary-actions/${encodeURIComponent(id)}?format=workflow`)
   },
   create(payload: {
     employeeId: string
@@ -903,6 +915,9 @@ export const LeavesApi = {
   },
   get(id: string) {
     return request<LeaveRequest>(`/api/leaves/${encodeURIComponent(id)}`)
+  },
+  getWorkflowRecord(id: string) {
+    return request<WorkflowRecordDTO>(`/api/leaves/${encodeURIComponent(id)}?format=workflow`)
   },
   create(payload: {
     employeeId: string
@@ -1152,20 +1167,25 @@ export const StandingApi = {
 }
 
 // Work Items
-export type WorkItem = {
-  id: string
-  type: string
-  title: string
-  description: string | null
-  href: string
-  createdAt: string
-  dueAt: string | null
-  priority: number
-}
+export type WorkItem = WorkItemDTO
+
+let workItemsCache: { at: number; value: WorkItemsResponse } | null = null
+const WORK_ITEMS_CACHE_TTL_MS = 10_000
 
 export const WorkItemsApi = {
-  list() {
-    return request<{ items: WorkItem[] }>('/api/work-items')
+  async list(options?: { force?: boolean }) {
+    const force = options?.force ?? false
+    const now = Date.now()
+    if (!force && workItemsCache && now - workItemsCache.at < WORK_ITEMS_CACHE_TTL_MS) {
+      return workItemsCache.value
+    }
+
+    const value = await request<WorkItemsResponse>('/api/work-items')
+    workItemsCache = { at: now, value }
+    return value
+  },
+  invalidate() {
+    workItemsCache = null
   },
 }
 
@@ -1318,7 +1338,10 @@ export type CaseAttachment = {
   caseId: string
   uploadedById: string
   title?: string | null
-  fileUrl: string
+  fileName?: string | null
+  contentType?: string | null
+  size?: number | null
+  visibility?: string
   createdAt: string
   uploadedBy: CasePerson
 }
@@ -1377,6 +1400,12 @@ export const CasesApi = {
   },
   get(id: string) {
     return request<Case>(`/api/cases/${encodeURIComponent(id)}`)
+  },
+  getWorkflowRecord(id: string) {
+    return request<WorkflowRecordDTO>(`/api/cases/${encodeURIComponent(id)}?format=workflow`)
+  },
+  getLinkedDisciplinary(id: string) {
+    return request<{ disciplinaryActionId: string | null }>(`/api/cases/${encodeURIComponent(id)}/disciplinary`)
   },
   create(payload: {
     caseType: string
@@ -1439,13 +1468,6 @@ export const CasesApi = {
   listAttachments(id: string) {
     return request<{ items: CaseAttachment[]; total: number }>(`/api/cases/${encodeURIComponent(id)}/attachments`)
   },
-  addAttachment(id: string, payload: { title?: string | null; fileUrl: string }) {
-    return request<CaseAttachment>(`/api/cases/${encodeURIComponent(id)}/attachments`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-  },
 }
 
 // Audit Logs
@@ -1501,5 +1523,272 @@ export const EmployeeTimelineApi = {
     return request<{ items: TimelineEvent[]; total: number }>(
       `/api/employees/${encodeURIComponent(employeeId)}/timeline${qs ? `?${qs}` : ''}`
     )
+  },
+}
+
+// HRMS Settings
+export type HrmsSettings = {
+  defaultHROwnerId: string | null
+  defaultITOwnerId: string | null
+  defaultHROwner?: { id: string; employeeId: string; firstName: string; lastName: string } | null
+  defaultITOwner?: { id: string; employeeId: string; firstName: string; lastName: string } | null
+}
+
+export const HrmsSettingsApi = {
+  get() {
+    return request<HrmsSettings>('/api/hrms-settings')
+  },
+  update(payload: { defaultHROwnerId?: string | null; defaultITOwnerId?: string | null }) {
+    return request<{ defaultHROwnerId: string | null; defaultITOwnerId: string | null }>('/api/hrms-settings', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+  },
+}
+
+// Checklist Templates
+export type ChecklistLifecycleType = 'ONBOARDING' | 'OFFBOARDING'
+export type ChecklistOwnerType = 'HR' | 'MANAGER' | 'IT' | 'EMPLOYEE'
+
+export type ChecklistTemplateItemInput = {
+  title: string
+  description?: string | null
+  ownerType: ChecklistOwnerType
+  dueOffsetDays?: number
+  evidenceRequired?: boolean
+  dependsOnIndex?: number | null
+}
+
+export type ChecklistTemplateItem = {
+  id: string
+  title: string
+  description?: string | null
+  ownerType: ChecklistOwnerType
+  dueOffsetDays: number
+  evidenceRequired: boolean
+  dependsOnItemId?: string | null
+  sortOrder: number
+}
+
+export type ChecklistTemplate = {
+  id: string
+  name: string
+  lifecycleType: ChecklistLifecycleType
+  version: number
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+  items: ChecklistTemplateItem[]
+  _count?: { items: number; instances: number }
+}
+
+export const ChecklistTemplatesApi = {
+  list() {
+    return request<{ items: ChecklistTemplate[]; total: number }>('/api/checklist-templates')
+  },
+  get(id: string) {
+    return request<ChecklistTemplate>(`/api/checklist-templates/${encodeURIComponent(id)}`)
+  },
+  create(payload: { name: string; lifecycleType: ChecklistLifecycleType; isActive?: boolean; items: ChecklistTemplateItemInput[] }) {
+    return request<ChecklistTemplate>('/api/checklist-templates', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+  update(id: string, payload: { name?: string; isActive?: boolean; items?: ChecklistTemplateItemInput[] }) {
+    return request<ChecklistTemplate>(`/api/checklist-templates/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+  },
+}
+
+// Checklists
+export type ChecklistProgress = {
+  total: number
+  done: number
+  open: number
+  blocked: number
+  percentDone: number
+}
+
+export type ChecklistInstanceSummary = {
+  id: string
+  lifecycleType: ChecklistLifecycleType
+  anchorDate: string
+  createdAt: string
+  template: { id: string; name: string; lifecycleType: ChecklistLifecycleType; version: number }
+  employee: { id: string; employeeId: string; firstName: string; lastName: string; joinDate: string; department: string; position: string; avatar?: string | null }
+  progress: ChecklistProgress
+}
+
+export type ChecklistInstanceDetail = {
+  id: string
+  lifecycleType: ChecklistLifecycleType
+  anchorDate: string
+  createdAt: string
+  updatedAt: string
+  template: { id: string; name: string; lifecycleType: ChecklistLifecycleType; version: number }
+  employee: { id: string; employeeId: string; firstName: string; lastName: string; department: string; position: string; avatar?: string | null }
+  items: Array<{
+    id: string
+    status: string
+    dueDate?: string | null
+    completedAt?: string | null
+    templateItem: ChecklistTemplateItem
+    task?: {
+      id: string
+      title: string
+      status: string
+      dueDate?: string | null
+      assignedTo?: { id: string; firstName: string; lastName: string; avatar?: string | null } | null
+    } | null
+  }>
+}
+
+export const ChecklistsApi = {
+  list(params: { lifecycleType?: ChecklistLifecycleType } = {}) {
+    const qp = new URLSearchParams()
+    if (params.lifecycleType) qp.set('lifecycleType', params.lifecycleType)
+    const qs = qp.toString()
+    return request<{ items: ChecklistInstanceSummary[]; total: number }>(`/api/checklists${qs ? `?${qs}` : ''}`)
+  },
+  create(payload: { employeeId: string; lifecycleType: ChecklistLifecycleType; templateId?: string }) {
+    return request<{ instanceId: string; created: boolean }>('/api/checklists', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+  get(id: string) {
+    return request<ChecklistInstanceDetail>(`/api/checklists/${encodeURIComponent(id)}`)
+  },
+  getWorkflow(id: string) {
+    return request<any>(`/api/checklists/${encodeURIComponent(id)}?format=workflow`)
+  },
+}
+
+export const OnboardingApi = {
+  overview() {
+    return request<{
+      templates: Array<{ id: string; name: string; version: number; updatedAt: string }>
+      instances: ChecklistInstanceSummary[]
+      employeesWithoutOnboarding: ChecklistInstanceSummary['employee'][]
+    }>('/api/onboarding')
+  },
+}
+
+// Uploads (S3 presign + finalize)
+export type UploadTarget = { type: 'EMPLOYEE' | 'CASE'; id: string }
+export type UploadVisibility = 'HR_ONLY' | 'EMPLOYEE_AND_HR' | 'INTERNAL_HR'
+
+export const UploadsApi = {
+  presign(payload: { filename: string; contentType: string; size: number; target: UploadTarget; visibility?: UploadVisibility }) {
+    return request<{ putUrl: string; key: string }>('/api/uploads/presign', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+  finalize(payload: { key: string; filename: string; contentType: string; size: number; target: UploadTarget; visibility?: UploadVisibility; title?: string | null }) {
+    return request<any>('/api/uploads/finalize', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+}
+
+// Employee Files (document vault)
+export type EmployeeFile = {
+  id: string
+  title: string
+  fileName?: string | null
+  contentType?: string | null
+  size?: number | null
+  visibility: 'HR_ONLY' | 'EMPLOYEE_AND_HR'
+  uploadedAt: string
+  uploadedBy?: { id: string; firstName: string; lastName: string } | null
+}
+
+export const EmployeeFilesApi = {
+  list(employeeId: string) {
+    return request<{ items: EmployeeFile[]; total: number }>(`/api/employees/${encodeURIComponent(employeeId)}/files`)
+  },
+  getDownloadUrl(employeeId: string, fileId: string) {
+    return request<{ url: string }>(
+      `/api/employees/${encodeURIComponent(employeeId)}/files/${encodeURIComponent(fileId)}/download`
+    )
+  },
+}
+
+export const CaseAttachmentsApi = {
+  getDownloadUrl(caseId: string, attachmentId: string) {
+    return request<{ url: string }>(
+      `/api/cases/${encodeURIComponent(caseId)}/attachments/${encodeURIComponent(attachmentId)}/download`
+    )
+  },
+}
+
+// Ops dashboards (Admin)
+export type HrOpsDashboardWorkItem = {
+  id: string
+  href: string
+  title: string
+  subtitle: string
+  createdAt?: string | null
+  dueAt?: string | null
+}
+
+export type HrOpsDashboardSnapshot = {
+  generatedAt: string
+  overdue: {
+    leaves: { count: number; items: HrOpsDashboardWorkItem[] }
+    reviews: { count: number; items: HrOpsDashboardWorkItem[] }
+    violations: { count: number; items: HrOpsDashboardWorkItem[] }
+    acknowledgements: { count: number; items: HrOpsDashboardWorkItem[] }
+    onboarding: {
+      blockedCount: number
+      overdueTasksCount: number
+      blockedItems: HrOpsDashboardWorkItem[]
+      overdueTasks: HrOpsDashboardWorkItem[]
+    }
+  }
+  cases: {
+    byStatus: Record<string, number>
+    bySeverity: Record<string, number>
+  }
+}
+
+export type ComplianceDepartmentSummary = {
+  department: string
+  applicableCount: number
+  acknowledgedCount: number
+  pendingCount: number
+  compliancePct: number
+}
+
+export type CompliancePolicySummary = {
+  policyId: string
+  title: string
+  category: string
+  region: string
+  version: string
+  effectiveDate: string | null
+  applicableCount: number
+  acknowledgedCount: number
+  pendingCount: number
+  compliancePct: number
+  byDepartment: ComplianceDepartmentSummary[]
+}
+
+export type ComplianceDashboardSnapshot = {
+  generatedAt: string
+  policies: CompliancePolicySummary[]
+}
+
+export const OpsDashboardsApi = {
+  getHrOps() {
+    return request<HrOpsDashboardSnapshot>('/api/dashboards/hr-ops')
+  },
+  getCompliance() {
+    return request<ComplianceDashboardSnapshot>('/api/dashboards/compliance')
   },
 }

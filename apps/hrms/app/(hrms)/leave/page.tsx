@@ -573,7 +573,10 @@ function LeavePageContent() {
           icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
         />
         <Card padding="lg">
-          <Alert variant="error">Your employee profile was not found</Alert>
+          <Alert variant="error" className="mb-4">
+            Your employee profile was not found.
+          </Alert>
+          <Button href="/no-access">Request access / support</Button>
         </Card>
       </>
     )

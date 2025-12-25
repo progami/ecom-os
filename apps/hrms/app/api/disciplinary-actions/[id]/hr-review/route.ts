@@ -91,6 +91,8 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
+      const recordLink = updated.caseId ? `/cases/${updated.caseId}` : `/performance/disciplinary/${id}`
+
       // Notify Super Admins
       const superAdmins = await getSuperAdminEmployees()
       for (const admin of superAdmins) {
@@ -99,7 +101,7 @@ export async function POST(req: Request, context: RouteContext) {
             type: 'VIOLATION_PENDING_ADMIN',
             title: 'Violation Pending Final Approval',
             message: `A violation for ${updated.employee.firstName} ${updated.employee.lastName} has been reviewed by HR and needs your final approval.`,
-            link: `/performance/disciplinary/${id}`,
+            link: recordLink,
             employeeId: admin.id,
             relatedId: id,
             relatedType: 'DISCIPLINARY',
@@ -149,6 +151,8 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
+      const recordLink = updated.caseId ? `/cases/${updated.caseId}` : `/performance/disciplinary/${id}`
+
       // Notify the manager who raised it (reportedBy field contains their name, but we need to find by reportsToId)
       if (action.employee.reportsToId) {
         await prisma.notification.create({
@@ -156,7 +160,7 @@ export async function POST(req: Request, context: RouteContext) {
             type: 'VIOLATION_REJECTED',
             title: 'Violation Rejected by HR',
             message: `The violation you raised for ${updated.employee.firstName} ${updated.employee.lastName} has been rejected by HR.`,
-            link: `/performance/disciplinary/${id}`,
+            link: recordLink,
             employeeId: action.employee.reportsToId,
             relatedId: id,
             relatedType: 'DISCIPLINARY',

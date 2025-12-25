@@ -5,6 +5,8 @@ import { getCurrentEmployeeId } from '@/lib/current-user'
 import { writeAuditLog } from '@/lib/audit'
 import { z } from 'zod'
 import { isHROrAbove } from '@/lib/permissions'
+import { getViewerContext } from '@/lib/domain/workflow/viewer'
+import { leaveToWorkflowRecordDTO } from '@/lib/domain/leave/workflow-record'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -23,6 +25,8 @@ export async function GET(req: Request, context: RouteContext) {
   if (rateLimitError) return rateLimitError
 
   try {
+    const { searchParams } = new URL(req.url)
+    const format = searchParams.get('format')
     const { id } = await context.params
 
     if (!id || id.length > 100) {
@@ -63,6 +67,12 @@ export async function GET(req: Request, context: RouteContext) {
 
     if (!canView) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    if (format === 'workflow') {
+      const viewer = await getViewerContext(currentEmployeeId)
+      const dto = await leaveToWorkflowRecordDTO(leaveRequest as any, viewer)
+      return NextResponse.json(dto)
     }
 
     return NextResponse.json(leaveRequest)

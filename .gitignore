@@ -53,4 +53,5 @@ apps/archived/**/prisma/*.db*
 Pers/
 .env.local
 .todo*
+todo-hrms.md
 cookies.txt
