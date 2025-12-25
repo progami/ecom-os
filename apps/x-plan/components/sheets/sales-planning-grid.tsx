@@ -233,6 +233,29 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
     return map
   }, [columnKeys, columnMeta])
 
+  const firstBelowThresholdWeekByProduct = useMemo(() => {
+    const result = new Map<string, number>()
+    if (!Number.isFinite(warningThreshold)) return result
+
+    stockWeeksKeyByProduct.forEach((weeksKey, productId) => {
+      for (const row of data) {
+        const week = Number(row.weekNumber)
+        if (!Number.isFinite(week)) continue
+
+        const rawWeeks = row[weeksKey]
+        const weeksNumeric = rawWeeks !== undefined ? Number(rawWeeks) : Number.NaN
+        if (!Number.isFinite(weeksNumeric)) continue
+
+        if (weeksNumeric <= warningThreshold) {
+          result.set(productId, week)
+          break
+        }
+      }
+    })
+
+    return result
+  }, [data, stockWeeksKeyByProduct, warningThreshold])
+
   const reorderStartByProduct = useMemo(() => {
     const result = new Map<string, Map<number, { breachWeek: number; breachDate: string; startWeekRaw: number }>>()
     if (!Number.isFinite(warningThreshold)) return result
@@ -705,6 +728,10 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
               const weeksNumeric = rawWeeks !== undefined ? Number(rawWeeks) : Number.NaN
               const isBelowThreshold = !Number.isNaN(weeksNumeric) && weeksNumeric <= warningThreshold
               const isInfiniteWeeks = rawWeeks === '∞'
+              const isFirstBelowThresholdWeek =
+                weeksKey != null &&
+                Number.isFinite(weekNumber) &&
+                firstBelowThresholdWeekByProduct.get(meta.productId) === weekNumber
 	              const isStockColumn =
 	                (meta.field === 'stockWeeks' && activeStockMetric === 'stockWeeks') ||
 	                (meta.field === 'stockEnd' && activeStockMetric === 'stockEnd')
@@ -778,7 +805,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
 
 	                const leadProfile = leadTimeByProduct[meta.productId]
 	                const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : 0
-	                if (leadTimeWeeks > 0) {
+	                if (isFirstBelowThresholdWeek && leadTimeWeeks > 0 && !cell.comment) {
 	                  const startWeekRaw = weekNumber - leadTimeWeeks
 	                  const startWeek =
 	                    minWeekAvailable != null ? Math.max(minWeekAvailable, startWeekRaw) : startWeekRaw
