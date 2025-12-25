@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server'
 import { withAuthAndParams } from '@/lib/api/auth-wrapper'
-import { getTenantPrisma } from '@/lib/tenant/server'
+import { getCurrentTenantCode, getTenantPrisma } from '@/lib/tenant/server'
 import { getS3Service } from '@/services/s3.service'
 import { validateFile, scanFileContent } from '@/lib/security/file-upload'
 import { PurchaseOrderDocumentStage, Prisma } from '@ecom-os/prisma-wms'
+import { toPublicOrderNumber } from '@/lib/services/purchase-order-utils'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60 // 60 seconds for file uploads
@@ -23,6 +24,17 @@ function parseStage(value: unknown): PurchaseOrderDocumentStage | null {
     : null
 }
 
+function parseDocumentType(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const trimmed = value.trim().toLowerCase()
+  if (!trimmed) return null
+
+  // Keep this strict so S3 keys and DB composite keys stay predictable.
+  // UI uses snake_case ids (e.g. bill_of_lading).
+  if (!/^[a-z0-9][a-z0-9_-]*$/.test(trimmed)) return null
+  return trimmed
+}
+
 export const POST = withAuthAndParams(async (request, params, session) => {
   try {
     const { id } = params as { id: string }
@@ -39,7 +51,7 @@ export const POST = withAuthAndParams(async (request, params, session) => {
     const stageRaw = formData.get('stage')
 
     const stage = parseStage(stageRaw)
-    const documentType = typeof documentTypeRaw === 'string' ? documentTypeRaw.trim() : ''
+    const documentType = parseDocumentType(documentTypeRaw)
 
     if (!file || !documentType || !stage) {
       return NextResponse.json(
@@ -50,7 +62,7 @@ export const POST = withAuthAndParams(async (request, params, session) => {
 
     const order = await prisma.purchaseOrder.findUnique({
       where: { id },
-      select: { id: true, isLegacy: true },
+      select: { id: true, isLegacy: true, orderNumber: true },
     })
 
     if (!order) {
@@ -74,8 +86,18 @@ export const POST = withAuthAndParams(async (request, params, session) => {
       return NextResponse.json({ error: scanResult.error }, { status: 400 })
     }
 
+    const tenantCode = await getCurrentTenantCode()
+    const purchaseOrderNumber = toPublicOrderNumber(order.orderNumber)
+
     const s3Key = s3Service.generateKey(
-      { type: 'purchase-order', purchaseOrderId: id, stage, documentType },
+      {
+        type: 'purchase-order',
+        purchaseOrderId: id,
+        tenantCode,
+        purchaseOrderNumber,
+        stage,
+        documentType,
+      },
       file.name
     )
 
@@ -83,6 +105,8 @@ export const POST = withAuthAndParams(async (request, params, session) => {
       contentType: file.type,
       metadata: {
         purchaseOrderId: id,
+        tenantCode,
+        purchaseOrderNumber,
         stage,
         documentType,
         originalName: file.name,
@@ -222,4 +246,3 @@ export const GET = withAuthAndParams(async (request, params, _session) => {
     )
   }
 })
-

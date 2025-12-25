@@ -45,6 +45,10 @@ export type FileContext =
   | {
       type: 'purchase-order';
       purchaseOrderId: string;
+      /** Optional tenant code (e.g., US/UK) to keep multi-tenant uploads organized in S3. */
+      tenantCode?: string;
+      /** Optional public order number (e.g., PO-0001) to keep PO uploads human-navigable in S3. */
+      purchaseOrderNumber?: string;
       stage: 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED';
       documentType: string;
     }
@@ -99,30 +103,43 @@ export class S3Service {
         const date = new Date();
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
-        return `transactions/${year}/${month}/${context.transactionId}/${context.documentType}_${timestamp}_${hash}_${sanitizedFilename}`;
+        const documentType = this.sanitizeFilename(context.documentType);
+        return `transactions/${year}/${month}/${context.transactionId}/${documentType}_${timestamp}_${hash}_${sanitizedFilename}`;
       }
       case 'purchase-order': {
-        const date = new Date();
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        return `purchase-orders/${year}/${month}/${context.purchaseOrderId}/${context.stage}/${context.documentType}_${timestamp}_${hash}_${sanitizedFilename}`;
+        const tenant = context.tenantCode ? this.sanitizeFilename(context.tenantCode) : 'unknown';
+        const purchaseOrderNumber = context.purchaseOrderNumber
+          ? this.sanitizeFilename(context.purchaseOrderNumber)
+          : null;
+        const purchaseOrderFolder = purchaseOrderNumber
+          ? `${purchaseOrderNumber}--${context.purchaseOrderId}`
+          : context.purchaseOrderId;
+        const documentType = this.sanitizeFilename(context.documentType);
+
+        // Keep all documents for a single PO under one stable prefix (no year/month sharding),
+        // so uploads over multiple months don't scatter across folders.
+        return `purchase-orders/${tenant}/${purchaseOrderFolder}/${context.stage}/${documentType}/${timestamp}_${hash}_${sanitizedFilename}`;
       }
       case 'export-temp': {
-        return `exports/temp/${context.userId}/${context.exportType}_${timestamp}_${sanitizedFilename}`;
+        const exportType = this.sanitizeFilename(context.exportType);
+        return `exports/temp/${context.userId}/${exportType}_${timestamp}_${sanitizedFilename}`;
       }
       case 'export-scheduled': {
         const dateStr = context.date.toISOString().split('T')[0];
-        return `exports/scheduled/${context.frequency}/${dateStr}/${context.reportType}_${timestamp}_${sanitizedFilename}`;
+        const reportType = this.sanitizeFilename(context.reportType);
+        return `exports/scheduled/${context.frequency}/${dateStr}/${reportType}_${timestamp}_${sanitizedFilename}`;
       }
       case 'template': {
         const version = new Date().toISOString().split('T')[0].replace(/-/g, '');
-        return `templates/${context.templateType}_v${version}_${sanitizedFilename}`;
+        const templateType = this.sanitizeFilename(context.templateType);
+        return `templates/${templateType}_v${version}_${sanitizedFilename}`;
       }
       case 'generated-invoice': {
         const date = new Date();
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
-        return `generated-invoices/${year}/${month}/${context.invoiceId}/invoice_${context.invoiceNumber}_${timestamp}.pdf`;
+        const invoiceNumber = this.sanitizeFilename(context.invoiceNumber);
+        return `generated-invoices/${year}/${month}/${context.invoiceId}/invoice_${invoiceNumber}_${timestamp}.pdf`;
       }
       case 'warehouse-rate-list': {
         return `warehouses/${context.warehouseId}/rate-lists/${timestamp}_${hash}_${sanitizedFilename}`;

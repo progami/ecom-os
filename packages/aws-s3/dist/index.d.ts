@@ -28,6 +28,10 @@ export type FileContext = {
 } | {
     type: 'purchase-order';
     purchaseOrderId: string;
+    /** Optional tenant code (e.g., US/UK) to keep multi-tenant uploads organized in S3. */
+    tenantCode?: string;
+    /** Optional public order number (e.g., PO-0001) to keep PO uploads human-navigable in S3. */
+    purchaseOrderNumber?: string;
     stage: 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED';
     documentType: string;
 } | {
