@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { useSession } from '@/hooks/usePortalSession'
 import { toast } from 'react-hot-toast'
 import { DashboardLayout } from '@/components/layout/dashboard-layout'
@@ -65,6 +66,9 @@ function ProductsPageContent() {
           actions={
             <div className="flex items-center gap-2">
               <ImportButton entityName="skus" onImportComplete={() => window.location.reload()} />
+              <Button asChild variant="outline">
+                <Link href="/config/products/batches">Batches</Link>
+              </Button>
               <Button onClick={handleOpenSkuModal} className="gap-2">
                 <Plus className="h-4 w-4" />
                 Add SKU

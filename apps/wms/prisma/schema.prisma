@@ -367,6 +367,7 @@ model PurchaseOrder {
 
   lines         PurchaseOrderLine[]
   containers    PurchaseOrderContainer[]
+  documents     PurchaseOrderDocument[]
   transactions  InventoryTransaction[]   @relation("TransactionPurchaseOrder")
   movementNotes MovementNote[]
   invoiceLines  WarehouseInvoiceLine[]   @relation("WarehouseInvoiceLinePurchaseOrder")
@@ -377,6 +378,28 @@ model PurchaseOrder {
   @@index([isLegacy])
   @@index([warehouseCode])
   @@map("purchase_orders")
+}
+
+model PurchaseOrderDocument {
+  id              String                   @id @default(uuid())
+  purchaseOrderId String                   @map("purchase_order_id")
+  purchaseOrder   PurchaseOrder            @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  stage           PurchaseOrderDocumentStage @map("stage")
+  documentType    String                   @map("document_type")
+  fileName        String                   @map("file_name")
+  contentType     String                   @map("content_type")
+  size            Int                      @map("size")
+  s3Key           String                   @map("s3_key")
+  uploadedAt      DateTime                 @default(now()) @map("uploaded_at")
+  uploadedById    String?                  @map("uploaded_by_id")
+  uploadedByName  String?                  @map("uploaded_by_name")
+  metadata        Json?                    @map("metadata")
+
+  @@unique([purchaseOrderId, stage, documentType])
+  @@index([purchaseOrderId])
+  @@index([stage])
+  @@index([documentType])
+  @@map("purchase_order_documents")
 }
 
 model PurchaseOrderLine {
@@ -670,6 +693,15 @@ enum OutboundShipMode {
   CARTONS
 
   @@map("OutboundShipMode")
+}
+
+enum PurchaseOrderDocumentStage {
+  MANUFACTURING
+  OCEAN
+  WAREHOUSE
+  SHIPPED
+
+  @@map("PurchaseOrderDocumentStage")
 }
 
 enum MovementNoteStatus {

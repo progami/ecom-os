@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { toast } from 'react-hot-toast'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -10,7 +11,6 @@ import { Label } from '@/components/ui/label'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { Edit2, Loader2, Package2, Plus, Search } from '@/lib/lucide-icons'
 import { cn } from '@/lib/utils'
-import { SkuBatchesModal } from './sku-batches-modal'
 
 interface SkuBatchRow {
   id: string
@@ -177,19 +177,6 @@ function formatDimensionFromCm(valueCm: number | null, unitSystem: UnitSystem): 
   return formatNumber(resolved, 2)
 }
 
-function formatDimensionTripletDisplay(
-  triplet: DimensionTripletCm,
-  unitSystem: UnitSystem
-): string {
-  if (triplet.lengthCm === null || triplet.widthCm === null || triplet.heightCm === null) return '—'
-
-  const convert = (valueCm: number) => (unitSystem === 'imperial' ? valueCm / CM_PER_INCH : valueCm)
-  const length = formatNumber(convert(triplet.lengthCm), 2)
-  const width = formatNumber(convert(triplet.widthCm), 2)
-  const height = formatNumber(convert(triplet.heightCm), 2)
-  return `${length}×${width}×${height}`
-}
-
 interface SkuFormState {
   skuCode: string
   description: string
@@ -328,14 +315,13 @@ interface SkusPanelProps {
 }
 
 export default function SkusPanel({ externalModalOpen, onExternalModalClose }: SkusPanelProps) {
+  const router = useRouter()
   const [skus, setSkus] = useState<SkuRow[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [showInactive, setShowInactive] = useState(false)
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([])
   const [suppliersLoading, setSuppliersLoading] = useState(false)
-  const [batchesSku, setBatchesSku] = useState<SkuRow | null>(null)
-  const [selectedBatchBySkuId, setSelectedBatchBySkuId] = useState<Record<string, string>>({})
 
   const [unitSystem, setUnitSystem] = useState<UnitSystem>('metric')
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -823,11 +809,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   <th className="px-4 py-3 text-left font-semibold">SKU</th>
                   <th className="px-4 py-3 text-left font-semibold">Description</th>
                   <th className="px-4 py-3 text-left font-semibold">ASIN</th>
-                  <th className="px-4 py-3 text-left font-semibold">Batch/Lot</th>
-                  <th className="px-4 py-3 text-right font-semibold">Item Dims (cm)</th>
-                  <th className="px-4 py-3 text-right font-semibold">Carton Dims (cm)</th>
-                  <th className="px-4 py-3 text-right font-semibold">Pack</th>
-                  <th className="px-4 py-3 text-right font-semibold">Units/Carton</th>
                   <th className="px-4 py-3 text-right font-semibold">Txns</th>
                   <th className="px-4 py-3 text-left font-semibold">Status</th>
                   <th className="px-4 py-3 text-right font-semibold">Actions</th>
@@ -835,61 +816,26 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredSkus.map(sku => {
-                  const batches = Array.isArray(sku.batches) ? sku.batches : []
-                  const storedBatchId = selectedBatchBySkuId[sku.id]
-                  const selectedBatch =
-                    batches.find(batch => batch.id === storedBatchId) ?? batches[0] ?? null
-                  const selectedBatchId = selectedBatch?.id ?? ''
-                  const specSource: DimensionCarrier | null = selectedBatch ?? sku
-                  const unitDims = resolveDimensionTripletCmFromSku(specSource, 'unit')
-                  const cartonDims = resolveDimensionTripletCmFromSku(specSource, 'carton')
-                  const packSize = selectedBatch?.packSize ?? sku.packSize
-                  const unitsPerCarton = selectedBatch?.unitsPerCarton ?? sku.unitsPerCarton
-
                   return (
                     <tr key={sku.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="px-4 py-3 font-medium text-slate-900 whitespace-nowrap">
-                        {sku.skuCode}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            router.push(
+                              `/config/products/batches?skuId=${encodeURIComponent(sku.id)}`
+                            )
+                          }
+                          className="text-cyan-700 hover:underline"
+                        >
+                          {sku.skuCode}
+                        </button>
                       </td>
                       <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                         {sku.description}
                       </td>
                       <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                         {sku.asin ?? '—'}
-                      </td>
-                      <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
-                        {batches.length === 0 ? (
-                          <span className="text-amber-600">No batches</span>
-                        ) : (
-                          <select
-                            value={selectedBatchId}
-                            onChange={event =>
-                              setSelectedBatchBySkuId(prev => ({
-                                ...prev,
-                                [sku.id]: event.target.value,
-                              }))
-                            }
-                            className="h-9 w-44 rounded-md border border-slate-200 bg-white px-2 text-sm text-slate-700 shadow-soft focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100"
-                          >
-                            {batches.map(batch => (
-                              <option key={batch.id} value={batch.id}>
-                                {batch.batchCode}
-                              </option>
-                            ))}
-                          </select>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
-                        {formatDimensionTripletDisplay(unitDims, 'metric')}
-                      </td>
-                      <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
-                        {formatDimensionTripletDisplay(cartonDims, 'metric')}
-                      </td>
-                      <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
-                        {packSize ?? '—'}
-                      </td>
-                      <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
-                        {unitsPerCarton ?? '—'}
                       </td>
                       <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
                         {sku._count?.inventoryTransactions ?? 0}
@@ -907,9 +853,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                       </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-2">
-                          <Button variant="outline" size="sm" onClick={() => setBatchesSku(sku)}>
-                            Batches
-                          </Button>
                           <Button variant="outline" size="sm" onClick={() => openEdit(sku)}>
                             <Edit2 className="h-4 w-4" />
                           </Button>
@@ -975,10 +918,15 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setBatchesSku(editingSku)}
+                      onClick={() => {
+                        closeModal()
+                        router.push(
+                          `/config/products/batches?skuId=${encodeURIComponent(editingSku.id)}`
+                        )
+                      }}
                       disabled={isSubmitting}
                     >
-                      Batches
+                      View Batches
                     </Button>
                   ) : null}
                   <Button variant="ghost" onClick={closeModal} disabled={isSubmitting}>
@@ -1099,7 +1047,8 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                       <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
                         Batch-specific specs (pack size, units/carton, dimensions, weights,
                         packaging) are managed per batch. Use{' '}
-                        <span className="font-medium">Batches</span> to view or edit batches.
+                        <span className="font-medium">Products → Batches</span> to view or edit
+                        batches.
                       </div>
                     ) : (
                       <>
@@ -1311,21 +1260,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         }
         confirmText={confirmToggle?.nextActive ? 'Activate' : 'Deactivate'}
         type={confirmToggle?.nextActive ? 'info' : 'warning'}
-      />
-
-      <SkuBatchesModal
-        isOpen={batchesSku !== null}
-        onClose={() => setBatchesSku(null)}
-        onBatchesUpdated={fetchSkus}
-        sku={
-          batchesSku
-            ? {
-                id: batchesSku.id,
-                skuCode: batchesSku.skuCode,
-                description: batchesSku.description,
-              }
-            : null
-        }
       />
     </div>
   )

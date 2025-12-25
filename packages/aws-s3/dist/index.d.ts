@@ -26,6 +26,11 @@ export type FileContext = {
     transactionId: string;
     documentType: string;
 } | {
+    type: 'purchase-order';
+    purchaseOrderId: string;
+    stage: 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED';
+    documentType: string;
+} | {
     type: 'warehouse-rate-list';
     warehouseId: string;
 } | {

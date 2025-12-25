@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from '@/hooks/usePortalSession'
 import { toast } from 'react-hot-toast'
@@ -21,6 +21,7 @@ import {
   Ship,
   Warehouse,
   Truck,
+  Upload,
   ChevronRight,
   Check,
   XCircle,
@@ -150,6 +151,35 @@ interface PurchaseOrderSummary {
 
 const DEFAULT_BADGE_CLASS = 'bg-muted text-muted-foreground border border-muted'
 
+type PurchaseOrderDocumentStage = 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED'
+
+interface PurchaseOrderDocumentSummary {
+  id: string
+  stage: PurchaseOrderDocumentStage
+  documentType: string
+  fileName: string
+  contentType: string
+  size: number
+  uploadedAt: string
+  uploadedByName: string | null
+  s3Key: string
+  viewUrl: string
+}
+
+const STAGE_DOCUMENTS: Record<PurchaseOrderDocumentStage, Array<{ id: string; label: string }>> = {
+  MANUFACTURING: [{ id: 'proforma_invoice', label: 'Proforma Invoice' }],
+  OCEAN: [
+    { id: 'commercial_invoice', label: 'Commercial Invoice' },
+    { id: 'bill_of_lading', label: 'Bill of Lading' },
+    { id: 'packing_list', label: 'Packing List' },
+  ],
+  WAREHOUSE: [
+    { id: 'movement_note', label: 'Movement Note / Warehouse Receipt' },
+    { id: 'custom_declaration', label: 'Customs Declaration (CDS)' },
+  ],
+  SHIPPED: [{ id: 'proof_of_pickup', label: 'Proof of Pickup' }],
+}
+
 // Stage configuration
 const STAGES = [
   { value: 'DRAFT', label: 'Draft', icon: FileEdit, color: 'slate' },
@@ -200,6 +230,9 @@ export default function PurchaseOrderDetailPage() {
   const [stageFormData, setStageFormData] = useState<Record<string, string>>({})
   const [warehouses, setWarehouses] = useState<Array<{ code: string; name: string }>>([])
   const [warehousesLoading, setWarehousesLoading] = useState(false)
+  const [documents, setDocuments] = useState<PurchaseOrderDocumentSummary[]>([])
+  const [documentsLoading, setDocumentsLoading] = useState(false)
+  const [uploadingDoc, setUploadingDoc] = useState<Record<string, boolean>>({})
 
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -279,6 +312,31 @@ export default function PurchaseOrderDetailPage() {
   }, [params.id, router, session, status])
 
   useEffect(() => {
+    if (!order?.id) return
+
+    const loadDocuments = async () => {
+      try {
+        setDocumentsLoading(true)
+        const response = await fetch(`/api/purchase-orders/${order.id}/documents`)
+        if (!response.ok) {
+          setDocuments([])
+          return
+        }
+
+        const payload = await response.json().catch(() => null)
+        const list = payload?.documents
+        setDocuments(Array.isArray(list) ? (list as PurchaseOrderDocumentSummary[]) : [])
+      } catch {
+        setDocuments([])
+      } finally {
+        setDocumentsLoading(false)
+      }
+    }
+
+    loadDocuments()
+  }, [order?.id])
+
+  useEffect(() => {
     if (!order || isEditingDetails) return
 
     setDetailsDraft({
@@ -302,6 +360,17 @@ export default function PurchaseOrderDetailPage() {
     }
     return null
   }, [order])
+
+  const nextStageDocsComplete = useMemo(() => {
+    if (!order || !nextStage) return true
+    const stage = nextStage.value as PurchaseOrderDocumentStage
+    const required = STAGE_DOCUMENTS[stage] ?? []
+    if (required.length === 0) return true
+
+    return required.every(req =>
+      documents.some(doc => doc.stage === stage && doc.documentType === req.id)
+    )
+  }, [documents, nextStage, order])
 
   const handleTransition = async (targetStatus: POStageStatus) => {
     if (!order || transitioning) return
@@ -447,6 +516,43 @@ export default function PurchaseOrderDetailPage() {
   const isTerminal = order.status === 'SHIPPED' || order.status === 'CANCELLED'
   const canEdit = !isTerminal && order.status === 'DRAFT'
 
+  const hasManufacturingInfo = Boolean(
+    order.stageData.manufacturing?.proformaInvoiceNumber ||
+      order.stageData.manufacturing?.proformaInvoiceId ||
+      order.stageData.manufacturing?.manufacturingStartDate ||
+      order.stageData.manufacturing?.manufacturingStart ||
+      order.stageData.manufacturing?.factoryName ||
+      order.stageData.manufacturing?.expectedCompletionDate
+  )
+
+  const hasOceanInfo = Boolean(
+    order.stageData.ocean?.houseBillOfLading ||
+      order.stageData.ocean?.masterBillOfLading ||
+      order.stageData.ocean?.vesselName ||
+      order.stageData.ocean?.commercialInvoiceNumber ||
+      order.stageData.ocean?.commercialInvoiceId
+  )
+
+  const hasWarehouseInfo = Boolean(
+    order.stageData.warehouse?.warehouseCode ||
+      order.stageData.warehouse?.customsEntryNumber ||
+      order.stageData.warehouse?.customsClearedDate ||
+      order.stageData.warehouse?.receivedDate ||
+      order.stageData.warehouse?.warehouseInvoiceId
+  )
+
+  const hasShippedInfo = Boolean(
+    order.stageData.shipped?.shipToName ||
+      order.stageData.shipped?.shippingCarrier ||
+      order.stageData.shipped?.trackingNumber ||
+      order.stageData.shipped?.shippedDate ||
+      order.stageData.shipped?.proofOfDeliveryRef ||
+      order.stageData.shipped?.proofOfDelivery ||
+      order.stageData.shipped?.deliveredDate
+  )
+
+  const hasAnyStageInfo = hasManufacturingInfo || hasOceanInfo || hasWarehouseInfo || hasShippedInfo
+
   const breadcrumbItems = [
     { label: 'Operations', href: '/operations' },
     { label: 'Orders', href: '/operations/orders' },
@@ -515,6 +621,18 @@ export default function PurchaseOrderDetailPage() {
             options: warehouses.map(w => ({ value: w.code, label: `${w.name} (${w.code})` })),
             disabled: warehousesLoading || warehouses.length === 0,
           },
+          {
+            key: 'receiveType',
+            label: 'Inbound Type',
+            type: 'select',
+            options: [
+              { value: 'LCL', label: 'LCL' },
+              { value: 'CONTAINER_20', label: "20' Container" },
+              { value: 'CONTAINER_40', label: "40' Container" },
+              { value: 'CONTAINER_40_HQ', label: "40' HQ Container" },
+              { value: 'CONTAINER_45_HQ', label: "45' HQ Container" },
+            ],
+          },
           { key: 'customsEntryNumber', label: 'Customs Entry Number', type: 'text' },
           { key: 'customsClearedDate', label: 'Customs Cleared Date', type: 'date' },
           { key: 'receivedDate', label: 'Received Date', type: 'date' }
@@ -523,6 +641,15 @@ export default function PurchaseOrderDetailPage() {
       case 'SHIPPED':
         fields.push(
           { key: 'shipToName', label: 'Ship To Name', type: 'text' },
+          {
+            key: 'shipMode',
+            label: 'Outbound Mode',
+            type: 'select',
+            options: [
+              { value: 'CARTONS', label: 'Cartons' },
+              { value: 'PALLETS', label: 'Pallets' },
+            ],
+          },
           { key: 'shippingCarrier', label: 'Shipping Carrier', type: 'text' },
           { key: 'trackingNumber', label: 'Tracking Number', type: 'text' },
           { key: 'shippedDate', label: 'Shipped Date', type: 'date' }
@@ -531,6 +658,62 @@ export default function PurchaseOrderDetailPage() {
     }
 
     if (fields.length === 0) return null
+
+    const docStage = nextStage.value as PurchaseOrderDocumentStage
+    const requiredDocs = STAGE_DOCUMENTS[docStage] ?? []
+
+    const docsByType = new Map<string, PurchaseOrderDocumentSummary>(
+      documents
+        .filter(doc => doc.stage === docStage)
+        .map(doc => [`${doc.stage}::${doc.documentType}`, doc])
+    )
+
+    const refreshDocuments = async () => {
+      if (!order) return
+      const response = await fetch(`/api/purchase-orders/${order.id}/documents`)
+      if (!response.ok) {
+        setDocuments([])
+        return
+      }
+      const payload = await response.json().catch(() => null)
+      const list = payload?.documents
+      setDocuments(Array.isArray(list) ? (list as PurchaseOrderDocumentSummary[]) : [])
+    }
+
+    const handleUpload = async (event: ChangeEvent<HTMLInputElement>, documentType: string) => {
+      const file = event.target.files?.[0]
+      if (!order || !file) return
+
+      const key = `${docStage}::${documentType}`
+      setUploadingDoc(prev => ({ ...prev, [key]: true }))
+
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('stage', docStage)
+        formData.append('documentType', documentType)
+
+        const response = await fetch(`/api/purchase-orders/${order.id}/documents`, {
+          method: 'POST',
+          body: formData,
+          credentials: 'include',
+        })
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null)
+          toast.error(payload?.error ?? 'Failed to upload document')
+          return
+        }
+
+        await refreshDocuments()
+        toast.success('Document uploaded')
+      } catch {
+        toast.error('Failed to upload document')
+      } finally {
+        setUploadingDoc(prev => ({ ...prev, [key]: false }))
+        event.target.value = ''
+      }
+    }
 
     return (
       <div className="mt-4 p-4 rounded-lg border border-slate-200 bg-slate-50">
@@ -552,7 +735,11 @@ export default function PurchaseOrderDetailPage() {
                   className="w-full px-3 py-2 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm disabled:opacity-50"
                 >
                   <option value="">
-                    {warehousesLoading ? 'Loading warehouses…' : 'Select warehouse'}
+                    {field.key === 'warehouseCode'
+                      ? warehousesLoading
+                        ? 'Loading warehouses…'
+                        : 'Select warehouse'
+                      : `Select ${field.label.toLowerCase()}`}
                   </option>
                   {field.options?.map(opt => (
                     <option key={opt.value} value={opt.value}>
@@ -573,6 +760,71 @@ export default function PurchaseOrderDetailPage() {
             </div>
           ))}
         </div>
+
+        {requiredDocs.length > 0 && (
+          <div className="mt-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <h5 className="text-sm font-semibold text-slate-900">Required documents</h5>
+              {documentsLoading && (
+                <span className="text-xs text-muted-foreground">Loading…</span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {requiredDocs.map(doc => {
+                const key = `${docStage}::${doc.id}`
+                const existing = docsByType.get(key)
+                const isUploading = Boolean(uploadingDoc[key])
+
+                return (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between gap-3 rounded-md border bg-white px-3 py-2"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        {existing ? (
+                          <Check className="h-4 w-4 text-emerald-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-slate-400" />
+                        )}
+                        <span className="text-sm font-medium text-slate-900">{doc.label}</span>
+                      </div>
+                      {existing ? (
+                        <a
+                          href={existing.viewUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block truncate text-xs text-primary hover:underline mt-0.5"
+                          title={existing.fileName}
+                        >
+                          {existing.fileName}
+                        </a>
+                      ) : (
+                        <span className="block text-xs text-muted-foreground mt-0.5">
+                          Not uploaded yet
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <label className="inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">
+                        <Upload className="h-3.5 w-3.5" />
+                        {existing ? 'Replace' : 'Upload'}
+                        <input
+                          type="file"
+                          className="hidden"
+                          disabled={isUploading}
+                          onChange={e => handleUpload(e, doc.id)}
+                        />
+                      </label>
+                      {isUploading && <span className="text-xs text-muted-foreground">…</span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -668,12 +920,12 @@ export default function PurchaseOrderDetailPage() {
 
             {/* Action Buttons */}
             <div className="flex flex-wrap items-center gap-3 mt-6">
-              {nextStage && (
-                <Button
-                  onClick={() => handleTransition(nextStage.value as POStageStatus)}
-                  disabled={transitioning}
-                  className="gap-2"
-                >
+	              {nextStage && (
+	                <Button
+	                  onClick={() => handleTransition(nextStage.value as POStageStatus)}
+	                  disabled={transitioning || documentsLoading || !nextStageDocsComplete}
+	                  className="gap-2"
+	                >
                   {transitioning ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -824,7 +1076,7 @@ export default function PurchaseOrderDetailPage() {
               </div>
 
               {/* Stage Data Summary */}
-              {order.stageData && (
+              {hasAnyStageInfo && (
                 <div className="space-y-4">
                   <h3 className="text-sm font-semibold text-foreground">Stage Information</h3>
 

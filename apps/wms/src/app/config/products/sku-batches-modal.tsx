@@ -211,6 +211,50 @@ export function SkuBatchesModal({
   onBatchesUpdated?: () => void
   sku: SkuSummary | null
 }) {
+  if (!isOpen || !sku) return null
+
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-5xl">
+        <SkuBatchesManager
+          sku={sku}
+          onRequestClose={onClose}
+          onBatchesUpdated={onBatchesUpdated}
+        />
+      </div>
+    </div>
+  )
+}
+
+export function SkuBatchesPanel({
+  sku,
+  onClose,
+  onBatchesUpdated,
+}: {
+  sku: SkuSummary | null
+  onClose?: () => void
+  onBatchesUpdated?: () => void
+}) {
+  if (!sku) return null
+
+  return (
+    <SkuBatchesManager
+      sku={sku}
+      onRequestClose={onClose}
+      onBatchesUpdated={onBatchesUpdated}
+    />
+  )
+}
+
+function SkuBatchesManager({
+  sku,
+  onRequestClose,
+  onBatchesUpdated,
+}: {
+  sku: SkuSummary
+  onRequestClose?: () => void
+  onBatchesUpdated?: () => void
+}) {
   const [includeInactive, setIncludeInactive] = useState(false)
   const [batchSearch, setBatchSearch] = useState('')
   const [batches, setBatches] = useState<BatchRow[]>([])
@@ -274,7 +318,6 @@ export function SkuBatchesModal({
   }, [batchSearch, batches])
 
   const fetchBatches = useCallback(async () => {
-    if (!sku?.id) return
     try {
       setLoading(true)
       const params = new URLSearchParams()
@@ -299,18 +342,11 @@ export function SkuBatchesModal({
     } finally {
       setLoading(false)
     }
-  }, [includeInactive, sku?.id])
+  }, [includeInactive, sku.id])
 
   useEffect(() => {
-    if (!isOpen) return
     void fetchBatches()
-  }, [fetchBatches, isOpen])
-
-  useEffect(() => {
-    if (!isOpen) return
-    void fetchBatches()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [includeInactive])
+  }, [fetchBatches])
 
   const openCreate = () => {
     const nextMeasurements = buildMeasurementState(null)
@@ -389,7 +425,6 @@ export function SkuBatchesModal({
 
   const submitBatch = async (event: React.FormEvent) => {
     event.preventDefault()
-    if (!sku?.id) return
     if (isSubmitting) return
 
     if (!formState.batchCode.trim()) {
@@ -522,7 +557,6 @@ export function SkuBatchesModal({
   }
 
   const deactivateBatch = async (batch: BatchRow) => {
-    if (!sku?.id) return
     try {
       const response = await fetchWithCSRF(
         `/api/skus/${encodeURIComponent(sku.id)}/batches/${encodeURIComponent(batch.id)}`,
@@ -552,15 +586,12 @@ export function SkuBatchesModal({
     setIncludeInactive(false)
     setBatchSearch('')
     setBatches([])
-    onClose()
+    onRequestClose?.()
   }
-
-  if (!isOpen || !sku) return null
 
   return (
     <>
-      <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4">
-        <div className="w-full max-w-5xl overflow-hidden rounded-lg bg-white shadow-xl">
+      <div className="w-full overflow-hidden rounded-lg border bg-white shadow-soft">
           <div className="flex items-start justify-between border-b px-6 py-4">
             <div className="flex flex-col gap-1">
               <h2 className="text-lg font-semibold text-slate-900">Batches</h2>
@@ -568,9 +599,11 @@ export function SkuBatchesModal({
                 {sku.skuCode} — {sku.description}
               </p>
             </div>
-            <Button variant="ghost" onClick={handleClose}>
-              <X className="h-4 w-4" />
-            </Button>
+            {onRequestClose ? (
+              <Button variant="ghost" onClick={handleClose}>
+                <X className="h-4 w-4" />
+              </Button>
+            ) : null}
           </div>
 
           <div className="space-y-4 px-6 py-4">
@@ -728,7 +761,6 @@ export function SkuBatchesModal({
               )}
             </div>
           </div>
-        </div>
       </div>
 
       {isFormOpen ? (
