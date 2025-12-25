@@ -174,7 +174,7 @@ export async function createMovementNote(input: CreateMovementNoteInput, user: U
               }
 
               const batchRecord = await tx.skuBatch.findFirst({
-                where: { skuId: sku.id, batchCode: poBatchLot, isActive: true },
+                where: { skuId: sku.id, batchCode: poBatchLot },
                 select: { id: true },
               })
 
@@ -432,7 +432,7 @@ export async function postMovementNote(id: string, _user: UserContext) {
       }
 
       const batchRecord = await tx.skuBatch.findFirst({
-        where: { skuId: sku.id, batchCode: poBatchLot, isActive: true },
+        where: { skuId: sku.id, batchCode: poBatchLot },
         select: {
           id: true,
           unitsPerCarton: true,
