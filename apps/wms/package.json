@@ -34,6 +34,7 @@
     "db:migrate:sku-dimensions": "tsx scripts/migrations/add-sku-dimension-columns.ts",
     "db:migrate:sku-batch-attributes": "tsx scripts/migrations/add-sku-batch-attribute-columns.ts",
     "db:migrate:purchase-order-documents": "tsx scripts/migrations/add-purchase-order-document-table.ts",
+    "db:migrate:fulfillment-orders-foundation": "tsx scripts/migrations/add-fulfillment-orders-foundation.ts",
     "db:studio": "prisma studio",
     "demo": "tsx scripts/demo.ts",
     "demo:headed": "tsx scripts/demo.ts --headed",
