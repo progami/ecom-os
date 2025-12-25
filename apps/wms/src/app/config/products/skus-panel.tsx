@@ -995,9 +995,8 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                     {editingSku ? (
                       <div className="md:col-span-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
                         Batch-specific specs (pack size, units/carton, dimensions, weights,
-                        packaging) are managed per batch. Use{' '}
-                        <span className="font-medium">Products → Batches</span> to view or edit
-                        batches.
+                        packaging) are managed per batch. Click the SKU code (or use View Batches)
+                        to view or edit batches.
                       </div>
                     ) : (
                       <>
