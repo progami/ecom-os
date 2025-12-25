@@ -33,6 +33,7 @@ interface Warehouse {
   longitude?: number | null
   contactEmail?: string | null
   contactPhone?: string | null
+  kind?: string
   isActive: boolean
   rateListAttachment?: {
     fileName: string
@@ -79,6 +80,7 @@ export default function WarehousesPanel() {
         address: warehouse.address ?? '',
         contactEmail: warehouse.contactEmail ?? '',
         contactPhone: warehouse.contactPhone ?? '',
+        kind: warehouse.kind ?? 'THIRD_PARTY',
         isActive: Boolean(warehouse.isActive),
         rateListAttachment: warehouse.rateListAttachment ?? null,
         _count: {
@@ -161,6 +163,7 @@ export default function WarehousesPanel() {
         warehouse.address,
         warehouse.contactEmail,
         warehouse.contactPhone,
+        warehouse.kind,
       ]
         .filter(Boolean)
         .join(' ')
@@ -176,6 +179,17 @@ export default function WarehousesPanel() {
     const costRates = warehouses.reduce((sum, w) => sum + w._count.costRates, 0)
     return { active, inactive, costRates }
   }, [warehouses])
+
+  const kindMeta = (kind?: string) => {
+    switch (kind) {
+      case 'AMAZON_FBA':
+        return { label: 'Amazon FBA', badgeClass: 'bg-amber-50 text-amber-700 border-amber-200' }
+      case 'AMAZON_AWD':
+        return { label: 'Amazon AWD', badgeClass: 'bg-purple-50 text-purple-700 border-purple-200' }
+      default:
+        return { label: '3PL', badgeClass: 'bg-slate-100 text-slate-700 border-slate-200' }
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -284,6 +298,9 @@ export default function WarehousesPanel() {
                           }
                         >
                           {warehouse.isActive ? 'Active' : 'Inactive'}
+                        </Badge>
+                        <Badge className={kindMeta(warehouse.kind).badgeClass}>
+                          {kindMeta(warehouse.kind).label}
                         </Badge>
                       </div>
                       <h3 className="text-lg font-semibold text-slate-900">{warehouse.name}</h3>

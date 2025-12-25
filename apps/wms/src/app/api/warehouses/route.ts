@@ -1,6 +1,6 @@
 import { withAuth, withRole, ApiResponses, z } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma } from '@ecom-os/prisma-wms'
+import { Prisma, WarehouseKind } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay, validateAlphanumeric } from '@/lib/security/input-sanitization'
 export const dynamic = 'force-dynamic'
 
@@ -77,6 +77,7 @@ const createWarehouseSchema = z.object({
  longitude: z.number().min(-180).max(180).optional().nullable(),
  contactEmail: optionalEmailSchema,
  contactPhone: z.string().optional().transform(val => val ? sanitizeForDisplay(val) : val),
+ kind: z.nativeEnum(WarehouseKind).optional(),
  isActive: z.boolean().default(true)
 })
 
@@ -88,6 +89,7 @@ const updateWarehouseSchema = z.object({
  longitude: z.number().min(-180).max(180).optional().nullable(),
  contactEmail: optionalNullableEmailSchema,
  contactPhone: z.string().optional().nullable().transform(val => val ? sanitizeForDisplay(val) : val),
+ kind: z.nativeEnum(WarehouseKind).optional(),
  isActive: z.boolean().optional()
 })
 
@@ -185,6 +187,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
  longitude: validatedData.longitude || null,
  contactEmail: validatedData.contactEmail || null,
  contactPhone: validatedData.contactPhone || null,
+ kind: validatedData.kind,
  isActive: validatedData.isActive
  },
  include: {
