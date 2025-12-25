@@ -17,6 +17,7 @@ const AuditActionEnum = z.enum([
   'COMMENT',
   'ATTACH',
   'COMPLETE',
+  'EXPORT',
 ])
 
 const AuditEntityTypeEnum = z.enum([
@@ -29,8 +30,13 @@ const AuditEntityTypeEnum = z.enum([
   'CASE',
   'CASE_NOTE',
   'CASE_ATTACHMENT',
+  'EMPLOYEE_FILE',
   'TASK',
+  'CHECKLIST_TEMPLATE',
+  'CHECKLIST_INSTANCE',
+  'CHECKLIST_ITEM_INSTANCE',
   'NOTIFICATION',
+  'EXPORT',
 ])
 
 export async function GET(req: Request) {
@@ -92,4 +98,3 @@ export async function GET(req: Request) {
     return safeErrorResponse(e, 'Failed to fetch audit logs')
   }
 }
-

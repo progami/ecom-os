@@ -1,58 +1,101 @@
+'use client'
+
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ShieldExclamationIcon, ArrowLeftIcon, ExternalLinkIcon } from '@/components/ui/Icons'
+import { getApiBase } from '@/lib/api-client'
+
+type MeSnapshot = {
+  email: string | null
+  name: string | null
+}
+
+async function getMeSnapshot(): Promise<MeSnapshot> {
+  const res = await fetch(`${getApiBase()}/api/access-requests`, { method: 'GET' })
+  if (!res.ok) return { email: null, name: null }
+  const json = (await res.json()) as { email?: string | null; name?: string | null }
+  return { email: json.email ?? null, name: json.name ?? null }
+}
 
 export default function NoAccessPage() {
-  const portalUrl = process.env.NEXT_PUBLIC_PORTAL_AUTH_URL || process.env.PORTAL_AUTH_URL || '/'
+  const [requesting, setRequesting] = useState(false)
+  const [requested, setRequested] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [me, setMe] = useState<MeSnapshot>({ email: null, name: null })
+
+  useEffect(() => {
+    getMeSnapshot().then(setMe).catch(() => setMe({ email: null, name: null }))
+  }, [])
+
+  const requestAccess = useCallback(async () => {
+    setRequesting(true)
+    setError(null)
+    try {
+      const res = await fetch(`${getApiBase()}/api/access-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ reason: 'NO_ENTITLEMENT' }),
+      })
+      const payload = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(payload?.error || `${res.status} ${res.statusText}`)
+      }
+      setRequested(true)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to request access')
+    } finally {
+      setRequesting(false)
+    }
+  }, [])
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 text-center">
-        <div>
-          <div className="mx-auto h-24 w-24 bg-amber-100 rounded-full flex items-center justify-center">
-            <ShieldExclamationIcon className="h-12 w-12 text-amber-600" />
-          </div>
-          <h1 className="mt-6 text-3xl font-extrabold text-gray-900">
-            No Access to HRMS
-          </h1>
-          <p className="mt-3 text-base text-gray-600">
-            Your account does not have permission to access the Human Resource Management System.
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="px-6 py-5 border-b border-gray-200">
+          <div className="text-sm font-semibold text-gray-900">HRMS</div>
+          <h1 className="mt-1 text-xl font-semibold text-gray-900">Access required</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            HRMS can’t be opened for your account yet. This usually means access hasn’t been granted, or your employee
+            profile is still provisioning. Request access and HR will review it.
           </p>
         </div>
 
-        <div className="bg-gray-100 rounded-lg p-4 text-left">
-          <h2 className="text-sm font-medium text-gray-700 mb-2">What does this mean?</h2>
-          <ul className="text-sm text-gray-600 space-y-1.5">
-            <li className="flex items-start gap-2">
-              <span className="text-gray-400 mt-0.5">•</span>
-              <span>You are signed in but HRMS access has not been granted to your account</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <span className="text-gray-400 mt-0.5">•</span>
-              <span>Contact your administrator to request access</span>
-            </li>
-          </ul>
-        </div>
+        <div className="px-6 py-5 space-y-4">
+          {me.email ? (
+            <div className="rounded-xl bg-gray-50 border border-gray-200 px-4 py-3 text-sm text-gray-700">
+              Signed in as <span className="font-medium">{me.name ? `${me.name} • ` : ''}{me.email}</span>
+            </div>
+          ) : null}
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <Link
-            href={portalUrl}
-            className="inline-flex items-center px-5 py-2.5 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-          >
-            <ArrowLeftIcon className="h-4 w-4 mr-2" />
-            Back to Portal
-          </Link>
-          <a
-            href={`mailto:support@targonglobal.com?subject=HRMS Access Request`}
-            className="inline-flex items-center px-5 py-2.5 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-colors"
-          >
-            <ExternalLinkIcon className="h-4 w-4 mr-2" />
-            Request Access
-          </a>
-        </div>
+          {requested ? (
+            <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-800">
+              Request sent. Check your email for updates and revisit HRMS once access is granted.
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={requestAccess}
+              disabled={requesting}
+              className="w-full rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+            >
+              {requesting ? 'Requesting access…' : 'Request access'}
+            </button>
+          )}
 
-        <p className="text-xs text-gray-500">
-          If you believe this is an error, please contact your system administrator.
-        </p>
+          {error ? (
+            <div className="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-800">
+              {error}
+            </div>
+          ) : null}
+
+          <div className="flex items-center justify-between text-sm">
+            <Link className="text-gray-600 hover:text-gray-900" href="/">
+              Go back
+            </Link>
+            <a className="text-blue-700 hover:text-blue-800 font-medium" href="https://ecomos.targonglobal.com">
+              Back to portal
+            </a>
+          </div>
+        </div>
       </div>
     </div>
   )

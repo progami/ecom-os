@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { PermissionLevel } from '@/lib/permissions'
+import type { WorkItemAction, WorkItemDTO, WorkItemPriority, WorkItemsResponse } from '@/lib/contracts/work-items'
+import { rankWorkItems } from '@/lib/domain/work-items/rank'
 
 export type WorkItemType =
   | 'TASK_ASSIGNED'
@@ -13,17 +15,6 @@ export type WorkItemType =
   | 'VIOLATION_PENDING_SUPER_ADMIN'
   | 'VIOLATION_ACK_REQUIRED'
   | 'CASE_ASSIGNED'
-
-export type WorkItem = {
-  id: string
-  type: WorkItemType
-  title: string
-  description: string | null
-  href: string
-  createdAt: string
-  dueAt: string | null
-  priority: number
-}
 
 const HR_ROLE_NAMES = ['HR', 'HR_ADMIN', 'HR Admin', 'Human Resources']
 
@@ -47,7 +38,80 @@ function iso(date: Date): string {
   return date.toISOString()
 }
 
-export async function getWorkItemsForEmployee(employeeId: string): Promise<{ items: WorkItem[] }> {
+function daysBetween(aMs: number, bMs: number): number {
+  const dayMs = 86_400_000
+  return Math.floor(Math.abs(aMs - bMs) / dayMs)
+}
+
+function computeDueMeta(dueAtIso: string | null): { isOverdue: boolean; overdueDays: number | null } {
+  if (!dueAtIso) return { isOverdue: false, overdueDays: null }
+
+  const dueMs = Date.parse(dueAtIso)
+  if (!Number.isFinite(dueMs)) return { isOverdue: false, overdueDays: null }
+
+  const nowMs = Date.now()
+  if (dueMs > nowMs) return { isOverdue: false, overdueDays: null }
+
+  const overdueDays = Math.max(1, daysBetween(nowMs, dueMs))
+  return { isOverdue: true, overdueDays }
+}
+
+function priorityFromScore(score: number, isOverdue: boolean): WorkItemPriority {
+  if (isOverdue || score >= 100) return 'URGENT'
+  if (score >= 85) return 'HIGH'
+  if (score >= 65) return 'NORMAL'
+  return 'LOW'
+}
+
+function toTypeLabel(type: WorkItemType): string {
+  const map: Record<WorkItemType, string> = {
+    TASK_ASSIGNED: 'Task',
+    POLICY_ACK_REQUIRED: 'Policy',
+    LEAVE_APPROVAL_REQUIRED: 'Leave',
+    REVIEW_DUE: 'Review',
+    REVIEW_PENDING_HR: 'Review',
+    REVIEW_PENDING_SUPER_ADMIN: 'Review',
+    REVIEW_ACK_REQUIRED: 'Review',
+    VIOLATION_PENDING_HR: 'Violation',
+    VIOLATION_PENDING_SUPER_ADMIN: 'Violation',
+    VIOLATION_ACK_REQUIRED: 'Violation',
+    CASE_ASSIGNED: 'Case',
+  }
+  return map[type] ?? type
+}
+
+function toStageLabel(type: WorkItemType, options?: { status?: string }): string {
+  const status = options?.status
+  if (type === 'TASK_ASSIGNED' && status) {
+    if (status === 'OPEN') return 'Open'
+    if (status === 'IN_PROGRESS') return 'In progress'
+  }
+
+  const map: Record<WorkItemType, string> = {
+    TASK_ASSIGNED: 'Assigned',
+    POLICY_ACK_REQUIRED: 'Acknowledgement required',
+    LEAVE_APPROVAL_REQUIRED: 'Approval required',
+    REVIEW_DUE: 'Due',
+    REVIEW_PENDING_HR: 'HR review required',
+    REVIEW_PENDING_SUPER_ADMIN: 'Final approval required',
+    REVIEW_ACK_REQUIRED: 'Acknowledgement required',
+    VIOLATION_PENDING_HR: 'HR review required',
+    VIOLATION_PENDING_SUPER_ADMIN: 'Final approval required',
+    VIOLATION_ACK_REQUIRED: 'Acknowledgement required',
+    CASE_ASSIGNED: 'Assigned to you',
+  }
+
+  return map[type] ?? type
+}
+
+function createWorkItemAction(action: WorkItemAction): WorkItemAction {
+  if (action.disabled && !action.disabledReason) {
+    return { ...action, disabledReason: 'Not available' }
+  }
+  return action
+}
+
+export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkItemsResponse> {
   const actor = await prisma.employee.findUnique({
     where: { id: employeeId },
     select: {
@@ -60,13 +124,13 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<{ ite
   })
 
   if (!actor) {
-    return { items: [] }
+    return { items: [], meta: { totalCount: 0, actionRequiredCount: 0, overdueCount: 0 } }
   }
 
   const isHR = isEmployeeHrLike(actor)
   const policyRegion = mapEmployeeRegionToPolicyRegion(actor.region)
 
-  const items: WorkItem[] = []
+  const items: WorkItemDTO[] = []
 
   // Assigned tasks
   const tasks = await prisma.task.findMany({
@@ -82,19 +146,45 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<{ ite
       description: true,
       createdAt: true,
       dueDate: true,
+      status: true,
     },
   })
 
   for (const task of tasks) {
+    const createdAt = iso(task.createdAt)
+    const dueAt = task.dueDate ? iso(task.dueDate) : null
+    const dueMeta = computeDueMeta(dueAt)
+
+    const primaryAction: WorkItemAction | null =
+      task.status === 'OPEN'
+        ? createWorkItemAction({ id: 'task.markInProgress', label: 'Start', disabled: false })
+        : createWorkItemAction({ id: 'task.markDone', label: 'Mark done', disabled: false })
+
+    const secondaryActions: WorkItemAction[] =
+      task.status === 'OPEN'
+        ? [createWorkItemAction({ id: 'task.markDone', label: 'Mark done', disabled: false })]
+        : []
+
+    const baseScore = 50
+    const score = baseScore + (dueMeta.isOverdue ? 30 + Math.min(30, dueMeta.overdueDays ?? 0) : 0)
+
     items.push({
       id: `TASK_ASSIGNED:${task.id}`,
       type: 'TASK_ASSIGNED',
+      typeLabel: toTypeLabel('TASK_ASSIGNED'),
       title: task.title,
       description: task.description,
       href: `/tasks/${task.id}`,
-      createdAt: iso(task.createdAt),
-      dueAt: task.dueDate ? iso(task.dueDate) : null,
-      priority: 50,
+      entity: { type: 'TASK', id: task.id },
+      stageLabel: toStageLabel('TASK_ASSIGNED', { status: task.status }),
+      createdAt,
+      dueAt,
+      isOverdue: dueMeta.isOverdue,
+      overdueDays: dueMeta.overdueDays,
+      priority: priorityFromScore(score, dueMeta.isOverdue),
+      isActionRequired: true,
+      primaryAction,
+      secondaryActions,
     })
   }
 
@@ -133,15 +223,29 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<{ ite
       const key = `${policy.id}:${policy.version}`
       if (acknowledged.has(key)) continue
 
+      const createdAt = iso(policy.updatedAt)
+      const dueAt = policy.effectiveDate ? iso(policy.effectiveDate) : null
+      const dueMeta = computeDueMeta(dueAt)
+      const baseScore = 80
+      const score = baseScore + (dueMeta.isOverdue ? 30 + Math.min(30, dueMeta.overdueDays ?? 0) : 0)
+
       items.push({
         id: `POLICY_ACK_REQUIRED:${policy.id}`,
         type: 'POLICY_ACK_REQUIRED',
+        typeLabel: toTypeLabel('POLICY_ACK_REQUIRED'),
         title: 'Policy acknowledgment required',
         description: `Acknowledge “${policy.title}” (v${policy.version})`,
         href: `/policies/${policy.id}`,
-        createdAt: iso(policy.updatedAt),
-        dueAt: policy.effectiveDate ? iso(policy.effectiveDate) : null,
-        priority: 80,
+        entity: { type: 'POLICY', id: policy.id },
+        stageLabel: toStageLabel('POLICY_ACK_REQUIRED'),
+        createdAt,
+        dueAt,
+        isOverdue: dueMeta.isOverdue,
+        overdueDays: dueMeta.overdueDays,
+        priority: priorityFromScore(score, dueMeta.isOverdue),
+        isActionRequired: true,
+        primaryAction: createWorkItemAction({ id: 'policy.acknowledge', label: 'Acknowledge', disabled: false }),
+        secondaryActions: [],
       })
     }
   }
@@ -166,15 +270,29 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<{ ite
   })
 
   for (const req of pendingLeaves) {
+    const createdAt = iso(req.createdAt)
+    const dueAt = iso(req.startDate)
+    const dueMeta = computeDueMeta(dueAt)
+    const baseScore = 70
+    const score = baseScore + (dueMeta.isOverdue ? 30 + Math.min(30, dueMeta.overdueDays ?? 0) : 0)
+
     items.push({
       id: `LEAVE_APPROVAL_REQUIRED:${req.id}`,
       type: 'LEAVE_APPROVAL_REQUIRED',
+      typeLabel: toTypeLabel('LEAVE_APPROVAL_REQUIRED'),
       title: 'Leave approval required',
       description: `${req.employee.firstName} ${req.employee.lastName} requested ${req.leaveType.replaceAll('_', ' ').toLowerCase()} (${req.totalDays} days)`,
       href: `/leaves/${req.id}`,
-      createdAt: iso(req.createdAt),
-      dueAt: iso(req.startDate),
-      priority: 70,
+      entity: { type: 'LEAVE_REQUEST', id: req.id },
+      stageLabel: toStageLabel('LEAVE_APPROVAL_REQUIRED'),
+      createdAt,
+      dueAt,
+      isOverdue: dueMeta.isOverdue,
+      overdueDays: dueMeta.overdueDays,
+      priority: priorityFromScore(score, dueMeta.isOverdue),
+      isActionRequired: true,
+      primaryAction: createWorkItemAction({ id: 'leave.approve', label: 'Approve', disabled: false }),
+      secondaryActions: [createWorkItemAction({ id: 'leave.reject', label: 'Reject', disabled: false })],
     })
   }
 
@@ -193,15 +311,28 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<{ ite
     })
 
     for (const review of pendingHrReviews) {
+      const createdAt = iso(review.submittedAt ?? review.createdAt)
+      const baseScore = 85
+      const score = baseScore
       items.push({
         id: `REVIEW_PENDING_HR:${review.id}`,
         type: 'REVIEW_PENDING_HR',
+        typeLabel: toTypeLabel('REVIEW_PENDING_HR'),
         title: 'Review pending HR approval',
         description: `Review for ${review.employee.firstName} ${review.employee.lastName}`,
         href: `/performance/reviews/${review.id}`,
-        createdAt: iso(review.submittedAt ?? review.createdAt),
+        entity: { type: 'PERFORMANCE_REVIEW', id: review.id },
+        stageLabel: toStageLabel('REVIEW_PENDING_HR'),
+        createdAt,
         dueAt: null,
-        priority: 85,
+        isOverdue: false,
+        overdueDays: null,
+        priority: priorityFromScore(score, false),
+        isActionRequired: true,
+        primaryAction: createWorkItemAction({ id: 'review.hrApprove', label: 'Approve (HR)', disabled: false }),
+        secondaryActions: [
+          createWorkItemAction({ id: 'review.hrReject', label: 'Reject', disabled: false }),
+        ],
       })
     }
 
@@ -211,6 +342,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<{ ite
       take: 50,
       select: {
         id: true,
+        caseId: true,
         createdAt: true,
         reportedDate: true,
         severity: true,
@@ -219,15 +351,28 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<{ ite
     })
 
     for (const action of pendingHrViolations) {
+      const createdAt = iso(action.reportedDate ?? action.createdAt)
+      const baseScore = 90
+      const score = baseScore
       items.push({
         id: `VIOLATION_PENDING_HR:${action.id}`,
         type: 'VIOLATION_PENDING_HR',
+        typeLabel: toTypeLabel('VIOLATION_PENDING_HR'),
         title: 'Violation pending HR review',
         description: `${action.employee.firstName} ${action.employee.lastName} • ${action.severity.toLowerCase()}`,
-        href: `/performance/disciplinary/${action.id}`,
-        createdAt: iso(action.reportedDate ?? action.createdAt),
+        href: action.caseId ? `/cases/${action.caseId}` : `/performance/disciplinary/${action.id}`,
+        entity: { type: 'DISCIPLINARY_ACTION', id: action.id },
+        stageLabel: toStageLabel('VIOLATION_PENDING_HR'),
+        createdAt,
         dueAt: null,
-        priority: 90,
+        isOverdue: false,
+        overdueDays: null,
+        priority: priorityFromScore(score, false),
+        isActionRequired: true,
+        primaryAction: createWorkItemAction({ id: 'disciplinary.hrApprove', label: 'Approve (HR)', disabled: false }),
+        secondaryActions: [
+          createWorkItemAction({ id: 'disciplinary.hrReject', label: 'Reject', disabled: false }),
+        ],
       })
     }
   }
@@ -246,15 +391,28 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<{ ite
     })
 
     for (const review of pendingAdminReviews) {
+      const createdAt = iso(review.hrReviewedAt ?? review.createdAt)
+      const baseScore = 95
+      const score = baseScore
       items.push({
         id: `REVIEW_PENDING_SUPER_ADMIN:${review.id}`,
         type: 'REVIEW_PENDING_SUPER_ADMIN',
+        typeLabel: toTypeLabel('REVIEW_PENDING_SUPER_ADMIN'),
         title: 'Review pending final approval',
         description: `Review for ${review.employee.firstName} ${review.employee.lastName}`,
         href: `/performance/reviews/${review.id}`,
-        createdAt: iso(review.hrReviewedAt ?? review.createdAt),
+        entity: { type: 'PERFORMANCE_REVIEW', id: review.id },
+        stageLabel: toStageLabel('REVIEW_PENDING_SUPER_ADMIN'),
+        createdAt,
         dueAt: null,
-        priority: 95,
+        isOverdue: false,
+        overdueDays: null,
+        priority: priorityFromScore(score, false),
+        isActionRequired: true,
+        primaryAction: createWorkItemAction({ id: 'review.adminApprove', label: 'Final approve', disabled: false }),
+        secondaryActions: [
+          createWorkItemAction({ id: 'review.adminReject', label: 'Reject', disabled: false }),
+        ],
       })
     }
 
@@ -264,6 +422,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<{ ite
       take: 50,
       select: {
         id: true,
+        caseId: true,
         createdAt: true,
         hrReviewedAt: true,
         severity: true,
@@ -272,15 +431,28 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<{ ite
     })
 
     for (const action of pendingAdminViolations) {
+      const createdAt = iso(action.hrReviewedAt ?? action.createdAt)
+      const baseScore = 98
+      const score = baseScore
       items.push({
         id: `VIOLATION_PENDING_SUPER_ADMIN:${action.id}`,
         type: 'VIOLATION_PENDING_SUPER_ADMIN',
+        typeLabel: toTypeLabel('VIOLATION_PENDING_SUPER_ADMIN'),
         title: 'Violation pending final approval',
         description: `${action.employee.firstName} ${action.employee.lastName} • ${action.severity.toLowerCase()}`,
-        href: `/performance/disciplinary/${action.id}`,
-        createdAt: iso(action.hrReviewedAt ?? action.createdAt),
+        href: action.caseId ? `/cases/${action.caseId}` : `/performance/disciplinary/${action.id}`,
+        entity: { type: 'DISCIPLINARY_ACTION', id: action.id },
+        stageLabel: toStageLabel('VIOLATION_PENDING_SUPER_ADMIN'),
+        createdAt,
         dueAt: null,
-        priority: 98,
+        isOverdue: false,
+        overdueDays: null,
+        priority: priorityFromScore(score, false),
+        isActionRequired: true,
+        primaryAction: createWorkItemAction({ id: 'disciplinary.adminApprove', label: 'Final approve', disabled: false }),
+        secondaryActions: [
+          createWorkItemAction({ id: 'disciplinary.adminReject', label: 'Reject', disabled: false }),
+        ],
       })
     }
   }
@@ -298,15 +470,26 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<{ ite
   })
 
   for (const review of pendingReviewAcks) {
+    const createdAt = iso(review.superAdminApprovedAt ?? review.createdAt)
+    const baseScore = 88
+    const score = baseScore
     items.push({
       id: `REVIEW_ACK_REQUIRED:${review.id}`,
       type: 'REVIEW_ACK_REQUIRED',
+      typeLabel: toTypeLabel('REVIEW_ACK_REQUIRED'),
       title: 'Review acknowledgment required',
       description: 'A performance review is awaiting your acknowledgment',
       href: `/performance/reviews/${review.id}`,
-      createdAt: iso(review.superAdminApprovedAt ?? review.createdAt),
+      entity: { type: 'PERFORMANCE_REVIEW', id: review.id },
+      stageLabel: toStageLabel('REVIEW_ACK_REQUIRED'),
+      createdAt,
       dueAt: null,
-      priority: 88,
+      isOverdue: false,
+      overdueDays: null,
+      priority: priorityFromScore(score, false),
+      isActionRequired: true,
+      primaryAction: createWorkItemAction({ id: 'review.acknowledge', label: 'Acknowledge', disabled: false }),
+      secondaryActions: [],
     })
   }
 
@@ -322,6 +505,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<{ ite
     take: 50,
     select: {
       id: true,
+      caseId: true,
       createdAt: true,
       superAdminApprovedAt: true,
       employeeId: true,
@@ -339,15 +523,28 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<{ ite
     if (isManager && action.managerAcknowledged) continue
 
     const who = isEmployee ? 'your' : `${action.employee.firstName} ${action.employee.lastName}'s`
+    const createdAt = iso(action.superAdminApprovedAt ?? action.createdAt)
+    const baseScore = 92
+    const score = baseScore
     items.push({
       id: `VIOLATION_ACK_REQUIRED:${action.id}`,
       type: 'VIOLATION_ACK_REQUIRED',
+      typeLabel: toTypeLabel('VIOLATION_ACK_REQUIRED'),
       title: 'Violation acknowledgment required',
       description: `Acknowledge ${who} violation record`,
-      href: `/performance/disciplinary/${action.id}`,
-      createdAt: iso(action.superAdminApprovedAt ?? action.createdAt),
+      href: action.caseId ? `/cases/${action.caseId}` : `/performance/disciplinary/${action.id}`,
+      entity: { type: 'DISCIPLINARY_ACTION', id: action.id },
+      stageLabel: toStageLabel('VIOLATION_ACK_REQUIRED'),
+      createdAt,
       dueAt: null,
-      priority: 92,
+      isOverdue: false,
+      overdueDays: null,
+      priority: priorityFromScore(score, false),
+      isActionRequired: true,
+      primaryAction: createWorkItemAction({ id: 'disciplinary.acknowledge', label: 'Acknowledge', disabled: false }),
+      secondaryActions: isEmployee
+        ? [createWorkItemAction({ id: 'disciplinary.appeal', label: 'Appeal', disabled: false })]
+        : [],
     })
   }
 
@@ -368,23 +565,40 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<{ ite
   })
 
   for (const c of assignedCases) {
+    const createdAt = iso(c.updatedAt)
+    const baseScore = 75
+    const score = baseScore
     items.push({
       id: `CASE_ASSIGNED:${c.id}`,
       type: 'CASE_ASSIGNED',
+      typeLabel: toTypeLabel('CASE_ASSIGNED'),
       title: `Case #${c.caseNumber} assigned`,
       description: c.title,
       href: `/cases/${c.id}`,
-      createdAt: iso(c.updatedAt),
+      entity: { type: 'CASE', id: c.id },
+      stageLabel: toStageLabel('CASE_ASSIGNED'),
+      createdAt,
       dueAt: null,
-      priority: 75,
+      isOverdue: false,
+      overdueDays: null,
+      priority: priorityFromScore(score, false),
+      isActionRequired: true,
+      primaryAction: null,
+      secondaryActions: [],
     })
   }
 
-  items.sort((a, b) => {
-    if (a.priority !== b.priority) return b.priority - a.priority
-    return b.createdAt.localeCompare(a.createdAt)
-  })
+  const ranked = rankWorkItems(items)
 
-  return { items }
+  const overdueCount = ranked.filter((i) => i.isOverdue).length
+  const actionRequiredCount = ranked.filter((i) => i.isActionRequired).length
+
+  return {
+    items: ranked,
+    meta: {
+      totalCount: ranked.length,
+      actionRequiredCount,
+      overdueCount,
+    },
+  }
 }
-

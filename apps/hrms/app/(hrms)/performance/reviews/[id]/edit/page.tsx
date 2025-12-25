@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { PerformanceReviewsApi, type PerformanceReview } from '@/lib/api-client'
+import { MeApi, PerformanceReviewsApi, type Me, type PerformanceReview } from '@/lib/api-client'
 import { ClipboardDocumentCheckIcon, StarIcon, StarFilledIcon } from '@/components/ui/Icons'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card } from '@/components/ui/Card'
@@ -42,12 +42,13 @@ const reviewPeriodTypeOptions = REVIEW_PERIOD_TYPES.map((value) => ({
   label: REVIEW_PERIOD_TYPE_LABELS[value],
 }))
 
-function RatingInput({ name, label, value, onChange, required = false }: {
+function RatingInput({ name, label, value, onChange, required = false, disabled = false }: {
   name: string
   label: string
   value: number
   onChange: (v: number) => void
   required?: boolean
+  disabled?: boolean
 }) {
   return (
     <div>
@@ -59,8 +60,9 @@ function RatingInput({ name, label, value, onChange, required = false }: {
           <button
             key={star}
             type="button"
-            onClick={() => onChange(star)}
-            className="p-1 hover:scale-110 transition-transform"
+            onClick={() => (disabled ? null : onChange(star))}
+            disabled={disabled}
+            className={`p-1 transition-transform ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:scale-110'}`}
           >
             {star <= value ? (
               <StarFilledIcon className="h-6 w-6 text-amber-400" />
@@ -83,6 +85,7 @@ export default function EditReviewPage() {
   const { goBack } = useNavigationHistory()
 
   const [review, setReview] = useState<PerformanceReview | null>(null)
+  const [me, setMe] = useState<Me | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -110,8 +113,12 @@ export default function EditReviewPage() {
   useEffect(() => {
     async function load() {
       try {
-        const data = await PerformanceReviewsApi.get(id)
+        const [data, meData] = await Promise.all([
+          PerformanceReviewsApi.get(id),
+          MeApi.get().catch(() => null),
+        ])
         setReview(data)
+        setMe(meData)
 
         // Initialize rating states from loaded data
         setOverallRating(data.overallRating || 3)
@@ -154,12 +161,16 @@ export default function EditReviewPage() {
     setRoleTitle(review.roleTitle || review.employee?.position || '')
   }, [currentYear, review])
 
-  // Check if review is editable
-  const isEditable = review && ['NOT_STARTED', 'IN_PROGRESS', 'DRAFT'].includes(review.status)
+  const isDraft = Boolean(review && ['NOT_STARTED', 'IN_PROGRESS', 'DRAFT'].includes(review.status))
+  const isHrOrAdmin = Boolean(me?.isHR || me?.isSuperAdmin)
+
+  // Managers can edit draft/in-progress reviews; HR/Admin can edit metadata in later stages.
+  const canEditMeta = Boolean(review) && (isDraft || isHrOrAdmin)
+  const canEditContent = isDraft
 
   async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!isEditable) return
+    if (!review || !canEditMeta) return
 
     setSaving(true)
     setError(null)
@@ -169,26 +180,33 @@ export default function EditReviewPage() {
     const payload = Object.fromEntries(fd.entries()) as any
 
     try {
-      const updated = await PerformanceReviewsApi.update(id, {
-        reviewType: String(payload.reviewType),
-        periodType: String(payload.periodType),
-        periodYear: parseInt(String(payload.periodYear), 10),
-        reviewDate: String(payload.reviewDate),
-        roleTitle: String(payload.roleTitle),
-        overallRating: parseInt(payload.overallRating, 10),
-        qualityOfWork: parseInt(payload.qualityOfWork, 10),
-        productivity: parseInt(payload.productivity, 10),
-        communication: parseInt(payload.communication, 10),
-        teamwork: parseInt(payload.teamwork, 10),
-        initiative: parseInt(payload.initiative, 10),
-        attendance: parseInt(payload.attendance, 10),
-        strengths: payload.strengths || null,
-        areasToImprove: payload.areasToImprove || null,
-        goals: payload.goals || null,
-        comments: payload.comments || null,
-      })
+      const update: Record<string, unknown> = {}
+
+      if (canEditMeta) {
+        update.reviewType = String(payload.reviewType)
+        update.periodType = String(payload.periodType)
+        update.periodYear = parseInt(String(payload.periodYear), 10)
+        update.reviewDate = String(payload.reviewDate)
+        update.roleTitle = String(payload.roleTitle)
+      }
+
+      if (canEditContent) {
+        update.overallRating = parseInt(payload.overallRating, 10)
+        update.qualityOfWork = parseInt(payload.qualityOfWork, 10)
+        update.productivity = parseInt(payload.productivity, 10)
+        update.communication = parseInt(payload.communication, 10)
+        update.teamwork = parseInt(payload.teamwork, 10)
+        update.initiative = parseInt(payload.initiative, 10)
+        update.attendance = parseInt(payload.attendance, 10)
+        update.strengths = payload.strengths || null
+        update.areasToImprove = payload.areasToImprove || null
+        update.goals = payload.goals || null
+        update.comments = payload.comments || null
+      }
+
+      const updated = await PerformanceReviewsApi.update(id, update)
       setReview(updated)
-      setSuccessMessage('Review saved as draft')
+      setSuccessMessage(canEditContent ? 'Review saved as draft' : 'Review metadata updated')
     } catch (e: any) {
       setError(e.message || 'Failed to save review')
     } finally {
@@ -197,7 +215,7 @@ export default function EditReviewPage() {
   }
 
   async function handleSubmit() {
-    if (!isEditable) return
+    if (!review || !canEditContent) return
 
     // First save the current form state
     const form = document.querySelector('form') as HTMLFormElement
@@ -291,11 +309,11 @@ export default function EditReviewPage() {
     )
   }
 
-  // Non-editable state - redirect to view page
-  if (!isEditable) {
+  // Non-editable for current viewer - redirect to view page
+  if (!canEditMeta) {
     router.replace(`/performance/reviews/${id}`)
-      return null
-    }
+    return null
+  }
 
   const allowedPeriodTypes = getAllowedReviewPeriodTypes(reviewType)
   const periodTypeOptions = reviewPeriodTypeOptions.filter((opt) =>
@@ -315,6 +333,13 @@ export default function EditReviewPage() {
         {error && (
           <Alert variant="error" onDismiss={() => setError(null)}>
             {error}
+          </Alert>
+        )}
+
+        {!canEditContent && (
+          <Alert variant="info">
+            This review is in workflow stage ({STATUS_LABELS[review.status] || review.status}). You can update review period and role
+            metadata, but ratings and feedback are read-only.
           </Alert>
         )}
 
@@ -354,6 +379,7 @@ export default function EditReviewPage() {
                     setPeriodType(nextAllowed[0] ?? 'ANNUAL')
                   }
                 }}
+                disabled={!canEditMeta}
               />
               <SelectField
                 label="Review Period"
@@ -362,6 +388,7 @@ export default function EditReviewPage() {
                 options={periodTypeOptions}
                 value={periodType}
                 onChange={(e) => setPeriodType(e.target.value)}
+                disabled={!canEditMeta}
               />
               <SelectField
                 label="Year"
@@ -370,6 +397,7 @@ export default function EditReviewPage() {
                 options={periodYearOptions}
                 value={periodYear}
                 onChange={(e) => setPeriodYear(e.target.value)}
+                disabled={!canEditMeta}
               />
               <FormField
                 label="Role"
@@ -377,6 +405,7 @@ export default function EditReviewPage() {
                 required
                 value={roleTitle}
                 onChange={(e) => setRoleTitle(e.target.value)}
+                disabled={!canEditMeta}
               />
               <FormField
                 label="Review Date"
@@ -384,6 +413,7 @@ export default function EditReviewPage() {
                 type="date"
                 required
                 defaultValue={formatDateForInput(review.reviewDate)}
+                disabled={!canEditMeta}
               />
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -413,6 +443,7 @@ export default function EditReviewPage() {
                 value={overallRating}
                 onChange={setOverallRating}
                 required
+                disabled={!canEditContent}
               />
             </div>
 
@@ -424,6 +455,7 @@ export default function EditReviewPage() {
                 value={qualityOfWork}
                 onChange={setQualityOfWork}
                 required={review.reviewType === 'QUARTERLY'}
+                disabled={!canEditContent}
               />
               <RatingInput
                 name="productivity"
@@ -431,6 +463,7 @@ export default function EditReviewPage() {
                 value={productivity}
                 onChange={setProductivity}
                 required={review.reviewType === 'QUARTERLY'}
+                disabled={!canEditContent}
               />
               <RatingInput
                 name="communication"
@@ -438,6 +471,7 @@ export default function EditReviewPage() {
                 value={communication}
                 onChange={setCommunication}
                 required={review.reviewType === 'QUARTERLY'}
+                disabled={!canEditContent}
               />
               <RatingInput
                 name="teamwork"
@@ -445,6 +479,7 @@ export default function EditReviewPage() {
                 value={teamwork}
                 onChange={setTeamwork}
                 required={review.reviewType === 'QUARTERLY'}
+                disabled={!canEditContent}
               />
               <RatingInput
                 name="initiative"
@@ -452,6 +487,7 @@ export default function EditReviewPage() {
                 value={initiative}
                 onChange={setInitiative}
                 required={review.reviewType === 'QUARTERLY'}
+                disabled={!canEditContent}
               />
               <RatingInput
                 name="attendance"
@@ -459,6 +495,7 @@ export default function EditReviewPage() {
                 value={attendance}
                 onChange={setAttendance}
                 required={review.reviewType === 'QUARTERLY'}
+                disabled={!canEditContent}
               />
             </div>
           </Card>
@@ -473,6 +510,7 @@ export default function EditReviewPage() {
                 rows={3}
                 placeholder="Key strengths demonstrated..."
                 defaultValue={review.strengths || ''}
+                disabled={!canEditContent}
               />
               <TextareaField
                 label="Areas to Improve"
@@ -480,6 +518,7 @@ export default function EditReviewPage() {
                 rows={3}
                 placeholder="Areas that need development..."
                 defaultValue={review.areasToImprove || ''}
+                disabled={!canEditContent}
               />
               <TextareaField
                 label="Goals for Next Period"
@@ -487,6 +526,7 @@ export default function EditReviewPage() {
                 rows={3}
                 placeholder="Objectives and targets..."
                 defaultValue={review.goals || ''}
+                disabled={!canEditContent}
               />
               <TextareaField
                 label="Additional Comments"
@@ -494,6 +534,7 @@ export default function EditReviewPage() {
                 rows={3}
                 placeholder="Any other observations..."
                 defaultValue={review.comments || ''}
+                disabled={!canEditContent}
               />
             </div>
           </Card>
@@ -504,15 +545,17 @@ export default function EditReviewPage() {
               Cancel
             </Button>
             <Button type="submit" variant="secondary" loading={saving}>
-              Save Draft
+              {canEditContent ? 'Save Draft' : 'Save Changes'}
             </Button>
-            <Button
-              type="button"
-              onClick={handleSubmit}
-              loading={submitting}
-            >
-              Submit for Review
-            </Button>
+            {canEditContent && (
+              <Button
+                type="button"
+                onClick={handleSubmit}
+                loading={submitting}
+              >
+                Submit for Review
+              </Button>
+            )}
           </div>
         </form>
       </div>

@@ -1,4 +1,8 @@
 import { prisma } from './prisma'
+import { FIELD_PERMISSIONS, getEmployeeFieldOwnership, type AttributePermission } from './employee/field-ownership'
+
+export { FIELD_PERMISSIONS, getEmployeeFieldOwnership }
+export type { AttributePermission }
 
 export type PermissionCheckResult = {
   canManage: boolean
@@ -238,49 +242,6 @@ export async function isAdmin(userId: string): Promise<boolean> {
 
 // ============ N-ARY TREE PERMISSION MODEL ============
 
-// Attribute permission types
-export type AttributePermission =
-  | 'GOOGLE_CONTROLLED'  // name, email - synced from Google, not editable
-  | 'USER_EDITABLE'      // phone, address - employee can edit own
-  | 'MANAGER_EDITABLE'   // role, project, department, reportsTo - manager+ only
-
-// Field permission mapping
-export const FIELD_PERMISSIONS: Record<string, AttributePermission> = {
-  // Google controlled (read-only, comes from Google Admin)
-  firstName: 'GOOGLE_CONTROLLED',
-  lastName: 'GOOGLE_CONTROLLED',
-  email: 'GOOGLE_CONTROLLED',
-  googleId: 'GOOGLE_CONTROLLED',
-  avatar: 'GOOGLE_CONTROLLED',
-
-  // User editable (employee can edit their own)
-  phone: 'USER_EDITABLE',
-  address: 'USER_EDITABLE',
-  city: 'USER_EDITABLE',
-  country: 'USER_EDITABLE',
-  postalCode: 'USER_EDITABLE',
-  emergencyContact: 'USER_EDITABLE',
-  emergencyPhone: 'USER_EDITABLE',
-  dateOfBirth: 'USER_EDITABLE',
-  gender: 'USER_EDITABLE',
-  maritalStatus: 'USER_EDITABLE',
-  nationality: 'USER_EDITABLE',
-
-  // Manager editable (only manager or above can edit)
-  department: 'MANAGER_EDITABLE',
-  departmentId: 'MANAGER_EDITABLE',
-  position: 'MANAGER_EDITABLE',
-  employmentType: 'MANAGER_EDITABLE',
-  joinDate: 'MANAGER_EDITABLE',
-  status: 'MANAGER_EDITABLE',
-  region: 'MANAGER_EDITABLE',
-  reportsToId: 'MANAGER_EDITABLE',
-  salary: 'MANAGER_EDITABLE',
-  currency: 'MANAGER_EDITABLE',
-  permissionLevel: 'MANAGER_EDITABLE',
-  isSuperAdmin: 'MANAGER_EDITABLE',
-}
-
 /**
  * Get all employee IDs in the management chain above an employee
  * Returns array from immediate manager up to root
@@ -374,7 +335,11 @@ export async function canEditField(
 
   // Google controlled fields cannot be edited by anyone
   if (permission === 'GOOGLE_CONTROLLED') {
-    return { allowed: false, reason: 'This field is synced from Google Admin and cannot be edited' }
+    const ownership = getEmployeeFieldOwnership(fieldName)
+    return {
+      allowed: false,
+      reason: ownership?.lockedReason ?? 'This field is managed by the system and cannot be edited',
+    }
   }
 
   const actor = await prisma.employee.findUnique({

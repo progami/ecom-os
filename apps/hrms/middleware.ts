@@ -55,7 +55,7 @@ export async function middleware(request: NextRequest) {
   // Public routes - only specific endpoints, NOT all /api/ routes
   // Security: Removed '/' and '/api/setup/departments' from public routes
   const PUBLIC_PREFIXES = ['/_next', '/favicon.ico']
-  const PUBLIC_ROUTES = ['/health', '/api/health', '/no-access']
+  const PUBLIC_ROUTES = ['/health', '/api/health', '/no-access', '/api/access-requests']
   const isPublic =
     PUBLIC_ROUTES.includes(normalizedPath) ||
     PUBLIC_PREFIXES.some((p) => normalizedPath.startsWith(p))

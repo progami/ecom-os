@@ -21,6 +21,9 @@ export {
   NotificationType,
   TaskStatus,
   TaskCategory,
+  ChecklistLifecycleType,
+  ChecklistOwnerType,
+  ChecklistItemStatus,
   CaseType,
   CaseStatus,
   CaseSeverity,
@@ -28,6 +31,7 @@ export {
   CaseNoteVisibility,
   AuditAction,
   AuditEntityType,
+  EmployeeFileVisibility,
 } from '@ecom-os/prisma-hrms'
 
 // Transaction client type for $transaction callbacks

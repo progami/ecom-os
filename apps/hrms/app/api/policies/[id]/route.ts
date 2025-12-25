@@ -5,8 +5,16 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { isHROrAbove } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
+import { getViewerContext } from '@/lib/domain/workflow/viewer'
+import { policyToWorkflowRecordDTO } from '@/lib/domain/policies/workflow-record'
 
 type PolicyRouteContext = { params: Promise<{ id: string }> }
+
+function mapEmployeeRegionToPolicyRegion(region: string): 'KANSAS_US' | 'PAKISTAN' | null {
+  if (region === 'PAKISTAN') return 'PAKISTAN'
+  if (region === 'KANSAS_USA') return 'KANSAS_US'
+  return null
+}
 
 export async function GET(req: Request, context: PolicyRouteContext) {
   // Rate limiting
@@ -14,6 +22,8 @@ export async function GET(req: Request, context: PolicyRouteContext) {
   if (rateLimitError) return rateLimitError
 
   try {
+    const { searchParams } = new URL(req.url)
+    const format = searchParams.get('format')
     const { id } = await context.params
 
     if (!id || id.length > 100) {
@@ -24,6 +34,41 @@ export async function GET(req: Request, context: PolicyRouteContext) {
 
     if (!p) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    if (format === 'workflow') {
+      const employeeId = await getCurrentEmployeeId()
+      if (!employeeId) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+
+      const viewer = await getViewerContext(employeeId)
+      const employee = await prisma.employee.findUnique({
+        where: { id: employeeId },
+        select: { region: true },
+      })
+
+      const mappedRegion = employee ? mapEmployeeRegionToPolicyRegion(employee.region) : null
+      const isApplicable =
+        p.region === 'ALL' || (mappedRegion !== null && p.region === mappedRegion)
+
+      const ack = await prisma.policyAcknowledgement.findUnique({
+        where: {
+          policyId_employeeId_policyVersion: {
+            policyId: p.id,
+            employeeId,
+            policyVersion: p.version,
+          },
+        },
+        select: { acknowledgedAt: true },
+      })
+
+      const dto = await policyToWorkflowRecordDTO(p as any, viewer, {
+        isApplicable,
+        isAcknowledged: Boolean(ack),
+        acknowledgedAt: ack?.acknowledgedAt ?? null,
+      })
+      return NextResponse.json(dto)
     }
 
     return NextResponse.json(p)

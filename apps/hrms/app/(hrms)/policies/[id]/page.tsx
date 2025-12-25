@@ -1,233 +1,114 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { MeApi, PoliciesApi, PolicyAcknowledgementsApi, type Policy, type PolicyAcknowledgementStatus } from '@/lib/api-client'
-import { DocumentIcon, PencilIcon } from '@/components/ui/Icons'
-import { PageHeader } from '@/components/ui/PageHeader'
+import { PoliciesApi } from '@/lib/api-client'
+import type { ActionId } from '@/lib/contracts/action-ids'
+import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
+import { executeAction } from '@/lib/actions/execute-action'
+import { WorkflowRecordLayout } from '@/components/layouts/WorkflowRecordLayout'
+import { Alert } from '@/components/ui/Alert'
 import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
-import { StatusBadge } from '@/components/ui/Badge'
-import { EmptyState } from '@/components/ui/EmptyState'
 
-function formatDate(dateStr: string | null | undefined) {
-  if (!dateStr) return '—'
-  try {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    })
-  } catch {
-    return dateStr
-  }
-}
-
-function getCategoryLabel(category: string) {
-  const map: Record<string, string> = {
-    LEAVE: 'Leave',
-    PERFORMANCE: 'Performance',
-    CONDUCT: 'Conduct',
-    SECURITY: 'Security',
-    COMPENSATION: 'Compensation',
-    OTHER: 'Other',
-  }
-  return map[category] || category
-}
-
-function getRegionLabel(region: string) {
-  const map: Record<string, string> = {
-    KANSAS_US: 'US (Kansas)',
-    PAKISTAN: 'Pakistan',
-  }
-  return map[region] || region
-}
-
-function MetaItem({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">{label}</p>
-      <div className="text-sm text-gray-900">{children}</div>
-    </div>
-  )
-}
-
-export default function ViewPolicyPage() {
+export default function PolicyWorkflowPage() {
   const params = useParams()
   const id = params.id as string
 
-  const [policy, setPolicy] = useState<Policy | null>(null)
-  const [ack, setAck] = useState<PolicyAcknowledgementStatus | null>(null)
-  const [ackSubmitting, setAckSubmitting] = useState(false)
-  const [canManagePolicies, setCanManagePolicies] = useState(false)
+  const [dto, setDto] = useState<WorkflowRecordDTO | null>(null)
+  const [policy, setPolicy] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [policyData, meData, ackData] = await Promise.all([
-          PoliciesApi.get(id),
-          MeApi.get().catch(() => null),
-          PolicyAcknowledgementsApi.get(id).catch(() => null),
-        ])
-        setPolicy(policyData)
-        setAck(ackData)
-        setCanManagePolicies(Boolean(meData?.isHR || meData?.isSuperAdmin))
-      } catch (e: any) {
-        setError(e.message || 'Failed to load policy')
-      } finally {
-        setLoading(false)
-      }
+  const load = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const [workflow, raw] = await Promise.all([
+        PoliciesApi.getWorkflowRecord(id),
+        PoliciesApi.get(id),
+      ])
+      setDto(workflow)
+      setPolicy(raw)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to load policy'
+      setError(message)
+      setDto(null)
+      setPolicy(null)
+    } finally {
+      setLoading(false)
     }
-    load()
   }, [id])
 
-  async function acknowledgePolicy() {
-    if (!policy) return
-    setAckSubmitting(true)
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const onAction = useCallback(async (actionId: ActionId) => {
+    setError(null)
     try {
-      const res = await PolicyAcknowledgementsApi.acknowledge(policy.id)
-      setAck((prev) => {
-        if (!prev) return prev
-        return { ...prev, isAcknowledged: true, acknowledgedAt: res.acknowledgedAt }
-      })
-    } catch (e: any) {
-      setError(e.message || 'Failed to acknowledge policy')
-    } finally {
-      setAckSubmitting(false)
+      await executeAction(actionId, { type: 'POLICY', id })
+      await load()
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to complete action'
+      setError(message)
     }
-  }
+  }, [id, load])
 
   if (loading) {
     return (
-      <div className="animate-pulse space-y-6">
-        <div className="h-8 bg-gray-200 rounded w-1/3" />
-        <div className="h-4 bg-gray-200 rounded w-1/4" />
-        <div className="h-64 bg-gray-200 rounded-xl" />
-      </div>
+      <Card padding="lg">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-gray-200 rounded w-1/3" />
+          <div className="h-4 bg-gray-200 rounded w-2/3" />
+          <div className="h-40 bg-gray-200 rounded" />
+        </div>
+      </Card>
     )
   }
 
-  if (error || !policy) {
+  if (!dto) {
     return (
-      <div className="py-12">
-        <EmptyState
-          icon={<DocumentIcon className="h-12 w-12" />}
-          title={error || 'Policy not found'}
-          description="The policy you're looking for doesn't exist or has been removed."
-          action={{
-            label: 'Back to policies',
-            href: '/policies',
-          }}
-        />
-      </div>
+      <Card padding="lg">
+        <p className="text-sm font-medium text-gray-900">Policy</p>
+        <p className="text-sm text-gray-600 mt-1">{error ?? 'Not found'}</p>
+      </Card>
     )
   }
 
   return (
     <>
-      <PageHeader
-        title={policy.title}
-        description="Policy"
-        icon={<DocumentIcon className="h-6 w-6 text-white" />}
-        showBack
-        actions={
-          canManagePolicies ? (
-            <Button href={`/policies/${id}/edit`} icon={<PencilIcon className="h-4 w-4" />}>
-              Edit
-            </Button>
-          ) : null
-        }
-      />
+      {error ? (
+        <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
+          {error}
+        </Alert>
+      ) : null}
 
-      <div className="max-w-4xl space-y-6">
-        {/* Acknowledgement */}
-        {policy.status === 'ACTIVE' && ack?.isApplicable && (
-          <Card padding="md">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-gray-900">Acknowledgement</p>
-                {ack.isAcknowledged ? (
-                  <p className="text-sm text-gray-600 mt-1">
-                    Acknowledged {ack.acknowledgedAt ? `on ${formatDate(ack.acknowledgedAt)}` : ''}.
-                  </p>
-                ) : (
-                  <p className="text-sm text-gray-600 mt-1">
-                    Please acknowledge you have read and understood this policy.
-                  </p>
-                )}
-              </div>
-              {!ack.isAcknowledged && (
-                <Button onClick={acknowledgePolicy} loading={ackSubmitting} disabled={ackSubmitting}>
-                  {ackSubmitting ? 'Acknowledging...' : 'Acknowledge'}
-                </Button>
-              )}
-            </div>
-          </Card>
-        )}
+      <WorkflowRecordLayout data={dto} onAction={onAction}>
+        {policy ? (
+          <div className="space-y-6">
+            {policy.summary ? (
+              <Card padding="lg">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Summary</h3>
+                <p className="text-sm text-gray-700 whitespace-pre-line">{policy.summary}</p>
+              </Card>
+            ) : null}
 
-        {/* Meta Info */}
-        <Card padding="md">
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-6">
-            <MetaItem label="Category">
-              {getCategoryLabel(policy.category)}
-            </MetaItem>
-            <MetaItem label="Region">
-              {getRegionLabel(policy.region)}
-            </MetaItem>
-            <MetaItem label="Status">
-              <StatusBadge status={policy.status} />
-            </MetaItem>
-            <MetaItem label="Version">
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                v{policy.version}
-              </span>
-            </MetaItem>
-            <MetaItem label="Effective Date">
-              {formatDate(policy.effectiveDate)}
-            </MetaItem>
+            {policy.content ? (
+              <Card padding="lg">
+                <h3 className="text-sm font-semibold text-gray-900 mb-4">Policy content</h3>
+                <div className="prose prose-sm max-w-none prose-headings:text-blue-700 prose-h1:text-xl prose-h1:font-bold prose-h2:text-lg prose-h2:font-semibold prose-h2:border-b prose-h2:border-blue-200 prose-h2:pb-2 prose-h2:mt-6 prose-table:text-sm prose-th:bg-blue-50 prose-th:text-blue-900 prose-th:p-2 prose-th:border prose-th:border-blue-200 prose-td:p-2 prose-td:border prose-td:border-gray-200 prose-strong:text-blue-800 prose-a:text-blue-600 hover:prose-a:text-blue-800">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {policy.content}
+                  </ReactMarkdown>
+                </div>
+              </Card>
+            ) : null}
           </div>
-        </Card>
-
-        {/* Summary */}
-        {policy.summary && (
-          <Card padding="md">
-            <h2 className="text-sm font-semibold text-gray-900 mb-3">Summary</h2>
-            <p className="text-sm text-gray-600 leading-relaxed">{policy.summary}</p>
-          </Card>
-        )}
-
-        {/* Content */}
-        {policy.content && (
-          <Card padding="md">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4">Policy Content</h2>
-            <div className="prose prose-sm max-w-none prose-headings:text-blue-700 prose-h1:text-xl prose-h1:font-bold prose-h2:text-lg prose-h2:font-semibold prose-h2:border-b prose-h2:border-blue-200 prose-h2:pb-2 prose-h2:mt-6 prose-table:text-sm prose-th:bg-blue-50 prose-th:text-blue-900 prose-th:p-2 prose-th:border prose-th:border-blue-200 prose-td:p-2 prose-td:border prose-td:border-gray-200 prose-strong:text-blue-800 prose-a:text-blue-600 hover:prose-a:text-blue-800">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {policy.content}
-              </ReactMarkdown>
-            </div>
-          </Card>
-        )}
-
-        {/* No content message */}
-        {!policy.content && !policy.summary && (
-          <Card padding="lg">
-            <EmptyState
-              icon={<DocumentIcon className="h-10 w-10" />}
-              title="No content has been added"
-              description="This policy doesn't have any content yet."
-              action={{
-                label: 'Add content',
-                href: `/policies/${id}/edit`,
-              }}
-            />
-          </Card>
-        )}
-      </div>
+        ) : null}
+      </WorkflowRecordLayout>
     </>
   )
 }
+

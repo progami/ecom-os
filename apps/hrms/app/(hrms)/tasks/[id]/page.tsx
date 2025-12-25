@@ -34,7 +34,8 @@ function formatDate(dateStr: string | null | undefined) {
 export default function TaskDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const id = params.id as string
+  const rawId = (params as Record<string, string | string[] | undefined> | null)?.id
+  const id = Array.isArray(rawId) ? rawId[0] : rawId
 
   const [task, setTask] = useState<Task | null>(null)
   const [me, setMe] = useState<Me | null>(null)
@@ -105,6 +106,11 @@ export default function TaskDetailPage() {
 
   useEffect(() => {
     async function load() {
+      if (!id) {
+        setError('Invalid task id')
+        setLoading(false)
+        return
+      }
       try {
         setLoading(true)
         const [taskData, meData] = await Promise.all([
