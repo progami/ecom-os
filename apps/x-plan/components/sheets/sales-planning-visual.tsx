@@ -11,6 +11,7 @@ import { useSalesPlanningFocus } from '@/components/sheets/sales-planning-grid'
 
 type SalesRow = {
   weekNumber: string
+  weekLabel: string
   weekDate: string
   arrivalDetail?: string
   [key: string]: string | undefined
@@ -83,6 +84,16 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
   const [activeWeekIndex, setActiveWeekIndex] = useState<number | null>(null)
   const [showShipments, setShowShipments] = useState(true)
   const [showStockLine, setShowStockLine] = useState(true)
+
+  const weekLabelByWeekNumber = useMemo(() => {
+    const map = new Map<number, string>()
+    rows.forEach((row) => {
+      const week = Number(row.weekNumber)
+      if (!Number.isFinite(week)) return
+      map.set(week, row.weekLabel ?? row.weekNumber)
+    })
+    return map
+  }, [rows])
 
   const isDark = theme === 'dark'
   const colors = {
@@ -577,7 +588,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                     textAnchor="middle"
                     className="fill-[#6F7B8B] text-xs"
                   >
-                    W{tick.weekNumber}
+                    W{weekLabelByWeekNumber.get(tick.weekNumber) ?? tick.weekNumber}
                   </text>
                 </g>
               ))}
@@ -601,9 +612,9 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
 	              </p>
 	              <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
 	                {activeStock
-	                  ? `W${activeStock.weekNumber} · ${activeStock.weekDate}`
+	                  ? `W${weekLabelByWeekNumber.get(activeStock.weekNumber) ?? activeStock.weekNumber} · ${activeStock.weekDate}`
 	                  : stockDataPoints.length > 0
-	                    ? `W${stockDataPoints[stockDataPoints.length - 1].weekNumber} · ${stockDataPoints[stockDataPoints.length - 1].weekDate}`
+	                    ? `W${weekLabelByWeekNumber.get(stockDataPoints[stockDataPoints.length - 1].weekNumber) ?? stockDataPoints[stockDataPoints.length - 1].weekNumber} · ${stockDataPoints[stockDataPoints.length - 1].weekDate}`
 	                    : '—'
 	                }
 	              </p>
@@ -660,7 +671,7 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
 	              <div className="space-y-1 border-t border-slate-200 pt-4 dark:border-[#0b3a52]">
 	                <p className="text-xs font-bold uppercase tracking-[0.28em] text-emerald-700 dark:text-emerald-300/80">Shipment</p>
 	                <p className="text-sm font-medium text-slate-900 dark:text-white">
-	                  W{activeShipment.weekNumber} · {activeShipment.weekDate}
+	                  W{weekLabelByWeekNumber.get(activeShipment.weekNumber) ?? activeShipment.weekNumber} · {activeShipment.weekDate}
 	                </p>
 	                <p className="text-xs text-slate-600 dark:text-slate-300 whitespace-pre-line">
 	                  {activeShipment.arrivalDetail}

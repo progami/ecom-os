@@ -15,6 +15,7 @@ registerAllModules()
 
 type WeeklyRow = {
   weekNumber: string
+  weekLabel: string
   weekDate: string
   units: string
   revenue: string
@@ -62,6 +63,7 @@ const WEEK_COLUMN_WIDTH = 92
 const DATE_COLUMN_WIDTH = 136
 const COLUMN_WIDTHS: Record<keyof WeeklyRow, number> = {
   weekNumber: WEEK_COLUMN_WIDTH,
+  weekLabel: WEEK_COLUMN_WIDTH,
   weekDate: DATE_COLUMN_WIDTH,
   units: 112,
   revenue: 132,
@@ -95,7 +97,7 @@ export function ProfitAndLossGrid({ strategyId, weekly, monthlySummary, quarterl
 
   const columns: Handsontable.ColumnSettings[] = useMemo(
     () => [
-      { data: 'weekNumber', readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.weekNumber },
+      { data: 'weekLabel', readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.weekLabel },
       { data: 'weekDate', readOnly: true, className: 'cell-readonly', width: COLUMN_WIDTHS.weekDate },
       {
         data: 'units',

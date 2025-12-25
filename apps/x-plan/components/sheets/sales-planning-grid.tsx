@@ -1,5 +1,6 @@
 'use client'
 
+import { addWeeks } from 'date-fns'
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { HotTable } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
@@ -17,8 +18,16 @@ import {
 } from '@/components/sheet-toolbar'
 import { usePersistentState } from '@/hooks/usePersistentState'
 import { withAppBasePath } from '@/lib/base-path'
+import { formatDateDisplay } from '@/lib/utils/dates'
 
 registerAllModules()
+
+const PLANNING_ANCHOR_WEEK = 1
+const PLANNING_ANCHOR_DATE = new Date('2025-01-06T00:00:00.000Z')
+
+function formatWeekDateFallback(weekNumber: number): string {
+  return formatDateDisplay(addWeeks(PLANNING_ANCHOR_DATE, weekNumber - PLANNING_ANCHOR_WEEK))
+}
 
 function getHandsontableScroll(hot: Handsontable | null): { top: number; left: number } | null {
   if (!hot?.rootElement) return null
@@ -42,6 +51,7 @@ function restoreHandsontableScroll(hot: Handsontable | null, scroll: { top: numb
 
 type SalesRow = {
   weekNumber: string
+  weekLabel: string
   weekDate: string
   arrivalNote?: string
   [key: string]: string | undefined
@@ -186,6 +196,15 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
     })
     return map
   }, [data])
+  const weekLabelByNumber = useMemo(() => {
+    const map = new Map<number, string>()
+    data.forEach((row) => {
+      const week = Number(row.weekNumber)
+      if (!Number.isFinite(week)) return
+      map.set(week, row.weekLabel ?? row.weekNumber)
+    })
+    return map
+  }, [data])
   const hasInboundByWeek = useMemo(() => {
     const set = new Set<number>()
     rows.forEach((row) => {
@@ -305,7 +324,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
     }
 
     const map: Record<string, number> = {}
-    map.weekNumber = WEEK_COLUMN_WIDTH
+    map.weekLabel = WEEK_COLUMN_WIDTH
     map.weekDate = DATE_COLUMN_WIDTH
     map.arrivalDetail = measure(rows.map((row) => row.arrivalDetail ?? ''), { min: 110, max: 220, padding: 14 })
 
@@ -337,7 +356,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
   const columns: Handsontable.ColumnSettings[] = useMemo(() => {
     const base: Handsontable.ColumnSettings[] = [
       {
-        data: 'weekNumber',
+        data: 'weekLabel',
         readOnly: true,
         className: 'cell-readonly cell-common',
         width: WEEK_COLUMN_WIDTH,
@@ -681,6 +700,10 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
 	                (meta.field === 'stockEnd' && activeStockMetric === 'stockEnd')
 
                 const reorderInfo = reorderStartByProduct.get(meta.productId)?.get(weekNumber)
+                if (reorderInfo && visibleMetrics.has(meta.field)) {
+                  cell.className = cell.className ? `${cell.className} cell-reorder-band` : 'cell-reorder-band'
+                }
+
                 if (reorderInfo && isStockColumn) {
                   cell.className = cell.className ? `${cell.className} cell-reorder-suggest` : 'cell-reorder-suggest'
 
@@ -690,11 +713,24 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
                     ? `${leadTimeWeeks}w (prod ${leadProfile.productionWeeks}w + source ${leadProfile.sourceWeeks}w + ocean ${leadProfile.oceanWeeks}w + final ${leadProfile.finalWeeks}w)`
                     : `${leadTimeWeeks}w`
 
-                  const breachLabel = `W${reorderInfo.breachWeek}${reorderInfo.breachDate ? ` (${reorderInfo.breachDate})` : ''}`
-                  const startLabel =
-                    minWeekAvailable != null && reorderInfo.startWeekRaw < minWeekAvailable
-                      ? `ASAP (before W${minWeekAvailable})`
-                      : `W${weekNumber}${weekDateByNumber.get(weekNumber) ? ` (${weekDateByNumber.get(weekNumber)})` : ''}`
+                  const breachWeekLabel = weekLabelByNumber.get(reorderInfo.breachWeek) ?? String(reorderInfo.breachWeek)
+                  const breachDate =
+                    reorderInfo.breachDate ||
+                    weekDateByNumber.get(reorderInfo.breachWeek) ||
+                    formatWeekDateFallback(reorderInfo.breachWeek)
+                  const breachLabel = `W${breachWeekLabel}${breachDate ? ` (${breachDate})` : ''}`
+
+                  const minLabel = minWeekAvailable != null ? weekLabelByNumber.get(minWeekAvailable) ?? String(minWeekAvailable) : ''
+                  const isStartBeforeView = minWeekAvailable != null && reorderInfo.startWeekRaw < minWeekAvailable
+                  const weeksLate = isStartBeforeView && minWeekAvailable != null ? minWeekAvailable - reorderInfo.startWeekRaw : 0
+
+                  const startWeekLabel = weekLabelByNumber.get(weekNumber) ?? String(weekNumber)
+                  const startDateInView = weekDateByNumber.get(weekNumber) || ''
+                  const startDateRaw = formatWeekDateFallback(reorderInfo.startWeekRaw)
+
+                  const startLabel = isStartBeforeView
+                    ? `${startDateRaw} (before W${minLabel}${weeksLate > 0 ? ` · late by ${weeksLate}w` : ''})`
+                    : `W${startWeekLabel}${startDateInView ? ` (${startDateInView})` : ''}`
 
                   if (!cell.comment) {
                     cell.comment = {
@@ -717,14 +753,15 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
 	                  const startWeekRaw = weekNumber - leadTimeWeeks
 	                  const startWeek =
 	                    minWeekAvailable != null ? Math.max(minWeekAvailable, startWeekRaw) : startWeekRaw
-	                  const startDate = weekDateByNumber.get(startWeek) ?? ''
+	                  const startDate = weekDateByNumber.get(startWeek) || formatWeekDateFallback(startWeek)
 	                  const leadBreakdown = leadProfile
 	                    ? `${leadTimeWeeks}w (prod ${leadProfile.productionWeeks}w + source ${leadProfile.sourceWeeks}w + ocean ${leadProfile.oceanWeeks}w + final ${leadProfile.finalWeeks}w)`
 	                    : `${leadTimeWeeks}w`
 
+	                  const minLabel = minWeekAvailable != null ? weekLabelByNumber.get(minWeekAvailable) ?? String(minWeekAvailable) : ''
 	                  const startLabel = startWeekRaw < (minWeekAvailable ?? startWeekRaw)
-	                    ? `ASAP (before W${minWeekAvailable})`
-	                    : `W${startWeek}${startDate ? ` (${startDate})` : ''}`
+	                    ? `ASAP (before W${minLabel})`
+	                    : `W${weekLabelByNumber.get(startWeek) ?? String(startWeek)}${startDate ? ` (${startDate})` : ''}`
 
 	                  cell.comment = {
 	                    value:
