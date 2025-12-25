@@ -8,7 +8,6 @@ import { Prisma } from '@ecom-os/prisma-wms'
 const UpdateLineSchema = z.object({
   skuCode: z.string().trim().min(1).optional(),
   skuDescription: z.string().optional(),
-  batchLot: z.string().trim().min(1, 'Batch/Lot is required').optional(),
   quantity: z.number().int().positive().optional(),
   unitCost: z.number().optional(),
   currency: z.string().optional(),
@@ -104,7 +103,6 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     if (result.data.skuCode !== undefined) updateData.skuCode = result.data.skuCode
     if (result.data.skuDescription !== undefined)
       updateData.skuDescription = result.data.skuDescription
-    if (result.data.batchLot !== undefined) updateData.batchLot = result.data.batchLot
     if (result.data.quantity !== undefined) updateData.quantity = result.data.quantity
     if (result.data.unitCost !== undefined) updateData.unitCost = result.data.unitCost
     if (result.data.currency !== undefined) updateData.currency = result.data.currency
@@ -123,32 +121,71 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     return ApiResponses.badRequest('No valid fields to update for current order status')
   }
 
-  if (order.status === 'DRAFT' && (result.data.skuCode !== undefined || result.data.batchLot !== undefined)) {
-    const nextSkuCode = (result.data.skuCode ?? line.skuCode).trim()
-    const nextBatchLot = (result.data.batchLot ?? line.batchLot).trim()
+  if (order.status === 'DRAFT') {
+    const derivedBatchLot = (order.poNumber ?? order.orderNumber).trim()
+    const resolvedBatchLot = (line.batchLot ?? derivedBatchLot).trim()
 
-    const sku = await prisma.sku.findFirst({
-      where: { skuCode: nextSkuCode },
-      select: { id: true },
-    })
-
-    if (!sku) {
-      return ApiResponses.badRequest(`SKU ${nextSkuCode} not found. Create the SKU first.`)
+    if (!line.batchLot && resolvedBatchLot) {
+      updateData.batchLot = resolvedBatchLot
     }
 
-    const batchRecord = await prisma.skuBatch.findFirst({
-      where: {
-        skuId: sku.id,
-        batchCode: nextBatchLot,
-        isActive: true,
-      },
-      select: { id: true },
-    })
+    if (result.data.skuCode !== undefined || !line.batchLot) {
+      const nextSkuCode = (result.data.skuCode ?? line.skuCode).trim()
+      const sku = await prisma.sku.findFirst({
+        where: { skuCode: nextSkuCode },
+        select: {
+          id: true,
+          packSize: true,
+          unitsPerCarton: true,
+          material: true,
+          unitDimensionsCm: true,
+          unitLengthCm: true,
+          unitWidthCm: true,
+          unitHeightCm: true,
+          unitWeightKg: true,
+          cartonDimensionsCm: true,
+          cartonLengthCm: true,
+          cartonWidthCm: true,
+          cartonHeightCm: true,
+          cartonWeightKg: true,
+          packagingType: true,
+        },
+      })
 
-    if (!batchRecord) {
-      return ApiResponses.badRequest(
-        `Batch/Lot ${nextBatchLot} is not configured for SKU ${nextSkuCode}. Create it in Config → Products → SKUs → Batches.`
-      )
+      if (!sku) {
+        return ApiResponses.badRequest(`SKU ${nextSkuCode} not found. Create the SKU first.`)
+      }
+
+      if (resolvedBatchLot) {
+        await prisma.skuBatch.upsert({
+          where: {
+            skuId_batchCode: {
+              skuId: sku.id,
+              batchCode: resolvedBatchLot,
+            },
+          },
+          create: {
+            skuId: sku.id,
+            batchCode: resolvedBatchLot,
+            packSize: sku.packSize,
+            unitsPerCarton: sku.unitsPerCarton,
+            material: sku.material,
+            unitDimensionsCm: sku.unitDimensionsCm,
+            unitLengthCm: sku.unitLengthCm,
+            unitWidthCm: sku.unitWidthCm,
+            unitHeightCm: sku.unitHeightCm,
+            unitWeightKg: sku.unitWeightKg,
+            cartonDimensionsCm: sku.cartonDimensionsCm,
+            cartonLengthCm: sku.cartonLengthCm,
+            cartonWidthCm: sku.cartonWidthCm,
+            cartonHeightCm: sku.cartonHeightCm,
+            cartonWeightKg: sku.cartonWeightKg,
+            packagingType: sku.packagingType,
+            isActive: true,
+          },
+          update: { isActive: true },
+        })
+      }
     }
   }
 
@@ -160,7 +197,7 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
     })
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      return ApiResponses.conflict('A line with this SKU and batch already exists for the purchase order')
+      return ApiResponses.conflict('A line with this SKU already exists for the purchase order')
     }
     throw error
   }

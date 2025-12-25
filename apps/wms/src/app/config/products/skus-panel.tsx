@@ -185,7 +185,6 @@ interface SkuFormState {
   defaultSupplierId: string
   secondarySupplierId: string
   material: string
-  initialBatchCodes: string
   unitLength: string
   unitWidth: string
   unitHeight: string
@@ -276,7 +275,6 @@ function buildFormState(sku?: SkuRow | null, unitSystem: UnitSystem = 'metric'):
     defaultSupplierId: sku?.defaultSupplierId ?? '',
     secondarySupplierId: sku?.secondarySupplierId ?? '',
     material: sku?.material ?? '',
-    initialBatchCodes: '',
     unitLength: formatDimensionFromCm(unitCm.lengthCm, unitSystem),
     unitWidth: formatDimensionFromCm(unitCm.widthCm, unitSystem),
     unitHeight: formatDimensionFromCm(unitCm.heightCm, unitSystem),
@@ -558,16 +556,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       return
     }
 
-    if (
-      editingSku &&
-      formState.isActive &&
-      !editingSku.isActive &&
-      (editingSku.batches?.length ?? 0) === 0
-    ) {
-      toast.error('Cannot activate SKU without at least one active batch')
-      return
-    }
-
     setIsSubmitting(true)
     try {
       const roundDimensionCm = (value: number | null): number | null =>
@@ -600,22 +588,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         }
         if (!unitsPerCarton) {
           toast.error('Units per carton must be a positive integer')
-          return
-        }
-
-        const initialBatchCodes = formState.initialBatchCodes
-          .split(/[,\\n]/g)
-          .map(code => code.trim())
-          .filter(Boolean)
-
-        if (initialBatchCodes.length === 0) {
-          toast.error('At least one initial batch/lot code is required')
-          return
-        }
-
-        const uniqueBatchCodes = new Set(initialBatchCodes.map(code => code.toLowerCase()))
-        if (uniqueBatchCodes.size !== initialBatchCodes.length) {
-          toast.error('Initial batch/lot codes must be unique')
           return
         }
 
@@ -673,7 +645,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
           return
         }
 
-        payload.initialBatchCodes = initialBatchCodes
         payload.packSize = packSize
         payload.material = formState.material.trim() ? formState.material.trim() : null
         payload.unitLengthCm = roundDimensionCm(measurements.unitLengthCm)
@@ -973,28 +944,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                         required
                       />
                     </div>
-
-                    {!editingSku ? (
-                      <div className="space-y-1 md:col-span-2">
-                        <Label htmlFor="initialBatchCodes">Initial Batch/Lot</Label>
-                        <Input
-                          id="initialBatchCodes"
-                          value={formState.initialBatchCodes}
-                          onChange={event =>
-                            setFormState(prev => ({
-                              ...prev,
-                              initialBatchCodes: event.target.value,
-                            }))
-                          }
-                          placeholder="Required (comma or newline separated)"
-                          required
-                        />
-                        <p className="text-xs text-slate-500">
-                          Example: <span className="font-medium">BATCH001</span> or{' '}
-                          <span className="font-medium">BATCH001, BATCH002</span>
-                        </p>
-                      </div>
-                    ) : null}
 
                     <div className="space-y-1">
                       <Label htmlFor="defaultSupplierId">Default Supplier</Label>

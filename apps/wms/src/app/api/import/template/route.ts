@@ -108,7 +108,6 @@ function getSampleData(entityName: string, _config: ImportConfig): unknown[][] {
       return [
         [
           'SKU001',
-          'BATCH001',
           'B08XYZ123',
           'Product A - Small Pack',
           '1',
@@ -122,7 +121,6 @@ function getSampleData(entityName: string, _config: ImportConfig): unknown[][] {
         ],
         [
           'SKU002',
-          'BATCH001',
           'B08ABC456',
           'Product B - Large Pack',
           '2',
@@ -257,7 +255,6 @@ function getFieldDescription(dbField: string, entityName: string): string {
   const descriptions: Record<string, Record<string, string>> = {
     skus: {
       skuCode: 'Unique product identifier code',
-      __initialBatchCodes: 'Initial batch/lot code(s) to create for this SKU (comma-separated)',
       asin: 'Amazon Standard Identification Number',
       description: 'Product description',
       packSize: 'Number of units in a pack',
