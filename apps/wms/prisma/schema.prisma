@@ -72,6 +72,7 @@ model Warehouse {
   longitude          Float?     @map("longitude")
   contactEmail       String?    @map("contact_email")
   contactPhone       String?    @map("contact_phone")
+  kind               WarehouseKind @default(THIRD_PARTY) @map("kind")
   isActive           Boolean    @default(true) @map("is_active")
   rateListAttachment Json?      @map("rate_list_attachment")
   createdAt          DateTime   @default(now()) @map("created_at")
@@ -230,8 +231,12 @@ model InventoryTransaction {
   supplier                 String?            @map("supplier")
   purchaseOrderId          String?            @map("purchase_order_id")
   purchaseOrderLineId      String?            @map("purchase_order_line_id")
+  fulfillmentOrderId       String?            @map("fulfillment_order_id")
+  fulfillmentOrderLineId   String?            @map("fulfillment_order_line_id")
   purchaseOrder            PurchaseOrder?     @relation("TransactionPurchaseOrder", fields: [purchaseOrderId], references: [id], onDelete: SetNull)
   purchaseOrderLine        PurchaseOrderLine? @relation("TransactionPurchaseOrderLine", fields: [purchaseOrderLineId], references: [id], onDelete: SetNull)
+  fulfillmentOrder         FulfillmentOrder?  @relation("TransactionFulfillmentOrder", fields: [fulfillmentOrderId], references: [id], onDelete: SetNull)
+  fulfillmentOrderLine     FulfillmentOrderLine? @relation("TransactionFulfillmentOrderLine", fields: [fulfillmentOrderLineId], references: [id], onDelete: SetNull)
   costLedger               CostLedger[]
 
   @@index([transactionDate])
@@ -241,6 +246,8 @@ model InventoryTransaction {
   @@index([createdAt(sort: Desc)], map: "idx_inventory_transactions_created_at")
   @@index([purchaseOrderId], map: "idx_inventory_transactions_purchase_order")
   @@index([purchaseOrderLineId], map: "idx_inventory_transactions_purchase_order_line")
+  @@index([fulfillmentOrderId], map: "idx_inventory_transactions_fulfillment_order")
+  @@index([fulfillmentOrderLineId], map: "idx_inventory_transactions_fulfillment_order_line")
   @@map("inventory_transactions")
 }
 
@@ -378,6 +385,79 @@ model PurchaseOrder {
   @@index([isLegacy])
   @@index([warehouseCode])
   @@map("purchase_orders")
+}
+
+model FulfillmentOrder {
+  id                  String                 @id @default(uuid())
+  foNumber             String                 @unique @map("fo_number") // FO-0001 format
+  status               FulfillmentOrderStatus @default(DRAFT)
+  warehouseCode        String                 @map("warehouse_code")
+  warehouseName        String                 @map("warehouse_name")
+  destinationType      FulfillmentDestinationType @default(CUSTOMER) @map("destination_type")
+  destinationName      String?                @map("destination_name")
+  destinationAddress   String?                @map("destination_address")
+  destinationCountry   String?                @map("destination_country")
+  shippingCarrier      String?                @map("shipping_carrier")
+  shippingMethod       String?                @map("shipping_method")
+  trackingNumber       String?                @map("tracking_number")
+  shippedDate          DateTime?              @map("shipped_date")
+  deliveredDate        DateTime?              @map("delivered_date")
+  externalReference    String?                @map("external_reference")
+  notes                String?
+  createdById          String?                @map("created_by")
+  createdByName        String?                @map("created_by_name")
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+
+  lines                FulfillmentOrderLine[]
+  documents            FulfillmentOrderDocument[]
+  transactions         InventoryTransaction[] @relation("TransactionFulfillmentOrder")
+
+  @@index([status])
+  @@index([warehouseCode])
+  @@map("fulfillment_orders")
+}
+
+model FulfillmentOrderDocument {
+  id                  String                    @id @default(uuid())
+  fulfillmentOrderId  String                    @map("fulfillment_order_id")
+  fulfillmentOrder    FulfillmentOrder          @relation(fields: [fulfillmentOrderId], references: [id], onDelete: Cascade)
+  stage               FulfillmentOrderDocumentStage @map("stage")
+  documentType        String                    @map("document_type")
+  fileName            String                    @map("file_name")
+  contentType         String                    @map("content_type")
+  size                Int                       @map("size")
+  s3Key               String                    @map("s3_key")
+  uploadedAt          DateTime                  @default(now()) @map("uploaded_at")
+  uploadedById        String?                   @map("uploaded_by_id")
+  uploadedByName      String?                   @map("uploaded_by_name")
+  metadata            Json?                     @map("metadata")
+
+  @@unique([fulfillmentOrderId, stage, documentType])
+  @@index([fulfillmentOrderId])
+  @@index([stage])
+  @@index([documentType])
+  @@map("fulfillment_order_documents")
+}
+
+model FulfillmentOrderLine {
+  id                 String                @id @default(uuid())
+  fulfillmentOrderId String                @map("fulfillment_order_id")
+  fulfillmentOrder   FulfillmentOrder      @relation(fields: [fulfillmentOrderId], references: [id], onDelete: Cascade)
+  skuCode            String                @map("sku_code")
+  skuDescription     String?               @map("sku_description")
+  batchLot           String                @map("batch_lot")
+  quantity           Int
+  status             FulfillmentOrderLineStatus @default(PENDING)
+  shippedQuantity    Int                   @default(0) @map("shipped_quantity")
+  lineNotes          String?               @map("line_notes")
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @updatedAt @map("updated_at")
+  transactions       InventoryTransaction[] @relation("TransactionFulfillmentOrderLine")
+
+  @@unique([fulfillmentOrderId, skuCode, batchLot])
+  @@index([fulfillmentOrderId])
+  @@map("fulfillment_order_lines")
 }
 
 model PurchaseOrderDocument {
@@ -624,6 +704,14 @@ enum TenantCode {
   @@map("TenantCode")
 }
 
+enum WarehouseKind {
+  THIRD_PARTY
+  AMAZON_FBA
+  AMAZON_AWD
+
+  @@map("WarehouseKind")
+}
+
 enum CostCategory {
   Inbound
   Storage
@@ -668,6 +756,38 @@ enum PurchaseOrderStatus {
   CLOSED
 
   @@map("PurchaseOrderStatus")
+}
+
+enum FulfillmentOrderStatus {
+  DRAFT
+  SHIPPED
+  CANCELLED
+
+  @@map("FulfillmentOrderStatus")
+}
+
+enum FulfillmentOrderLineStatus {
+  PENDING
+  SHIPPED
+  CANCELLED
+
+  @@map("FulfillmentOrderLineStatus")
+}
+
+enum FulfillmentDestinationType {
+  CUSTOMER
+  AMAZON_FBA
+  TRANSFER
+
+  @@map("FulfillmentDestinationType")
+}
+
+enum FulfillmentOrderDocumentStage {
+  PACKING
+  SHIPPING
+  DELIVERY
+
+  @@map("FulfillmentOrderDocumentStage")
 }
 
 enum PurchaseOrderLineStatus {
