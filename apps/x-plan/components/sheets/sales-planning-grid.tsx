@@ -248,33 +248,38 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
       const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : 0
       if (leadTimeWeeks <= 0) return
 
-      let wasBelow = false
-      data.forEach((row) => {
+      let hasBeenAbove = false
+      for (const row of data) {
         const week = Number(row.weekNumber)
-        if (!Number.isFinite(week)) return
+        if (!Number.isFinite(week)) continue
         const rawWeeks = row[weeksKey]
         const weeksNumeric = rawWeeks !== undefined ? Number(rawWeeks) : Number.NaN
-        if (!Number.isFinite(weeksNumeric)) return
+        if (!Number.isFinite(weeksNumeric)) continue
 
         const isBelow = weeksNumeric <= warningThreshold
-        if (isBelow && !wasBelow) {
+        // Only show a single reorder cue per SKU, and avoid showing it for SKUs that are already below
+        // threshold at the start of the visible range (those get the normal red warning cells).
+        if (isBelow && hasBeenAbove) {
           const breachWeek = week
           const breachDate = weekDateByNumber.get(breachWeek) ?? ''
           const startWeekRaw = breachWeek - leadTimeWeeks
 
           const startWeek =
-            minWeek != null && maxWeek != null
-              ? Math.max(minWeek, Math.min(maxWeek, startWeekRaw))
-              : startWeekRaw
+            minWeek != null && maxWeek != null && startWeekRaw >= minWeek && startWeekRaw <= maxWeek
+              ? startWeekRaw
+              : breachWeek
 
           if (!result.has(productId)) {
             result.set(productId, new Map())
           }
           result.get(productId)?.set(startWeek, { breachWeek, breachDate, startWeekRaw })
+          break
         }
 
-        wasBelow = isBelow
-      })
+        if (!isBelow) {
+          hasBeenAbove = true
+        }
+      }
     })
 
     return result
@@ -695,9 +700,25 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
               const rawWeeks = weeksKey ? data[row]?.[weeksKey] : undefined
               const weeksNumeric = rawWeeks !== undefined ? Number(rawWeeks) : Number.NaN
               const isBelowThreshold = !Number.isNaN(weeksNumeric) && weeksNumeric <= warningThreshold
+              const isInfiniteWeeks = rawWeeks === '∞'
 	              const isStockColumn =
 	                (meta.field === 'stockWeeks' && activeStockMetric === 'stockWeeks') ||
 	                (meta.field === 'stockEnd' && activeStockMetric === 'stockEnd')
+
+              if (isInfiniteWeeks && meta.field === 'stockWeeks' && weeksKey) {
+                const previousValue = row > 0 ? data[row - 1]?.[weeksKey] : undefined
+                const isFirstInfinity = row === 0 || previousValue !== '∞'
+
+                if (isFirstInfinity && !cell.comment) {
+                  cell.comment = {
+                    value:
+                      `Stock (Weeks) is forward-looking coverage until inventory reaches 0.\n` +
+                      `∞ means inventory never reaches 0 within the loaded horizon.\n` +
+                      `This usually happens when Final Sales is 0 (no demand entered) or inbound covers demand.`,
+                    readOnly: true,
+                  }
+                }
+              }
 
                 const reorderInfo = reorderStartByProduct.get(meta.productId)?.get(weekNumber)
                 if (reorderInfo && visibleMetrics.has(meta.field)) {
