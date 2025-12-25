@@ -1,12 +1,13 @@
-'use client'
+'use client';
 
-import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { TasksApi, type Task } from '@/lib/api-client'
-import { CheckCircleIcon, PlusIcon } from '@/components/ui/Icons'
-import { ListPageHeader } from '@/components/ui/PageHeader'
-import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { MeApi, TasksApi, type Me, type Task } from '@/lib/api-client';
+import { CheckCircleIcon, PlusIcon } from '@/components/ui/Icons';
+import { ListPageHeader } from '@/components/ui/PageHeader';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { Alert } from '@/components/ui/Alert';
 import {
   Table,
   TableHeader,
@@ -16,55 +17,128 @@ import {
   TableCell,
   TableSkeleton,
   ResultsCount,
-} from '@/components/ui/Table'
-import { TableEmptyState } from '@/components/ui/EmptyState'
-import { StatusBadge } from '@/components/ui/Badge'
+} from '@/components/ui/Table';
+import { TableEmptyState } from '@/components/ui/EmptyState';
+import { StatusBadge } from '@/components/ui/Badge';
 
 function formatDate(dateStr: string | null | undefined) {
-  if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
 }
 
 export default function TasksPage() {
-  const router = useRouter()
-  const [items, setItems] = useState<Task[]>([])
-  const [loading, setLoading] = useState(true)
+  const router = useRouter();
+  const [me, setMe] = useState<Me | null>(null);
+  const [items, setItems] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [scope, setScope] = useState<'mine' | 'all'>('mine');
+
+  const canSeeAllTasks = Boolean(me?.isHR || me?.isSuperAdmin);
+
+  useEffect(() => {
+    let cancelled = false;
+    MeApi.get()
+      .then((data) => {
+        if (cancelled) return;
+        setMe(data);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setMe(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!canSeeAllTasks && scope === 'all') {
+      setScope('mine');
+    }
+  }, [canSeeAllTasks, scope]);
 
   const load = useCallback(async () => {
     try {
-      setLoading(true)
-      const data = await TasksApi.list()
-      setItems(data.items || [])
+      setLoading(true);
+      setError(null);
+      const data = await TasksApi.list({ scope });
+      setItems(data.items || []);
     } catch (e) {
-      console.error('Failed to load tasks', e)
-      setItems([])
+      console.error('Failed to load tasks', e);
+      setItems([]);
+      setError(e instanceof Error ? e.message : 'Failed to load tasks');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, [scope]);
 
   useEffect(() => {
-    load()
-  }, [load])
+    load();
+  }, [load]);
 
   return (
     <>
       <ListPageHeader
-        title="Tasks"
-        description="Assigned tasks and action items"
+        title="Task List"
+        description="Track tasks created for you and by you"
         icon={<CheckCircleIcon className="h-6 w-6 text-white" />}
-        action={(
+        action={
           <Button href="/tasks/add" icon={<PlusIcon className="h-4 w-4" />}>
             Add Task
           </Button>
-        )}
+        }
       />
 
       <div className="space-y-6">
+        {error ? (
+          <Alert variant="error" onDismiss={() => setError(null)}>
+            {error}
+          </Alert>
+        ) : null}
+
         <Card padding="md">
-          <p className="text-sm text-gray-600">
-            Track onboarding/offboarding tasks, personal to-dos, and case-related tasks.
-          </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Work Queue is your inbox. Task List is the full list of tasks (including checklist
+                and case tasks).
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {canSeeAllTasks ? (
+                <div className="inline-flex rounded-lg border border-gray-200 bg-white p-1">
+                  <button
+                    type="button"
+                    onClick={() => setScope('mine')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      scope === 'mine' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    My tasks
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScope('all')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                      scope === 'all' ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    All tasks
+                  </button>
+                </div>
+              ) : null}
+
+              <Button href="/work" variant="secondary">
+                Work Queue
+              </Button>
+            </div>
+          </div>
         </Card>
 
         <ResultsCount count={items.length} singular="task" plural="tasks" loading={loading} />
@@ -94,9 +168,7 @@ export default function TasksPage() {
                     <div>
                       <p className="font-medium text-gray-900">{t.title}</p>
                       {t.description && (
-                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
-                          {t.description}
-                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{t.description}</p>
                       )}
                     </div>
                   </TableCell>
@@ -112,6 +184,5 @@ export default function TasksPage() {
         </Table>
       </div>
     </>
-  )
+  );
 }
-

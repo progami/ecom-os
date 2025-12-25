@@ -184,10 +184,15 @@ export default function CaseDetailPage() {
       let disciplinaryActionId: string | null = null;
 
       if (caseData.caseType === 'VIOLATION') {
-        const linked = await CasesApi.getLinkedDisciplinary(caseData.id);
-        disciplinaryActionId = linked.disciplinaryActionId;
-        if (disciplinaryActionId) {
-          workflowData = await DisciplinaryActionsApi.getWorkflowRecord(disciplinaryActionId);
+        try {
+          const linked = await CasesApi.getLinkedDisciplinary(caseData.id);
+          disciplinaryActionId = linked.disciplinaryActionId;
+          if (disciplinaryActionId) {
+            workflowData = await DisciplinaryActionsApi.getWorkflowRecord(disciplinaryActionId);
+          }
+        } catch {
+          disciplinaryActionId = null;
+          workflowData = caseWorkflow;
         }
       }
 

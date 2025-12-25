@@ -101,7 +101,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     body = null
   }
   if (!res.ok) {
-    const msg = (body && (body.error || body.message)) || `${res.status} ${res.statusText}`
+    let msg = (body && (body.error || body.message)) || `${res.status} ${res.statusText}`
+    const details = body && Array.isArray(body.details) ? body.details : null
+    if (details && details.some((d: unknown) => typeof d === 'string' && d.trim())) {
+      msg = `${msg}: ${details.filter((d: unknown) => typeof d === 'string' && d.trim()).join(', ')}`
+    }
     throw new ApiError(msg, res.status, body)
   }
   return body as T
@@ -1247,6 +1251,7 @@ export type Task = {
 
 export const TasksApi = {
   list(params: {
+    scope?: 'mine' | 'all'
     take?: number
     skip?: number
     status?: string
@@ -1256,6 +1261,7 @@ export const TasksApi = {
     caseId?: string
   } = {}) {
     const qp = new URLSearchParams()
+    if (params.scope) qp.set('scope', params.scope)
     if (params.take != null) qp.set('take', String(params.take))
     if (params.skip != null) qp.set('skip', String(params.skip))
     if (params.status) qp.set('status', params.status)
