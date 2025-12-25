@@ -8,6 +8,7 @@ import { Prisma } from '@ecom-os/prisma-wms'
 const UpdateLineSchema = z.object({
   skuCode: z.string().trim().min(1).optional(),
   skuDescription: z.string().optional(),
+  batchLot: z.string().trim().min(1).optional(),
   quantity: z.number().int().positive().optional(),
   unitCost: z.number().optional(),
   currency: z.string().optional(),
@@ -122,69 +123,98 @@ export const PATCH = withAuthAndParams(async (request: NextRequest, params, _ses
   }
 
   if (order.status === 'DRAFT') {
-    const derivedBatchLot = (order.poNumber ?? order.orderNumber).trim()
-    const resolvedBatchLot = (line.batchLot ?? derivedBatchLot).trim()
+    const DEFAULT_BATCH_LOT = 'DEFAULT'
+    const skuCodeChanged =
+      result.data.skuCode !== undefined &&
+      result.data.skuCode.trim().toLowerCase() !== line.skuCode.trim().toLowerCase()
 
-    if (!line.batchLot && resolvedBatchLot) {
-      updateData.batchLot = resolvedBatchLot
+    const nextSkuCode = (result.data.skuCode ?? line.skuCode).trim()
+    const requestedBatchLot = result.data.batchLot?.trim()
+
+    const nextBatchLot = (
+      requestedBatchLot
+        ? requestedBatchLot
+        : skuCodeChanged
+          ? DEFAULT_BATCH_LOT
+          : line.batchLot ?? DEFAULT_BATCH_LOT
+    )
+      .trim()
+      .toUpperCase()
+
+    if (!line.batchLot || line.batchLot.trim().toUpperCase() !== nextBatchLot) {
+      updateData.batchLot = nextBatchLot
     }
 
-    if (result.data.skuCode !== undefined || !line.batchLot) {
-      const nextSkuCode = (result.data.skuCode ?? line.skuCode).trim()
-      const sku = await prisma.sku.findFirst({
-        where: { skuCode: nextSkuCode },
-        select: {
-          id: true,
-          packSize: true,
-          unitsPerCarton: true,
-          material: true,
-          unitDimensionsCm: true,
-          unitLengthCm: true,
-          unitWidthCm: true,
-          unitHeightCm: true,
-          unitWeightKg: true,
-          cartonDimensionsCm: true,
-          cartonLengthCm: true,
-          cartonWidthCm: true,
-          cartonHeightCm: true,
-          cartonWeightKg: true,
-          packagingType: true,
+    const sku = await prisma.sku.findFirst({
+      where: { skuCode: nextSkuCode },
+      select: {
+        id: true,
+        skuCode: true,
+        packSize: true,
+        unitsPerCarton: true,
+        material: true,
+        unitDimensionsCm: true,
+        unitLengthCm: true,
+        unitWidthCm: true,
+        unitHeightCm: true,
+        unitWeightKg: true,
+        cartonDimensionsCm: true,
+        cartonLengthCm: true,
+        cartonWidthCm: true,
+        cartonHeightCm: true,
+        cartonWeightKg: true,
+        packagingType: true,
+      },
+    })
+
+    if (!sku) {
+      return ApiResponses.badRequest(`SKU ${nextSkuCode} not found. Create the SKU first.`)
+    }
+
+    await prisma.skuBatch.upsert({
+      where: {
+        skuId_batchCode: {
+          skuId: sku.id,
+          batchCode: DEFAULT_BATCH_LOT,
         },
+      },
+      create: {
+        skuId: sku.id,
+        batchCode: DEFAULT_BATCH_LOT,
+        packSize: sku.packSize,
+        unitsPerCarton: sku.unitsPerCarton,
+        material: sku.material,
+        unitDimensionsCm: sku.unitDimensionsCm,
+        unitLengthCm: sku.unitLengthCm,
+        unitWidthCm: sku.unitWidthCm,
+        unitHeightCm: sku.unitHeightCm,
+        unitWeightKg: sku.unitWeightKg,
+        cartonDimensionsCm: sku.cartonDimensionsCm,
+        cartonLengthCm: sku.cartonLengthCm,
+        cartonWidthCm: sku.cartonWidthCm,
+        cartonHeightCm: sku.cartonHeightCm,
+        cartonWeightKg: sku.cartonWeightKg,
+        packagingType: sku.packagingType,
+        isActive: true,
+      },
+      update: { isActive: true },
+    })
+
+    if (nextBatchLot !== DEFAULT_BATCH_LOT) {
+      const existingBatch = await prisma.skuBatch.findUnique({
+        where: {
+          skuId_batchCode: {
+            skuId: sku.id,
+            batchCode: nextBatchLot,
+          },
+        },
+        select: { id: true },
       })
 
-      if (!sku) {
-        return ApiResponses.badRequest(`SKU ${nextSkuCode} not found. Create the SKU first.`)
-      }
-
-      if (resolvedBatchLot) {
-        await prisma.skuBatch.upsert({
-          where: {
-            skuId_batchCode: {
-              skuId: sku.id,
-              batchCode: resolvedBatchLot,
-            },
-          },
-          create: {
-            skuId: sku.id,
-            batchCode: resolvedBatchLot,
-            packSize: sku.packSize,
-            unitsPerCarton: sku.unitsPerCarton,
-            material: sku.material,
-            unitDimensionsCm: sku.unitDimensionsCm,
-            unitLengthCm: sku.unitLengthCm,
-            unitWidthCm: sku.unitWidthCm,
-            unitHeightCm: sku.unitHeightCm,
-            unitWeightKg: sku.unitWeightKg,
-            cartonDimensionsCm: sku.cartonDimensionsCm,
-            cartonLengthCm: sku.cartonLengthCm,
-            cartonWidthCm: sku.cartonWidthCm,
-            cartonHeightCm: sku.cartonHeightCm,
-            cartonWeightKg: sku.cartonWeightKg,
-            packagingType: sku.packagingType,
-            isActive: true,
-          },
-          update: { isActive: true },
-        })
+      if (!existingBatch) {
+        return ApiResponses.badRequest(
+          `Batch ${nextBatchLot} not found for SKU ${sku.skuCode}. Create it in Products → Batches first.`
+        )
       }
     }
   }
