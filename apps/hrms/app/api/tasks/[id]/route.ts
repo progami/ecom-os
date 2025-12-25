@@ -5,6 +5,7 @@ import { getCurrentEmployeeId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
 import { isHROrAbove, isManagerOf } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
+import { syncChecklistFromTaskStatus } from '@/lib/domain/checklists/checklist-service'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -208,6 +209,14 @@ export async function PATCH(req: Request, context: RouteContext) {
           relatedId: updated.id,
           relatedType: 'TASK',
         },
+      })
+    }
+
+    if (data.status !== undefined && data.status !== existing.status) {
+      await syncChecklistFromTaskStatus({
+        taskId: updated.id,
+        newStatus: updated.status as 'OPEN' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED',
+        actorId,
       })
     }
 

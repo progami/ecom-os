@@ -3,8 +3,10 @@ import prisma from '../../../../lib/prisma'
 import { UpdatePerformanceReviewSchema } from '@/lib/validations'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { canManageEmployee } from '@/lib/permissions'
+import { canManageEmployee, isManagerOf } from '@/lib/permissions'
 import { formatReviewPeriod, type ReviewPeriodType } from '@/lib/review-period'
+import { getViewerContext } from '@/lib/domain/workflow/viewer'
+import { performanceReviewToWorkflowRecordDTO } from '@/lib/domain/performance/workflow-record'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -13,11 +15,20 @@ export async function GET(req: Request, context: RouteContext) {
   if (rateLimitError) return rateLimitError
 
   try {
+    const { searchParams } = new URL(req.url)
+    const format = searchParams.get('format')
     const { id } = await context.params
 
     if (!id || id.length > 100) {
       return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
     }
+
+    const currentEmployeeId = await getCurrentEmployeeId()
+    if (!currentEmployeeId) {
+      return NextResponse.json({ error: 'Unauthorized - not logged in' }, { status: 401 })
+    }
+
+    const viewer = await getViewerContext(currentEmployeeId)
 
     const item = await prisma.performanceReview.findUnique({
       where: { id },
@@ -31,6 +42,8 @@ export async function GET(req: Request, context: RouteContext) {
             department: true,
             position: true,
             email: true,
+            avatar: true,
+            reportsToId: true,
           },
         },
       },
@@ -38,6 +51,17 @@ export async function GET(req: Request, context: RouteContext) {
 
     if (!item) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    const canView =
+      viewer.isHR ||
+      viewer.isSuperAdmin ||
+      currentEmployeeId === item.employeeId ||
+      (item.assignedReviewerId ? currentEmployeeId === item.assignedReviewerId : false) ||
+      (await isManagerOf(currentEmployeeId, item.employeeId))
+
+    if (!canView) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     // Fetch assigned reviewer details if exists
@@ -52,6 +76,14 @@ export async function GET(req: Request, context: RouteContext) {
           position: true,
         },
       })
+    }
+
+    if (format === 'workflow') {
+      const dto = await performanceReviewToWorkflowRecordDTO(
+        { ...(item as any), assignedReviewer },
+        { employeeId: currentEmployeeId, isHR: viewer.isHR, isSuperAdmin: viewer.isSuperAdmin, canView: true }
+      )
+      return NextResponse.json(dto)
     }
 
     return NextResponse.json({ ...item, assignedReviewer })

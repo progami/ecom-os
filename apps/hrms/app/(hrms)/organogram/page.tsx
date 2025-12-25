@@ -21,9 +21,6 @@ interface HierarchyData {
 
 type ViewMode = 'person' | 'department' | 'project'
 
-// Auto-refresh interval in milliseconds (30 seconds)
-const AUTO_REFRESH_INTERVAL = 30000
-
 function OrganogramContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -89,24 +86,7 @@ function OrganogramContent() {
     fetchData()
   }, [fetchData])
 
-  // Auto-refresh with interval
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchData(true)
-    }, AUTO_REFRESH_INTERVAL)
-
-    return () => clearInterval(interval)
-  }, [fetchData])
-
-  // Refresh on window focus (when user comes back to tab)
-  useEffect(() => {
-    const handleFocus = () => {
-      fetchData(true)
-    }
-
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, [fetchData])
+  // Org charts change relatively infrequently; refresh manually via the UI to avoid excessive API traffic.
 
   // Filter employees based on search query
   const filteredEmployees = hierarchyData?.items.filter((emp) => {

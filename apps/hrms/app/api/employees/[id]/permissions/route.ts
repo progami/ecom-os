@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canEditField, isManagerOf, isSuperAdmin, FIELD_PERMISSIONS, type AttributePermission } from '@/lib/permissions'
+import { prisma } from '@/lib/prisma'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
@@ -15,12 +16,23 @@ const FIELD_GROUPS = {
 
 export async function GET(req: Request, context: RouteContext) {
   try {
-    const { id: targetEmployeeId } = await context.params
+    const { id: targetEmployeeIdRaw } = await context.params
 
     const actorId = await getCurrentEmployeeId()
     if (!actorId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+
+    const base = await prisma.employee.findFirst({
+      where: { OR: [{ id: targetEmployeeIdRaw }, { employeeId: targetEmployeeIdRaw }] },
+      select: { id: true },
+    })
+
+    if (!base) {
+      return NextResponse.json({ error: 'Not found' }, { status: 404 })
+    }
+
+    const targetEmployeeId = base.id
 
     const isEditingSelf = actorId === targetEmployeeId
     const isManager = await isManagerOf(actorId, targetEmployeeId)
@@ -53,7 +65,7 @@ export async function GET(req: Request, context: RouteContext) {
 
     return NextResponse.json({
       actorId,
-      targetEmployeeId,
+      targetEmployeeId: targetEmployeeId,
       isEditingSelf,
       isManager,
       isSuperAdmin: isSuperAdminUser,

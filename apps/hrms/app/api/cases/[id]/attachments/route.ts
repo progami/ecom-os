@@ -1,17 +1,10 @@
 import { NextResponse } from 'next/server'
-import { z } from 'zod'
-import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
+import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
 import { isHROrAbove, isManagerOf } from '@/lib/permissions'
-import { writeAuditLog } from '@/lib/audit'
 
 type RouteContext = { params: Promise<{ id: string }> }
-
-const CreateAttachmentSchema = z.object({
-  title: z.string().max(200).trim().optional().nullable(),
-  fileUrl: z.string().url().max(2000),
-})
 
 async function getCaseAccess(caseId: string, actorId: string) {
   const [isHR, base] = await Promise.all([
@@ -87,66 +80,23 @@ export async function GET(req: Request, context: RouteContext) {
       take: 200,
     })
 
-    return NextResponse.json({ items: attachments, total: attachments.length })
+    const items = attachments
+      .filter((a) => access.isHR || a.visibility !== 'INTERNAL_HR')
+      .map((a) => ({
+        id: a.id,
+        caseId: a.caseId,
+        uploadedById: a.uploadedById,
+        title: a.title,
+        fileName: a.fileName,
+        contentType: a.contentType,
+        size: a.size,
+        visibility: a.visibility,
+        createdAt: a.createdAt,
+        uploadedBy: a.uploadedBy,
+      }))
+
+    return NextResponse.json({ items, total: items.length })
   } catch (e) {
     return safeErrorResponse(e, 'Failed to fetch case attachments')
   }
 }
-
-export async function POST(req: Request, context: RouteContext) {
-  const rateLimitError = withRateLimit(req)
-  if (rateLimitError) return rateLimitError
-
-  try {
-    const { id } = await context.params
-    if (!id || id.length > 100) {
-      return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
-    }
-
-    const actorId = await getCurrentEmployeeId()
-    if (!actorId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const isHR = await isHROrAbove(actorId)
-    if (!isHR) {
-      return NextResponse.json({ error: 'Only HR can add attachments' }, { status: 403 })
-    }
-
-    const body = await req.json()
-    const validation = validateBody(CreateAttachmentSchema, body)
-    if (!validation.success) return validation.error
-
-    const data = validation.data
-
-    const created = await prisma.caseAttachment.create({
-      data: {
-        caseId: id,
-        uploadedById: actorId,
-        title: data.title ?? null,
-        fileUrl: data.fileUrl,
-      },
-      include: {
-        uploadedBy: { select: { id: true, firstName: true, lastName: true, avatar: true } },
-      },
-    })
-
-    await writeAuditLog({
-      actorId,
-      action: 'ATTACH',
-      entityType: 'CASE_ATTACHMENT',
-      entityId: created.id,
-      summary: 'Added case attachment',
-      metadata: {
-        caseId: id,
-        fileUrl: data.fileUrl,
-      },
-      req,
-    })
-
-    return NextResponse.json(created, { status: 201 })
-  } catch (e) {
-    return safeErrorResponse(e, 'Failed to add attachment')
-  }
-}
-
