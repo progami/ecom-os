@@ -486,7 +486,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
       nextStockStart[0] = previousStockStart[0]
 
       for (let i = 0; i < n; i += 1) {
-        const demand = actual[i] != null ? actual[i] : (forecast[i] ?? 0)
+        const demand = actual[i] ?? forecast[i] ?? 0
         nextFinalSales[i] = Math.max(0, demand)
         nextStockEnd[i] = nextStockStart[i] - nextFinalSales[i]
 
@@ -908,7 +908,9 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
             return cell
           }}
           afterChange={(changes, source) => {
-            if (!changes || source === 'loadData' || source === 'derived-update') return
+            if (!changes) return
+            const sourceString = String(source)
+            if (sourceString === 'loadData' || sourceString === 'derived-update') return
             const hot = hotRef.current
             if (!hot) return
             const changedProductIds = new Set<string>()
