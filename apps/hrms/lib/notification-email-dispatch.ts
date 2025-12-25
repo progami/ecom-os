@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { getHrmsUrl, sendHrmsNotificationEmail } from '@/lib/email-service'
 import { runWithCronLock } from '@/lib/cron-lock'
+import { getNotificationCatalogEntry } from '@/lib/domain/notifications/catalog'
 
 type DispatchRunResult = {
   claimed: number
@@ -23,66 +24,6 @@ function buildActionUrl(link: string | null | undefined): string {
   return `${base}${trimmed.startsWith('/') ? trimmed : `/${trimmed}`}`
 }
 
-function deriveCategory(notification: { type: string; relatedType: string | null; title: string }): string {
-  const byRelated: Record<string, string> = {
-    POLICY: 'Policy',
-    REVIEW: 'Performance Review',
-    QUARTERLY_CYCLE: 'Quarterly Review',
-    DISCIPLINARY: 'Violation',
-    LEAVE: 'Leave',
-    TASK: 'Task',
-    RESOURCE: 'Resource',
-    EMPLOYEE: 'Org',
-    STANDING: 'Standing',
-    CASE: 'Case',
-  }
-
-  if (notification.relatedType && byRelated[notification.relatedType]) {
-    return byRelated[notification.relatedType]!
-  }
-
-  const t = notification.type
-  if (t.startsWith('POLICY_')) return 'Policy'
-  if (t.startsWith('REVIEW_')) return 'Performance Review'
-  if (t.startsWith('QUARTERLY_REVIEW_')) return 'Quarterly Review'
-  if (t.startsWith('VIOLATION_') || t.startsWith('DISCIPLINARY_') || t.startsWith('APPEAL_')) return 'Violation'
-  if (t.startsWith('LEAVE_')) return 'Leave'
-  if (t.startsWith('RESOURCE_')) return 'Resource'
-  if (t === 'PROFILE_INCOMPLETE') return 'Profile'
-  if (t === 'HIERARCHY_CHANGED') return 'Org'
-  if (t === 'ANNOUNCEMENT') return 'Announcement'
-  if (t === 'SYSTEM') return 'System'
-
-  const title = notification.title.toLowerCase()
-  if (title.includes('task')) return 'Task'
-  if (title.includes('leave')) return 'Leave'
-  if (title.includes('policy')) return 'Policy'
-  if (title.includes('review')) return 'Performance Review'
-  if (title.includes('appeal') || title.includes('violation')) return 'Violation'
-
-  return 'Notification'
-}
-
-function isActionRequired(notification: { type: string; title: string }): boolean {
-  const t = notification.type
-  if (t === 'PROFILE_INCOMPLETE') return true
-  if (t.includes('PENDING') || t.includes('OVERDUE') || t.includes('ESCALATED')) return true
-  if (t.includes('ACK') || t.includes('APPROVAL')) return true
-  if (t === 'SYSTEM') {
-    const title = notification.title.toLowerCase()
-    if (title.includes('assigned') || title.includes('due') || title.includes('overdue')) return true
-  }
-
-  const title = notification.title.toLowerCase()
-  return (
-    title.includes('pending') ||
-    title.includes('required') ||
-    title.includes('overdue') ||
-    title.includes('acknowledge') ||
-    title.includes('approval')
-  )
-}
-
 function backoffMs(attempts: number): number {
   const base = 60_000 // 1 min
   const max = 6 * 60 * 60_000 // 6 hours
@@ -103,7 +44,7 @@ export async function processPendingNotificationEmailDispatches(options?: { take
     orderBy: [{ nextAttemptAt: 'asc' }, { createdAt: 'asc' }],
     take,
     include: {
-      notification: { select: { id: true, type: true, title: true, link: true, relatedType: true } },
+      notification: { select: { id: true, type: true, title: true, link: true, relatedType: true, relatedId: true } },
       employee: { select: { id: true, email: true, firstName: true } },
     },
   })
@@ -122,18 +63,25 @@ export async function processPendingNotificationEmailDispatches(options?: { take
 
     result.claimed += 1
 
-    const category = deriveCategory(dispatch.notification)
-    const actionUrl = buildActionUrl(dispatch.notification.link)
-    const actionRequired = isActionRequired(dispatch.notification)
+    const catalog = getNotificationCatalogEntry({
+      type: dispatch.notification.type,
+      title: dispatch.notification.title,
+      link: dispatch.notification.link,
+      relatedType: dispatch.notification.relatedType,
+      relatedId: dispatch.notification.relatedId,
+    })
+
+    const actionUrl = buildActionUrl(catalog.deepLink)
 
     try {
       const send = await sendHrmsNotificationEmail({
         to: dispatch.employee.email,
         firstName: dispatch.employee.firstName,
-        category,
+        category: catalog.category,
         title: dispatch.notification.title,
         actionUrl,
-        actionRequired,
+        actionRequired: catalog.actionRequired,
+        subject: catalog.emailSubject,
       })
 
       if (send.success) {
