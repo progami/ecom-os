@@ -101,6 +101,32 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
   const data: Prisma.SkuBatchUpdateInput = {}
   const hasOwn = (key: string) => Object.prototype.hasOwnProperty.call(parsed.data, key)
 
+  const nextIsActive = parsed.data.isActive ?? existing.isActive
+  const nextStorageCartonsPerPallet =
+    parsed.data.storageCartonsPerPallet !== undefined
+      ? parsed.data.storageCartonsPerPallet
+      : existing.storageCartonsPerPallet
+  const nextShippingCartonsPerPallet =
+    parsed.data.shippingCartonsPerPallet !== undefined
+      ? parsed.data.shippingCartonsPerPallet
+      : existing.shippingCartonsPerPallet
+
+  if (nextIsActive) {
+    const errors: Record<string, string> = {}
+
+    if (!nextStorageCartonsPerPallet || nextStorageCartonsPerPallet <= 0) {
+      errors.storageCartonsPerPallet = 'Storage cartons per pallet is required for active batches'
+    }
+
+    if (!nextShippingCartonsPerPallet || nextShippingCartonsPerPallet <= 0) {
+      errors.shippingCartonsPerPallet = 'Shipping cartons per pallet is required for active batches'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      return ApiResponses.validationError(errors)
+    }
+  }
+
   if (parsed.data.batchCode) {
     data.batchCode = sanitizeForDisplay(parsed.data.batchCode.toUpperCase())
   }
