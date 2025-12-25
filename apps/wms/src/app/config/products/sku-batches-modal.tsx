@@ -660,7 +660,7 @@ function SkuBatchesManager({
                     description={
                       batchSearch
                         ? 'Clear your search or create a new batch.'
-                        : 'Create a batch to define pack specs, dimensions, and cartons-per-pallet defaults.'
+                        : 'Batches are created automatically from purchase orders (batch lot = PO number). Use this screen to set pack specs, dimensions, and cartons-per-pallet defaults.'
                     }
                   />
                 </div>
