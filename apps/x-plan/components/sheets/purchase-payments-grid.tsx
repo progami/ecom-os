@@ -8,8 +8,9 @@ import { registerAllModules } from 'handsontable/registry'
 import { toast } from 'sonner'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { useHandsontableThemeName } from '@/hooks/useHandsontableThemeName'
-import { finishEditingSafely } from '@/lib/handsontable'
+import { finishEditingSafely, getSelectionStats, type HandsontableSelectionStats } from '@/lib/handsontable'
 import { deriveIsoWeek, formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
+import { SelectionStatsBar } from '@/components/ui/selection-stats-bar'
 import {
   dateValidator,
   formatNumericInput,
@@ -134,8 +135,15 @@ export function PurchasePaymentsGrid({
   const [isClient, setIsClient] = useState(false)
   const themeName = useHandsontableThemeName()
   const hotRef = useRef<Handsontable | null>(null)
+  const [selectionStats, setSelectionStats] = useState<HandsontableSelectionStats | null>(null)
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
+
+  const updateSelectionStats = useCallback(() => {
+    const hot = hotRef.current
+    if (!hot) return
+    setSelectionStats(getSelectionStats(hot))
+  }, [])
   const handleFlush = useCallback(
     async (payload: PaymentUpdate[]) => {
       if (payload.length === 0) return
@@ -311,105 +319,110 @@ export function PurchasePaymentsGrid({
           </div>
         </div>
       </div>
-      <HotTable
-        ref={(instance) => {
-          hotRef.current = instance?.hotInstance ?? null
-        }}
-        data={data}
-        licenseKey="non-commercial-and-evaluation"
-        themeName={themeName}
-        colHeaders={HEADERS}
-        columns={COLUMNS}
-        rowHeaders={false}
-        undo
-        height="auto"
-        stretchH="all"
-        className="x-plan-hot"
-        dropdownMenu
-        filters
-        contextMenu={{
-          items: {
-            delete_payment: {
-              name: 'Delete payment',
-              callback: (_, selection) => {
-                if (!onRemovePayment || !selection || selection.length === 0) return
-                const hot = hotRef.current
-                if (!hot) return
-                const rowIndex = selection[0].start.row
-                const record = hot.getSourceDataAtRow(rowIndex) as PurchasePaymentRow | null
-                if (!record?.id) return
-                setIsRemoving(true)
-                Promise.resolve(onRemovePayment(record.id))
-                  .then(() => {
-                    setSelectedPaymentId((previous) => (previous === record.id ? null : previous))
-                  })
-                  .catch((error) => {
-                    console.error(error)
-                    toast.error('Unable to delete payment')
-                  })
-                  .finally(() => setIsRemoving(false))
+      <div className="relative">
+        <HotTable
+          ref={(instance) => {
+            hotRef.current = instance?.hotInstance ?? null
+          }}
+          data={data}
+          licenseKey="non-commercial-and-evaluation"
+          themeName={themeName}
+          colHeaders={HEADERS}
+          columns={COLUMNS}
+          rowHeaders={false}
+          undo
+          height="auto"
+          stretchH="all"
+          className="x-plan-hot"
+          dropdownMenu
+          filters
+          contextMenu={{
+            items: {
+              delete_payment: {
+                name: 'Delete payment',
+                callback: (_, selection) => {
+                  if (!onRemovePayment || !selection || selection.length === 0) return
+                  const hot = hotRef.current
+                  if (!hot) return
+                  const rowIndex = selection[0].start.row
+                  const record = hot.getSourceDataAtRow(rowIndex) as PurchasePaymentRow | null
+                  if (!record?.id) return
+                  setIsRemoving(true)
+                  Promise.resolve(onRemovePayment(record.id))
+                    .then(() => {
+                      setSelectedPaymentId((previous) => (previous === record.id ? null : previous))
+                    })
+                    .catch((error) => {
+                      console.error(error)
+                      toast.error('Unable to delete payment')
+                    })
+                    .finally(() => setIsRemoving(false))
+                },
               },
+              sep1: '---------',
+              ...Handsontable.plugins.ContextMenu.DEFAULT_ITEMS,
             },
-            sep1: '---------',
-            ...Handsontable.plugins.ContextMenu.DEFAULT_ITEMS,
-          },
-        }}
-        cells={(row) => {
-          const meta = {} as Handsontable.CellMeta
-          const record = data[row]
-          if (record && activeOrderId && record.purchaseOrderId === activeOrderId) {
-            meta.className = meta.className ? `${meta.className} row-active` : 'row-active'
-          }
-          return meta
-        }}
-        afterSelectionEnd={(row) => {
-          const record = data[row]
-          if (record) {
-            onSelectOrder?.(record.purchaseOrderId)
-            setSelectedPaymentId(record.id)
-          } else {
-            setSelectedPaymentId(null)
-          }
-        }}
-        afterOnCellMouseDown={(_, coords) => {
-          const hot = hotRef.current
-          if (!hot) return
-          const prop = hot.colToProp(coords.col)
-          if (prop !== 'dueDateIso') return
-          const td = hot.getCell(coords.row, coords.col)
-          if (!td) return
-          const rect = td.getBoundingClientRect()
-          const iso = (hot.getSourceDataAtRow(coords.row) as PurchasePaymentRow)?.dueDateIso ?? ''
-          setPicker({ row: coords.row, left: rect.left, top: rect.bottom + 4, value: iso })
-        }}
-        beforeKeyDown={(event) => {
-          const hot = hotRef.current
-          if (!hot) return
-          const sel: any = hot.getSelectedLast()
-          if (!sel) return
-          let row = -1
-          let col = -1
-          if (Array.isArray(sel)) {
-            if (sel.length >= 2 && typeof sel[0] === 'number') {
-              row = sel[0]
-              col = sel[1]
-            } else if (Array.isArray(sel[0])) {
-              const last = sel[sel.length - 1]
-              row = last[0]
-              col = last[1]
+          }}
+          cells={(row) => {
+            const meta = {} as Handsontable.CellMeta
+            const record = data[row]
+            if (record && activeOrderId && record.purchaseOrderId === activeOrderId) {
+              meta.className = meta.className ? `${meta.className} row-active` : 'row-active'
             }
-          } else if (typeof sel === 'object' && sel !== null) {
-            if (typeof sel.row === 'number' && typeof sel.col === 'number') {
-              row = sel.row
-              col = sel.col
-            } else if (typeof sel.startRow === 'number' && typeof sel.startCol === 'number') {
-              row = sel.startRow
-              col = sel.startCol
+            return meta
+          }}
+          afterSelectionEnd={(row) => {
+            updateSelectionStats()
+            const record = data[row]
+            if (record) {
+              onSelectOrder?.(record.purchaseOrderId)
+              setSelectedPaymentId(record.id)
+            } else {
+              setSelectedPaymentId(null)
             }
-          }
-          if (row < 0 || col < 0) return
-          const prop = hot.colToProp(col)
-          if (prop !== 'dueDateIso') return
+          }}
+          afterDeselect={() => {
+            setSelectionStats(null)
+          }}
+          afterOnCellMouseDown={(_, coords) => {
+            const hot = hotRef.current
+            if (!hot) return
+            const prop = hot.colToProp(coords.col)
+            if (prop !== 'dueDateIso') return
+            const td = hot.getCell(coords.row, coords.col)
+            if (!td) return
+            const rect = td.getBoundingClientRect()
+            const iso = (hot.getSourceDataAtRow(coords.row) as PurchasePaymentRow)?.dueDateIso ?? ''
+            setPicker({ row: coords.row, left: rect.left, top: rect.bottom + 4, value: iso })
+          }}
+          beforeKeyDown={(event) => {
+            const hot = hotRef.current
+            if (!hot) return
+            const sel: any = hot.getSelectedLast()
+            if (!sel) return
+            let row = -1
+            let col = -1
+            if (Array.isArray(sel)) {
+              if (sel.length >= 2 && typeof sel[0] === 'number') {
+                row = sel[0]
+                col = sel[1]
+              } else if (Array.isArray(sel[0])) {
+                const last = sel[sel.length - 1]
+                row = last[0]
+                col = last[1]
+              }
+            } else if (typeof sel === 'object' && sel !== null) {
+              if (typeof sel.row === 'number' && typeof sel.col === 'number') {
+                row = sel.row
+                col = sel.col
+              } else if (typeof sel.startRow === 'number' && typeof sel.startCol === 'number') {
+                row = sel.startRow
+                col = sel.startCol
+              }
+            }
+            if (row < 0 || col < 0) return
+            const prop = hot.colToProp(col)
+            if (prop !== 'dueDateIso') return
 
           const td = hot.getCell(row, col)
           if (!td) return
@@ -542,6 +555,8 @@ export function PurchasePaymentsGrid({
           }
         }}
       />
+        <SelectionStatsBar stats={selectionStats} />
+      </div>
       {picker ? (
         <div
           ref={pickerRef}

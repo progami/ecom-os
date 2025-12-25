@@ -5,11 +5,13 @@ import { HotTable } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
 import { toast } from 'sonner'
+import { SelectionStatsBar } from '@/components/ui/selection-stats-bar'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { useHandsontableThemeName } from '@/hooks/useHandsontableThemeName'
 import { toIsoDate } from '@/lib/utils/dates'
 import { dateValidator, formatNumericInput, numericValidator } from '@/components/sheets/validators'
 import { withAppBasePath } from '@/lib/base-path'
+import { getSelectionStats, type HandsontableSelectionStats } from '@/lib/handsontable'
 
 registerAllModules()
 
@@ -270,6 +272,7 @@ export function OpsPlanningGrid({
 }: OpsPlanningGridProps) {
   const [isClient, setIsClient] = useState(false)
   const [stageMode, setStageMode] = useState<'weeks' | 'dates'>('weeks')
+  const [selectionStats, setSelectionStats] = useState<HandsontableSelectionStats | null>(null)
   const themeName = useHandsontableThemeName()
   const hotRef = useRef<Handsontable | null>(null)
   const handleFlush = useCallback(
@@ -303,6 +306,12 @@ export function OpsPlanningGrid({
 
   useEffect(() => {
     setIsClient(true)
+  }, [])
+
+  const updateSelectionStats = useCallback(() => {
+    const hot = hotRef.current
+    if (!hot) return
+    setSelectionStats(getSelectionStats(hot))
   }, [])
 
   useEffect(() => {
@@ -448,41 +457,46 @@ export function OpsPlanningGrid({
           </div>
         )}
       </div>
-      <HotTable
-        ref={(instance) => {
-          hotRef.current = instance?.hotInstance ?? null
-        }}
-        data={data}
-        licenseKey="non-commercial-and-evaluation"
-        themeName={themeName}
-        columns={columns}
-        colHeaders={headers}
-        afterGetColHeader={(col, TH) => handleColHeader(col as number, TH as HTMLTableCellElement)}
-        stretchH="all"
-        className="x-plan-hot"
-        rowHeaders={false}
-        height="auto"
-        undo
-        dropdownMenu
-        filters
-        cells={(row) => {
-          const meta = {} as Handsontable.CellMeta
-          const record = data[row]
-          if (record && activeOrderId && record.id === activeOrderId) {
-            meta.className = meta.className ? `${meta.className} row-active` : 'row-active'
-          }
-          return meta
-        }}
-        afterSelectionEnd={(row) => {
-          if (!onSelectOrder) return
-          const record = data[row]
-          if (record) onSelectOrder(record.id)
-        }}
-        afterChange={(changes, rawSource) => {
-          if (!changes || rawSource === 'loadData') return
-          const hot = hotRef.current
-          if (!hot) return
-          const dirtyStageRows = new Set<string>()
+      <div className="relative">
+        <HotTable
+          ref={(instance) => {
+            hotRef.current = instance?.hotInstance ?? null
+          }}
+          data={data}
+          licenseKey="non-commercial-and-evaluation"
+          themeName={themeName}
+          columns={columns}
+          colHeaders={headers}
+          afterGetColHeader={(col, TH) => handleColHeader(col as number, TH as HTMLTableCellElement)}
+          stretchH="all"
+          className="x-plan-hot"
+          rowHeaders={false}
+          height="auto"
+          undo
+          dropdownMenu
+          filters
+          cells={(row) => {
+            const meta = {} as Handsontable.CellMeta
+            const record = data[row]
+            if (record && activeOrderId && record.id === activeOrderId) {
+              meta.className = meta.className ? `${meta.className} row-active` : 'row-active'
+            }
+            return meta
+          }}
+          afterSelectionEnd={(row) => {
+            updateSelectionStats()
+            if (!onSelectOrder) return
+            const record = data[row]
+            if (record) onSelectOrder(record.id)
+          }}
+          afterDeselect={() => {
+            setSelectionStats(null)
+          }}
+          afterChange={(changes, rawSource) => {
+            if (!changes || rawSource === 'loadData') return
+            const hot = hotRef.current
+            if (!hot) return
+            const dirtyStageRows = new Set<string>()
 
           for (const change of changes) {
             const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof OpsInputRow | ((row: OpsInputRow, value?: any) => any), any, any]
@@ -544,8 +558,10 @@ export function OpsPlanningGrid({
           }
 
           scheduleFlush()
-        }}
-      />
+          }}
+        />
+        <SelectionStatsBar stats={selectionStats} />
+      </div>
     </section>
   )
 }

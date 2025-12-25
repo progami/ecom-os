@@ -1,15 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { HotTable } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
 import { toast } from 'sonner'
 import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
+import { SelectionStatsBar } from '@/components/ui/selection-stats-bar'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { useHandsontableThemeName } from '@/hooks/useHandsontableThemeName'
 import { usePersistentHandsontableScroll } from '@/hooks/usePersistentHandsontableScroll'
 import { withAppBasePath } from '@/lib/base-path'
+import { getSelectionStats, type HandsontableSelectionStats } from '@/lib/handsontable'
 
 registerAllModules()
 
@@ -55,9 +57,16 @@ function normalizeEditable(value: unknown) {
 
 export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
+  const [selectionStats, setSelectionStats] = useState<HandsontableSelectionStats | null>(null)
   const themeName = useHandsontableThemeName()
 
   usePersistentHandsontableScroll(hotRef, `cash-flow:${strategyId}`)
+
+  const updateSelectionStats = useCallback(() => {
+    const hot = hotRef.current
+    if (!hot) return
+    setSelectionStats(getSelectionStats(hot))
+  }, [])
 
   const data = useMemo(() => weekly, [weekly])
 
@@ -165,7 +174,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
   return (
     <div className="p-4">
       <div
-        className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/60"
+        className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/60"
         style={{ height: 'calc(100vh - 260px)', minHeight: '420px' }}
       >
         <HotTable
@@ -209,6 +218,12 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
             }
             scheduleFlush()
           }}
+          afterSelectionEnd={() => {
+            updateSelectionStats()
+          }}
+          afterDeselect={() => {
+            setSelectionStats(null)
+          }}
           cells={(row, col) => {
             const cell: Handsontable.CellMeta = {}
             const week = Number(data[row]?.weekNumber)
@@ -218,6 +233,7 @@ export function CashFlowGrid({ strategyId, weekly }: CashFlowGridProps) {
             return cell
           }}
         />
+        <SelectionStatsBar stats={selectionStats} />
       </div>
     </div>
   )

@@ -32,11 +32,6 @@ const workflowSteps: WorkflowStep[] = [
  title: 'Import Attributes',
  description: 'Bulk update data',
  group: 'reporting'
- },
- {
- title: 'Pallet Variance',
- description: 'Resolve discrepancies',
- group: 'reporting'
  }
 ]
 

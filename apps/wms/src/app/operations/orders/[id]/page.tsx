@@ -555,7 +555,7 @@ export default function PurchaseOrderDetailPage() {
 
   const breadcrumbItems = [
     { label: 'Operations', href: '/operations' },
-    { label: 'Orders', href: '/operations/orders' },
+    { label: 'Purchase Orders', href: '/operations/orders' },
     { label: order.poNumber || order.orderNumber },
   ]
 
