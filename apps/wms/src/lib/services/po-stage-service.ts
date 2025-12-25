@@ -1062,7 +1062,6 @@ export async function transitionPurchaseOrderStage(
         where: {
           skuId: { in: skus.map(sku => sku.id) },
           batchCode: { in: batchCodes },
-          isActive: true,
         },
         select: {
           skuId: true,
@@ -1338,7 +1337,6 @@ export async function transitionPurchaseOrderStage(
         where: {
           skuId: { in: skus.map(sku => sku.id) },
           batchCode: { in: batchCodes },
-          isActive: true,
         },
         select: {
           skuId: true,

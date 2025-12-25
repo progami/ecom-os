@@ -2,14 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-hot-toast'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
-import { Boxes, Edit2, Loader2, Plus, RefreshCw, X } from '@/lib/lucide-icons'
+import { Boxes, Edit2, Loader2, Plus, RefreshCw, Trash2, X } from '@/lib/lucide-icons'
 import { cn } from '@/lib/utils'
 import { coerceFiniteNumber, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 
@@ -41,7 +40,6 @@ interface BatchRow {
   cartonWeightKg: number | string | null
   storageCartonsPerPallet: number | null
   shippingCartonsPerPallet: number | null
-  isActive: boolean
   createdAt: string
   updatedAt: string
 }
@@ -65,7 +63,6 @@ interface BatchFormState {
   cartonWeight: string
   storageCartonsPerPallet: string
   shippingCartonsPerPallet: string
-  isActive: boolean
 }
 
 type UnitSystem = 'metric' | 'imperial'
@@ -174,7 +171,6 @@ function buildBatchFormState(
     ...formatMeasurementFields(measurements, unitSystem),
     storageCartonsPerPallet: batch?.storageCartonsPerPallet?.toString() ?? '',
     shippingCartonsPerPallet: batch?.shippingCartonsPerPallet?.toString() ?? '',
-    isActive: batch?.isActive ?? true,
   }
 }
 
@@ -255,7 +251,6 @@ function SkuBatchesManager({
   onRequestClose?: () => void
   onBatchesUpdated?: () => void
 }) {
-  const [includeInactive, setIncludeInactive] = useState(false)
   const [batchSearch, setBatchSearch] = useState('')
   const [batches, setBatches] = useState<BatchRow[]>([])
   const [loading, setLoading] = useState(false)
@@ -271,7 +266,7 @@ function SkuBatchesManager({
     buildBatchFormState(null, 'metric', buildMeasurementState(null))
   )
 
-  const [confirmDeactivate, setConfirmDeactivate] = useState<BatchRow | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<BatchRow | null>(null)
 
   useEffect(() => {
     try {
@@ -320,10 +315,8 @@ function SkuBatchesManager({
   const fetchBatches = useCallback(async () => {
     try {
       setLoading(true)
-      const params = new URLSearchParams()
-      if (includeInactive) params.set('includeInactive', 'true')
       const response = await fetch(
-        `/api/skus/${encodeURIComponent(sku.id)}/batches?${params.toString()}`,
+        `/api/skus/${encodeURIComponent(sku.id)}/batches`,
         {
           credentials: 'include',
         }
@@ -342,7 +335,7 @@ function SkuBatchesManager({
     } finally {
       setLoading(false)
     }
-  }, [includeInactive, sku.id])
+  }, [sku.id])
 
   useEffect(() => {
     void fetchBatches()
@@ -497,19 +490,18 @@ function SkuBatchesManager({
       return
     }
 
-    const storage = parsePositiveInt(formState.storageCartonsPerPallet)
-    const shipping = parsePositiveInt(formState.shippingCartonsPerPallet)
+    const storageRaw = formState.storageCartonsPerPallet.trim()
+    const storage = parsePositiveInt(storageRaw)
+    if (storageRaw && storage === null) {
+      toast.error('Storage cartons per pallet must be a positive integer')
+      return
+    }
 
-    if (formState.isActive) {
-      if (!storage) {
-        toast.error('Storage cartons per pallet must be a positive integer')
-        return
-      }
-
-      if (!shipping) {
-        toast.error('Shipping cartons per pallet must be a positive integer')
-        return
-      }
+    const shippingRaw = formState.shippingCartonsPerPallet.trim()
+    const shipping = parsePositiveInt(shippingRaw)
+    if (shippingRaw && shipping === null) {
+      toast.error('Shipping cartons per pallet must be a positive integer')
+      return
     }
 
     setIsSubmitting(true)
@@ -539,7 +531,6 @@ function SkuBatchesManager({
         cartonWeightKg: roundWeightKg(measurements.cartonWeightKg),
         storageCartonsPerPallet: storage,
         shippingCartonsPerPallet: shipping,
-        isActive: formState.isActive,
       }
 
       const endpoint = editingBatch
@@ -568,7 +559,7 @@ function SkuBatchesManager({
     }
   }
 
-  const deactivateBatch = async (batch: BatchRow) => {
+  const deleteBatch = async (batch: BatchRow) => {
     try {
       const response = await fetchWithCSRF(
         `/api/skus/${encodeURIComponent(sku.id)}/batches/${encodeURIComponent(batch.id)}`,
@@ -577,14 +568,14 @@ function SkuBatchesManager({
 
       if (!response.ok) {
         const data = await response.json().catch(() => null)
-        throw new Error(data?.error ?? 'Failed to deactivate batch')
+        throw new Error(data?.error ?? 'Failed to delete batch')
       }
 
-      toast.success('Batch deactivated')
+      toast.success('Batch deleted')
       await fetchBatches()
       onBatchesUpdated?.()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to deactivate batch')
+      toast.error(error instanceof Error ? error.message : 'Failed to delete batch')
     }
   }
 
@@ -595,7 +586,6 @@ function SkuBatchesManager({
     setEditingBatch(null)
     setMeasurements(nextMeasurements)
     setFormState(buildBatchFormState(null, unitSystem, nextMeasurements))
-    setIncludeInactive(false)
     setBatchSearch('')
     setBatches([])
     onRequestClose?.()
@@ -628,14 +618,6 @@ function SkuBatchesManager({
                     placeholder="Search batch code or description"
                   />
                 </div>
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={includeInactive}
-                    onChange={event => setIncludeInactive(event.target.checked)}
-                  />
-                  Include inactive
-                </label>
                 <Button variant="outline" size="sm" onClick={fetchBatches} disabled={loading}>
                   <RefreshCw className="h-4 w-4" />
                 </Button>
@@ -679,7 +661,6 @@ function SkuBatchesManager({
                         <th className="px-3 py-2 text-right font-semibold">Carton Dims (cm)</th>
                         <th className="px-3 py-2 text-right font-semibold">Storage C/P</th>
                         <th className="px-3 py-2 text-right font-semibold">Shipping C/P</th>
-                        <th className="px-3 py-2 text-left font-semibold">Status</th>
                         <th className="px-3 py-2 text-right font-semibold">Actions</th>
                       </tr>
                     </thead>
@@ -738,17 +719,6 @@ function SkuBatchesManager({
                             <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
                               {batch.shippingCartonsPerPallet ?? '—'}
                             </td>
-                            <td className="px-3 py-2 whitespace-nowrap">
-                              <Badge
-                                className={
-                                  batch.isActive
-                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                    : 'bg-slate-100 text-slate-600 border border-slate-200'
-                                }
-                              >
-                                {batch.isActive ? 'Active' : 'Inactive'}
-                              </Badge>
-                            </td>
                             <td className="px-3 py-2 text-right whitespace-nowrap">
                               <div className="inline-flex items-center gap-2">
                                 <Button variant="outline" size="sm" onClick={() => openEdit(batch)}>
@@ -757,10 +727,9 @@ function SkuBatchesManager({
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => setConfirmDeactivate(batch)}
-                                  disabled={!batch.isActive}
+                                  onClick={() => setConfirmDelete(batch)}
                                 >
-                                  Deactivate
+                                  <Trash2 className="h-4 w-4" />
                                 </Button>
                               </div>
                             </td>
@@ -1006,7 +975,6 @@ function SkuBatchesManager({
                     id="storageCartonsPerPallet"
                     type="number"
                     min={1}
-                    required={formState.isActive}
                     value={formState.storageCartonsPerPallet}
                     onChange={event =>
                       setFormState(prev => ({
@@ -1014,7 +982,7 @@ function SkuBatchesManager({
                         storageCartonsPerPallet: event.target.value,
                       }))
                     }
-                    placeholder="Required for active batches"
+                    placeholder="Optional"
                   />
                 </div>
 
@@ -1024,7 +992,6 @@ function SkuBatchesManager({
                     id="shippingCartonsPerPallet"
                     type="number"
                     min={1}
-                    required={formState.isActive}
                     value={formState.shippingCartonsPerPallet}
                     onChange={event =>
                       setFormState(prev => ({
@@ -1032,23 +999,12 @@ function SkuBatchesManager({
                         shippingCartonsPerPallet: event.target.value,
                       }))
                     }
-                    placeholder="Required for active batches"
+                    placeholder="Optional"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-3 border-t pt-6">
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={formState.isActive}
-                    onChange={event =>
-                      setFormState(prev => ({ ...prev, isActive: event.target.checked }))
-                    }
-                  />
-                  Active
-                </label>
-
+              <div className="flex items-center justify-end gap-2 border-t pt-6">
                 <div className="flex items-center gap-2">
                   <Button
                     type="button"
@@ -1076,16 +1032,16 @@ function SkuBatchesManager({
       ) : null}
 
       <ConfirmDialog
-        isOpen={confirmDeactivate !== null}
-        onClose={() => setConfirmDeactivate(null)}
+        isOpen={confirmDelete !== null}
+        onClose={() => setConfirmDelete(null)}
         onConfirm={() => {
-          if (!confirmDeactivate) return
-          void deactivateBatch(confirmDeactivate)
+          if (!confirmDelete) return
+          void deleteBatch(confirmDelete)
         }}
-        title="Deactivate batch?"
-        message={confirmDeactivate ? `Deactivate ${confirmDeactivate.batchCode}?` : ''}
-        confirmText="Deactivate"
-        type="warning"
+        title="Delete batch?"
+        message={confirmDelete ? `Delete ${confirmDelete.batchCode}? This cannot be undone.` : ''}
+        confirmText="Delete"
+        type="danger"
       />
     </>
   )

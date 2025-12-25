@@ -162,7 +162,6 @@ export async function createFulfillmentOrder(
     where: {
       skuId: { in: skus.map((sku) => sku.id) },
       batchCode: { in: batchCodes },
-      isActive: true,
     },
     select: { skuId: true, batchCode: true },
   })
@@ -344,7 +343,6 @@ export async function transitionFulfillmentOrderStage(
     where: {
       skuId: { in: skus.map((sku) => sku.id) },
       batchCode: { in: batchCodes },
-      isActive: true,
     },
     select: {
       skuId: true,

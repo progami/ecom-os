@@ -69,18 +69,16 @@ const createBatchSchema = refineDimensions(
     cartonWeightKg: z.number().positive().optional().nullable(),
     storageCartonsPerPallet: z.number().int().positive().optional().nullable(),
     shippingCartonsPerPallet: z.number().int().positive().optional().nullable(),
-    isActive: z.boolean().default(true),
   })
 )
 
-export const GET = withAuthAndParams(async (request, params, session) => {
+export const GET = withAuthAndParams(async (_request, params, session) => {
   if (!requireRole(session, ['admin', 'staff'])) {
     return ApiResponses.forbidden('Insufficient permissions')
   }
 
   const prisma = await getTenantPrisma()
   const skuId = params.id as string
-  const includeInactive = request.nextUrl.searchParams.get('includeInactive') === 'true'
 
   const sku = await prisma.sku.findUnique({
     where: { id: skuId },
@@ -188,11 +186,8 @@ export const GET = withAuthAndParams(async (request, params, session) => {
   }
 
   const batches = await prisma.skuBatch.findMany({
-    where: {
-      skuId,
-      ...(includeInactive ? {} : { isActive: true }),
-    },
-    orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
+    where: { skuId },
+    orderBy: { createdAt: 'desc' },
   })
 
   return ApiResponses.success({ batches })
@@ -226,22 +221,6 @@ export const POST = withAuthAndParams(async (request, params, session) => {
   }
 
   const payload = parsed.data
-  const isActive = payload.isActive ?? true
-  if (isActive) {
-    const errors: Record<string, string> = {}
-
-    if (!payload.storageCartonsPerPallet || payload.storageCartonsPerPallet <= 0) {
-      errors.storageCartonsPerPallet = 'Storage cartons per pallet is required for active batches'
-    }
-
-    if (!payload.shippingCartonsPerPallet || payload.shippingCartonsPerPallet <= 0) {
-      errors.shippingCartonsPerPallet = 'Shipping cartons per pallet is required for active batches'
-    }
-
-    if (Object.keys(errors).length > 0) {
-      return ApiResponses.validationError(errors)
-    }
-  }
 
   const normalizedCode = sanitizeForDisplay(payload.batchCode.toUpperCase())
   const productionDate = payload.productionDate ? new Date(payload.productionDate) : null
@@ -308,7 +287,7 @@ export const POST = withAuthAndParams(async (request, params, session) => {
         packagingType: payload.packagingType ? sanitizeForDisplay(payload.packagingType) : null,
         storageCartonsPerPallet: payload.storageCartonsPerPallet ?? null,
         shippingCartonsPerPallet: payload.shippingCartonsPerPallet ?? null,
-        isActive,
+        isActive: true,
       },
     })
 
