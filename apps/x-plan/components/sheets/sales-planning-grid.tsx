@@ -1,12 +1,13 @@
 'use client'
 
 import { addWeeks } from 'date-fns'
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { HotTable } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
+import { SelectionStatsBar } from '@/components/ui/selection-stats-bar'
 import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { useHandsontableThemeName } from '@/hooks/useHandsontableThemeName'
@@ -18,6 +19,7 @@ import {
 } from '@/components/sheet-toolbar'
 import { usePersistentState } from '@/hooks/usePersistentState'
 import { withAppBasePath } from '@/lib/base-path'
+import { getSelectionStats, type HandsontableSelectionStats } from '@/lib/handsontable'
 import { formatDateDisplay } from '@/lib/utils/dates'
 
 registerAllModules()
@@ -176,12 +178,19 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
   const focusContext = useContext(SalesPlanningFocusContext)
   const [activeStockMetric, setActiveStockMetric] = usePersistentState<StockMetricId>('xplan:sales-grid:metric', 'stockWeeks')
   const [showFinalError, setShowFinalError] = usePersistentState<boolean>('xplan:sales-grid:show-final-error', false)
+  const [selectionStats, setSelectionStats] = useState<HandsontableSelectionStats | null>(null)
   const themeName = useHandsontableThemeName()
   const focusProductId = focusContext?.focusProductId ?? 'ALL'
   const warningThreshold = Number.isFinite(stockWarningWeeks) ? stockWarningWeeks : Number.POSITIVE_INFINITY
   const router = useRouter()
 
   usePersistentHandsontableScroll(hotRef, `sales-planning:${strategyId}`)
+
+  const updateSelectionStats = useCallback(() => {
+    const hot = hotRef.current
+    if (!hot) return
+    setSelectionStats(getSelectionStats(hot))
+  }, [])
 
   const preserveScrollPosition = useCallback((action: () => void) => {
     const scroll = getHandsontableScroll(hotRef.current)
@@ -614,7 +623,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
   return (
     <div className="p-4">
       <div
-        className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/60"
+        className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/60"
         style={{ height: 'calc(100vh - 260px)', minHeight: '420px' }}
       >
         <HotTable
@@ -792,7 +801,14 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
             }
             scheduleFlush()
           }}
+          afterSelectionEnd={() => {
+            updateSelectionStats()
+          }}
+          afterDeselect={() => {
+            setSelectionStats(null)
+          }}
         />
+        <SelectionStatsBar stats={selectionStats} />
       </div>
     </div>
   )
