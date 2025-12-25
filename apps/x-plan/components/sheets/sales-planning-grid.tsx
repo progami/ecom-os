@@ -6,9 +6,8 @@ import { HotTable } from '@handsontable/react-wrapper'
 import Handsontable from 'handsontable'
 import { registerAllModules } from 'handsontable/registry'
 import { toast } from 'sonner'
-import { useRouter } from 'next/navigation'
 import { SelectionStatsBar } from '@/components/ui/selection-stats-bar'
-import { formatNumericInput, numericValidator } from '@/components/sheets/validators'
+import { formatNumericInput, numericValidator, parseNumericInput } from '@/components/sheets/validators'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { useHandsontableThemeName } from '@/hooks/useHandsontableThemeName'
 import { usePersistentHandsontableScroll } from '@/hooks/usePersistentHandsontableScroll'
@@ -179,10 +178,10 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
   const [activeStockMetric, setActiveStockMetric] = usePersistentState<StockMetricId>('xplan:sales-grid:metric', 'stockWeeks')
   const [showFinalError, setShowFinalError] = usePersistentState<boolean>('xplan:sales-grid:show-final-error', false)
   const [selectionStats, setSelectionStats] = useState<HandsontableSelectionStats | null>(null)
+  const [derivedVersion, setDerivedVersion] = useState(0)
   const themeName = useHandsontableThemeName()
   const focusProductId = focusContext?.focusProductId ?? 'ALL'
   const warningThreshold = Number.isFinite(stockWarningWeeks) ? stockWarningWeeks : Number.POSITIVE_INFINITY
-  const router = useRouter()
 
   usePersistentHandsontableScroll(hotRef, `sales-planning:${strategyId}`)
 
@@ -245,6 +244,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
   const firstBelowThresholdWeekByProduct = useMemo(() => {
     const result = new Map<string, number>()
     if (!Number.isFinite(warningThreshold)) return result
+    void derivedVersion
 
     stockWeeksKeyByProduct.forEach((weeksKey, productId) => {
       for (const row of data) {
@@ -263,7 +263,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
     })
 
     return result
-  }, [data, stockWeeksKeyByProduct, warningThreshold])
+  }, [data, stockWeeksKeyByProduct, warningThreshold, derivedVersion])
 
   const formatBatchComment = useCallback((allocations: BatchAllocationMeta[]): string => {
     if (!allocations || allocations.length === 0) return ''
@@ -423,6 +423,140 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
     })
     return hidden
   }, [columnKeys, columnMeta, focusProductId, visibleMetrics])
+
+  const recomputeDerivedForProduct = useCallback(
+    (productId: string) => {
+      const hot = hotRef.current
+      if (!hot) return
+
+      const sourceData = hot.getSourceData() as SalesRow[]
+      if (!sourceData || sourceData.length === 0) return
+
+      const keysByField = new Map<string, string>()
+      for (const key of columnKeys) {
+        const meta = columnMeta[key]
+        if (!meta || meta.productId !== productId) continue
+        keysByField.set(meta.field, key)
+      }
+
+      const stockStartKey = keysByField.get('stockStart')
+      const actualSalesKey = keysByField.get('actualSales')
+      const forecastSalesKey = keysByField.get('forecastSales')
+      const finalSalesKey = keysByField.get('finalSales')
+      const finalSalesErrorKey = keysByField.get('finalSalesError')
+      const stockWeeksKey = keysByField.get('stockWeeks')
+      const stockEndKey = keysByField.get('stockEnd')
+
+      if (
+        !stockStartKey ||
+        !actualSalesKey ||
+        !forecastSalesKey ||
+        !finalSalesKey ||
+        !finalSalesErrorKey ||
+        !stockWeeksKey ||
+        !stockEndKey
+      ) {
+        return
+      }
+
+      const n = sourceData.length
+      const previousStockStart: number[] = new Array(n)
+      const previousStockEnd: number[] = new Array(n)
+      const actual: Array<number | null> = new Array(n)
+      const forecast: Array<number | null> = new Array(n)
+
+      for (let i = 0; i < n; i += 1) {
+        const row = sourceData[i]
+        previousStockStart[i] = parseNumericInput(row?.[stockStartKey]) ?? 0
+        previousStockEnd[i] = parseNumericInput(row?.[stockEndKey]) ?? 0
+        actual[i] = parseNumericInput(row?.[actualSalesKey])
+        forecast[i] = parseNumericInput(row?.[forecastSalesKey])
+      }
+
+      const inboundDelta: number[] = new Array(n).fill(0)
+      for (let i = 1; i < n; i += 1) {
+        inboundDelta[i] = previousStockStart[i] - previousStockEnd[i - 1]
+      }
+
+      const nextStockStart: number[] = new Array(n)
+      const nextFinalSales: number[] = new Array(n)
+      const nextStockEnd: number[] = new Array(n)
+      const nextError: Array<number | null> = new Array(n)
+
+      nextStockStart[0] = previousStockStart[0]
+
+      for (let i = 0; i < n; i += 1) {
+        const demand = actual[i] != null ? actual[i] : (forecast[i] ?? 0)
+        nextFinalSales[i] = Math.max(0, demand)
+        nextStockEnd[i] = nextStockStart[i] - nextFinalSales[i]
+
+        if (i + 1 < n) {
+          nextStockStart[i + 1] = nextStockEnd[i] + inboundDelta[i + 1]
+        }
+
+        if (actual[i] != null && forecast[i] != null && forecast[i] !== 0) {
+          nextError[i] = (actual[i]! - forecast[i]!) / Math.abs(forecast[i]!)
+        } else {
+          nextError[i] = null
+        }
+      }
+
+      const nextStockWeeks: number[] = new Array(n)
+      for (let i = 0; i < n; i += 1) {
+        let depletionIndex: number | null = null
+        for (let j = i; j < n; j += 1) {
+          if (nextStockEnd[j] <= 0) {
+            depletionIndex = j
+            break
+          }
+        }
+
+        if (depletionIndex == null) {
+          nextStockWeeks[i] = Number.POSITIVE_INFINITY
+          continue
+        }
+
+        const depletionSales = nextFinalSales[depletionIndex]
+        const depletionStart = nextStockStart[depletionIndex]
+        const fraction = depletionSales > 0 ? depletionStart / depletionSales : 0
+        nextStockWeeks[i] = depletionIndex === i ? fraction : depletionIndex - i + fraction
+      }
+
+      const changes: Array<[number, string, string]> = []
+      for (let i = 0; i < n; i += 1) {
+        const row = sourceData[i]
+
+        const stockStartValue = Number.isFinite(nextStockStart[i]) ? nextStockStart[i].toFixed(2) : ''
+        const finalSalesValue = Number.isFinite(nextFinalSales[i]) ? nextFinalSales[i].toFixed(2) : ''
+        const stockEndValue = Number.isFinite(nextStockEnd[i]) ? nextStockEnd[i].toFixed(2) : ''
+        const stockWeeksValue = Number.isFinite(nextStockWeeks[i]) ? nextStockWeeks[i].toFixed(2) : '∞'
+        const errorValue = nextError[i] == null ? '' : `${(nextError[i]! * 100).toFixed(1)}%`
+
+        if (row?.[stockStartKey] !== stockStartValue) {
+          changes.push([i, stockStartKey, stockStartValue])
+        }
+        if (row?.[finalSalesKey] !== finalSalesValue) {
+          changes.push([i, finalSalesKey, finalSalesValue])
+        }
+        if (row?.[stockEndKey] !== stockEndValue) {
+          changes.push([i, stockEndKey, stockEndValue])
+        }
+        if (row?.[stockWeeksKey] !== stockWeeksValue) {
+          changes.push([i, stockWeeksKey, stockWeeksValue])
+        }
+        if (row?.[finalSalesErrorKey] !== errorValue) {
+          changes.push([i, finalSalesErrorKey, errorValue])
+        }
+      }
+
+      if (changes.length > 0) {
+        hot.setDataAtRowProp(changes, 'derived-update')
+      }
+
+      setDerivedVersion((prev) => prev + 1)
+    },
+    [columnKeys, columnMeta],
+  )
 
   const handleColHeader = useCallback(
     (col: number, TH: HTMLTableCellElement, headerLevel: number) => {
@@ -598,13 +732,12 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
         })
         if (!response.ok) throw new Error('Failed to update sales planning')
         toast.success('Sales planning updated')
-        router.refresh()
       } catch (error) {
         console.error(error)
         toast.error('Unable to save sales planning changes')
       }
     },
-    [strategyId, router],
+    [strategyId],
   )
 
   const { pendingRef, scheduleFlush, flushNow } = useMutationQueue<string, SalesUpdate>({
@@ -775,9 +908,10 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
             return cell
           }}
           afterChange={(changes, source) => {
-            if (!changes || source === 'loadData') return
+            if (!changes || source === 'loadData' || source === 'derived-update') return
             const hot = hotRef.current
             if (!hot) return
+            const changedProductIds = new Set<string>()
             for (const change of changes) {
               const [rowIndex, prop, _oldValue, newValue] = change as [number, string, any, any]
               const meta = columnMeta[prop]
@@ -797,6 +931,10 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
               const formatted = formatNumericInput(newValue)
               entry.values[meta.field] = formatted
               record[prop] = formatted
+              changedProductIds.add(meta.productId)
+            }
+            for (const productId of changedProductIds) {
+              recomputeDerivedForProduct(productId)
             }
             scheduleFlush()
           }}
