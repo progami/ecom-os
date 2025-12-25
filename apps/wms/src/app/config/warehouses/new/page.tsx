@@ -37,6 +37,7 @@ export default function NewWarehousePage() {
   const [formData, setFormData] = useState({
     code: '',
     name: '',
+    kind: 'THIRD_PARTY',
     addressLine1: '',
     addressLine2: '',
     city: '',
@@ -108,6 +109,7 @@ export default function NewWarehousePage() {
         body: JSON.stringify({
           code: normalizedCode,
           name: formData.name,
+          kind: formData.kind,
           address: formattedAddress,
           contactEmail: formData.contactEmail.trim() || undefined,
           contactPhone: formData.contactPhone || undefined,
@@ -179,6 +181,24 @@ export default function NewWarehousePage() {
                   placeholder="e.g., Fulfillment Center Miami"
                 />
                 {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Warehouse Type
+                </label>
+                <select
+                  value={formData.kind}
+                  onChange={(e) => setFormData({ ...formData, kind: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="THIRD_PARTY">3PL / Warehouse</option>
+                  <option value="AMAZON_AWD">Amazon AWD</option>
+                  <option value="AMAZON_FBA">Amazon FBA (virtual)</option>
+                </select>
+                <p className="text-slate-500 text-xs mt-1">
+                  Use Amazon AWD/FBA types for Amazon-connected warehouses.
+                </p>
               </div>
             </div>
 
