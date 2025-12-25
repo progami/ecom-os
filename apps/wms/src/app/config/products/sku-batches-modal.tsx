@@ -639,14 +639,14 @@ function SkuBatchesManager({
                   <EmptyState
                     icon={Boxes}
                     title={batchSearch ? 'No batches found' : 'No batches yet'}
-                    description={
-                      batchSearch
-                        ? 'Clear your search or create a new batch.'
-                        : 'Batches are created automatically from purchase orders (batch lot = PO number). Use this screen to set pack specs, dimensions, and cartons-per-pallet defaults.'
-                    }
-                  />
-                </div>
-              ) : (
+                      description={
+                        batchSearch
+                          ? 'Clear your search or create a new batch.'
+                          : 'Batches are configured here. Every SKU has a DEFAULT batch. Use this screen to set pack specs, dimensions, and cartons-per-pallet defaults.'
+                      }
+                    />
+                  </div>
+                ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full table-auto text-sm">
                     <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
