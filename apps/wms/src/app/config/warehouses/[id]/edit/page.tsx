@@ -14,6 +14,7 @@ interface Warehouse {
  address?: string
  contactEmail?: string
  contactPhone?: string
+ kind?: string
  isActive: boolean
 }
 
@@ -96,6 +97,7 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
  const [formData, setFormData] = useState({
  code: '',
  name: '',
+ kind: 'THIRD_PARTY',
  addressLine1: '',
  addressLine2: '',
  city: '',
@@ -133,6 +135,7 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
  setFormData({
  code: warehouse.code,
  name: warehouse.name,
+ kind: warehouse.kind || 'THIRD_PARTY',
  addressLine1: parsedAddress.addressLine1,
  addressLine2: parsedAddress.addressLine2,
  city: parsedAddress.city,
@@ -209,12 +212,14 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
 
  const updateData: {
  name: string;
+ kind?: string;
  address: string | null;
  contactEmail: string | null;
  contactPhone: string | null;
  isActive: boolean;
  } = {
 name: formData.name,
+ kind: formData.kind,
  address: formattedAddress || null,
  contactEmail: formData.contactEmail.trim() || null,
 contactPhone: formData.contactPhone || null,
@@ -316,6 +321,24 @@ isActive: formData.isActive
  {errors.name && (
  <p className="text-red-500 text-sm mt-1">{errors.name}</p>
  )}
+ </div>
+
+ <div className="md:col-span-2">
+ <label className="block text-sm font-medium text-slate-700 mb-1">
+ Warehouse Type
+ </label>
+ <select
+ value={formData.kind}
+ onChange={(e) => setFormData({ ...formData, kind: e.target.value })}
+ className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+ >
+ <option value="THIRD_PARTY">3PL / Warehouse</option>
+ <option value="AMAZON_AWD">Amazon AWD</option>
+ <option value="AMAZON_FBA">Amazon FBA (virtual)</option>
+ </select>
+ <p className="text-slate-500 text-xs mt-1">
+ Use Amazon AWD/FBA types for Amazon-connected warehouses.
+ </p>
  </div>
  </div>
 

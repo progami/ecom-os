@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/auth-wrapper'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
+import { WarehouseKind } from '@ecom-os/prisma-wms'
 export const dynamic = 'force-dynamic'
 
 export const POST = withAuth(async (_request, session) => {
@@ -14,26 +15,28 @@ export const POST = withAuth(async (_request, session) => {
  const prisma = await getTenantPrisma()
  // console.log('Setup warehouse: Starting setup for user:', session.user.email)
 
- // Create or update Amazon FBA warehouse
- let amazonWarehouse = await prisma.warehouse.findFirst({
- where: {
- OR: [
- { code: 'AMZN-UK' },
- { code: 'AMZN' }
- ]
- }
+ // Create or update Amazon FBA warehouse for the active tenant
+ const amazonWarehouseCode = session.user.region === 'US' ? 'AMZN' : 'AMZN-UK'
+ const amazonWarehouseName = session.user.region === 'US' ? 'Amazon FBA US' : 'Amazon FBA UK'
+ const amazonWarehouseAddress =
+   session.user.region === 'US' ? 'Amazon Fulfillment Centers US' : 'Amazon Fulfillment Centers UK'
+
+ const amazonWarehouse = await prisma.warehouse.upsert({
+   where: { code: amazonWarehouseCode },
+   update: {
+     name: amazonWarehouseName,
+     address: amazonWarehouseAddress,
+     isActive: true,
+     kind: WarehouseKind.AMAZON_FBA,
+   },
+   create: {
+     code: amazonWarehouseCode,
+     name: amazonWarehouseName,
+     address: amazonWarehouseAddress,
+     isActive: true,
+     kind: WarehouseKind.AMAZON_FBA,
+   },
  })
- 
- if (!amazonWarehouse) {
- amazonWarehouse = await prisma.warehouse.create({
- data: {
- code: 'AMZN-UK',
- name: 'Amazon FBA UK',
- address: 'Amazon Fulfillment Centers UK',
- isActive: true
- }
- })
- }
  
  // Note: Amazon FBA doesn't need warehouse SKU configs as it uses cubic feet
  // The warehouseSkuConfigs are for SKU-specific pallet configurations

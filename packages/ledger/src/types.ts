@@ -20,6 +20,8 @@ export interface InventoryTransactionRecord {
   referenceId?: string | null
   purchaseOrderId?: string | null
   purchaseOrderNumber?: string | null
+  fulfillmentOrderId?: string | null
+  fulfillmentOrderNumber?: string | null
 }
 
 export interface InventoryReceiveMetadata {
@@ -47,6 +49,8 @@ export interface InventoryBalanceSnapshot {
   lastTransactionReference?: string | null
   purchaseOrderId?: string | null
   purchaseOrderNumber?: string | null
+  fulfillmentOrderId?: string | null
+  fulfillmentOrderNumber?: string | null
   firstReceive?: InventoryReceiveMetadata
 }
 

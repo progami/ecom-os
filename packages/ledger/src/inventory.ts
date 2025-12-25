@@ -52,6 +52,8 @@ export function aggregateInventoryTransactions(
         lastTransactionReference: null,
         purchaseOrderId: null,
         purchaseOrderNumber: null,
+        fulfillmentOrderId: null,
+        fulfillmentOrderNumber: null,
         firstReceive: undefined
       }
       balances.set(key, current)
@@ -85,6 +87,19 @@ export function aggregateInventoryTransactions(
         }
       } else if (transaction.purchaseOrderNumber) {
         current.purchaseOrderNumber = transaction.purchaseOrderNumber
+      }
+
+      if (transaction.fulfillmentOrderId) {
+        const foIdChanged = current.fulfillmentOrderId !== transaction.fulfillmentOrderId
+        current.fulfillmentOrderId = transaction.fulfillmentOrderId
+
+        if (transaction.fulfillmentOrderNumber) {
+          current.fulfillmentOrderNumber = transaction.fulfillmentOrderNumber
+        } else if (foIdChanged) {
+          current.fulfillmentOrderNumber = null
+        }
+      } else if (transaction.fulfillmentOrderNumber) {
+        current.fulfillmentOrderNumber = transaction.fulfillmentOrderNumber
       }
     }
 
