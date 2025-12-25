@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'react-hot-toast'
@@ -25,6 +25,25 @@ type SkuSummary = {
 }
 
 export default function ProductBatchesPage() {
+  return (
+    <Suspense
+      fallback={
+        <DashboardLayout>
+          <div className="flex h-full items-center justify-center">
+            <div className="flex flex-col items-center gap-2 text-muted-foreground">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-cyan-600 border-t-transparent " />
+              <span>Loading…</span>
+            </div>
+          </div>
+        </DashboardLayout>
+      }
+    >
+      <ProductBatchesPageInner />
+    </Suspense>
+  )
+}
+
+function ProductBatchesPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const selectedSkuIdParam = searchParams.get('skuId')
@@ -250,4 +269,3 @@ export default function ProductBatchesPage() {
     </DashboardLayout>
   )
 }
-
