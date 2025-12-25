@@ -265,9 +265,13 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
           const startWeekRaw = breachWeek - leadTimeWeeks
 
           const startWeek =
-            minWeek != null && maxWeek != null && startWeekRaw >= minWeek && startWeekRaw <= maxWeek
-              ? startWeekRaw
-              : breachWeek
+            minWeek != null && maxWeek != null
+              ? startWeekRaw < minWeek
+                ? minWeek
+                : startWeekRaw > maxWeek
+                  ? maxWeek
+                  : startWeekRaw
+              : startWeekRaw
 
           if (!result.has(productId)) {
             result.set(productId, new Map())
@@ -721,12 +725,17 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
               }
 
                 const reorderInfo = reorderStartByProduct.get(meta.productId)?.get(weekNumber)
+                const isStartBeforeView =
+                  reorderInfo != null && minWeekAvailable != null && reorderInfo.startWeekRaw < minWeekAvailable
+
                 if (reorderInfo && visibleMetrics.has(meta.field)) {
-                  cell.className = cell.className ? `${cell.className} cell-reorder-band` : 'cell-reorder-band'
+                  const bandClass = isStartBeforeView ? 'cell-reorder-overdue-band' : 'cell-reorder-band'
+                  cell.className = cell.className ? `${cell.className} ${bandClass}` : bandClass
                 }
 
                 if (reorderInfo && isStockColumn) {
-                  cell.className = cell.className ? `${cell.className} cell-reorder-suggest` : 'cell-reorder-suggest'
+                  const borderClass = isStartBeforeView ? 'cell-reorder-overdue' : 'cell-reorder-suggest'
+                  cell.className = cell.className ? `${cell.className} ${borderClass}` : borderClass
 
                   const leadProfile = leadTimeByProduct[meta.productId]
                   const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : 0
@@ -742,7 +751,6 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
                   const breachLabel = `W${breachWeekLabel}${breachDate ? ` (${breachDate})` : ''}`
 
                   const minLabel = minWeekAvailable != null ? weekLabelByNumber.get(minWeekAvailable) ?? String(minWeekAvailable) : ''
-                  const isStartBeforeView = minWeekAvailable != null && reorderInfo.startWeekRaw < minWeekAvailable
                   const weeksLate = isStartBeforeView && minWeekAvailable != null ? minWeekAvailable - reorderInfo.startWeekRaw : 0
 
                   const startWeekLabel = weekLabelByNumber.get(weekNumber) ?? String(weekNumber)
@@ -750,7 +758,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
                   const startDateRaw = formatWeekDateFallback(reorderInfo.startWeekRaw)
 
                   const startLabel = isStartBeforeView
-                    ? `${startDateRaw} (before W${minLabel}${weeksLate > 0 ? ` · late by ${weeksLate}w` : ''})`
+                    ? `ASAP (recommended ${startDateRaw}${weeksLate > 0 ? ` · late by ${weeksLate}w` : ''})`
                     : `W${startWeekLabel}${startDateInView ? ` (${startDateInView})` : ''}`
 
                   if (!cell.comment) {
