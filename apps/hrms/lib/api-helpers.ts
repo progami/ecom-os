@@ -14,7 +14,7 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
 
 const RATE_LIMIT_WINDOW_MS = parsePositiveInt(process.env.HRMS_RATE_LIMIT_WINDOW_MS, 60 * 1000) // 1 minute
 // Defaults intentionally generous to avoid blocking normal UI navigation/polling.
-const RATE_LIMIT_MAX_REQUESTS = parsePositiveInt(process.env.HRMS_RATE_LIMIT_MAX_REQUESTS, 1000) // 1000 requests/minute
+const RATE_LIMIT_MAX_REQUESTS = parsePositiveInt(process.env.HRMS_RATE_LIMIT_MAX_REQUESTS, 5000) // 5000 requests/minute
 
 function stableHash(input: string): string {
   // Fast, non-crypto hash (djb2) – good enough for in-memory rate-limit keys.

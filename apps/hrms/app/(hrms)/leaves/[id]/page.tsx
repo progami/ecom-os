@@ -1,179 +1,142 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { LeavesApi, MeApi, type LeaveRequest, type Me } from '@/lib/api-client'
-import { CalendarDaysIcon } from '@/components/ui/Icons'
-import { PageHeader } from '@/components/ui/PageHeader'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
+import { LeavesApi } from '@/lib/api-client'
+import type { ActionId } from '@/lib/contracts/action-ids'
+import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
+import { executeAction } from '@/lib/actions/execute-action'
+import { WorkflowRecordLayout } from '@/components/layouts/WorkflowRecordLayout'
 import { Alert } from '@/components/ui/Alert'
-import { StatusBadge } from '@/components/ui/Badge'
-import { TextareaField } from '@/components/ui/FormField'
+import { Card } from '@/components/ui/Card'
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+function formatDate(value: string | null | undefined): string {
+  if (!value) return '—'
+  return new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-export default function LeaveRequestPage() {
+export default function LeaveRequestWorkflowPage() {
   const params = useParams()
   const id = params.id as string
 
-  const [me, setMe] = useState<Me | null>(null)
-  const [leave, setLeave] = useState<LeaveRequest | null>(null)
+  const [dto, setDto] = useState<WorkflowRecordDTO | null>(null)
+  const [leave, setLeave] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [reviewNotes, setReviewNotes] = useState('')
 
-  useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true)
-        const [leaveData, meData] = await Promise.all([
-          LeavesApi.get(id),
-          MeApi.get(),
-        ])
-        setLeave(leaveData)
-        setMe(meData)
-      } catch (e: any) {
-        setError(e.message || 'Failed to load leave request')
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
-  }, [id])
-
-  async function updateStatus(status: 'APPROVED' | 'REJECTED' | 'CANCELLED') {
-    if (!leave) return
-    setSaving(true)
+  const load = useCallback(async () => {
+    setLoading(true)
     setError(null)
     try {
-      const updated = await LeavesApi.update(leave.id, {
-        status,
-        reviewNotes: status === 'REJECTED' ? (reviewNotes ? reviewNotes : undefined) : undefined,
-      })
-      setLeave(updated)
-    } catch (e: any) {
-      setError(e.message || 'Failed to update leave request')
+      const [workflow, raw] = await Promise.all([
+        LeavesApi.getWorkflowRecord(id),
+        LeavesApi.get(id),
+      ])
+      setDto(workflow)
+      setLeave(raw)
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to load leave request'
+      setError(message)
+      setDto(null)
+      setLeave(null)
     } finally {
-      setSaving(false)
+      setLoading(false)
     }
-  }
+  }, [id])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  const onAction = useCallback(async (actionId: ActionId) => {
+    setError(null)
+    try {
+      await executeAction(actionId, { type: 'LEAVE_REQUEST', id })
+      await load()
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to complete action'
+      setError(message)
+    }
+  }, [id, load])
 
   if (loading) {
     return (
-      <>
-        <PageHeader title="Leave Request" description="People" icon={<CalendarDaysIcon className="h-6 w-6 text-white" />} showBack />
-        <Card padding="lg">
-          <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-gray-200 rounded w-1/2" />
-            <div className="h-24 bg-gray-200 rounded" />
-          </div>
-        </Card>
-      </>
+      <Card padding="lg">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-gray-200 rounded w-1/3" />
+          <div className="h-4 bg-gray-200 rounded w-2/3" />
+          <div className="h-40 bg-gray-200 rounded" />
+        </div>
+      </Card>
     )
   }
 
-  if (!leave) {
+  if (!dto) {
     return (
-      <>
-        <PageHeader title="Leave Request" description="People" icon={<CalendarDaysIcon className="h-6 w-6 text-white" />} showBack />
-        <Card padding="lg">
-          <p className="text-sm text-gray-600">Leave request not found.</p>
-        </Card>
-      </>
+      <Card padding="lg">
+        <p className="text-sm font-medium text-gray-900">Leave request</p>
+        <p className="text-sm text-gray-600 mt-1">{error ?? 'Not found'}</p>
+      </Card>
     )
   }
-
-  const isOwner = Boolean(me && me.id === leave.employeeId)
-  const canAct = leave.status === 'PENDING'
 
   return (
     <>
-      <PageHeader
-        title="Leave Request"
-        description="People"
-        icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
-        showBack
-      />
+      {error ? (
+        <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
+          {error}
+        </Alert>
+      ) : null}
 
-      <div className="space-y-6 max-w-4xl">
-        {error && (
-          <Alert variant="error" onDismiss={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
+      <WorkflowRecordLayout data={dto} onAction={onAction}>
+        {leave ? (
+          <div className="space-y-6">
+            <Card padding="lg">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Request details</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-medium text-gray-500">Leave type</p>
+                  <p className="text-sm text-gray-900 mt-0.5">{leave.leaveType?.replaceAll('_', ' ')?.toLowerCase() || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500">Total days</p>
+                  <p className="text-sm text-gray-900 mt-0.5">{String(leave.totalDays ?? '—')}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500">Start date</p>
+                  <p className="text-sm text-gray-900 mt-0.5">{formatDate(leave.startDate)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-gray-500">End date</p>
+                  <p className="text-sm text-gray-900 mt-0.5">{formatDate(leave.endDate)}</p>
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="text-xs font-medium text-gray-500">Reason</p>
+                  <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">{leave.reason || '—'}</p>
+                </div>
+              </div>
+            </Card>
 
-        <Card padding="md">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                {leave.employee ? `${leave.employee.firstName} ${leave.employee.lastName}` : 'Employee'} • {leave.leaveType.replaceAll('_', ' ')}
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                {formatDate(leave.startDate)} → {formatDate(leave.endDate)} • {leave.totalDays} days
-              </p>
-              {leave.reason && (
-                <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{leave.reason}</p>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <StatusBadge status={leave.status} />
-            </div>
+            {leave.reviewedAt || leave.reviewNotes ? (
+              <Card padding="lg">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Decision</h3>
+                <div className="space-y-2 text-sm">
+                  {leave.reviewedAt ? (
+                    <div>
+                      <p className="text-xs font-medium text-gray-500">Reviewed at</p>
+                      <p className="text-sm text-gray-900 mt-0.5">{formatDate(leave.reviewedAt)}</p>
+                    </div>
+                  ) : null}
+                  <div>
+                    <p className="text-xs font-medium text-gray-500">Notes</p>
+                    <p className="text-sm text-gray-900 mt-0.5 whitespace-pre-line">{leave.reviewNotes || '—'}</p>
+                  </div>
+                </div>
+              </Card>
+            ) : null}
           </div>
-        </Card>
-
-        {canAct && !isOwner && (
-          <Card padding="md">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Manager Review</h3>
-            <TextareaField
-              label="Review Notes (optional)"
-              name="reviewNotes"
-              value={reviewNotes}
-              onChange={(e) => setReviewNotes(e.target.value)}
-              rows={3}
-            />
-            <div className="flex justify-end gap-2 mt-4">
-              <Button variant="secondary" onClick={() => updateStatus('REJECTED')} loading={saving} disabled={saving}>
-                Reject
-              </Button>
-              <Button onClick={() => updateStatus('APPROVED')} loading={saving} disabled={saving}>
-                Approve
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {canAct && isOwner && (
-          <Card padding="md">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Your Request</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              You can cancel a pending request.
-            </p>
-            <div className="flex justify-end">
-              <Button variant="secondary" onClick={() => updateStatus('CANCELLED')} loading={saving} disabled={saving}>
-                Cancel Request
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {(leave.reviewNotes || leave.reviewedAt) && (
-          <Card padding="md">
-            <h3 className="text-sm font-semibold text-gray-900 mb-3">Decision</h3>
-            {leave.reviewedAt && (
-              <p className="text-sm text-gray-600">
-                Reviewed on {formatDate(leave.reviewedAt)}
-              </p>
-            )}
-            {leave.reviewNotes && (
-              <p className="text-sm text-gray-700 mt-2 whitespace-pre-wrap">{leave.reviewNotes}</p>
-            )}
-          </Card>
-        )}
-      </div>
+        ) : null}
+      </WorkflowRecordLayout>
     </>
   )
 }

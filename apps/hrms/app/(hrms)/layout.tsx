@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ReactNode, useState, useEffect } from 'react'
+import { ReactNode, useCallback, useEffect, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import {
   HomeIcon,
@@ -12,16 +12,17 @@ import {
   MenuIcon,
   XIcon,
   ClipboardDocumentCheckIcon,
-  ShieldExclamationIcon,
   BellIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   OrgChartIcon,
   LockClosedIcon,
+  ChartBarIcon,
 } from '@/components/ui/Icons'
 import { NotificationBell } from '@/components/ui/NotificationBell'
 import { NavigationHistoryProvider } from '@/lib/navigation-history'
 import { MeApi } from '@/lib/api-client'
+import { CommandPalette } from '@/components/search/CommandPalette'
 
 interface NavItem {
   name: string
@@ -42,14 +43,15 @@ const navigation: NavSection[] = [
   {
     title: '',
     items: [
-      { name: 'Dashboard', href: '/', icon: HomeIcon },
       { name: 'Work Queue', href: '/work', icon: BellIcon },
+      { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
     ]
   },
   {
     title: 'Work',
     items: [
       { name: 'Tasks', href: '/tasks', icon: CheckCircleIcon },
+      { name: 'Onboarding', href: '/onboarding', icon: ClipboardDocumentCheckIcon, requireHR: true },
     ]
   },
   {
@@ -69,7 +71,6 @@ const navigation: NavSection[] = [
     title: 'Compliance',
     items: [
       { name: 'Cases', href: '/cases', icon: ExclamationTriangleIcon },
-      { name: 'Disciplinary', href: '/performance/disciplinary', icon: ShieldExclamationIcon },
     ],
   },
   {
@@ -84,7 +85,9 @@ const navigation: NavSection[] = [
     title: 'Admin',
     requireHR: true,
     items: [
+      { name: 'Dashboards', href: '/admin/dashboards', icon: ChartBarIcon, requireHR: true },
       { name: 'Access Management', href: '/admin/access', icon: LockClosedIcon, requireSuperAdmin: true },
+      { name: 'Checklists', href: '/admin/checklists', icon: ClipboardDocumentCheckIcon, requireHR: true },
       { name: 'Audit Logs', href: '/audit-logs', icon: LockClosedIcon, requireHR: true },
     ]
   },
@@ -247,19 +250,31 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
     setMobileMenuOpen(false)
   }, [pathname])
 
-  // Fetch current user permissions for navigation
-  useEffect(() => {
-    async function fetchUserPermissions() {
-      try {
-        const me = await MeApi.get()
-        setIsSuperAdmin(Boolean(me.isSuperAdmin))
-        setIsHR(Boolean(me.isHR))
-      } catch (e) {
-        // Ignore errors, default to non-admin
-      }
+  const fetchUserPermissions = useCallback(async () => {
+    try {
+      const me = await MeApi.get()
+      setIsSuperAdmin(Boolean(me.isSuperAdmin))
+      setIsHR(Boolean(me.isHR))
+    } catch {
+      // Ignore errors, default to non-admin
     }
-    fetchUserPermissions()
   }, [])
+
+  // Fetch current user permissions for navigation; refresh when roles change.
+  useEffect(() => {
+    fetchUserPermissions()
+
+    const handleFocus = () => fetchUserPermissions()
+    const handleMeUpdated = () => fetchUserPermissions()
+
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('hrms:me-updated', handleMeUpdated)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('hrms:me-updated', handleMeUpdated)
+    }
+  }, [fetchUserPermissions])
 
   return (
     <NavigationHistoryProvider>
@@ -297,6 +312,8 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
           </div>
         </footer>
       </div>
+
+      <CommandPalette />
     </NavigationHistoryProvider>
   )
 }

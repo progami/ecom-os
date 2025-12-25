@@ -13,6 +13,20 @@ import { getCurrentEmployeeId } from '@/lib/current-user'
 import { canRaiseViolation, getHREmployees, getSubtreeEmployeeIds, isHROrAbove, isManagerOf } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
 
+function toCaseSeverity(severity: string): 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' {
+  switch (severity) {
+    case 'CRITICAL':
+      return 'CRITICAL'
+    case 'MAJOR':
+      return 'HIGH'
+    case 'MODERATE':
+      return 'MEDIUM'
+    case 'MINOR':
+    default:
+      return 'LOW'
+  }
+}
+
 export async function GET(req: Request) {
   const rateLimitError = withRateLimit(req)
   if (rateLimitError) return rateLimitError
@@ -138,6 +152,12 @@ export async function POST(req: Request) {
     // Verify employee exists
     const employee = await prisma.employee.findUnique({
       where: { id: data.employeeId },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        employeeId: true,
+      },
     })
     if (!employee) {
       return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
@@ -157,33 +177,75 @@ export async function POST(req: Request) {
       )
     }
 
-    // Create violation with PENDING_HR_REVIEW status (approval chain starts here)
-    const item = await prisma.disciplinaryAction.create({
-      data: {
-        employeeId: data.employeeId,
-        violationType: data.violationType,
-        violationReason: data.violationReason,
-        valuesBreached: data.valuesBreached,
-        severity: data.severity,
-        incidentDate: new Date(data.incidentDate),
-        reportedBy: data.reportedBy,
-        description: data.description,
-        witnesses: data.witnesses ?? null,
-        evidence: data.evidence ?? null,
-        actionTaken: data.actionTaken,
-        // Always start with PENDING_HR_REVIEW - approval chain: Manager -> HR -> Super Admin
-        status: 'PENDING_HR_REVIEW',
-      },
-      include: {
-        employee: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            employeeId: true,
+    const hrEmployees = await getHREmployees()
+    const assignedToId = hrEmployees[0]?.id ?? null
+
+    const { item, caseId } = await prisma.$transaction(async (tx) => {
+      const caseRecord = await tx.case.create({
+        data: {
+          caseType: 'VIOLATION',
+          title: `Violation • ${employee.firstName} ${employee.lastName}`.trim(),
+          description: 'Violation record created. Use the linked violation workflow to review and proceed.',
+          severity: toCaseSeverity(data.severity),
+          subjectEmployeeId: data.employeeId,
+          createdById: currentEmployeeId,
+          assignedToId,
+        },
+        select: { id: true, caseNumber: true },
+      })
+
+      await tx.caseParticipant.createMany({
+        data: [
+          { caseId: caseRecord.id, employeeId: data.employeeId, role: 'SUBJECT' },
+          { caseId: caseRecord.id, employeeId: currentEmployeeId, role: 'REPORTER' },
+        ],
+        skipDuplicates: true,
+      })
+
+      const created = await tx.disciplinaryAction.create({
+        data: {
+          employeeId: data.employeeId,
+          caseId: caseRecord.id,
+          violationType: data.violationType,
+          violationReason: data.violationReason,
+          valuesBreached: data.valuesBreached,
+          severity: data.severity,
+          incidentDate: new Date(data.incidentDate),
+          reportedBy: data.reportedBy,
+          description: data.description,
+          witnesses: data.witnesses ?? null,
+          evidence: data.evidence ?? null,
+          actionTaken: data.actionTaken,
+          // Always start with PENDING_HR_REVIEW - approval chain: Manager -> HR -> Super Admin
+          status: 'PENDING_HR_REVIEW',
+        },
+        include: {
+          employee: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              employeeId: true,
+            },
           },
         },
+      })
+
+      return { item: created, caseId: caseRecord.id }
+    })
+
+    await writeAuditLog({
+      actorId: currentEmployeeId,
+      action: 'CREATE',
+      entityType: 'CASE',
+      entityId: caseId,
+      summary: `Opened violation case for ${item.employee.firstName} ${item.employee.lastName}`,
+      metadata: {
+        caseType: 'VIOLATION',
+        severity: item.severity,
+        disciplinaryActionId: item.id,
       },
+      req,
     })
 
     await writeAuditLog({
@@ -203,14 +265,13 @@ export async function POST(req: Request) {
     })
 
     // Notify HR about pending violation review
-    const hrEmployees = await getHREmployees()
     for (const hr of hrEmployees) {
       await prisma.notification.create({
         data: {
           type: 'VIOLATION_PENDING_HR',
           title: 'Violation Pending Review',
           message: `A new violation has been raised for ${item.employee.firstName} ${item.employee.lastName}. Please review.`,
-          link: `/performance/disciplinary/${item.id}`,
+          link: `/cases/${caseId}`,
           employeeId: hr.id,
           relatedId: item.id,
           relatedType: 'DISCIPLINARY',
@@ -218,7 +279,7 @@ export async function POST(req: Request) {
       })
     }
 
-    return NextResponse.json(item, { status: 201 })
+    return NextResponse.json({ ...item, caseId }, { status: 201 })
   } catch (e) {
     return safeErrorResponse(e, 'Failed to create disciplinary action')
   }

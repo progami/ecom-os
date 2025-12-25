@@ -188,6 +188,8 @@ export async function POST(req: Request, context: RouteContext) {
           })
         : updated
 
+      const recordLink = updated.caseId ? `/cases/${updated.caseId}` : `/performance/disciplinary/${id}`
+
       // Notify HR and manager that employee acknowledged
       const hrEmployees = await getHREmployees()
       for (const hr of hrEmployees) {
@@ -196,7 +198,7 @@ export async function POST(req: Request, context: RouteContext) {
             type: 'VIOLATION_ACKNOWLEDGED',
             title: 'Violation Acknowledged by Employee',
             message: `${updated.employee.firstName} ${updated.employee.lastName} has acknowledged the violation record.`,
-            link: `/performance/disciplinary/${id}`,
+            link: recordLink,
             employeeId: hr.id,
             relatedId: id,
             relatedType: 'DISCIPLINARY',
@@ -211,7 +213,7 @@ export async function POST(req: Request, context: RouteContext) {
             type: 'VIOLATION_ACKNOWLEDGED',
             title: 'Violation Acknowledged by Employee',
             message: `${updated.employee.firstName} ${updated.employee.lastName} has acknowledged the violation record.`,
-            link: `/performance/disciplinary/${id}`,
+            link: recordLink,
             employeeId: action.employee.reportsToId,
             relatedId: id,
             relatedType: 'DISCIPLINARY',
@@ -285,6 +287,8 @@ export async function POST(req: Request, context: RouteContext) {
           })
         : updated
 
+      const recordLink = updated.caseId ? `/cases/${updated.caseId}` : `/performance/disciplinary/${id}`
+
       // Notify HR that manager acknowledged
       const hrEmployees = await getHREmployees()
       for (const hr of hrEmployees) {
@@ -293,7 +297,7 @@ export async function POST(req: Request, context: RouteContext) {
             type: 'VIOLATION_ACKNOWLEDGED',
             title: 'Violation Acknowledged by Manager',
             message: `Manager has acknowledged the violation record for ${updated.employee.firstName} ${updated.employee.lastName}.`,
-            link: `/performance/disciplinary/${id}`,
+            link: recordLink,
             employeeId: hr.id,
             relatedId: id,
             relatedType: 'DISCIPLINARY',

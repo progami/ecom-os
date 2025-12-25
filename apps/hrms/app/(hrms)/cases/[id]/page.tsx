@@ -1,25 +1,31 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
+  CaseAttachmentsApi,
   CasesApi,
+  DisciplinaryActionsApi,
   EmployeesApi,
   MeApi,
   TasksApi,
+  UploadsApi,
   type Case,
   type CaseNote,
   type Employee,
   type Me,
   type Task,
 } from '@/lib/api-client'
-import { ExclamationTriangleIcon, PlusIcon } from '@/components/ui/Icons'
-import { PageHeader } from '@/components/ui/PageHeader'
+import { PlusIcon } from '@/components/ui/Icons'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Alert } from '@/components/ui/Alert'
 import { StatusBadge } from '@/components/ui/Badge'
 import { FormField, SelectField, TextareaField } from '@/components/ui/FormField'
+import { WorkflowRecordLayout } from '@/components/layouts/WorkflowRecordLayout'
+import { executeAction } from '@/lib/actions/execute-action'
+import type { ActionId } from '@/lib/contracts/action-ids'
+import type { WorkflowRecordDTO } from '@/lib/contracts/workflow-record'
 
 const statusOptions = [
   { value: 'OPEN', label: 'Open' },
@@ -65,6 +71,8 @@ export default function CaseDetailPage() {
   const router = useRouter()
   const id = params.id as string
 
+  const [workflow, setWorkflow] = useState<WorkflowRecordDTO | null>(null)
+  const [linkedDisciplinaryId, setLinkedDisciplinaryId] = useState<string | null>(null)
   const [c, setC] = useState<Case | null>(null)
   const [me, setMe] = useState<Me | null>(null)
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -124,10 +132,9 @@ export default function CaseDetailPage() {
     visibility: 'EMPLOYEE_VISIBLE',
   })
 
-  const [attachmentForm, setAttachmentForm] = useState({
-    title: '',
-    fileUrl: '',
-  })
+  const [attachmentTitle, setAttachmentTitle] = useState('')
+  const [attachmentFile, setAttachmentFile] = useState<File | null>(null)
+  const [attachmentVisibility, setAttachmentVisibility] = useState<'INTERNAL_HR' | 'EMPLOYEE_AND_HR'>('INTERNAL_HR')
 
   const [participantForm, setParticipantForm] = useState({
     employeeId: '',
@@ -142,48 +149,67 @@ export default function CaseDetailPage() {
     assignedToId: '',
   })
 
-  useEffect(() => {
-    async function load() {
-      try {
-        setLoading(true)
-        const [caseData, meData] = await Promise.all([
-          CasesApi.get(id),
-          MeApi.get(),
-        ])
-        setC(caseData)
-        setMe(meData)
-        setCaseForm({
-          status: caseData.status,
-          description: caseData.description ?? '',
-          statusNote: '',
-        })
-        setNoteForm((prev) => ({
-          ...prev,
-          visibility: meData.isHR || meData.isSuperAdmin ? 'INTERNAL_HR' : 'EMPLOYEE_VISIBLE',
-        }))
+  const loadAll = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const [caseData, meData, caseWorkflow] = await Promise.all([
+        CasesApi.get(id),
+        MeApi.get(),
+        CasesApi.getWorkflowRecord(id),
+      ])
 
-        setTaskForm((p) => ({
-          ...p,
-          assignedToId: caseData.assignedToId ?? meData.id,
-        }))
+      let workflowData: WorkflowRecordDTO = caseWorkflow
+      let disciplinaryActionId: string | null = null
 
-        if (meData.isHR || meData.isSuperAdmin) {
-          setLoadingEmployees(true)
-          try {
-            const list = await EmployeesApi.listManageable()
-            setEmployees(list.items || [])
-          } finally {
-            setLoadingEmployees(false)
-          }
+      if (caseData.caseType === 'VIOLATION') {
+        const linked = await CasesApi.getLinkedDisciplinary(caseData.id)
+        disciplinaryActionId = linked.disciplinaryActionId
+        if (disciplinaryActionId) {
+          workflowData = await DisciplinaryActionsApi.getWorkflowRecord(disciplinaryActionId)
         }
-      } catch (e: any) {
-        setError(e.message || 'Failed to load case')
-      } finally {
-        setLoading(false)
       }
+
+      setC(caseData)
+      setMe(meData)
+      setWorkflow(workflowData)
+      setLinkedDisciplinaryId(disciplinaryActionId)
+      setCaseForm({
+        status: caseData.status,
+        description: caseData.description ?? '',
+        statusNote: '',
+      })
+      setNoteForm((prev) => ({
+        ...prev,
+        visibility: meData.isHR || meData.isSuperAdmin ? 'INTERNAL_HR' : 'EMPLOYEE_VISIBLE',
+      }))
+
+      setTaskForm((p) => ({
+        ...p,
+        assignedToId: caseData.assignedToId ?? meData.id,
+      }))
+
+      if (meData.isHR || meData.isSuperAdmin) {
+        setLoadingEmployees(true)
+        try {
+          const list = await EmployeesApi.listManageable()
+          setEmployees(list.items || [])
+        } finally {
+          setLoadingEmployees(false)
+        }
+      }
+    } catch (e: any) {
+      setError(e?.message || 'Failed to load case')
+      setC(null)
+      setWorkflow(null)
+    } finally {
+      setLoading(false)
     }
-    load()
   }, [id])
+
+  useEffect(() => {
+    void loadAll()
+  }, [loadAll])
 
   async function refreshNotes() {
     const notes = await CasesApi.listNotes(id)
@@ -223,6 +249,15 @@ export default function CaseDetailPage() {
       setC((prev) => (prev ? { ...prev, ...updated } : updated))
       setCaseForm((p) => ({ ...p, statusNote: '' }))
 
+      try {
+        const wf = linkedDisciplinaryId
+          ? await DisciplinaryActionsApi.getWorkflowRecord(linkedDisciplinaryId)
+          : await CasesApi.getWorkflowRecord(c.id)
+        setWorkflow(wf)
+      } catch {
+        // Non-fatal: case updated but workflow header may be stale until refresh.
+      }
+
       if (statusChanged && note) {
         await refreshNotes()
       }
@@ -252,20 +287,56 @@ export default function CaseDetailPage() {
   }
 
   async function addAttachment() {
-    if (!attachmentForm.fileUrl.trim()) return
+    if (!attachmentFile) return
     setSaving(true)
     setError(null)
     try {
-      await CasesApi.addAttachment(id, {
-        title: attachmentForm.title ? attachmentForm.title : null,
-        fileUrl: attachmentForm.fileUrl,
+      const contentType = attachmentFile.type || 'application/octet-stream'
+      const presign = await UploadsApi.presign({
+        filename: attachmentFile.name,
+        contentType,
+        size: attachmentFile.size,
+        target: { type: 'CASE', id },
+        visibility: attachmentVisibility,
       })
-      setAttachmentForm({ title: '', fileUrl: '' })
+
+      const put = await fetch(presign.putUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': contentType },
+        body: attachmentFile,
+      })
+
+      if (!put.ok) {
+        throw new Error(`Upload failed (${put.status})`)
+      }
+
+      await UploadsApi.finalize({
+        key: presign.key,
+        filename: attachmentFile.name,
+        contentType,
+        size: attachmentFile.size,
+        target: { type: 'CASE', id },
+        visibility: attachmentVisibility,
+        title: attachmentTitle.trim() || null,
+      })
+
+      setAttachmentTitle('')
+      setAttachmentFile(null)
       await refreshAttachments()
     } catch (e: any) {
       setError(e.message || 'Failed to add attachment')
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function downloadAttachment(attachmentId: string) {
+    setError(null)
+    try {
+      const { url } = await CaseAttachmentsApi.getDownloadUrl(id, attachmentId)
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } catch (e: any) {
+      setError(e.message || 'Failed to download attachment')
     }
   }
 
@@ -374,33 +445,19 @@ export default function CaseDetailPage() {
 
   if (loading) {
     return (
-      <>
-        <PageHeader
-          title="Case"
-          description="Performance"
-          icon={<ExclamationTriangleIcon className="h-6 w-6 text-white" />}
-          showBack
-        />
-        <Card padding="lg">
-          <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-gray-200 rounded w-1/2" />
-            <div className="h-4 bg-gray-200 rounded w-1/3" />
-            <div className="h-24 bg-gray-200 rounded" />
-          </div>
-        </Card>
-      </>
+      <Card padding="lg">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-gray-200 rounded w-1/2" />
+          <div className="h-4 bg-gray-200 rounded w-1/3" />
+          <div className="h-24 bg-gray-200 rounded" />
+        </div>
+      </Card>
     )
   }
 
   if (!c) {
     return (
       <>
-        <PageHeader
-          title="Case"
-          description="Performance"
-          icon={<ExclamationTriangleIcon className="h-6 w-6 text-white" />}
-          showBack
-        />
         <Card padding="lg">
           <p className="text-sm text-gray-600">Case not found.</p>
         </Card>
@@ -410,98 +467,110 @@ export default function CaseDetailPage() {
 
   const canAddAttachment = Boolean(me?.isSuperAdmin || me?.isHR)
 
+  const onAction = useCallback(async (actionId: ActionId) => {
+    setError(null)
+    try {
+      await executeAction(
+        actionId,
+        linkedDisciplinaryId
+          ? { type: 'DISCIPLINARY_ACTION', id: linkedDisciplinaryId }
+          : { type: 'CASE', id }
+      )
+      await loadAll()
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to complete action'
+      setError(message)
+    }
+  }, [id, linkedDisciplinaryId, loadAll])
+
   return (
     <>
-      <PageHeader
-        title={`Case #${c.caseNumber}`}
-        description="Performance"
-        icon={<ExclamationTriangleIcon className="h-6 w-6 text-white" />}
-        showBack
-        actions={(
-          <Button variant="secondary" onClick={() => router.push('/cases/add')} icon={<PlusIcon className="h-4 w-4" />}>
-            New Case
-          </Button>
-        )}
-      />
+      {error && (
+        <Alert variant="error" className="mb-6" onDismiss={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
 
-      <div className="space-y-6 max-w-5xl">
-        {error && (
-          <Alert variant="error" onDismiss={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
-
-        <Card padding="md">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">{c.title}</h2>
-              <p className="text-sm text-gray-600">
-                {c.caseType.toLowerCase()} • Severity: {c.severity.toLowerCase()}
-              </p>
-              {c.subjectEmployee && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Subject: {c.subjectEmployee.firstName} {c.subjectEmployee.lastName}
-                </p>
-              )}
+      {workflow ? (
+        <WorkflowRecordLayout data={workflow} onAction={onAction} backHref="/cases">
+          <div className="space-y-6 max-w-5xl">
+            <div className="flex items-center justify-end">
+              <Button variant="secondary" onClick={() => router.push('/cases/add')} icon={<PlusIcon className="h-4 w-4" />}>
+                New Case
+              </Button>
             </div>
-            <div className="flex items-center gap-3">
-              <StatusBadge status={c.status} />
-              <span className="text-xs text-gray-500">Updated {formatDate(c.updatedAt)}</span>
-            </div>
-          </div>
-        </Card>
 
-        {(canEdit || canAddAttachment) && (
-          <Card padding="lg">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div>
-                <SelectField
-                  label="Status"
-                  name="status"
-                  options={statusOptionsForActor}
-                  value={caseForm.status}
-                  onChange={(e) => setCaseForm((p) => ({
-                    ...p,
-                    status: e.target.value,
-                    statusNote: closingStatuses.has(e.target.value) ? p.statusNote : '',
-                  }))}
-                  disabled={!canEdit}
-                />
-              </div>
-              <div className="flex items-end justify-end">
-                <Button onClick={updateCase} loading={saving} disabled={!canEdit || saving}>
-                  {saving ? 'Saving...' : 'Save'}
-                </Button>
-              </div>
-              {Boolean((me?.isHR || me?.isSuperAdmin) && caseForm.status !== c.status && closingStatuses.has(caseForm.status)) && (
-                <div className="sm:col-span-2">
-                  <TextareaField
-                    label="Status Note (required)"
-                    name="statusNote"
-                    value={caseForm.statusNote}
-                    onChange={(e) => setCaseForm((p) => ({ ...p, statusNote: e.target.value }))}
-                    rows={3}
-                    placeholder="Add a brief explanation for the resolution/closure..."
-                    disabled={!canEdit}
-                  />
+            <Card padding="md">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">{c.title}</h2>
+                  <p className="text-sm text-gray-600">
+                    {c.caseType.toLowerCase()} • Severity: {c.severity.toLowerCase()}
+                  </p>
+                  {c.subjectEmployee && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Subject: {c.subjectEmployee.firstName} {c.subjectEmployee.lastName}
+                    </p>
+                  )}
                 </div>
-              )}
-              <div className="sm:col-span-2">
-                <TextareaField
-                  label="Description"
-                  name="description"
-                  value={caseForm.description}
-                  onChange={(e) => setCaseForm((p) => ({ ...p, description: e.target.value }))}
-                  rows={5}
-                  disabled={!canEdit}
-                />
+                <div className="flex items-center gap-3">
+                  <StatusBadge status={c.status} />
+                  <span className="text-xs text-gray-500">Updated {formatDate(c.updatedAt)}</span>
+                </div>
               </div>
-            </div>
-          </Card>
-        )}
+            </Card>
 
-        {/* Participants */}
-        <Card padding="md">
+            {(canEdit || canAddAttachment) && (
+              <Card padding="lg">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div>
+                    <SelectField
+                      label="Status"
+                      name="status"
+                      options={statusOptionsForActor}
+                      value={caseForm.status}
+                      onChange={(e) => setCaseForm((p) => ({
+                        ...p,
+                        status: e.target.value,
+                        statusNote: closingStatuses.has(e.target.value) ? p.statusNote : '',
+                      }))}
+                      disabled={!canEdit}
+                    />
+                  </div>
+                  <div className="flex items-end justify-end">
+                    <Button onClick={updateCase} loading={saving} disabled={!canEdit || saving}>
+                      {saving ? 'Saving...' : 'Save'}
+                    </Button>
+                  </div>
+                  {Boolean((me?.isHR || me?.isSuperAdmin) && caseForm.status !== c.status && closingStatuses.has(caseForm.status)) && (
+                    <div className="sm:col-span-2">
+                      <TextareaField
+                        label="Status Note (required)"
+                        name="statusNote"
+                        value={caseForm.statusNote}
+                        onChange={(e) => setCaseForm((p) => ({ ...p, statusNote: e.target.value }))}
+                        rows={3}
+                        placeholder="Add a brief explanation for the resolution/closure..."
+                        disabled={!canEdit}
+                      />
+                    </div>
+                  )}
+                  <div className="sm:col-span-2">
+                    <TextareaField
+                      label="Description"
+                      name="description"
+                      value={caseForm.description}
+                      onChange={(e) => setCaseForm((p) => ({ ...p, description: e.target.value }))}
+                      rows={5}
+                      disabled={!canEdit}
+                    />
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Participants */}
+            <Card padding="md">
           <h3 className="text-sm font-semibold text-gray-900 mb-3">Participants</h3>
 
           <div className="space-y-2">
@@ -576,7 +645,7 @@ export default function CaseDetailPage() {
               </div>
             </div>
           )}
-        </Card>
+            </Card>
 
         {/* Notes */}
         <Card padding="md">
@@ -644,16 +713,15 @@ export default function CaseDetailPage() {
                   <div key={a.id} className="flex items-center justify-between gap-3 p-3 rounded-lg border border-gray-200 bg-white">
                     <div>
                       <p className="text-sm font-medium text-gray-900">{a.title || 'Attachment'}</p>
-                      <p className="text-xs text-gray-500">{formatDate(a.createdAt)}</p>
+                      <p className="text-xs text-gray-500">
+                        {a.fileName ? `${a.fileName} • ` : ''}
+                        {a.visibility ? `${a.visibility.replaceAll('_', ' ').toLowerCase()} • ` : ''}
+                        {formatDate(a.createdAt)}
+                      </p>
                     </div>
-                    <a
-                      href={a.fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-blue-600 hover:text-blue-800"
-                    >
-                      Open
-                    </a>
+                    <Button variant="secondary" onClick={() => downloadAttachment(a.id)}>
+                      Download
+                    </Button>
                   </div>
                 ))
               )}
@@ -664,20 +732,31 @@ export default function CaseDetailPage() {
                 <FormField
                   label="Title (optional)"
                   name="attachmentTitle"
-                  value={attachmentForm.title}
-                  onChange={(e) => setAttachmentForm((p) => ({ ...p, title: e.target.value }))}
+                  value={attachmentTitle}
+                  onChange={(e) => setAttachmentTitle(e.target.value)}
                 />
               </div>
               <div className="sm:col-span-2">
-                <FormField
-                  label="File URL"
-                  name="fileUrl"
-                  value={attachmentForm.fileUrl}
-                  onChange={(e) => setAttachmentForm((p) => ({ ...p, fileUrl: e.target.value }))}
-                  placeholder="https://..."
+                <SelectField
+                  label="Visibility"
+                  name="attachmentVisibility"
+                  options={[
+                    { value: 'INTERNAL_HR', label: 'Internal (HR only)' },
+                    { value: 'EMPLOYEE_AND_HR', label: 'Employee visible' },
+                  ]}
+                  value={attachmentVisibility}
+                  onChange={(e) => setAttachmentVisibility(e.target.value as any)}
                 />
+                <div className="mt-3">
+                  <label className="text-xs font-medium text-gray-700">File</label>
+                  <input
+                    className="mt-1 block w-full text-sm text-gray-700"
+                    type="file"
+                    onChange={(e) => setAttachmentFile(e.target.files?.[0] ?? null)}
+                  />
+                </div>
                 <div className="flex justify-end mt-3">
-                  <Button onClick={addAttachment} loading={saving} disabled={saving}>
+                  <Button onClick={addAttachment} loading={saving} disabled={saving || !attachmentFile}>
                     Add Attachment
                   </Button>
                 </div>
@@ -784,7 +863,13 @@ export default function CaseDetailPage() {
             )}
           </Card>
         )}
-      </div>
+          </div>
+        </WorkflowRecordLayout>
+      ) : (
+        <Card padding="lg">
+          <p className="text-sm text-gray-600">Unable to load workflow view.</p>
+        </Card>
+      )}
     </>
   )
 }

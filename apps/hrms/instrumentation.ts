@@ -9,7 +9,11 @@ export async function register() {
       initializeTaskReminders,
       startTaskReminders,
       initializeNotificationEmailDispatch,
-      startNotificationEmailDispatch
+      startNotificationEmailDispatch,
+      initializeSlaReminders,
+      startSlaReminders,
+      initializeWorkflowBackfills,
+      startWorkflowBackfills
     } = await import('./lib/startup')
 
     // Run initial sync after a short delay to let the server fully start
@@ -24,6 +28,14 @@ export async function register() {
       // Task reminders
       await initializeTaskReminders()
       startTaskReminders() // Every 6 hours
+
+      // Workflow SLA reminders (approvals/acks)
+      await initializeSlaReminders()
+      startSlaReminders() // Every 6 hours
+
+      // Data backfills for unified workflow IA (safe + idempotent)
+      await initializeWorkflowBackfills()
+      startWorkflowBackfills() // Every 30 minutes
 
       // Notification email dispatch (near-real-time)
       await initializeNotificationEmailDispatch()

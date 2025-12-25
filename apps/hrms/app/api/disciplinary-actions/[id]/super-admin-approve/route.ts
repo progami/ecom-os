@@ -93,13 +93,15 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
+      const recordLink = updated.caseId ? `/cases/${updated.caseId}` : `/performance/disciplinary/${id}`
+
       // Notify the employee about the violation
       await prisma.notification.create({
         data: {
           type: 'VIOLATION_APPROVED',
           title: 'Violation Record - Acknowledgment Required',
           message: `A violation has been recorded against you. Please acknowledge this record.`,
-          link: `/performance/disciplinary/${id}`,
+          link: recordLink,
           employeeId: action.employee.id,
           relatedId: id,
           relatedType: 'DISCIPLINARY',
@@ -113,7 +115,7 @@ export async function POST(req: Request, context: RouteContext) {
             type: 'VIOLATION_APPROVED',
             title: 'Team Member Violation - Acknowledgment Required',
             message: `A violation for ${updated.employee.firstName} ${updated.employee.lastName} has been approved. Please acknowledge.`,
-            link: `/performance/disciplinary/${id}`,
+            link: recordLink,
             employeeId: action.employee.reportsToId,
             relatedId: id,
             relatedType: 'DISCIPLINARY',
@@ -163,6 +165,8 @@ export async function POST(req: Request, context: RouteContext) {
         },
       })
 
+      const recordLink = updated.caseId ? `/cases/${updated.caseId}` : `/performance/disciplinary/${id}`
+
       // Notify HR about rejection
       const hrEmployees = await getHREmployees()
       for (const hr of hrEmployees) {
@@ -171,7 +175,7 @@ export async function POST(req: Request, context: RouteContext) {
             type: 'VIOLATION_REJECTED',
             title: 'Violation Rejected by Super Admin',
             message: `The violation for ${updated.employee.firstName} ${updated.employee.lastName} has been rejected by Super Admin.`,
-            link: `/performance/disciplinary/${id}`,
+            link: recordLink,
             employeeId: hr.id,
             relatedId: id,
             relatedType: 'DISCIPLINARY',
@@ -186,7 +190,7 @@ export async function POST(req: Request, context: RouteContext) {
             type: 'VIOLATION_REJECTED',
             title: 'Violation Rejected by Super Admin',
             message: `The violation you raised for ${updated.employee.firstName} ${updated.employee.lastName} has been rejected by Super Admin.`,
-            link: `/performance/disciplinary/${id}`,
+            link: recordLink,
             employeeId: action.employee.reportsToId,
             relatedId: id,
             relatedType: 'DISCIPLINARY',
