@@ -268,7 +268,7 @@ function InventoryPage() {
  <thead>
  <tr className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
  <th className="px-3 py-2 text-left font-semibold w-48">
- <span>PO Number</span>
+ <span>Source</span>
  </th>
  <th className="px-3 py-2 text-left font-semibold w-56">
  <div className="flex items-center justify-between gap-1">
@@ -617,11 +617,13 @@ function InventoryPage() {
    ? 'danger' as const
    : 'neutral' as const
 
- const purchaseOrderLabel = balance.purchaseOrderNumber ?? '—'
- const purchaseOrderHref = balance.purchaseOrderId
-   ? `/operations/orders/${balance.purchaseOrderId}`
-   : null
- const purchaseOrderDisplay = balance.purchaseOrderNumber ?? (purchaseOrderHref ? 'View' : '—')
+ const sourceNumber = balance.fulfillmentOrderNumber ?? balance.purchaseOrderNumber ?? null
+ const sourceHref = balance.fulfillmentOrderId
+   ? `/operations/fulfillment-orders/${balance.fulfillmentOrderId}`
+   : balance.purchaseOrderId
+     ? `/operations/orders/${balance.purchaseOrderId}`
+     : null
+ const sourceDisplay = sourceNumber ?? (sourceHref ? 'View' : '—')
  const firstReceiveMeta = balance.receiveTransaction
    ? `First receive: ${formatLedgerTimestamp(balance.receiveTransaction.transactionDate) ?? '—'} by ${balance.receiveTransaction.createdBy?.fullName ?? 'Unknown'}`
    : null
@@ -630,14 +632,14 @@ function InventoryPage() {
  <tr key={balance.id} className="odd:bg-muted/20">
  <td
   className="px-3 py-2 text-sm font-semibold text-foreground whitespace-nowrap"
-  title={[balance.purchaseOrderNumber, firstReceiveMeta].filter(Boolean).join('\n') || undefined}
+  title={[sourceNumber, firstReceiveMeta].filter(Boolean).join('\n') || undefined}
  >
-  {purchaseOrderHref ? (
-    <Link href={purchaseOrderHref} className="text-primary hover:underline" prefetch={false}>
-      {purchaseOrderDisplay}
+  {sourceHref ? (
+    <Link href={sourceHref} className="text-primary hover:underline" prefetch={false}>
+      {sourceDisplay}
     </Link>
   ) : (
-    purchaseOrderLabel
+    sourceDisplay
   )}
  </td>
  <td className="px-3 py-2 text-sm font-medium text-foreground whitespace-nowrap">

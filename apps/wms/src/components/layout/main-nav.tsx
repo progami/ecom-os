@@ -7,6 +7,7 @@ import {
  Home,
  Package,
  FileText,
+ Truck,
  LogOut,
  Menu,
  X,
@@ -41,7 +42,8 @@ const baseNavigation: NavSection[] = [
  {
  title: 'Operations',
  items: [
- { name: 'Orders', href: '/operations/orders', icon: FileText },
+ { name: 'Purchase Orders', href: '/operations/orders', icon: FileText },
+ { name: 'Fulfillment Orders', href: '/operations/fulfillment-orders', icon: Truck },
  { name: 'Inventory Ledger', href: '/operations/inventory', icon: BookOpen },
       { name: 'Pallet Variance', href: '/operations/pallet-variance', icon: AlertTriangle },
  ]
