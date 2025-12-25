@@ -121,32 +121,12 @@ async function importSkus(data: ExcelRow[], _userId: string, prisma: PrismaClien
       }
 
       const skuCode = mappedData.skuCode as string | undefined
-      const initialBatchCodesValue = mappedData.__initialBatchCodes as string | undefined
 
       if (!skuCode) {
         errors.push('Row unknown: Missing SKU code')
         skipped++
         continue
       }
-
-      if (!initialBatchCodesValue) {
-        errors.push(`SKU ${skuCode}: Missing initial batch/lot code`)
-        skipped++
-        continue
-      }
-
-      const batchCodes = initialBatchCodesValue
-        .split(',')
-        .map(code => code.trim())
-        .filter(Boolean)
-
-      if (batchCodes.length === 0) {
-        errors.push(`SKU ${skuCode}: Invalid initial batch/lot code`)
-        skipped++
-        continue
-      }
-
-      delete (mappedData as Record<string, unknown>).__initialBatchCodes
 
       const unitDimensionsCm = mappedData.unitDimensionsCm as string | undefined
       const cartonDimensionsCm = mappedData.cartonDimensionsCm as string | undefined
@@ -189,107 +169,11 @@ async function importSkus(data: ExcelRow[], _userId: string, prisma: PrismaClien
         )
       )
 
-      const skuRecord = await prisma.sku.upsert({
+      await prisma.sku.upsert({
         where: { skuCode },
         update: skuPayload as unknown as Prisma.SkuUpdateInput,
         create: skuPayload as unknown as Prisma.SkuCreateInput,
       })
-
-      const batchSeed: Prisma.SkuBatchCreateManyInput = {
-        skuId: skuRecord.id,
-        batchCode: '',
-        packSize: (skuPayload as { packSize?: number | null }).packSize ?? null,
-        unitsPerCarton: (skuPayload as { unitsPerCarton?: number | null }).unitsPerCarton ?? null,
-        material: (skuPayload as { material?: string | null }).material ?? null,
-        unitDimensionsCm: (skuPayload as { unitDimensionsCm?: string | null }).unitDimensionsCm ?? null,
-        unitLengthCm: (skuPayload as { unitLengthCm?: number | null }).unitLengthCm ?? null,
-        unitWidthCm: (skuPayload as { unitWidthCm?: number | null }).unitWidthCm ?? null,
-        unitHeightCm: (skuPayload as { unitHeightCm?: number | null }).unitHeightCm ?? null,
-        unitWeightKg: (skuPayload as { unitWeightKg?: number | null }).unitWeightKg ?? null,
-        cartonDimensionsCm:
-          (skuPayload as { cartonDimensionsCm?: string | null }).cartonDimensionsCm ?? null,
-        cartonLengthCm: (skuPayload as { cartonLengthCm?: number | null }).cartonLengthCm ?? null,
-        cartonWidthCm: (skuPayload as { cartonWidthCm?: number | null }).cartonWidthCm ?? null,
-        cartonHeightCm: (skuPayload as { cartonHeightCm?: number | null }).cartonHeightCm ?? null,
-        cartonWeightKg: (skuPayload as { cartonWeightKg?: number | null }).cartonWeightKg ?? null,
-        packagingType: (skuPayload as { packagingType?: string | null }).packagingType ?? null,
-        isActive: true,
-      }
-
-      for (const batchCode of batchCodes) {
-        const where = {
-          skuId_batchCode: {
-            skuId: skuRecord.id,
-            batchCode,
-          },
-        }
-
-        const existingBatch = await prisma.skuBatch.findUnique({
-          where,
-          select: {
-            packSize: true,
-            unitsPerCarton: true,
-            material: true,
-            unitDimensionsCm: true,
-            unitLengthCm: true,
-            unitWidthCm: true,
-            unitHeightCm: true,
-            unitWeightKg: true,
-            cartonDimensionsCm: true,
-            cartonLengthCm: true,
-            cartonWidthCm: true,
-            cartonHeightCm: true,
-            cartonWeightKg: true,
-            packagingType: true,
-          },
-        })
-
-        if (!existingBatch) {
-          await prisma.skuBatch.create({
-            data: {
-              ...batchSeed,
-              batchCode,
-            },
-          })
-          continue
-        }
-
-        const updateData: Prisma.SkuBatchUpdateInput = { isActive: true }
-        const batchSeedData = { ...batchSeed, batchCode }
-
-        for (const key of [
-          'packSize',
-          'unitsPerCarton',
-          'material',
-          'unitDimensionsCm',
-          'unitLengthCm',
-          'unitWidthCm',
-          'unitHeightCm',
-          'unitWeightKg',
-          'cartonDimensionsCm',
-          'cartonLengthCm',
-          'cartonWidthCm',
-          'cartonHeightCm',
-          'cartonWeightKg',
-          'packagingType',
-        ] as const) {
-          const existingValue = existingBatch[key]
-          const nextValue = batchSeedData[key]
-          if (existingValue == null && nextValue != null) {
-            updateData[key] = nextValue as never
-          }
-        }
-
-        await prisma.skuBatch.update({
-          where: {
-            skuId_batchCode: {
-              skuId: skuRecord.id,
-              batchCode,
-            },
-          },
-          data: updateData,
-        })
-      }
       imported++
     } catch (_error) {
       const skuLabel = String(row['SKU'] ?? 'unknown')

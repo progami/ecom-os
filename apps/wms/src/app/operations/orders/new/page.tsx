@@ -25,23 +25,15 @@ interface Sku {
   description: string
 }
 
-interface BatchOption {
-  id: string
-  batchCode: string
-  isActive: boolean
-}
-
 interface LineItem {
   id: string
   skuId?: string
   skuCode: string
   skuDescription: string
-  batchLot: string
   quantity: number
   unitCost: string
   currency: string
   notes: string
-  loadingBatches: boolean
 }
 
 const CURRENCIES = ['USD', 'GBP', 'EUR']
@@ -68,15 +60,12 @@ export default function NewPurchaseOrderPage() {
       skuId: undefined,
       skuCode: '',
       skuDescription: '',
-      batchLot: '',
       quantity: 1,
       unitCost: '',
       currency: 'USD',
       notes: '',
-      loadingBatches: false,
     },
   ])
-  const [batchesBySkuId, setBatchesBySkuId] = useState<Record<string, BatchOption[]>>({})
 
   useEffect(() => {
     if (status === 'loading') return
@@ -141,74 +130,12 @@ export default function NewPurchaseOrderPage() {
         skuId: undefined,
         skuCode: '',
         skuDescription: '',
-        batchLot: '',
         quantity: 1,
         unitCost: '',
         currency: tenantCurrency,
         notes: '',
-        loadingBatches: false,
       },
     ])
-  }
-
-  const fetchBatchesForSku = async (sku: Sku): Promise<BatchOption[]> => {
-    if (batchesBySkuId[sku.id]) {
-      return batchesBySkuId[sku.id]
-    }
-
-    const response = await fetch(`/api/skus/${sku.id}/batches`, { credentials: 'include' })
-    if (!response.ok) {
-      throw new Error('Failed to load batches')
-    }
-
-    const payload = await response.json().catch(() => null)
-    const batches: BatchOption[] = Array.isArray(payload?.batches) ? payload.batches : []
-    setBatchesBySkuId(prev => ({ ...prev, [sku.id]: batches }))
-    return batches
-  }
-
-  const loadBatchesForLine = async (lineId: string, sku: Sku) => {
-    setLineItems(prev =>
-      prev.map(item =>
-        item.id === lineId
-          ? {
-              ...item,
-              skuId: sku.id,
-              skuCode: sku.skuCode,
-              skuDescription: sku.description || '',
-              batchLot: '',
-              loadingBatches: true,
-            }
-          : item
-      )
-    )
-
-    try {
-      const batches = await fetchBatchesForSku(sku)
-
-      setLineItems(prev =>
-        prev.map(item => {
-          if (item.id !== lineId) return item
-          const defaultBatch = batches.length === 1 ? batches[0] : null
-          return {
-            ...item,
-            batchLot: defaultBatch?.batchCode ?? '',
-            loadingBatches: false,
-          }
-        })
-      )
-
-      if (batches.length === 0) {
-        toast.error(
-          `No batches configured for ${sku.skuCode}. Create one in Config → Products → SKUs → Batches.`
-        )
-      }
-    } catch (_error) {
-      setLineItems(prev =>
-        prev.map(item => (item.id === lineId ? { ...item, loadingBatches: false } : item))
-      )
-      toast.error(`Failed to load batches for ${sku.skuCode}`)
-    }
   }
 
   const updateLineItem = (id: string, field: keyof LineItem, value: string | number) => {
@@ -224,8 +151,6 @@ export default function NewPurchaseOrderPage() {
                   skuId: undefined,
                   skuCode: '',
                   skuDescription: '',
-                  batchLot: '',
-                  loadingBatches: false,
                 }
               : item
           )
@@ -233,7 +158,18 @@ export default function NewPurchaseOrderPage() {
         return
       }
 
-      void loadBatchesForLine(id, selectedSku)
+      setLineItems(prev =>
+        prev.map(item =>
+          item.id === id
+            ? {
+                ...item,
+                skuId: selectedSku.id,
+                skuCode: selectedSku.skuCode,
+                skuDescription: selectedSku.description || '',
+              }
+            : item
+        )
+      )
       return
     }
 
@@ -258,10 +194,10 @@ export default function NewPurchaseOrderPage() {
     }
 
     const invalidLines = lineItems.filter(
-      item => !item.skuCode || !item.batchLot || item.quantity <= 0
+      item => !item.skuCode || item.quantity <= 0
     )
     if (invalidLines.length > 0) {
-      toast.error('Please fill in SKU, batch, and quantity for all line items')
+      toast.error('Please fill in SKU and quantity for all line items')
       return
     }
 
@@ -282,7 +218,6 @@ export default function NewPurchaseOrderPage() {
           lines: lineItems.map(item => ({
             skuCode: item.skuCode,
             skuDescription: item.skuDescription,
-            batchLot: item.batchLot,
             quantity: item.quantity,
             unitCost: item.unitCost ? parseFloat(item.unitCost) : undefined,
             currency: item.currency,
@@ -388,11 +323,10 @@ export default function NewPurchaseOrderPage() {
               {/* Table Header */}
               <div className="grid grid-cols-14 gap-2 text-xs font-medium text-muted-foreground pb-2 border-b">
                 <div className="col-span-3">SKU</div>
-                <div className="col-span-2">Batch / Lot</div>
-                <div className="col-span-3">Description</div>
+                <div className="col-span-4">Description</div>
                 <div className="col-span-1">Qty</div>
                 <div className="col-span-2">Unit Cost</div>
-                <div className="col-span-2">Notes</div>
+                <div className="col-span-3">Notes</div>
                 <div className="col-span-1"></div>
               </div>
 
@@ -414,40 +348,7 @@ export default function NewPurchaseOrderPage() {
                       ))}
                     </select>
                   </div>
-                  <div className="col-span-2">
-                    {(() => {
-                      const options = item.skuId ? (batchesBySkuId[item.skuId] ?? []) : []
-                      const disabled = !item.skuId || item.loadingBatches || options.length === 0
-
-                      return (
-                        <select
-                          value={item.batchLot}
-                          onChange={e => updateLineItem(item.id, 'batchLot', e.target.value)}
-                          className="w-full px-2 py-1.5 border rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm disabled:bg-slate-100 disabled:text-slate-500"
-                          required
-                          disabled={disabled}
-                        >
-                          {!item.skuId ? (
-                            <option value="">Select SKU first</option>
-                          ) : item.loadingBatches ? (
-                            <option value="">Loading…</option>
-                          ) : options.length === 0 ? (
-                            <option value="">No batches</option>
-                          ) : (
-                            <>
-                              <option value="">Select batch</option>
-                              {options.map(batch => (
-                                <option key={batch.id} value={batch.batchCode}>
-                                  {batch.batchCode}
-                                </option>
-                              ))}
-                            </>
-                          )}
-                        </select>
-                      )
-                    })()}
-                  </div>
-                  <div className="col-span-3">
+                  <div className="col-span-4">
                     <Input
                       value={item.skuDescription}
                       onChange={e => updateLineItem(item.id, 'skuDescription', e.target.value)}
@@ -491,7 +392,7 @@ export default function NewPurchaseOrderPage() {
                       </select>
                     </div>
                   </div>
-                  <div className="col-span-2">
+                  <div className="col-span-3">
                     <Input
                       value={item.notes}
                       onChange={e => updateLineItem(item.id, 'notes', e.target.value)}

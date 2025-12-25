@@ -180,7 +180,7 @@ export async function createMovementNote(input: CreateMovementNoteInput, user: U
 
               if (!batchRecord) {
                 throw new ValidationError(
-                  `Batch/Lot ${poBatchLot} is not configured for SKU ${poLine.skuCode}. Create it in Config → Products → SKUs → Batches.`
+                  `Batch/Lot ${poBatchLot} is not configured for SKU ${poLine.skuCode}. Create it in Config → Products → Batches.`
                 )
               }
 
@@ -446,7 +446,7 @@ export async function postMovementNote(id: string, _user: UserContext) {
 
       if (!batchRecord) {
         throw new ValidationError(
-          `Batch/Lot ${poBatchLot} is not configured for SKU ${poLine.skuCode}. Create it in Config → Products → SKUs → Batches.`
+          `Batch/Lot ${poBatchLot} is not configured for SKU ${poLine.skuCode}. Create it in Config → Products → Batches.`
         )
       }
 

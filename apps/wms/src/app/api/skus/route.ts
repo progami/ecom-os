@@ -144,16 +144,6 @@ const refineDimensions = <T extends z.ZodRawShape & DimensionRefineShape>(schema
 const createSkuSchema = refineDimensions(
   skuSchemaBase.extend({
     isActive: z.boolean().default(true),
-    initialBatchCodes: z
-      .array(
-        z
-          .string()
-          .trim()
-          .min(1)
-          .max(80)
-          .transform(val => sanitizeForDisplay(val))
-      )
-      .min(1),
   })
 )
 
@@ -260,19 +250,6 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     return ApiResponses.badRequest('SKU code already exists')
   }
 
-  const normalizedBatchCodes = validatedData.initialBatchCodes
-    .map(code => code.trim())
-    .filter(Boolean)
-
-  const batchCodeSet = new Set<string>()
-  for (const code of normalizedBatchCodes) {
-    const key = code.toLowerCase()
-    if (batchCodeSet.has(key)) {
-      return ApiResponses.badRequest('Initial batch codes must be unique')
-    }
-    batchCodeSet.add(key)
-  }
-
   const unitTriplet = resolveDimensionTripletCm({
     lengthCm: validatedData.unitLengthCm,
     widthCm: validatedData.unitWidthCm,
@@ -304,55 +281,29 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     return ApiResponses.badRequest('Carton dimensions must be a valid LxWxH triple')
   }
 
-  const sku = await prisma.$transaction(async tx => {
-    const record = await tx.sku.create({
-      data: {
-        skuCode: validatedData.skuCode,
-        asin: validatedData.asin ?? null,
-        description: validatedData.description,
-        packSize: validatedData.packSize,
-        defaultSupplierId: validatedData.defaultSupplierId ?? null,
-        secondarySupplierId: validatedData.secondarySupplierId ?? null,
-        material: validatedData.material ?? null,
-        unitDimensionsCm: unitTriplet ? formatDimensionTripletCm(unitTriplet) : null,
-        unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
-        unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
-        unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
-        unitWeightKg: validatedData.unitWeightKg ?? null,
-        unitsPerCarton: validatedData.unitsPerCarton,
-        cartonDimensionsCm: cartonTriplet ? formatDimensionTripletCm(cartonTriplet) : null,
-        cartonLengthCm: cartonTriplet ? cartonTriplet.lengthCm : null,
-        cartonWidthCm: cartonTriplet ? cartonTriplet.widthCm : null,
-        cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
-        cartonWeightKg: validatedData.cartonWeightKg ?? null,
-        packagingType: validatedData.packagingType ?? null,
-        isActive: validatedData.isActive,
-      },
-    })
-
-    await tx.skuBatch.createMany({
-      data: normalizedBatchCodes.map(batchCode => ({
-        skuId: record.id,
-        batchCode,
-        packSize: validatedData.packSize,
-        unitsPerCarton: validatedData.unitsPerCarton,
-        material: validatedData.material ?? null,
-        unitDimensionsCm: unitTriplet ? formatDimensionTripletCm(unitTriplet) : null,
-        unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
-        unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
-        unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
-        unitWeightKg: validatedData.unitWeightKg ?? null,
-        cartonDimensionsCm: cartonTriplet ? formatDimensionTripletCm(cartonTriplet) : null,
-        cartonLengthCm: cartonTriplet ? cartonTriplet.lengthCm : null,
-        cartonWidthCm: cartonTriplet ? cartonTriplet.widthCm : null,
-        cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
-        cartonWeightKg: validatedData.cartonWeightKg ?? null,
-        packagingType: validatedData.packagingType ?? null,
-        isActive: true,
-      })),
-    })
-
-    return record
+  const sku = await prisma.sku.create({
+    data: {
+      skuCode: validatedData.skuCode,
+      asin: validatedData.asin ?? null,
+      description: validatedData.description,
+      packSize: validatedData.packSize,
+      defaultSupplierId: validatedData.defaultSupplierId ?? null,
+      secondarySupplierId: validatedData.secondarySupplierId ?? null,
+      material: validatedData.material ?? null,
+      unitDimensionsCm: unitTriplet ? formatDimensionTripletCm(unitTriplet) : null,
+      unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
+      unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
+      unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
+      unitWeightKg: validatedData.unitWeightKg ?? null,
+      unitsPerCarton: validatedData.unitsPerCarton,
+      cartonDimensionsCm: cartonTriplet ? formatDimensionTripletCm(cartonTriplet) : null,
+      cartonLengthCm: cartonTriplet ? cartonTriplet.lengthCm : null,
+      cartonWidthCm: cartonTriplet ? cartonTriplet.widthCm : null,
+      cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
+      cartonWeightKg: validatedData.cartonWeightKg ?? null,
+      packagingType: validatedData.packagingType ?? null,
+      isActive: validatedData.isActive,
+    },
   })
 
   return ApiResponses.created<Sku>(sku)
@@ -418,15 +369,6 @@ export const PATCH = withRole(['admin', 'staff'], async (request, _session) => {
 
   if (!existing) {
     return ApiResponses.notFound('SKU not found')
-  }
-
-  if (validatedData.isActive === true && existing.isActive === false) {
-    const activeBatchCount = await prisma.skuBatch.count({
-      where: { skuId, isActive: true },
-    })
-    if (activeBatchCount === 0) {
-      return ApiResponses.badRequest('Cannot activate SKU without at least one active batch')
-    }
   }
 
   const {

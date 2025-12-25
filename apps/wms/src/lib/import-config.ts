@@ -74,17 +74,6 @@ export const importConfigs: Record<string, ImportEntityConfig> = {
         required: true,
       },
       {
-        dbField: '__initialBatchCodes',
-        excelColumns: ['Initial Batch/Lot', 'Batch/Lot', 'Batch'],
-        type: 'string',
-        required: true,
-        transform: (value: unknown) => {
-          if (value === null || value === undefined) return null
-          const sanitized = sanitizeForDisplay(String(value))
-          return sanitized ? sanitized : null
-        },
-      },
-      {
         dbField: 'asin',
         excelColumns: ['ASIN', 'asin'],
         type: 'string',
