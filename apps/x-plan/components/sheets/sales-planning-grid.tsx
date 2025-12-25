@@ -23,7 +23,7 @@ import { formatDateDisplay } from '@/lib/utils/dates'
 registerAllModules()
 
 const PLANNING_ANCHOR_WEEK = 1
-const PLANNING_ANCHOR_DATE = new Date('2025-01-06T00:00:00.000Z')
+const PLANNING_ANCHOR_DATE = new Date('2025-01-05T00:00:00.000Z')
 
 function formatWeekDateFallback(weekNumber: number): string {
   return formatDateDisplay(addWeeks(PLANNING_ANCHOR_DATE, weekNumber - PLANNING_ANCHOR_WEEK))
@@ -155,9 +155,23 @@ interface SalesPlanningGridProps {
   stockWarningWeeks: number
   leadTimeByProduct: LeadTimeByProduct
   batchAllocations: Map<string, BatchAllocationMeta[]>
+  reorderCueByProduct: Map<
+    string,
+    {
+      startWeekNumber: number
+      startWeekLabel: string | null
+      startYear: number | null
+      startDate: string
+      breachWeekNumber: number
+      breachWeekLabel: string | null
+      breachYear: number | null
+      breachDate: string
+      leadTimeWeeks: number
+    }
+  >
 }
 
-export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders, columnKeys, productOptions, stockWarningWeeks, leadTimeByProduct, batchAllocations }: SalesPlanningGridProps) {
+export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders, columnKeys, productOptions, stockWarningWeeks, leadTimeByProduct, batchAllocations, reorderCueByProduct }: SalesPlanningGridProps) {
   const hotRef = useRef<Handsontable | null>(null)
   const focusContext = useContext(SalesPlanningFocusContext)
   const [activeStockMetric, setActiveStockMetric] = usePersistentState<StockMetricId>('xplan:sales-grid:metric', 'stockWeeks')
@@ -196,15 +210,6 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
     })
     return map
   }, [data])
-  const weekLabelByNumber = useMemo(() => {
-    const map = new Map<number, string>()
-    data.forEach((row) => {
-      const week = Number(row.weekNumber)
-      if (!Number.isFinite(week)) return
-      map.set(week, row.weekLabel ?? row.weekNumber)
-    })
-    return map
-  }, [data])
   const hasInboundByWeek = useMemo(() => {
     const set = new Set<number>()
     rows.forEach((row) => {
@@ -216,11 +221,6 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
     })
     return set
   }, [rows])
-
-  const minWeekAvailable = useMemo(() => {
-    if (!weekDateByNumber.size) return null
-    return Math.min(...Array.from(weekDateByNumber.keys()))
-  }, [weekDateByNumber])
 
   const stockWeeksKeyByProduct = useMemo(() => {
     const map = new Map<string, string>()
@@ -255,62 +255,6 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
 
     return result
   }, [data, stockWeeksKeyByProduct, warningThreshold])
-
-  const reorderStartByProduct = useMemo(() => {
-    const result = new Map<string, Map<number, { breachWeek: number; breachDate: string; startWeekRaw: number }>>()
-    if (!Number.isFinite(warningThreshold)) return result
-
-    const weekNumbers = data
-      .map((row) => Number(row.weekNumber))
-      .filter((week) => Number.isFinite(week)) as number[]
-    const minWeek = weekNumbers.length ? Math.min(...weekNumbers) : null
-    const maxWeek = weekNumbers.length ? Math.max(...weekNumbers) : null
-
-    stockWeeksKeyByProduct.forEach((weeksKey, productId) => {
-      const leadProfile = leadTimeByProduct[productId]
-      const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : 0
-      if (leadTimeWeeks <= 0) return
-
-      let hasBeenAbove = false
-      for (const row of data) {
-        const week = Number(row.weekNumber)
-        if (!Number.isFinite(week)) continue
-        const rawWeeks = row[weeksKey]
-        const weeksNumeric = rawWeeks !== undefined ? Number(rawWeeks) : Number.NaN
-        if (!Number.isFinite(weeksNumeric)) continue
-
-        const isBelow = weeksNumeric <= warningThreshold
-        // Only show a single reorder cue per SKU, and avoid showing it for SKUs that are already below
-        // threshold at the start of the visible range (those get the normal red warning cells).
-        if (isBelow && hasBeenAbove) {
-          const breachWeek = week
-          const breachDate = weekDateByNumber.get(breachWeek) ?? ''
-          const startWeekRaw = breachWeek - leadTimeWeeks
-
-          const startWeek =
-            minWeek != null && maxWeek != null
-              ? startWeekRaw < minWeek
-                ? minWeek
-                : startWeekRaw > maxWeek
-                  ? maxWeek
-                  : startWeekRaw
-              : startWeekRaw
-
-          if (!result.has(productId)) {
-            result.set(productId, new Map())
-          }
-          result.get(productId)?.set(startWeek, { breachWeek, breachDate, startWeekRaw })
-          break
-        }
-
-        if (!isBelow) {
-          hasBeenAbove = true
-        }
-      }
-    })
-
-    return result
-  }, [data, leadTimeByProduct, stockWeeksKeyByProduct, warningThreshold, weekDateByNumber])
 
   const formatBatchComment = useCallback((allocations: BatchAllocationMeta[]): string => {
     if (!allocations || allocations.length === 0) return ''
@@ -751,57 +695,37 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
                 }
               }
 
-                const reorderInfo = reorderStartByProduct.get(meta.productId)?.get(weekNumber)
-                const isStartBeforeView =
-                  reorderInfo != null && minWeekAvailable != null && reorderInfo.startWeekRaw < minWeekAvailable
+                const reorderInfo = reorderCueByProduct.get(meta.productId)
+                const isReorderWeek = reorderInfo != null && reorderInfo.startWeekNumber === weekNumber
 
-                if (reorderInfo && visibleMetrics.has(meta.field)) {
-                  const bandClass = isStartBeforeView ? 'cell-reorder-overdue-band' : 'cell-reorder-band'
-                  cell.className = cell.className ? `${cell.className} ${bandClass}` : bandClass
+                if (isReorderWeek && visibleMetrics.has(meta.field)) {
+                  cell.className = cell.className ? `${cell.className} cell-reorder-band` : 'cell-reorder-band'
                 }
 
-                if (reorderInfo && isStockColumn) {
-                  const borderClass = isStartBeforeView ? 'cell-reorder-overdue' : 'cell-reorder-suggest'
-                  cell.className = cell.className ? `${cell.className} ${borderClass}` : borderClass
+                if (isReorderWeek && isStockColumn) {
+                  cell.className = cell.className ? `${cell.className} cell-reorder-suggest` : 'cell-reorder-suggest'
 
                   const leadProfile = leadTimeByProduct[meta.productId]
-                  const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : 0
+                  const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : reorderInfo?.leadTimeWeeks ?? 0
                   const leadBreakdown = leadProfile
                     ? `${leadTimeWeeks}w (prod ${leadProfile.productionWeeks}w + source ${leadProfile.sourceWeeks}w + ocean ${leadProfile.oceanWeeks}w + final ${leadProfile.finalWeeks}w)`
                     : `${leadTimeWeeks}w`
 
-                  const breachWeekLabel = weekLabelByNumber.get(reorderInfo.breachWeek) ?? String(reorderInfo.breachWeek)
-                  const breachDate =
-                    reorderInfo.breachDate ||
-                    weekDateByNumber.get(reorderInfo.breachWeek) ||
-                    formatWeekDateFallback(reorderInfo.breachWeek)
-                  const breachLabel = `W${breachWeekLabel}${breachDate ? ` (${breachDate})` : ''}`
+                  const startLabel =
+                    reorderInfo.startYear != null && reorderInfo.startWeekLabel != null
+                      ? `${reorderInfo.startYear} W${reorderInfo.startWeekLabel}${reorderInfo.startDate ? ` (${reorderInfo.startDate})` : ''}`
+                      : reorderInfo.startDate || `Week ${reorderInfo.startWeekNumber}`
 
-                  const minLabel = minWeekAvailable != null ? weekLabelByNumber.get(minWeekAvailable) ?? String(minWeekAvailable) : ''
-                  const weeksLate = isStartBeforeView && minWeekAvailable != null ? minWeekAvailable - reorderInfo.startWeekRaw : 0
-
-                  const startWeekLabel = weekLabelByNumber.get(weekNumber) ?? String(weekNumber)
-                  const startDateInView = weekDateByNumber.get(weekNumber) || ''
-                  const startDateRaw = formatWeekDateFallback(reorderInfo.startWeekRaw)
-
-                  const startLabel = isStartBeforeView
-                    ? `ASAP (recommended ${startDateRaw}${weeksLate > 0 ? ` · late by ${weeksLate}w` : ''})`
-                    : `W${startWeekLabel}${startDateInView ? ` (${startDateInView})` : ''}`
+                  const breachLabel =
+                    reorderInfo.breachYear != null && reorderInfo.breachWeekLabel != null
+                      ? `${reorderInfo.breachYear} W${reorderInfo.breachWeekLabel}${reorderInfo.breachDate ? ` (${reorderInfo.breachDate})` : ''}`
+                      : reorderInfo.breachDate || `Week ${reorderInfo.breachWeekNumber}`
 
                   if (!cell.comment) {
-                    const arrivalWeek = weekNumber + leadTimeWeeks
-                    const arrivalWeekLabel = weekLabelByNumber.get(arrivalWeek)
-                    const arrivalDate = weekDateByNumber.get(arrivalWeek) || formatWeekDateFallback(arrivalWeek)
-                    const arrivalLabel = arrivalWeekLabel ? `W${arrivalWeekLabel}${arrivalDate ? ` (${arrivalDate})` : ''}` : arrivalDate
-
                     cell.comment = {
                       value:
                         `Reorder signal (target ≥ ${warningThreshold}w).\n` +
                         `Start production: ${startLabel}.\n` +
-                        (isStartBeforeView
-                          ? `Overdue: starting now will not prevent the threshold breach at ${breachLabel}.\n` +
-                            `Estimated arrival if started now: ${arrivalLabel}.\n`
-                          : '') +
                         `Threshold breach: ${breachLabel}.\n` +
                         `Lead time: ${leadBreakdown}.`,
                       readOnly: true,
@@ -816,22 +740,15 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
 	                const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : 0
 	                if (isFirstBelowThresholdWeek && leadTimeWeeks > 0 && !cell.comment) {
 	                  const startWeekRaw = weekNumber - leadTimeWeeks
-	                  const startWeek =
-	                    minWeekAvailable != null ? Math.max(minWeekAvailable, startWeekRaw) : startWeekRaw
-	                  const startDate = weekDateByNumber.get(startWeek) || formatWeekDateFallback(startWeek)
+	                  const startDate = weekDateByNumber.get(startWeekRaw) || formatWeekDateFallback(startWeekRaw)
 	                  const leadBreakdown = leadProfile
 	                    ? `${leadTimeWeeks}w (prod ${leadProfile.productionWeeks}w + source ${leadProfile.sourceWeeks}w + ocean ${leadProfile.oceanWeeks}w + final ${leadProfile.finalWeeks}w)`
 	                    : `${leadTimeWeeks}w`
 
-	                  const minLabel = minWeekAvailable != null ? weekLabelByNumber.get(minWeekAvailable) ?? String(minWeekAvailable) : ''
-	                  const startLabel = startWeekRaw < (minWeekAvailable ?? startWeekRaw)
-	                    ? `ASAP (before W${minLabel})`
-	                    : `W${weekLabelByNumber.get(startWeek) ?? String(startWeek)}${startDate ? ` (${startDate})` : ''}`
-
 	                  cell.comment = {
 	                    value:
 	                      `Low stock warning (≤ ${warningThreshold}w).\n` +
-	                      `Suggested production start: ${startLabel}.\n` +
+	                      `Suggested production start: ${startDate}.\n` +
 	                      `Lead time: ${leadBreakdown}.`,
 	                    readOnly: true,
 	                  }
