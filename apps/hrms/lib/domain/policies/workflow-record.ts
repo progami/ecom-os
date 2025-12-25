@@ -2,61 +2,23 @@ import type { Policy } from '@ecom-os/prisma-hrms'
 import type { WorkflowRecordDTO, WorkflowStageStatus } from '@/lib/contracts/workflow-record'
 import { timelineFromAudit } from '@/lib/domain/workflow/timeline-from-audit'
 import { toneForStatus } from '@/lib/domain/workflow/tone'
-
-type ViewerContext = {
-  employeeId: string
-  isHR: boolean
-  isSuperAdmin: boolean
-}
-
-type PolicyAckContext = {
-  isApplicable: boolean
-  isAcknowledged: boolean
-  acknowledgedAt?: Date | null
-}
+import { buildPolicyNextActions, type PolicyAckContext, type PolicyViewerContext } from './next-actions'
 
 function stageStatus(order: string[], current: string, id: string): WorkflowStageStatus {
   if (current === id) return 'current'
   return order.indexOf(id) < order.indexOf(current) ? 'completed' : 'upcoming'
 }
 
-export async function policyToWorkflowRecordDTO(policy: Policy, viewer: ViewerContext, ack: PolicyAckContext): Promise<WorkflowRecordDTO> {
+export async function policyToWorkflowRecordDTO(
+  policy: Policy,
+  _viewer: PolicyViewerContext,
+  ack: PolicyAckContext
+): Promise<WorkflowRecordDTO> {
   const order = ['published', 'ack']
   const currentStageId = ack.isAcknowledged ? 'ack' : 'published'
 
   const timeline = await timelineFromAudit({ entityType: 'POLICY', entityId: policy.id })
-
-  const canAcknowledge = ack.isApplicable && !ack.isAcknowledged && policy.status === 'ACTIVE'
-
-  const actions: WorkflowRecordDTO['actions'] = { primary: null, secondary: [], more: [] }
-
-  if (canAcknowledge) {
-    actions.primary = { id: 'policy.acknowledge', label: 'Acknowledge', variant: 'primary', disabled: false }
-  } else if (!ack.isApplicable) {
-    actions.primary = {
-      id: 'policy.acknowledge',
-      label: 'Not applicable',
-      variant: 'primary',
-      disabled: true,
-      disabledReason: 'This policy does not apply to your region.',
-    }
-  } else if (ack.isAcknowledged) {
-    actions.primary = {
-      id: 'policy.acknowledge',
-      label: 'Acknowledged',
-      variant: 'primary',
-      disabled: true,
-      disabledReason: 'You have already acknowledged this policy.',
-    }
-  } else if (policy.status !== 'ACTIVE') {
-    actions.primary = {
-      id: 'policy.acknowledge',
-      label: 'Not active',
-      variant: 'primary',
-      disabled: true,
-      disabledReason: 'Only active policies require acknowledgement.',
-    }
-  }
+  const actions = buildPolicyNextActions(policy, ack)
 
   return {
     identity: {
@@ -91,4 +53,3 @@ export async function policyToWorkflowRecordDTO(policy: Policy, viewer: ViewerCo
     access: { canView: true },
   }
 }
-

@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma'
 import { PermissionLevel } from '@/lib/permissions'
 import type { WorkItemAction, WorkItemDTO, WorkItemPriority, WorkItemsResponse } from '@/lib/contracts/work-items'
+import { rankWorkItems } from '@/lib/domain/work-items/rank'
 
 export type WorkItemType =
   | 'TASK_ASSIGNED'
@@ -103,16 +104,6 @@ function toStageLabel(type: WorkItemType, options?: { status?: string }): string
   return map[type] ?? type
 }
 
-function rankWorkItems(items: Array<WorkItemDTO & { _score: number }>): WorkItemDTO[] {
-  const ranked = [...items]
-  ranked.sort((a, b) => {
-    if (a._score !== b._score) return b._score - a._score
-    return b.createdAt.localeCompare(a.createdAt)
-  })
-
-  return ranked.map(({ _score, ...rest }) => rest)
-}
-
 function createWorkItemAction(action: WorkItemAction): WorkItemAction {
   if (action.disabled && !action.disabledReason) {
     return { ...action, disabledReason: 'Not available' }
@@ -139,7 +130,7 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
   const isHR = isEmployeeHrLike(actor)
   const policyRegion = mapEmployeeRegionToPolicyRegion(actor.region)
 
-  const items: Array<WorkItemDTO & { _score: number }> = []
+  const items: WorkItemDTO[] = []
 
   // Assigned tasks
   const tasks = await prisma.task.findMany({
@@ -194,7 +185,6 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       isActionRequired: true,
       primaryAction,
       secondaryActions,
-      _score: score,
     })
   }
 
@@ -256,7 +246,6 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         isActionRequired: true,
         primaryAction: createWorkItemAction({ id: 'policy.acknowledge', label: 'Acknowledge', disabled: false }),
         secondaryActions: [],
-        _score: score,
       })
     }
   }
@@ -304,7 +293,6 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       isActionRequired: true,
       primaryAction: createWorkItemAction({ id: 'leave.approve', label: 'Approve', disabled: false }),
       secondaryActions: [createWorkItemAction({ id: 'leave.reject', label: 'Reject', disabled: false })],
-      _score: score,
     })
   }
 
@@ -345,7 +333,6 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         secondaryActions: [
           createWorkItemAction({ id: 'review.hrReject', label: 'Reject', disabled: false }),
         ],
-        _score: score,
       })
     }
 
@@ -386,7 +373,6 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         secondaryActions: [
           createWorkItemAction({ id: 'disciplinary.hrReject', label: 'Reject', disabled: false }),
         ],
-        _score: score,
       })
     }
   }
@@ -427,7 +413,6 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         secondaryActions: [
           createWorkItemAction({ id: 'review.adminReject', label: 'Reject', disabled: false }),
         ],
-        _score: score,
       })
     }
 
@@ -468,7 +453,6 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
         secondaryActions: [
           createWorkItemAction({ id: 'disciplinary.adminReject', label: 'Reject', disabled: false }),
         ],
-        _score: score,
       })
     }
   }
@@ -506,7 +490,6 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       isActionRequired: true,
       primaryAction: createWorkItemAction({ id: 'review.acknowledge', label: 'Acknowledge', disabled: false }),
       secondaryActions: [],
-      _score: score,
     })
   }
 
@@ -562,7 +545,6 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       secondaryActions: isEmployee
         ? [createWorkItemAction({ id: 'disciplinary.appeal', label: 'Appeal', disabled: false })]
         : [],
-      _score: score,
     })
   }
 
@@ -603,7 +585,6 @@ export async function getWorkItemsForEmployee(employeeId: string): Promise<WorkI
       isActionRequired: true,
       primaryAction: null,
       secondaryActions: [],
-      _score: score,
     })
   }
 

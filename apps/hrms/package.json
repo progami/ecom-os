@@ -8,6 +8,8 @@
     "start": "next start -p 3006",
     "type-check": "DATABASE_URL=${DATABASE_URL:-postgresql://localhost:5432/hrms} prisma generate --schema prisma/schema.prisma && tsc --noEmit --skipLibCheck",
     "test": "cd tests && playwright test",
+    "test:unit": "node --import tsx --test tests/unit/*.test.ts",
+    "test:integration": "node --import tsx --test tests/integration/*.test.ts",
     "test:headed": "cd tests && playwright test --headed",
     "test:ui": "cd tests && playwright test --ui",
     "db:generate": "prisma generate",

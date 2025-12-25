@@ -1,26 +1,7 @@
-import type { LeaveRequest } from '@ecom-os/prisma-hrms'
-import type { WorkflowRecordDTO, WorkflowRecordAction, WorkflowStageStatus } from '@/lib/contracts/workflow-record'
+import type { WorkflowRecordDTO, WorkflowStageStatus } from '@/lib/contracts/workflow-record'
 import { timelineFromAudit } from '@/lib/domain/workflow/timeline-from-audit'
 import { toneForStatus } from '@/lib/domain/workflow/tone'
-
-type LeaveWorkflowRecordInput = LeaveRequest & {
-  employee: {
-    id: string
-    employeeId: string
-    firstName: string
-    lastName: string
-    department: string
-    position: string
-    avatar: string | null
-    reportsToId: string | null
-  }
-}
-
-type ViewerContext = {
-  employeeId: string
-  isHR: boolean
-  isSuperAdmin: boolean
-}
+import { buildLeaveNextActions, type LeaveViewerContext, type LeaveWorkflowRecordInput } from './next-actions'
 
 function formatLeaveType(value: string): string {
   return value.replaceAll('_', ' ').toLowerCase()
@@ -32,43 +13,10 @@ function stageStatus(current: string, id: string): WorkflowStageStatus {
   return order.indexOf(id) < order.indexOf(current) ? 'completed' : 'upcoming'
 }
 
-function buildActions(leave: LeaveWorkflowRecordInput, viewer: ViewerContext): WorkflowRecordDTO['actions'] {
-  const isOwner = leave.employeeId === viewer.employeeId
-  const isManager = leave.employee.reportsToId === viewer.employeeId
-  const isPending = leave.status === 'PENDING'
-
-  const actions: WorkflowRecordDTO['actions'] = { primary: null, secondary: [], more: [] }
-
-  if (!isPending) return actions
-
-  if (isOwner) {
-    actions.primary = {
-      id: 'leave.cancel',
-      label: 'Cancel request',
-      variant: 'secondary',
-      disabled: false,
-    }
-    return actions
-  }
-
-  if (viewer.isHR || viewer.isSuperAdmin || isManager) {
-    actions.primary = { id: 'leave.approve', label: 'Approve', variant: 'primary', disabled: false }
-    actions.secondary = [{ id: 'leave.reject', label: 'Reject', variant: 'danger', disabled: false }]
-    return actions
-  }
-
-  actions.primary = {
-    id: 'leave.approve',
-    label: 'Waiting for approval',
-    variant: 'primary',
-    disabled: true,
-    disabledReason: 'Only the requester, their manager, or HR can act on this request.',
-  }
-
-  return actions
-}
-
-export async function leaveToWorkflowRecordDTO(leave: LeaveWorkflowRecordInput, viewer: ViewerContext): Promise<WorkflowRecordDTO> {
+export async function leaveToWorkflowRecordDTO(
+  leave: LeaveWorkflowRecordInput,
+  viewer: LeaveViewerContext
+): Promise<WorkflowRecordDTO> {
   const canView = viewer.isHR || viewer.isSuperAdmin || leave.employeeId === viewer.employeeId || leave.employee.reportsToId === viewer.employeeId
 
   if (!canView) {
@@ -120,7 +68,7 @@ export async function leaveToWorkflowRecordDTO(leave: LeaveWorkflowRecordInput, 
       statusBadge: { label: leave.status.replaceAll('_', ' '), tone: toneForStatus(leave.status) },
       sla: dueAt ? { dueAt, isOverdue, overdueLabel, tone: isOverdue ? 'danger' : 'none' } : { isOverdue: false, tone: 'none' },
     },
-    actions: buildActions(leave, viewer),
+    actions: buildLeaveNextActions(leave, viewer),
     summary: [
       { label: 'Type', value: formatLeaveType(leave.leaveType) },
       { label: 'Dates', value: `${leave.startDate.toLocaleDateString('en-US')} → ${leave.endDate.toLocaleDateString('en-US')}` },
@@ -131,4 +79,3 @@ export async function leaveToWorkflowRecordDTO(leave: LeaveWorkflowRecordInput, 
     access: { canView: true },
   }
 }
-
