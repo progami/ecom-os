@@ -789,10 +789,19 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
                     : `W${startWeekLabel}${startDateInView ? ` (${startDateInView})` : ''}`
 
                   if (!cell.comment) {
+                    const arrivalWeek = weekNumber + leadTimeWeeks
+                    const arrivalWeekLabel = weekLabelByNumber.get(arrivalWeek)
+                    const arrivalDate = weekDateByNumber.get(arrivalWeek) || formatWeekDateFallback(arrivalWeek)
+                    const arrivalLabel = arrivalWeekLabel ? `W${arrivalWeekLabel}${arrivalDate ? ` (${arrivalDate})` : ''}` : arrivalDate
+
                     cell.comment = {
                       value:
                         `Reorder signal (target ≥ ${warningThreshold}w).\n` +
                         `Start production: ${startLabel}.\n` +
+                        (isStartBeforeView
+                          ? `Overdue: starting now will not prevent the threshold breach at ${breachLabel}.\n` +
+                            `Estimated arrival if started now: ${arrivalLabel}.\n`
+                          : '') +
                         `Threshold breach: ${breachLabel}.\n` +
                         `Lead time: ${leadBreakdown}.`,
                       readOnly: true,
