@@ -69,7 +69,7 @@ export function QuickStartGuide({ userRole }: QuickStartGuideProps) {
  title: 'Process Transactions',
  description: 'Create and progress purchase orders',
  icon: Package,
- link: '/operations/orders'
+ link: '/operations/purchase-orders'
  },
  {
  title: 'Generate Reports',

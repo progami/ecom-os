@@ -621,7 +621,7 @@ function InventoryPage() {
  const sourceHref = balance.fulfillmentOrderId
    ? `/operations/fulfillment-orders/${balance.fulfillmentOrderId}`
    : balance.purchaseOrderId
-     ? `/operations/orders/${balance.purchaseOrderId}`
+     ? `/operations/purchase-orders/${balance.purchaseOrderId}`
      : null
  const sourceDisplay = sourceNumber ?? (sourceHref ? 'View' : '—')
  const firstReceiveMeta = balance.receiveTransaction
