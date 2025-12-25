@@ -19,7 +19,6 @@ export type PurchaseOrderStatusOption =
   | 'MANUFACTURING'
   | 'OCEAN'
   | 'WAREHOUSE'
-  | 'SHIPPED'
   | 'CANCELLED'
 export type PurchaseOrderLineStatusOption = 'PENDING' | 'POSTED' | 'CANCELLED'
 
@@ -126,7 +125,6 @@ export function PurchaseOrdersPanel({
         if (order.status === 'MANUFACTURING') acc.manufacturingCount += 1
         if (order.status === 'OCEAN') acc.oceanCount += 1
         if (order.status === 'WAREHOUSE') acc.warehouseCount += 1
-        if (order.status === 'SHIPPED') acc.shippedCount += 1
         if (order.status === 'CANCELLED') acc.cancelledCount += 1
         return acc
       },
@@ -135,7 +133,6 @@ export function PurchaseOrdersPanel({
         manufacturingCount: 0,
         oceanCount: 0,
         warehouseCount: 0,
-        shippedCount: 0,
         cancelledCount: 0,
       }
     )
@@ -156,10 +153,10 @@ export function PurchaseOrdersPanel({
       <div className="flex flex-col gap-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Orders</h2>
+            <h2 className="text-lg font-semibold text-foreground">Purchase Orders</h2>
             <p className="text-sm text-muted-foreground">
-              Use movement notes to record receipts or shipments against these orders before they
-              post to the ledger.
+              Use movement notes to record receipts against these purchase orders before they post
+              to the ledger.
             </p>
           </div>
           <div className="flex flex-wrap gap-3 text-sm text-muted-foreground">
@@ -181,10 +178,6 @@ export function PurchaseOrdersPanel({
               at warehouse
             </span>
             <span>
-              <span className="font-semibold text-foreground">{statusCounts.shippedCount}</span>{' '}
-              shipped
-            </span>
-            <span>
               <span className="font-semibold text-foreground">{statusCounts.cancelledCount}</span>{' '}
               cancelled
             </span>
@@ -197,7 +190,7 @@ export function PurchaseOrdersPanel({
           <table className="w-full min-w-[960px] table-auto text-sm">
             <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-3 py-2 text-left font-semibold">Order #</th>
+                <th className="px-3 py-2 text-left font-semibold">PO #</th>
                 <th className="px-3 py-2 text-left font-semibold">Type</th>
                 <th className="px-3 py-2 text-left font-semibold">Warehouse</th>
                 <th className="px-3 py-2 text-left font-semibold">Counterparty</th>

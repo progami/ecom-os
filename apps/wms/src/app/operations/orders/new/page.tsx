@@ -259,7 +259,7 @@ export default function NewPurchaseOrderPage() {
           className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to Orders
+          Back to Purchase Orders
         </Link>
       </div>
 
