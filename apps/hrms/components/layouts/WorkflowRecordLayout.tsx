@@ -18,6 +18,16 @@ type WorkflowRecordLayoutProps = {
   children?: React.ReactNode;
 };
 
+function toDisplayText(value: unknown, fallback: string): string {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : fallback;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (value === null || value === undefined) return fallback;
+  return String(value);
+}
+
 function toneToBadgeVariant(
   tone: WorkflowTone,
 ): 'default' | 'info' | 'success' | 'warning' | 'error' {
@@ -58,29 +68,49 @@ export function WorkflowRecordLayout({
   onAction,
   children,
 }: WorkflowRecordLayoutProps) {
-  const access = data.access ?? { canView: true };
-  const actions = data.actions ?? { primary: null, secondary: [], more: [] };
-  const summary = data.summary ?? [];
-  const timeline = data.timeline ?? [];
-  const stages = data.workflow?.stages ?? [];
+  const safeData = (data ?? {}) as Partial<WorkflowRecordDTO>;
+  const identity = safeData.identity ?? { title: 'Record', recordId: '', href: backHref };
+  const subject = safeData.subject ?? { displayName: '—' };
+  const workflow = safeData.workflow ?? {
+    currentStageId: 'unknown',
+    currentStageLabel: 'Unknown',
+    stages: [],
+  };
+  const access = safeData.access ?? { canView: true };
+  const actions = safeData.actions ?? { primary: null, secondary: [], more: [] };
+  const summary = Array.isArray(safeData.summary) ? safeData.summary : [];
+  const timeline = Array.isArray(safeData.timeline) ? safeData.timeline : [];
+  const stages = Array.isArray(workflow.stages) ? workflow.stages : [];
 
   const headerBadges = useMemo(() => {
     const badges: Array<{ label: string; tone: WorkflowTone }> = [];
-    if (data.workflow.statusBadge)
-      badges.push({ label: data.workflow.statusBadge.label, tone: data.workflow.statusBadge.tone });
-    if (data.workflow.severity)
-      badges.push({ label: data.workflow.severity.label, tone: data.workflow.severity.tone });
-    if (data.subject.statusChip)
-      badges.push({ label: data.subject.statusChip.label, tone: data.subject.statusChip.tone });
+    if (workflow.statusBadge?.label) {
+      badges.push({
+        label: toDisplayText(workflow.statusBadge.label, 'Status'),
+        tone: workflow.statusBadge.tone,
+      });
+    }
+    if (workflow.severity?.label) {
+      badges.push({
+        label: toDisplayText(workflow.severity.label, 'Severity'),
+        tone: workflow.severity.tone,
+      });
+    }
+    if (subject.statusChip?.label) {
+      badges.push({
+        label: toDisplayText(subject.statusChip.label, 'Status'),
+        tone: subject.statusChip.tone,
+      });
+    }
 
-    if (data.workflow.sla) {
-      if (data.workflow.sla.isOverdue && data.workflow.sla.overdueLabel) {
+    if (workflow.sla) {
+      if (workflow.sla.isOverdue && workflow.sla.overdueLabel) {
         badges.push({
-          label: data.workflow.sla.overdueLabel,
-          tone: data.workflow.sla.tone === 'danger' ? 'danger' : 'warning',
+          label: toDisplayText(workflow.sla.overdueLabel, 'Overdue'),
+          tone: workflow.sla.tone === 'danger' ? 'danger' : 'warning',
         });
-      } else if (data.workflow.sla.dueAt) {
-        const due = new Date(data.workflow.sla.dueAt).toLocaleDateString('en-US', {
+      } else if (workflow.sla.dueAt) {
+        const due = new Date(workflow.sla.dueAt).toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',
           year: 'numeric',
@@ -88,8 +118,9 @@ export function WorkflowRecordLayout({
         badges.push({ label: `Due ${due}`, tone: 'neutral' });
       }
     }
-    return badges;
-  }, [data]);
+
+    return badges.filter((b) => typeof b.label === 'string' && b.label.trim());
+  }, [subject.statusChip, workflow.severity, workflow.sla, workflow.statusBadge]);
 
   if (!access.canView) {
     return (
@@ -122,18 +153,18 @@ export function WorkflowRecordLayout({
               </Link>
               <div className="mt-2">
                 <h1 className="text-xl font-semibold text-gray-900 truncate">
-                  {data.identity.title}
+                  {toDisplayText(identity.title, 'Record')}
                 </h1>
                 <p className="text-sm text-gray-600 mt-0.5 truncate">
-                  {data.subject.displayName}
-                  {data.subject.employeeId ? ` • ${data.subject.employeeId}` : ''}
-                  {data.subject.subtitle ? ` • ${data.subject.subtitle}` : ''}
+                  {toDisplayText(subject.displayName, '—')}
+                  {subject.employeeId ? ` • ${toDisplayText(subject.employeeId, '')}` : ''}
+                  {subject.subtitle ? ` • ${toDisplayText(subject.subtitle, '')}` : ''}
                 </p>
               </div>
               {headerBadges.length ? (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {headerBadges.map((b) => (
-                    <Badge key={b.label} variant={toneToBadgeVariant(b.tone)}>
+                    <Badge key={`${b.label}-${b.tone}`} variant={toneToBadgeVariant(b.tone)}>
                       {b.label}
                     </Badge>
                   ))}
@@ -217,7 +248,7 @@ export function WorkflowRecordLayout({
 
           <div className="mt-4 flex items-center gap-2 overflow-x-auto pb-2">
             {stages.map((stage, idx) => (
-              <div key={stage.id} className="flex items-center gap-2">
+              <div key={stage.id ?? idx} className="flex items-center gap-2">
                 <div
                   className={
                     stage.status === 'completed'
@@ -232,7 +263,7 @@ export function WorkflowRecordLayout({
                     stage.status === 'upcoming' ? 'text-xs text-gray-500' : 'text-xs text-gray-900'
                   }
                 >
-                  {stage.label}
+                  {toDisplayText(stage.label, '—')}
                 </span>
                 {idx < stages.length - 1 ? <div className="w-8 h-px bg-gray-200" /> : null}
               </div>
@@ -245,10 +276,14 @@ export function WorkflowRecordLayout({
         <div className="lg:col-span-2 space-y-6">
           <Card padding="md">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {summary.map((row) => (
-                <div key={row.label}>
-                  <p className="text-xs font-medium text-gray-500">{row.label}</p>
-                  <p className="text-sm font-medium text-gray-900 mt-0.5">{row.value || '—'}</p>
+              {summary.map((row, idx) => (
+                <div key={`${toDisplayText(row.label, 'Field')}-${idx}`}>
+                  <p className="text-xs font-medium text-gray-500">
+                    {toDisplayText(row.label, 'Field')}
+                  </p>
+                  <p className="text-sm font-medium text-gray-900 mt-0.5">
+                    {toDisplayText(row.value, '—')}
+                  </p>
                 </div>
               ))}
             </div>

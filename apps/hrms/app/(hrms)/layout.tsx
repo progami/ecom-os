@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import Link from 'next/link'
-import { ReactNode, useCallback, useEffect, useState } from 'react'
-import { usePathname } from 'next/navigation'
+import Link from 'next/link';
+import { ReactNode, useCallback, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   HomeIcon,
   FolderIcon,
@@ -18,25 +18,25 @@ import {
   OrgChartIcon,
   LockClosedIcon,
   ChartBarIcon,
-} from '@/components/ui/Icons'
-import { NotificationBell } from '@/components/ui/NotificationBell'
-import { NavigationHistoryProvider } from '@/lib/navigation-history'
-import { MeApi } from '@/lib/api-client'
-import { CommandPalette } from '@/components/search/CommandPalette'
+} from '@/components/ui/Icons';
+import { NotificationBell } from '@/components/ui/NotificationBell';
+import { NavigationHistoryProvider } from '@/lib/navigation-history';
+import { MeApi } from '@/lib/api-client';
+import { CommandPalette } from '@/components/search/CommandPalette';
 
 interface NavItem {
-  name: string
-  href: string
-  icon: React.ComponentType<{ className?: string }>
-  requireSuperAdmin?: boolean
-  requireHR?: boolean
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  requireSuperAdmin?: boolean;
+  requireHR?: boolean;
 }
 
 interface NavSection {
-  title: string
-  items: NavItem[]
-  requireSuperAdmin?: boolean
-  requireHR?: boolean
+  title: string;
+  items: NavItem[];
+  requireSuperAdmin?: boolean;
+  requireHR?: boolean;
 }
 
 const navigation: NavSection[] = [
@@ -44,34 +44,35 @@ const navigation: NavSection[] = [
     title: '',
     items: [
       { name: 'Work Queue', href: '/work', icon: BellIcon },
-      { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-    ]
+      { name: 'My Dashboard', href: '/dashboard', icon: HomeIcon },
+    ],
   },
   {
     title: 'Work',
     items: [
-      { name: 'Tasks', href: '/tasks', icon: CheckCircleIcon },
-      { name: 'Onboarding', href: '/onboarding', icon: ClipboardDocumentCheckIcon, requireHR: true },
-    ]
+      { name: 'Task List', href: '/tasks', icon: CheckCircleIcon },
+      {
+        name: 'Onboarding (Checklists)',
+        href: '/onboarding',
+        icon: ClipboardDocumentCheckIcon,
+        requireHR: true,
+      },
+    ],
   },
   {
     title: 'People',
     items: [
       { name: 'Org Chart', href: '/organogram', icon: OrgChartIcon },
       { name: 'Leave', href: '/leave', icon: CalendarDaysIcon },
-    ]
+    ],
   },
   {
     title: 'Performance',
-    items: [
-      { name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon },
-    ]
+    items: [{ name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon }],
   },
   {
     title: 'Compliance',
-    items: [
-      { name: 'Cases', href: '/cases', icon: ExclamationTriangleIcon },
-    ],
+    items: [{ name: 'Cases', href: '/cases', icon: ExclamationTriangleIcon }],
   },
   {
     title: 'Company',
@@ -79,33 +80,51 @@ const navigation: NavSection[] = [
       { name: 'Resources', href: '/resources', icon: FolderIcon },
       { name: 'Policies', href: '/policies', icon: DocumentIcon },
       { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
-    ]
+    ],
   },
   {
     title: 'Admin',
     requireHR: true,
     items: [
-      { name: 'Dashboards', href: '/admin/dashboards', icon: ChartBarIcon, requireHR: true },
-      { name: 'Access Management', href: '/admin/access', icon: LockClosedIcon, requireSuperAdmin: true },
-      { name: 'Checklists', href: '/admin/checklists', icon: ClipboardDocumentCheckIcon, requireHR: true },
+      { name: 'Ops Dashboards', href: '/admin/dashboards', icon: ChartBarIcon, requireHR: true },
+      {
+        name: 'Access Management',
+        href: '/admin/access',
+        icon: LockClosedIcon,
+        requireSuperAdmin: true,
+      },
       { name: 'Audit Logs', href: '/audit-logs', icon: LockClosedIcon, requireHR: true },
-    ]
+      {
+        name: 'Checklist Templates',
+        href: '/admin/checklists',
+        icon: ClipboardDocumentCheckIcon,
+        requireHR: true,
+      },
+    ],
   },
-]
+];
 
 function cn(...classes: (string | boolean | undefined)[]) {
-  return classes.filter(Boolean).join(' ')
+  return classes.filter(Boolean).join(' ');
 }
 
-function Sidebar({ onClose, isSuperAdmin, isHR }: { onClose?: () => void; isSuperAdmin: boolean; isHR: boolean }) {
-  const pathname = usePathname()
+function Sidebar({
+  onClose,
+  isSuperAdmin,
+  isHR,
+}: {
+  onClose?: () => void;
+  isSuperAdmin: boolean;
+  isHR: boolean;
+}) {
+  const pathname = usePathname();
 
   const matchesPath = (href: string) => {
-    if (href === '/') return pathname === '/' || pathname === ''
-    return pathname.startsWith(href)
-  }
+    if (href === '/') return pathname === '/' || pathname === '';
+    return pathname.startsWith(href);
+  };
 
-  const canSeeHR = isSuperAdmin || isHR
+  const canSeeHR = isSuperAdmin || isHR;
 
   // Filter navigation based on permissions
   const filteredNavigation = navigation
@@ -114,12 +133,12 @@ function Sidebar({ onClose, isSuperAdmin, isHR }: { onClose?: () => void; isSupe
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
-        if (item.requireSuperAdmin && !isSuperAdmin) return false
-        if (item.requireHR && !canSeeHR) return false
-        return true
+        if (item.requireSuperAdmin && !isSuperAdmin) return false;
+        if (item.requireHR && !canSeeHR) return false;
+        return true;
       }),
     }))
-    .filter((section) => section.items.length > 0)
+    .filter((section) => section.items.length > 0);
 
   return (
     <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6 pb-4">
@@ -161,7 +180,7 @@ function Sidebar({ onClose, isSuperAdmin, isHR }: { onClose?: () => void; isSupe
                         matchesPath(item.href)
                           ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-600 -ml-px'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50',
-                        'group flex gap-x-3 rounded-lg py-3 px-3 text-sm font-medium transition-colors'
+                        'group flex gap-x-3 rounded-lg py-3 px-3 text-sm font-medium transition-colors',
                       )}
                     >
                       <item.icon
@@ -169,7 +188,7 @@ function Sidebar({ onClose, isSuperAdmin, isHR }: { onClose?: () => void; isSupe
                           matchesPath(item.href)
                             ? 'text-blue-600'
                             : 'text-gray-400 group-hover:text-gray-600',
-                          'h-5 w-5 shrink-0 transition-colors'
+                          'h-5 w-5 shrink-0 transition-colors',
                         )}
                       />
                       {item.name}
@@ -182,11 +201,21 @@ function Sidebar({ onClose, isSuperAdmin, isHR }: { onClose?: () => void; isSupe
         </ul>
       </nav>
     </div>
-  )
+  );
 }
 
-function MobileNav({ isOpen, onClose, isSuperAdmin, isHR }: { isOpen: boolean; onClose: () => void; isSuperAdmin: boolean; isHR: boolean }) {
-  if (!isOpen) return null
+function MobileNav({
+  isOpen,
+  onClose,
+  isSuperAdmin,
+  isHR,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  isSuperAdmin: boolean;
+  isHR: boolean;
+}) {
+  if (!isOpen) return null;
 
   return (
     <div className="relative z-50 md:hidden">
@@ -202,79 +231,83 @@ function MobileNav({ isOpen, onClose, isSuperAdmin, isHR }: { isOpen: boolean; o
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function Header({ onMenuClick }: { onMenuClick: () => void }) {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   const getCurrentPageName = () => {
     for (const section of navigation) {
       for (const item of section.items) {
         if (item.href === '/') {
-          if (pathname === '/' || pathname === '') return item.name
+          if (pathname === '/' || pathname === '') return item.name;
         } else if (pathname.startsWith(item.href)) {
-          return item.name
+          return item.name;
         }
       }
     }
-    return 'Dashboard'
-  }
+    return 'Work Queue';
+  };
 
   return (
     <div className="sticky top-0 z-40 flex items-center gap-x-4 bg-white px-4 py-4 border-b border-gray-200 sm:px-6 md:hidden">
-      <button type="button" className="-m-2 p-2 text-gray-600 hover:text-gray-900" onClick={onMenuClick}>
+      <button
+        type="button"
+        className="-m-2 p-2 text-gray-600 hover:text-gray-900"
+        onClick={onMenuClick}
+      >
         <MenuIcon className="h-6 w-6" />
       </button>
-      <div className="flex-1 text-base font-semibold text-gray-900">
-        {getCurrentPageName()}
-      </div>
+      <div className="flex-1 text-base font-semibold text-gray-900">{getCurrentPageName()}</div>
       <NotificationBell />
     </div>
-  )
+  );
 }
 
 export default function HRMSLayout({ children }: { children: ReactNode }) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
-  const [isHR, setIsHR] = useState(false)
-  const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0'
-  const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined
-  const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined
-  const commitUrl = commitSha ? `https://github.com/progami/ecom-os/commit/${commitSha}` : undefined
-  const inferredReleaseUrl = `https://github.com/progami/ecom-os/releases/tag/v${version}`
-  const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isHR, setIsHR] = useState(false);
+  const version = process.env.NEXT_PUBLIC_VERSION ?? '0.0.0';
+  const explicitReleaseUrl = process.env.NEXT_PUBLIC_RELEASE_URL || undefined;
+  const commitSha = process.env.NEXT_PUBLIC_COMMIT_SHA || undefined;
+  const commitUrl = commitSha
+    ? `https://github.com/progami/ecom-os/commit/${commitSha}`
+    : undefined;
+  const inferredReleaseUrl = `https://github.com/progami/ecom-os/releases/tag/v${version}`;
+  const versionHref = explicitReleaseUrl ?? commitUrl ?? inferredReleaseUrl;
 
-  const pathname = usePathname()
+  const pathname = usePathname();
   useEffect(() => {
-    setMobileMenuOpen(false)
-  }, [pathname])
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   const fetchUserPermissions = useCallback(async () => {
     try {
-      const me = await MeApi.get()
-      setIsSuperAdmin(Boolean(me.isSuperAdmin))
-      setIsHR(Boolean(me.isHR))
+      const me = await MeApi.get();
+      setIsSuperAdmin(Boolean(me.isSuperAdmin));
+      setIsHR(Boolean(me.isHR));
     } catch {
       // Ignore errors, default to non-admin
     }
-  }, [])
+  }, []);
 
   // Fetch current user permissions for navigation; refresh when roles change.
   useEffect(() => {
-    fetchUserPermissions()
+    fetchUserPermissions();
 
-    const handleFocus = () => fetchUserPermissions()
-    const handleMeUpdated = () => fetchUserPermissions()
+    const handleFocus = () => fetchUserPermissions();
+    const handleMeUpdated = () => fetchUserPermissions();
 
-    window.addEventListener('focus', handleFocus)
-    window.addEventListener('hrms:me-updated', handleMeUpdated)
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('hrms:me-updated', handleMeUpdated);
 
     return () => {
-      window.removeEventListener('focus', handleFocus)
-      window.removeEventListener('hrms:me-updated', handleMeUpdated)
-    }
-  }, [fetchUserPermissions])
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('hrms:me-updated', handleMeUpdated);
+    };
+  }, [fetchUserPermissions]);
 
   return (
     <NavigationHistoryProvider>
@@ -284,16 +317,19 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
       </div>
 
       {/* Mobile Nav */}
-      <MobileNav isOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} isSuperAdmin={isSuperAdmin} isHR={isHR} />
+      <MobileNav
+        isOpen={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        isSuperAdmin={isSuperAdmin}
+        isHR={isHR}
+      />
 
       {/* Main Content */}
       <div className="md:pl-64 min-h-screen flex flex-col bg-gray-50">
         <Header onMenuClick={() => setMobileMenuOpen(true)} />
 
         <main className="flex-1">
-          <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">
-            {children}
-          </div>
+          <div className="px-4 sm:px-6 lg:px-8 py-8 max-w-7xl mx-auto">{children}</div>
         </main>
 
         <footer className="border-t border-gray-200 bg-white mt-auto">
@@ -315,5 +351,5 @@ export default function HRMSLayout({ children }: { children: ReactNode }) {
 
       <CommandPalette />
     </NavigationHistoryProvider>
-  )
+  );
 }

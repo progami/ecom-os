@@ -1,93 +1,93 @@
-'use client'
+'use client';
 
-import { useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { Alert } from '@/components/ui/Alert'
-import { Button } from '@/components/ui/Button'
-import { Card } from '@/components/ui/Card'
-import { ListPageHeader } from '@/components/ui/PageHeader'
-import { UsersIcon, ClipboardDocumentCheckIcon } from '@/components/ui/Icons'
-import { Avatar } from '@/components/ui/Avatar'
-import { OnboardingApi, ChecklistsApi, type ChecklistInstanceSummary } from '@/lib/api-client'
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Alert } from '@/components/ui/Alert';
+import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { ListPageHeader } from '@/components/ui/PageHeader';
+import { UsersIcon, ClipboardDocumentCheckIcon } from '@/components/ui/Icons';
+import { Avatar } from '@/components/ui/Avatar';
+import { OnboardingApi, ChecklistsApi, type ChecklistInstanceSummary } from '@/lib/api-client';
 
-type OnboardingOverview = Awaited<ReturnType<typeof OnboardingApi.overview>>
+type OnboardingOverview = Awaited<ReturnType<typeof OnboardingApi.overview>>;
 
 function formatDate(value: string | Date): string {
-  const date = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 export default function OnboardingPage() {
-  const router = useRouter()
+  const router = useRouter();
 
-  const [data, setData] = useState<OnboardingOverview | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [templateId, setTemplateId] = useState<string | undefined>(undefined)
-  const [startingEmployeeId, setStartingEmployeeId] = useState<string | null>(null)
+  const [data, setData] = useState<OnboardingOverview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [templateId, setTemplateId] = useState<string | undefined>(undefined);
+  const [startingEmployeeId, setStartingEmployeeId] = useState<string | null>(null);
 
-  const templates = data?.templates ?? []
-  const instances = data?.instances ?? []
-  const employeesWithoutOnboarding = data?.employeesWithoutOnboarding ?? []
+  const templates = data?.templates ?? [];
+  const instances = data?.instances ?? [];
+  const employeesWithoutOnboarding = data?.employeesWithoutOnboarding ?? [];
 
   const inProgress = useMemo(() => {
-    return instances.filter((i) => i.progress.done < i.progress.total)
-  }, [instances])
+    return instances.filter((i) => i.progress.done < i.progress.total);
+  }, [instances]);
 
   const completed = useMemo(() => {
-    return instances.filter((i) => i.progress.total > 0 && i.progress.done === i.progress.total)
-  }, [instances])
+    return instances.filter((i) => i.progress.total > 0 && i.progress.done === i.progress.total);
+  }, [instances]);
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
     async function load() {
       try {
-        setLoading(true)
-        setError(null)
-        const next = await OnboardingApi.overview()
-        if (cancelled) return
-        setData(next)
-        setTemplateId((prev) => prev ?? next.templates[0]?.id)
+        setLoading(true);
+        setError(null);
+        const next = await OnboardingApi.overview();
+        if (cancelled) return;
+        setData(next);
+        setTemplateId((prev) => prev ?? next.templates[0]?.id);
       } catch (e) {
-        if (cancelled) return
-        const message = e instanceof Error ? e.message : 'Failed to load onboarding overview'
-        setError(message)
+        if (cancelled) return;
+        const message = e instanceof Error ? e.message : 'Failed to load onboarding overview';
+        setError(message);
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) setLoading(false);
       }
     }
 
-    load()
+    load();
     return () => {
-      cancelled = true
-    }
-  }, [])
+      cancelled = true;
+    };
+  }, []);
 
   async function startOnboarding(employeeId: string) {
     try {
-      setStartingEmployeeId(employeeId)
-      setError(null)
+      setStartingEmployeeId(employeeId);
+      setError(null);
       const res = await ChecklistsApi.create({
         employeeId,
         lifecycleType: 'ONBOARDING',
         templateId,
-      })
-      router.push(`/checklists/${res.instanceId}`)
+      });
+      router.push(`/checklists/${res.instanceId}`);
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Failed to start onboarding'
-      setError(message)
+      const message = e instanceof Error ? e.message : 'Failed to start onboarding';
+      setError(message);
     } finally {
-      setStartingEmployeeId(null)
+      setStartingEmployeeId(null);
     }
   }
 
   return (
     <>
       <ListPageHeader
-        title="Onboarding"
-        description="Start and track onboarding checklists."
+        title="Onboarding (Checklists)"
+        description="HR dashboard to start and track onboarding checklists."
         icon={<UsersIcon className="h-6 w-6 text-white" />}
       />
 
@@ -105,9 +105,23 @@ export default function OnboardingPage() {
         <div className="space-y-8">
           <Card padding="md">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-gray-700">
+                This page is for HR to start onboarding checklists. Checklist items create tasks
+                that show up in the employee’s Work Queue.
+              </p>
+              <Button href="/work" variant="secondary">
+                Work Queue
+              </Button>
+            </div>
+          </Card>
+
+          <Card padding="md">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h2 className="text-sm font-semibold text-gray-900">Template</h2>
-                <p className="text-xs text-gray-500 mt-1">Choose which onboarding checklist template to use when starting onboarding.</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Choose which onboarding checklist template to use when starting onboarding.
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <select
@@ -126,7 +140,11 @@ export default function OnboardingPage() {
                     ))
                   )}
                 </select>
-                <Button href="/admin/checklists" variant="secondary" icon={<ClipboardDocumentCheckIcon className="h-4 w-4" />}>
+                <Button
+                  href="/admin/checklists"
+                  variant="secondary"
+                  icon={<ClipboardDocumentCheckIcon className="h-4 w-4" />}
+                >
                   Manage templates
                 </Button>
               </div>
@@ -150,7 +168,9 @@ export default function OnboardingPage() {
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-sm font-semibold text-gray-900">Start onboarding</h2>
-                <p className="text-xs text-gray-500 mt-1">Employees who do not have an onboarding checklist yet.</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Employees who do not have an onboarding checklist yet.
+                </p>
               </div>
             </div>
 
@@ -159,7 +179,9 @@ export default function OnboardingPage() {
                 No onboarding templates are active. Create or enable a template to start onboarding.
               </Alert>
             ) : employeesWithoutOnboarding.length === 0 ? (
-              <p className="text-sm text-gray-600 mt-4">Everyone already has an onboarding checklist.</p>
+              <p className="text-sm text-gray-600 mt-4">
+                Everyone already has an onboarding checklist.
+              </p>
             ) : (
               <div className="mt-4 overflow-x-auto">
                 <table className="min-w-full text-sm">
@@ -177,7 +199,11 @@ export default function OnboardingPage() {
                       <tr key={e.id}>
                         <td className="py-3 pr-4">
                           <div className="flex items-center gap-3">
-                            <Avatar src={e.avatar ?? undefined} alt={`${e.firstName} ${e.lastName}`} size="sm" />
+                            <Avatar
+                              src={e.avatar ?? undefined}
+                              alt={`${e.firstName} ${e.lastName}`}
+                              size="sm"
+                            />
                             <div className="min-w-0">
                               <div className="font-medium text-gray-900 truncate">
                                 {e.firstName} {e.lastName}
@@ -207,7 +233,7 @@ export default function OnboardingPage() {
         </div>
       )}
     </>
-  )
+  );
 }
 
 function Section({
@@ -216,10 +242,10 @@ function Section({
   items,
   emptyText,
 }: {
-  title: string
-  description: string
-  items: ChecklistInstanceSummary[]
-  emptyText?: string
+  title: string;
+  description: string;
+  items: ChecklistInstanceSummary[];
+  emptyText?: string;
 }) {
   return (
     <Card padding="md">
@@ -258,13 +284,19 @@ function Section({
                         <div className="font-medium text-gray-900 truncate">
                           {i.employee.firstName} {i.employee.lastName}
                         </div>
-                        <div className="text-xs text-gray-500 truncate">{i.employee.employeeId}</div>
+                        <div className="text-xs text-gray-500 truncate">
+                          {i.employee.employeeId}
+                        </div>
                       </div>
                     </div>
                   </td>
                   <td className="py-3 pr-4 text-gray-700">
                     {i.progress.done}/{i.progress.total} ({i.progress.percentDone}%)
-                    {i.progress.blocked > 0 ? <span className="text-xs text-amber-700 ml-2">• {i.progress.blocked} blocked</span> : null}
+                    {i.progress.blocked > 0 ? (
+                      <span className="text-xs text-amber-700 ml-2">
+                        • {i.progress.blocked} blocked
+                      </span>
+                    ) : null}
                   </td>
                   <td className="py-3 pr-4 text-gray-700">
                     {i.template.name} (v{i.template.version})
@@ -285,6 +317,5 @@ function Section({
         </div>
       )}
     </Card>
-  )
+  );
 }
-
