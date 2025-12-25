@@ -385,7 +385,7 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
       {isModalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-2xl overflow-hidden rounded-lg bg-white shadow-xl">
-            <div className="flex items-center justify-between border-b px-6 py-4">
+            <div className="flex items-center justify-between border-b bg-slate-50 px-6 py-4">
               <h2 className="text-lg font-semibold text-slate-900">
                 {editingSupplier ? 'Edit Supplier' : 'New Supplier'}
               </h2>
