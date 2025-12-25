@@ -709,11 +709,10 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
 
                 if (isReorderWeek && visibleMetrics.has(meta.field)) {
                   cell.className = cell.className ? `${cell.className} cell-reorder-band` : 'cell-reorder-band'
+                  cell.className = cell.className ? `${cell.className} cell-reorder-suggest` : 'cell-reorder-suggest'
                 }
 
                 if (isReorderWeek && isStockColumn) {
-                  cell.className = cell.className ? `${cell.className} cell-reorder-suggest` : 'cell-reorder-suggest'
-
                   const leadProfile = leadTimeByProduct[meta.productId]
                   const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : reorderInfo?.leadTimeWeeks ?? 0
                   const leadBreakdown = leadProfile
