@@ -264,7 +264,7 @@ export default function ShipmentPlanningPage() {
  }
 
  // Shipping is handled via the Purchase Order workflow.
- router.push('/operations/orders')
+ router.push('/operations/purchase-orders')
  }
 
  const filteredStockItems = stockItems.filter(item => {
@@ -329,7 +329,7 @@ export default function ShipmentPlanningPage() {
  Refresh FBA Data
  </button>
  <Link
- href="/operations/orders"
+ href="/operations/purchase-orders"
  className={`inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-soft text-sm font-medium text-white bg-primary hover:bg-primary/90 ${selectedItems.size === 0 ? 'opacity-50 pointer-events-none' : ''}`}
  >
  <ShoppingCart className="h-4 w-4 mr-2" />
