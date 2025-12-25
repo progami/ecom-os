@@ -7,8 +7,9 @@ import { registerAllModules } from 'handsontable/registry'
 import { toast } from 'sonner'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { useHandsontableThemeName } from '@/hooks/useHandsontableThemeName'
-import { finishEditingSafely } from '@/lib/handsontable'
+import { finishEditingSafely, getSelectionStats, type HandsontableSelectionStats } from '@/lib/handsontable'
 import { formatNumericInput, formatPercentInput, numericValidator, sanitizeNumeric } from '@/components/sheets/validators'
+import { SelectionStatsBar } from '@/components/ui/selection-stats-bar'
 import { withAppBasePath } from '@/lib/base-path'
 import { Info } from 'lucide-react'
 
@@ -149,8 +150,15 @@ export function OpsPlanningCostGrid({
   onSync,
 }: OpsPlanningCostGridProps) {
   const [isClient, setIsClient] = useState(false)
+  const [selectionStats, setSelectionStats] = useState<HandsontableSelectionStats | null>(null)
   const themeName = useHandsontableThemeName()
   const hotRef = useRef<Handsontable | null>(null)
+
+  const updateSelectionStats = useCallback(() => {
+    const hot = hotRef.current
+    if (!hot) return
+    setSelectionStats(getSelectionStats(hot))
+  }, [])
   const handleFlush = useCallback(
     async (payload: Array<{ id: string; values: Record<string, string | null> }>) => {
       if (payload.length === 0) return
@@ -353,43 +361,48 @@ export function OpsPlanningCostGrid({
           ) : null}
         </div>
       </header>
-      <HotTable
-        ref={(instance) => {
-          hotRef.current = instance?.hotInstance ?? null
-        }}
-        data={data}
-        licenseKey="non-commercial-and-evaluation"
-        themeName={themeName}
-        columns={columns}
-        colHeaders={COST_HEADERS}
-        stretchH="all"
-        className="x-plan-hot"
-        undo
-        rowHeaders={false}
-        height="auto"
-        dropdownMenu
-        filters
-        cells={(row) => {
-          const meta = {} as Handsontable.CellMeta
-          const record = data[row]
-          if (record && activeOrderId && record.purchaseOrderId === activeOrderId) {
-            meta.className = meta.className ? `${meta.className} row-active` : 'row-active'
-          }
-          if (record && activeBatchId && record.id === activeBatchId) {
-            meta.className = meta.className ? `${meta.className} row-active` : 'row-active'
-          }
-          return meta
-        }}
-        afterSelectionEnd={(row) => {
-          const record = data[row]
-          if (!record) return
-          onSelectOrder?.(record.purchaseOrderId)
-          onSelectBatch?.(record.id)
-        }}
-        afterChange={(changes, rawSource) => {
-          if (!changes || rawSource === 'loadData') return
-          const hot = hotRef.current
-          if (!hot) return
+      <div className="relative">
+        <HotTable
+          ref={(instance) => {
+            hotRef.current = instance?.hotInstance ?? null
+          }}
+          data={data}
+          licenseKey="non-commercial-and-evaluation"
+          themeName={themeName}
+          columns={columns}
+          colHeaders={COST_HEADERS}
+          stretchH="all"
+          className="x-plan-hot"
+          undo
+          rowHeaders={false}
+          height="auto"
+          dropdownMenu
+          filters
+          cells={(row) => {
+            const meta = {} as Handsontable.CellMeta
+            const record = data[row]
+            if (record && activeOrderId && record.purchaseOrderId === activeOrderId) {
+              meta.className = meta.className ? `${meta.className} row-active` : 'row-active'
+            }
+            if (record && activeBatchId && record.id === activeBatchId) {
+              meta.className = meta.className ? `${meta.className} row-active` : 'row-active'
+            }
+            return meta
+          }}
+          afterSelectionEnd={(row) => {
+            updateSelectionStats()
+            const record = data[row]
+            if (!record) return
+            onSelectOrder?.(record.purchaseOrderId)
+            onSelectBatch?.(record.id)
+          }}
+          afterDeselect={() => {
+            setSelectionStats(null)
+          }}
+          afterChange={(changes, rawSource) => {
+            if (!changes || rawSource === 'loadData') return
+            const hot = hotRef.current
+            if (!hot) return
 
           for (const change of changes) {
             const [rowIndex, prop, _oldValue, newValue] = change as [number, keyof OpsBatchRow, any, any]
@@ -443,8 +456,10 @@ export function OpsPlanningCostGrid({
           }
 
           scheduleFlush()
-        }}
-      />
+          }}
+        />
+        <SelectionStatsBar stats={selectionStats} />
+      </div>
     </section>
   )
 }
