@@ -16,7 +16,6 @@ import {
   Factory,
   Ship,
   Warehouse,
-  Truck,
   XCircle,
 } from '@/lib/lucide-icons'
 import { PurchaseOrdersPanel } from '../inventory/purchase-orders-panel'
@@ -24,7 +23,7 @@ import { redirectToPortal } from '@/lib/portal'
 import type { LucideIcon } from 'lucide-react'
 
 // 5-Stage State Machine Status Types
-type POStageStatus = 'DRAFT' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'SHIPPED' | 'CANCELLED'
+type POStageStatus = 'DRAFT' | 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE' | 'CANCELLED'
 
 type StatusConfig = {
   value: POStageStatus
@@ -38,7 +37,7 @@ const PIPELINE_STAGES: StatusConfig[] = [
   {
     value: 'DRAFT',
     label: 'Draft',
-    description: 'Orders being prepared with initial details',
+    description: 'Purchase orders being prepared with initial details',
     icon: FileEdit,
   },
   {
@@ -59,12 +58,6 @@ const PIPELINE_STAGES: StatusConfig[] = [
     description: 'Goods received at warehouse',
     icon: Warehouse,
   },
-  {
-    value: 'SHIPPED',
-    label: 'Shipped',
-    description: 'Goods shipped to customer',
-    icon: Truck,
-  },
 ]
 
 // Terminal statuses
@@ -72,7 +65,7 @@ const TERMINAL_STATUSES: StatusConfig[] = [
   {
     value: 'CANCELLED',
     label: 'Cancelled',
-    description: 'Orders cancelled before completion',
+    description: 'Purchase orders cancelled before completion',
     icon: XCircle,
   },
 ]

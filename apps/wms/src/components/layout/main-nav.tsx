@@ -15,7 +15,6 @@ import {
  Building,
  BookOpen,
  Calendar,
- AlertTriangle,
  Users,
 } from '@/lib/lucide-icons'
 import { useState, useEffect } from 'react'
@@ -45,7 +44,6 @@ const baseNavigation: NavSection[] = [
  { name: 'Purchase Orders', href: '/operations/orders', icon: FileText },
  { name: 'Fulfillment Orders', href: '/operations/fulfillment-orders', icon: Truck },
  { name: 'Inventory Ledger', href: '/operations/inventory', icon: BookOpen },
-      { name: 'Pallet Variance', href: '/operations/pallet-variance', icon: AlertTriangle },
  ]
  },
  {
