@@ -1222,6 +1222,86 @@ function getSalesPlanningView(
       totalWeeks: number
     }
   >
+
+  const reorderCueByProduct = new Map<
+    string,
+    {
+      startWeekNumber: number
+      startWeekLabel: string | null
+      startYear: number | null
+      startDate: string
+      breachWeekNumber: number
+      breachWeekLabel: string | null
+      breachYear: number | null
+      breachDate: string
+      leadTimeWeeks: number
+    }
+  >()
+
+  const warningThreshold = Number(context.parameters.stockWarningWeeks)
+  if (Number.isFinite(warningThreshold) && warningThreshold > 0) {
+    const describeWeek = (weekNumber: number): { year: number; weekLabel: string } | null => {
+      const segment = planning.yearSegments.find(
+        (entry) =>
+          entry.weekCount > 0 &&
+          weekNumber >= entry.startWeekNumber &&
+          weekNumber <= entry.endWeekNumber,
+      )
+      if (!segment) return null
+      return { year: segment.year, weekLabel: String(weekNumber - segment.startWeekNumber + 1) }
+    }
+
+    const salesByProduct = new Map<string, SalesWeekDerived[]>()
+    for (const entry of financialData.salesPlan) {
+      const bucket = salesByProduct.get(entry.productId) ?? []
+      bucket.push(entry)
+      salesByProduct.set(entry.productId, bucket)
+    }
+
+    productList.forEach((product) => {
+      const leadProfile = leadTimeByProduct[product.id]
+      const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : 0
+      if (leadTimeWeeks <= 0) return
+
+      const series = salesByProduct.get(product.id)
+      if (!series || series.length === 0) return
+
+      const sortedSeries = [...series].sort((a, b) => a.weekNumber - b.weekNumber)
+      let hasBeenAbove = false
+      for (const row of sortedSeries) {
+        const weeksValue = row.stockWeeks
+        if (Number.isNaN(weeksValue)) continue
+
+        const isBelow = weeksValue <= warningThreshold
+        if (isBelow && hasBeenAbove) {
+          const breachWeekNumber = row.weekNumber
+          const startWeekNumber = breachWeekNumber - leadTimeWeeks
+
+          const startDesc = describeWeek(startWeekNumber)
+          const breachDesc = describeWeek(breachWeekNumber)
+          const startDate = formatDate(getCalendarDateForWeek(startWeekNumber, planning.calendar))
+          const breachDate = formatDate(row.weekDate ?? getCalendarDateForWeek(breachWeekNumber, planning.calendar))
+
+          reorderCueByProduct.set(product.id, {
+            startWeekNumber,
+            startWeekLabel: startDesc?.weekLabel ?? null,
+            startYear: startDesc?.year ?? null,
+            startDate,
+            breachWeekNumber,
+            breachWeekLabel: breachDesc?.weekLabel ?? null,
+            breachYear: breachDesc?.year ?? null,
+            breachDate,
+            leadTimeWeeks,
+          })
+          break
+        }
+
+        if (!isBelow) {
+          hasBeenAbove = true
+        }
+      }
+    })
+  }
   const weeks = buildWeekRange(activeSegment, planning.calendar)
   const weekNumbers = weeks.length
     ? weeks
@@ -1353,6 +1433,7 @@ function getSalesPlanningView(
     stockWarningWeeks: context.parameters.stockWarningWeeks,
     leadTimeByProduct,
     batchAllocations,
+    reorderCueByProduct,
   }
 }
 
@@ -1631,6 +1712,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           stockWarningWeeks={view.stockWarningWeeks}
           leadTimeByProduct={view.leadTimeByProduct}
           batchAllocations={view.batchAllocations}
+          reorderCueByProduct={view.reorderCueByProduct}
         />
       )
       visualContent = (
