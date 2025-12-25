@@ -8,6 +8,7 @@ import { Prisma } from '@ecom-os/prisma-wms'
 const LineItemSchema = z.object({
   skuCode: z.string().trim().min(1),
   skuDescription: z.string().optional(),
+  batchLot: z.string().trim().min(1).optional(),
   quantity: z.number().int().positive(),
   unitCost: z.number().optional(),
   currency: z.string().optional(),
@@ -90,6 +91,7 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
     where: { skuCode: result.data.skuCode },
     select: {
       id: true,
+      skuCode: true,
       packSize: true,
       unitsPerCarton: true,
       material: true,
@@ -111,17 +113,19 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
     return ApiResponses.badRequest(`SKU ${result.data.skuCode} not found. Create the SKU first.`)
   }
 
-  const derivedBatchLot = (order.poNumber ?? order.orderNumber).trim()
+  const DEFAULT_BATCH_LOT = 'DEFAULT'
+  const resolvedBatchLot = (result.data.batchLot ?? DEFAULT_BATCH_LOT).trim().toUpperCase()
+
   await prisma.skuBatch.upsert({
     where: {
       skuId_batchCode: {
         skuId: sku.id,
-        batchCode: derivedBatchLot,
+        batchCode: DEFAULT_BATCH_LOT,
       },
     },
     create: {
       skuId: sku.id,
-      batchCode: derivedBatchLot,
+      batchCode: DEFAULT_BATCH_LOT,
       packSize: sku.packSize,
       unitsPerCarton: sku.unitsPerCarton,
       material: sku.material,
@@ -141,6 +145,24 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
     update: { isActive: true },
   })
 
+  if (resolvedBatchLot !== DEFAULT_BATCH_LOT) {
+    const existingBatch = await prisma.skuBatch.findUnique({
+      where: {
+        skuId_batchCode: {
+          skuId: sku.id,
+          batchCode: resolvedBatchLot,
+        },
+      },
+      select: { id: true },
+    })
+
+    if (!existingBatch) {
+      return ApiResponses.badRequest(
+        `Batch ${resolvedBatchLot} not found for SKU ${sku.skuCode}. Create it in Products → Batches first.`
+      )
+    }
+  }
+
   let line
   try {
     line = await prisma.purchaseOrderLine.create({
@@ -148,7 +170,7 @@ export const POST = withAuthAndParams(async (request: NextRequest, params, _sess
         purchaseOrderId: id,
         skuCode: result.data.skuCode,
         skuDescription: result.data.skuDescription || '',
-        batchLot: derivedBatchLot,
+        batchLot: resolvedBatchLot,
         quantity: result.data.quantity,
         unitCost: result.data.unitCost,
         currency: result.data.currency ?? tenant.currency,

@@ -391,6 +391,7 @@ export async function generatePoNumber(): Promise<string> {
 export interface CreatePurchaseOrderLineInput {
   skuCode: string
   skuDescription?: string
+  batchLot?: string
   quantity: number
   unitCost?: number
   currency?: string
@@ -431,9 +432,11 @@ export async function createPurchaseOrder(
   }> = []
 
   if (input.lines && input.lines.length > 0) {
+    const DEFAULT_BATCH_LOT = 'DEFAULT'
     const normalizedLines = input.lines.map(line => ({
       ...line,
       skuCode: line.skuCode.trim(),
+      batchLot: line.batchLot?.trim() ? line.batchLot.trim() : undefined,
     }))
 
     const keySet = new Set<string>()
@@ -449,6 +452,10 @@ export async function createPurchaseOrder(
         )
       }
       keySet.add(key)
+
+      if (!line.batchLot) {
+        line.batchLot = DEFAULT_BATCH_LOT
+      }
     }
 
     const skuCodes = Array.from(new Set(normalizedLines.map(line => line.skuCode)))
@@ -491,13 +498,14 @@ export async function createPurchaseOrder(
   for (let attempt = 0; attempt < MAX_PO_NUMBER_ATTEMPTS; attempt += 1) {
     const poNumber = await generatePoNumber()
     const orderNumber = poNumber // Order number is just the PO number now
-    const batchLot = poNumber
+    const DEFAULT_BATCH_LOT = 'DEFAULT'
 
     try {
       order = await prisma.$transaction(async tx => {
         if (input.lines && input.lines.length > 0) {
           const uniqueSkuIds = Array.from(new Set(skuRecordsForLines.map(sku => sku.id)))
           const skuMap = new Map(skuRecordsForLines.map(sku => [sku.id, sku]))
+          const skuByCode = new Map(skuRecordsForLines.map(sku => [sku.skuCode.toLowerCase(), sku]))
 
           for (const skuId of uniqueSkuIds) {
             const sku = skuMap.get(skuId)
@@ -507,12 +515,12 @@ export async function createPurchaseOrder(
               where: {
                 skuId_batchCode: {
                   skuId,
-                  batchCode: batchLot,
+                  batchCode: DEFAULT_BATCH_LOT,
                 },
               },
               create: {
                 skuId,
-                batchCode: batchLot,
+                batchCode: DEFAULT_BATCH_LOT,
                 packSize: sku.packSize,
                 unitsPerCarton: sku.unitsPerCarton,
                 material: sku.material,
@@ -534,6 +542,47 @@ export async function createPurchaseOrder(
               },
             })
           }
+
+          const requiredCombos: Array<{ skuId: string; skuCode: string; batchCode: string }> = []
+          const requiredKeySet = new Set<string>()
+          for (const line of input.lines) {
+            const batchCode = (line.batchLot ?? DEFAULT_BATCH_LOT).trim().toUpperCase()
+            if (batchCode === DEFAULT_BATCH_LOT) continue
+
+            const skuRecord = skuByCode.get(line.skuCode.trim().toLowerCase())
+            if (!skuRecord) continue
+
+            const key = `${skuRecord.id}::${batchCode}`
+            if (requiredKeySet.has(key)) continue
+
+            requiredKeySet.add(key)
+            requiredCombos.push({
+              skuId: skuRecord.id,
+              skuCode: skuRecord.skuCode,
+              batchCode,
+            })
+          }
+
+          if (requiredCombos.length > 0) {
+            const existing = await tx.skuBatch.findMany({
+              where: {
+                OR: requiredCombos.map(combo => ({
+                  skuId: combo.skuId,
+                  batchCode: combo.batchCode,
+                })),
+              },
+              select: { skuId: true, batchCode: true },
+            })
+
+            const existingSet = new Set(existing.map(row => `${row.skuId}::${row.batchCode}`))
+            for (const combo of requiredCombos) {
+              if (!existingSet.has(`${combo.skuId}::${combo.batchCode}`)) {
+                throw new ValidationError(
+                  `Batch ${combo.batchCode} not found for SKU ${combo.skuCode}. Create it in Products → Batches first.`
+                )
+              }
+            }
+          }
         }
 
         return tx.purchaseOrder.create({
@@ -554,7 +603,7 @@ export async function createPurchaseOrder(
                     create: input.lines.map(line => ({
                       skuCode: line.skuCode,
                       skuDescription: line.skuDescription || '',
-                      batchLot,
+                      batchLot: (line.batchLot ?? DEFAULT_BATCH_LOT).trim().toUpperCase(),
                       quantity: line.quantity,
                       unitCost: line.unitCost,
                       currency: line.currency || tenant.currency,
