@@ -60,7 +60,6 @@ const updateSchema = refineDimensions(
     cartonWeightKg: z.number().positive().optional().nullable(),
     storageCartonsPerPallet: z.number().int().positive().optional().nullable(),
     shippingCartonsPerPallet: z.number().int().positive().optional().nullable(),
-    isActive: z.boolean().optional(),
   })
 )
 
@@ -93,39 +92,12 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
     return ApiResponses.validationError(parsed.error.flatten().fieldErrors)
   }
 
-  const existing = await ensureBatch(skuId, batchId)
-  if (!existing) {
+  if (!(await ensureBatch(skuId, batchId))) {
     return ApiResponses.notFound('Batch not found')
   }
 
   const data: Prisma.SkuBatchUpdateInput = {}
   const hasOwn = (key: string) => Object.prototype.hasOwnProperty.call(parsed.data, key)
-
-  const nextIsActive = parsed.data.isActive ?? existing.isActive
-  const nextStorageCartonsPerPallet =
-    parsed.data.storageCartonsPerPallet !== undefined
-      ? parsed.data.storageCartonsPerPallet
-      : existing.storageCartonsPerPallet
-  const nextShippingCartonsPerPallet =
-    parsed.data.shippingCartonsPerPallet !== undefined
-      ? parsed.data.shippingCartonsPerPallet
-      : existing.shippingCartonsPerPallet
-
-  if (nextIsActive) {
-    const errors: Record<string, string> = {}
-
-    if (!nextStorageCartonsPerPallet || nextStorageCartonsPerPallet <= 0) {
-      errors.storageCartonsPerPallet = 'Storage cartons per pallet is required for active batches'
-    }
-
-    if (!nextShippingCartonsPerPallet || nextShippingCartonsPerPallet <= 0) {
-      errors.shippingCartonsPerPallet = 'Shipping cartons per pallet is required for active batches'
-    }
-
-    if (Object.keys(errors).length > 0) {
-      return ApiResponses.validationError(errors)
-    }
-  }
 
   if (parsed.data.batchCode) {
     data.batchCode = sanitizeForDisplay(parsed.data.batchCode.toUpperCase())
@@ -157,29 +129,6 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
       }
       data.expiryDate = expiry
     }
-  }
-
-  if (parsed.data.isActive !== undefined) {
-    if (parsed.data.isActive === false && existing.isActive === true) {
-      const sku = await prisma.sku.findUnique({
-        where: { id: skuId },
-        select: { isActive: true },
-      })
-
-      if (sku?.isActive) {
-        const remaining = await prisma.skuBatch.count({
-          where: { skuId, isActive: true, id: { not: batchId } },
-        })
-
-        if (remaining === 0) {
-          return ApiResponses.badRequest(
-            'Cannot deactivate the last active batch while the SKU is active'
-          )
-        }
-      }
-    }
-
-    data.isActive = parsed.data.isActive
   }
 
   if (parsed.data.storageCartonsPerPallet !== undefined) {
@@ -306,25 +255,64 @@ export const DELETE = withAuthAndParams(async (_request, params, session) => {
 
   const sku = await prisma.sku.findUnique({
     where: { id: skuId },
-    select: { isActive: true },
+    select: { skuCode: true, isActive: true },
   })
 
-  if (sku?.isActive) {
+  if (!sku) {
+    return ApiResponses.notFound('SKU not found')
+  }
+
+  if (sku.isActive) {
     const remaining = await prisma.skuBatch.count({
-      where: { skuId, isActive: true, id: { not: batchId } },
+      where: { skuId, id: { not: batchId } },
     })
 
     if (remaining === 0) {
-      return ApiResponses.badRequest(
-        'Cannot deactivate the last active batch while the SKU is active'
-      )
+      return ApiResponses.badRequest('Cannot delete the last batch while the SKU is active')
     }
   }
 
-  await prisma.skuBatch.update({
-    where: { id: batchId },
-    data: { isActive: false },
-  })
+  const skuCodeFilter = { equals: sku.skuCode, mode: 'insensitive' as const }
+  const batchLotFilter = { equals: existing.batchCode, mode: 'insensitive' as const }
 
-  return ApiResponses.success({ message: 'Batch deactivated' })
+  const [
+    inventoryTransactionCount,
+    storageLedgerCount,
+    purchaseOrderLineCount,
+    movementNoteLineCount,
+    fulfillmentOrderLineCount,
+  ] = await Promise.all([
+    prisma.inventoryTransaction.count({
+      where: { skuCode: skuCodeFilter, batchLot: batchLotFilter },
+    }),
+    prisma.storageLedger.count({
+      where: { skuCode: skuCodeFilter, batchLot: batchLotFilter },
+    }),
+    prisma.purchaseOrderLine.count({
+      where: { skuCode: skuCodeFilter, batchLot: batchLotFilter },
+    }),
+    prisma.movementNoteLine.count({
+      where: { skuCode: skuCodeFilter, batchLot: batchLotFilter },
+    }),
+    prisma.fulfillmentOrderLine.count({
+      where: { skuCode: skuCodeFilter, batchLot: batchLotFilter },
+    }),
+  ])
+
+  const blockers: string[] = []
+  if (purchaseOrderLineCount > 0) blockers.push('purchase orders')
+  if (movementNoteLineCount > 0) blockers.push('goods receipts')
+  if (fulfillmentOrderLineCount > 0) blockers.push('fulfillment orders')
+  if (inventoryTransactionCount > 0) blockers.push('inventory transactions')
+  if (storageLedgerCount > 0) blockers.push('storage ledger')
+
+  if (blockers.length > 0) {
+    return ApiResponses.badRequest(
+      `Cannot delete batch because it is referenced by ${blockers.join(', ')}.`
+    )
+  }
+
+  await prisma.skuBatch.delete({ where: { id: batchId } })
+
+  return ApiResponses.success({ message: 'Batch deleted' })
 })
