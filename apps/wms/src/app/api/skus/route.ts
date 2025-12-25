@@ -46,7 +46,7 @@ const skuSchemaBase = z.object({
     .trim()
     .min(1)
     .transform(val => sanitizeForDisplay(val)),
-  packSize: z.number().int().positive(),
+  packSize: z.number().int().positive().optional().nullable(),
   defaultSupplierId: supplierIdSchema,
   secondarySupplierId: supplierIdSchema,
   material: z
@@ -77,7 +77,7 @@ const skuSchemaBase = z.object({
   unitWidthCm: optionalDimensionValueSchema,
   unitHeightCm: optionalDimensionValueSchema,
   unitWeightKg: z.number().positive().optional().nullable(),
-  unitsPerCarton: z.number().int().positive(),
+  unitsPerCarton: z.number().int().positive().optional(),
   cartonDimensionsCm: z
     .string()
     .trim()
@@ -143,6 +143,8 @@ const refineDimensions = <T extends z.ZodRawShape & DimensionRefineShape>(schema
 
 const createSkuSchema = refineDimensions(
   skuSchemaBase.extend({
+    packSize: z.number().int().positive().default(1),
+    unitsPerCarton: z.number().int().positive().default(1),
     isActive: z.boolean().default(true),
   })
 )
@@ -281,29 +283,55 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
     return ApiResponses.badRequest('Carton dimensions must be a valid LxWxH triple')
   }
 
-  const sku = await prisma.sku.create({
-    data: {
-      skuCode: validatedData.skuCode,
-      asin: validatedData.asin ?? null,
-      description: validatedData.description,
-      packSize: validatedData.packSize,
-      defaultSupplierId: validatedData.defaultSupplierId ?? null,
-      secondarySupplierId: validatedData.secondarySupplierId ?? null,
-      material: validatedData.material ?? null,
-      unitDimensionsCm: unitTriplet ? formatDimensionTripletCm(unitTriplet) : null,
-      unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
-      unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
-      unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
-      unitWeightKg: validatedData.unitWeightKg ?? null,
-      unitsPerCarton: validatedData.unitsPerCarton,
-      cartonDimensionsCm: cartonTriplet ? formatDimensionTripletCm(cartonTriplet) : null,
-      cartonLengthCm: cartonTriplet ? cartonTriplet.lengthCm : null,
-      cartonWidthCm: cartonTriplet ? cartonTriplet.widthCm : null,
-      cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
-      cartonWeightKg: validatedData.cartonWeightKg ?? null,
-      packagingType: validatedData.packagingType ?? null,
-      isActive: validatedData.isActive,
-    },
+  const sku = await prisma.$transaction(async tx => {
+    const created = await tx.sku.create({
+      data: {
+        skuCode: validatedData.skuCode,
+        asin: validatedData.asin ?? null,
+        description: validatedData.description,
+        packSize: validatedData.packSize,
+        defaultSupplierId: validatedData.defaultSupplierId ?? null,
+        secondarySupplierId: validatedData.secondarySupplierId ?? null,
+        material: validatedData.material ?? null,
+        unitDimensionsCm: unitTriplet ? formatDimensionTripletCm(unitTriplet) : null,
+        unitLengthCm: unitTriplet ? unitTriplet.lengthCm : null,
+        unitWidthCm: unitTriplet ? unitTriplet.widthCm : null,
+        unitHeightCm: unitTriplet ? unitTriplet.heightCm : null,
+        unitWeightKg: validatedData.unitWeightKg ?? null,
+        unitsPerCarton: validatedData.unitsPerCarton,
+        cartonDimensionsCm: cartonTriplet ? formatDimensionTripletCm(cartonTriplet) : null,
+        cartonLengthCm: cartonTriplet ? cartonTriplet.lengthCm : null,
+        cartonWidthCm: cartonTriplet ? cartonTriplet.widthCm : null,
+        cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
+        cartonWeightKg: validatedData.cartonWeightKg ?? null,
+        packagingType: validatedData.packagingType ?? null,
+        isActive: validatedData.isActive,
+      },
+    })
+
+    await tx.skuBatch.create({
+      data: {
+        skuId: created.id,
+        batchCode: 'DEFAULT',
+        packSize: created.packSize,
+        unitsPerCarton: created.unitsPerCarton,
+        material: created.material,
+        unitDimensionsCm: created.unitDimensionsCm,
+        unitLengthCm: created.unitLengthCm,
+        unitWidthCm: created.unitWidthCm,
+        unitHeightCm: created.unitHeightCm,
+        unitWeightKg: created.unitWeightKg,
+        cartonDimensionsCm: created.cartonDimensionsCm,
+        cartonLengthCm: created.cartonLengthCm,
+        cartonWidthCm: created.cartonWidthCm,
+        cartonHeightCm: created.cartonHeightCm,
+        cartonWeightKg: created.cartonWeightKg,
+        packagingType: created.packagingType,
+        isActive: true,
+      },
+    })
+
+    return created
   })
 
   return ApiResponses.created<Sku>(sku)
