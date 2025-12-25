@@ -112,7 +112,7 @@ export function buildYearSegments(calendar: WeekCalendar): YearSegment[] {
   for (const [weekNumber] of calendar.weekDates) {
     const date = getCalendarDateForWeek(weekNumber, calendar)
     if (!date) continue
-    const year = date.getFullYear()
+    const year = date.getUTCFullYear()
     const entry = segments.get(year)
     if (entry) {
       entry.min = Math.min(entry.min, weekNumber)
