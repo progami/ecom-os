@@ -724,13 +724,15 @@ function SkuBatchesManager({
                                 <Button variant="outline" size="sm" onClick={() => openEdit(batch)}>
                                   <Edit2 className="h-4 w-4" />
                                 </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setConfirmDelete(batch)}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                {batch.batchCode === 'DEFAULT' ? null : (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setConfirmDelete(batch)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -799,6 +801,7 @@ function SkuBatchesManager({
                     onChange={event =>
                       setFormState(prev => ({ ...prev, batchCode: event.target.value }))
                     }
+                    disabled={editingBatch?.batchCode === 'DEFAULT'}
                     required
                   />
                 </div>
