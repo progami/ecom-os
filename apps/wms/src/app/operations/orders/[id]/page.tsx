@@ -1075,250 +1075,63 @@ export default function PurchaseOrderDetailPage() {
                 )}
               </div>
 
-              {/* Stage Data Summary */}
+              {/* Stage Data Summary - Clean Timeline */}
               {hasAnyStageInfo && (
-                <div className="space-y-4">
-                  <h3 className="text-sm font-semibold text-foreground">Stage Information</h3>
-
-                  {/* Manufacturing Data */}
-                  {(order.stageData.manufacturing?.proformaInvoiceNumber ||
-                    order.stageData.manufacturing?.proformaInvoiceId ||
-                    order.stageData.manufacturing?.manufacturingStartDate ||
-                    order.stageData.manufacturing?.manufacturingStart) && (
-                    <div className="rounded-lg border p-4 bg-amber-50 border-amber-200">
-                      <h4 className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-2">
-                        Manufacturing
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div>
-                          <span className="text-muted-foreground">Proforma Invoice:</span>{' '}
-                          <span className="font-medium">
-                            {order.stageData.manufacturing.proformaInvoiceNumber ||
-                              order.stageData.manufacturing.proformaInvoiceId ||
-                              '—'}
-                          </span>
+                <div className="space-y-3 border-t pt-4">
+                  <h3 className="text-sm font-semibold text-slate-900">Stage History</h3>
+                  <div className="space-y-2">
+                    {/* Manufacturing */}
+                    {hasManufacturingInfo && (
+                      <div className="flex gap-3 text-sm">
+                        <div className="flex-shrink-0 w-24 text-slate-500 font-medium">Manufacturing</div>
+                        <div className="flex-1 text-slate-700">
+                          {[
+                            order.stageData.manufacturing?.proformaInvoiceNumber && `PI: ${order.stageData.manufacturing.proformaInvoiceNumber}`,
+                            (order.stageData.manufacturing?.manufacturingStartDate || order.stageData.manufacturing?.manufacturingStart) &&
+                              `Started: ${formatDateOnly(order.stageData.manufacturing.manufacturingStartDate || order.stageData.manufacturing.manufacturingStart)}`,
+                          ].filter(Boolean).join(' • ')}
                         </div>
-                        {(order.stageData.manufacturing.manufacturingStartDate ||
-                          order.stageData.manufacturing.manufacturingStart) && (
-                          <div>
-                            <span className="text-muted-foreground">Start:</span>{' '}
-                            <span className="font-medium">
-                              {formatDateOnly(
-                                order.stageData.manufacturing.manufacturingStartDate ||
-                                  order.stageData.manufacturing.manufacturingStart
-                              )}
-                            </span>
-                          </div>
-                        )}
-                        {order.stageData.manufacturing.factoryName && (
-                          <div>
-                            <span className="text-muted-foreground">Factory:</span>{' '}
-                            <span className="font-medium">
-                              {order.stageData.manufacturing.factoryName}
-                            </span>
-                          </div>
-                        )}
-                        {order.stageData.manufacturing.expectedCompletionDate && (
-                          <div>
-                            <span className="text-muted-foreground">Expected Complete:</span>{' '}
-                            <span className="font-medium">
-                              {formatDateOnly(order.stageData.manufacturing.expectedCompletionDate)}
-                            </span>
-                          </div>
-                        )}
                       </div>
-                    </div>
-                  )}
-
-                  {/* Ocean Data */}
-                  {(order.stageData.ocean?.houseBillOfLading ||
-                    order.stageData.ocean?.masterBillOfLading ||
-                    order.stageData.ocean?.vesselName ||
-                    order.stageData.ocean?.commercialInvoiceNumber ||
-                    order.stageData.ocean?.commercialInvoiceId) && (
-                    <div className="rounded-lg border p-4 bg-blue-50 border-blue-200">
-                      <h4 className="text-xs font-semibold text-blue-800 uppercase tracking-wider mb-2">
-                        In Transit
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        {order.stageData.ocean.houseBillOfLading && (
-                          <div>
-                            <span className="text-muted-foreground">House B/L:</span>{' '}
-                            <span className="font-medium">
-                              {order.stageData.ocean.houseBillOfLading}
-                            </span>
-                          </div>
-                        )}
-                        {order.stageData.ocean.masterBillOfLading && (
-                          <div>
-                            <span className="text-muted-foreground">Master B/L:</span>{' '}
-                            <span className="font-medium">
-                              {order.stageData.ocean.masterBillOfLading}
-                            </span>
-                          </div>
-                        )}
-                        {order.stageData.ocean.packingListRef && (
-                          <div>
-                            <span className="text-muted-foreground">Packing List:</span>{' '}
-                            <span className="font-medium">
-                              {order.stageData.ocean.packingListRef}
-                            </span>
-                          </div>
-                        )}
-                        {(order.stageData.ocean.commercialInvoiceNumber ||
-                          order.stageData.ocean.commercialInvoiceId) && (
-                          <div>
-                            <span className="text-muted-foreground">Commercial Invoice:</span>{' '}
-                            <span className="font-medium">
-                              {order.stageData.ocean.commercialInvoiceNumber ||
-                                order.stageData.ocean.commercialInvoiceId}
-                            </span>
-                          </div>
-                        )}
-                        {order.stageData.ocean.vesselName && (
-                          <div>
-                            <span className="text-muted-foreground">Vessel:</span>{' '}
-                            <span className="font-medium">{order.stageData.ocean.vesselName}</span>
-                          </div>
-                        )}
-                        {(order.stageData.ocean.portOfLoading ||
-                          order.stageData.ocean.portOfDischarge) && (
-                          <div className="col-span-2">
-                            <span className="text-muted-foreground">Route:</span>{' '}
-                            <span className="font-medium">
-                              {[
-                                order.stageData.ocean.portOfLoading,
-                                order.stageData.ocean.portOfDischarge,
-                              ]
-                                .filter(Boolean)
-                                .join(' → ') || '—'}
-                            </span>
-                          </div>
-                        )}
+                    )}
+                    {/* Ocean/Transit */}
+                    {hasOceanInfo && (
+                      <div className="flex gap-3 text-sm">
+                        <div className="flex-shrink-0 w-24 text-slate-500 font-medium">In Transit</div>
+                        <div className="flex-1 text-slate-700">
+                          {[
+                            order.stageData.ocean?.houseBillOfLading && `B/L: ${order.stageData.ocean.houseBillOfLading}`,
+                            order.stageData.ocean?.vesselName && `Vessel: ${order.stageData.ocean.vesselName}`,
+                            (order.stageData.ocean?.portOfLoading && order.stageData.ocean?.portOfDischarge) &&
+                              `${order.stageData.ocean.portOfLoading} → ${order.stageData.ocean.portOfDischarge}`,
+                          ].filter(Boolean).join(' • ')}
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Warehouse Data */}
-                  {(order.stageData.warehouse?.warehouseCode ||
-                    order.stageData.warehouse?.customsEntryNumber ||
-                    order.stageData.warehouse?.customsClearedDate ||
-                    order.stageData.warehouse?.receivedDate ||
-                    order.stageData.warehouse?.warehouseInvoiceId) && (
-                    <div className="rounded-lg border p-4 bg-purple-50 border-purple-200">
-                      <h4 className="text-xs font-semibold text-purple-800 uppercase tracking-wider mb-2">
-                        At Warehouse
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        {(order.stageData.warehouse.warehouseName ||
-                          order.stageData.warehouse.warehouseCode) && (
-                          <div>
-                            <span className="text-muted-foreground">Warehouse:</span>{' '}
-                            <span className="font-medium">
-                              {order.stageData.warehouse.warehouseName &&
-                              order.stageData.warehouse.warehouseCode
-                                ? `${order.stageData.warehouse.warehouseName} (${order.stageData.warehouse.warehouseCode})`
-                                : order.stageData.warehouse.warehouseCode || '—'}
-                            </span>
-                          </div>
-                        )}
-                        {order.stageData.warehouse.customsEntryNumber && (
-                          <div>
-                            <span className="text-muted-foreground">Customs Entry:</span>{' '}
-                            <span className="font-medium">
-                              {order.stageData.warehouse.customsEntryNumber}
-                            </span>
-                          </div>
-                        )}
-                        {order.stageData.warehouse.customsClearedDate && (
-                          <div>
-                            <span className="text-muted-foreground">Cleared:</span>{' '}
-                            <span className="font-medium">
-                              {formatDateOnly(order.stageData.warehouse.customsClearedDate)}
-                            </span>
-                          </div>
-                        )}
-                        {order.stageData.warehouse.receivedDate && (
-                          <div>
-                            <span className="text-muted-foreground">Received:</span>{' '}
-                            <span className="font-medium">
-                              {formatDateOnly(order.stageData.warehouse.receivedDate)}
-                            </span>
-                          </div>
-                        )}
-                        {order.stageData.warehouse.dutyAmount !== null &&
-                          order.stageData.warehouse.dutyAmount !== undefined && (
-                            <div>
-                              <span className="text-muted-foreground">Duty:</span>{' '}
-                              <span className="font-medium">
-                                {order.stageData.warehouse.dutyAmount}
-                                {order.stageData.warehouse.dutyCurrency
-                                  ? ` ${order.stageData.warehouse.dutyCurrency}`
-                                  : ''}
-                              </span>
-                            </div>
-                          )}
+                    )}
+                    {/* Warehouse */}
+                    {hasWarehouseInfo && (
+                      <div className="flex gap-3 text-sm">
+                        <div className="flex-shrink-0 w-24 text-slate-500 font-medium">Warehouse</div>
+                        <div className="flex-1 text-slate-700">
+                          {[
+                            order.stageData.warehouse?.customsEntryNumber && `Customs: ${order.stageData.warehouse.customsEntryNumber}`,
+                            order.stageData.warehouse?.receivedDate && `Received: ${formatDateOnly(order.stageData.warehouse.receivedDate)}`,
+                          ].filter(Boolean).join(' • ')}
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {/* Shipped Data */}
-                  {(order.stageData.shipped?.shipToName ||
-                    order.stageData.shipped?.shippingCarrier ||
-                    order.stageData.shipped?.trackingNumber ||
-                    order.stageData.shipped?.shippedDate ||
-                    order.stageData.shipped?.proofOfDeliveryRef ||
-                    order.stageData.shipped?.proofOfDelivery) && (
-                    <div className="rounded-lg border p-4 bg-emerald-50 border-emerald-200">
-                      <h4 className="text-xs font-semibold text-emerald-800 uppercase tracking-wider mb-2">
-                        Shipped
-                      </h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        {order.stageData.shipped.shipToName && (
-                          <div>
-                            <span className="text-muted-foreground">Ship To:</span>{' '}
-                            <span className="font-medium">
-                              {order.stageData.shipped.shipToName}
-                            </span>
-                          </div>
-                        )}
-                        {order.stageData.shipped.shippingCarrier && (
-                          <div>
-                            <span className="text-muted-foreground">Carrier:</span>{' '}
-                            <span className="font-medium">
-                              {order.stageData.shipped.shippingCarrier}
-                            </span>
-                          </div>
-                        )}
-                        {order.stageData.shipped.trackingNumber && (
-                          <div>
-                            <span className="text-muted-foreground">Tracking:</span>{' '}
-                            <span className="font-medium">
-                              {order.stageData.shipped.trackingNumber}
-                            </span>
-                          </div>
-                        )}
-                        {order.stageData.shipped.shippedDate && (
-                          <div>
-                            <span className="text-muted-foreground">Shipped Date:</span>{' '}
-                            <span className="font-medium">
-                              {formatDateOnly(order.stageData.shipped.shippedDate)}
-                            </span>
-                          </div>
-                        )}
-                        {(order.stageData.shipped.proofOfDeliveryRef ||
-                          order.stageData.shipped.proofOfDelivery) && (
-                          <div className="col-span-2">
-                            <span className="text-muted-foreground">Proof of Delivery:</span>{' '}
-                            <span className="font-medium">
-                              {order.stageData.shipped.proofOfDeliveryRef ||
-                                order.stageData.shipped.proofOfDelivery}
-                            </span>
-                          </div>
-                        )}
+                    )}
+                    {/* Shipped */}
+                    {hasShippedInfo && (
+                      <div className="flex gap-3 text-sm">
+                        <div className="flex-shrink-0 w-24 text-slate-500 font-medium">Shipped</div>
+                        <div className="flex-1 text-slate-700">
+                          {[
+                            order.stageData.shipped?.trackingNumber && `Tracking: ${order.stageData.shipped.trackingNumber}`,
+                            order.stageData.shipped?.shippedDate && `Date: ${formatDateOnly(order.stageData.shipped.shippedDate)}`,
+                          ].filter(Boolean).join(' • ')}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               )}
             </div>
