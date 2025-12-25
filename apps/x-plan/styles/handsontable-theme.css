@@ -257,6 +257,16 @@
   box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.22);
 }
 
+.x-plan-hot .htCore tbody td.cell-reorder-overdue-band:not(.cell-warning) {
+  background-color: #fef9c3 !important;
+  box-shadow: inset 0 0 0 1px rgba(234, 179, 8, 0.18);
+}
+
+.dark .x-plan-hot .htCore tbody td.cell-reorder-overdue-band:not(.cell-warning) {
+  background-color: rgba(234, 179, 8, 0.2) !important;
+  box-shadow: inset 0 0 0 1px rgba(234, 179, 8, 0.22);
+}
+
 .x-plan-hot .cell-reorder-suggest {
   border: 2px dotted #22c55e !important;
   box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.25);
@@ -265,6 +275,16 @@
 .dark .x-plan-hot .cell-reorder-suggest {
   border-color: rgba(34, 197, 94, 0.85) !important;
   box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.25);
+}
+
+.x-plan-hot .cell-reorder-overdue {
+  border: 2px dotted #eab308 !important;
+  box-shadow: inset 0 0 0 1px rgba(234, 179, 8, 0.25);
+}
+
+.dark .x-plan-hot .cell-reorder-overdue {
+  border-color: rgba(234, 179, 8, 0.85) !important;
+  box-shadow: inset 0 0 0 1px rgba(234, 179, 8, 0.25);
 }
 
 /* Dimmed text */
