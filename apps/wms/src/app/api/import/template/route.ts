@@ -156,30 +156,6 @@ function getSampleData(entityName: string, _config: ImportConfig): unknown[][] {
         ],
       ]
 
-    case 'warehouseSkuConfigs':
-      return [
-        [
-          'Los Angeles Warehouse',
-          'SKU001',
-          '48',
-          '40',
-          '200',
-          '2024-01-01',
-          '',
-          'Standard pallet configuration',
-        ],
-        [
-          'New York Warehouse',
-          'SKU001',
-          '50',
-          '42',
-          '180',
-          '2024-01-01',
-          '',
-          'NYC specific configuration',
-        ],
-      ]
-
     case 'costRates':
       return [
         [
@@ -274,16 +250,6 @@ function getFieldDescription(dbField: string, entityName: string): string {
       longitude: 'Geographic longitude coordinate',
       contactEmail: 'Contact email for the warehouse',
       contactPhone: 'Contact phone number',
-    },
-    warehouseSkuConfigs: {
-      warehouse: 'Warehouse name (must match existing warehouse)',
-      sku: 'SKU code (must match existing SKU)',
-      storageCartonsPerPallet: 'Number of cartons per pallet for storage',
-      shippingCartonsPerPallet: 'Number of cartons per pallet for shipping',
-      maxStackingHeightCm: 'Maximum stacking height in centimeters',
-      effectiveDate: 'Date when this configuration becomes effective',
-      endDate: 'Date when this configuration ends (optional)',
-      notes: 'Configuration notes',
     },
     costRates: {
       warehouse: 'Warehouse name (must match existing warehouse)',

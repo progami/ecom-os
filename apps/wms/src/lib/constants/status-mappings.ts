@@ -25,7 +25,7 @@ export const PO_STATUS_BADGE_CLASSES: Record<POStatus, string> = {
   MANUFACTURING: 'bg-amber-50 text-amber-700 border border-amber-200',
   OCEAN: 'bg-blue-50 text-blue-700 border border-blue-200',
   WAREHOUSE: 'bg-purple-50 text-purple-700 border border-purple-200',
-  SHIPPED: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  SHIPPED: 'bg-slate-50 text-slate-600 border border-slate-200',
   CANCELLED: 'bg-red-50 text-red-700 border border-red-200',
 }
 
@@ -37,7 +37,7 @@ export const PO_STATUS_LABELS: Record<POStatus, string> = {
   MANUFACTURING: 'Manufacturing',
   OCEAN: 'In Transit',
   WAREHOUSE: 'At Warehouse',
-  SHIPPED: 'Shipped',
+  SHIPPED: 'Legacy Closed',
   CANCELLED: 'Cancelled',
 }
 

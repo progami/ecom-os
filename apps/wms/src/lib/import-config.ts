@@ -197,65 +197,6 @@ export const importConfigs: Record<string, ImportEntityConfig> = {
     ],
   },
 
-  warehouseSkuConfigs: {
-    entityName: 'warehouseSkuConfig',
-    tableName: 'warehouse_sku_configs',
-    displayName: 'Warehouse SKU Configurations',
-    uniqueFields: ['warehouseId', 'skuId', 'effectiveDate'],
-    fieldMappings: [
-      {
-        dbField: 'warehouse',
-        excelColumns: ['warehouse', 'Warehouse', 'Warehouse Name'],
-        type: 'string',
-        required: true,
-      },
-      {
-        dbField: 'sku',
-        excelColumns: ['SKU', 'sku', 'sku_code'],
-        type: 'string',
-        required: true,
-      },
-      {
-        dbField: 'storageCartonsPerPallet',
-        excelColumns: ['storage_cartons_per_pallet', 'Storage Cartons/Pallet', 'Storage CPP'],
-        type: 'number',
-        required: true,
-        transform: transformers.parseNumber,
-        defaultValue: 1,
-      },
-      {
-        dbField: 'shippingCartonsPerPallet',
-        excelColumns: ['shipping_cartons_per_pallet', 'Shipping Cartons/Pallet', 'Shipping CPP'],
-        type: 'number',
-        required: true,
-        transform: transformers.parseNumber,
-        defaultValue: 1,
-      },
-      {
-        dbField: 'maxStackingHeightCm',
-        excelColumns: ['max_stacking_height_cm', 'Max Stacking Height (cm)', 'Max Height'],
-        type: 'number',
-        required: false,
-        transform: transformers.parseNumber,
-      },
-      {
-        dbField: 'effectiveDate',
-        excelColumns: ['effective_date', 'Effective Date', 'Start Date'],
-        type: 'date',
-        required: true,
-        transform: transformers.parseDate,
-        defaultValue: new Date(),
-      },
-      {
-        dbField: 'endDate',
-        excelColumns: ['end_date', 'End Date'],
-        type: 'date',
-        required: false,
-        transform: transformers.parseDate,
-      },
-    ],
-  },
-
   costRates: {
     entityName: 'costRate',
     tableName: 'cost_rates',
