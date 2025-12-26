@@ -15,6 +15,7 @@ import {
 } from '@/lib/lucide-icons'
 import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
 import { type ApiAttachment } from '@/components/operations/edit-attachments-tab'
+import { TransactionAttachmentsTab } from '@/components/operations/transaction-attachments-tab'
 
 const INVENTORY_LEDGER_PATH = '/operations/inventory'
 
@@ -558,81 +559,10 @@ const transformedData: TransactionData = {
 
     {/* Attachments Tab */}
     <TabPanel>
-      <div className="space-y-4">
-        {(!transaction.attachments || Object.keys(transaction.attachments).length === 0) ? (
-          <div className="text-center py-12 text-slate-500">
-            <Paperclip className="h-12 w-12 mx-auto mb-4 text-slate-400" />
-            <p className="text-lg font-medium">No attachments</p>
-            <p className="text-sm mt-2">No documents have been attached to this transaction</p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-xl border">
-            <div className="px-6 py-4 border-b bg-slate-50">
-              <h3 className="text-lg font-semibold">Transaction Documents</h3>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(transaction.attachments as Record<string, ApiAttachment | null>).map(
-                  ([category, attachment]) => {
-                    if (!attachment) return null
-
-                    const categoryLabels: Record<string, string> = {
-                      commercial_invoice: 'Commercial Invoice',
-                      bill_of_lading: 'Bill of Lading',
-                      packing_list: 'Packing List',
-                      delivery_note: 'Movement Note',
-                      cube_master: 'Cube Master',
-                      transaction_certificate: 'TC GRS',
-                      custom_declaration: 'CDS',
-                    }
-
-                    return (
-                      <div key={category} className="border rounded-lg p-4 bg-slate-50">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-sm text-slate-900">
-                              {categoryLabels[category] || category}
-                            </h4>
-                            <div className="flex items-center gap-2 mt-2">
-                              <Paperclip className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                              <p className="text-sm text-slate-700 truncate">
-                                {attachment.fileName || attachment.name || 'Document'}
-                              </p>
-                            </div>
-                            {attachment.size && (
-                              <p className="text-xs text-slate-500 mt-1">
-                                {(attachment.size / 1024).toFixed(1)} KB
-                              </p>
-                            )}
-                          </div>
-                          {attachment.s3Url && (
-                            <a
-                              href={attachment.s3Url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="ml-2 p-2 text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 rounded"
-                              title="Download"
-                            >
-                              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  strokeWidth={2}
-                                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                                />
-                              </svg>
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  }
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      <TransactionAttachmentsTab
+        transactionId={transaction.id}
+        transactionType={transaction.transactionType}
+      />
     </TabPanel>
  </TabbedContainer>
  </div>

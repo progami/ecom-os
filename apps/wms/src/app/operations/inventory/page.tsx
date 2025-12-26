@@ -11,6 +11,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils'
 import { StatsCard, StatsCardGrid } from '@/components/ui/stats-card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { LoadingSpinner, PageLoading } from '@/components/ui/loading-spinner'
 import { toast } from 'react-hot-toast'
 import { format } from 'date-fns'
@@ -147,16 +148,21 @@ function InventoryPage() {
 
   const headerActions = useMemo(
     () => (
-      <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
-        <input
-          type="checkbox"
-          checked={showZeroStock}
-          onChange={(event) => setShowZeroStock(event.target.checked)}
-          className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
-        />
-        Show zero stock
-        {loading ? <LoadingSpinner size="sm" className="ml-1" /> : null}
-      </label>
+      <div className="flex items-center gap-2">
+        <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showZeroStock}
+            onChange={(event) => setShowZeroStock(event.target.checked)}
+            className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
+          />
+          Show zero stock
+          {loading ? <LoadingSpinner size="sm" className="ml-1" /> : null}
+        </label>
+        <Button asChild variant="outline">
+          <Link href="/operations/transactions/new">New Adjustment</Link>
+        </Button>
+      </div>
     ),
     [loading, showZeroStock]
   )

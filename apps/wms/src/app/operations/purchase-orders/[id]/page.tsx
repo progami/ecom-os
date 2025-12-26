@@ -29,7 +29,12 @@ import {
 } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { PO_STATUS_BADGE_CLASSES, PO_STATUS_LABELS } from '@/lib/constants/status-mappings'
+import {
+  PO_STATUS_BADGE_CLASSES,
+  PO_STATUS_LABELS,
+  MN_STATUS_BADGE_CLASSES,
+  MN_STATUS_LABELS,
+} from '@/lib/constants/status-mappings'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 
 // 5-Stage State Machine Types
@@ -166,6 +171,44 @@ interface PurchaseOrderDocumentSummary {
   viewUrl: string
 }
 
+type MovementNoteStatus = 'DRAFT' | 'POSTED' | 'CANCELLED' | 'RECONCILED'
+
+interface MovementNoteLineSummary {
+  id: string
+  purchaseOrderLineId: string | null
+  skuCode: string
+  skuDescription: string | null
+  batchLot: string | null
+  quantity: number
+  varianceQuantity: number
+  storageCartonsPerPallet: number | null
+  shippingCartonsPerPallet: number | null
+}
+
+interface MovementNoteSummary {
+  id: string
+  status: MovementNoteStatus
+  referenceNumber: string | null
+  receivedAt: string
+  receivedByName: string | null
+  warehouseCode: string
+  warehouseName: string
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+  lines: MovementNoteLineSummary[]
+}
+
+interface MovementNoteDraftLine {
+  purchaseOrderLineId: string
+  skuCode: string
+  batchLot: string
+  remainingCartons: number
+  quantity: string
+  storageCartonsPerPallet: string
+  shippingCartonsPerPallet: string
+}
+
 const STAGE_DOCUMENTS: Record<PurchaseOrderDocumentStage, Array<{ id: string; label: string }>> = {
   MANUFACTURING: [{ id: 'proforma_invoice', label: 'Proforma Invoice' }],
   OCEAN: [
@@ -233,6 +276,24 @@ export default function PurchaseOrderDetailPage() {
   const [documents, setDocuments] = useState<PurchaseOrderDocumentSummary[]>([])
   const [documentsLoading, setDocumentsLoading] = useState(false)
   const [uploadingDoc, setUploadingDoc] = useState<Record<string, boolean>>({})
+
+  const [movementNotes, setMovementNotes] = useState<MovementNoteSummary[]>([])
+  const [movementNotesLoading, setMovementNotesLoading] = useState(false)
+  const [movementNoteDraftOpen, setMovementNoteDraftOpen] = useState(false)
+  const [movementNoteDraftSubmitting, setMovementNoteDraftSubmitting] = useState(false)
+  const [movementNotePosting, setMovementNotePosting] = useState<Record<string, boolean>>({})
+  const [movementNoteCancelling, setMovementNoteCancelling] = useState<Record<string, boolean>>({})
+  const [movementNoteDraft, setMovementNoteDraft] = useState<{
+    referenceNumber: string
+    receivedAt: string
+    notes: string
+    lines: MovementNoteDraftLine[]
+  }>({
+    referenceNumber: '',
+    receivedAt: '',
+    notes: '',
+    lines: [],
+  })
 
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -337,6 +398,31 @@ export default function PurchaseOrderDetailPage() {
   }, [order?.id])
 
   useEffect(() => {
+    if (!order?.id) return
+
+    const loadMovementNotes = async () => {
+      try {
+        setMovementNotesLoading(true)
+        const response = await fetch(`/api/movement-notes?purchaseOrderId=${order.id}`)
+        const payload = await response.json().catch(() => null)
+
+        const listCandidate =
+          payload && typeof payload === 'object' && !Array.isArray(payload) && 'data' in payload
+            ? (payload as { data?: unknown }).data
+            : payload
+
+        setMovementNotes(Array.isArray(listCandidate) ? (listCandidate as MovementNoteSummary[]) : [])
+      } catch {
+        setMovementNotes([])
+      } finally {
+        setMovementNotesLoading(false)
+      }
+    }
+
+    loadMovementNotes()
+  }, [order?.id])
+
+  useEffect(() => {
     if (!order || isEditingDetails) return
 
     setDetailsDraft({
@@ -371,6 +457,19 @@ export default function PurchaseOrderDetailPage() {
       documents.some(doc => doc.stage === stage && doc.documentType === req.id)
     )
   }, [documents, nextStage, order])
+
+  const nextStageBlockingReason = useMemo(() => {
+    if (!order || !nextStage) return null
+    if (nextStage.value === 'SHIPPED') {
+      const pendingLines = order.lines.filter(
+        line => line.status !== 'POSTED' && line.status !== 'CANCELLED'
+      )
+      if (pendingLines.length > 0) {
+        return 'Receive and post all cargo (Movement Note) before shipping.'
+      }
+    }
+    return null
+  }, [nextStage, order])
 
   const handleTransition = async (targetStatus: POStageStatus) => {
     if (!order || transitioning) return
@@ -428,6 +527,159 @@ export default function PurchaseOrderDetailPage() {
       toast.error('Failed to transition order')
     } finally {
       setTransitioning(false)
+    }
+  }
+
+  const resetMovementNoteDraft = () => {
+    if (!order) return
+
+    const receivedAtCandidate = order.stageData.warehouse?.receivedDate
+      ? new Date(order.stageData.warehouse.receivedDate)
+      : new Date()
+
+    const receivedAtValue = Number.isNaN(receivedAtCandidate.getTime())
+      ? new Date().toISOString().slice(0, 16)
+      : receivedAtCandidate.toISOString().slice(0, 16)
+
+    const lines: MovementNoteDraftLine[] = order.lines
+      .filter(line => line.status !== 'CANCELLED')
+      .map(line => {
+        const remaining = Math.max(0, line.quantity - (line.postedQuantity || 0))
+        return {
+          purchaseOrderLineId: line.id,
+          skuCode: line.skuCode,
+          batchLot: line.batchLot ?? '',
+          remainingCartons: remaining,
+          quantity: remaining > 0 ? String(remaining) : '',
+          storageCartonsPerPallet: '',
+          shippingCartonsPerPallet: '',
+        }
+      })
+      .filter(line => line.remainingCartons > 0)
+
+    setMovementNoteDraft({
+      referenceNumber: '',
+      receivedAt: receivedAtValue,
+      notes: '',
+      lines,
+    })
+  }
+
+  const refreshMovementNotes = async () => {
+    if (!order) return
+    const response = await fetch(`/api/movement-notes?purchaseOrderId=${order.id}`)
+    if (!response.ok) return
+
+    const payload = await response.json().catch(() => null)
+    const listCandidate =
+      payload && typeof payload === 'object' && !Array.isArray(payload) && 'data' in payload
+        ? (payload as { data?: unknown }).data
+        : payload
+
+    setMovementNotes(Array.isArray(listCandidate) ? (listCandidate as MovementNoteSummary[]) : [])
+  }
+
+  const refreshOrder = async () => {
+    const response = await fetch(`/api/purchase-orders/${params.id}`)
+    if (!response.ok) return
+    const data = await response.json().catch(() => null)
+    if (data) {
+      setOrder(data)
+    }
+  }
+
+  const handleCreateMovementNote = async () => {
+    if (!order || movementNoteDraftSubmitting) return
+
+    const parsedLines = movementNoteDraft.lines
+      .map(line => ({
+        purchaseOrderLineId: line.purchaseOrderLineId,
+        quantity: Number.parseInt(line.quantity, 10),
+        storageCartonsPerPallet: line.storageCartonsPerPallet
+          ? Number.parseInt(line.storageCartonsPerPallet, 10)
+          : null,
+        shippingCartonsPerPallet: line.shippingCartonsPerPallet
+          ? Number.parseInt(line.shippingCartonsPerPallet, 10)
+          : null,
+      }))
+      .filter(line => Number.isInteger(line.quantity) && line.quantity > 0)
+
+    if (parsedLines.length === 0) {
+      toast.error('Add at least one line with a positive quantity')
+      return
+    }
+
+    try {
+      setMovementNoteDraftSubmitting(true)
+      const response = await fetchWithCSRF('/api/movement-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          purchaseOrderId: order.id,
+          referenceNumber: movementNoteDraft.referenceNumber.trim() || null,
+          receivedAt: movementNoteDraft.receivedAt
+            ? new Date(movementNoteDraft.receivedAt).toISOString()
+            : null,
+          notes: movementNoteDraft.notes.trim() || null,
+          lines: parsedLines,
+        }),
+      })
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        toast.error(payload?.error ?? 'Failed to create movement note')
+        return
+      }
+
+      toast.success('Movement note created')
+      setMovementNoteDraftOpen(false)
+      await refreshMovementNotes()
+    } catch {
+      toast.error('Failed to create movement note')
+    } finally {
+      setMovementNoteDraftSubmitting(false)
+    }
+  }
+
+  const handlePostMovementNote = async (noteId: string) => {
+    if (movementNotePosting[noteId]) return
+
+    try {
+      setMovementNotePosting(prev => ({ ...prev, [noteId]: true }))
+      const response = await fetchWithCSRF(`/api/movement-notes/${noteId}/post`, { method: 'POST' })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        toast.error(payload?.error ?? 'Failed to post movement note')
+        return
+      }
+
+      toast.success('Movement note posted (inventory updated)')
+      await Promise.all([refreshMovementNotes(), refreshOrder()])
+    } catch {
+      toast.error('Failed to post movement note')
+    } finally {
+      setMovementNotePosting(prev => ({ ...prev, [noteId]: false }))
+    }
+  }
+
+  const handleCancelMovementNote = async (noteId: string) => {
+    if (movementNoteCancelling[noteId]) return
+
+    try {
+      setMovementNoteCancelling(prev => ({ ...prev, [noteId]: true }))
+      const response = await fetchWithCSRF(`/api/movement-notes/${noteId}/cancel`, { method: 'POST' })
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null)
+        toast.error(payload?.error ?? 'Failed to cancel movement note')
+        return
+      }
+
+      toast.success('Movement note cancelled')
+      await refreshMovementNotes()
+    } catch {
+      toast.error('Failed to cancel movement note')
+    } finally {
+      setMovementNoteCancelling(prev => ({ ...prev, [noteId]: false }))
     }
   }
 
@@ -832,6 +1084,7 @@ export default function PurchaseOrderDetailPage() {
   const tabConfig = [
     { id: 'overview', label: 'Overview', icon: <FileText className="h-4 w-4" /> },
     { id: 'cargo', label: `Cargo (${order.lines.length})`, icon: <Package2 className="h-4 w-4" /> },
+    { id: 'movement-notes', label: 'Movement Notes', icon: <Warehouse className="h-4 w-4" /> },
     { id: 'history', label: 'Approval History', icon: <History className="h-4 w-4" /> },
   ]
 
@@ -923,7 +1176,12 @@ export default function PurchaseOrderDetailPage() {
 	              {nextStage && (
 	                <Button
 	                  onClick={() => handleTransition(nextStage.value as POStageStatus)}
-	                  disabled={transitioning || documentsLoading || !nextStageDocsComplete}
+	                  disabled={
+	                    transitioning ||
+	                    documentsLoading ||
+	                    !nextStageDocsComplete ||
+	                    Boolean(nextStageBlockingReason)
+	                  }
 	                  className="gap-2"
 	                >
                   {transitioning ? (
@@ -939,6 +1197,9 @@ export default function PurchaseOrderDetailPage() {
                   )}
                 </Button>
               )}
+              {nextStageBlockingReason ? (
+                <p className="text-sm text-muted-foreground">{nextStageBlockingReason}</p>
+              ) : null}
               {!isTerminal && (
                 <Button
                   variant="destructive"
@@ -1192,12 +1453,324 @@ export default function PurchaseOrderDetailPage() {
                 </table>
               </div>
             </div>
-          </TabPanel>
+	          </TabPanel>
 
-          <TabPanel>
-            <div className="space-y-4">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Stage Approval History</h3>
+	          <TabPanel>
+	            <div className="space-y-5">
+	              <div className="flex items-center justify-between">
+	                <div>
+	                  <h3 className="text-sm font-semibold text-foreground">Movement Notes</h3>
+	                  <p className="text-xs text-muted-foreground">
+	                    Receive inventory by creating and posting a movement note (warehouse receipt).
+	                  </p>
+	                </div>
+	                <Button
+	                  onClick={() => {
+	                    resetMovementNoteDraft()
+	                    setMovementNoteDraftOpen(true)
+	                  }}
+	                  disabled={movementNoteDraftSubmitting || !order.warehouseCode || isTerminal}
+	                >
+	                  Create Movement Note
+	                </Button>
+	              </div>
+
+	              {!order.warehouseCode ? (
+	                <div className="rounded-xl border bg-white p-4 text-sm text-muted-foreground">
+	                  Set the warehouse in Stage 4 to create a movement note.
+	                </div>
+	              ) : null}
+
+	              {movementNoteDraftOpen ? (
+	                <div className="rounded-xl border bg-white p-5 space-y-4">
+	                  <div className="flex items-start justify-between gap-4">
+	                    <div>
+	                      <h4 className="text-sm font-semibold text-foreground">New movement note</h4>
+	                      <p className="text-xs text-muted-foreground">
+	                        Enter what was actually received. Post it to update inventory.
+	                      </p>
+	                    </div>
+	                    <Button
+	                      variant="outline"
+	                      onClick={() => setMovementNoteDraftOpen(false)}
+	                      disabled={movementNoteDraftSubmitting}
+	                    >
+	                      Close
+	                    </Button>
+	                  </div>
+
+	                  {movementNoteDraft.lines.length === 0 ? (
+	                    <p className="text-sm text-muted-foreground">
+	                      All lines are fully received. No movement note is needed.
+	                    </p>
+	                  ) : (
+	                    <>
+	                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+	                        <div className="space-y-2">
+	                          <label className="text-sm font-medium text-muted-foreground">
+	                            Reference (optional)
+	                          </label>
+	                          <Input
+	                            value={movementNoteDraft.referenceNumber}
+	                            onChange={e =>
+	                              setMovementNoteDraft(d => ({ ...d, referenceNumber: e.target.value }))
+	                            }
+	                            placeholder="Movement note / receipt number"
+	                            disabled={movementNoteDraftSubmitting}
+	                          />
+	                        </div>
+	                        <div className="space-y-2">
+	                          <label className="text-sm font-medium text-muted-foreground">
+	                            Received at
+	                          </label>
+	                          <Input
+	                            type="datetime-local"
+	                            value={movementNoteDraft.receivedAt}
+	                            onChange={e =>
+	                              setMovementNoteDraft(d => ({ ...d, receivedAt: e.target.value }))
+	                            }
+	                            disabled={movementNoteDraftSubmitting}
+	                          />
+	                        </div>
+	                      </div>
+
+	                      <div className="space-y-2">
+	                        <label className="text-sm font-medium text-muted-foreground">Notes</label>
+	                        <Textarea
+	                          value={movementNoteDraft.notes}
+	                          onChange={e =>
+	                            setMovementNoteDraft(d => ({ ...d, notes: e.target.value }))
+	                          }
+	                          rows={3}
+	                          placeholder="Optional notes (variance, damages, etc.)"
+	                          disabled={movementNoteDraftSubmitting}
+	                        />
+	                      </div>
+
+	                      <div className="overflow-x-auto rounded-md border">
+	                        <table className="w-full min-w-[780px] text-sm">
+	                          <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+	                            <tr>
+	                              <th className="px-3 py-2 text-left font-semibold">SKU</th>
+	                              <th className="px-3 py-2 text-left font-semibold">Batch/Lot</th>
+	                              <th className="px-3 py-2 text-right font-semibold">Remaining</th>
+	                              <th className="px-3 py-2 text-right font-semibold">Qty (cartons)</th>
+	                              <th className="px-3 py-2 text-right font-semibold">
+	                                Storage ctn/pallet
+	                              </th>
+	                              <th className="px-3 py-2 text-right font-semibold">Ship ctn/pallet</th>
+	                            </tr>
+	                          </thead>
+	                          <tbody>
+	                            {movementNoteDraft.lines.map((line, index) => (
+	                              <tr key={line.purchaseOrderLineId} className="border-t">
+	                                <td className="px-3 py-2 font-medium text-foreground">
+	                                  {line.skuCode}
+	                                </td>
+	                                <td className="px-3 py-2 text-muted-foreground">
+	                                  {line.batchLot || '—'}
+	                                </td>
+	                                <td className="px-3 py-2 text-right text-muted-foreground">
+	                                  {line.remainingCartons}
+	                                </td>
+	                                <td className="px-3 py-2 text-right">
+	                                  <Input
+	                                    type="number"
+	                                    value={line.quantity}
+	                                    onChange={e => {
+	                                      const value = e.target.value
+	                                      setMovementNoteDraft(d => ({
+	                                        ...d,
+	                                        lines: d.lines.map((existing, idx) =>
+	                                          idx === index ? { ...existing, quantity: value } : existing
+	                                        ),
+	                                      }))
+	                                    }}
+	                                    className="w-28 ml-auto"
+	                                    disabled={movementNoteDraftSubmitting}
+	                                    min={0}
+	                                  />
+	                                </td>
+	                                <td className="px-3 py-2 text-right">
+	                                  <Input
+	                                    type="number"
+	                                    value={line.storageCartonsPerPallet}
+	                                    onChange={e => {
+	                                      const value = e.target.value
+	                                      setMovementNoteDraft(d => ({
+	                                        ...d,
+	                                        lines: d.lines.map((existing, idx) =>
+	                                          idx === index
+	                                            ? { ...existing, storageCartonsPerPallet: value }
+	                                            : existing
+	                                        ),
+	                                      }))
+	                                    }}
+	                                    className="w-32 ml-auto"
+	                                    disabled={movementNoteDraftSubmitting}
+	                                    min={0}
+	                                  />
+	                                </td>
+	                                <td className="px-3 py-2 text-right">
+	                                  <Input
+	                                    type="number"
+	                                    value={line.shippingCartonsPerPallet}
+	                                    onChange={e => {
+	                                      const value = e.target.value
+	                                      setMovementNoteDraft(d => ({
+	                                        ...d,
+	                                        lines: d.lines.map((existing, idx) =>
+	                                          idx === index
+	                                            ? { ...existing, shippingCartonsPerPallet: value }
+	                                            : existing
+	                                        ),
+	                                      }))
+	                                    }}
+	                                    className="w-32 ml-auto"
+	                                    disabled={movementNoteDraftSubmitting}
+	                                    min={0}
+	                                  />
+	                                </td>
+	                              </tr>
+	                            ))}
+	                          </tbody>
+	                        </table>
+	                      </div>
+
+	                      <div className="flex items-center justify-end gap-2">
+	                        <Button
+	                          onClick={handleCreateMovementNote}
+	                          disabled={movementNoteDraftSubmitting}
+	                          className="gap-2"
+	                        >
+	                          {movementNoteDraftSubmitting ? (
+	                            <>
+	                              <Loader2 className="h-4 w-4 animate-spin" />
+	                              Creating…
+	                            </>
+	                          ) : (
+	                            'Create'
+	                          )}
+	                        </Button>
+	                      </div>
+	                    </>
+	                  )}
+	                </div>
+	              ) : null}
+
+	              <div className="rounded-xl border bg-white">
+	                <div className="flex items-center justify-between border-b bg-slate-50 px-5 py-4">
+	                  <h4 className="text-sm font-semibold text-slate-900">Existing movement notes</h4>
+	                  {movementNotesLoading ? (
+	                    <span className="text-xs text-muted-foreground">Loading…</span>
+	                  ) : null}
+	                </div>
+	                <div className="p-5">
+	                  {movementNotes.length === 0 ? (
+	                    <p className="text-sm text-muted-foreground">No movement notes yet.</p>
+	                  ) : (
+	                    <div className="space-y-4">
+	                      {movementNotes.map(note => {
+	                        const totalCartons = note.lines.reduce((sum, line) => sum + line.quantity, 0)
+	                        const isDraft = note.status === 'DRAFT'
+
+	                        return (
+	                          <div key={note.id} className="rounded-lg border p-4">
+	                            <div className="flex flex-wrap items-start justify-between gap-3">
+	                              <div className="space-y-1">
+	                                <div className="flex items-center gap-2">
+	                                  <Badge
+	                                    className={
+	                                      MN_STATUS_BADGE_CLASSES[note.status] ?? DEFAULT_BADGE_CLASS
+	                                    }
+	                                  >
+	                                    {MN_STATUS_LABELS[note.status] ?? note.status}
+	                                  </Badge>
+	                                  <span className="text-sm font-semibold text-foreground">
+	                                    {note.referenceNumber || 'Movement Note'}
+	                                  </span>
+	                                </div>
+	                                <p className="text-xs text-muted-foreground">
+	                                  Received: {formatDate(note.receivedAt)} • {note.warehouseName} (
+	                                  {note.warehouseCode}) • {totalCartons} cartons
+	                                </p>
+	                                {note.notes ? (
+	                                  <p className="text-xs text-slate-700">{note.notes}</p>
+	                                ) : null}
+	                              </div>
+	                              <div className="flex items-center gap-2">
+	                                {isDraft ? (
+	                                  <>
+	                                    <Button
+	                                      size="sm"
+	                                      onClick={() => handlePostMovementNote(note.id)}
+	                                      disabled={Boolean(movementNotePosting[note.id]) || isTerminal}
+	                                      className="gap-2"
+	                                    >
+	                                      {movementNotePosting[note.id] ? (
+	                                        <>
+	                                          <Loader2 className="h-4 w-4 animate-spin" />
+	                                          Posting…
+	                                        </>
+	                                      ) : (
+	                                        'Post'
+	                                      )}
+	                                    </Button>
+	                                    <Button
+	                                      size="sm"
+	                                      variant="outline"
+	                                      onClick={() => handleCancelMovementNote(note.id)}
+	                                      disabled={Boolean(movementNoteCancelling[note.id]) || isTerminal}
+	                                    >
+	                                      {movementNoteCancelling[note.id] ? 'Cancelling…' : 'Cancel'}
+	                                    </Button>
+	                                  </>
+	                                ) : null}
+	                              </div>
+	                            </div>
+
+	                            <div className="mt-3 overflow-x-auto">
+	                              <table className="w-full min-w-[700px] text-sm">
+	                                <thead className="text-xs uppercase tracking-wide text-muted-foreground">
+	                                  <tr>
+	                                    <th className="px-2 py-2 text-left font-semibold">SKU</th>
+	                                    <th className="px-2 py-2 text-left font-semibold">Batch/Lot</th>
+	                                    <th className="px-2 py-2 text-right font-semibold">Qty</th>
+	                                    <th className="px-2 py-2 text-right font-semibold">Variance</th>
+	                                  </tr>
+	                                </thead>
+	                                <tbody>
+	                                  {note.lines.map(line => (
+	                                    <tr key={line.id} className="border-t">
+	                                      <td className="px-2 py-2 text-foreground">{line.skuCode}</td>
+	                                      <td className="px-2 py-2 text-muted-foreground">
+	                                        {line.batchLot ?? '—'}
+	                                      </td>
+	                                      <td className="px-2 py-2 text-right text-foreground">
+	                                        {line.quantity}
+	                                      </td>
+	                                      <td className="px-2 py-2 text-right text-muted-foreground">
+	                                        {line.varianceQuantity}
+	                                      </td>
+	                                    </tr>
+	                                  ))}
+	                                </tbody>
+	                              </table>
+	                            </div>
+	                          </div>
+	                        )
+	                      })}
+	                    </div>
+	                  )}
+	                </div>
+	              </div>
+	            </div>
+	          </TabPanel>
+
+	          <TabPanel>
+	            <div className="space-y-4">
+	              <div>
+	                <h3 className="text-sm font-semibold text-foreground">Stage Approval History</h3>
                 <p className="text-xs text-muted-foreground">
                   Track who approved each stage transition
                 </p>

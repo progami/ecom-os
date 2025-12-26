@@ -119,7 +119,12 @@ function generateExportFields(columns: typeof INVENTORY_TRANSACTION_COLUMNS): Fi
  if (col.fieldName === 'hasProofOfPickup') {
  field.fieldName = 'attachments'
  field.format = (value: unknown): ExportFieldValue =>
- attachmentsContain(value, ['proofOfPickup', 'proof_of_pickup']) ? 'Yes' : 'No'
+ attachmentsContain(value, [
+ 'adjustmentEvidence',
+ 'adjustment_evidence',
+ 'proofOfPickup',
+ 'proof_of_pickup'
+ ]) ? 'Yes' : 'No'
  }
  
  return field
