@@ -16,6 +16,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   OrgChartIcon,
+  UsersIcon,
   LockClosedIcon,
   ChartBarIcon,
 } from '@/components/ui/Icons';
@@ -62,6 +63,7 @@ const navigation: NavSection[] = [
   {
     title: 'People',
     items: [
+      { name: 'Employees', href: '/employees', icon: UsersIcon },
       { name: 'Org Chart', href: '/organogram', icon: OrgChartIcon },
       { name: 'Leave', href: '/leave', icon: CalendarDaysIcon },
     ],
