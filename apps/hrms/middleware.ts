@@ -48,6 +48,11 @@ export async function middleware(request: NextRequest) {
   }
 
   const basePath = normalizeBasePath(process.env.NEXT_PUBLIC_BASE_PATH || process.env.BASE_PATH || '/hrms')
+  if (basePath && pathname.startsWith(`${basePath}${basePath}`)) {
+    const url = request.nextUrl.clone()
+    url.pathname = pathname.slice(basePath.length)
+    return NextResponse.redirect(url)
+  }
   const normalizedPath = basePath && pathname.startsWith(basePath)
     ? pathname.slice(basePath.length) || '/'
     : pathname
