@@ -958,14 +958,14 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
 
             return cell
           }}
-          afterChange={(changes, source) => {
-            if (!changes) return
-            const sourceString = String(source)
-            if (sourceString === 'loadData' || sourceString === 'derived-update') return
-            const hot = hotRef.current
-            if (!hot) return
-            const changedProductIds = new Set<string>()
-            for (const change of changes) {
+	          afterChange={(changes, source) => {
+	            if (!changes) return
+	            const sourceString = String(source)
+	            if (sourceString === 'loadData' || sourceString === 'derived-update') return
+	            const hot = hotRef.current
+	            if (!hot) return
+	            const changedProductIds = new Set<string>()
+	            for (const change of changes) {
               const [rowIndex, prop, _oldValue, newValue] = change as [number, string, any, any]
               const meta = columnMeta[prop]
               if (!meta || !editableMetrics.has(meta.field)) continue
@@ -983,14 +983,18 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
               if (!entry) continue
               const formatted = formatNumericInput(newValue)
               entry.values[meta.field] = formatted
-              record[prop] = formatted
-              changedProductIds.add(meta.productId)
-            }
-            for (const productId of changedProductIds) {
-              recomputeDerivedForProduct(productId)
-            }
-            scheduleFlush()
-          }}
+	              record[prop] = formatted
+	              changedProductIds.add(meta.productId)
+	            }
+	            if (changedProductIds.size > 0) {
+	              preserveScrollPosition(() => {
+	                for (const productId of changedProductIds) {
+	                  recomputeDerivedForProduct(productId)
+	                }
+	              })
+	            }
+	            scheduleFlush()
+	          }}
           afterSelectionEnd={() => {
             updateSelectionStats()
           }}
