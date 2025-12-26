@@ -18,7 +18,7 @@ import {
 } from '@/components/sheet-toolbar'
 import { usePersistentState } from '@/hooks/usePersistentState'
 import { withAppBasePath } from '@/lib/base-path'
-import { getSelectionStats, type HandsontableSelectionStats } from '@/lib/handsontable'
+import { finishEditingSafely, getSelectionStats, type HandsontableSelectionStats } from '@/lib/handsontable'
 import { formatDateDisplay } from '@/lib/utils/dates'
 
 registerAllModules()
@@ -750,26 +750,40 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
       const meta = columnMeta[key]
       if (!meta) return
 
-	      const renderToggle = (label: string, handler: () => void) => {
-	        Handsontable.dom.empty(TH)
-	        const button = document.createElement('button')
-	        button.type = 'button'
-	        button.className = 'x-plan-header-toggle'
-	        button.textContent = label
-	        button.title = label
-	        button.addEventListener('click', (event) => {
-	          event.preventDefault()
-	          event.stopPropagation()
-	          event.stopImmediatePropagation()
-	          handler()
-        })
-        button.addEventListener('mousedown', (event) => {
-          event.preventDefault()
-          event.stopPropagation()
-          event.stopImmediatePropagation()
-        })
-        TH.appendChild(button)
-      }
+		      const renderToggle = (label: string, handler: () => void) => {
+		        Handsontable.dom.empty(TH)
+		        const button = document.createElement('button')
+		        button.type = 'button'
+		        button.className = 'x-plan-header-toggle'
+		        button.textContent = label
+		        button.title = label
+
+		        const trigger = (event: Event) => {
+		          event.preventDefault()
+		          event.stopPropagation()
+		          ;(event as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.()
+		          const hot = hotRef.current
+		          if (hot) finishEditingSafely(hot)
+		          handler()
+		        }
+
+		        const supportsPointer = typeof window !== 'undefined' && 'PointerEvent' in window
+		        if (supportsPointer) {
+		          button.addEventListener('pointerdown', trigger, { capture: true })
+		        } else {
+		          button.addEventListener('mousedown', trigger, { capture: true })
+		        }
+
+		        button.addEventListener('click', (event) => {
+		          event.preventDefault()
+		          event.stopPropagation()
+		          event.stopImmediatePropagation()
+		          if ((event as MouseEvent).detail === 0) {
+		            trigger(event)
+		          }
+		        })
+	        TH.appendChild(button)
+	      }
 
       if (meta.field === activeStockMetric) {
         renderToggle(activeStockMetric === 'stockWeeks' ? 'Stockout (Weeks)' : 'Stock Qty', () => {
