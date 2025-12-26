@@ -516,6 +516,7 @@
   align-items: center;
   justify-content: center;
   width: 100%;
+  box-sizing: border-box;
   padding: 6px 10px;
   border-radius: 0.5rem;
   border: 2px solid rgba(8, 145, 178, 0.55);
