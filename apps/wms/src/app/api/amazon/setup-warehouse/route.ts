@@ -38,8 +38,7 @@ export const POST = withAuth(async (_request, session) => {
    },
  })
  
- // Note: Amazon FBA doesn't need warehouse SKU configs as it uses cubic feet
- // The warehouseSkuConfigs are for SKU-specific pallet configurations
+ // Note: Amazon FBA storage uses cubic feet, so pallet config records are not required here.
  
  // Create seasonal storage rates
  const currentYear = new Date().getFullYear()
