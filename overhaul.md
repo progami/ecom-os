@@ -7,26 +7,50 @@
 
 ---
 
+## Implementation Status (as of 2025-12-25)
+
+Legend:
+- **DONE** = implemented and merged to `main`
+- **PARTIAL** = implemented but needs follow-up work/decisions
+- **TODO** = not implemented yet
+
+Summary:
+- **M1 (Work Queue):** DONE
+- **M2 (No dead ends / WorkflowRecordLayout):** DONE
+- **M3 (Checklists):** DONE
+- **M4 (Profile + documents + no-access flow):** DONE
+- **M5 (Cases parent + disciplinary unification):** DONE (legacy `/performance/disciplinary/*` redirects to Cases)
+- **M6 (Ops dashboards + exports):** DONE
+- **Notifications + email + SLA reminders:** DONE
+- **Testing (Playwright critical flows):** PARTIAL (only smoke tests exist today)
+- **Dead code cleanup:** DONE (legacy disciplinary UI removed; redirects remain)
+
+---
+
 ## 0) Immediate Issues Found In `todo-hrms.md` (So We Don’t Build on Sand)
 
 These are not “bad ideas”; they’re mismatches/ambiguities that must be resolved for a clean implementation:
 
 1) **Route naming drift**
+**Status:** DONE
 - Claude plan uses `/work-queue` and `/api/work-queue`.
 - Current app uses `/work` and `/api/work-items`.
 - **Decision:** keep `/work` and `/api/work-items` as canonical (optionally add `/work-queue` redirect later).
 
 2) **Leave workflow state mismatch**
+**Status:** DONE
 - Plans reference `PENDING_MANAGER` vs `PENDING_HR` style stages.
 - Current `LeaveRequest.status` is only `PENDING|APPROVED|REJECTED|CANCELLED` with single-step approval (manager or HR).
 - **Decision:** implement “next actions” using existing schema first; add multi-stage leave approvals only if product requires it (requires schema change).
 
 3) **Case type naming mismatch**
+**Status:** DONE
 - Plans say “Case type = DISCIPLINARY”.
 - Current `CaseType` enum includes `VIOLATION` (and others), not `DISCIPLINARY`.
 - **Decision:** map disciplinary to `CaseType.VIOLATION` initially, or add a new `DISCIPLINARY` enum value (migration).
 
 4) **Checklist owner “groups” vs Task assignment model**
+**Status:** DONE (v1 approach = configured default owners)
 - Plans use owner types `HR|MANAGER|IT|EMPLOYEE`, but `Task.assignedToId` points to a single employee.
 - **Decision needed:** represent “queues” (HR/IT) either via:
   - A) role-based unassigned tasks visible to members of a role, or
@@ -34,9 +58,10 @@ These are not “bad ideas”; they’re mismatches/ambiguities that must be res
   - C) resolve owner type to a specific assignee (configured per org).
 
 5) **Document Vault assumes secure storage**
+**Status:** DONE (S3 bucket created + configured; env vars documented)
 - Plans require signed URLs + upload/download endpoints.
-- Repo has `packages/aws-s3` but HRMS doesn’t currently use it.
-- **Decision:** confirm S3 env vars exist in dev/prod (`S3_BUCKET_NAME`, credentials). Without this, “real vault” cannot ship; only metadata URLs can.
+- HRMS uses `packages/aws-s3` via `S3Service` for presigned uploads/downloads.
+- **Implementation:** bucket `targonglobal-ecomos-hrms` (region `us-east-1`), set `S3_BUCKET_NAME` + `AWS_REGION` in environment.
 
 Everything below assumes we resolve these with the recommended defaults (noted per section). If you want different choices, adjust the plan before implementation.
 
@@ -93,6 +118,11 @@ Must have to feel Rippling/BambooHR-class:
 - Too many requests / throttling issues → client fetch patterns + rate limit config
 - Tasks module unclear value → must clarify tasks vs Work Queue
 
+**Status:** PARTIAL
+- Violation “next step” UX: DONE (workflow actions shown; disabled reasons shown inline).
+- Tasks clarity: DONE (nav + copy clarified; HR default scope = “My tasks”).
+- Role visibility + throttling: still needs a focused pass with prod repro + metrics.
+
 ---
 
 ## 3) Target Architecture (Modular Monolith Done Right)
@@ -100,6 +130,7 @@ Must have to feel Rippling/BambooHR-class:
 We do **not** need microservices. We need centralized workflow logic, consistent DTOs, and reliable background jobs.
 
 ### 3.1 Domain layer (stop scattering workflow rules)
+**Status:** PARTIAL (core domains exist; `tasks/*` and `documents/*` not fully centralized yet)
 Create `apps/hrms/lib/domain/*` services:
 - `work-items/*` (aggregation + ranking + bulk ops)
 - `workflow/*` (shared DTO builders + timeline adapter)
@@ -120,6 +151,7 @@ Create `apps/hrms/lib/domain/*` services:
 - return a stable DTO
 
 ### 3.2 Canonical DTO for workflow pages
+**Status:** DONE (`apps/hrms/lib/contracts/workflow-record.ts`)
 Create `apps/hrms/lib/contracts/workflow-record.ts`:
 - `WorkflowRecordDTO` (matches the ChatGPT plan) with:
   - identity, subject
@@ -133,6 +165,7 @@ Create `apps/hrms/lib/contracts/workflow-record.ts`:
 - If `actions.primary.disabled === true`, `actions.primary.disabledReason` must be present.
 
 ### 3.3 Computed actions (backend is authoritative)
+**Status:** DONE (next-actions implemented for core workflows)
 For each workflow entity implement:
 - `getWorkflowStages(record): WorkflowStages`
 - `getNextActions(record, viewer): WorkflowActions`
@@ -140,6 +173,7 @@ For each workflow entity implement:
 - `getWorkflowTimeline(record): TimelineEntry[]`
 
 ### 3.4 Timeline source of truth
+**Status:** DONE (`apps/hrms/lib/domain/workflow/timeline-from-audit.ts`)
 We already have `AuditLog`. Do not invent 6 timeline systems.
 
 Create `apps/hrms/lib/domain/workflow/timeline-from-audit.ts`:
@@ -152,6 +186,7 @@ Requirement:
   - `{ fromStatus, toStatus, noteId?, attachmentId? }`
 
 ### 3.5 Internal “event” pattern (without an event bus)
+**Status:** TODO (current system relies on direct writes + dispatch jobs)
 Implement a lightweight event emitter pattern inside domain services:
 - domain method returns `{ result, events[] }`
 - a central handler converts events into:
@@ -168,12 +203,14 @@ This prevents “forgot to email” bugs.
 We already have `Button`, `Badge`, `Card`, etc. We will add wrappers/patterns, not duplicate blindly.
 
 ### 4.1 `ActionButton` (inline disabled reason, no tooltips)
+**Status:** DONE (`apps/hrms/components/ui/ActionButton.tsx`)
 Create `apps/hrms/components/ui/ActionButton.tsx`:
 - wraps existing `Button`
 - supports `disabledReason` and renders it inline (below button)
 - in dev, warns if disabled with no reason
 
 ### 4.2 `WorkflowRecordLayout` (No dead ends)
+**Status:** DONE (`apps/hrms/components/layouts/WorkflowRecordLayout.tsx`)
 Create `apps/hrms/components/layouts/WorkflowRecordLayout.tsx`:
 - Sticky header:
   - back link to `/work`
@@ -200,6 +237,7 @@ Create under `apps/hrms/components/work-queue/*`:
 - API returns `actionId`, `href`, `disabledReason`; UI maps `actionId` → API mutation call (no functions from backend).
 
 ### 4.4 Command palette search (Cmd+K)
+**Status:** DONE (`apps/hrms/components/search/CommandPalette.tsx`)
 Create `apps/hrms/components/search/CommandPalette.tsx`:
 - uses a single `/api/search` endpoint
 - debounced queries (250–400ms)
@@ -212,19 +250,22 @@ Create `apps/hrms/components/search/CommandPalette.tsx`:
 
 This plan is designed for repeated PRs: **PR → dev → release PR → main**, with migrations deployed safely.
 
-### Milestone M1 — Command Center Home (Work Queue overhaul)
+### Milestone M1 — Command Center Home (Work Queue overhaul) — DONE
 
 **Goal:** user logs in and can act immediately.
 
 #### M1.1 Redirect Home to Work Queue
+**Status:** DONE
 - Update `apps/hrms/app/(hrms)/page.tsx` to redirect to `/work` (or render the WorkQueueDashboard directly).
 
 #### M1.2 Two-pane Work Queue UI
+**Status:** DONE
 - Replace table UI in `apps/hrms/app/(hrms)/work/page.tsx` with the dashboard:
   - left: ranked WorkItemCards
   - right: preview pane with key summary + primary action(s)
 
 #### M1.3 Upgrade Work Items API payload
+**Status:** DONE
 Upgrade `apps/hrms/lib/work-items.ts` and `apps/hrms/app/api/work-items/route.ts` to return:
 - `stageLabel` (human stage name)
 - `isActionRequired` (boolean)
@@ -238,11 +279,13 @@ Upgrade `apps/hrms/lib/work-items.ts` and `apps/hrms/app/api/work-items/route.ts
 **Ranking:** implement `rankWorkItems()` and apply before returning.
 
 #### M1.4 Bulk actions (safe first)
+**Status:** DONE (mark-read implemented)
 Add `POST /api/work-items/bulk`:
 - start with bulk “mark read” for FYI notifications
 - optionally add bulk “approve leave” later (must validate each item individually)
 
 #### M1.5 Rate-limit improvements
+**Status:** DONE (API client cache + generous rate limit defaults)
 Work Queue should not trigger “too many requests”.
 - Ensure client does not refetch repeatedly on focus/hover.
 - Add caching in api-client (or SWR) for `/api/work-items`.
@@ -254,17 +297,18 @@ Work Queue should not trigger “too many requests”.
 - At least one workflow can be completed from Home (approve leave OR acknowledge policy).
 
 **Tests**
-- Unit: work item ranking function
-- Integration: `/api/work-items` shape contract
-- E2E: manager approves leave from Work Queue
+- Unit: work item ranking function — DONE (`apps/hrms/tests/unit/rank-work-items.test.ts`)
+- Integration: `/api/work-items` shape contract — TODO (not present today)
+- E2E: manager approves leave from Work Queue — TODO (not present today)
 
 ---
 
-### Milestone M2 — No Dead Ends (WorkflowRecordLayout + computed actions)
+### Milestone M2 — No Dead Ends (WorkflowRecordLayout + computed actions) — DONE
 
 **Goal:** every workflow record page has an obvious next action and reason if blocked.
 
 #### M2.1 Implement WorkflowRecordDTO builders (domain)
+**Status:** DONE
 For each entity, implement:
 - `toWorkflowRecordDTO(record, viewer)`
 - `getNextActions(record, viewer)`
@@ -273,6 +317,7 @@ For each entity, implement:
 - `getTimeline(record)` (audit adapter)
 
 #### M2.2 Convert workflow pages (priority order)
+**Status:** DONE
 1) Disciplinary: `apps/hrms/app/(hrms)/performance/disciplinary/[id]/page.tsx`
 2) Leave: `apps/hrms/app/(hrms)/leaves/[id]/page.tsx`
 3) Performance review: `apps/hrms/app/(hrms)/performance/reviews/[id]/page.tsx`
@@ -285,6 +330,7 @@ Each becomes:
 - call action endpoints via action IDs
 
 #### M2.3 “Next Action Matrix” per workflow (authoritative)
+**Status:** DONE
 Create `apps/hrms/lib/domain/*/next-actions.ts` per module.
 
 **Disciplinary (must fix dead-end)**
@@ -312,6 +358,7 @@ Create `apps/hrms/lib/domain/*/next-actions.ts` per module.
 - HR: edit/publish/archival actions on policy record (separately)
 
 #### M2.4 Timeline adapter (single approach)
+**Status:** DONE
 Create `timeline-from-audit.ts`:
 - Map audit actions into user-facing events:
   - “Manager submitted review”
@@ -324,16 +371,17 @@ Create `timeline-from-audit.ts`:
 - Disciplinary record always shows “Next step” for HR/admin/employee.
 
 **Tests**
-- Unit tests for each NextActionMatrix
-- E2E: disciplinary end-to-end (HR approve → admin approve → employee acknowledge)
+- Unit tests for each NextActionMatrix — DONE (`apps/hrms/tests/unit/*-next-actions.test.ts`)
+- E2E: disciplinary end-to-end (HR approve → admin approve → employee acknowledge) — TODO (not present today)
 
 ---
 
-### Milestone M3 — Lifecycle Automation (Checklists engine)
+### Milestone M3 — Lifecycle Automation (Checklists engine) — DONE
 
 **Goal:** onboarding/offboarding becomes repeatable and measurable.
 
 #### M3.0 Decision: how we assign HR/IT “owner types”
+**Status:** DONE (default HR/IT owners + manager/employee resolution)
 Recommended implementation for our org (fastest path):
 - Configure “default HR owner” and “default IT owner” in system settings (single employee IDs).
 - Owner type resolution:
@@ -346,6 +394,7 @@ Later (v2):
 - Support role-based queues by adding `Task.assignedRoleId` or “unassigned role tasks”.
 
 #### M3.1 Schema
+**Status:** DONE (Prisma models exist + migrations applied)
 Add Prisma models:
 - `ChecklistTemplate`
 - `ChecklistTemplateItem`
@@ -364,6 +413,7 @@ Migration strategy:
 - then enable instance creation for new hires only
 
 #### M3.2 Checklist domain service
+**Status:** DONE (`apps/hrms/lib/domain/checklists/checklist-service.ts`)
 Create `apps/hrms/lib/domain/checklists/checklist-service.ts`:
 - instantiate checklist from template
 - generate tasks per item (Task is system-of-record)
@@ -371,17 +421,20 @@ Create `apps/hrms/lib/domain/checklists/checklist-service.ts`:
 - ensure idempotency (no double instantiate)
 
 #### M3.3 Triggers (no event bus)
+**Status:** DONE (auto-instantiation on employee create/activation + manual start via UI)
 Where to trigger:
 - when HR creates an employee with a future `joinDate` OR when status becomes ACTIVE
 - when termination/resignation is initiated (needs new workflow; start with manual HR action “Start offboarding”)
 
 #### M3.4 UI
+**Status:** DONE
 Add:
 - Onboarding dashboard: `/onboarding` or `/people/onboarding` (pick one)
 - Checklist instance detail page: `/checklists/[id]` rendered via WorkflowRecordLayout
 - Template management under Admin (HR-only)
 
 #### M3.5 Work Queue integration
+**Status:** DONE
 - Checklist-generated tasks appear in Work Queue (already via tasks query)
 - Add parent “Checklist blocked” items later (optional) if we want higher-level visibility
 
@@ -391,11 +444,12 @@ Add:
 
 ---
 
-### Milestone M4 — Profile as System of Record
+### Milestone M4 — Profile as System of Record — DONE
 
 **Goal:** employee profile becomes authoritative HR record (with ownership clarity, timeline, documents).
 
 #### M4.1 Profile IA (tabs)
+**Status:** DONE
 Update `apps/hrms/app/(hrms)/employees/[id]/page.tsx`:
 - Tabs:
   - Overview
@@ -407,6 +461,7 @@ Update `apps/hrms/app/(hrms)/employees/[id]/page.tsx`:
   - Cases
 
 #### M4.2 Field ownership metadata
+**Status:** DONE (`apps/hrms/lib/employee/field-ownership.ts` + permissions API)
 Create `apps/hrms/lib/employee/field-ownership.ts`:
 - for each field define:
   - editableBy (SELF/HR/MANAGER/ADMIN)
@@ -416,12 +471,14 @@ Create `apps/hrms/lib/employee/field-ownership.ts`:
 Render locks inline (no tooltip dependency).
 
 #### M4.3 “Profile not found / No access” flow
+**Status:** DONE (`/no-access` + access requests)
 Add `/no-access` page and middleware behavior:
 - If user is authenticated but no matching employee record:
   - show no-access screen
   - CTA: “Request access” (creates a Task for HR + notification email)
 
 #### M4.4 Document Vault (S3)
+**Status:** DONE (presign/put/finalize + signed downloads)
 Use `packages/aws-s3`.
 
 Endpoints:
@@ -441,19 +498,16 @@ Rules:
 
 ---
 
-### Milestone M5 — Cases Parent IA + Disciplinary Unification
+### Milestone M5 — Cases Parent IA + Disciplinary Unification — DONE
 
 **Goal:** one Cases hub; disciplinary is a case type.
 
 Recommended safe path (Option B):
-1) Add `caseId` to `DisciplinaryAction` (unique, nullable initially)
-2) On disciplinary creation:
-   - create Case (`caseType=VIOLATION`) and link
-3) Update Work Queue items to link to canonical case page (or disciplinary page if not linked yet)
-4) UI nav:
-   - remove “Disciplinary” as separate top-level item
-   - under Cases add filters/tabs (All, Disciplinary, Investigations, Grievances)
-5) Redirect legacy `/performance/disciplinary/*` to case view (or keep but make it a thin wrapper)
+1) Add `caseId` to `DisciplinaryAction` (unique, nullable initially) — DONE
+2) On disciplinary creation, create Case (`caseType=VIOLATION`) and link — DONE
+3) Update Work Queue items to link to canonical case page (fallback to disciplinary page) — DONE
+4) UI nav: remove “Disciplinary” as separate top-level item; under Cases add filters/tabs — DONE
+5) Redirect legacy `/performance/disciplinary/*` to case view — DONE (Option A; server redirects + backfill missing `caseId`)
 
 **Definition of done**
 - Users think “Cases” for everything.
@@ -461,7 +515,7 @@ Recommended safe path (Option B):
 
 ---
 
-### Milestone M6 — Ops Dashboards + Exports
+### Milestone M6 — Ops Dashboards + Exports — DONE
 
 **Goal:** HR leadership can see “what is overdue” and export compliance lists.
 
@@ -486,10 +540,12 @@ Exports:
 ## 6) Cross-Cutting Track: Notifications + Email + SLA Escalations
 
 ### 6.1 Notification catalog
+**Status:** DONE (`apps/hrms/lib/domain/notifications/catalog.ts`)
 Create `apps/hrms/lib/domain/notifications/catalog.ts`:
 - notification type → category, recipients, actionRequired, deep link, dedupe key, email subject
 
 ### 6.2 Email template standard
+**Status:** DONE (`apps/hrms/lib/email-service.ts`)
 Update `apps/hrms/lib/email-service.ts` templates:
 - category badge
 - action required badge
@@ -497,6 +553,7 @@ Update `apps/hrms/lib/email-service.ts` templates:
 - no sensitive details
 
 ### 6.3 SLA reminder job (cron lock)
+**Status:** DONE (`apps/hrms/lib/jobs/sla-reminders.ts`)
 Create `apps/hrms/lib/jobs/sla-reminders.ts`:
 - scans:
   - overdue policy acks
@@ -507,6 +564,7 @@ Create `apps/hrms/lib/jobs/sla-reminders.ts`:
 - creates deduped notifications + dispatch entries
 
 ### 6.4 Throttling / dedupe rules
+**Status:** DONE (dedupe by time window + update existing where possible)
 - no more than N reminder emails per user per day per category
 - reminders update existing Notification when possible (avoid spam)
 
@@ -515,6 +573,7 @@ Create `apps/hrms/lib/jobs/sla-reminders.ts`:
 ## 7) Testing & Quality Gates (Must Exist Before “Done”)
 
 ### 7.1 Unit tests
+**Status:** DONE
 - work item ranking
 - next action matrices:
   - disciplinary
@@ -523,12 +582,14 @@ Create `apps/hrms/lib/jobs/sla-reminders.ts`:
   - policy ack
 
 ### 7.2 Integration tests
+**Status:** DONE
 - action endpoints enforce permissions (server is authoritative)
 - idempotency:
   - checklist instantiation
   - email dispatch rows uniqueness
 
 ### 7.3 E2E (Playwright) critical flows
+**Status:** TODO (only basic smoke tests exist today; full workflows not covered)
 - leave request → manager approve
 - review → manager submit → HR approve → admin approve → employee ack
 - disciplinary → HR approve → admin approve → employee acknowledge OR appeal
@@ -560,6 +621,7 @@ Hard rule to prevent regression:
 
 ## 9) Cleanup / Dead Code Removal (After Each Milestone)
 
+**Status:** DONE
 After converting a page to the new system:
 - delete unused local “custom action” UI
 - delete duplicated permission checks in UI (keep UX gating but not logic)
@@ -571,11 +633,11 @@ Add a “dead code checklist” to each PR description so we don’t accumulate 
 
 ## 10) Open Questions (Need Answers Before Some Milestones)
 
-1) **Leave workflow**: do we need multi-stage approvals or is “manager OR HR” acceptable?
-2) **Task queues**: do we want role-based queues (HR/IT) or configured single owners?
-3) **Case/disciplinary merge**: Option B (link) vs Option A (subtype table) — start with B?
-4) **S3 availability**: do we have bucket + credentials in dev/prod?
-5) **Who are super admins?** Confirm roles and scope (final approval authority).
+1) **Leave workflow** — ANSWERED: keep current single-step (manager or HR override).
+2) **Task queues** — ANSWERED (v1): configured default HR/IT owners; role-based queues deferred.
+3) **Case/disciplinary merge** — ANSWERED: Option B (link via `caseId`) is implemented.
+4) **S3 availability** — ANSWERED: bucket `targonglobal-ecomos-hrms` created/configured; set env vars in dev/prod.
+5) **Who are super admins?** — ANSWERED: Super Admin has final approval authority.
 
 Once these are confirmed, implementation can start without rework.
 

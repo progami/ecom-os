@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { CasesApi, type Case } from '@/lib/api-client'
 import { ExclamationTriangleIcon, PlusIcon } from '@/components/ui/Icons'
 import { ListPageHeader } from '@/components/ui/PageHeader'
@@ -30,9 +30,14 @@ type CaseTab = 'ALL' | 'VIOLATION' | 'GRIEVANCE' | 'INVESTIGATION' | 'INCIDENT' 
 
 export default function CasesPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [items, setItems] = useState<Case[]>([])
-  const [q, setQ] = useState('')
-  const [activeTab, setActiveTab] = useState<CaseTab>('ALL')
+  const [q, setQ] = useState(() => searchParams.get('q') ?? '')
+  const [activeTab, setActiveTab] = useState<CaseTab>(() => {
+    const raw = (searchParams.get('caseType') || searchParams.get('tab') || 'ALL').toUpperCase()
+    const allowed: CaseTab[] = ['ALL', 'VIOLATION', 'GRIEVANCE', 'INVESTIGATION', 'INCIDENT', 'REQUEST', 'OTHER']
+    return allowed.includes(raw as CaseTab) ? (raw as CaseTab) : 'ALL'
+  })
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
@@ -60,8 +65,11 @@ export default function CasesPage() {
         description="HR case management and investigations"
         icon={<ExclamationTriangleIcon className="h-6 w-6 text-white" />}
         action={(
-          <Button href="/cases/add" icon={<PlusIcon className="h-4 w-4" />}>
-            New Case
+          <Button
+            href={activeTab === 'VIOLATION' ? '/cases/violations/add' : '/cases/add'}
+            icon={<PlusIcon className="h-4 w-4" />}
+          >
+            {activeTab === 'VIOLATION' ? 'Raise Violation' : 'New Case'}
           </Button>
         )}
       />
