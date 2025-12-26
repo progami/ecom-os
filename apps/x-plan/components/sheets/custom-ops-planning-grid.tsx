@@ -1,9 +1,9 @@
 'use client'
 
 import {
+  memo,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -264,6 +264,170 @@ const COLUMNS: ColumnDef[] = [
   { key: 'notes', header: 'Notes', width: 200, type: 'text', editable: true },
 ]
 
+type StageMode = 'weeks' | 'dates'
+
+function getCellEditValue(row: OpsInputRow, column: ColumnDef, stageMode: StageMode): string {
+  if (column.type === 'stage' && stageMode === 'dates') {
+    const stageField = column.key as StageWeeksKey
+    const endDate = resolveStageEnd(row, stageField)
+    return toIsoDate(endDate) ?? ''
+  }
+
+  if (column.type === 'date') {
+    return row[column.key] ?? ''
+  }
+
+  return row[column.key] ?? ''
+}
+
+function getCellFormattedValue(row: OpsInputRow, column: ColumnDef, stageMode: StageMode): string {
+  if (column.type === 'stage' && stageMode === 'dates') {
+    const stageField = column.key as StageWeeksKey
+    const endDate = resolveStageEnd(row, stageField)
+    const iso = toIsoDate(endDate)
+    return iso ? formatDateDisplay(iso) : ''
+  }
+
+  if (column.type === 'date') {
+    const isoValue = row[column.key]
+    return isoValue ? formatDateDisplay(isoValue) : ''
+  }
+
+  return row[column.key] ?? ''
+}
+
+type CustomOpsPlanningRowProps = {
+  row: OpsInputRow
+  stageMode: StageMode
+  isActive: boolean
+  editingColKey: keyof OpsInputRow | null
+  editValue: string
+  isDatePickerOpen: boolean
+  inputRef: { current: HTMLInputElement | null }
+  onSelectOrder?: (orderId: string) => void
+  onStartEditing: (rowId: string, colKey: keyof OpsInputRow, currentValue: string) => void
+  onSetEditValue: (value: string) => void
+  onCommitEdit?: (nextValue?: string) => void
+  onInputKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void
+  setIsDatePickerOpen: (open: boolean) => void
+}
+
+const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
+  row,
+  stageMode,
+  isActive,
+  editingColKey,
+  editValue,
+  isDatePickerOpen,
+  inputRef,
+  onSelectOrder,
+  onStartEditing,
+  onSetEditValue,
+  onCommitEdit,
+  onInputKeyDown,
+  setIsDatePickerOpen,
+}: CustomOpsPlanningRowProps) {
+  return (
+    <tr className={isActive ? 'row-active' : ''} onClick={() => onSelectOrder?.(row.id)}>
+      {COLUMNS.map((column) => {
+        const isEditing = editingColKey === column.key
+        const isEditable = column.editable !== false
+        const isDateCell = column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')
+
+        const cellClasses = [
+          isEditable ? 'ops-cell-editable' : 'ops-cell-readonly',
+          column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks') ? 'ops-cell-numeric' : '',
+          isDateCell ? 'ops-cell-date' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')
+
+        if (isEditing && onCommitEdit) {
+          return (
+            <td
+              key={column.key}
+              className={cellClasses}
+              style={{ width: column.width, minWidth: column.width }}
+            >
+              {isDateCell ? (
+                <Flatpickr
+                  value={editValue}
+                  options={{
+                    dateFormat: 'Y-m-d',
+                    allowInput: true,
+                    disableMobile: true,
+                    onOpen: () => setIsDatePickerOpen(true),
+                    onClose: (_dates: Date[], dateStr: string) => {
+                      setIsDatePickerOpen(false)
+                      onCommitEdit(dateStr || editValue)
+                    },
+                  }}
+                  onChange={(_dates: Date[], dateStr: string) => {
+                    onSetEditValue(dateStr)
+                  }}
+                  render={(_props: any, handleNodeChange: (node: HTMLElement | null) => void) => (
+                    <input
+                      ref={(node) => {
+                        handleNodeChange(node)
+                        inputRef.current = node as HTMLInputElement | null
+                      }}
+                      type="text"
+                      value={editValue}
+                      onChange={(event: ChangeEvent<HTMLInputElement>) => onSetEditValue(event.target.value)}
+                      onKeyDown={onInputKeyDown}
+                      onBlur={() => {
+                        if (!isDatePickerOpen) {
+                          onCommitEdit()
+                        }
+                      }}
+                      className="ops-cell-input"
+                      placeholder="YYYY-MM-DD"
+                    />
+                  )}
+                />
+              ) : (
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={editValue}
+                  onChange={(event: ChangeEvent<HTMLInputElement>) => onSetEditValue(event.target.value)}
+                  onKeyDown={onInputKeyDown}
+                  onBlur={() => onCommitEdit()}
+                  className="ops-cell-input"
+                />
+              )}
+            </td>
+          )
+        }
+
+        const formattedValue = getCellFormattedValue(row, column, stageMode)
+        const showPlaceholder = isDateCell && !formattedValue
+        const displayContent = showPlaceholder ? (
+          <span className="ops-cell-placeholder">Click to select date</span>
+        ) : (
+          formattedValue
+        )
+
+        return (
+          <td
+            key={column.key}
+            className={cellClasses}
+            style={{ width: column.width, minWidth: column.width }}
+            onClick={(event) => {
+              event.stopPropagation()
+              onSelectOrder?.(row.id)
+              if (!isEditable) return
+              onStartEditing(row.id, column.key, getCellEditValue(row, column, stageMode))
+            }}
+          >
+            <div className="ops-cell-display">{displayContent}</div>
+          </td>
+        )
+      })}
+    </tr>
+  )
+})
+
 export function CustomOpsPlanningGrid({
   rows,
   activeOrderId,
@@ -276,7 +440,7 @@ export function CustomOpsPlanningGrid({
   disableDuplicate,
   disableDelete,
 }: CustomOpsPlanningGridProps) {
-  const [stageMode, setStageMode] = useState<'weeks' | 'dates'>('dates')
+  const [stageMode, setStageMode] = useState<StageMode>('dates')
   const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof OpsInputRow } | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
@@ -358,17 +522,17 @@ export function CustomOpsPlanningGrid({
     onDuplicateOrder(activeOrderId)
   }
 
-  const startEditing = (rowId: string, colKey: keyof OpsInputRow, currentValue: string) => {
+  const startEditing = useCallback((rowId: string, colKey: keyof OpsInputRow, currentValue: string) => {
     setIsDatePickerOpen(false)
     setEditingCell({ rowId, colKey })
     setEditValue(currentValue)
-  }
+  }, [])
 
-  const cancelEditing = () => {
+  const cancelEditing = useCallback(() => {
     setIsDatePickerOpen(false)
     setEditingCell(null)
     setEditValue('')
-  }
+  }, [])
 
   const commitEdit = useCallback((nextValue?: string) => {
     if (!editingCell) return
@@ -525,7 +689,7 @@ export function CustomOpsPlanningGrid({
     const column = COLUMNS[colIndex]
     if (column.editable === false) return
     const row = rows[rowIndex]
-    startEditing(row.id, column.key, getCellDisplayValue(row, column))
+    startEditing(row.id, column.key, getCellEditValue(row, column, stageMode))
   }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -630,52 +794,6 @@ export function CustomOpsPlanningGrid({
     }
   }
 
-  const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setEditValue(e.target.value)
-  }
-
-  const handleCellClick = (row: OpsInputRow, column: ColumnDef) => {
-    onSelectOrder?.(row.id)
-    if (column.editable !== false) {
-      startEditing(row.id, column.key, getCellDisplayValue(row, column))
-    }
-  }
-
-  const handleCellBlur = () => {
-    commitEdit()
-  }
-
-  const getCellDisplayValue = (row: OpsInputRow, column: ColumnDef): string => {
-    if (column.type === 'stage') {
-      if (stageMode === 'dates') {
-        const stageField = column.key as StageWeeksKey
-        const endDate = resolveStageEnd(row, stageField)
-        // Return ISO for editing, but display is formatted in renderCell
-        return toIsoDate(endDate) ?? ''
-      }
-    }
-    // Date columns store ISO strings; keep ISO for editing.
-    if (column.type === 'date') {
-      return row[column.key] ?? ''
-    }
-    return row[column.key] ?? ''
-  }
-
-  // Get display-formatted value (always formatted for user readability)
-  const getFormattedDisplayValue = (row: OpsInputRow, column: ColumnDef): string => {
-    if (column.type === 'stage' && stageMode === 'dates') {
-      const stageField = column.key as StageWeeksKey
-      const endDate = resolveStageEnd(row, stageField)
-      const iso = toIsoDate(endDate)
-      return iso ? formatDateDisplay(iso) : ''
-    }
-    if (column.type === 'date') {
-      const isoValue = row[column.key]
-      return isoValue ? formatDateDisplay(isoValue) : ''
-    }
-    return row[column.key] ?? ''
-  }
-
   const getHeaderLabel = (column: ColumnDef): string => {
     if (column.type === 'stage') {
       return stageMode === 'weeks'
@@ -683,104 +801,6 @@ export function CustomOpsPlanningGrid({
         : column.headerDates ?? column.header
     }
     return column.header
-  }
-
-  const renderCell = (row: OpsInputRow, column: ColumnDef) => {
-    const isEditing = editingCell?.rowId === row.id && editingCell?.colKey === column.key
-    // Use formatted display value for showing, raw value for editing
-    const formattedValue = getFormattedDisplayValue(row, column)
-
-    const cellClasses = [
-      column.editable !== false ? 'ops-cell-editable' : 'ops-cell-readonly',
-      column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')
-        ? 'ops-cell-numeric'
-        : '',
-      column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')
-        ? 'ops-cell-date'
-        : '',
-    ]
-      .filter(Boolean)
-      .join(' ')
-
-	    if (isEditing) {
-	      const isDateCell = column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')
-
-	      return (
-        <td
-          key={column.key}
-          className={cellClasses}
-          style={{ width: column.width, minWidth: column.width }}
-        >
-	          {isDateCell ? (
-	            <Flatpickr
-	              value={editValue}
-	              options={{
-	                dateFormat: 'Y-m-d',
-	                allowInput: true,
-	                disableMobile: true,
-	                onOpen: () => setIsDatePickerOpen(true),
-	                onClose: (_dates: Date[], dateStr: string) => {
-	                  setIsDatePickerOpen(false)
-	                  commitEdit(dateStr || editValue)
-	                },
-	              }}
-	              onChange={(_dates: Date[], dateStr: string) => {
-	                setEditValue(dateStr)
-	              }}
-	              render={(_props: any, handleNodeChange: (node: HTMLElement | null) => void) => (
-	                <input
-	                  ref={(node) => {
-	                    handleNodeChange(node)
-	                    inputRef.current = node as HTMLInputElement | null
-	                  }}
-	                  type="text"
-	                  value={editValue}
-	                  onChange={handleInputChange}
-	                  onKeyDown={handleKeyDown}
-	                  onBlur={() => {
-	                    if (!isDatePickerOpen) {
-	                      handleCellBlur()
-	                    }
-	                  }}
-	                  className="ops-cell-input"
-	                  placeholder="YYYY-MM-DD"
-	                />
-	              )}
-	            />
-          ) : (
-            <input
-              ref={inputRef}
-              type="text"
-              value={editValue}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              onBlur={handleCellBlur}
-              className="ops-cell-input"
-            />
-          )}
-        </td>
-      )
-    }
-
-    // Show placeholder for empty date fields
-    const isDateColumn = column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')
-    const showPlaceholder = isDateColumn && !formattedValue
-    const displayContent = showPlaceholder ? (
-      <span className="ops-cell-placeholder">Click to select date</span>
-    ) : (
-      formattedValue
-    )
-
-    return (
-      <td
-        key={column.key}
-        className={cellClasses}
-        style={{ width: column.width, minWidth: column.width }}
-        onClick={() => handleCellClick(row, column)}
-      >
-        <div className="ops-cell-display">{displayContent}</div>
-      </td>
-    )
   }
 
   const toggleStageMode = () => {
@@ -875,15 +895,27 @@ export function CustomOpsPlanningGrid({
                   </td>
                 </tr>
               ) : (
-                rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    className={activeOrderId === row.id ? 'row-active' : ''}
-                    onClick={() => onSelectOrder?.(row.id)}
-                  >
-                    {COLUMNS.map((column) => renderCell(row, column))}
-                  </tr>
-                ))
+                rows.map((row) => {
+                  const isEditingRow = editingCell?.rowId === row.id
+                  return (
+                    <CustomOpsPlanningRow
+                      key={row.id}
+                      row={row}
+                      stageMode={stageMode}
+                      isActive={activeOrderId === row.id}
+                      editingColKey={isEditingRow ? editingCell!.colKey : null}
+                      editValue={isEditingRow ? editValue : ''}
+                      isDatePickerOpen={isEditingRow ? isDatePickerOpen : false}
+                      inputRef={inputRef}
+                      onSelectOrder={onSelectOrder}
+                      onStartEditing={startEditing}
+                      onSetEditValue={setEditValue}
+                      onCommitEdit={isEditingRow ? commitEdit : undefined}
+                      onInputKeyDown={isEditingRow ? handleKeyDown : undefined}
+                      setIsDatePickerOpen={setIsDatePickerOpen}
+                    />
+                  )
+                })
               )}
             </tbody>
           </table>

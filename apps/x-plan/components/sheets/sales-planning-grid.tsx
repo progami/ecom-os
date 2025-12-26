@@ -64,7 +64,7 @@ type HandsontableNestedHeaders = NonNullable<Handsontable.GridSettings['nestedHe
 const editableMetrics = new Set(['actualSales', 'forecastSales'])
 const BASE_SALES_METRICS = ['stockStart', 'actualSales', 'forecastSales', 'finalSales', 'finalSalesError'] as const
 const STOCK_METRIC_OPTIONS = [
-  { id: 'stockWeeks', label: 'Stock (Weeks)' },
+  { id: 'stockWeeks', label: 'Stockout (Weeks)' },
   { id: 'stockEnd', label: 'Stock Qty' },
 ] as const
 type StockMetricId = (typeof STOCK_METRIC_OPTIONS)[number]['id']
@@ -741,7 +741,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
       }
 
       if (meta.field === activeStockMetric) {
-        renderToggle(activeStockMetric === 'stockWeeks' ? 'Stock (Weeks)' : 'Stock Qty', () => {
+        renderToggle(activeStockMetric === 'stockWeeks' ? 'Stockout (Weeks)' : 'Stock Qty', () => {
           preserveScrollPosition(() => {
             setActiveStockMetric((prev) => (prev === 'stockWeeks' ? 'stockEnd' : 'stockWeeks'))
           })
@@ -880,7 +880,7 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
                 if (isFirstInfinity && !cell.comment) {
                   cell.comment = {
                     value:
-                      `Stock (Weeks) is forward-looking coverage until inventory reaches 0.\n` +
+                      `Stockout (Weeks) is forward-looking coverage until projected inventory reaches 0.\n` +
                       `∞ means inventory never reaches 0 within the loaded horizon.\n` +
                       `This usually happens when Final Sales is 0 (no demand entered) or inbound covers demand.`,
                     readOnly: true,

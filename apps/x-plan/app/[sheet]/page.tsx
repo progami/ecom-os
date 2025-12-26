@@ -428,9 +428,9 @@ function metricHeader(metric: SalesMetric): NestedHeaderCell {
       }
     case 'stockWeeks':
       return {
-        label: 'Stock (Weeks)',
+        label: 'Stockout (Weeks)',
         title:
-          'Weeks of stock = number of future weeks until projected inventory reaches zero using Final Sales (Actuals when present, otherwise Forecast) and scheduled arrivals.',
+          'Stockout weeks = number of future weeks until projected inventory reaches zero using Final Sales (Actuals when present, otherwise Forecast) and scheduled arrivals.',
       }
     case 'stockEnd':
       return 'Stock Qty'
