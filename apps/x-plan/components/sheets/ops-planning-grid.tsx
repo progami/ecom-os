@@ -393,6 +393,7 @@ export function OpsPlanningGrid({
     btn.type = 'button'
     btn.className = 'x-plan-header-toggle'
     btn.textContent = stageMode === 'weeks' ? `${BASE_HEADERS[col]} (wk)` : `${BASE_HEADERS[col]} (date)`
+    btn.title = 'Toggle weeks / dates'
     btn.addEventListener('click', (e) => {
       e.preventDefault()
       e.stopPropagation()
