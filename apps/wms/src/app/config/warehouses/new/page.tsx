@@ -45,7 +45,6 @@ export default function NewWarehousePage() {
     postalCode: '',
     contactEmail: '',
     contactPhone: '',
-    isActive: true,
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -113,7 +112,6 @@ export default function NewWarehousePage() {
           address: formattedAddress,
           contactEmail: formData.contactEmail.trim() || undefined,
           contactPhone: formData.contactPhone || undefined,
-          isActive: formData.isActive,
         }),
       })
 
@@ -323,18 +321,6 @@ export default function NewWarehousePage() {
               </div>
             </div>
 
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="h-4 w-4 text-primary focus:ring-primary border-slate-300 rounded"
-              />
-              <label htmlFor="isActive" className="ml-2 text-sm text-slate-700">
-                Active warehouse (can receive transactions)
-              </label>
-            </div>
           </div>
 
           <div className="flex items-center justify-end gap-4 mt-6 pt-6 border-t">

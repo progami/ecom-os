@@ -6,7 +6,6 @@ import { DashboardLayout } from '@/components/layout/dashboard-layout'
 import { PageContainer, PageHeaderSection, PageContent } from '@/components/layout/page-container'
 import { ArrowLeft, DollarSign, RefreshCw, Upload, Download, Trash2 } from '@/lib/lucide-icons'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
 import { toast } from 'react-hot-toast'
 import { WarehouseRatesPanel } from '../../warehouse-rates-panel'
@@ -18,7 +17,6 @@ interface Warehouse {
   code: string
   name: string
   address?: string | null
-  isActive: boolean
   rateListAttachment?: {
     fileName: string
     size: number
@@ -210,16 +208,6 @@ export default function WarehouseRatesPage({
                   onChange={handleFileChange}
                 />
               </div>
-
-              <Badge
-                className={
-                  warehouse.isActive
-                    ? 'bg-green-50 text-green-700 border-green-200'
-                    : 'bg-slate-100 text-slate-500 border-slate-200'
-                }
-              >
-                {warehouse.isActive ? 'Active' : 'Inactive'}
-              </Badge>
 
               <Button asChild variant="outline" size="sm">
                 <Link href="/config/warehouses" className="gap-2">

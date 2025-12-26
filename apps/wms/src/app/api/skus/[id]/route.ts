@@ -123,7 +123,6 @@ export const PUT = withAuthAndParams(async (request, params, _session) => {
         cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
         cartonWeightKg: body.cartonWeightKg,
         packagingType: body.packagingType,
-        isActive: body.isActive,
       },
     })
 
@@ -134,7 +133,7 @@ export const PUT = withAuthAndParams(async (request, params, _session) => {
   }
 })
 
-// DELETE /api/skus/[id] - Delete or deactivate a SKU
+// DELETE /api/skus/[id] - Delete a SKU
 export const DELETE = withAuthAndParams(async (_request, params, _session) => {
   try {
     const { id } = params as { id: string }
@@ -158,17 +157,13 @@ export const DELETE = withAuthAndParams(async (_request, params, _session) => {
       where: { skuCode: sku.skuCode },
     })
 
-    // If SKU has related data, deactivate instead of delete
     if (transactionCount > 0 || storageLedgerCount > 0) {
-      const deactivatedSku = await prisma.sku.update({
-        where: { id },
-        data: { isActive: false },
-      })
-
-      return NextResponse.json({
-        message: 'SKU deactivated due to existing relationships',
-        sku: deactivatedSku,
-      })
+      return NextResponse.json(
+        {
+          error: `Cannot delete SKU "${sku.skuCode}". References found: inventory transactions=${transactionCount}, storage ledger=${storageLedgerCount}.`,
+        },
+        { status: 409 }
+      )
     }
 
     // Otherwise, delete the SKU

@@ -12,7 +12,6 @@ const SupplierSchema = z.object({
   phone: z.string().trim().optional().nullable(),
   address: z.string().trim().optional().nullable(),
   notes: z.string().trim().optional().nullable(),
-  isActive: z.boolean().optional(),
 })
 
 const UpdateSupplierSchema = SupplierSchema.partial()
@@ -24,14 +23,9 @@ export const GET = withAuth(async (request, session) => {
 
   const prisma = await getTenantPrisma()
   const searchParams = request.nextUrl.searchParams
-  const includeInactive = searchParams.get('includeInactive') === 'true'
   const search = searchParams.get('search') ? sanitizeSearchQuery(searchParams.get('search')!) : null
 
   const where: Prisma.SupplierWhereInput = {}
-
-  if (!includeInactive) {
-    where.isActive = true
-  }
 
   if (search) {
     where.OR = [
@@ -43,7 +37,7 @@ export const GET = withAuth(async (request, session) => {
 
   const suppliers = await prisma.supplier.findMany({
     where,
-    orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+    orderBy: [{ name: 'asc' }],
   })
 
   return ApiResponses.success({
@@ -87,7 +81,7 @@ export const POST = withAuth(async (request, session) => {
       phone: parsed.data.phone ? sanitizeForDisplay(parsed.data.phone) : null,
       address: parsed.data.address ? sanitizeForDisplay(parsed.data.address) : null,
       notes: parsed.data.notes ? sanitizeForDisplay(parsed.data.notes) : null,
-      isActive: parsed.data.isActive ?? true,
+      isActive: true,
     },
   })
 
@@ -164,7 +158,6 @@ export const PATCH = withAuth(async (request, session) => {
               ? sanitizeForDisplay(data.notes)
               : null
             : undefined,
-        isActive: data.isActive ?? undefined,
       },
     })
 
@@ -198,12 +191,7 @@ export const DELETE = withAuth(async (request, session) => {
     return ApiResponses.notFound('Supplier not found')
   }
 
-  const [skuRefs, poRefs, txRefs] = await Promise.all([
-    prisma.sku.count({
-      where: {
-        OR: [{ defaultSupplierId: supplierId }, { secondarySupplierId: supplierId }],
-      },
-    }),
+  const [poRefs, txRefs] = await Promise.all([
     prisma.purchaseOrder.count({
       where: {
         counterpartyName: {
@@ -222,9 +210,9 @@ export const DELETE = withAuth(async (request, session) => {
     }),
   ])
 
-  if (skuRefs > 0 || poRefs > 0 || txRefs > 0) {
+  if (poRefs > 0 || txRefs > 0) {
     return ApiResponses.conflict(
-      `Cannot delete supplier "${supplier.name}". References found: SKUs=${skuRefs}, POs=${poRefs}, transactions=${txRefs}. Deactivate instead.`
+      `Cannot delete supplier "${supplier.name}". References found: purchase orders=${poRefs}, inventory transactions=${txRefs}.`
     )
   }
 

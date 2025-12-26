@@ -9,7 +9,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { fetchWithCSRF } from '@/lib/fetch-with-csrf'
-import { Edit2, Loader2, Package2, Plus, Search } from '@/lib/lucide-icons'
+import { Edit2, Loader2, Package2, Plus, Search, Trash2 } from '@/lib/lucide-icons'
 
 interface SkuBatchRow {
   id: string
@@ -33,7 +33,6 @@ interface SkuBatchRow {
   packagingType: string | null
   storageCartonsPerPallet: number | null
   shippingCartonsPerPallet: number | null
-  isActive: boolean
   createdAt: string
   updatedAt: string
 }
@@ -46,20 +45,6 @@ interface SkuRow {
   packSize: number | null
   defaultSupplierId?: string | null
   secondarySupplierId?: string | null
-  material: string | null
-  unitDimensionsCm: string | null
-  unitLengthCm: number | string | null
-  unitWidthCm: number | string | null
-  unitHeightCm: number | string | null
-  unitWeightKg: number | string | null
-  unitsPerCarton: number
-  cartonDimensionsCm: string | null
-  cartonLengthCm: number | string | null
-  cartonWidthCm: number | string | null
-  cartonHeightCm: number | string | null
-  cartonWeightKg: number | string | null
-  packagingType: string | null
-  isActive: boolean
   _count?: { inventoryTransactions: number }
   batches?: SkuBatchRow[]
 }
@@ -67,7 +52,6 @@ interface SkuRow {
 interface SupplierOption {
   id: string
   name: string
-  isActive: boolean
 }
 
 interface SkuFormState {
@@ -76,7 +60,6 @@ interface SkuFormState {
   asin: string
   defaultSupplierId: string
   secondarySupplierId: string
-  isActive: boolean
 }
 
 function buildFormState(sku?: SkuRow | null): SkuFormState {
@@ -86,7 +69,6 @@ function buildFormState(sku?: SkuRow | null): SkuFormState {
     asin: sku?.asin ?? '',
     defaultSupplierId: sku?.defaultSupplierId ?? '',
     secondarySupplierId: sku?.secondarySupplierId ?? '',
-    isActive: sku?.isActive ?? true,
   }
 }
 
@@ -100,7 +82,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
   const [skus, setSkus] = useState<SkuRow[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [showInactive, setShowInactive] = useState(false)
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([])
   const [suppliersLoading, setSuppliersLoading] = useState(false)
 
@@ -109,10 +90,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
   const [editingSku, setEditingSku] = useState<SkuRow | null>(null)
   const [formState, setFormState] = useState<SkuFormState>(() => buildFormState())
 
-  const [confirmToggle, setConfirmToggle] = useState<{
-    sku: SkuRow
-    nextActive: boolean
-  } | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<SkuRow | null>(null)
 
   // Handle external modal open trigger
   useEffect(() => {
@@ -126,9 +104,8 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
   const buildQuery = useCallback(() => {
     const params = new URLSearchParams()
     if (searchTerm.trim()) params.set('search', searchTerm.trim())
-    if (showInactive) params.set('includeInactive', 'true')
     return params.toString()
-  }, [searchTerm, showInactive])
+  }, [searchTerm])
 
   const fetchSkus = useCallback(async () => {
     try {
@@ -184,7 +161,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
   const filteredSkus = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
     return skus.filter(sku => {
-      if (!showInactive && !sku.isActive) return false
       if (!term) return true
 
       return (
@@ -193,13 +169,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         (sku.asin ?? '').toLowerCase().includes(term)
       )
     })
-  }, [skus, searchTerm, showInactive])
-
-  const totals = useMemo(() => {
-    const active = skus.filter(s => s.isActive).length
-    const inactive = skus.length - active
-    return { active, inactive }
-  }, [skus])
+  }, [skus, searchTerm])
 
   const openCreate = () => {
     setEditingSku(null)
@@ -256,7 +226,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
         description,
         defaultSupplierId: formState.defaultSupplierId ? formState.defaultSupplierId : null,
         secondarySupplierId: formState.secondarySupplierId ? formState.secondarySupplierId : null,
-        isActive: formState.isActive,
       }
 
       let endpoint = '/api/skus'
@@ -290,22 +259,22 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
     }
   }
 
-  const toggleSkuActive = async (sku: SkuRow, nextActive: boolean) => {
+  const deleteSku = async (sku: SkuRow) => {
     try {
       const response = await fetchWithCSRF(`/api/skus?id=${encodeURIComponent(sku.id)}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ isActive: nextActive }),
+        method: 'DELETE',
       })
-
+      const payload = await response.json().catch(() => null)
       if (!response.ok) {
-        const payload = await response.json().catch(() => null)
-        throw new Error(payload?.error ?? 'Failed to update SKU')
+        throw new Error(payload?.error ?? 'Failed to delete SKU')
       }
 
-      toast.success(nextActive ? 'SKU activated' : 'SKU deactivated')
+      toast.success(payload?.message ?? 'SKU deleted')
       await fetchSkus()
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update SKU')
+      toast.error(error instanceof Error ? error.message : 'Failed to delete SKU')
+    } finally {
+      setConfirmDelete(null)
     }
   }
 
@@ -321,11 +290,8 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
             <p className="text-sm text-slate-600">Manage product SKUs and their specifications</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-medium">
-              {totals.active} active
-            </Badge>
-            <Badge className="bg-slate-100 text-slate-600 border-slate-200 font-medium">
-              {totals.inactive} inactive
+            <Badge className="bg-cyan-50 text-cyan-700 border-cyan-200 font-medium">
+              {skus.length} SKUs
             </Badge>
           </div>
         </div>
@@ -341,15 +307,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                 className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
               />
             </div>
-            <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showInactive}
-                onChange={event => setShowInactive(event.target.checked)}
-                className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
-              />
-              Show inactive
-            </label>
           </div>
         </div>
 
@@ -362,7 +319,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
             <Package2 className="h-10 w-10 text-slate-300" />
             <div>
               <p className="text-base font-semibold text-slate-900">
-                {searchTerm || showInactive ? 'No SKUs found' : 'No SKUs yet'}
+                {searchTerm ? 'No SKUs found' : 'No SKUs yet'}
               </p>
               <p className="text-sm text-slate-500">
                 {searchTerm
@@ -370,7 +327,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   : 'Create your first SKU to start receiving inventory.'}
               </p>
             </div>
-            {!searchTerm && !showInactive && (
+            {!searchTerm && (
               <Button onClick={openCreate} className="gap-2">
                 <Plus className="h-4 w-4" />
                 New SKU
@@ -386,7 +343,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                   <th className="px-4 py-3 text-left font-semibold">Description</th>
                   <th className="px-4 py-3 text-left font-semibold">ASIN</th>
                   <th className="px-4 py-3 text-right font-semibold">Txns</th>
-                  <th className="px-4 py-3 text-left font-semibold">Status</th>
                   <th className="px-4 py-3 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -416,17 +372,6 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                       <td className="px-4 py-3 text-right text-slate-500 whitespace-nowrap">
                         {sku._count?.inventoryTransactions ?? 0}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <Badge
-                          className={
-                            sku.isActive
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-slate-100 text-slate-600 border-slate-200'
-                          }
-                        >
-                          {sku.isActive ? 'Active' : 'Inactive'}
-                        </Badge>
-                      </td>
                       <td className="px-4 py-3 text-right whitespace-nowrap">
                         <div className="inline-flex items-center gap-2">
                           <Button variant="outline" size="sm" onClick={() => openEdit(sku)}>
@@ -435,9 +380,10 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setConfirmToggle({ sku, nextActive: !sku.isActive })}
+                            onClick={() => setConfirmDelete(sku)}
+                            className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
                           >
-                            {sku.isActive ? 'Deactivate' : 'Activate'}
+                            <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </td>
@@ -532,9 +478,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                         disabled={suppliersLoading}
                       >
                         <option value="">{suppliersLoading ? 'Loading…' : 'None'}</option>
-                        {suppliers
-                          .filter(supplier => supplier.isActive)
-                          .map(supplier => (
+                        {suppliers.map(supplier => (
                             <option key={supplier.id} value={supplier.id}>
                               {supplier.name}
                             </option>
@@ -557,9 +501,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                         disabled={suppliersLoading}
                       >
                         <option value="">{suppliersLoading ? 'Loading…' : 'None'}</option>
-                        {suppliers
-                          .filter(supplier => supplier.isActive)
-                          .map(supplier => (
+                        {suppliers.map(supplier => (
                             <option key={supplier.id} value={supplier.id}>
                               {supplier.name}
                             </option>
@@ -586,16 +528,7 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
                 </div>
 
                 <div className="flex items-center justify-between gap-3 border-t px-6 py-4">
-                  <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                    <input
-                      type="checkbox"
-                      checked={formState.isActive}
-                      onChange={event =>
-                        setFormState(prev => ({ ...prev, isActive: event.target.checked }))
-                      }
-                    />
-                    Active
-                  </label>
+                  <div />
 
                   <div className="flex items-center gap-2">
                     <Button
@@ -625,20 +558,20 @@ export default function SkusPanel({ externalModalOpen, onExternalModalClose }: S
       ) : null}
 
       <ConfirmDialog
-        isOpen={confirmToggle !== null}
-        onClose={() => setConfirmToggle(null)}
+        isOpen={confirmDelete !== null}
+        onClose={() => setConfirmDelete(null)}
         onConfirm={() => {
-          if (!confirmToggle) return
-          void toggleSkuActive(confirmToggle.sku, confirmToggle.nextActive)
+          if (!confirmDelete) return
+          void deleteSku(confirmDelete)
         }}
-        title={confirmToggle?.nextActive ? 'Activate SKU?' : 'Deactivate SKU?'}
+        title="Delete SKU?"
         message={
-          confirmToggle
-            ? `${confirmToggle.nextActive ? 'Activate' : 'Deactivate'} ${confirmToggle.sku.skuCode}?`
+          confirmDelete
+            ? `Delete ${confirmDelete.skuCode}? This is permanent and only allowed when there is no related history.`
             : ''
         }
-        confirmText={confirmToggle?.nextActive ? 'Activate' : 'Deactivate'}
-        type={confirmToggle?.nextActive ? 'info' : 'warning'}
+        confirmText="Delete"
+        type="danger"
       />
     </div>
   )

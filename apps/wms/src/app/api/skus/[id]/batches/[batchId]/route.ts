@@ -277,21 +277,19 @@ export const DELETE = withAuthAndParams(async (_request, params, session) => {
 
   const sku = await prisma.sku.findUnique({
     where: { id: skuId },
-    select: { skuCode: true, isActive: true },
+    select: { skuCode: true },
   })
 
   if (!sku) {
     return ApiResponses.notFound('SKU not found')
   }
 
-  if (sku.isActive) {
-    const remaining = await prisma.skuBatch.count({
-      where: { skuId, id: { not: batchId } },
-    })
+  const remaining = await prisma.skuBatch.count({
+    where: { skuId, id: { not: batchId } },
+  })
 
-    if (remaining === 0) {
-      return ApiResponses.badRequest('Cannot delete the last batch while the SKU is active')
-    }
+  if (remaining === 0) {
+    return ApiResponses.badRequest('Cannot delete the last batch')
   }
 
   const skuCodeFilter = { equals: sku.skuCode, mode: 'insensitive' as const }
