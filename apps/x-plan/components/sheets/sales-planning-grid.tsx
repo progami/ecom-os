@@ -195,16 +195,46 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
     action()
     if (!scroll) return
 
-    let attempts = 0
-    const attemptRestore = () => {
-      attempts += 1
-      if (attempts > 24) return
-      if (!restoreHandsontableScroll(hotRef.current, scroll)) {
-        requestAnimationFrame(attemptRestore)
-      }
+    const root = hotRef.current?.rootElement ?? null
+    let userWheel = false
+
+    const markWheel = () => {
+      userWheel = true
     }
 
-    requestAnimationFrame(() => requestAnimationFrame(attemptRestore))
+    root?.addEventListener('wheel', markWheel, { passive: true })
+
+    const cleanup = () => {
+      root?.removeEventListener('wheel', markWheel)
+    }
+
+    const threshold = 4
+
+    const attemptRestore = (attempt = 0) => {
+      if (userWheel) {
+        cleanup()
+        return
+      }
+
+      const current = getHandsontableScroll(hotRef.current)
+      if (!current) {
+        if (attempt < 24) {
+          requestAnimationFrame(() => attemptRestore(attempt + 1))
+        } else {
+          cleanup()
+        }
+        return
+      }
+
+      const deltaTop = Math.abs(current.top - scroll.top)
+      const deltaLeft = Math.abs(current.left - scroll.left)
+      if (deltaTop > threshold || deltaLeft > threshold) {
+        restoreHandsontableScroll(hotRef.current, scroll)
+      }
+      cleanup()
+    }
+
+    requestAnimationFrame(() => requestAnimationFrame(() => attemptRestore()))
   }, [])
 
   useEffect(() => {
@@ -720,17 +750,18 @@ export function SalesPlanningGrid({ strategyId, rows, columnMeta, nestedHeaders,
       const meta = columnMeta[key]
       if (!meta) return
 
-      const renderToggle = (label: string, handler: () => void) => {
-        Handsontable.dom.empty(TH)
-        const button = document.createElement('button')
-        button.type = 'button'
-        button.className = 'x-plan-header-toggle'
-        button.textContent = label
-        button.addEventListener('click', (event) => {
-          event.preventDefault()
-          event.stopPropagation()
-          event.stopImmediatePropagation()
-          handler()
+	      const renderToggle = (label: string, handler: () => void) => {
+	        Handsontable.dom.empty(TH)
+	        const button = document.createElement('button')
+	        button.type = 'button'
+	        button.className = 'x-plan-header-toggle'
+	        button.textContent = label
+	        button.title = label
+	        button.addEventListener('click', (event) => {
+	          event.preventDefault()
+	          event.stopPropagation()
+	          event.stopImmediatePropagation()
+	          handler()
         })
         button.addEventListener('mousedown', (event) => {
           event.preventDefault()
