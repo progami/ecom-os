@@ -36,6 +36,7 @@ interface WorkbookLayoutProps {
 const MIN_CONTEXT_WIDTH = 320
 const MAX_CONTEXT_WIDTH = 560
 const YEAR_AWARE_SHEETS: ReadonlySet<SheetSlug> = new Set([
+  '2-ops-planning',
   '3-sales-planning',
   '4-fin-planning-pl',
   '5-fin-planning-cash-flow',

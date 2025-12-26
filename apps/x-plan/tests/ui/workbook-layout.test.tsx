@@ -75,6 +75,14 @@ describe('WorkbookLayout year navigation', () => {
     expect(pushMock).toHaveBeenCalledWith('/3-sales-planning?year=2026')
   })
 
+  it('renders year controls on ops planning', () => {
+    renderLayout(2025, '2-ops-planning')
+
+    const yearSelects = screen.getAllByRole('combobox', { name: 'Select year' })
+    fireEvent.change(yearSelects[0]!, { target: { value: '2026' } })
+    expect(pushMock).toHaveBeenCalledWith('/2-ops-planning?year=2026')
+  })
+
   it('hides year controls on time-agnostic sheets', () => {
     renderLayout(2026, '1-product-setup')
 
