@@ -672,7 +672,7 @@ export function CustomOpsPlanningGrid({
 
     scheduleFlush()
     cancelEditing()
-  }, [editingCell, editValue, rows, stageMode, pendingRef, scheduleFlush, onRowsChange])
+	  }, [editingCell, editValue, rows, stageMode, pendingRef, scheduleFlush, onRowsChange, cancelEditing])
 
   const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
     let idx = startIndex + direction

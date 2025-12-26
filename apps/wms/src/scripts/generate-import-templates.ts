@@ -67,16 +67,6 @@ const sampleData: Record<string, unknown[]> = {
  'Contact Phone': '+1-555-0123'
  }
  ],
- warehouseSkuConfigs: [
- {
- 'Warehouse': 'MAIN',
- 'SKU Code': 'SKU001',
- 'Storage Cartons/Pallet': 25,
- 'Shipping Cartons/Pallet': 25,
- 'Max Stacking Height (cm)': 180,
- 'Effective Date': new Date().toISOString().split('T')[0]
- }
- ],
  costRates: [
  {
  'Warehouse': 'MAIN',
