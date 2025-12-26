@@ -39,11 +39,6 @@ const OptionalInboundReceiveType = z.preprocess(
     .optional()
 )
 
-const OptionalOutboundShipMode = z.preprocess(
-  emptyToUndefined,
-  z.enum(['PALLETS', 'CARTONS'] as const).optional()
-)
-
 const OptionalInt = z.preprocess((value) => {
   const cleaned = emptyToUndefined(value)
   if (cleaned === undefined || cleaned === null) return undefined
@@ -60,7 +55,6 @@ const StageTransitionSchema = z.object({
     'MANUFACTURING',
     'OCEAN',
     'WAREHOUSE',
-    'SHIPPED',
     'CANCELLED',
   ] as const),
   stageData: z
@@ -110,22 +104,6 @@ const StageTransitionSchema = z.object({
       transactionCertNumber: OptionalString,
       receivedDate: OptionalDateString,
       discrepancyNotes: OptionalString,
-
-      // ===========================================
-      // Stage 5: Shipped
-      // ===========================================
-      shipToName: OptionalString,
-      shipToAddress: OptionalString,
-      shipToCity: OptionalString,
-      shipToCountry: OptionalString,
-      shipToPostalCode: OptionalString,
-      shipMode: OptionalOutboundShipMode,
-      shippingCarrier: OptionalString,
-      shippingMethod: OptionalString,
-      trackingNumber: OptionalString,
-      shippedDate: OptionalDateString,
-      proofOfDeliveryRef: OptionalString,
-      deliveredDate: OptionalDateString,
 
       // ===========================================
       // Legacy fields (backward compatibility)
