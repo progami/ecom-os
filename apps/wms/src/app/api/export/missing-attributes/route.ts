@@ -34,7 +34,13 @@ export const GET = withAuth(async (_request, session) => {
  const hasCubeMaster = attachments.cubeMaster || attachments.cube_master ? 'Yes' : 'No'
  const hasTransactionCertificate = attachments.transactionCertificate || attachments.transaction_certificate ? 'Yes' : 'No'
  const hasCustomDeclaration = attachments.customDeclaration || attachments.custom_declaration ? 'Yes' : 'No'
- const hasProofOfPickup = attachments.proofOfPickup || attachments.proof_of_pickup ? 'Yes' : 'No'
+ const hasProofOfPickup =
+ attachments.adjustmentEvidence ||
+ attachments.adjustment_evidence ||
+ attachments.proofOfPickup ||
+ attachments.proof_of_pickup
+ ? 'Yes'
+ : 'No'
  
  // Configurable document requirements based on transaction type
  const REQUIRED_DOCUMENTS = {
@@ -47,10 +53,10 @@ export const GET = withAuth(async (_request, session) => {
  { check: hasDeliveryNote === 'No', label: 'Movement Note' }
  ],
  ADJUST_IN: [
- { check: hasProofOfPickup === 'No', label: 'Proof of Pickup' }
+ { check: hasProofOfPickup === 'No', label: 'Adjustment Evidence' }
  ],
  ADJUST_OUT: [
- { check: hasProofOfPickup === 'No', label: 'Proof of Pickup' }
+ { check: hasProofOfPickup === 'No', label: 'Adjustment Evidence' }
  ]
  }
 

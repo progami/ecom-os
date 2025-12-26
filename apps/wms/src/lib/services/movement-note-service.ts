@@ -175,12 +175,33 @@ export async function createMovementNote(input: CreateMovementNoteInput, user: U
 
               const batchRecord = await tx.skuBatch.findFirst({
                 where: { skuId: sku.id, batchCode: poBatchLot },
-                select: { id: true },
+                select: {
+                  id: true,
+                  storageCartonsPerPallet: true,
+                  shippingCartonsPerPallet: true,
+                },
               })
 
               if (!batchRecord) {
                 throw new ValidationError(
                   `Batch/Lot ${poBatchLot} is not configured for SKU ${poLine.skuCode}. Create it in Config → Products → Batches.`
+                )
+              }
+
+              const storageCartonsPerPallet =
+                line.storageCartonsPerPallet ?? batchRecord.storageCartonsPerPallet ?? null
+              const shippingCartonsPerPallet =
+                line.shippingCartonsPerPallet ?? batchRecord.shippingCartonsPerPallet ?? null
+
+              if (!storageCartonsPerPallet || storageCartonsPerPallet <= 0) {
+                throw new ValidationError(
+                  `Storage cartons per pallet is required for SKU ${poLine.skuCode} batch ${poBatchLot}`
+                )
+              }
+
+              if (!shippingCartonsPerPallet || shippingCartonsPerPallet <= 0) {
+                throw new ValidationError(
+                  `Shipping cartons per pallet is required for SKU ${poLine.skuCode} batch ${poBatchLot}`
                 )
               }
 
@@ -190,8 +211,8 @@ export async function createMovementNote(input: CreateMovementNoteInput, user: U
                 skuDescription: poLine.skuDescription,
                 batchLot: poBatchLot,
                 quantity: line.quantity,
-                storageCartonsPerPallet: line.storageCartonsPerPallet ?? null,
-                shippingCartonsPerPallet: line.shippingCartonsPerPallet ?? null,
+                storageCartonsPerPallet,
+                shippingCartonsPerPallet,
                 attachments: line.attachments ? (line.attachments as Prisma.JsonObject) : null,
               }
             })
@@ -441,6 +462,8 @@ export async function postMovementNote(id: string, _user: UserContext) {
           cartonDimensionsCm: true,
           cartonWeightKg: true,
           packagingType: true,
+          storageCartonsPerPallet: true,
+          shippingCartonsPerPallet: true,
         },
       })
 
@@ -451,6 +474,22 @@ export async function postMovementNote(id: string, _user: UserContext) {
       }
 
       const unitsPerCarton = batchRecord.unitsPerCarton ?? sku.unitsPerCarton ?? 1
+      const storageCartonsPerPallet =
+        line.storageCartonsPerPallet ?? batchRecord.storageCartonsPerPallet ?? null
+      const shippingCartonsPerPallet =
+        line.shippingCartonsPerPallet ?? batchRecord.shippingCartonsPerPallet ?? null
+
+      if (isInbound && (!storageCartonsPerPallet || storageCartonsPerPallet <= 0)) {
+        throw new ValidationError(
+          `Storage cartons per pallet is required for SKU ${poLine.skuCode} batch ${poBatchLot}`
+        )
+      }
+
+      if (!isInbound && (!shippingCartonsPerPallet || shippingCartonsPerPallet <= 0)) {
+        throw new ValidationError(
+          `Shipping cartons per pallet is required for SKU ${poLine.skuCode} batch ${poBatchLot}`
+        )
+      }
 
       const createdTx = await tx.inventoryTransaction.create({
         data: {
@@ -471,15 +510,15 @@ export async function postMovementNote(id: string, _user: UserContext) {
           cartonsIn: isInbound ? line.quantity : 0,
           cartonsOut: isInbound ? 0 : line.quantity,
           storagePalletsIn: isInbound
-            ? Math.ceil(line.quantity / Math.max(1, line.storageCartonsPerPallet ?? unitsPerCarton))
+            ? Math.ceil(line.quantity / Math.max(1, storageCartonsPerPallet ?? unitsPerCarton))
             : 0,
           shippingPalletsOut: !isInbound
             ? Math.ceil(
-                line.quantity / Math.max(1, line.shippingCartonsPerPallet ?? unitsPerCarton)
+                line.quantity / Math.max(1, shippingCartonsPerPallet ?? unitsPerCarton)
               )
             : 0,
-          storageCartonsPerPallet: line.storageCartonsPerPallet ?? null,
-          shippingCartonsPerPallet: line.shippingCartonsPerPallet ?? null,
+          storageCartonsPerPallet: storageCartonsPerPallet,
+          shippingCartonsPerPallet: shippingCartonsPerPallet,
           transactionDate,
           pickupDate: transactionDate,
           shipName: !isInbound
