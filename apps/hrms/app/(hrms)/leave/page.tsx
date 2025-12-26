@@ -747,13 +747,27 @@ function LeavePageContent() {
   )
 }
 
+function LeavePageSkeleton() {
+  return (
+    <>
+      <ListPageHeader
+        title="Leave Management"
+        description="Request and manage time off"
+        icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
+      />
+      <div className="space-y-6">
+        <Card padding="md">
+          <div className="animate-pulse h-10 bg-gray-200 rounded w-full" />
+        </Card>
+        <div className="animate-pulse h-64 bg-gray-100 rounded-lg" />
+      </div>
+    </>
+  )
+}
+
 export default function LeavePage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-      </div>
-    }>
+    <Suspense fallback={<LeavePageSkeleton />}>
       <LeavePageContent />
     </Suspense>
   )
