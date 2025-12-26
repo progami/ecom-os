@@ -1,6 +1,6 @@
 import { withAuthAndParams, ApiResponses, requireRole, z } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma } from '@ecom-os/prisma-wms'
+import { FulfillmentOrderStatus, Prisma, PurchaseOrderStatus } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 
@@ -309,13 +309,25 @@ export const DELETE = withAuthAndParams(async (_request, params, session) => {
       where: { skuCode: skuCodeFilter, batchLot: batchLotFilter },
     }),
     prisma.purchaseOrderLine.count({
-      where: { skuCode: skuCodeFilter, batchLot: batchLotFilter },
+      where: {
+        skuCode: skuCodeFilter,
+        batchLot: batchLotFilter,
+        purchaseOrder: {
+          status: { not: PurchaseOrderStatus.CANCELLED },
+        },
+      },
     }),
     prisma.movementNoteLine.count({
       where: { skuCode: skuCodeFilter, batchLot: batchLotFilter },
     }),
     prisma.fulfillmentOrderLine.count({
-      where: { skuCode: skuCodeFilter, batchLot: batchLotFilter },
+      where: {
+        skuCode: skuCodeFilter,
+        batchLot: batchLotFilter,
+        fulfillmentOrder: {
+          status: { not: FulfillmentOrderStatus.CANCELLED },
+        },
+      },
     }),
   ])
 

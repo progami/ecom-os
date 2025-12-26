@@ -1,6 +1,6 @@
 import { withAuth, ApiResponses, z } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma } from '@ecom-os/prisma-wms'
+import { Prisma, PurchaseOrderStatus } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay, sanitizeSearchQuery } from '@/lib/security/input-sanitization'
 
 export const dynamic = 'force-dynamic'
@@ -198,6 +198,7 @@ export const DELETE = withAuth(async (request, session) => {
           equals: supplier.name,
           mode: 'insensitive',
         },
+        status: { not: PurchaseOrderStatus.CANCELLED },
       },
     }),
     prisma.inventoryTransaction.count({
