@@ -717,9 +717,13 @@ export default function PurchaseOrderDetailPage() {
 
     return (
       <div className="mt-4 p-4 rounded-lg border border-slate-200 bg-slate-50">
-        <h4 className="text-sm font-semibold text-slate-900 mb-3">
-          Required for {nextStage.label}
+        <h4 className="text-sm font-semibold text-slate-900">
+          Advance: {STAGES[currentStageIndex]?.label ?? formatStatusLabel(order.status)} →{' '}
+          {nextStage.label}
         </h4>
+        <p className="text-xs text-muted-foreground mt-1 mb-3">
+          Provide the details and required documents below to move to the next stage.
+        </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {fields.map(field => (
             <div key={field.key} className="space-y-1.5">
@@ -832,6 +836,11 @@ export default function PurchaseOrderDetailPage() {
   const tabConfig = [
     { id: 'overview', label: 'Overview', icon: <FileText className="h-4 w-4" /> },
     { id: 'cargo', label: `Cargo (${order.lines.length})`, icon: <Package2 className="h-4 w-4" /> },
+    {
+      id: 'documents',
+      label: `Documents (${documents.length})`,
+      icon: <Upload className="h-4 w-4" />,
+    },
     { id: 'history', label: 'Approval History', icon: <History className="h-4 w-4" /> },
   ]
 
@@ -1191,6 +1200,111 @@ export default function PurchaseOrderDetailPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </TabPanel>
+
+          <TabPanel>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Documents</h3>
+                  <p className="text-xs text-muted-foreground">
+                    View uploaded documents across every stage.
+                  </p>
+                </div>
+                {documentsLoading && (
+                  <span className="text-xs text-muted-foreground">Loading…</span>
+                )}
+              </div>
+
+              {(['MANUFACTURING', 'OCEAN', 'WAREHOUSE', 'SHIPPED'] as const).map(stage => {
+                const stageLabel = STAGES.find(item => item.value === stage)?.label ?? stage
+                const required = STAGE_DOCUMENTS[stage] ?? []
+                const stageDocs = documents.filter(doc => doc.stage === stage)
+                const docsByType = new Map(stageDocs.map(doc => [doc.documentType, doc]))
+                const requiredDocTypes = new Set(required.map(doc => doc.id))
+                const otherDocs = stageDocs.filter(doc => !requiredDocTypes.has(doc.documentType))
+
+                return (
+                  <div key={stage} className="rounded-xl border bg-white p-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-semibold text-slate-900">{stageLabel}</h4>
+                      <Badge variant="outline">{stageDocs.length} uploaded</Badge>
+                    </div>
+
+                    {required.length > 0 && (
+                      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                        {required.map(docType => {
+                          const existing = docsByType.get(docType.id)
+                          return (
+                            <div
+                              key={`${stage}::${docType.id}`}
+                              className="rounded-md border bg-slate-50 px-3 py-2"
+                            >
+                              <div className="flex items-center gap-2">
+                                {existing ? (
+                                  <Check className="h-4 w-4 text-emerald-600" />
+                                ) : (
+                                  <XCircle className="h-4 w-4 text-slate-400" />
+                                )}
+                                <span className="text-sm font-medium text-slate-900">
+                                  {docType.label}
+                                </span>
+                              </div>
+
+                              {existing ? (
+                                <div className="mt-1">
+                                  <a
+                                    href={existing.viewUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="block truncate text-xs text-primary hover:underline"
+                                    title={existing.fileName}
+                                  >
+                                    {existing.fileName}
+                                  </a>
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Uploaded {formatDate(existing.uploadedAt)}
+                                    {existing.uploadedByName ? ` • ${existing.uploadedByName}` : ''}
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="mt-1 text-xs text-muted-foreground">Not uploaded yet</p>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {otherDocs.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          Other uploads
+                        </p>
+                        <div className="mt-2 space-y-1">
+                          {otherDocs.map(doc => (
+                            <a
+                              key={doc.id}
+                              href={doc.viewUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block truncate text-xs text-primary hover:underline"
+                              title={doc.fileName}
+                            >
+                              {doc.documentType}: {doc.fileName}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {required.length === 0 && stageDocs.length === 0 && (
+                      <p className="mt-3 text-xs text-muted-foreground">No documents uploaded.</p>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </TabPanel>
 
