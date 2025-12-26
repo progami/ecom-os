@@ -16,7 +16,7 @@ import {
   TableSkeleton,
   ResultsCount,
 } from '@/components/ui/Table'
-import { UsersIcon, FolderIcon } from '@/components/ui/Icons'
+import { UsersIcon } from '@/components/ui/Icons'
 import { TableEmptyState } from '@/components/ui/EmptyState'
 import { Avatar } from '@/components/ui/Avatar'
 import { StatusBadge } from '@/components/ui/Badge'
@@ -73,7 +73,7 @@ export function EmployeesClientPage(props: { initialQuery?: string }) {
             <TableHead>Department</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead align="right">Actions</TableHead>
+            <TableHead align="right">Profile</TableHead>
           </TableHeader>
           <TableBody>
             {loading ? (
@@ -105,19 +105,9 @@ export function EmployeesClientPage(props: { initialQuery?: string }) {
                     <StatusBadge status={emp.status} />
                   </TableCell>
                   <TableCell align="right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button variant="secondary" size="sm" href={`/employees/${emp.id}`}>
-                        Profile
-                      </Button>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        href={`/employees/${emp.id}?tab=documents`}
-                        icon={<FolderIcon className="h-4 w-4" />}
-                      >
-                        Documents
-                      </Button>
-                    </div>
+                    <Button variant="secondary" size="sm" href={`/employees/${emp.id}`}>
+                      Profile
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
