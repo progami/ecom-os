@@ -582,7 +582,7 @@ export default function Dashboard() {
                 {disciplinary.map((action) => (
                   <Link
                     key={action.id}
-                    href={`/performance/disciplinary/${action.id}`}
+                    href={action.caseId ? `/cases/${action.caseId}` : `/performance/disciplinary/${action.id}`}
                     className="block p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex items-start justify-between">

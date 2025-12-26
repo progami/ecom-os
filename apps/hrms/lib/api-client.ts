@@ -612,6 +612,7 @@ export const PerformanceReviewsApi = {
 export type DisciplinaryAction = {
   id: string
   employeeId: string
+  caseId?: string | null
   employee?: {
     id: string
     firstName: string

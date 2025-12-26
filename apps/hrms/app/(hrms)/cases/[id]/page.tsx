@@ -492,6 +492,7 @@ export default function CaseDetailPage() {
   }
 
   const canAddAttachment = Boolean(me?.isSuperAdmin || me?.isHR);
+  const canEditViolation = Boolean(linkedDisciplinaryId && (me?.isSuperAdmin || me?.isHR));
 
   const onAction = useCallback(
     async (actionId: ActionId) => {
@@ -521,7 +522,18 @@ export default function CaseDetailPage() {
       )}
 
       {workflow ? (
-        <WorkflowRecordLayout data={workflow} onAction={onAction} backHref="/cases">
+        <WorkflowRecordLayout
+          data={workflow}
+          onAction={onAction}
+          backHref="/cases"
+          headerActions={
+            canEditViolation ? (
+              <Button href={`/cases/violations/${linkedDisciplinaryId}/edit`} variant="secondary">
+                Edit Violation
+              </Button>
+            ) : null
+          }
+        >
           <div className="space-y-6 max-w-5xl">
             <div className="flex items-center justify-end">
               <Button

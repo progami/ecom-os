@@ -71,14 +71,23 @@ function getDefaultBackPath(pathname: string): string | null {
     return '/performance/reviews'
   }
 
-  // Disciplinary routes
+  // Cases / Violations routes
+  if (/^\/cases\/violations\/add$/.test(path)) {
+    return '/cases?caseType=VIOLATION'
+  }
+  if (/^\/cases\/violations\/[^/]+\/edit$/.test(path)) {
+    return '/cases?caseType=VIOLATION'
+  }
+
+  // Legacy disciplinary routes (redirected to Cases)
   if (/^\/performance\/disciplinary\/add$/.test(path)) {
-    // /performance/disciplinary/add -> /performance/disciplinary
-    return '/performance/disciplinary'
+    return '/cases?caseType=VIOLATION'
   }
   if (/^\/performance\/disciplinary\/[^/]+$/.test(path)) {
-    // /performance/disciplinary/[id] -> /performance/disciplinary
-    return '/performance/disciplinary'
+    return '/cases?caseType=VIOLATION'
+  }
+  if (/^\/performance\/disciplinary\/[^/]+\/edit$/.test(path)) {
+    return '/cases?caseType=VIOLATION'
   }
 
   // Resources routes
