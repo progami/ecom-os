@@ -1,10 +1,18 @@
 #!/usr/bin/env tsx
 
-import { prisma } from './src/lib/prisma'
+import { getTenantPrismaClient } from './src/lib/tenant/prisma-factory'
+import { DEFAULT_TENANT, isValidTenantCode, type TenantCode } from './src/lib/tenant/constants'
+
+const resolveTenantCode = (): TenantCode => {
+  const candidate =
+    process.env.TENANT_CODE ?? process.env.WMS_TENANT ?? process.env.NEXT_PUBLIC_TENANT
+  return isValidTenantCode(candidate) ? candidate : DEFAULT_TENANT
+}
 
 async function checkStorageLedger() {
   console.log('📊 Checking Storage Ledger entries...\n')
   
+  const prisma = await getTenantPrismaClient(resolveTenantCode())
   try {
     // Check if we have storage ledger entries
     const entries = await prisma.storageLedger.findMany({
