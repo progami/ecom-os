@@ -47,6 +47,8 @@ Key variables:
 - `NEXTAUTH_SECRET` - Auth secret (must match portal)
 - `PORTAL_AUTH_URL` - Portal auth endpoint
 - `PORTAL_AUTH_SECRET` - Shared auth secret
+- `S3_BUCKET_NAME` - S3 bucket for HRMS uploads (Document Vault)
+- `AWS_REGION` - S3 region (defaults to `us-east-1`)
 
 ### Prisma
 

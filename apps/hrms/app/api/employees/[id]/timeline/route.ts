@@ -106,6 +106,7 @@ export async function GET(req: Request, context: RouteContext) {
         take: 200,
         select: {
           id: true,
+          caseId: true,
           severity: true,
           violationType: true,
           status: true,
@@ -217,7 +218,7 @@ export async function GET(req: Request, context: RouteContext) {
         title,
         description,
         occurredAt: iso(occurredAt),
-        href: `/performance/disciplinary/${violation.id}`,
+        href: violation.caseId ? `/cases/${violation.caseId}` : `/performance/disciplinary/${violation.id}`,
       })
     }
 
@@ -265,4 +266,3 @@ export async function GET(req: Request, context: RouteContext) {
     return safeErrorResponse(e, 'Failed to fetch employee timeline')
   }
 }
-

@@ -15,6 +15,7 @@ type WorkflowRecordLayoutProps = {
   backHref?: string;
   data: WorkflowRecordDTO;
   onAction?: (actionId: ActionId) => void | Promise<void>;
+  headerActions?: React.ReactNode;
   children?: React.ReactNode;
 };
 
@@ -66,6 +67,7 @@ export function WorkflowRecordLayout({
   backHref = '/work',
   data,
   onAction,
+  headerActions,
   children,
 }: WorkflowRecordLayoutProps) {
   const safeData = (data ?? {}) as Partial<WorkflowRecordDTO>;
@@ -173,6 +175,7 @@ export function WorkflowRecordLayout({
             </div>
 
             <div className="shrink-0 flex flex-wrap items-start justify-end gap-2">
+              {headerActions ?? null}
               {actions.primary ? (
                 <ActionButton
                   label={actions.primary.label}
