@@ -16,7 +16,6 @@ interface Supplier {
   id: string
   name: string
   contactName: string | null
-  isActive: boolean
 }
 
 interface Sku {
@@ -108,7 +107,7 @@ export default function NewPurchaseOrderPage() {
           const suppliersData = await suppliersRes.json()
           const suppliersList = suppliersData?.data || suppliersData || []
           setSuppliers(
-            Array.isArray(suppliersList) ? suppliersList.filter((s: Supplier) => s.isActive) : []
+            Array.isArray(suppliersList) ? suppliersList : []
           )
         }
 

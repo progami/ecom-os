@@ -134,14 +134,11 @@ export async function createFulfillmentOrder(
 
   const warehouse = await prisma.warehouse.findFirst({
     where: { code: sanitizeForDisplay(input.warehouseCode.trim()) },
-    select: { code: true, name: true, address: true, isActive: true },
+    select: { code: true, name: true, address: true },
   })
 
   if (!warehouse) {
     throw new ValidationError(`Warehouse not found: ${input.warehouseCode}`)
-  }
-  if (!warehouse.isActive) {
-    throw new ValidationError(`Warehouse is inactive: ${warehouse.code}`)
   }
 
   const skuCodes = Array.from(new Set(normalizedLines.map((line) => line.skuCode)))

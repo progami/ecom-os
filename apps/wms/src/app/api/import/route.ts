@@ -106,7 +106,6 @@ async function importSkus(data: ExcelRow[], _userId: string, prisma: PrismaClien
     'cartonHeightCm',
     'cartonWeightKg',
     'packagingType',
-    'isActive',
   ])
 
   for (const row of data) {

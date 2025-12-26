@@ -10,7 +10,6 @@ import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-d
 export const dynamic = 'force-dynamic'
 
 type SkuWithCounts = Sku & { batches: SkuBatch[]; _count: { inventoryTransactions: number } }
-type DeleteSkuResponse = { message: string } | { message: string; sku: Sku }
 
 // Validation schemas with sanitization
 const supplierIdSchema = z.preprocess(value => {
@@ -106,7 +105,6 @@ const skuSchemaBase = z.object({
       const sanitized = sanitizeForDisplay(val)
       return sanitized ? sanitized : null
     }),
-  isActive: z.boolean().optional(),
 })
 
 type DimensionRefineShape = {
@@ -145,7 +143,6 @@ const createSkuSchema = refineDimensions(
   skuSchemaBase.extend({
     packSize: z.number().int().positive().default(1),
     unitsPerCarton: z.number().int().positive().default(1),
-    isActive: z.boolean().default(true),
   })
 )
 
@@ -158,13 +155,8 @@ export const GET = withAuth(async (request, _session) => {
   const search = searchParams.get('search')
     ? sanitizeSearchQuery(searchParams.get('search')!)
     : null
-  const includeInactive = searchParams.get('includeInactive') === 'true'
 
   const where: Prisma.SkuWhereInput = {}
-
-  if (!includeInactive) {
-    where.isActive = true
-  }
 
   if (search) {
     const escapedSearch = escapeRegex(search)
@@ -180,8 +172,7 @@ export const GET = withAuth(async (request, _session) => {
     orderBy: { skuCode: 'asc' },
     include: {
       batches: {
-        where: { isActive: true },
-        orderBy: [{ isActive: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [{ createdAt: 'desc' }],
       },
     },
   })
@@ -305,7 +296,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
         cartonHeightCm: cartonTriplet ? cartonTriplet.heightCm : null,
         cartonWeightKg: validatedData.cartonWeightKg ?? null,
         packagingType: validatedData.packagingType ?? null,
-        isActive: validatedData.isActive,
+        isActive: true,
       },
     })
 
@@ -392,7 +383,7 @@ export const PATCH = withRole(['admin', 'staff'], async (request, _session) => {
 
   const existing = await prisma.sku.findUnique({
     where: { id: skuId },
-    select: { id: true, isActive: true },
+    select: { id: true },
   })
 
   if (!existing) {
@@ -495,29 +486,26 @@ export const DELETE = withRole(['admin'], async (request, _session) => {
   }
 
   // Check if SKU is used in any transactions
-  const transactionCount = await prisma.inventoryTransaction.count({
-    where: { skuCode: sku.skuCode },
+  const [transactionCount, storageLedgerCount] = await Promise.all([
+    prisma.inventoryTransaction.count({
+      where: { skuCode: sku.skuCode },
+    }),
+    prisma.storageLedger.count({
+      where: { skuCode: sku.skuCode },
+    }),
+  ])
+
+  if (transactionCount > 0 || storageLedgerCount > 0) {
+    return ApiResponses.conflict(
+      `Cannot delete SKU "${sku.skuCode}". References found: inventory transactions=${transactionCount}, storage ledger=${storageLedgerCount}.`
+    )
+  }
+
+  await prisma.sku.delete({
+    where: { id: skuId },
   })
 
-  if (transactionCount > 0) {
-    // Soft delete - just mark as inactive
-    const updatedSku = await prisma.sku.update({
-      where: { id: skuId },
-      data: { isActive: false },
-    })
-
-    return ApiResponses.success<DeleteSkuResponse>({
-      message: 'SKU deactivated (has related transactions)',
-      sku: updatedSku,
-    })
-  } else {
-    // Hard delete - no related data
-    await prisma.sku.delete({
-      where: { id: skuId },
-    })
-
-    return ApiResponses.success<DeleteSkuResponse>({
-      message: 'SKU deleted successfully',
-    })
-  }
+  return ApiResponses.success<{ message: string }>({
+    message: 'SKU deleted successfully',
+  })
 })

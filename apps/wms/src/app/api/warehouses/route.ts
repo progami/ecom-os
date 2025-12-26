@@ -78,7 +78,6 @@ const createWarehouseSchema = z.object({
  contactEmail: optionalEmailSchema,
  contactPhone: z.string().optional().transform(val => val ? sanitizeForDisplay(val) : val),
  kind: z.nativeEnum(WarehouseKind).optional(),
- isActive: z.boolean().default(true)
 })
 
 const updateWarehouseSchema = z.object({
@@ -90,17 +89,19 @@ const updateWarehouseSchema = z.object({
  contactEmail: optionalNullableEmailSchema,
  contactPhone: z.string().optional().nullable().transform(val => val ? sanitizeForDisplay(val) : val),
  kind: z.nativeEnum(WarehouseKind).optional(),
- isActive: z.boolean().optional()
 })
 
 // GET /api/warehouses - List warehouses
 export const GET = withAuth(async (req, _session) => {
  const prisma = await getTenantPrisma()
  const searchParams = req.nextUrl.searchParams
- const includeInactive = searchParams.get('includeInactive') === 'true'
  const includeAmazon = searchParams.get('includeAmazon') === 'true'
-
- const where: Prisma.WarehouseWhereInput = includeInactive ? {} : { isActive: true }
+ const id = searchParams.get('id')
+ 
+ const where: Prisma.WarehouseWhereInput = {}
+ if (id) {
+  where.id = id
+ }
  
  // Exclude Amazon FBA UK warehouse unless explicitly requested
  if (!includeAmazon) {
@@ -188,7 +189,7 @@ export const POST = withRole(['admin', 'staff'], async (request, _session) => {
  contactEmail: validatedData.contactEmail || null,
  contactPhone: validatedData.contactPhone || null,
  kind: validatedData.kind,
- isActive: validatedData.isActive
+ isActive: true
  },
  include: {
  _count: {
@@ -294,24 +295,16 @@ export const DELETE = withRole(['admin'], async (request, _session) => {
  const hasRelatedData = Object.values(relatedData._count).some(count => (count as number) > 0)
  
  if (hasRelatedData) {
- // Soft delete - just mark as inactive
- const updatedWarehouse = await prisma.warehouse.update({
- where: { id: warehouseId },
- data: { isActive: false }
- })
-
- return ApiResponses.success({
- message: 'Warehouse deactivated (has related data)',
- warehouse: updatedWarehouse
- })
- } else {
- // Hard delete - no related data
- await prisma.warehouse.delete({
- where: { id: warehouseId }
- })
-
- return ApiResponses.success({
- message: 'Warehouse deleted successfully'
- })
+  return ApiResponses.conflict(
+   `Cannot delete warehouse "${relatedData.code}". References found: users=${relatedData._count.users}, cost rates=${relatedData._count.costRates}.`
+  )
  }
+
+ await prisma.warehouse.delete({
+  where: { id: warehouseId }
+ })
+
+ return ApiResponses.success({
+  message: 'Warehouse deleted successfully'
+ })
 })

@@ -1,6 +1,6 @@
 import { withAuthAndParams, ApiResponses, requireRole, z } from '@/lib/api'
 import { getTenantPrisma } from '@/lib/tenant/server'
-import { Prisma } from '@ecom-os/prisma-wms'
+import { FulfillmentOrderStatus, Prisma, PurchaseOrderStatus } from '@ecom-os/prisma-wms'
 import { sanitizeForDisplay } from '@/lib/security/input-sanitization'
 import { formatDimensionTripletCm, resolveDimensionTripletCm } from '@/lib/sku-dimensions'
 
@@ -277,21 +277,19 @@ export const DELETE = withAuthAndParams(async (_request, params, session) => {
 
   const sku = await prisma.sku.findUnique({
     where: { id: skuId },
-    select: { skuCode: true, isActive: true },
+    select: { skuCode: true },
   })
 
   if (!sku) {
     return ApiResponses.notFound('SKU not found')
   }
 
-  if (sku.isActive) {
-    const remaining = await prisma.skuBatch.count({
-      where: { skuId, id: { not: batchId } },
-    })
+  const remaining = await prisma.skuBatch.count({
+    where: { skuId, id: { not: batchId } },
+  })
 
-    if (remaining === 0) {
-      return ApiResponses.badRequest('Cannot delete the last batch while the SKU is active')
-    }
+  if (remaining === 0) {
+    return ApiResponses.badRequest('Cannot delete the last batch')
   }
 
   const skuCodeFilter = { equals: sku.skuCode, mode: 'insensitive' as const }
@@ -311,13 +309,25 @@ export const DELETE = withAuthAndParams(async (_request, params, session) => {
       where: { skuCode: skuCodeFilter, batchLot: batchLotFilter },
     }),
     prisma.purchaseOrderLine.count({
-      where: { skuCode: skuCodeFilter, batchLot: batchLotFilter },
+      where: {
+        skuCode: skuCodeFilter,
+        batchLot: batchLotFilter,
+        purchaseOrder: {
+          status: { not: PurchaseOrderStatus.CANCELLED },
+        },
+      },
     }),
     prisma.movementNoteLine.count({
       where: { skuCode: skuCodeFilter, batchLot: batchLotFilter },
     }),
     prisma.fulfillmentOrderLine.count({
-      where: { skuCode: skuCodeFilter, batchLot: batchLotFilter },
+      where: {
+        skuCode: skuCodeFilter,
+        batchLot: batchLotFilter,
+        fulfillmentOrder: {
+          status: { not: FulfillmentOrderStatus.CANCELLED },
+        },
+      },
     }),
   ])
 
