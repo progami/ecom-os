@@ -58,8 +58,8 @@ const createBatchSchema = refineDimensions(
     cartonWidthCm: optionalDimensionValueSchema,
     cartonHeightCm: optionalDimensionValueSchema,
     cartonWeightKg: z.number().positive().optional().nullable(),
-    storageCartonsPerPallet: z.number().int().positive().optional().nullable(),
-    shippingCartonsPerPallet: z.number().int().positive().optional().nullable(),
+    storageCartonsPerPallet: z.number().int().positive(),
+    shippingCartonsPerPallet: z.number().int().positive(),
   })
 )
 

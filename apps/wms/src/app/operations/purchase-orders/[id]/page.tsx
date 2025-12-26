@@ -20,7 +20,6 @@ import {
   Factory,
   Ship,
   Warehouse,
-  Truck,
   Upload,
   ChevronRight,
   Check,
@@ -166,7 +165,10 @@ interface PurchaseOrderDocumentSummary {
   viewUrl: string
 }
 
-const STAGE_DOCUMENTS: Record<PurchaseOrderDocumentStage, Array<{ id: string; label: string }>> = {
+const STAGE_DOCUMENTS: Record<
+  Exclude<PurchaseOrderDocumentStage, 'SHIPPED'>,
+  Array<{ id: string; label: string }>
+> = {
   MANUFACTURING: [{ id: 'proforma_invoice', label: 'Proforma Invoice' }],
   OCEAN: [
     { id: 'commercial_invoice', label: 'Commercial Invoice' },
@@ -177,7 +179,6 @@ const STAGE_DOCUMENTS: Record<PurchaseOrderDocumentStage, Array<{ id: string; la
     { id: 'movement_note', label: 'Movement Note / Warehouse Receipt' },
     { id: 'custom_declaration', label: 'Customs Declaration (CDS)' },
   ],
-  SHIPPED: [{ id: 'proof_of_pickup', label: 'Proof of Pickup' }],
 }
 
 // Stage configuration
@@ -186,7 +187,6 @@ const STAGES = [
   { value: 'MANUFACTURING', label: 'Manufacturing', icon: Factory, color: 'amber' },
   { value: 'OCEAN', label: 'In Transit', icon: Ship, color: 'blue' },
   { value: 'WAREHOUSE', label: 'At Warehouse', icon: Warehouse, color: 'purple' },
-  { value: 'SHIPPED', label: 'Shipped', icon: Truck, color: 'emerald' },
 ] as const
 
 function statusBadgeClasses(status: POStageStatus) {
@@ -237,7 +237,7 @@ export default function PurchaseOrderDetailPage() {
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean
-    type: 'cancel' | 'ship' | null
+    type: 'cancel' | null
     title: string
     message: string
   }>({ open: false, type: null, title: '', message: '' })
@@ -349,7 +349,9 @@ export default function PurchaseOrderDetailPage() {
   const currentStageIndex = useMemo(() => {
     if (!order) return 0
     const idx = STAGES.findIndex(s => s.value === order.status)
-    return idx >= 0 ? idx : 0
+    if (idx >= 0) return idx
+    if (order.status === 'SHIPPED') return STAGES.length - 1
+    return 0
   }, [order])
 
   const nextStage = useMemo(() => {
@@ -363,7 +365,7 @@ export default function PurchaseOrderDetailPage() {
 
   const nextStageDocsComplete = useMemo(() => {
     if (!order || !nextStage) return true
-    const stage = nextStage.value as PurchaseOrderDocumentStage
+    const stage = nextStage.value as keyof typeof STAGE_DOCUMENTS
     const required = STAGE_DOCUMENTS[stage] ?? []
     if (required.length === 0) return true
 
@@ -382,17 +384,6 @@ export default function PurchaseOrderDetailPage() {
         type: 'cancel',
         title: 'Cancel Order',
         message: 'Are you sure you want to cancel this order? This cannot be undone.',
-      })
-      return
-    }
-
-    // Show confirmation dialog for shipped
-    if (targetStatus === 'SHIPPED') {
-      setConfirmDialog({
-        open: true,
-        type: 'ship',
-        title: 'Mark as Shipped',
-        message: 'Mark this order as shipped? This will finalize the order.',
       })
       return
     }
@@ -434,8 +425,6 @@ export default function PurchaseOrderDetailPage() {
   const handleConfirmDialogConfirm = async () => {
     if (confirmDialog.type === 'cancel') {
       await executeTransition('CANCELLED')
-    } else if (confirmDialog.type === 'ship') {
-      await executeTransition('SHIPPED')
     }
     setConfirmDialog({ open: false, type: null, title: '', message: '' })
   }
@@ -541,17 +530,7 @@ export default function PurchaseOrderDetailPage() {
       order.stageData.warehouse?.warehouseInvoiceId
   )
 
-  const hasShippedInfo = Boolean(
-    order.stageData.shipped?.shipToName ||
-      order.stageData.shipped?.shippingCarrier ||
-      order.stageData.shipped?.trackingNumber ||
-      order.stageData.shipped?.shippedDate ||
-      order.stageData.shipped?.proofOfDeliveryRef ||
-      order.stageData.shipped?.proofOfDelivery ||
-      order.stageData.shipped?.deliveredDate
-  )
-
-  const hasAnyStageInfo = hasManufacturingInfo || hasOceanInfo || hasWarehouseInfo || hasShippedInfo
+  const hasAnyStageInfo = hasManufacturingInfo || hasOceanInfo || hasWarehouseInfo
 
   const breadcrumbItems = [
     { label: 'Operations', href: '/operations' },
@@ -638,28 +617,11 @@ export default function PurchaseOrderDetailPage() {
           { key: 'receivedDate', label: 'Received Date', type: 'date' }
         )
         break
-      case 'SHIPPED':
-        fields.push(
-          { key: 'shipToName', label: 'Ship To Name', type: 'text' },
-          {
-            key: 'shipMode',
-            label: 'Outbound Mode',
-            type: 'select',
-            options: [
-              { value: 'CARTONS', label: 'Cartons' },
-              { value: 'PALLETS', label: 'Pallets' },
-            ],
-          },
-          { key: 'shippingCarrier', label: 'Shipping Carrier', type: 'text' },
-          { key: 'trackingNumber', label: 'Tracking Number', type: 'text' },
-          { key: 'shippedDate', label: 'Shipped Date', type: 'date' }
-        )
-        break
     }
 
     if (fields.length === 0) return null
 
-    const docStage = nextStage.value as PurchaseOrderDocumentStage
+    const docStage = nextStage.value as keyof typeof STAGE_DOCUMENTS
     const requiredDocs = STAGE_DOCUMENTS[docStage] ?? []
 
     const docsByType = new Map<string, PurchaseOrderDocumentSummary>(
@@ -717,9 +679,13 @@ export default function PurchaseOrderDetailPage() {
 
     return (
       <div className="mt-4 p-4 rounded-lg border border-slate-200 bg-slate-50">
-        <h4 className="text-sm font-semibold text-slate-900 mb-3">
-          Required for {nextStage.label}
+        <h4 className="text-sm font-semibold text-slate-900">
+          Advance: {STAGES[currentStageIndex]?.label ?? formatStatusLabel(order.status)} →{' '}
+          {nextStage.label}
         </h4>
+        <p className="text-xs text-muted-foreground mt-1 mb-3">
+          Provide the details and required documents below to move to the next stage.
+        </p>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {fields.map(field => (
             <div key={field.key} className="space-y-1.5">
@@ -832,6 +798,11 @@ export default function PurchaseOrderDetailPage() {
   const tabConfig = [
     { id: 'overview', label: 'Overview', icon: <FileText className="h-4 w-4" /> },
     { id: 'cargo', label: `Cargo (${order.lines.length})`, icon: <Package2 className="h-4 w-4" /> },
+    {
+      id: 'documents',
+      label: `Documents (${documents.length})`,
+      icon: <Upload className="h-4 w-4" />,
+    },
     { id: 'history', label: 'Approval History', icon: <History className="h-4 w-4" /> },
   ]
 
@@ -937,20 +908,38 @@ export default function PurchaseOrderDetailPage() {
                       <ChevronRight className="h-4 w-4" />
                     </>
                   )}
-                </Button>
-              )}
-              {!isTerminal && (
-                <Button
-                  variant="destructive"
-                  onClick={() => handleTransition('CANCELLED')}
-                  disabled={transitioning}
-                  className="gap-2"
-                >
-                  <XCircle className="h-4 w-4" />
-                  Cancel Order
-                </Button>
-              )}
+	                </Button>
+	              )}
+	              {!isTerminal && (
+	                <Button
+	                  variant="destructive"
+	                  onClick={() => handleTransition('CANCELLED')}
+	                  disabled={transitioning}
+	                  className="gap-2"
+	                >
+	                  <XCircle className="h-4 w-4" />
+	                  Cancel Order
+	                </Button>
+	              )}
             </div>
+
+            {order.status === 'WAREHOUSE' && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    Shipping is handled via Fulfillment Orders
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Create a fulfillment order (FO) to ship inventory out of this warehouse.
+                  </p>
+                </div>
+                <Button asChild variant="outline">
+                  <Link href="/operations/fulfillment-orders/new" prefetch={false}>
+                    Create Fulfillment Order
+                  </Link>
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
@@ -1119,18 +1108,6 @@ export default function PurchaseOrderDetailPage() {
                         </div>
                       </div>
                     )}
-                    {/* Shipped */}
-                    {hasShippedInfo && (
-                      <div className="flex gap-3 text-sm">
-                        <div className="flex-shrink-0 w-24 text-slate-500 font-medium">Shipped</div>
-                        <div className="flex-1 text-slate-700">
-                          {[
-                            order.stageData.shipped?.trackingNumber && `Tracking: ${order.stageData.shipped.trackingNumber}`,
-                            order.stageData.shipped?.shippedDate && `Date: ${formatDateOnly(order.stageData.shipped.shippedDate)}`,
-                          ].filter(Boolean).join(' • ')}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
@@ -1191,6 +1168,135 @@ export default function PurchaseOrderDetailPage() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </TabPanel>
+
+          <TabPanel>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Documents</h3>
+                  <p className="text-xs text-muted-foreground">
+                    View uploaded documents across every stage.
+                  </p>
+                </div>
+                {documentsLoading && (
+                  <span className="text-xs text-muted-foreground">Loading…</span>
+                )}
+              </div>
+
+              {(() => {
+                const baseStages = ['MANUFACTURING', 'OCEAN', 'WAREHOUSE'] as const
+                const hasLegacyShippingDocs = documents.some(doc => doc.stage === 'SHIPPED')
+                const stages: PurchaseOrderDocumentStage[] = hasLegacyShippingDocs
+                  ? [...baseStages, 'SHIPPED']
+                  : [...baseStages]
+
+                type UploadStage = keyof typeof STAGE_DOCUMENTS
+
+                return stages.map(stage => {
+                  const stageLabel =
+                    stage === 'SHIPPED'
+                      ? 'Legacy Shipping (deprecated)'
+                      : STAGES.find(item => item.value === stage)?.label ?? stage
+
+                  const required =
+                    stage === 'SHIPPED'
+                      ? []
+                      : (STAGE_DOCUMENTS[stage as UploadStage] ?? [])
+
+                  const stageDocs = documents.filter(doc => doc.stage === stage)
+                  const docsByType = new Map(stageDocs.map(doc => [doc.documentType, doc]))
+                  const requiredDocTypes = new Set(required.map(doc => doc.id))
+                  const otherDocs = stageDocs.filter(doc => !requiredDocTypes.has(doc.documentType))
+
+                  return (
+                    <div key={stage} className="rounded-xl border bg-white p-4 shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-slate-900">{stageLabel}</h4>
+                        <Badge variant="outline">{stageDocs.length} uploaded</Badge>
+                      </div>
+
+                      {required.length > 0 && (
+                        <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                          {required.map(docType => {
+                            const existing = docsByType.get(docType.id)
+                            return (
+                              <div
+                                key={`${stage}::${docType.id}`}
+                                className="rounded-md border bg-slate-50 px-3 py-2"
+                              >
+                                <div className="flex items-center gap-2">
+                                  {existing ? (
+                                    <Check className="h-4 w-4 text-emerald-600" />
+                                  ) : (
+                                    <XCircle className="h-4 w-4 text-slate-400" />
+                                  )}
+                                  <span className="text-sm font-medium text-slate-900">
+                                    {docType.label}
+                                  </span>
+                                </div>
+
+                                {existing ? (
+                                  <div className="mt-1">
+                                    <a
+                                      href={existing.viewUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="block truncate text-xs text-primary hover:underline"
+                                      title={existing.fileName}
+                                    >
+                                      {existing.fileName}
+                                    </a>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                      Uploaded {formatDate(existing.uploadedAt)}
+                                      {existing.uploadedByName
+                                        ? ` • ${existing.uploadedByName}`
+                                        : ''}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <p className="mt-1 text-xs text-muted-foreground">
+                                    Not uploaded yet
+                                  </p>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+
+                      {otherDocs.length > 0 && (
+                        <div className="mt-4">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            Other uploads
+                          </p>
+                          <div className="mt-2 space-y-1">
+                            {otherDocs.map(doc => (
+                              <a
+                                key={doc.id}
+                                href={doc.viewUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block truncate text-xs text-primary hover:underline"
+                                title={doc.fileName}
+                              >
+                                {doc.documentType}: {doc.fileName}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {required.length === 0 && stageDocs.length === 0 && (
+                        <p className="mt-3 text-xs text-muted-foreground">
+                          No documents uploaded.
+                        </p>
+                      )}
+                    </div>
+                  )
+                })
+              })()}
             </div>
           </TabPanel>
 

@@ -491,15 +491,23 @@ function SkuBatchesManager({
     }
 
     const storageRaw = formState.storageCartonsPerPallet.trim()
+    if (!storageRaw) {
+      toast.error('Storage cartons per pallet is required')
+      return
+    }
     const storage = parsePositiveInt(storageRaw)
-    if (storageRaw && storage === null) {
+    if (storage === null) {
       toast.error('Storage cartons per pallet must be a positive integer')
       return
     }
 
     const shippingRaw = formState.shippingCartonsPerPallet.trim()
+    if (!shippingRaw) {
+      toast.error('Shipping cartons per pallet is required')
+      return
+    }
     const shipping = parsePositiveInt(shippingRaw)
-    if (shippingRaw && shipping === null) {
+    if (shipping === null) {
       toast.error('Shipping cartons per pallet must be a positive integer')
       return
     }
@@ -978,6 +986,7 @@ function SkuBatchesManager({
                     id="storageCartonsPerPallet"
                     type="number"
                     min={1}
+                    required
                     value={formState.storageCartonsPerPallet}
                     onChange={event =>
                       setFormState(prev => ({
@@ -985,7 +994,7 @@ function SkuBatchesManager({
                         storageCartonsPerPallet: event.target.value,
                       }))
                     }
-                    placeholder="Optional"
+                    placeholder="Required"
                   />
                 </div>
 
@@ -995,6 +1004,7 @@ function SkuBatchesManager({
                     id="shippingCartonsPerPallet"
                     type="number"
                     min={1}
+                    required
                     value={formState.shippingCartonsPerPallet}
                     onChange={event =>
                       setFormState(prev => ({
@@ -1002,7 +1012,7 @@ function SkuBatchesManager({
                         shippingCartonsPerPallet: event.target.value,
                       }))
                     }
-                    placeholder="Optional"
+                    placeholder="Required"
                   />
                 </div>
               </div>
