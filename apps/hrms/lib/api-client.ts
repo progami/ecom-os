@@ -10,6 +10,7 @@ export type Employee = {
   firstName: string
   lastName: string
   email: string
+  avatar?: string | null
   phone?: string
   department?: string
   dept?: { id: string; name: string } | null
