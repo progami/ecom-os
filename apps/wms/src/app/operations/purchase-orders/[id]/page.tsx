@@ -820,9 +820,15 @@ export default function PurchaseOrderDetailPage() {
                 {order.poNumber || order.orderNumber}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {order.warehouseCode && order.warehouseName
-                  ? `${order.warehouseName} (${order.warehouseCode})`
-                  : 'Warehouse not set yet (selected at Stage 4)'}
+                {order.warehouseCode || order.warehouseName ? (
+                  <>
+                    Warehouse:{' '}
+                    {order.warehouseName ?? order.warehouseCode}
+                    {order.warehouseName && order.warehouseCode ? ` (${order.warehouseCode})` : null}
+                  </>
+                ) : (
+                  'Warehouse: Not assigned'
+                )}
               </p>
             </div>
           </div>
