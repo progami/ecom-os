@@ -92,7 +92,8 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
     return ApiResponses.validationError(parsed.error.flatten().fieldErrors)
   }
 
-  if (!(await ensureBatch(skuId, batchId))) {
+  const existing = await ensureBatch(skuId, batchId)
+  if (!existing) {
     return ApiResponses.notFound('Batch not found')
   }
 
@@ -100,7 +101,24 @@ export const PATCH = withAuthAndParams(async (request, params, session) => {
   const hasOwn = (key: string) => Object.prototype.hasOwnProperty.call(parsed.data, key)
 
   if (parsed.data.batchCode) {
-    data.batchCode = sanitizeForDisplay(parsed.data.batchCode.toUpperCase())
+    const requestedCode = sanitizeForDisplay(parsed.data.batchCode.toUpperCase())
+    const existingCode = existing.batchCode.toUpperCase()
+
+    if (!requestedCode) {
+      return ApiResponses.badRequest('Invalid batch code')
+    }
+
+    if (requestedCode === 'DEFAULT' && existingCode !== 'DEFAULT') {
+      return ApiResponses.badRequest('DEFAULT batch code is reserved')
+    }
+
+    if (existingCode === 'DEFAULT') {
+      if (requestedCode !== 'DEFAULT') {
+        return ApiResponses.badRequest('DEFAULT batch code cannot be changed')
+      }
+    } else {
+      data.batchCode = requestedCode
+    }
   }
 
   if (parsed.data.description !== undefined) {
@@ -251,6 +269,10 @@ export const DELETE = withAuthAndParams(async (_request, params, session) => {
   const existing = await ensureBatch(skuId, batchId)
   if (!existing) {
     return ApiResponses.notFound('Batch not found')
+  }
+
+  if (existing.batchCode.toUpperCase() === 'DEFAULT') {
+    return ApiResponses.badRequest('Cannot delete the DEFAULT batch')
   }
 
   const sku = await prisma.sku.findUnique({

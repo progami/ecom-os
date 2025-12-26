@@ -394,7 +394,7 @@ function LeavePageContent() {
 
   const [leaveBalances, setLeaveBalances] = useState<LeaveBalance[]>([])
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([])
-  const [leaveLoading, setLeaveLoading] = useState(false)
+  const [leaveLoading, setLeaveLoading] = useState(true)
   const [showLeavePanel, setShowLeavePanel] = useState(false)
   const [q, setQ] = useState('')
   const [processingId, setProcessingId] = useState<string | null>(null)
@@ -635,11 +635,25 @@ function LeavePageContent() {
             <Card padding="lg">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-gray-900">Leave Balance</h3>
-                <span className="text-xs text-gray-500">
-                  {leaveBalances.filter(b => b.leaveType !== 'UNPAID').length} types available
-                </span>
+                {!leaveLoading && (
+                  <span className="text-xs text-gray-500">
+                    {leaveBalances.filter(b => b.leaveType !== 'UNPAID').length} types available
+                  </span>
+                )}
               </div>
-              <LeaveBalanceCards balances={leaveBalances} />
+              {leaveLoading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="animate-pulse bg-white rounded-lg border border-gray-200 p-4">
+                      <div className="h-4 bg-gray-200 rounded w-16 mb-3" />
+                      <div className="h-8 bg-gray-200 rounded w-12 mb-3" />
+                      <div className="h-1.5 bg-gray-100 rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <LeaveBalanceCards balances={leaveBalances} />
+              )}
             </Card>
 
             {/* Search */}
@@ -747,13 +761,27 @@ function LeavePageContent() {
   )
 }
 
+function LeavePageSkeleton() {
+  return (
+    <>
+      <ListPageHeader
+        title="Leave Management"
+        description="Request and manage time off"
+        icon={<CalendarDaysIcon className="h-6 w-6 text-white" />}
+      />
+      <div className="space-y-6">
+        <Card padding="md">
+          <div className="animate-pulse h-10 bg-gray-200 rounded w-full" />
+        </Card>
+        <div className="animate-pulse h-64 bg-gray-100 rounded-lg" />
+      </div>
+    </>
+  )
+}
+
 export default function LeavePage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-      </div>
-    }>
+    <Suspense fallback={<LeavePageSkeleton />}>
       <LeavePageContent />
     </Suspense>
   )
