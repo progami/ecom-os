@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import type { Session } from 'next-auth'
 import { ApiResponses } from './responses'
 import { auth } from '@/lib/auth'

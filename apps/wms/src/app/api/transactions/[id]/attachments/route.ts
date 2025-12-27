@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { withAuthAndParams } from '@/lib/api/auth-wrapper'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { Prisma } from '@ecom-os/prisma-wms'
@@ -286,7 +286,7 @@ export const POST = withAuthAndParams(async (request, params, session) => {
  }
 })
 
-export const GET = withAuthAndParams(async (request, params, session) => {
+export const GET = withAuthAndParams(async (request, params, _session) => {
  try {
  const { id } = params as { id: string }
 
@@ -379,7 +379,7 @@ export const GET = withAuthAndParams(async (request, params, session) => {
  }
 })
 
-export const DELETE = withAuthAndParams(async (request, params, session) => {
+export const DELETE = withAuthAndParams(async (request, params, _session) => {
  try {
  const { id } = params as { id: string }
 
