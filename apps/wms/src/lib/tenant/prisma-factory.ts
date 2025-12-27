@@ -5,6 +5,7 @@
 
 import { PrismaClient } from '@ecom-os/prisma-wms'
 import { Client } from 'pg'
+import { logger } from '@/lib/logger'
 import { TenantCode, TENANTS, isValidTenantCode } from './constants'
 
 // Global cache for Prisma clients per tenant
@@ -227,7 +228,7 @@ export async function disconnectAllTenants(): Promise<void> {
   const disconnectPromises: Promise<void>[] = []
 
   for (const [tenantCode, client] of clientCache.entries()) {
-    console.log(`[tenant] Disconnecting ${tenantCode} database...`)
+    logger.info('Disconnecting tenant database', { tenantCode })
     disconnectPromises.push(client.$disconnect())
   }
 

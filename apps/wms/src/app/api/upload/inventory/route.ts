@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/api/auth-wrapper';
 import { validateFile, scanFileContent } from '@/lib/security/file-upload';
 import { sanitizeForExcel } from '@/lib/security/input-sanitization';
@@ -9,7 +9,7 @@ import { z } from 'zod';
 const _MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 const ALLOWED_TYPES = ['.xlsx', '.xls', '.csv'];
 
-export const POST = withAuth(async (request, session) => {
+export const POST = withAuth(async (request, _session) => {
  try {
  // Rate limit file uploads
  const rateLimitResponse = await checkRateLimit(request, rateLimitConfigs.upload);

@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { withAuthAndParams } from '@/lib/api/auth-wrapper'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { getS3Service } from '@/services/s3.service'
 
 export const dynamic = 'force-dynamic'
 
-export const POST = withAuthAndParams(async (request, params, session) => {
+export const POST = withAuthAndParams(async (request, params, _session) => {
  try {
  const { id } = params as { id: string }
 
