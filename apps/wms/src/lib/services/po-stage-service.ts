@@ -1,6 +1,7 @@
 import { getTenantPrisma, getCurrentTenant } from '@/lib/tenant/server'
 import {
   PurchaseOrder,
+  PurchaseOrderLine,
   PurchaseOrderStatus,
   PurchaseOrderLineStatus,
   PurchaseOrderDocumentStage,
@@ -16,6 +17,9 @@ import { recalculateStorageLedgerForTransactions } from './storage-ledger-sync'
 import { buildTacticalCostLedgerEntries } from '@/lib/costing/tactical-costing'
 import { calculatePalletValues } from '@/lib/utils/pallet-calculations'
 import { recordStorageCostEntry } from '@/services/storageCost.service'
+
+type PurchaseOrderWithLines = PurchaseOrder & { lines: PurchaseOrderLine[] }
+type PurchaseOrderWithOptionalLines = PurchaseOrder & { lines?: PurchaseOrderLine[] }
 
 // Valid stage transitions for new 5-stage workflow
 export const VALID_TRANSITIONS: Partial<Record<PurchaseOrderStatus, PurchaseOrderStatus[]>> = {
@@ -377,7 +381,7 @@ export async function createPurchaseOrder(
     lines?: CreatePurchaseOrderLineInput[]
   },
   user: UserContext
-): Promise<PurchaseOrder & { lines: any[] }> {
+): Promise<PurchaseOrderWithLines> {
   const tenant = await getCurrentTenant()
   const prisma = await getTenantPrisma()
   let skuRecordsForLines: Array<{
@@ -461,7 +465,7 @@ export async function createPurchaseOrder(
   }
 
   const MAX_PO_NUMBER_ATTEMPTS = 5
-  let order: (PurchaseOrder & { lines: any[] }) | null = null
+  let order: PurchaseOrderWithLines | null = null
 
   for (let attempt = 0; attempt < MAX_PO_NUMBER_ATTEMPTS; attempt += 1) {
     const poNumber = await generatePoNumber()
@@ -1323,12 +1327,91 @@ export function getStageApprovalHistory(order: PurchaseOrder): {
 /**
  * Get current stage data for display
  */
-export function getStageData(order: PurchaseOrder): {
-  manufacturing: Record<string, any>
-  ocean: Record<string, any>
-  warehouse: Record<string, any>
-  shipped: Record<string, any>
-} {
+type ManufacturingStageData = {
+  proformaInvoiceNumber: PurchaseOrder['proformaInvoiceNumber']
+  proformaInvoiceDate: PurchaseOrder['proformaInvoiceDate']
+  factoryName: PurchaseOrder['factoryName']
+  manufacturingStartDate: PurchaseOrder['manufacturingStartDate']
+  expectedCompletionDate: PurchaseOrder['expectedCompletionDate']
+  actualCompletionDate: PurchaseOrder['actualCompletionDate']
+  totalWeightKg: number | null
+  totalVolumeCbm: number | null
+  totalCartons: PurchaseOrder['totalCartons']
+  totalPallets: PurchaseOrder['totalPallets']
+  packagingNotes: PurchaseOrder['packagingNotes']
+  proformaInvoiceId: PurchaseOrder['proformaInvoiceId']
+  proformaInvoiceData: PurchaseOrder['proformaInvoiceData']
+  manufacturingStart: PurchaseOrder['manufacturingStart']
+  manufacturingEnd: PurchaseOrder['manufacturingEnd']
+  cargoDetails: PurchaseOrder['cargoDetails']
+}
+
+type OceanStageData = {
+  houseBillOfLading: PurchaseOrder['houseBillOfLading']
+  masterBillOfLading: PurchaseOrder['masterBillOfLading']
+  commercialInvoiceNumber: PurchaseOrder['commercialInvoiceNumber']
+  packingListRef: PurchaseOrder['packingListRef']
+  vesselName: PurchaseOrder['vesselName']
+  voyageNumber: PurchaseOrder['voyageNumber']
+  portOfLoading: PurchaseOrder['portOfLoading']
+  portOfDischarge: PurchaseOrder['portOfDischarge']
+  estimatedDeparture: PurchaseOrder['estimatedDeparture']
+  estimatedArrival: PurchaseOrder['estimatedArrival']
+  actualDeparture: PurchaseOrder['actualDeparture']
+  actualArrival: PurchaseOrder['actualArrival']
+  commercialInvoiceId: PurchaseOrder['commercialInvoiceId']
+}
+
+type WarehouseStageData = {
+  warehouseCode: PurchaseOrder['warehouseCode']
+  warehouseName: PurchaseOrder['warehouseName']
+  customsEntryNumber: PurchaseOrder['customsEntryNumber']
+  customsClearedDate: PurchaseOrder['customsClearedDate']
+  dutyAmount: number | null
+  dutyCurrency: PurchaseOrder['dutyCurrency']
+  surrenderBlDate: PurchaseOrder['surrenderBlDate']
+  transactionCertNumber: PurchaseOrder['transactionCertNumber']
+  receivedDate: PurchaseOrder['receivedDate']
+  discrepancyNotes: PurchaseOrder['discrepancyNotes']
+  warehouseInvoiceId: PurchaseOrder['warehouseInvoiceId']
+  surrenderBL: PurchaseOrder['surrenderBL']
+  transactionCertificate: PurchaseOrder['transactionCertificate']
+  customsDeclaration: PurchaseOrder['customsDeclaration']
+}
+
+type ShippedStageData = {
+  shipToName: PurchaseOrder['shipToName']
+  shipToAddress: PurchaseOrder['shipToAddress']
+  shipToCity: PurchaseOrder['shipToCity']
+  shipToCountry: PurchaseOrder['shipToCountry']
+  shipToPostalCode: PurchaseOrder['shipToPostalCode']
+  shippingCarrier: PurchaseOrder['shippingCarrier']
+  shippingMethod: PurchaseOrder['shippingMethod']
+  trackingNumber: PurchaseOrder['trackingNumber']
+  shippedDate: PurchaseOrder['shippedDate']
+  proofOfDeliveryRef: PurchaseOrder['proofOfDeliveryRef']
+  deliveredDate: PurchaseOrder['deliveredDate']
+  proofOfDelivery: PurchaseOrder['proofOfDelivery']
+  shippedAt: PurchaseOrder['shippedAt']
+  shippedBy: PurchaseOrder['shippedByName']
+}
+
+type StageData = {
+  manufacturing: ManufacturingStageData
+  ocean: OceanStageData
+  warehouse: WarehouseStageData
+  shipped: ShippedStageData
+}
+
+type SerializedStageSection<T> = {
+  [K in keyof T]: T[K] extends Date | null | undefined ? string | null : T[K]
+}
+
+type SerializedStageData = {
+  [K in keyof StageData]: SerializedStageSection<StageData[K]>
+}
+
+export function getStageData(order: PurchaseOrder): StageData {
   return {
     manufacturing: {
       proformaInvoiceNumber: order.proformaInvoiceNumber,
@@ -1414,7 +1497,7 @@ function serializeDate(value: Date | null | undefined): string | null {
 /**
  * Serialize stage data dates to ISO strings
  */
-function serializeStageData(data: ReturnType<typeof getStageData>): Record<string, any> {
+function serializeStageData(data: StageData): SerializedStageData {
   return {
     manufacturing: {
       ...data.manufacturing,
@@ -1453,9 +1536,9 @@ function serializeStageData(data: ReturnType<typeof getStageData>): Record<strin
  * Serialize a PurchaseOrder for API responses
  */
 export function serializePurchaseOrder(
-  order: PurchaseOrder & { lines?: any[] },
+  order: PurchaseOrderWithOptionalLines,
   options?: { defaultCurrency?: string }
-): Record<string, any> {
+): Record<string, unknown> {
   const defaultCurrency = options?.defaultCurrency ?? 'USD'
 
   return {
