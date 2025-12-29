@@ -598,24 +598,31 @@ export function SalesPlanningGrid({
       }
 
       const nextStockWeeks: number[] = new Array(n);
-      for (let i = 0; i < n; i += 1) {
-        let depletionIndex: number | null = null;
-        for (let j = i; j < n; j += 1) {
-          if (nextStockEnd[j] <= 0) {
-            depletionIndex = j;
-            break;
-          }
-        }
+      const depletionIndexByRow: Array<number | null> = new Array(n).fill(null);
+      let nextDepletionIndex: number | null = null;
 
+      for (let i = n - 1; i >= 0; i -= 1) {
+        if (nextStockEnd[i] <= 0) {
+          nextDepletionIndex = i;
+        }
+        depletionIndexByRow[i] = nextDepletionIndex;
+      }
+
+      const fractionAtDepletion: number[] = new Array(n).fill(0);
+      for (let i = 0; i < n; i += 1) {
+        if (nextStockEnd[i] > 0) continue;
+        const depletionSales = nextFinalSales[i];
+        const depletionStart = nextStockStart[i];
+        fractionAtDepletion[i] = depletionSales > 0 ? depletionStart / depletionSales : 0;
+      }
+
+      for (let i = 0; i < n; i += 1) {
+        const depletionIndex = depletionIndexByRow[i];
         if (depletionIndex == null) {
           nextStockWeeks[i] = Number.POSITIVE_INFINITY;
           continue;
         }
-
-        const depletionSales = nextFinalSales[depletionIndex];
-        const depletionStart = nextStockStart[depletionIndex];
-        const fraction = depletionSales > 0 ? depletionStart / depletionSales : 0;
-        nextStockWeeks[i] = depletionIndex === i ? fraction : depletionIndex - i + fraction;
+        nextStockWeeks[i] = depletionIndex - i + fractionAtDepletion[depletionIndex];
       }
 
       if (Number.isFinite(warningThreshold) && warningThreshold > 0) {
@@ -841,13 +848,13 @@ export function SalesPlanningGrid({
       const meta = columnMeta[key];
       if (!meta) return;
 
-      const renderToggle = (label: string, handler: () => void) => {
+      const renderToggle = (label: string, handler: () => void, title = label) => {
         Handsontable.dom.empty(TH);
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'x-plan-header-toggle';
         button.textContent = label;
-        button.title = label;
+        button.title = title;
 
         const trigger = (event: Event) => {
           event.preventDefault();
@@ -877,11 +884,13 @@ export function SalesPlanningGrid({
       };
 
       if (meta.field === activeStockMetric) {
-        renderToggle(activeStockMetric === 'stockWeeks' ? 'Stockout (Weeks)' : 'Stock Qty', () => {
+        const stockLabel = activeStockMetric === 'stockWeeks' ? 'Stockout (Wks)' : 'Stock Qty';
+        const stockTitle = activeStockMetric === 'stockWeeks' ? 'Stockout (Weeks)' : 'Stock Qty';
+        renderToggle(stockLabel, () => {
           preserveScrollPosition(() => {
             setActiveStockMetric((prev) => (prev === 'stockWeeks' ? 'stockEnd' : 'stockWeeks'));
           });
-        });
+        }, stockTitle);
         return;
       }
 
@@ -958,7 +967,7 @@ export function SalesPlanningGrid({
           nestedHeaders={nestedHeaders as unknown as HandsontableNestedHeaders}
           afterGetColHeader={handleColHeader}
           stretchH="all"
-          className="x-plan-hot h-full"
+          className="x-plan-hot x-plan-hot-sales h-full"
           height="100%"
           rowHeaders={false}
           undo

@@ -39,6 +39,11 @@
   transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
+.x-plan-hot-sales .htCore th,
+.x-plan-hot-sales .htCore td {
+  transition: none;
+}
+
 .dark .x-plan-hot .htCore th,
 .dark .x-plan-hot .htCore td {
   color: #e2e8f0;
@@ -281,27 +286,45 @@
 
 /* Warning cells */
 .x-plan-hot .cell-warning {
-  background: #fee2e2 !important;
+  background-color: #fee2e2 !important;
   color: #7f1d1d !important;
   border-color: transparent !important;
-  box-shadow: inset 2px 0 0 #ef4444, inset -2px 0 0 #ef4444;
+  transition: none;
+  background-image:
+    linear-gradient(to bottom, #ef4444, #ef4444),
+    linear-gradient(to bottom, #ef4444, #ef4444);
+  background-size: 2px 100%, 2px 100%;
+  background-position: left top, right top;
+  background-repeat: no-repeat;
   font-weight: 700 !important;
 }
 
 .x-plan-hot .cell-warning.cell-warning-start {
-  box-shadow: inset 2px 0 0 #ef4444, inset -2px 0 0 #ef4444, inset 0 2px 0 #ef4444;
+  background-image:
+    linear-gradient(to bottom, #ef4444, #ef4444),
+    linear-gradient(to bottom, #ef4444, #ef4444),
+    linear-gradient(to right, #ef4444, #ef4444);
+  background-size: 2px 100%, 2px 100%, 100% 2px;
+  background-position: left top, right top, left top;
 }
 
 .x-plan-hot .cell-warning.cell-warning-end {
-  box-shadow: inset 2px 0 0 #ef4444, inset -2px 0 0 #ef4444, inset 0 -2px 0 #ef4444;
+  background-image:
+    linear-gradient(to bottom, #ef4444, #ef4444),
+    linear-gradient(to bottom, #ef4444, #ef4444),
+    linear-gradient(to right, #ef4444, #ef4444);
+  background-size: 2px 100%, 2px 100%, 100% 2px;
+  background-position: left top, right top, left bottom;
 }
 
 .x-plan-hot .cell-warning.cell-warning-start.cell-warning-end {
-  box-shadow:
-    inset 2px 0 0 #ef4444,
-    inset -2px 0 0 #ef4444,
-    inset 0 2px 0 #ef4444,
-    inset 0 -2px 0 #ef4444;
+  background-image:
+    linear-gradient(to bottom, #ef4444, #ef4444),
+    linear-gradient(to bottom, #ef4444, #ef4444),
+    linear-gradient(to right, #ef4444, #ef4444),
+    linear-gradient(to right, #ef4444, #ef4444);
+  background-size: 2px 100%, 2px 100%, 100% 2px, 100% 2px;
+  background-position: left top, right top, left top, left bottom;
 }
 
 /* Reorder suggestion cells */
