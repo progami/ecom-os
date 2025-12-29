@@ -47,11 +47,16 @@ function formatWeekDateFallback(weekNumber: number): string {
   return formatDateDisplay(addWeeks(PLANNING_ANCHOR_DATE, weekNumber - PLANNING_ANCHOR_WEEK));
 }
 
-function getHandsontableScroll(hot: Handsontable | null): { top: number; left: number } | null {
+function getHandsontableScrollHolder(hot: Handsontable | null): HTMLElement | null {
   if (!hot?.rootElement) return null;
-  const holder =
+  return (
     (hot.rootElement.querySelector('.ht_master .wtHolder') as HTMLElement | null) ??
-    (hot.rootElement.querySelector('.wtHolder') as HTMLElement | null);
+    (hot.rootElement.querySelector('.wtHolder') as HTMLElement | null)
+  );
+}
+
+function getHandsontableScroll(hot: Handsontable | null): { top: number; left: number } | null {
+  const holder = getHandsontableScrollHolder(hot);
   if (!holder) return null;
   return { top: holder.scrollTop, left: holder.scrollLeft };
 }
@@ -60,10 +65,7 @@ function restoreHandsontableScroll(
   hot: Handsontable | null,
   scroll: { top: number; left: number },
 ): boolean {
-  if (!hot?.rootElement) return false;
-  const holder =
-    (hot.rootElement.querySelector('.ht_master .wtHolder') as HTMLElement | null) ??
-    (hot.rootElement.querySelector('.wtHolder') as HTMLElement | null);
+  const holder = getHandsontableScrollHolder(hot);
   if (!holder) return false;
   holder.scrollTop = scroll.top;
   holder.scrollLeft = scroll.left;
@@ -248,26 +250,26 @@ export function SalesPlanningGrid({
 
   const preserveScrollPosition = useCallback((action: () => void) => {
     const scroll = getHandsontableScroll(hotRef.current);
+    const holder = getHandsontableScrollHolder(hotRef.current);
     action();
-    if (!scroll) return;
+    if (!scroll || !holder) return;
 
-    const root = hotRef.current?.rootElement ?? null;
-    let userWheel = false;
+    let userScroll = false;
 
-    const markWheel = () => {
-      userWheel = true;
+    const markScroll = () => {
+      userScroll = true;
     };
 
-    root?.addEventListener('wheel', markWheel, { passive: true });
+    holder.addEventListener('scroll', markScroll, { passive: true });
 
     const cleanup = () => {
-      root?.removeEventListener('wheel', markWheel);
+      holder.removeEventListener('scroll', markScroll);
     };
 
     const threshold = 4;
 
     const attemptRestore = (attempt = 0) => {
-      if (userWheel) {
+      if (userScroll) {
         cleanup();
         return;
       }
@@ -514,7 +516,7 @@ export function SalesPlanningGrid({
   }, [columnKeys, columnMeta, focusProductId, visibleMetrics]);
 
   const recomputeDerivedForProduct = useCallback(
-    (productId: string) => {
+    (productId: string, startRowIndex: number | null = null) => {
       const hot = hotRef.current;
       if (!hot) return;
 
@@ -718,7 +720,18 @@ export function SalesPlanningGrid({
       }
 
       if (changes.length > 0) {
-        hot.setDataAtRowProp(changes, 'derived-update');
+        const startIndex = Math.max(0, Math.min(n - 1, startRowIndex ?? 0));
+        const slicedChanges =
+          startIndex === 0 ? changes : changes.filter(([rowIndex]) => rowIndex >= startIndex);
+
+        if (slicedChanges.length === 0) {
+          hot.render();
+          return;
+        }
+
+        hot.batchRender(() => {
+          hot.setDataAtRowProp(slicedChanges, 'derived-update');
+        });
         return;
       }
     },
@@ -972,8 +985,6 @@ export function SalesPlanningGrid({
           rowHeaders={false}
           undo
           comments={true}
-          dropdownMenu={true}
-          filters={true}
           hiddenColumns={{ columns: hiddenColumns, indicators: true }}
           autoColumnSize={false}
           colWidths={columnWidths}
@@ -1137,6 +1148,7 @@ export function SalesPlanningGrid({
             const hot = hotRef.current;
             if (!hot) return;
             const changedProductIds = new Set<string>();
+            const minRowByProduct = new Map<string, number>();
             for (const change of changes) {
               const [rowIndex, prop, _oldValue, newValue] = change as [number, string, any, any];
               const meta = columnMeta[prop];
@@ -1157,11 +1169,15 @@ export function SalesPlanningGrid({
               entry.values[meta.field] = formatted;
               record[prop] = formatted;
               changedProductIds.add(meta.productId);
+              const existingMin = minRowByProduct.get(meta.productId);
+              if (existingMin == null || rowIndex < existingMin) {
+                minRowByProduct.set(meta.productId, rowIndex);
+              }
             }
             if (changedProductIds.size > 0) {
               preserveScrollPosition(() => {
                 for (const productId of changedProductIds) {
-                  recomputeDerivedForProduct(productId);
+                  recomputeDerivedForProduct(productId, minRowByProduct.get(productId) ?? null);
                 }
               });
             }

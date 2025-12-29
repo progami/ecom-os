@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import prisma from '../../../../lib/prisma'
 import { withRateLimit, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
-import { isHROrAbove } from '@/lib/permissions'
+import { isHROrAbove, isManagerOf } from '@/lib/permissions'
 
 /**
  * GET /api/leaves/balance
@@ -37,12 +37,8 @@ export async function GET(req: Request) {
     const isSelf = employeeId === currentEmployeeId
 
     if (!isSelf && !isHR) {
-      // Check if manager
-      const targetEmployee = await prisma.employee.findUnique({
-        where: { id: employeeId },
-        select: { reportsToId: true },
-      })
-      if (targetEmployee?.reportsToId !== currentEmployeeId) {
+      const isManager = await isManagerOf(currentEmployeeId, employeeId)
+      if (!isManager) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
       }
     }
