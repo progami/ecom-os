@@ -45,12 +45,7 @@ const navigation: NavSection[] = [
     title: '',
     items: [
       { name: 'Work Queue', href: '/work', icon: BellIcon },
-      { name: 'My Dashboard', href: '/dashboard', icon: HomeIcon },
-    ],
-  },
-  {
-    title: 'Work',
-    items: [
+      { name: 'My Hub', href: '/hub', icon: HomeIcon },
       { name: 'Task List', href: '/tasks', icon: CheckCircleIcon },
       {
         name: 'Onboarding (Checklists)',
@@ -66,15 +61,9 @@ const navigation: NavSection[] = [
       { name: 'Employees', href: '/employees', icon: UsersIcon },
       { name: 'Org Chart', href: '/organogram', icon: OrgChartIcon },
       { name: 'Leave', href: '/leave', icon: CalendarDaysIcon },
+      { name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon },
+      { name: 'Cases', href: '/cases', icon: ExclamationTriangleIcon },
     ],
-  },
-  {
-    title: 'Performance',
-    items: [{ name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon }],
-  },
-  {
-    title: 'Compliance',
-    items: [{ name: 'Cases', href: '/cases', icon: ExclamationTriangleIcon }],
   },
   {
     title: 'Company',
@@ -88,7 +77,6 @@ const navigation: NavSection[] = [
     title: 'Admin',
     requireHR: true,
     items: [
-      { name: 'Ops Dashboards', href: '/admin/dashboards', icon: ChartBarIcon, requireHR: true },
       {
         name: 'Access Management',
         href: '/admin/access',
@@ -96,6 +84,7 @@ const navigation: NavSection[] = [
         requireSuperAdmin: true,
       },
       { name: 'Audit Logs', href: '/audit-logs', icon: LockClosedIcon, requireHR: true },
+      { name: 'Ops Dashboards', href: '/admin/dashboards', icon: ChartBarIcon, requireHR: true },
       {
         name: 'Checklist Templates',
         href: '/admin/checklists',
