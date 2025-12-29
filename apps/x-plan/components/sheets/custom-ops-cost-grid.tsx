@@ -514,6 +514,8 @@ export function CustomOpsCostGrid({
               onChange={handleSelectChange}
               onKeyDown={handleKeyDown}
               onBlur={handleCellBlur}
+              onClick={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
             >
               <option value="">Select product...</option>
               {products.map((product) => (
@@ -539,6 +541,8 @@ export function CustomOpsCostGrid({
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             onBlur={handleCellBlur}
+            onClick={(event) => event.stopPropagation()}
+            onMouseDown={(event) => event.stopPropagation()}
             className="ops-cell-input"
             placeholder={column.type === 'percent' ? 'e.g. 10 for 10%' : undefined}
           />
@@ -551,7 +555,10 @@ export function CustomOpsCostGrid({
         key={column.key}
         className={cellClasses}
         style={{ width: column.width, minWidth: column.width }}
-        onClick={() => handleCellClick(row, column)}
+        onClick={(event) => {
+          event.stopPropagation()
+          handleCellClick(row, column)
+        }}
       >
         <div className="ops-cell-display">{displayValue}</div>
       </td>
@@ -622,10 +629,6 @@ export function CustomOpsCostGrid({
                   <tr
                     key={row.id}
                     className={isRowActive(row) ? 'row-active' : ''}
-                    onClick={() => {
-                      onSelectOrder?.(row.purchaseOrderId)
-                      onSelectBatch?.(row.id)
-                    }}
                   >
                     {COLUMNS.map((column) => renderCell(row, column))}
                   </tr>
