@@ -249,6 +249,9 @@ export default function PurchaseOrderDetailPage() {
   // Collapsible sections
   const [showApprovalHistory, setShowApprovalHistory] = useState(false)
 
+  // Advance stage modal
+  const [advanceModalOpen, setAdvanceModalOpen] = useState(false)
+
   useEffect(() => {
     if (status === 'loading') return
     if (!session) {
@@ -417,8 +420,8 @@ export default function PurchaseOrderDetailPage() {
     await executeTransition(targetStatus)
   }
 
-  const executeTransition = async (targetStatus: POStageStatus) => {
-    if (!order || transitioning) return
+  const executeTransition = async (targetStatus: POStageStatus): Promise<boolean> => {
+    if (!order || transitioning) return false
 
     try {
       setTransitioning(true)
@@ -434,15 +437,17 @@ export default function PurchaseOrderDetailPage() {
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
         toast.error(payload?.error ?? 'Failed to transition order')
-        return
+        return false
       }
 
       const updated = await response.json()
       setOrder(updated)
       setStageFormData({}) // Clear form
       toast.success(`Order moved to ${formatStatusLabel(targetStatus)}`)
+      return true
     } catch (_error) {
       toast.error('Failed to transition order')
+      return false
     } finally {
       setTransitioning(false)
     }
@@ -704,15 +709,8 @@ export default function PurchaseOrderDetailPage() {
     }
 
     return (
-      <div className="mt-4 p-4 rounded-lg border border-slate-200 bg-slate-50">
-        <h4 className="text-sm font-semibold text-slate-900">
-          Advance: {STAGES[currentStageIndex]?.label ?? formatStatusLabel(order.status)} →{' '}
-          {nextStage.label}
-        </h4>
-        <p className="text-xs text-muted-foreground mt-1 mb-3">
-          Provide the details and required documents below to move to the next stage.
-        </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-5">
+        <div className="grid grid-cols-1 gap-4">
           {fields.map(field => (
             <div key={field.key} className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">{field.label}</label>
@@ -754,14 +752,14 @@ export default function PurchaseOrderDetailPage() {
         </div>
 
         {requiredDocs.length > 0 && (
-          <div className="mt-5 space-y-3">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h5 className="text-sm font-semibold text-slate-900">Required documents</h5>
+              <h5 className="text-sm font-semibold text-slate-900">Required Documents</h5>
               {documentsLoading && (
                 <span className="text-xs text-muted-foreground">Loading…</span>
               )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-2">
               {requiredDocs.map(doc => {
                 const key = `${docStage}::${doc.id}`
                 const existing = docsByType.get(key)
@@ -770,47 +768,45 @@ export default function PurchaseOrderDetailPage() {
                 return (
                   <div
                     key={key}
-                    className="flex items-center justify-between gap-3 rounded-md border bg-white px-3 py-2"
+                    className="flex items-center justify-between gap-3 rounded-lg border bg-slate-50 px-3 py-2.5"
                   >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        {existing ? (
-                          <Check className="h-4 w-4 text-emerald-600" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-slate-400" />
-                        )}
-                        <span className="text-sm font-medium text-slate-900">{doc.label}</span>
-                      </div>
+                    <div className="flex items-center gap-3 min-w-0">
                       {existing ? (
-                        <a
-                          href={existing.viewUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block truncate text-xs text-primary hover:underline mt-0.5"
-                          title={existing.fileName}
-                        >
-                          {existing.fileName}
-                        </a>
+                        <Check className="h-4 w-4 flex-shrink-0 text-emerald-600" />
                       ) : (
-                        <span className="block text-xs text-muted-foreground mt-0.5">
-                          Not uploaded yet
-                        </span>
+                        <XCircle className="h-4 w-4 flex-shrink-0 text-slate-400" />
                       )}
+                      <div className="min-w-0">
+                        <span className="text-sm font-medium text-slate-900">{doc.label}</span>
+                        {existing ? (
+                          <a
+                            href={existing.viewUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block truncate text-xs text-primary hover:underline"
+                            title={existing.fileName}
+                          >
+                            {existing.fileName}
+                          </a>
+                        ) : (
+                          <span className="block text-xs text-muted-foreground">
+                            Not uploaded yet
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <label className="inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">
-                        <Upload className="h-3.5 w-3.5" />
-                        {existing ? 'Replace' : 'Upload'}
-                        <input
-                          type="file"
-                          className="hidden"
-                          disabled={isUploading}
-                          onChange={e => handleUpload(e, doc.id)}
-                        />
-                      </label>
-                      {isUploading && <span className="text-xs text-muted-foreground">…</span>}
-                    </div>
+                    <label className="inline-flex items-center gap-2 rounded-md border bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors flex-shrink-0">
+                      <Upload className="h-3.5 w-3.5" />
+                      {existing ? 'Replace' : 'Upload'}
+                      <input
+                        type="file"
+                        className="hidden"
+                        disabled={isUploading}
+                        onChange={e => handleUpload(e, doc.id)}
+                      />
+                      {isUploading && <span className="text-xs text-muted-foreground ml-1">…</span>}
+                    </label>
                   </div>
                 )
               })}
@@ -989,41 +985,29 @@ export default function PurchaseOrderDetailPage() {
               })}
             </div>
 
-            {/* Stage Transition Form */}
-            {renderStageTransitionForm()}
-
             {/* Action Buttons */}
             <div className="flex flex-wrap items-center gap-3 mt-6">
-	              {nextStage && (
-	                <Button
-	                  onClick={() => handleTransition(nextStage.value as POStageStatus)}
-	                  disabled={transitioning || documentsLoading || !nextStageDocsComplete}
-	                  className="gap-2"
-	                >
-                  {transitioning ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Transitioning...
-                    </>
-                  ) : (
-                    <>
-                      Advance to {nextStage.label}
-                      <ChevronRight className="h-4 w-4" />
-                    </>
-                  )}
-	                </Button>
-	              )}
-	              {!isTerminal && (
-	                <Button
-	                  variant="destructive"
-	                  onClick={() => handleTransition('CANCELLED')}
-	                  disabled={transitioning}
-	                  className="gap-2"
-	                >
-	                  <XCircle className="h-4 w-4" />
-	                  Cancel Order
-	                </Button>
-	              )}
+              {nextStage && (
+                <Button
+                  onClick={() => setAdvanceModalOpen(true)}
+                  disabled={transitioning}
+                  className="gap-2"
+                >
+                  Advance to {nextStage.label}
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              )}
+              {!isTerminal && (
+                <Button
+                  variant="destructive"
+                  onClick={() => handleTransition('CANCELLED')}
+                  disabled={transitioning}
+                  className="gap-2"
+                >
+                  <XCircle className="h-4 w-4" />
+                  Cancel Order
+                </Button>
+              )}
             </div>
 
             {order.status === 'WAREHOUSE' && (
@@ -1391,6 +1375,77 @@ export default function PurchaseOrderDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Advance Stage Modal */}
+      {advanceModalOpen && nextStage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !transitioning && setAdvanceModalOpen(false)}
+          />
+          {/* Modal */}
+          <div className="relative z-10 w-full max-w-lg mx-4 bg-white rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b bg-slate-50">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Advance to {nextStage.label}
+                </h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {STAGES[currentStageIndex]?.label ?? formatStatusLabel(order.status)} → {nextStage.label}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !transitioning && setAdvanceModalOpen(false)}
+                className="p-1.5 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
+                disabled={transitioning}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              {renderStageTransitionForm()}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-slate-50">
+              <Button
+                variant="outline"
+                onClick={() => setAdvanceModalOpen(false)}
+                disabled={transitioning}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  const success = await executeTransition(nextStage.value as POStageStatus)
+                  if (success) {
+                    setAdvanceModalOpen(false)
+                  }
+                }}
+                disabled={transitioning || documentsLoading || !nextStageDocsComplete}
+                className="gap-2"
+              >
+                {transitioning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Advancing...
+                  </>
+                ) : (
+                  <>
+                    Advance to {nextStage.label}
+                    <ChevronRight className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Dialog */}
       <ConfirmDialog
