@@ -210,6 +210,7 @@ function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSeriali
       overrideManufacturingCost: batch.overrideManufacturingCost ?? null,
       overrideFreightCost: batch.overrideFreightCost ?? null,
       overrideTariffRate: batch.overrideTariffRate ?? null,
+      overrideTariffCost: batch.overrideTariffCost ?? null,
       overrideTacosPercent: batch.overrideTacosPercent ?? null,
       overrideFbaFee: batch.overrideFbaFee ?? null,
       overrideReferralRate: batch.overrideReferralRate ?? null,
@@ -1024,6 +1025,7 @@ async function getOpsPlanningView(strategyId: string, planning?: PlanningCalenda
     manufacturingCost: string
     freightCost: string
     tariffRate: string
+    tariffCost: string
     tacosPercent: string
     fbaFee: string
     referralRate: string
@@ -1185,6 +1187,7 @@ async function getOpsPlanningView(strategyId: string, planning?: PlanningCalenda
       manufacturingCost: formatNumeric(batch.overrideManufacturingCost ?? order.overrideManufacturingCost ?? null),
       freightCost: formatNumeric(batch.overrideFreightCost ?? order.overrideFreightCost ?? null),
       tariffRate: formatPercentDecimal(batch.overrideTariffRate ?? order.overrideTariffRate ?? null),
+      tariffCost: formatNumeric(batch.overrideTariffCost ?? null, 3),
       tacosPercent: formatPercentDecimal(batch.overrideTacosPercent ?? order.overrideTacosPercent ?? null),
       fbaFee: formatNumeric(batch.overrideFbaFee ?? order.overrideFbaFee ?? null),
       referralRate: formatPercentDecimal(batch.overrideReferralRate ?? order.overrideReferralRate ?? null),

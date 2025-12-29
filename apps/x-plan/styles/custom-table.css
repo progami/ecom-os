@@ -89,6 +89,39 @@
   border-right: none;
 }
 
+.ops-header-toggle {
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.ops-header-toggle:hover {
+  color: #0c4a6e;
+}
+
+.ops-header-toggle:focus-visible {
+  outline: 2px solid rgba(8, 145, 178, 0.7);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.dark .ops-header-toggle:hover {
+  color: #99f6e4;
+}
+
+.dark .ops-header-toggle:focus-visible {
+  outline: 2px solid rgba(0, 194, 185, 0.65);
+}
+
 /* Body cell styles */
 .ops-table tbody td {
   font-size: 12px;
