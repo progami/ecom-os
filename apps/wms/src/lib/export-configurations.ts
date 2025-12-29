@@ -167,7 +167,6 @@ export const skuConfig: Partial<ExportConfig> = {
  { fieldName: 'fbaStock', columnName: 'FBA Stock' },
  { fieldName: 'fbaStockLastUpdated', columnName: 'FBA Stock Last Updated' },
  { fieldName: 'notes', columnName: 'Notes' },
- { fieldName: 'isActive', columnName: 'Is Active' }
  ]
 }
 

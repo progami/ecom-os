@@ -18,7 +18,6 @@ type SkuSummary = {
   id: string
   skuCode: string
   description: string
-  isActive: boolean
 }
 
 export default function ProductBatchesPage() {
@@ -91,7 +90,6 @@ function ProductBatchesPageInner() {
           id: data.id,
           skuCode: data.skuCode,
           description: data.description,
-          isActive: Boolean(data.isActive),
         })
       })
       .catch(error => {

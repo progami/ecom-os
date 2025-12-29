@@ -15,7 +15,6 @@ interface Warehouse {
  contactEmail?: string
  contactPhone?: string
  kind?: string
- isActive: boolean
 }
 
 const formatAddress = (address: {
@@ -105,7 +104,6 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
  postalCode: '',
  contactEmail: '',
  contactPhone: '',
- isActive: true
  })
  const [errors, setErrors] = useState<Record<string, string>>({})
  const [id, setId] = useState<string>('')
@@ -142,8 +140,7 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
  state: parsedAddress.state,
  postalCode: parsedAddress.postalCode,
  contactEmail: warehouse.contactEmail || '',
- contactPhone: warehouse.contactPhone || '',
- isActive: warehouse.isActive
+ contactPhone: warehouse.contactPhone || ''
  })
  } else {
  alert('Warehouse not found')
@@ -216,15 +213,13 @@ export default function EditWarehousePage({ params }: { params: Promise<{ id: st
  address: string | null;
  contactEmail: string | null;
  contactPhone: string | null;
- isActive: boolean;
  } = {
-name: formData.name,
+	name: formData.name,
  kind: formData.kind,
  address: formattedAddress || null,
  contactEmail: formData.contactEmail.trim() || null,
-contactPhone: formData.contactPhone || null,
-isActive: formData.isActive
-}
+	contactPhone: formData.contactPhone || null
+ }
 
  // Only update code if it changed
  if (formData.code !== warehouse?.code) {
@@ -455,19 +450,6 @@ isActive: formData.isActive
  placeholder="+1 (555) 123-4567"
  />
  </div>
- </div>
-
- <div className="flex items-center">
- <input
- type="checkbox"
- id="isActive"
- checked={formData.isActive}
- onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
- className="h-4 w-4 text-primary focus:ring-primary border-slate-300 rounded"
- />
- <label htmlFor="isActive" className="ml-2 text-sm text-slate-700">
- Active warehouse (can receive transactions)
- </label>
  </div>
 
  {formData.code !== warehouse.code && (

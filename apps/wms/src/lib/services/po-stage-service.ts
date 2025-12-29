@@ -21,6 +21,90 @@ import { recordStorageCostEntry } from '@/services/storageCost.service'
 type PurchaseOrderWithLines = PurchaseOrder & { lines: PurchaseOrderLine[] }
 type PurchaseOrderWithOptionalLines = PurchaseOrder & { lines?: PurchaseOrderLine[] }
 
+type ManufacturingStageData = {
+  proformaInvoiceNumber: PurchaseOrder['proformaInvoiceNumber']
+  proformaInvoiceDate: PurchaseOrder['proformaInvoiceDate']
+  factoryName: PurchaseOrder['factoryName']
+  manufacturingStartDate: PurchaseOrder['manufacturingStartDate']
+  expectedCompletionDate: PurchaseOrder['expectedCompletionDate']
+  actualCompletionDate: PurchaseOrder['actualCompletionDate']
+  totalWeightKg: number | null
+  totalVolumeCbm: number | null
+  totalCartons: PurchaseOrder['totalCartons']
+  totalPallets: PurchaseOrder['totalPallets']
+  packagingNotes: PurchaseOrder['packagingNotes']
+  proformaInvoiceId: PurchaseOrder['proformaInvoiceId']
+  proformaInvoiceData: PurchaseOrder['proformaInvoiceData']
+  manufacturingStart: PurchaseOrder['manufacturingStart']
+  manufacturingEnd: PurchaseOrder['manufacturingEnd']
+  cargoDetails: PurchaseOrder['cargoDetails']
+}
+
+type OceanStageData = {
+  houseBillOfLading: PurchaseOrder['houseBillOfLading']
+  masterBillOfLading: PurchaseOrder['masterBillOfLading']
+  commercialInvoiceNumber: PurchaseOrder['commercialInvoiceNumber']
+  packingListRef: PurchaseOrder['packingListRef']
+  vesselName: PurchaseOrder['vesselName']
+  voyageNumber: PurchaseOrder['voyageNumber']
+  portOfLoading: PurchaseOrder['portOfLoading']
+  portOfDischarge: PurchaseOrder['portOfDischarge']
+  estimatedDeparture: PurchaseOrder['estimatedDeparture']
+  estimatedArrival: PurchaseOrder['estimatedArrival']
+  actualDeparture: PurchaseOrder['actualDeparture']
+  actualArrival: PurchaseOrder['actualArrival']
+  commercialInvoiceId: PurchaseOrder['commercialInvoiceId']
+}
+
+type WarehouseStageData = {
+  warehouseCode: PurchaseOrder['warehouseCode']
+  warehouseName: PurchaseOrder['warehouseName']
+  customsEntryNumber: PurchaseOrder['customsEntryNumber']
+  customsClearedDate: PurchaseOrder['customsClearedDate']
+  dutyAmount: number | null
+  dutyCurrency: PurchaseOrder['dutyCurrency']
+  surrenderBlDate: PurchaseOrder['surrenderBlDate']
+  transactionCertNumber: PurchaseOrder['transactionCertNumber']
+  receivedDate: PurchaseOrder['receivedDate']
+  discrepancyNotes: PurchaseOrder['discrepancyNotes']
+  warehouseInvoiceId: PurchaseOrder['warehouseInvoiceId']
+  surrenderBL: PurchaseOrder['surrenderBL']
+  transactionCertificate: PurchaseOrder['transactionCertificate']
+  customsDeclaration: PurchaseOrder['customsDeclaration']
+}
+
+type ShippedStageData = {
+  shipToName: PurchaseOrder['shipToName']
+  shipToAddress: PurchaseOrder['shipToAddress']
+  shipToCity: PurchaseOrder['shipToCity']
+  shipToCountry: PurchaseOrder['shipToCountry']
+  shipToPostalCode: PurchaseOrder['shipToPostalCode']
+  shippingCarrier: PurchaseOrder['shippingCarrier']
+  shippingMethod: PurchaseOrder['shippingMethod']
+  trackingNumber: PurchaseOrder['trackingNumber']
+  shippedDate: PurchaseOrder['shippedDate']
+  proofOfDeliveryRef: PurchaseOrder['proofOfDeliveryRef']
+  deliveredDate: PurchaseOrder['deliveredDate']
+  proofOfDelivery: PurchaseOrder['proofOfDelivery']
+  shippedAt: PurchaseOrder['shippedAt']
+  shippedBy: PurchaseOrder['shippedByName']
+}
+
+type StageData = {
+  manufacturing: ManufacturingStageData
+  ocean: OceanStageData
+  warehouse: WarehouseStageData
+  shipped: ShippedStageData
+}
+
+type SerializedStageSection<T> = {
+  [K in keyof T]: T[K] extends Date | null | undefined ? string | null : T[K]
+}
+
+type SerializedStageData = {
+  [K in keyof StageData]: SerializedStageSection<StageData[K]>
+}
+
 // Valid stage transitions for new 5-stage workflow
 export const VALID_TRANSITIONS: Partial<Record<PurchaseOrderStatus, PurchaseOrderStatus[]>> = {
   DRAFT: [PurchaseOrderStatus.MANUFACTURING, PurchaseOrderStatus.CANCELLED],
@@ -1327,90 +1411,6 @@ export function getStageApprovalHistory(order: PurchaseOrder): {
 /**
  * Get current stage data for display
  */
-type ManufacturingStageData = {
-  proformaInvoiceNumber: PurchaseOrder['proformaInvoiceNumber']
-  proformaInvoiceDate: PurchaseOrder['proformaInvoiceDate']
-  factoryName: PurchaseOrder['factoryName']
-  manufacturingStartDate: PurchaseOrder['manufacturingStartDate']
-  expectedCompletionDate: PurchaseOrder['expectedCompletionDate']
-  actualCompletionDate: PurchaseOrder['actualCompletionDate']
-  totalWeightKg: number | null
-  totalVolumeCbm: number | null
-  totalCartons: PurchaseOrder['totalCartons']
-  totalPallets: PurchaseOrder['totalPallets']
-  packagingNotes: PurchaseOrder['packagingNotes']
-  proformaInvoiceId: PurchaseOrder['proformaInvoiceId']
-  proformaInvoiceData: PurchaseOrder['proformaInvoiceData']
-  manufacturingStart: PurchaseOrder['manufacturingStart']
-  manufacturingEnd: PurchaseOrder['manufacturingEnd']
-  cargoDetails: PurchaseOrder['cargoDetails']
-}
-
-type OceanStageData = {
-  houseBillOfLading: PurchaseOrder['houseBillOfLading']
-  masterBillOfLading: PurchaseOrder['masterBillOfLading']
-  commercialInvoiceNumber: PurchaseOrder['commercialInvoiceNumber']
-  packingListRef: PurchaseOrder['packingListRef']
-  vesselName: PurchaseOrder['vesselName']
-  voyageNumber: PurchaseOrder['voyageNumber']
-  portOfLoading: PurchaseOrder['portOfLoading']
-  portOfDischarge: PurchaseOrder['portOfDischarge']
-  estimatedDeparture: PurchaseOrder['estimatedDeparture']
-  estimatedArrival: PurchaseOrder['estimatedArrival']
-  actualDeparture: PurchaseOrder['actualDeparture']
-  actualArrival: PurchaseOrder['actualArrival']
-  commercialInvoiceId: PurchaseOrder['commercialInvoiceId']
-}
-
-type WarehouseStageData = {
-  warehouseCode: PurchaseOrder['warehouseCode']
-  warehouseName: PurchaseOrder['warehouseName']
-  customsEntryNumber: PurchaseOrder['customsEntryNumber']
-  customsClearedDate: PurchaseOrder['customsClearedDate']
-  dutyAmount: number | null
-  dutyCurrency: PurchaseOrder['dutyCurrency']
-  surrenderBlDate: PurchaseOrder['surrenderBlDate']
-  transactionCertNumber: PurchaseOrder['transactionCertNumber']
-  receivedDate: PurchaseOrder['receivedDate']
-  discrepancyNotes: PurchaseOrder['discrepancyNotes']
-  warehouseInvoiceId: PurchaseOrder['warehouseInvoiceId']
-  surrenderBL: PurchaseOrder['surrenderBL']
-  transactionCertificate: PurchaseOrder['transactionCertificate']
-  customsDeclaration: PurchaseOrder['customsDeclaration']
-}
-
-type ShippedStageData = {
-  shipToName: PurchaseOrder['shipToName']
-  shipToAddress: PurchaseOrder['shipToAddress']
-  shipToCity: PurchaseOrder['shipToCity']
-  shipToCountry: PurchaseOrder['shipToCountry']
-  shipToPostalCode: PurchaseOrder['shipToPostalCode']
-  shippingCarrier: PurchaseOrder['shippingCarrier']
-  shippingMethod: PurchaseOrder['shippingMethod']
-  trackingNumber: PurchaseOrder['trackingNumber']
-  shippedDate: PurchaseOrder['shippedDate']
-  proofOfDeliveryRef: PurchaseOrder['proofOfDeliveryRef']
-  deliveredDate: PurchaseOrder['deliveredDate']
-  proofOfDelivery: PurchaseOrder['proofOfDelivery']
-  shippedAt: PurchaseOrder['shippedAt']
-  shippedBy: PurchaseOrder['shippedByName']
-}
-
-type StageData = {
-  manufacturing: ManufacturingStageData
-  ocean: OceanStageData
-  warehouse: WarehouseStageData
-  shipped: ShippedStageData
-}
-
-type SerializedStageSection<T> = {
-  [K in keyof T]: T[K] extends Date | null | undefined ? string | null : T[K]
-}
-
-type SerializedStageData = {
-  [K in keyof StageData]: SerializedStageSection<StageData[K]>
-}
-
 export function getStageData(order: PurchaseOrder): StageData {
   return {
     manufacturing: {
