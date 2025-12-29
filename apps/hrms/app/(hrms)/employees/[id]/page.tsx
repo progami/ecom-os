@@ -427,7 +427,7 @@ export default function EmployeeViewPage() {
         </Alert>
       ) : null}
 
-      <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="flex flex-wrap gap-2 pb-2">
         {visibleTabs.map((tab) => (
           <TabButton key={tab.id} active={activeTab === tab.id} onClick={() => setTab(tab.id)} icon={tab.icon}>
             {tab.label}
