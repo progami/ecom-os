@@ -1302,13 +1302,26 @@ function getSalesPlanningView(
       }
     })
   }
-  const weeks = buildWeekRange(activeSegment, planning.calendar)
-  const weekNumbers = weeks.length
-    ? weeks
+  const visibleWeeks = buildWeekRange(activeSegment, planning.calendar)
+  const weekNumbers = visibleWeeks.length
+    ? activeSegment
+      ? (() => {
+          const maxWeek = planning.calendar.maxWeekNumber ?? activeSegment.endWeekNumber
+          const endWeek = maxWeek != null ? Math.max(activeSegment.endWeekNumber, maxWeek) : activeSegment.endWeekNumber
+          return Array.from({ length: endWeek - activeSegment.startWeekNumber + 1 }, (_, index) => activeSegment.startWeekNumber + index)
+        })()
+      : visibleWeeks
     : activeSegment
       ? []
       : Array.from(new Set(financialData.salesPlan.map((row) => row.weekNumber))).sort((a, b) => a - b)
   const weekSet = new Set(weekNumbers)
+  const visibleWeekSet = new Set(visibleWeeks)
+  const hiddenRowIndices =
+    activeSegment && weekNumbers.length > 0
+      ? weekNumbers
+          .map((weekNumber, index) => (!visibleWeekSet.has(weekNumber) ? index : null))
+          .filter((value): value is number => value != null)
+      : []
   const columnMeta: Record<string, { productId: string; field: string }> = {}
   const columnKeys: string[] = []
   const hasProducts = productList.length > 0
@@ -1338,8 +1351,22 @@ function getSalesPlanningView(
     }
   })
 
+  const segmentForWeek = (weekNumber: number): YearSegment | null => {
+    if (!planning.yearSegments.length) return null
+    return (
+      planning.yearSegments.find(
+        (segment) =>
+          segment.weekCount > 0 &&
+          weekNumber >= segment.startWeekNumber &&
+          weekNumber <= segment.endWeekNumber,
+      ) ?? null
+    )
+  }
+
   const rows = weekNumbers.map((weekNumber) => {
-    const weekLabel = activeSegment ? String(weekNumber - activeSegment.startWeekNumber + 1) : String(weekNumber)
+    const segment = segmentForWeek(weekNumber)
+    const weekLabel =
+      segment != null ? String(weekNumber - segment.startWeekNumber + 1) : String(weekNumber)
     const calendarDate = getCalendarDateForWeek(weekNumber, planning.calendar)
     const row: SalesRow = {
       weekNumber: String(weekNumber),
@@ -1424,8 +1451,14 @@ function getSalesPlanningView(
     })
   })
 
+  const hiddenRowSet = new Set(hiddenRowIndices)
+  const visibleRows = hiddenRowIndices.length > 0
+    ? rows.filter((_, index) => !hiddenRowSet.has(index))
+    : rows
+
   return {
     rows,
+    visibleRows,
     columnMeta,
     columnKeys,
     nestedHeaders,
@@ -1434,6 +1467,7 @@ function getSalesPlanningView(
     leadTimeByProduct,
     batchAllocations,
     reorderCueByProduct,
+    hiddenRowIndices,
   }
 }
 
@@ -1705,6 +1739,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         <SalesPlanningGrid
           strategyId={strategyId}
           rows={view.rows}
+          hiddenRowIndices={view.hiddenRowIndices}
           columnMeta={view.columnMeta}
           columnKeys={view.columnKeys}
           nestedHeaders={view.nestedHeaders}
@@ -1717,7 +1752,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       )
       visualContent = (
         <SalesPlanningVisual
-          rows={view.rows}
+          rows={view.visibleRows}
           columnMeta={view.columnMeta}
           columnKeys={view.columnKeys}
           productOptions={view.productOptions}
