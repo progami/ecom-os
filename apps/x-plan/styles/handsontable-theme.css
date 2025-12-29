@@ -573,13 +573,12 @@
   background: linear-gradient(180deg, rgba(8, 145, 178, 0.2), rgba(8, 145, 178, 0.1));
   border-color: rgba(8, 145, 178, 0.8);
   outline-color: rgba(8, 145, 178, 0.28);
-  transform: translateY(-1px);
   color: #164e63;
   box-shadow: 0 6px 14px rgba(8, 145, 178, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
 }
 
 .x-plan-header-toggle:active {
-  transform: translateY(0);
+  transform: none;
 }
 
 .x-plan-header-toggle:focus-visible {
