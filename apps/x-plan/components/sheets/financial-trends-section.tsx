@@ -20,7 +20,7 @@ import {
 import { usePersistentState } from '@/hooks/usePersistentState'
 
 export type TrendGranularity = 'weekly' | 'monthly' | 'quarterly'
-export type TrendSeries = Record<TrendGranularity, { labels: string[]; values: number[] }>
+export type TrendSeries = Record<TrendGranularity, { labels: string[]; values: number[]; impactFlags?: boolean[] }>
 export type TrendFormat = 'currency' | 'number' | 'percent'
 export type TrendAccent = 'sky' | 'emerald' | 'violet'
 
@@ -275,7 +275,7 @@ type TrendChartProps = {
 function TrendChart({ title, description, helper, series, granularity, format, accent }: TrendChartProps) {
   const palette = accentPalette[accent]
   const [hover, setHover] = useState<TrendHover>(null)
-  const { labels, values } = series[granularity]
+  const { labels, values, impactFlags } = series[granularity]
   const snappedValues = useMemo(() => values.map(snapNearZero), [values])
   const chartRef = useRef<HTMLDivElement>(null)
   const [chartSize, setChartSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 })
@@ -503,6 +503,7 @@ function TrendChart({ title, description, helper, series, granularity, format, a
             domainMin={domainMin}
             domainMax={domainMax}
             ariaLabel={ariaLabel}
+            impactFlags={impactFlags}
             onPointerMove={handlePointerMove}
             onPointerLeave={handlePointerLeave}
             onKeyDown={handleKeyDown}
@@ -510,15 +511,17 @@ function TrendChart({ title, description, helper, series, granularity, format, a
         </div>
         <aside className="space-y-4 rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 p-4 text-sm backdrop-blur-sm">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Latest cadence</p>
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
+              {hover ? 'Selected week' : 'Latest week'}
+            </p>
             <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
-              {labels.at(-1) ?? '—'}
+              {activeIndex != null ? labels[activeIndex] ?? '—' : labels.at(-1) ?? '—'}
             </p>
           </div>
           <div className="space-y-1">
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">Current value</p>
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">{title}</p>
             <p className="text-2xl font-semibold text-slate-900 dark:text-white">
-              {formatSimpleValue(snappedValues.at(-1) ?? NaN, format)}
+              {formatSimpleValue(activeIndex != null ? snappedValues[activeIndex] ?? NaN : snappedValues.at(-1) ?? NaN, format)}
             </p>
           </div>
           <div className="space-y-1">
@@ -556,6 +559,7 @@ function TrendChartSvg({
   domainMin,
   domainMax,
   ariaLabel,
+  impactFlags,
   onPointerMove,
   onPointerLeave,
   onKeyDown,
@@ -578,6 +582,7 @@ function TrendChartSvg({
   domainMin: number
   domainMax: number
   ariaLabel: string
+  impactFlags?: boolean[]
   onPointerMove: (event: PointerEvent<SVGSVGElement>) => void
   onPointerLeave: () => void
   onKeyDown: (event: KeyboardEvent<SVGSVGElement>) => void
@@ -657,6 +662,27 @@ function TrendChartSvg({
         fill={`url(#${gradientId})`}
         opacity={0.85}
       />
+
+      {/* Impact indicator lines - subtle red vertical lines where cashflow is affected */}
+      {impactFlags && impactFlags.length > 0 && (
+        <g className="impact-indicators">
+          {points.map((point, index) => {
+            if (!impactFlags[index]) return null
+            return (
+              <line
+                key={`impact-${index}`}
+                x1={point.x}
+                x2={point.x}
+                y1={padding.top}
+                y2={height - padding.bottom}
+                stroke="#ef4444"
+                strokeWidth={1.5}
+                strokeOpacity={0.35}
+              />
+            )
+          })}
+        </g>
+      )}
 
       {/* Line */}
       <path
