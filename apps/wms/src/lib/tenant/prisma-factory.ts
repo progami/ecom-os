@@ -226,8 +226,7 @@ export async function getTenantPrismaClient(tenantCode: TenantCode): Promise<Pri
 export async function disconnectAllTenants(): Promise<void> {
   const disconnectPromises: Promise<void>[] = []
 
-  for (const [tenantCode, client] of clientCache.entries()) {
-    console.log(`[tenant] Disconnecting ${tenantCode} database...`)
+  for (const [_tenantCode, client] of clientCache.entries()) {
     disconnectPromises.push(client.$disconnect())
   }
 

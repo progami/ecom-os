@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { getTenantPrisma } from '@/lib/tenant/server'
 import { withAuth } from '@/lib/api/auth-wrapper'
 

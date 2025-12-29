@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { withAuth } from '@/lib/api/auth-wrapper'
 export const dynamic = 'force-dynamic'
 
-export const GET = withAuth(async (request, session) => {
+export const GET = withAuth(async (request, _session) => {
  try {
 
  const searchParams = request.nextUrl.searchParams

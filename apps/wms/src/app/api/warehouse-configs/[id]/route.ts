@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { withAuthAndParams } from '@/lib/api/auth-wrapper'
 export const dynamic = 'force-dynamic'
 
 // WarehouseSkuConfig model removed in v0.5.0
-export const GET = withAuthAndParams(async (request, params, session) => {
+export const GET = withAuthAndParams(async (_request, params, _session) => {
  try {
  const { id: _id } = params as { id: string }
 
@@ -20,7 +20,7 @@ export const GET = withAuthAndParams(async (request, params, session) => {
  }
 })
 
-export const PUT = withAuthAndParams(async (request, params, session) => {
+export const PUT = withAuthAndParams(async (_request, params, session) => {
  try {
  const { id: _id } = params as { id: string }
 
