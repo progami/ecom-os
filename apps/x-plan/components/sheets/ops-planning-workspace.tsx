@@ -46,6 +46,7 @@ const BATCH_NUMERIC_PRECISION = {
   sellingPrice: 2,
   manufacturingCost: 3,
   freightCost: 3,
+  tariffCost: 3,
   fbaFee: 3,
   storagePerMonth: 3,
 } as const
@@ -118,6 +119,7 @@ export type PurchaseOrderSerialized = {
     overrideManufacturingCost?: number | null
     overrideFreightCost?: number | null
     overrideTariffRate?: number | null
+    overrideTariffCost?: number | null
     overrideTacosPercent?: number | null
     overrideFbaFee?: number | null
     overrideReferralRate?: number | null
@@ -374,6 +376,7 @@ function deserializeOrders(
         overrideManufacturingCost: batch.overrideManufacturingCost ?? null,
         overrideFreightCost: batch.overrideFreightCost ?? null,
         overrideTariffRate: batch.overrideTariffRate ?? null,
+        overrideTariffCost: batch.overrideTariffCost ?? null,
         overrideTacosPercent: batch.overrideTacosPercent ?? null,
         overrideFbaFee: batch.overrideFbaFee ?? null,
         overrideReferralRate: batch.overrideReferralRate ?? null,
@@ -703,6 +706,7 @@ export function OpsPlanningWorkspace({
       ),
       freightCost: formatNumericInput(batch.overrideFreightCost, BATCH_NUMERIC_PRECISION.freightCost),
       tariffRate: formatPercentInput(batch.overrideTariffRate, BATCH_PERCENT_PRECISION.tariffRate),
+      tariffCost: formatNumericInput(batch.overrideTariffCost, BATCH_NUMERIC_PRECISION.tariffCost),
       tacosPercent: formatPercentInput(batch.overrideTacosPercent, BATCH_PERCENT_PRECISION.tacosPercent),
       fbaFee: formatNumericInput(batch.overrideFbaFee, BATCH_NUMERIC_PRECISION.fbaFee),
       referralRate: formatPercentInput(batch.overrideReferralRate, BATCH_PERCENT_PRECISION.referralRate),
@@ -1037,6 +1041,8 @@ useEffect(() => {
         for (const update of updates) {
           const batchIndex = batches.findIndex((batch) => batch.id === update.id)
           if (batchIndex === -1) continue
+          const tariffCost = parseNumber(update.tariffCost)
+          const tariffRate = parsePercent(update.tariffRate)
           batches[batchIndex] = {
             ...batches[batchIndex],
             productId: update.productId,
@@ -1044,7 +1050,8 @@ useEffect(() => {
             overrideSellingPrice: parseNumber(update.sellingPrice),
             overrideManufacturingCost: parseNumber(update.manufacturingCost),
             overrideFreightCost: parseNumber(update.freightCost),
-            overrideTariffRate: parsePercent(update.tariffRate),
+            overrideTariffCost: tariffCost,
+            overrideTariffRate: tariffCost != null ? null : tariffRate,
             overrideTacosPercent: parsePercent(update.tacosPercent),
             overrideFbaFee: parseNumber(update.fbaFee),
             overrideReferralRate: parsePercent(update.referralRate),
@@ -1110,6 +1117,7 @@ useEffect(() => {
           manufacturingCost: '',
           freightCost: '',
           tariffRate: '',
+          tariffCost: '',
           tacosPercent: '',
           fbaFee: '',
           referralRate: '',
@@ -1133,6 +1141,7 @@ useEffect(() => {
               overrideManufacturingCost: null,
               overrideFreightCost: null,
               overrideTariffRate: null,
+              overrideTariffCost: null,
               overrideTacosPercent: null,
               overrideFbaFee: null,
               overrideReferralRate: null,
