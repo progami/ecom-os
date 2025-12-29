@@ -124,10 +124,10 @@ export default function AdminDashboardsPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-gray-700">
             Ops dashboards show organization-wide metrics for HR. Your personal items and requests
-            live in My Dashboard and Work Queue.
+            live in My Hub and Work Queue.
           </p>
-          <Button href="/dashboard" variant="secondary">
-            My Dashboard
+          <Button href="/hub" variant="secondary">
+            My Hub
           </Button>
         </div>
       </Card>

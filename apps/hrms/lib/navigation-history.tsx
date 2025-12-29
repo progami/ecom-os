@@ -28,8 +28,8 @@ function getDefaultBackPath(pathname: string): string | null {
   // Remove trailing slash
   const path = pathname.endsWith('/') && pathname !== '/' ? pathname.slice(0, -1) : pathname
 
-  // Dashboard - no back
-  if (path === '/' || path === '') {
+  // Home routes - no back
+  if (path === '/' || path === '' || path === '/work' || path === '/hub') {
     return null
   }
 
@@ -106,8 +106,8 @@ function getDefaultBackPath(pathname: string): string | null {
     return '/' + segments.join('/')
   }
 
-  // Top-level pages go to dashboard
-  return '/'
+  // Top-level pages go to work queue
+  return '/work'
 }
 
 export function NavigationHistoryProvider({ children }: { children: ReactNode }) {
