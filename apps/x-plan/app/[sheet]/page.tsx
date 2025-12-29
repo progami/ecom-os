@@ -1741,6 +1741,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       tabularContent = (
         <OpsPlanningWorkspace
           strategyId={strategyId}
+          activeYear={activeYear}
           poTableRows={view.poTableRows}
           batchTableRows={view.batchTableRows}
           timeline={view.timelineRows}
@@ -1754,6 +1755,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       visualContent = (
         <OpsPlanningWorkspace
           strategyId={strategyId}
+          activeYear={activeYear}
           poTableRows={view.poTableRows}
           batchTableRows={view.batchTableRows}
           timeline={view.timelineRows}
