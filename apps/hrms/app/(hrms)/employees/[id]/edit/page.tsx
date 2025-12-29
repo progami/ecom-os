@@ -317,7 +317,7 @@ export default function EditEmployeePage() {
   }
 
   const hasAnyEditPermission = permissions.editableFields.length > 0
-  if (permissions.isEditingSelf || !hasAnyEditPermission) {
+  if (!hasAnyEditPermission) {
     router.replace(`/employees/${id}`)
     return null
   }
