@@ -193,7 +193,7 @@ export function PurchaseOrdersPanel({
                 <th className="px-3 py-2 text-left font-semibold">PO #</th>
                 <th className="px-3 py-2 text-left font-semibold">Type</th>
                 <th className="px-3 py-2 text-left font-semibold">Warehouse</th>
-                <th className="px-3 py-2 text-left font-semibold">Counterparty</th>
+                <th className="px-3 py-2 text-left font-semibold">Supplier</th>
                 <th className="px-3 py-2 text-right font-semibold">Lines</th>
                 <th className="px-3 py-2 text-right font-semibold">Quantity</th>
                 <th className="px-3 py-2 text-left font-semibold">Status</th>
