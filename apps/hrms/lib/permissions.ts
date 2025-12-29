@@ -344,22 +344,34 @@ export async function canEditField(
 
   const actor = await prisma.employee.findUnique({
     where: { id: actorId },
-    select: { id: true, isSuperAdmin: true, permissionLevel: true }
+    select: {
+      id: true,
+      isSuperAdmin: true,
+      permissionLevel: true,
+      roles: {
+        where: { name: { in: HR_ROLE_NAMES } },
+        select: { name: true },
+      },
+    },
   })
 
   if (!actor) {
     return { allowed: false, reason: 'Actor not found' }
   }
 
-  // Employees cannot edit their own profile in HRMS; updates must flow through HR/Managers or Google Admin.
-  if (actorId === targetEmployeeId) {
+  const isHRLike = actor.isSuperAdmin ||
+    actor.permissionLevel >= PermissionLevel.HR ||
+    (actor.roles?.length ?? 0) > 0
+
+  // Employees cannot edit their own profile unless they are HR or Super Admin.
+  if (actorId === targetEmployeeId && !isHRLike) {
     return { allowed: false, reason: 'Self-editing is disabled. Contact HR for changes.' }
   }
 
   // User editable: managers/HR can edit (self-edit disabled)
   if (permission === 'USER_EDITABLE') {
     // Managers, HR, and Super Admin can edit user-editable fields
-    if (actor.isSuperAdmin || actor.permissionLevel >= PermissionLevel.HR || await isManagerOf(actorId, targetEmployeeId)) {
+    if (isHRLike || await isManagerOf(actorId, targetEmployeeId)) {
       return { allowed: true }
     }
     return { allowed: false, reason: 'Only HR or your manager can edit this field' }
@@ -368,20 +380,7 @@ export async function canEditField(
   // Manager editable: only HR or super admin (NOT regular managers)
   // Manager role is now purely for org chart visualization
   if (permission === 'MANAGER_EDITABLE') {
-    if (actor.isSuperAdmin) {
-      return { allowed: true }
-    }
-    // Check if actor is HR
-    const actorWithRoles = await prisma.employee.findUnique({
-      where: { id: actorId },
-      select: {
-        roles: {
-          where: { name: { in: ['HR', 'HR_ADMIN', 'HR Admin', 'Human Resources'] } },
-          select: { name: true },
-        },
-      },
-    })
-    if (actor.permissionLevel >= 75 || (actorWithRoles?.roles?.length ?? 0) > 0) {
+    if (isHRLike) {
       return { allowed: true }
     }
     return { allowed: false, reason: 'Only HR and Super Admin can edit this field' }
@@ -671,11 +670,6 @@ export async function canEditEmployeeRecord(
   actorId: string,
   targetEmployeeId: string
 ): Promise<{ allowed: boolean; reason?: string }> {
-  // Self-editing is disabled in HRMS.
-  if (actorId === targetEmployeeId) {
-    return { allowed: false, reason: 'Self-editing is disabled. Contact HR for changes.' }
-  }
-
   const actor = await prisma.employee.findUnique({
     where: { id: actorId },
     select: {
@@ -692,13 +686,22 @@ export async function canEditEmployeeRecord(
     return { allowed: false, reason: 'Actor not found' }
   }
 
+  const isHRLike = actor.isSuperAdmin ||
+    actor.permissionLevel >= PermissionLevel.HR ||
+    (actor.roles?.length ?? 0) > 0
+
+  // Self-editing is allowed for HR and Super Admin only.
+  if (actorId === targetEmployeeId && !isHRLike) {
+    return { allowed: false, reason: 'Self-editing is disabled. Contact HR for changes.' }
+  }
+
   // Super Admin can edit anyone
   if (actor.isSuperAdmin) {
     return { allowed: true, reason: 'Super Admin' }
   }
 
   // HR can edit anyone (for org/employment changes, will go through approval)
-  if (actor.permissionLevel >= PermissionLevel.HR || (actor.roles?.length ?? 0) > 0) {
+  if (isHRLike) {
     return { allowed: true, reason: 'HR' }
   }
 
