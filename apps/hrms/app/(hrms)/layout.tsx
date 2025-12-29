@@ -42,17 +42,11 @@ interface NavSection {
 
 const navigation: NavSection[] = [
   {
-    title: '',
+    title: 'Home',
     items: [
       { name: 'Work Queue', href: '/work', icon: BellIcon },
       { name: 'My Hub', href: '/hub', icon: HomeIcon },
-      { name: 'Task List', href: '/tasks', icon: CheckCircleIcon },
-      {
-        name: 'Onboarding (Checklists)',
-        href: '/onboarding',
-        icon: ClipboardDocumentCheckIcon,
-        requireHR: true,
-      },
+      { name: 'Tasks', href: '/tasks', icon: CheckCircleIcon },
     ],
   },
   {
@@ -63,13 +57,14 @@ const navigation: NavSection[] = [
       { name: 'Leave', href: '/leave', icon: CalendarDaysIcon },
       { name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon },
       { name: 'Cases', href: '/cases', icon: ExclamationTriangleIcon },
-    ],
-  },
-  {
-    title: 'Company',
-    items: [
-      { name: 'Resources', href: '/resources', icon: FolderIcon },
+      {
+        name: 'Onboarding',
+        href: '/onboarding',
+        icon: ClipboardDocumentCheckIcon,
+        requireHR: true,
+      },
       { name: 'Policies', href: '/policies', icon: DocumentIcon },
+      { name: 'Resources', href: '/resources', icon: FolderIcon },
       { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
     ],
   },
