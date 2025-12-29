@@ -200,6 +200,7 @@ type ReorderCueMeta = {
 interface SalesPlanningGridProps {
   strategyId: string;
   rows: SalesRow[];
+  hiddenRowIndices?: number[];
   columnMeta: ColumnMeta;
   nestedHeaders: NestedHeaderCell[][];
   columnKeys: string[];
@@ -213,6 +214,7 @@ interface SalesPlanningGridProps {
 export function SalesPlanningGrid({
   strategyId,
   rows,
+  hiddenRowIndices,
   columnMeta,
   nestedHeaders,
   columnKeys,
@@ -992,6 +994,11 @@ export function SalesPlanningGrid({
           undo
           comments={true}
           hiddenColumns={{ columns: hiddenColumns, indicators: true }}
+          hiddenRows={
+            hiddenRowIndices && hiddenRowIndices.length > 0
+              ? { rows: hiddenRowIndices, indicators: false }
+              : undefined
+          }
           autoColumnSize={false}
           colWidths={columnWidths}
           beforeStretchingColumnWidth={clampStretchWidth}
