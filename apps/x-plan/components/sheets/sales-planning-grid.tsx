@@ -253,14 +253,11 @@ export function SalesPlanningGrid({
 
   const preserveScrollPosition = useCallback((action: () => void) => {
     const scroll = getHandsontableScroll(hotRef.current);
-    const root = hotRef.current?.rootElement ?? null;
     action();
     if (!scroll) return;
 
     scrollRestoreRequestRef.current += 1;
     const requestId = scrollRestoreRequestRef.current;
-
-    const holder = getHandsontableScrollHolder(hotRef.current);
 
     let userInteracted = false;
 
@@ -268,18 +265,32 @@ export function SalesPlanningGrid({
       userInteracted = true;
     };
 
-    // Use capture to catch wheel events even if Handsontable stops propagation.
-    root?.addEventListener('wheel', markUserIntent, { passive: true, capture: true });
+    const markUserIntentWithinHot = (event: Event) => {
+      const root = hotRef.current?.rootElement ?? null;
+      if (!root) return;
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (!root.contains(target)) return;
+      markUserIntent();
+    };
+
+    const holder = getHandsontableScrollHolder(hotRef.current);
+
+    // Use capture on window to ensure we detect wheel/touch events even if Handsontable
+    // stops propagation within the table. This prevents scroll restore from fighting user scroll.
+    window.addEventListener('wheel', markUserIntentWithinHot, { passive: true, capture: true });
+    window.addEventListener('touchmove', markUserIntentWithinHot, { passive: true, capture: true });
+    window.addEventListener('pointerdown', markUserIntentWithinHot, { passive: true, capture: true });
+
     holder?.addEventListener('wheel', markUserIntent, { passive: true, capture: true });
-    root?.addEventListener('touchmove', markUserIntent, { passive: true, capture: true });
-    root?.addEventListener('pointerdown', markUserIntent, { passive: true, capture: true });
     holder?.addEventListener('scroll', markUserIntent, { passive: true });
 
     const cleanup = () => {
-      root?.removeEventListener('wheel', markUserIntent, { capture: true });
+      window.removeEventListener('wheel', markUserIntentWithinHot, { capture: true });
+      window.removeEventListener('touchmove', markUserIntentWithinHot, { capture: true });
+      window.removeEventListener('pointerdown', markUserIntentWithinHot, { capture: true });
+
       holder?.removeEventListener('wheel', markUserIntent, { capture: true });
-      root?.removeEventListener('touchmove', markUserIntent, { capture: true });
-      root?.removeEventListener('pointerdown', markUserIntent, { capture: true });
       holder?.removeEventListener('scroll', markUserIntent);
     };
 
@@ -307,7 +318,11 @@ export function SalesPlanningGrid({
 
       const deltaTop = Math.abs(current.top - scroll.top);
       const deltaLeft = Math.abs(current.left - scroll.left);
-      if (deltaTop > threshold || deltaLeft > threshold) {
+      const shouldRestoreTop =
+        current.top <= threshold && scroll.top > threshold && deltaTop > threshold;
+      const shouldRestoreLeft =
+        current.left <= threshold && scroll.left > threshold && deltaLeft > threshold;
+      if (shouldRestoreTop || shouldRestoreLeft) {
         restoreHandsontableScroll(hotRef.current, scroll);
       }
       cleanup();
@@ -890,6 +905,8 @@ export function SalesPlanningGrid({
         button.textContent = label;
         button.title = title;
 
+        let pointerTriggered = false;
+
         const trigger = (event: Event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -901,24 +918,40 @@ export function SalesPlanningGrid({
 
         const supportsPointer = typeof window !== 'undefined' && 'PointerEvent' in window;
         if (supportsPointer) {
-          button.addEventListener('pointerdown', trigger, { capture: true });
+          button.addEventListener(
+            'pointerdown',
+            (event) => {
+              pointerTriggered = true;
+              trigger(event);
+            },
+            { capture: true },
+          );
         } else {
-          button.addEventListener('mousedown', trigger, { capture: true });
+          button.addEventListener(
+            'mousedown',
+            (event) => {
+              pointerTriggered = true;
+              trigger(event);
+            },
+            { capture: true },
+          );
         }
 
         button.addEventListener('click', (event) => {
           event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation();
-          if ((event as MouseEvent).detail === 0) {
-            trigger(event);
+          if (pointerTriggered) {
+            pointerTriggered = false;
+            return;
           }
+          trigger(event);
         });
         TH.appendChild(button);
       };
 
       if (meta.field === activeStockMetric) {
-        const stockLabel = activeStockMetric === 'stockWeeks' ? 'Stockout (Wks)' : 'Stock Qty';
+        const stockLabel = activeStockMetric === 'stockWeeks' ? 'Stockout' : 'Stock Qty';
         const stockTitle = activeStockMetric === 'stockWeeks' ? 'Stockout (Weeks)' : 'Stock Qty';
         renderToggle(stockLabel, () => {
           preserveScrollPosition(() => {
@@ -1200,13 +1233,11 @@ export function SalesPlanningGrid({
                 minRowByProduct.set(meta.productId, rowIndex);
               }
             }
-            if (changedProductIds.size > 0) {
-              preserveScrollPosition(() => {
-                for (const productId of changedProductIds) {
-                  recomputeDerivedForProduct(productId, minRowByProduct.get(productId) ?? null);
-                }
-              });
-            }
+	            if (changedProductIds.size > 0) {
+	              for (const productId of changedProductIds) {
+	                recomputeDerivedForProduct(productId, minRowByProduct.get(productId) ?? null);
+	              }
+	            }
             scheduleFlush();
           }}
           afterSelectionEnd={() => {
