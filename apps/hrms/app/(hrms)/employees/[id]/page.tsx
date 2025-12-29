@@ -1,9 +1,10 @@
 import { EmployeeProfileClient } from '@/components/employee/EmployeeProfileClient'
 
 type EmployeePageProps = {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
-export default function EmployeeViewPage({ params }: EmployeePageProps) {
-  return <EmployeeProfileClient employeeId={params.id} />
+export default async function EmployeeViewPage({ params }: EmployeePageProps) {
+  const { id } = await params
+  return <EmployeeProfileClient employeeId={id} />
 }
