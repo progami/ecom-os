@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -10,6 +11,7 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
+import { usePersistentState } from '@/hooks/usePersistentState'
 import { formatNumericInput, formatPercentInput, sanitizeNumeric } from '@/components/sheets/validators'
 import { withAppBasePath } from '@/lib/base-path'
 import '@/styles/custom-table.css'
@@ -26,6 +28,7 @@ export type OpsBatchRow = {
   manufacturingCost: string
   freightCost: string
   tariffRate: string
+  tariffCost: string
   tacosPercent: string
   fbaFee: string
   referralRate: string
@@ -52,6 +55,7 @@ const NUMERIC_FIELDS = [
   'sellingPrice',
   'manufacturingCost',
   'freightCost',
+  'tariffCost',
   'fbaFee',
   'storagePerMonth',
 ] as const
@@ -62,6 +66,7 @@ const NUMERIC_PRECISION: Record<NumericField, number> = {
   sellingPrice: 2,
   manufacturingCost: 3,
   freightCost: 3,
+  tariffCost: 3,
   fbaFee: 3,
   storagePerMonth: 3,
 }
@@ -84,6 +89,7 @@ const SERVER_FIELD_MAP: Partial<Record<keyof OpsBatchRow, string>> = {
   manufacturingCost: 'overrideManufacturingCost',
   freightCost: 'overrideFreightCost',
   tariffRate: 'overrideTariffRate',
+  tariffCost: 'overrideTariffCost',
   tacosPercent: 'overrideTacosPercent',
   fbaFee: 'overrideFbaFee',
   referralRate: 'overrideReferralRate',
@@ -121,19 +127,41 @@ type ColumnDef = {
   precision?: number
 }
 
-const COLUMNS: ColumnDef[] = [
+const COLUMNS_BEFORE_TARIFF: ColumnDef[] = [
   { key: 'orderCode', header: 'PO Code', width: 140, type: 'text', editable: false },
   { key: 'productName', header: 'Product', width: 200, type: 'dropdown', editable: true },
   { key: 'quantity', header: 'Qty', width: 110, type: 'numeric', editable: true, precision: 0 },
   { key: 'sellingPrice', header: 'Sell $', width: 120, type: 'numeric', editable: true, precision: 2 },
   { key: 'manufacturingCost', header: 'Mfg $', width: 120, type: 'numeric', editable: true, precision: 3 },
   { key: 'freightCost', header: 'Freight $', width: 120, type: 'numeric', editable: true, precision: 3 },
-  { key: 'tariffRate', header: 'Tariff %', width: 110, type: 'percent', editable: true, precision: 2 },
+]
+
+const TARIFF_RATE_COLUMN: ColumnDef = {
+  key: 'tariffRate',
+  header: 'Tariff %',
+  width: 110,
+  type: 'percent',
+  editable: true,
+  precision: 2,
+}
+
+const TARIFF_COST_COLUMN: ColumnDef = {
+  key: 'tariffCost',
+  header: 'Tariff $/unit',
+  width: 120,
+  type: 'numeric',
+  editable: true,
+  precision: 3,
+}
+
+const COLUMNS_AFTER_TARIFF: ColumnDef[] = [
   { key: 'tacosPercent', header: 'TACoS %', width: 110, type: 'percent', editable: true, precision: 2 },
   { key: 'fbaFee', header: 'FBA $', width: 110, type: 'numeric', editable: true, precision: 3 },
   { key: 'referralRate', header: 'Referral %', width: 110, type: 'percent', editable: true, precision: 2 },
   { key: 'storagePerMonth', header: 'Storage $', width: 120, type: 'numeric', editable: true, precision: 3 },
 ]
+
+type TariffInputMode = 'rate' | 'cost'
 
 export function CustomOpsCostGrid({
   rows,
@@ -149,6 +177,15 @@ export function CustomOpsCostGrid({
   products,
   onSync,
 }: CustomOpsCostGridProps) {
+  const [tariffInputMode, setTariffInputMode] = usePersistentState<TariffInputMode>(
+    'xplan:ops:batch-tariff-mode',
+    'rate'
+  )
+  const columns = useMemo(() => {
+    const tariffColumn = tariffInputMode === 'cost' ? TARIFF_COST_COLUMN : TARIFF_RATE_COLUMN
+    return [...COLUMNS_BEFORE_TARIFF, tariffColumn, ...COLUMNS_AFTER_TARIFF]
+  }, [tariffInputMode])
+
   const [localRows, setLocalRows] = useState<OpsBatchRow[]>(rows)
   const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof OpsBatchRow } | null>(null)
   const [editValue, setEditValue] = useState<string>('')
@@ -230,10 +267,15 @@ export function CustomOpsCostGrid({
     setEditValue(currentValue)
   }
 
-  const cancelEditing = () => {
+  const cancelEditing = useCallback(() => {
     setEditingCell(null)
     setEditValue('')
-  }
+  }, [])
+
+  const toggleTariffInputMode = useCallback(() => {
+    cancelEditing()
+    setTariffInputMode((previous) => (previous === 'rate' ? 'cost' : 'rate'))
+  }, [cancelEditing, setTariffInputMode])
 
   const commitEdit = useCallback((overrideValue?: string) => {
     if (!editingCell) return
@@ -245,7 +287,7 @@ export function CustomOpsCostGrid({
       return
     }
 
-    const column = COLUMNS.find((c) => c.key === colKey)
+    const column = columns.find((c) => c.key === colKey)
     if (!column) {
       cancelEditing()
       return
@@ -302,6 +344,16 @@ export function CustomOpsCostGrid({
         updatedRow.productId = selected.id
         updatedRow.productName = selected.name
       }
+    } else if (colKey === 'tariffCost') {
+      entry.values.overrideTariffCost = finalValue === '' ? null : finalValue
+      entry.values.overrideTariffRate = null
+      updatedRow.tariffCost = finalValue
+      updatedRow.tariffRate = ''
+    } else if (colKey === 'tariffRate') {
+      entry.values.overrideTariffRate = finalValue === '' ? null : finalValue
+      entry.values.overrideTariffCost = null
+      updatedRow.tariffRate = finalValue
+      updatedRow.tariffCost = ''
     } else if (isNumericField(colKey)) {
       const serverKey = SERVER_FIELD_MAP[colKey]
       if (serverKey) {
@@ -323,12 +375,12 @@ export function CustomOpsCostGrid({
 
     scheduleFlush()
     cancelEditing()
-  }, [editingCell, editValue, localRows, products, pendingRef, scheduleFlush, onRowsChange])
+  }, [editingCell, editValue, localRows, products, pendingRef, scheduleFlush, onRowsChange, columns, cancelEditing])
 
   const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
     let idx = startIndex + direction
-    while (idx >= 0 && idx < COLUMNS.length) {
-      if (COLUMNS[idx].editable) return idx
+    while (idx >= 0 && idx < columns.length) {
+      if (columns[idx].editable) return idx
       idx += direction
     }
     return -1
@@ -336,8 +388,8 @@ export function CustomOpsCostGrid({
 
   const moveToCell = (rowIndex: number, colIndex: number) => {
     if (rowIndex < 0 || rowIndex >= localRows.length) return
-    if (colIndex < 0 || colIndex >= COLUMNS.length) return
-    const column = COLUMNS[colIndex]
+    if (colIndex < 0 || colIndex >= columns.length) return
+    const column = columns[colIndex]
     if (!column.editable) return
     const row = localRows[rowIndex]
     startEditing(row.id, column.key, row[column.key] ?? '')
@@ -350,7 +402,7 @@ export function CustomOpsCostGrid({
       // Move to next row, same column
       if (editingCell) {
         const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
-        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+        const currentColIndex = columns.findIndex((c) => c.key === editingCell.colKey)
         if (currentRowIndex < localRows.length - 1) {
           moveToCell(currentRowIndex + 1, currentColIndex)
         }
@@ -363,7 +415,7 @@ export function CustomOpsCostGrid({
       commitEdit()
       // Move to next/prev editable cell
       if (editingCell) {
-        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+        const currentColIndex = columns.findIndex((c) => c.key === editingCell.colKey)
         const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
         const nextColIndex = findNextEditableColumn(currentColIndex, e.shiftKey ? -1 : 1)
 
@@ -377,7 +429,7 @@ export function CustomOpsCostGrid({
           }
         } else if (e.shiftKey && currentRowIndex > 0) {
           // Move to last editable column of previous row
-          const lastEditableColIndex = findNextEditableColumn(COLUMNS.length, -1)
+          const lastEditableColIndex = findNextEditableColumn(columns.length, -1)
           if (lastEditableColIndex !== -1) {
             moveToCell(currentRowIndex - 1, lastEditableColIndex)
           }
@@ -388,7 +440,7 @@ export function CustomOpsCostGrid({
       commitEdit()
       if (editingCell) {
         const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
-        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+        const currentColIndex = columns.findIndex((c) => c.key === editingCell.colKey)
         moveToCell(currentRowIndex - 1, currentColIndex)
       }
     } else if (e.key === 'ArrowDown') {
@@ -396,7 +448,7 @@ export function CustomOpsCostGrid({
       commitEdit()
       if (editingCell) {
         const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
-        const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+        const currentColIndex = columns.findIndex((c) => c.key === editingCell.colKey)
         moveToCell(currentRowIndex + 1, currentColIndex)
       }
     } else if (e.key === 'ArrowLeft' && e.currentTarget instanceof HTMLInputElement) {
@@ -407,13 +459,13 @@ export function CustomOpsCostGrid({
         commitEdit()
         if (editingCell) {
           const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
-          const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+          const currentColIndex = columns.findIndex((c) => c.key === editingCell.colKey)
           const prevColIndex = findNextEditableColumn(currentColIndex, -1)
           if (prevColIndex !== -1) {
             moveToCell(currentRowIndex, prevColIndex)
           } else if (currentRowIndex > 0) {
             // Move to last editable column of previous row
-            const lastEditableColIndex = findNextEditableColumn(COLUMNS.length, -1)
+            const lastEditableColIndex = findNextEditableColumn(columns.length, -1)
             if (lastEditableColIndex !== -1) {
               moveToCell(currentRowIndex - 1, lastEditableColIndex)
             }
@@ -429,7 +481,7 @@ export function CustomOpsCostGrid({
         commitEdit()
         if (editingCell) {
           const currentRowIndex = localRows.findIndex((r) => r.id === editingCell.rowId)
-          const currentColIndex = COLUMNS.findIndex((c) => c.key === editingCell.colKey)
+          const currentColIndex = columns.findIndex((c) => c.key === editingCell.colKey)
           const nextColIndex = findNextEditableColumn(currentColIndex, 1)
           if (nextColIndex !== -1) {
             moveToCell(currentRowIndex, nextColIndex)
@@ -608,9 +660,24 @@ export function CustomOpsCostGrid({
           <table className="ops-table">
             <thead>
               <tr>
-                {COLUMNS.map((column) => (
+                {columns.map((column) => (
                   <th key={column.key} style={{ width: column.width, minWidth: column.width }}>
-                    {column.header}
+                    {column.key === 'tariffRate' || column.key === 'tariffCost' ? (
+                      <button
+                        type="button"
+                        className="ops-header-toggle"
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          toggleTariffInputMode()
+                        }}
+                        title={tariffInputMode === 'rate' ? 'Switch to Tariff $/unit' : 'Switch to Tariff %'}
+                      >
+                        {column.header}
+                      </button>
+                    ) : (
+                      column.header
+                    )}
                   </th>
                 ))}
               </tr>
@@ -618,7 +685,7 @@ export function CustomOpsCostGrid({
             <tbody>
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={COLUMNS.length} className="ops-table-empty">
+                  <td colSpan={columns.length} className="ops-table-empty">
                     {activeOrderId
                       ? 'No batches for this order. Click "Add batch" to add cost details.'
                       : 'Select a purchase order above to view or add batches.'}
@@ -630,7 +697,7 @@ export function CustomOpsCostGrid({
                     key={row.id}
                     className={isRowActive(row) ? 'row-active' : ''}
                   >
-                    {COLUMNS.map((column) => renderCell(row, column))}
+                    {columns.map((column) => renderCell(row, column))}
                   </tr>
                 ))
               )}

@@ -93,6 +93,7 @@ export function mapPurchaseOrders(
             batch.overrideManufacturingCost != null ? Number(batch.overrideManufacturingCost) : null,
           overrideFreightCost: batch.overrideFreightCost != null ? Number(batch.overrideFreightCost) : null,
           overrideTariffRate: batch.overrideTariffRate != null ? Number(batch.overrideTariffRate) : null,
+          overrideTariffCost: batch.overrideTariffCost != null ? Number(batch.overrideTariffCost) : null,
           overrideTacosPercent: batch.overrideTacosPercent != null ? Number(batch.overrideTacosPercent) : null,
           overrideFbaFee: batch.overrideFbaFee != null ? Number(batch.overrideFbaFee) : null,
           overrideReferralRate: batch.overrideReferralRate != null ? Number(batch.overrideReferralRate) : null,

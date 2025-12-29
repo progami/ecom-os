@@ -172,6 +172,7 @@ model BatchTableRow {
   overrideManufacturingCost Decimal?      @db.Decimal(10, 3)
   overrideFreightCost       Decimal?      @db.Decimal(10, 3)
   overrideTariffRate        Decimal?      @db.Decimal(5, 4)
+  overrideTariffCost        Decimal?      @db.Decimal(10, 3)
   overrideTacosPercent      Decimal?      @db.Decimal(5, 4)
   overrideFbaFee            Decimal?      @db.Decimal(10, 3)
   overrideReferralRate      Decimal?      @db.Decimal(5, 4)
