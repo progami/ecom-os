@@ -226,6 +226,7 @@ export function SalesPlanningGrid({
 }: SalesPlanningGridProps) {
   const hotRef = useRef<Handsontable | null>(null);
   const focusContext = useContext(SalesPlanningFocusContext);
+  const scrollRestoreRequestRef = useRef(0);
   const [activeStockMetric, setActiveStockMetric] = usePersistentState<StockMetricId>(
     'xplan:sales-grid:metric',
     'stockWeeks',
@@ -256,6 +257,9 @@ export function SalesPlanningGrid({
     action();
     if (!scroll) return;
 
+    scrollRestoreRequestRef.current += 1;
+    const requestId = scrollRestoreRequestRef.current;
+
     const holder = getHandsontableScrollHolder(hotRef.current);
 
     let userInteracted = false;
@@ -264,19 +268,28 @@ export function SalesPlanningGrid({
       userInteracted = true;
     };
 
-    root?.addEventListener('wheel', markUserIntent, { passive: true });
-    root?.addEventListener('touchmove', markUserIntent, { passive: true });
+    // Use capture to catch wheel events even if Handsontable stops propagation.
+    root?.addEventListener('wheel', markUserIntent, { passive: true, capture: true });
+    holder?.addEventListener('wheel', markUserIntent, { passive: true, capture: true });
+    root?.addEventListener('touchmove', markUserIntent, { passive: true, capture: true });
+    root?.addEventListener('pointerdown', markUserIntent, { passive: true, capture: true });
     holder?.addEventListener('scroll', markUserIntent, { passive: true });
 
     const cleanup = () => {
-      root?.removeEventListener('wheel', markUserIntent);
-      root?.removeEventListener('touchmove', markUserIntent);
+      root?.removeEventListener('wheel', markUserIntent, { capture: true });
+      holder?.removeEventListener('wheel', markUserIntent, { capture: true });
+      root?.removeEventListener('touchmove', markUserIntent, { capture: true });
+      root?.removeEventListener('pointerdown', markUserIntent, { capture: true });
       holder?.removeEventListener('scroll', markUserIntent);
     };
 
     const threshold = 4;
 
     const attemptRestore = (attempt = 0) => {
+      if (requestId !== scrollRestoreRequestRef.current) {
+        cleanup();
+        return;
+      }
       if (userInteracted) {
         cleanup();
         return;
