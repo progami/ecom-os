@@ -891,7 +891,7 @@ export default function PurchaseOrderDetailPage() {
               <h2 className="text-sm font-semibold text-slate-900">Order Progress</h2>
               {order.counterpartyName && (
                 <span className="text-sm text-muted-foreground">
-                  Counterparty: {order.counterpartyName}
+                  Supplier: {order.counterpartyName}
                 </span>
               )}
             </div>
@@ -1119,8 +1119,10 @@ export default function PurchaseOrderDetailPage() {
                     <p className="text-sm font-medium text-slate-900">{order.stageData.manufacturing?.proformaInvoiceNumber || '—'}</p>
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Factory</label>
-                    <p className="text-sm font-medium text-slate-900">{order.stageData.manufacturing?.factoryName || '—'}</p>
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Supplier</label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {order.stageData.manufacturing?.factoryName || order.counterpartyName || '—'}
+                    </p>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Manufacturing Start</label>
