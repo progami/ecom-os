@@ -163,6 +163,7 @@ export type OpsPlanningCalculatorPayload = {
 
 interface OpsPlanningWorkspaceProps {
   strategyId: string
+  activeYear?: number | null
   poTableRows: OpsInputRow[]
   batchTableRows: OpsBatchRow[]
   timeline: OpsTimelineRow[]
@@ -640,6 +641,7 @@ type PaymentUpdatePayload = {
 
 export function OpsPlanningWorkspace({
   strategyId,
+  activeYear,
   poTableRows,
   batchTableRows,
   timeline,
@@ -1625,6 +1627,7 @@ useEffect(() => {
           <CustomPurchasePaymentsGrid
             payments={visiblePayments}
             activeOrderId={activeOrderId}
+            activeYear={activeYear}
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}
             onAddPayment={handleAddPayment}
             onRemovePayment={handleRemovePayment}
