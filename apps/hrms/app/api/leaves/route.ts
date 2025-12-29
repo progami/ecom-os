@@ -4,7 +4,7 @@ import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helper
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { writeAuditLog } from '@/lib/audit'
 import { z } from 'zod'
-import { isHROrAbove } from '@/lib/permissions'
+import { getSubtreeEmployeeIds, isHROrAbove, isManagerOf } from '@/lib/permissions'
 
 const CreateLeaveRequestSchema = z.object({
   employeeId: z.string().min(1).max(100),
@@ -70,12 +70,8 @@ export async function GET(req: Request) {
       // Check if current user can view this employee's leaves
       const isSelf = employeeId === currentEmployeeId
       if (!isSelf && !isHR) {
-        // Direct manager can view a report's leave
-        const targetEmployee = await prisma.employee.findUnique({
-          where: { id: employeeId },
-          select: { reportsToId: true },
-        })
-        if (targetEmployee?.reportsToId !== currentEmployeeId) {
+        const isManager = await isManagerOf(currentEmployeeId, employeeId)
+        if (!isManager) {
           return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
         }
       }
@@ -83,12 +79,9 @@ export async function GET(req: Request) {
     } else {
       // If not HR, only show own leaves or direct reports
       if (!isHR) {
-        const directReportIds = await prisma.employee.findMany({
-          where: { reportsToId: currentEmployeeId },
-          select: { id: true },
-        })
+        const subtreeIds = await getSubtreeEmployeeIds(currentEmployeeId)
         where.employeeId = {
-          in: [currentEmployeeId, ...directReportIds.map(d => d.id)],
+          in: [currentEmployeeId, ...subtreeIds],
         }
       }
     }

@@ -110,6 +110,14 @@ export default function EmployeeViewPage() {
 
   const isHR = Boolean(me?.isHR || me?.isSuperAdmin)
   const isSelf = Boolean(employee && me && employee.id === me.id)
+  const isManager = Boolean(permissions?.isManager)
+  const canViewSensitive = isSelf || isHR || isManager
+  const canViewDocuments = isSelf || isHR
+  const canViewTimeline = canViewSensitive
+  const canViewPerformance = canViewSensitive
+  const canViewTimeOff = canViewSensitive
+  const canViewCases = canViewSensitive
+  const permissionsReady = Boolean(employee && me && permissions)
 
   useEffect(() => {
     setActiveTab(initialTab)
@@ -122,13 +130,41 @@ export default function EmployeeViewPage() {
     }
   }, [isHR, isSelf])
 
+  const tabs = useMemo(
+    () => [
+      { id: 'overview' as Tab, label: 'Overview', icon: UsersIcon, visible: true },
+      { id: 'job' as Tab, label: 'Job & Org', icon: BuildingIcon, visible: true },
+      { id: 'documents' as Tab, label: 'Documents', icon: FolderIcon, visible: canViewDocuments },
+      { id: 'timeline' as Tab, label: 'Timeline', icon: CalendarIcon, visible: canViewTimeline },
+      { id: 'performance' as Tab, label: 'Performance', icon: ClipboardDocumentCheckIcon, visible: canViewPerformance },
+      { id: 'timeoff' as Tab, label: 'Time off', icon: CalendarDaysIcon, visible: canViewTimeOff },
+      { id: 'cases' as Tab, label: 'Cases', icon: ExclamationTriangleIcon, visible: canViewCases },
+    ],
+    [canViewDocuments, canViewTimeline, canViewPerformance, canViewTimeOff, canViewCases]
+  )
+
+  const visibleTabs = useMemo(() => tabs.filter((tab) => tab.visible), [tabs])
+
   function setTab(next: Tab) {
+    if (!visibleTabs.some((tab) => tab.id === next)) return
     setActiveTab(next)
     const params = new URLSearchParams(searchParams.toString())
     params.set('tab', next)
     const qs = params.toString()
     router.replace(qs ? `?${qs}` : '')
   }
+
+  useEffect(() => {
+    if (!permissionsReady) return
+    if (!visibleTabs.some((tab) => tab.id === activeTab)) {
+      const fallback = visibleTabs[0]?.id ?? 'overview'
+      setActiveTab(fallback)
+      const params = new URLSearchParams(searchParams.toString())
+      params.set('tab', fallback)
+      const qs = params.toString()
+      router.replace(qs ? `?${qs}` : '')
+    }
+  }, [activeTab, permissionsReady, router, searchParams, visibleTabs])
 
   useEffect(() => {
     let cancelled = false
@@ -166,7 +202,7 @@ export default function EmployeeViewPage() {
 
   useEffect(() => {
     async function loadReviews() {
-      if (!employee || activeTab !== 'performance') return
+      if (!employee || activeTab !== 'performance' || !canViewPerformance) return
       try {
         setReviewsLoading(true)
         const data = await PerformanceReviewsApi.list({ employeeId: employee.id })
@@ -179,11 +215,11 @@ export default function EmployeeViewPage() {
       }
     }
     loadReviews()
-  }, [activeTab, employee])
+  }, [activeTab, canViewPerformance, employee])
 
   useEffect(() => {
     async function loadLeave() {
-      if (!employee || activeTab !== 'timeoff') return
+      if (!employee || activeTab !== 'timeoff' || !canViewTimeOff) return
       try {
         setLeaveLoading(true)
         const [balanceData, requestsData] = await Promise.all([
@@ -201,11 +237,11 @@ export default function EmployeeViewPage() {
       }
     }
     loadLeave()
-  }, [activeTab, employee])
+  }, [activeTab, canViewTimeOff, employee])
 
   useEffect(() => {
     async function loadTimeline() {
-      if (!employee || activeTab !== 'timeline') return
+      if (!employee || activeTab !== 'timeline' || !canViewTimeline) return
       try {
         setTimelineLoading(true)
         const data = await EmployeeTimelineApi.get(employee.id, { take: 200 })
@@ -218,11 +254,11 @@ export default function EmployeeViewPage() {
       }
     }
     loadTimeline()
-  }, [activeTab, employee])
+  }, [activeTab, canViewTimeline, employee])
 
   useEffect(() => {
     async function loadCases() {
-      if (!employee || activeTab !== 'cases') return
+      if (!employee || activeTab !== 'cases' || !canViewCases) return
       try {
         setCasesLoading(true)
         const data = await CasesApi.list({ subjectEmployeeId: employee.id, take: 50 })
@@ -235,11 +271,11 @@ export default function EmployeeViewPage() {
       }
     }
     loadCases()
-  }, [activeTab, employee])
+  }, [activeTab, canViewCases, employee])
 
   useEffect(() => {
     async function loadFiles() {
-      if (!employee || activeTab !== 'documents') return
+      if (!employee || activeTab !== 'documents' || !canViewDocuments) return
       try {
         setFilesLoading(true)
         const res = await EmployeeFilesApi.list(employee.id)
@@ -252,7 +288,7 @@ export default function EmployeeViewPage() {
       }
     }
     loadFiles()
-  }, [activeTab, employee])
+  }, [activeTab, canViewDocuments, employee])
 
   async function handleLeaveRequestSuccess() {
     if (!employee) return
@@ -385,28 +421,18 @@ export default function EmployeeViewPage() {
         }
       />
 
+      {!canViewSensitive ? (
+        <Alert variant="info" className="mb-6">
+          You have limited access to this profile. Sensitive records (time off, performance, cases, timeline) are visible only to managers and HR.
+        </Alert>
+      ) : null}
+
       <div className="flex gap-2 overflow-x-auto pb-2">
-        <TabButton active={activeTab === 'overview'} onClick={() => setTab('overview')} icon={UsersIcon}>
-          Overview
-        </TabButton>
-        <TabButton active={activeTab === 'job'} onClick={() => setTab('job')} icon={BuildingIcon}>
-          Job & Org
-        </TabButton>
-        <TabButton active={activeTab === 'documents'} onClick={() => setTab('documents')} icon={FolderIcon}>
-          Documents
-        </TabButton>
-        <TabButton active={activeTab === 'timeline'} onClick={() => setTab('timeline')} icon={CalendarIcon}>
-          Timeline
-        </TabButton>
-        <TabButton active={activeTab === 'performance'} onClick={() => setTab('performance')} icon={ClipboardDocumentCheckIcon}>
-          Performance
-        </TabButton>
-        <TabButton active={activeTab === 'timeoff'} onClick={() => setTab('timeoff')} icon={CalendarDaysIcon}>
-          Time off
-        </TabButton>
-        <TabButton active={activeTab === 'cases'} onClick={() => setTab('cases')} icon={ExclamationTriangleIcon}>
-          Cases
-        </TabButton>
+        {visibleTabs.map((tab) => (
+          <TabButton key={tab.id} active={activeTab === tab.id} onClick={() => setTab(tab.id)} icon={tab.icon}>
+            {tab.label}
+          </TabButton>
+        ))}
       </div>
 
       {activeTab === 'overview' ? (
@@ -424,7 +450,7 @@ export default function EmployeeViewPage() {
               </div>
             </Card>
 
-            <StandingCard employeeId={employee.id} />
+            {canViewSensitive ? <StandingCard employeeId={employee.id} /> : null}
           </div>
 
           <div className="space-y-6">
@@ -488,7 +514,7 @@ export default function EmployeeViewPage() {
         </div>
       ) : null}
 
-      {activeTab === 'documents' ? (
+      {activeTab === 'documents' && canViewDocuments ? (
         <div className="space-y-6">
           <Card padding="md">
             <div className="flex items-start justify-between gap-4">
@@ -587,7 +613,7 @@ export default function EmployeeViewPage() {
         </div>
       ) : null}
 
-      {activeTab === 'timeline' ? (
+      {activeTab === 'timeline' && canViewTimeline ? (
         <Card padding="md">
           <h2 className="text-sm font-semibold text-gray-900 mb-3">Timeline</h2>
           {timelineLoading ? (
@@ -617,7 +643,7 @@ export default function EmployeeViewPage() {
         </Card>
       ) : null}
 
-      {activeTab === 'performance' ? (
+      {activeTab === 'performance' && canViewPerformance ? (
         <Card padding="md">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -658,7 +684,7 @@ export default function EmployeeViewPage() {
         </Card>
       ) : null}
 
-      {activeTab === 'timeoff' ? (
+      {activeTab === 'timeoff' && canViewTimeOff ? (
         <div className="space-y-6">
           <Card padding="md">
             <div className="flex items-center justify-between gap-3">
@@ -696,7 +722,7 @@ export default function EmployeeViewPage() {
         </div>
       ) : null}
 
-      {activeTab === 'cases' ? (
+      {activeTab === 'cases' && canViewCases ? (
         <Card padding="md">
           <div className="flex items-start justify-between gap-4">
             <div>

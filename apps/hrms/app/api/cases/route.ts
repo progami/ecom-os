@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { withRateLimit, validateBody, safeErrorResponse } from '@/lib/api-helpers'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { prisma } from '@/lib/prisma'
-import { canRaiseViolation, isHROrAbove } from '@/lib/permissions'
+import { canRaiseViolation, getSubtreeEmployeeIds, isHROrAbove } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
 
 const CaseTypeEnum = z.enum(['VIOLATION', 'GRIEVANCE', 'INVESTIGATION', 'INCIDENT', 'REQUEST', 'OTHER'])
@@ -47,15 +47,17 @@ export async function GET(req: Request) {
     const and: any[] = []
 
     if (!isHR) {
-      and.push({
-        OR: [
-          { createdById: actorId },
-          { assignedToId: actorId },
-          { subjectEmployeeId: actorId },
-          { participants: { some: { employeeId: actorId } } },
-          { subjectEmployee: { reportsToId: actorId } },
-        ],
-      })
+      const subtreeIds = await getSubtreeEmployeeIds(actorId)
+      const orConditions: any[] = [
+        { createdById: actorId },
+        { assignedToId: actorId },
+        { subjectEmployeeId: actorId },
+        { participants: { some: { employeeId: actorId } } },
+      ]
+      if (subtreeIds.length > 0) {
+        orConditions.push({ subjectEmployeeId: { in: subtreeIds } })
+      }
+      and.push({ OR: orConditions })
     }
 
     if (q) {
