@@ -316,9 +316,8 @@ export default function EditEmployeePage() {
     )
   }
 
-  // If not editing self and not a manager/admin, redirect to view page
   const hasAnyEditPermission = permissions.editableFields.length > 0
-  if (!permissions.isEditingSelf && !permissions.isManager && !permissions.isSuperAdmin && !hasAnyEditPermission) {
+  if (permissions.isEditingSelf || !hasAnyEditPermission) {
     router.replace(`/employees/${id}`)
     return null
   }

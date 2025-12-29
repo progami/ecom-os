@@ -351,16 +351,18 @@ export async function canEditField(
     return { allowed: false, reason: 'Actor not found' }
   }
 
-  // User editable: employee can edit their own
+  // Employees cannot edit their own profile in HRMS; updates must flow through HR/Managers or Google Admin.
+  if (actorId === targetEmployeeId) {
+    return { allowed: false, reason: 'Self-editing is disabled. Contact HR for changes.' }
+  }
+
+  // User editable: managers/HR can edit (self-edit disabled)
   if (permission === 'USER_EDITABLE') {
-    if (actorId === targetEmployeeId) {
+    // Managers, HR, and Super Admin can edit user-editable fields
+    if (actor.isSuperAdmin || actor.permissionLevel >= PermissionLevel.HR || await isManagerOf(actorId, targetEmployeeId)) {
       return { allowed: true }
     }
-    // Managers and super admins can also edit user-editable fields
-    if (actor.isSuperAdmin || await isManagerOf(actorId, targetEmployeeId)) {
-      return { allowed: true }
-    }
-    return { allowed: false, reason: 'You can only edit your own profile for this field' }
+    return { allowed: false, reason: 'Only HR or your manager can edit this field' }
   }
 
   // Manager editable: only HR or super admin (NOT regular managers)
@@ -669,9 +671,9 @@ export async function canEditEmployeeRecord(
   actorId: string,
   targetEmployeeId: string
 ): Promise<{ allowed: boolean; reason?: string }> {
-  // Self can edit own personal info (handled by field-level permissions)
+  // Self-editing is disabled in HRMS.
   if (actorId === targetEmployeeId) {
-    return { allowed: true, reason: 'Self' }
+    return { allowed: false, reason: 'Self-editing is disabled. Contact HR for changes.' }
   }
 
   const actor = await prisma.employee.findUnique({
