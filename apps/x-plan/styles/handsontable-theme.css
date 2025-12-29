@@ -44,6 +44,15 @@
   transition: none;
 }
 
+.x-plan-hot-sales .htCore thead th,
+.x-plan-hot-sales .ht_clone_top thead th {
+  overflow: hidden;
+}
+
+.x-plan-hot-sales .x-plan-header-toggle {
+  transition: none;
+}
+
 .dark .x-plan-hot .htCore th,
 .dark .x-plan-hot .htCore td {
   color: #e2e8f0;
@@ -106,7 +115,7 @@
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   color: #0e7490;
   white-space: nowrap;
   overflow: hidden;
@@ -290,41 +299,24 @@
   color: #7f1d1d !important;
   border-color: transparent !important;
   transition: none;
-  background-image:
-    linear-gradient(to bottom, #ef4444, #ef4444),
-    linear-gradient(to bottom, #ef4444, #ef4444);
-  background-size: 2px 100%, 2px 100%;
-  background-position: left top, right top;
-  background-repeat: no-repeat;
+  outline: 2px solid #ef4444;
+  outline-offset: -2px;
   font-weight: 700 !important;
 }
 
 .x-plan-hot .cell-warning.cell-warning-start {
-  background-image:
-    linear-gradient(to bottom, #ef4444, #ef4444),
-    linear-gradient(to bottom, #ef4444, #ef4444),
-    linear-gradient(to right, #ef4444, #ef4444);
-  background-size: 2px 100%, 2px 100%, 100% 2px;
-  background-position: left top, right top, left top;
+  outline: 2px solid #ef4444;
+  outline-offset: -2px;
 }
 
 .x-plan-hot .cell-warning.cell-warning-end {
-  background-image:
-    linear-gradient(to bottom, #ef4444, #ef4444),
-    linear-gradient(to bottom, #ef4444, #ef4444),
-    linear-gradient(to right, #ef4444, #ef4444);
-  background-size: 2px 100%, 2px 100%, 100% 2px;
-  background-position: left top, right top, left bottom;
+  outline: 2px solid #ef4444;
+  outline-offset: -2px;
 }
 
 .x-plan-hot .cell-warning.cell-warning-start.cell-warning-end {
-  background-image:
-    linear-gradient(to bottom, #ef4444, #ef4444),
-    linear-gradient(to bottom, #ef4444, #ef4444),
-    linear-gradient(to right, #ef4444, #ef4444),
-    linear-gradient(to right, #ef4444, #ef4444);
-  background-size: 2px 100%, 2px 100%, 100% 2px, 100% 2px;
-  background-position: left top, right top, left top, left bottom;
+  outline: 2px solid #ef4444;
+  outline-offset: -2px;
 }
 
 /* Reorder suggestion cells */
@@ -573,14 +565,14 @@
   box-sizing: border-box;
   max-width: 100%;
   min-width: 0;
-  padding: 6px 10px;
+  padding: 6px 8px;
   border-radius: 0.5rem;
   border: 2px solid rgba(8, 145, 178, 0.55);
   background: linear-gradient(180deg, rgba(8, 145, 178, 0.14), rgba(8, 145, 178, 0.06));
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
