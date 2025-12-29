@@ -18,14 +18,12 @@ type WarehouseOption = {
   id: string
   code: string
   name: string
-  isActive: boolean
   kind?: string
 }
 
 type SkuBatchOption = {
   id: string
   batchCode: string
-  isActive: boolean
 }
 
 type SkuOption = {
@@ -125,7 +123,7 @@ export default function NewFulfillmentOrderPage() {
             ? (skusPayload as SkuOption[])
             : []
 
-        setWarehouses(warehousesData.filter(w => w.isActive))
+        setWarehouses(warehousesData)
         setSkus(skusData)
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to load data')
@@ -186,7 +184,7 @@ export default function NewFulfillmentOrderPage() {
 
   const getBatchOptions = (skuCode: string) => {
     const sku = skus.find(s => s.skuCode === skuCode)
-    return sku?.batches?.filter(b => b.isActive) ?? []
+    return sku?.batches ?? []
   }
 
   const handleSubmit = async () => {
@@ -515,4 +513,3 @@ export default function NewFulfillmentOrderPage() {
     </DashboardLayout>
   )
 }
-

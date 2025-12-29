@@ -18,7 +18,6 @@ interface SupplierRow {
   phone: string | null
   address: string | null
   notes: string | null
-  isActive: boolean
   createdAt: string
   updatedAt: string
 }
@@ -35,7 +34,6 @@ interface SupplierFormState {
   phone: string
   address: string
   notes: string
-  isActive: boolean
 }
 
 function buildSupplierFormState(supplier?: SupplierRow | null): SupplierFormState {
@@ -46,7 +44,6 @@ function buildSupplierFormState(supplier?: SupplierRow | null): SupplierFormStat
     phone: supplier?.phone ?? '',
     address: supplier?.address ?? '',
     notes: supplier?.notes ?? '',
-    isActive: supplier?.isActive ?? true,
   }
 }
 
@@ -59,17 +56,11 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
   const [suppliers, setSuppliers] = useState<SupplierRow[]>([])
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [showInactive, setShowInactive] = useState(false)
 
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingSupplier, setEditingSupplier] = useState<SupplierRow | null>(null)
   const [formState, setFormState] = useState<SupplierFormState>(() => buildSupplierFormState())
-
-  const [confirmToggle, setConfirmToggle] = useState<{
-    supplier: SupplierRow
-    nextActive: boolean
-  } | null>(null)
 
   const [confirmDelete, setConfirmDelete] = useState<SupplierRow | null>(null)
 
@@ -85,9 +76,8 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
   const buildQuery = useCallback(() => {
     const params = new URLSearchParams()
     if (searchTerm.trim()) params.set('search', searchTerm.trim())
-    if (showInactive) params.set('includeInactive', 'true')
     return params.toString()
-  }, [showInactive, searchTerm])
+  }, [searchTerm])
 
   const fetchSuppliers = useCallback(async () => {
     try {
@@ -114,7 +104,6 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
   const filteredSuppliers = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
     return suppliers.filter((supplier) => {
-      if (!showInactive && !supplier.isActive) return false
       if (!term) return true
       return (
         supplier.name.toLowerCase().includes(term) ||
@@ -122,13 +111,7 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
         (supplier.email ?? '').toLowerCase().includes(term)
       )
     })
-  }, [searchTerm, suppliers, showInactive])
-
-  const totals = useMemo(() => {
-    const active = suppliers.filter((s) => s.isActive).length
-    const inactive = suppliers.length - active
-    return { active, inactive }
-  }, [suppliers])
+  }, [searchTerm, suppliers])
 
   const openCreate = () => {
     setEditingSupplier(null)
@@ -184,7 +167,6 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
         phone: formState.phone.trim(),
         address: formState.address.trim(),
         notes: formState.notes.trim() ? formState.notes.trim() : null,
-        isActive: formState.isActive,
       }
 
       const endpoint = editingSupplier
@@ -208,25 +190,6 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
       toast.error(error instanceof Error ? error.message : 'Failed to save supplier')
     } finally {
       setIsSubmitting(false)
-    }
-  }
-
-  const toggleSupplierActive = async (supplier: SupplierRow, nextActive: boolean) => {
-    try {
-      const response = await fetchWithCSRF(`/api/suppliers?id=${encodeURIComponent(supplier.id)}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ isActive: nextActive }),
-      })
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null)
-        throw new Error(payload?.error ?? 'Failed to update supplier')
-      }
-
-      toast.success(nextActive ? 'Supplier activated' : 'Supplier deactivated')
-      await fetchSuppliers()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update supplier')
     }
   }
 
@@ -262,11 +225,8 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
             <p className="text-sm text-slate-600">Manage supplier information and contacts</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-medium">
-              {totals.active} active
-            </Badge>
-            <Badge className="bg-slate-100 text-slate-600 border-slate-200 font-medium">
-              {totals.inactive} inactive
+            <Badge className="bg-cyan-50 text-cyan-700 border-cyan-200 font-medium">
+              {suppliers.length} suppliers
             </Badge>
           </div>
         </div>
@@ -282,15 +242,6 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
                 className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
               />
             </div>
-            <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showInactive}
-                onChange={(event) => setShowInactive(event.target.checked)}
-                className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
-              />
-              Show inactive
-            </label>
           </div>
         </div>
 
@@ -303,7 +254,7 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
             <Users className="h-10 w-10 text-slate-300" />
             <div>
               <p className="text-base font-semibold text-slate-900">
-                {searchTerm || showInactive ? 'No suppliers found' : 'No suppliers yet'}
+                {searchTerm ? 'No suppliers found' : 'No suppliers yet'}
               </p>
               <p className="text-sm text-slate-500">
                 {searchTerm
@@ -311,7 +262,7 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
                   : 'Create suppliers for consistent SKU defaults and purchase orders.'}
               </p>
             </div>
-            {!searchTerm && !showInactive && (
+            {!searchTerm && (
               <Button onClick={openCreate} className="gap-2">
                 <Plus className="h-4 w-4" />
                 New Supplier
@@ -327,7 +278,6 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
                   <th className="px-4 py-3 text-left font-semibold">Contact</th>
                   <th className="px-4 py-3 text-left font-semibold">Email</th>
                   <th className="px-4 py-3 text-left font-semibold">Phone</th>
-                  <th className="px-4 py-3 text-left font-semibold">Status</th>
                   <th className="px-4 py-3 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
@@ -340,28 +290,10 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
                     </td>
                     <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{supplier.email ?? '—'}</td>
                     <td className="px-4 py-3 text-slate-500 whitespace-nowrap">{supplier.phone ?? '—'}</td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <Badge
-                        className={
-                          supplier.isActive
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-slate-100 text-slate-600 border-slate-200'
-                        }
-                      >
-                        {supplier.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </td>
                     <td className="px-4 py-3 text-right whitespace-nowrap">
                       <div className="inline-flex items-center gap-2">
                         <Button variant="outline" size="sm" onClick={() => openEdit(supplier)}>
                           <Edit2 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setConfirmToggle({ supplier, nextActive: !supplier.isActive })}
-                        >
-                          {supplier.isActive ? 'Deactivate' : 'Activate'}
                         </Button>
                         <Button
                           variant="outline"
@@ -464,15 +396,7 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
               </div>
 
               <div className="flex items-center justify-between gap-3 border-t pt-6">
-                <label className="inline-flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={formState.isActive}
-                    onChange={(event) => setFormState((prev) => ({ ...prev, isActive: event.target.checked }))}
-                    className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
-                  />
-                  Active
-                </label>
+                <div />
 
                 <div className="flex items-center gap-2">
                   <Button type="button" variant="outline" onClick={closeModal} disabled={isSubmitting}>
@@ -496,23 +420,6 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
       ) : null}
 
       <ConfirmDialog
-        isOpen={confirmToggle !== null}
-        onClose={() => setConfirmToggle(null)}
-        onConfirm={() => {
-          if (!confirmToggle) return
-          void toggleSupplierActive(confirmToggle.supplier, confirmToggle.nextActive)
-        }}
-        title={confirmToggle?.nextActive ? 'Activate supplier?' : 'Deactivate supplier?'}
-        message={
-          confirmToggle
-            ? `${confirmToggle.nextActive ? 'Activate' : 'Deactivate'} ${confirmToggle.supplier.name}?`
-            : ''
-        }
-        confirmText={confirmToggle?.nextActive ? 'Activate' : 'Deactivate'}
-        type={confirmToggle?.nextActive ? 'info' : 'warning'}
-      />
-
-      <ConfirmDialog
         isOpen={confirmDelete !== null}
         onClose={() => setConfirmDelete(null)}
         onConfirm={() => {
@@ -522,7 +429,7 @@ export default function SuppliersPanel({ externalModalOpen, onExternalModalClose
         title="Delete supplier?"
         message={
           confirmDelete
-            ? `Delete ${confirmDelete.name}? This is permanent and only allowed when there are no references.`
+            ? `Delete ${confirmDelete.name}? This is permanent and only allowed when there is no related history.`
             : ''
         }
         confirmText="Delete"

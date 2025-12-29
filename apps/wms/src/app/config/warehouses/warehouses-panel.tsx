@@ -34,7 +34,6 @@ interface Warehouse {
   contactEmail?: string | null
   contactPhone?: string | null
   kind?: string
-  isActive: boolean
   rateListAttachment?: {
     fileName: string
     size: number
@@ -53,22 +52,13 @@ export default function WarehousesPanel() {
   const router = useRouter()
   const [warehouses, setWarehouses] = useState<Warehouse[]>([])
   const [loading, setLoading] = useState(true)
-  const [showInactive, setShowInactive] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
-  const [deleteConfirm, setDeleteConfirm] = useState<{
-    open: boolean
-    warehouse: Warehouse | null
-    hasRelatedData: boolean
-  }>({ open: false, warehouse: null, hasRelatedData: false })
+  const [deleteConfirm, setDeleteConfirm] = useState<Warehouse | null>(null)
 
   const loadWarehouses = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams()
-      if (showInactive) params.append('includeInactive', 'true')
-
-      const query = params.toString()
-      const response = await fetchWithCSRF(`/api/warehouses${query ? `?${query}` : ''}`)
+      const response = await fetchWithCSRF('/api/warehouses')
       if (!response.ok) throw new Error('Failed to load warehouses')
 
       const payload = await response.json()
@@ -81,7 +71,6 @@ export default function WarehousesPanel() {
         contactEmail: warehouse.contactEmail ?? '',
         contactPhone: warehouse.contactPhone ?? '',
         kind: warehouse.kind ?? 'THIRD_PARTY',
-        isActive: Boolean(warehouse.isActive),
         rateListAttachment: warehouse.rateListAttachment ?? null,
         _count: {
           users: warehouse._count?.users ?? 0,
@@ -89,61 +78,41 @@ export default function WarehousesPanel() {
           inventoryTransactions: warehouse._count?.inventoryTransactions ?? 0,
         },
       }))
-      const sorted = normalized.sort((a, b) => Number(b.isActive) - Number(a.isActive))
-      setWarehouses(sorted)
+      setWarehouses(normalized)
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Unable to load warehouses')
     } finally {
       setLoading(false)
     }
-  }, [showInactive])
+  }, [])
 
   useEffect(() => {
     loadWarehouses()
   }, [loadWarehouses])
 
   const handleDelete = (warehouse: Warehouse) => {
-    const hasRelatedData = Object.values(warehouse._count).some(count => count > 0)
-    setDeleteConfirm({
-      open: true,
-      warehouse,
-      hasRelatedData,
-    })
+    setDeleteConfirm(warehouse)
   }
 
   const handleConfirmDelete = async () => {
-    const warehouse = deleteConfirm.warehouse
+    const warehouse = deleteConfirm
     if (!warehouse) return
 
-    setDeleteConfirm({ open: false, warehouse: null, hasRelatedData: false })
+    setDeleteConfirm(null)
 
     try {
       const response = await fetchWithCSRF(`/api/warehouses?id=${warehouse.id}`, {
         method: 'DELETE',
       })
 
-      if (!response.ok) throw new Error('Failed to delete warehouse')
-      const result = await response.json()
-      toast.success(result.message || 'Warehouse deleted')
+      const result = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(result?.error ?? 'Failed to delete warehouse')
+      }
+      toast.success(result?.message || 'Warehouse deleted')
       await loadWarehouses()
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to delete warehouse')
-    }
-  }
-
-  const handleToggleActive = async (warehouse: Warehouse) => {
-    try {
-      const response = await fetchWithCSRF(`/api/warehouses?id=${warehouse.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive: !warehouse.isActive })
-      })
-
-      if (!response.ok) throw new Error('Failed to update status')
-      toast.success(`${warehouse.name} ${warehouse.isActive ? 'deactivated' : 'activated'}`)
-      await loadWarehouses()
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to update status')
     }
   }
 
@@ -154,7 +123,6 @@ export default function WarehousesPanel() {
   const filteredWarehouses = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
     return warehouses.filter((warehouse) => {
-      if (!showInactive && !warehouse.isActive) return false
       if (!term) return true
 
       const haystack = [
@@ -171,13 +139,11 @@ export default function WarehousesPanel() {
 
       return haystack.includes(term)
     })
-  }, [warehouses, searchTerm, showInactive])
+  }, [warehouses, searchTerm])
 
   const totals = useMemo(() => {
-    const active = warehouses.filter(w => w.isActive).length
-    const inactive = warehouses.length - active
     const costRates = warehouses.reduce((sum, w) => sum + w._count.costRates, 0)
-    return { active, inactive, costRates }
+    return { costRates }
   }, [warehouses])
 
   const kindMeta = (kind?: string) => {
@@ -203,8 +169,9 @@ export default function WarehousesPanel() {
             <p className="text-sm text-slate-600">Manage warehouses and configure cost rates</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-medium">{totals.active} active</Badge>
-            <Badge className="bg-slate-100 text-slate-600 border-slate-200 font-medium">{totals.inactive} inactive</Badge>
+            <Badge className="bg-cyan-50 text-cyan-700 border-cyan-200 font-medium">
+              {warehouses.length} warehouses
+            </Badge>
             <Badge className="bg-cyan-50 text-cyan-700 border-cyan-200 font-medium">{totals.costRates} rates</Badge>
           </div>
         </div>
@@ -220,15 +187,6 @@ export default function WarehousesPanel() {
                 className="w-full rounded-lg border border-slate-200 bg-white pl-10 pr-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:border-cyan-500 focus:outline-none focus:ring-2 focus:ring-cyan-100 transition-shadow"
               />
             </div>
-            <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showInactive}
-                onChange={(event) => setShowInactive(event.target.checked)}
-                className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500"
-              />
-              Show inactive
-            </label>
           </div>
         </div>
 
@@ -289,15 +247,6 @@ export default function WarehousesPanel() {
                       <div className="flex items-center gap-2">
                         <Badge className="bg-cyan-50 text-cyan-700 border-cyan-200">
                           {warehouse.code}
-                        </Badge>
-                        <Badge
-                          className={
-                            warehouse.isActive
-                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : 'bg-slate-100 text-slate-600 border-slate-200'
-                          }
-                        >
-                          {warehouse.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                         <Badge className={kindMeta(warehouse.kind).badgeClass}>
                           {kindMeta(warehouse.kind).label}
@@ -402,17 +351,6 @@ export default function WarehousesPanel() {
                         <ArrowRight className="h-4 w-4" />
                       </Link>
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5 border-slate-300 hover:bg-slate-100"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        handleToggleActive(warehouse)
-                      }}
-                    >
-                      {warehouse.isActive ? 'Deactivate' : 'Activate'}
-                    </Button>
                   </div>
                 </div>
               </div>
@@ -423,17 +361,17 @@ export default function WarehousesPanel() {
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
-        isOpen={deleteConfirm.open}
-        onClose={() => setDeleteConfirm({ open: false, warehouse: null, hasRelatedData: false })}
+        isOpen={deleteConfirm !== null}
+        onClose={() => setDeleteConfirm(null)}
         onConfirm={handleConfirmDelete}
-        title={deleteConfirm.hasRelatedData ? 'Deactivate Warehouse' : 'Delete Warehouse'}
+        title="Delete Warehouse?"
         message={
-          deleteConfirm.hasRelatedData
-            ? 'This warehouse has related data and will be deactivated instead of deleted. Continue?'
-            : `Delete ${deleteConfirm.warehouse?.name || 'this warehouse'}? This cannot be undone.`
+          deleteConfirm
+            ? `Delete ${deleteConfirm.name || 'this warehouse'}? This cannot be undone.`
+            : ''
         }
         type="danger"
-        confirmText={deleteConfirm.hasRelatedData ? 'Deactivate' : 'Delete'}
+        confirmText="Delete"
         cancelText="Cancel"
       />
     </div>
