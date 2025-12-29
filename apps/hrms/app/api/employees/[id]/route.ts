@@ -131,7 +131,10 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
     }
 
     if (actorId === id) {
-      return NextResponse.json({ error: 'Self-editing is disabled. Contact HR for changes.' }, { status: 403 })
+      const canEditSelf = await isHROrAbove(actorId)
+      if (!canEditSelf) {
+        return NextResponse.json({ error: 'Self-editing is disabled. Contact HR for changes.' }, { status: 403 })
+      }
     }
 
     const body = await req.json()
