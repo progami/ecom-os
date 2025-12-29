@@ -103,7 +103,6 @@ export function validateDatabaseFieldMapping(entityName: string): FieldMappingVa
  'inventoryBalances': 'InventoryBalance',
  'skus': 'Sku',
  'warehouses': 'Warehouse',
- 'warehouseSkuConfigs': 'WarehouseSkuConfig',
  'costRates': 'CostRate'
  }
 
@@ -181,7 +180,6 @@ export function validateFieldTypes(entityName: string): FieldMappingValidationRe
  'inventoryBalances': 'InventoryBalance',
  'skus': 'Sku',
  'warehouses': 'Warehouse',
- 'warehouseSkuConfigs': 'WarehouseSkuConfig',
  'costRates': 'CostRate'
  }
 

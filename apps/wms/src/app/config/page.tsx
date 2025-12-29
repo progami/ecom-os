@@ -5,8 +5,6 @@ import {
  Eye, 
  Building, 
  DollarSign, 
- FileText,
- Warehouse,
  Users,
  ArrowRight
 } from '@/lib/lucide-icons'
@@ -46,20 +44,6 @@ const configModules = [
  href: '/config/warehouses?view=rates',
  icon: DollarSign,
  color: 'bg-amber-100 text-amber-700'
- },
- {
- title: 'SKU Warehouse Settings',
- description: 'Control SKU-specific warehouse rules',
- href: '/config/warehouse-configs',
- icon: Warehouse,
- color: 'bg-cyan-100 text-cyan-700'
- },
- {
- title: 'Invoice Templates',
- description: 'Customize invoice formats',
- href: '/config/invoice-templates',
- icon: FileText,
- color: 'bg-red-100 text-red-700'
  }
 ]
 
@@ -103,7 +87,6 @@ export default function ConfigurationPage() {
  <li>• Set up <strong>Products (SKUs)</strong> before creating transactions</li>
  <li>• Maintain <strong>Suppliers</strong> so teams pick consistent names</li>
  <li>• Configure <strong>Cost Rates</strong> for accurate billing</li>
- <li>• Use <strong>Warehouse Configs</strong> for SKU-specific pallet settings</li>
  <li>• Keep <strong>Warehouses</strong> information updated</li>
  </ul>
  </div>

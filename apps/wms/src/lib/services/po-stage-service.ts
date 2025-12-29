@@ -7,7 +7,6 @@ import {
   PurchaseOrderDocumentStage,
   TransactionType,
   InboundReceiveType,
-  OutboundShipMode,
   Prisma,
 } from '@ecom-os/prisma-wms'
 import { NotFoundError, ValidationError, ConflictError } from '@/lib/api'
@@ -98,12 +97,20 @@ type StageData = {
   shipped: ShippedStageData
 }
 
+type SerializedStageSection<T> = {
+  [K in keyof T]: T[K] extends Date | null | undefined ? string | null : T[K]
+}
+
+type SerializedStageData = {
+  [K in keyof StageData]: SerializedStageSection<StageData[K]>
+}
+
 // Valid stage transitions for new 5-stage workflow
 export const VALID_TRANSITIONS: Partial<Record<PurchaseOrderStatus, PurchaseOrderStatus[]>> = {
   DRAFT: [PurchaseOrderStatus.MANUFACTURING, PurchaseOrderStatus.CANCELLED],
   MANUFACTURING: [PurchaseOrderStatus.OCEAN, PurchaseOrderStatus.CANCELLED],
   OCEAN: [PurchaseOrderStatus.WAREHOUSE, PurchaseOrderStatus.CANCELLED],
-  WAREHOUSE: [PurchaseOrderStatus.SHIPPED, PurchaseOrderStatus.CANCELLED],
+  WAREHOUSE: [PurchaseOrderStatus.CANCELLED],
   SHIPPED: [], // Terminal state
   CANCELLED: [], // Terminal state
 }
@@ -123,15 +130,12 @@ export const STAGE_REQUIREMENTS: Record<string, string[]> = {
   ],
   // Stage 4: Warehouse - now requires selecting the warehouse
   WAREHOUSE: ['warehouseCode', 'receiveType', 'customsEntryNumber', 'customsClearedDate', 'receivedDate'],
-  // Stage 5: Shipped
-  SHIPPED: ['shipToName', 'shipMode', 'shippingCarrier', 'trackingNumber', 'shippedDate'],
 }
 
 export const STAGE_DOCUMENT_REQUIREMENTS: Partial<Record<PurchaseOrderStatus, string[]>> = {
   MANUFACTURING: ['proforma_invoice'],
   OCEAN: ['commercial_invoice', 'bill_of_lading', 'packing_list'],
   WAREHOUSE: ['movement_note', 'custom_declaration'],
-  SHIPPED: ['proof_of_pickup'],
 }
 
 // Field labels for error messages
@@ -153,13 +157,6 @@ const FIELD_LABELS: Record<string, string> = {
   customsEntryNumber: 'Customs Entry Number',
   customsClearedDate: 'Customs Cleared Date',
   receivedDate: 'Received Date',
-  // Stage 5
-  shipToName: 'Ship To Name',
-  shipMode: 'Outbound Mode',
-  shippingCarrier: 'Shipping Carrier',
-  trackingNumber: 'Tracking Number',
-  shippedDate: 'Shipped Date',
-  proofOfDeliveryRef: 'Proof of Delivery Reference',
 }
 
 function toDocumentStage(status: PurchaseOrderStatus): PurchaseOrderDocumentStage {
@@ -217,20 +214,6 @@ export interface StageTransitionInput {
   transactionCertNumber?: string
   receivedDate?: Date | string
   discrepancyNotes?: string
-
-  // Stage 5: Shipped
-  shipToName?: string
-  shipToAddress?: string
-  shipToCity?: string
-  shipToCountry?: string
-  shipToPostalCode?: string
-  shipMode?: OutboundShipMode | string
-  shippingCarrier?: string
-  shippingMethod?: string
-  trackingNumber?: string
-  shippedDate?: Date | string
-  proofOfDeliveryRef?: string
-  deliveredDate?: Date | string
 
   // Legacy fields (for backward compatibility)
   proformaInvoiceId?: string
@@ -406,8 +389,6 @@ function validateStageDateOrdering(
     'Customs cleared date'
   )
   const receivedDate = resolveOrderDate('receivedDate', stageData, order, 'Received date')
-  const shippedDate = resolveOrderDate('shippedDate', stageData, order, 'Shipped date')
-  const deliveredDate = resolveOrderDate('deliveredDate', stageData, order, 'Delivered date')
 
   if (targetStatus === PurchaseOrderStatus.MANUFACTURING) {
     assertNotEarlierThan('Manufacturing start date', manufacturingStartDate, 'Expected completion date', expectedCompletionDate)
@@ -434,11 +415,6 @@ function validateStageDateOrdering(
 
     assertNotEarlierThan('Customs cleared date', customsClearedDate, 'Received date', receivedDate)
     return
-  }
-
-  if (targetStatus === PurchaseOrderStatus.SHIPPED) {
-    assertNotEarlierThan('Received date', receivedDate, 'Shipped date', shippedDate)
-    assertNotEarlierThan('Shipped date', shippedDate, 'Delivered date', deliveredDate)
   }
 }
 
@@ -750,6 +726,12 @@ export async function transitionPurchaseOrderStage(
 
   const currentStatus = order.status as PurchaseOrderStatus
 
+  if (targetStatus === PurchaseOrderStatus.SHIPPED) {
+    throw new ValidationError(
+      'Purchase orders no longer ship inventory. Create a fulfillment order to ship stock.'
+    )
+  }
+
   // Validate the transition is allowed
   if (!isValidTransition(currentStatus, targetStatus)) {
     throw new ValidationError(
@@ -861,19 +843,6 @@ export async function transitionPurchaseOrderStage(
       throw new ValidationError(
         `Missing required documents for ${targetStatus}: ${missing.join(', ')}`
       )
-    }
-  }
-
-  if (targetStatus === PurchaseOrderStatus.SHIPPED) {
-    if (!order.lines || order.lines.length === 0) {
-      throw new ValidationError('Cannot ship an order with no cargo lines')
-    }
-
-    for (const line of order.lines) {
-      if (line.status === PurchaseOrderLineStatus.CANCELLED) continue
-      if (!line.batchLot) {
-        throw new ValidationError(`Batch/Lot is required for SKU ${line.skuCode}`)
-      }
     }
   }
 
@@ -1011,44 +980,6 @@ export async function transitionPurchaseOrderStage(
     updateData.discrepancyNotes = stageData.discrepancyNotes
   }
 
-  // Stage 5: Shipped fields
-  if (stageData.shipToName !== undefined) {
-    updateData.shipToName = stageData.shipToName
-  }
-  if (stageData.shipToAddress !== undefined) {
-    updateData.shipToAddress = stageData.shipToAddress
-  }
-  if (stageData.shipToCity !== undefined) {
-    updateData.shipToCity = stageData.shipToCity
-  }
-  if (stageData.shipToCountry !== undefined) {
-    updateData.shipToCountry = stageData.shipToCountry
-  }
-  if (stageData.shipToPostalCode !== undefined) {
-    updateData.shipToPostalCode = stageData.shipToPostalCode
-  }
-  if (stageData.shipMode !== undefined) {
-    updateData.shipMode = stageData.shipMode as OutboundShipMode
-  }
-  if (stageData.shippingCarrier !== undefined) {
-    updateData.shippingCarrier = stageData.shippingCarrier
-  }
-  if (stageData.shippingMethod !== undefined) {
-    updateData.shippingMethod = stageData.shippingMethod
-  }
-  if (stageData.trackingNumber !== undefined) {
-    updateData.trackingNumber = stageData.trackingNumber
-  }
-  if (stageData.shippedDate !== undefined) {
-    updateData.shippedDate = new Date(stageData.shippedDate)
-  }
-  if (stageData.proofOfDeliveryRef !== undefined) {
-    updateData.proofOfDeliveryRef = stageData.proofOfDeliveryRef
-  }
-  if (stageData.deliveredDate !== undefined) {
-    updateData.deliveredDate = new Date(stageData.deliveredDate)
-  }
-
   // Legacy fields (for backward compatibility)
   if (stageData.proformaInvoiceId !== undefined) {
     updateData.proformaInvoiceId = stageData.proformaInvoiceId
@@ -1101,23 +1032,6 @@ export async function transitionPurchaseOrderStage(
       updateData.oceanApprovedAt = now
       updateData.oceanApprovedById = user.id
       updateData.oceanApprovedByName = user.name
-      break
-    case PurchaseOrderStatus.SHIPPED:
-      updateData.warehouseApprovedAt = now
-      updateData.warehouseApprovedById = user.id
-      updateData.warehouseApprovedByName = user.name
-      updateData.shippedApprovedAt = now
-      updateData.shippedApprovedById = user.id
-      updateData.shippedApprovedByName = user.name
-      // Legacy (keep existing consumers working)
-      updateData.shippedAt =
-        stageData.shippedDate !== undefined
-          ? new Date(stageData.shippedDate)
-          : order.shippedDate
-            ? new Date(order.shippedDate)
-            : now
-      updateData.shippedById = user.id
-      updateData.shippedByName = user.name
       break
   }
 
@@ -1413,287 +1327,6 @@ export async function transitionPurchaseOrderStage(
       )
     }
 
-    if (targetStatus === PurchaseOrderStatus.SHIPPED) {
-      if (!nextOrder.warehouseCode || !nextOrder.warehouseName) {
-        throw new ValidationError('Warehouse is required before shipping inventory')
-      }
-
-      if (!nextOrder.shipMode) {
-        throw new ValidationError('Outbound mode is required before shipping inventory')
-      }
-
-      const shippedAt = nextOrder.shippedDate ? new Date(nextOrder.shippedDate) : now
-
-      const warehouse = await tx.warehouse.findFirst({
-        where: { code: nextOrder.warehouseCode },
-        select: { id: true, code: true, name: true, address: true },
-      })
-
-      if (!warehouse) {
-        throw new ValidationError(`Invalid warehouse code: ${nextOrder.warehouseCode}`)
-      }
-
-      const activeLines = nextOrder.lines.filter(line => line.status !== PurchaseOrderLineStatus.CANCELLED)
-      if (activeLines.length === 0) {
-        throw new ValidationError('Cannot ship an order with no active cargo lines')
-      }
-
-      const skuCodes = activeLines.map(line => line.skuCode)
-      const skus = await tx.sku.findMany({
-        where: { skuCode: { in: skuCodes } },
-        select: {
-          id: true,
-          skuCode: true,
-          description: true,
-          unitsPerCarton: true,
-          unitDimensionsCm: true,
-          unitWeightKg: true,
-          cartonDimensionsCm: true,
-          cartonWeightKg: true,
-          packagingType: true,
-        },
-      })
-      const skuMap = new Map(skus.map(sku => [sku.skuCode, sku]))
-
-      for (const line of activeLines) {
-        if (!skuMap.has(line.skuCode)) {
-          throw new ValidationError(`SKU ${line.skuCode} not found. Create the SKU first.`)
-        }
-      }
-
-      const batchCodes = Array.from(new Set(activeLines.map(line => String(line.batchLot))))
-      const batchRecords = await tx.skuBatch.findMany({
-        where: {
-          skuId: { in: skus.map(sku => sku.id) },
-          batchCode: { in: batchCodes },
-        },
-        select: {
-          skuId: true,
-          batchCode: true,
-          unitsPerCarton: true,
-          unitDimensionsCm: true,
-          unitWeightKg: true,
-          cartonDimensionsCm: true,
-          cartonWeightKg: true,
-          packagingType: true,
-          shippingCartonsPerPallet: true,
-        },
-      })
-      const batchMap = new Map(batchRecords.map(batch => [`${batch.skuId}::${batch.batchCode}`, batch]))
-
-      const createdTransactions: Array<{
-        id: string
-        skuCode: string
-        cartons: number
-        pallets: number
-        cartonDimensionsCm: string | null
-        warehouseCode: string
-        warehouseName: string
-        skuDescription: string
-        batchLot: string
-        transactionDate: Date
-      }> = []
-
-      let totalShippingPalletsOut = 0
-      const referenceId = nextOrder.trackingNumber ?? toPublicOrderNumber(nextOrder.orderNumber)
-
-      for (const line of activeLines) {
-        const sku = skuMap.get(line.skuCode)
-        if (!sku) continue
-
-        const batchLot = String(line.batchLot)
-        const batch = batchMap.get(`${sku.id}::${batchLot}`)
-        if (!batch) {
-          throw new ValidationError(
-            `Batch/Lot ${batchLot} is not configured for SKU ${line.skuCode}. Create it in Config → Products → Batches.`
-          )
-        }
-
-        const cartons = line.quantityReceived ?? line.postedQuantity ?? line.quantity
-        if (!Number.isInteger(cartons) || cartons <= 0) {
-          throw new ValidationError(`Invalid cartons quantity for SKU ${line.skuCode}`)
-        }
-
-        const unitsPerCarton = batch.unitsPerCarton ?? sku.unitsPerCarton ?? 1
-
-        const originalReceive = await tx.inventoryTransaction.findFirst({
-          where: {
-            warehouseCode: warehouse.code,
-            skuCode: sku.skuCode,
-            batchLot,
-            transactionType: TransactionType.RECEIVE,
-          },
-          orderBy: { transactionDate: 'asc' },
-          select: { shippingCartonsPerPallet: true },
-        })
-
-        const shippingCartonsPerPallet =
-          originalReceive?.shippingCartonsPerPallet ?? batch.shippingCartonsPerPallet ?? null
-
-        if (!shippingCartonsPerPallet || shippingCartonsPerPallet <= 0) {
-          throw new ValidationError(
-            `Shipping cartons per pallet is required for SKU ${line.skuCode} batch ${batchLot}`
-          )
-        }
-
-        const transactions = await tx.inventoryTransaction.findMany({
-          where: {
-            warehouseCode: warehouse.code,
-            skuCode: sku.skuCode,
-            batchLot,
-            transactionDate: { lte: shippedAt },
-          },
-          select: { cartonsIn: true, cartonsOut: true },
-        })
-
-        const currentCartons = transactions.reduce(
-          (sum, txn) => sum + Number(txn.cartonsIn || 0) - Number(txn.cartonsOut || 0),
-          0
-        )
-
-        if (currentCartons < cartons) {
-          throw new ValidationError(
-            `Insufficient inventory for SKU ${sku.skuCode} batch ${batchLot}. Available: ${currentCartons}, Requested: ${cartons}`
-          )
-        }
-
-        const { shippingPalletsOut } = calculatePalletValues({
-          transactionType: 'SHIP',
-          cartons,
-          shippingCartonsPerPallet,
-        })
-
-        if (nextOrder.shipMode === OutboundShipMode.PALLETS && shippingPalletsOut <= 0) {
-          throw new ValidationError('Total pallets is required for pallet outbound shipments')
-        }
-
-        const txRow = await tx.inventoryTransaction.create({
-          data: {
-            warehouseCode: warehouse.code,
-            warehouseName: warehouse.name,
-            warehouseAddress: warehouse.address,
-            skuCode: sku.skuCode,
-            skuDescription: line.skuDescription ?? sku.description,
-            unitDimensionsCm: batch.unitDimensionsCm ?? sku.unitDimensionsCm,
-            unitWeightKg: batch.unitWeightKg ?? sku.unitWeightKg,
-            cartonDimensionsCm: batch.cartonDimensionsCm ?? sku.cartonDimensionsCm,
-            cartonWeightKg: batch.cartonWeightKg ?? sku.cartonWeightKg,
-            packagingType: batch.packagingType ?? sku.packagingType,
-            unitsPerCarton,
-            batchLot,
-            transactionType: TransactionType.SHIP,
-            referenceId,
-            cartonsIn: 0,
-            cartonsOut: cartons,
-            storagePalletsIn: 0,
-            shippingPalletsOut,
-            storageCartonsPerPallet: null,
-            shippingCartonsPerPallet,
-            shipName: nextOrder.shipToName ?? nextOrder.shippingCarrier ?? null,
-            trackingNumber: nextOrder.trackingNumber ?? null,
-            supplier: null,
-            attachments: null,
-            transactionDate: shippedAt,
-            pickupDate: shippedAt,
-            createdById: user.id,
-            createdByName: user.name,
-            purchaseOrderId: nextOrder.id,
-            purchaseOrderLineId: line.id,
-            isReconciled: false,
-            isDemo: false,
-          },
-          select: {
-            id: true,
-            skuCode: true,
-            cartonDimensionsCm: true,
-            shippingPalletsOut: true,
-            warehouseCode: true,
-            warehouseName: true,
-            skuDescription: true,
-            batchLot: true,
-            transactionDate: true,
-          },
-        })
-
-        totalShippingPalletsOut += Number(txRow.shippingPalletsOut || 0)
-
-        createdTransactions.push({
-          id: txRow.id,
-          skuCode: txRow.skuCode,
-          cartons,
-          pallets: Number(txRow.shippingPalletsOut || 0),
-          cartonDimensionsCm: txRow.cartonDimensionsCm,
-          warehouseCode: txRow.warehouseCode,
-          warehouseName: txRow.warehouseName,
-          skuDescription: txRow.skuDescription,
-          batchLot: txRow.batchLot,
-          transactionDate: txRow.transactionDate,
-        })
-      }
-
-      if (createdTransactions.length === 0) {
-        throw new ValidationError('No inventory transactions were created for this shipment')
-      }
-
-      if (nextOrder.shipMode === OutboundShipMode.PALLETS && totalShippingPalletsOut <= 0) {
-        throw new ValidationError('Total pallets is required for pallet outbound shipments')
-      }
-
-      const rates = await tx.costRate.findMany({
-        where: {
-          warehouseId: warehouse.id,
-          isActive: true,
-          effectiveDate: { lte: shippedAt },
-          OR: [{ endDate: null }, { endDate: { gte: shippedAt } }],
-        },
-        orderBy: [{ costName: 'asc' }, { effectiveDate: 'desc' }],
-      })
-
-      const ratesByCostName = new Map<string, { costName: string; costValue: number; unitOfMeasure: string }>()
-      for (const rate of rates) {
-        if (!ratesByCostName.has(rate.costName)) {
-          ratesByCostName.set(rate.costName, {
-            costName: rate.costName,
-            costValue: Number(rate.costValue),
-            unitOfMeasure: rate.unitOfMeasure,
-          })
-        }
-      }
-
-      const costLedgerEntries = buildTacticalCostLedgerEntries({
-        transactionType: 'SHIP',
-        receiveType: null,
-        shipMode: nextOrder.shipMode,
-        ratesByCostName,
-        lines: createdTransactions.map(row => ({
-          transactionId: row.id,
-          skuCode: row.skuCode,
-          cartons: row.cartons,
-          pallets: row.pallets,
-          cartonDimensionsCm: row.cartonDimensionsCm,
-        })),
-        warehouseCode: warehouse.code,
-        warehouseName: warehouse.name,
-        createdAt: shippedAt,
-        createdByName: user.name,
-      })
-
-      if (costLedgerEntries.length > 0) {
-        await tx.costLedger.createMany({ data: costLedgerEntries })
-      }
-
-      storageCostInputs.push(
-        ...createdTransactions.map(row => ({
-          warehouseCode: row.warehouseCode,
-          warehouseName: row.warehouseName,
-          skuCode: row.skuCode,
-          skuDescription: row.skuDescription,
-          batchLot: row.batchLot,
-          transactionDate: row.transactionDate,
-        }))
-      )
-    }
-
     const refreshed = await tx.purchaseOrder.findUnique({
       where: { id: nextOrder.id },
       include: { lines: true },
@@ -1864,7 +1497,7 @@ function serializeDate(value: Date | null | undefined): string | null {
 /**
  * Serialize stage data dates to ISO strings
  */
-function serializeStageData(data: StageData): Record<string, unknown> {
+function serializeStageData(data: StageData): SerializedStageData {
   return {
     manufacturing: {
       ...data.manufacturing,

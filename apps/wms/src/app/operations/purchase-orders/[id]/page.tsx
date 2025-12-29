@@ -10,9 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { TabbedContainer, TabPanel } from '@/components/ui/tabbed-container'
 import {
-  FileText,
   ArrowLeft,
   Loader2,
   Package2,
@@ -20,12 +18,14 @@ import {
   Factory,
   Ship,
   Warehouse,
-  Truck,
   Upload,
   ChevronRight,
   Check,
   XCircle,
-  History,
+  ChevronDown,
+  ChevronUp,
+  Save,
+  X,
 } from '@/lib/lucide-icons'
 import { redirectToPortal } from '@/lib/portal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -166,7 +166,10 @@ interface PurchaseOrderDocumentSummary {
   viewUrl: string
 }
 
-const STAGE_DOCUMENTS: Record<PurchaseOrderDocumentStage, Array<{ id: string; label: string }>> = {
+const STAGE_DOCUMENTS: Record<
+  Exclude<PurchaseOrderDocumentStage, 'SHIPPED'>,
+  Array<{ id: string; label: string }>
+> = {
   MANUFACTURING: [{ id: 'proforma_invoice', label: 'Proforma Invoice' }],
   OCEAN: [
     { id: 'commercial_invoice', label: 'Commercial Invoice' },
@@ -177,7 +180,6 @@ const STAGE_DOCUMENTS: Record<PurchaseOrderDocumentStage, Array<{ id: string; la
     { id: 'movement_note', label: 'Movement Note / Warehouse Receipt' },
     { id: 'custom_declaration', label: 'Customs Declaration (CDS)' },
   ],
-  SHIPPED: [{ id: 'proof_of_pickup', label: 'Proof of Pickup' }],
 }
 
 // Stage configuration
@@ -186,7 +188,6 @@ const STAGES = [
   { value: 'MANUFACTURING', label: 'Manufacturing', icon: Factory, color: 'amber' },
   { value: 'OCEAN', label: 'In Transit', icon: Ship, color: 'blue' },
   { value: 'WAREHOUSE', label: 'At Warehouse', icon: Warehouse, color: 'purple' },
-  { value: 'SHIPPED', label: 'Shipped', icon: Truck, color: 'emerald' },
 ] as const
 
 function statusBadgeClasses(status: POStageStatus) {
@@ -237,10 +238,19 @@ export default function PurchaseOrderDetailPage() {
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean
-    type: 'cancel' | 'ship' | null
+    type: 'cancel' | null
     title: string
     message: string
   }>({ open: false, type: null, title: '', message: '' })
+
+  // Stage-based navigation - which stage view is currently selected
+  const [selectedStageView, setSelectedStageView] = useState<string | null>(null)
+
+  // Collapsible sections
+  const [showApprovalHistory, setShowApprovalHistory] = useState(false)
+
+  // Advance stage modal
+  const [advanceModalOpen, setAdvanceModalOpen] = useState(false)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -349,8 +359,29 @@ export default function PurchaseOrderDetailPage() {
   const currentStageIndex = useMemo(() => {
     if (!order) return 0
     const idx = STAGES.findIndex(s => s.value === order.status)
-    return idx >= 0 ? idx : 0
+    if (idx >= 0) return idx
+    if (order.status === 'SHIPPED') return STAGES.length - 1
+    return 0
   }, [order])
+
+  // The stage view being displayed (defaults to current stage)
+  const activeViewStage = useMemo(() => {
+    if (selectedStageView) return selectedStageView
+    if (!order) return 'DRAFT'
+    return order.status
+  }, [selectedStageView, order])
+
+  // Is the active view stage the current stage?
+  const isViewingCurrentStage = activeViewStage === order?.status
+
+  // Can user click on a stage to view it?
+  const canViewStage = (stageValue: string) => {
+    if (!order || order.status === 'CANCELLED') return false
+    const targetIdx = STAGES.findIndex(s => s.value === stageValue)
+    if (targetIdx < 0) return false
+    // Can view completed stages and current stage only
+    return targetIdx <= currentStageIndex
+  }
 
   const nextStage = useMemo(() => {
     if (!order || order.status === 'CANCELLED') return null
@@ -363,7 +394,7 @@ export default function PurchaseOrderDetailPage() {
 
   const nextStageDocsComplete = useMemo(() => {
     if (!order || !nextStage) return true
-    const stage = nextStage.value as PurchaseOrderDocumentStage
+    const stage = nextStage.value as keyof typeof STAGE_DOCUMENTS
     const required = STAGE_DOCUMENTS[stage] ?? []
     if (required.length === 0) return true
 
@@ -386,22 +417,11 @@ export default function PurchaseOrderDetailPage() {
       return
     }
 
-    // Show confirmation dialog for shipped
-    if (targetStatus === 'SHIPPED') {
-      setConfirmDialog({
-        open: true,
-        type: 'ship',
-        title: 'Mark as Shipped',
-        message: 'Mark this order as shipped? This will finalize the order.',
-      })
-      return
-    }
-
     await executeTransition(targetStatus)
   }
 
-  const executeTransition = async (targetStatus: POStageStatus) => {
-    if (!order || transitioning) return
+  const executeTransition = async (targetStatus: POStageStatus): Promise<boolean> => {
+    if (!order || transitioning) return false
 
     try {
       setTransitioning(true)
@@ -417,15 +437,17 @@ export default function PurchaseOrderDetailPage() {
       if (!response.ok) {
         const payload = await response.json().catch(() => null)
         toast.error(payload?.error ?? 'Failed to transition order')
-        return
+        return false
       }
 
       const updated = await response.json()
       setOrder(updated)
       setStageFormData({}) // Clear form
       toast.success(`Order moved to ${formatStatusLabel(targetStatus)}`)
+      return true
     } catch (_error) {
       toast.error('Failed to transition order')
+      return false
     } finally {
       setTransitioning(false)
     }
@@ -434,8 +456,6 @@ export default function PurchaseOrderDetailPage() {
   const handleConfirmDialogConfirm = async () => {
     if (confirmDialog.type === 'cancel') {
       await executeTransition('CANCELLED')
-    } else if (confirmDialog.type === 'ship') {
-      await executeTransition('SHIPPED')
     }
     setConfirmDialog({ open: false, type: null, title: '', message: '' })
   }
@@ -541,17 +561,7 @@ export default function PurchaseOrderDetailPage() {
       order.stageData.warehouse?.warehouseInvoiceId
   )
 
-  const hasShippedInfo = Boolean(
-    order.stageData.shipped?.shipToName ||
-      order.stageData.shipped?.shippingCarrier ||
-      order.stageData.shipped?.trackingNumber ||
-      order.stageData.shipped?.shippedDate ||
-      order.stageData.shipped?.proofOfDeliveryRef ||
-      order.stageData.shipped?.proofOfDelivery ||
-      order.stageData.shipped?.deliveredDate
-  )
-
-  const hasAnyStageInfo = hasManufacturingInfo || hasOceanInfo || hasWarehouseInfo || hasShippedInfo
+  const hasAnyStageInfo = hasManufacturingInfo || hasOceanInfo || hasWarehouseInfo
 
   const breadcrumbItems = [
     { label: 'Operations', href: '/operations' },
@@ -638,28 +648,11 @@ export default function PurchaseOrderDetailPage() {
           { key: 'receivedDate', label: 'Received Date', type: 'date' }
         )
         break
-      case 'SHIPPED':
-        fields.push(
-          { key: 'shipToName', label: 'Ship To Name', type: 'text' },
-          {
-            key: 'shipMode',
-            label: 'Outbound Mode',
-            type: 'select',
-            options: [
-              { value: 'CARTONS', label: 'Cartons' },
-              { value: 'PALLETS', label: 'Pallets' },
-            ],
-          },
-          { key: 'shippingCarrier', label: 'Shipping Carrier', type: 'text' },
-          { key: 'trackingNumber', label: 'Tracking Number', type: 'text' },
-          { key: 'shippedDate', label: 'Shipped Date', type: 'date' }
-        )
-        break
     }
 
     if (fields.length === 0) return null
 
-    const docStage = nextStage.value as PurchaseOrderDocumentStage
+    const docStage = nextStage.value as keyof typeof STAGE_DOCUMENTS
     const requiredDocs = STAGE_DOCUMENTS[docStage] ?? []
 
     const docsByType = new Map<string, PurchaseOrderDocumentSummary>(
@@ -716,11 +709,8 @@ export default function PurchaseOrderDetailPage() {
     }
 
     return (
-      <div className="mt-4 p-4 rounded-lg border border-slate-200 bg-slate-50">
-        <h4 className="text-sm font-semibold text-slate-900 mb-3">
-          Required for {nextStage.label}
-        </h4>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-5">
+        <div className="grid grid-cols-1 gap-4">
           {fields.map(field => (
             <div key={field.key} className="space-y-1.5">
               <label className="text-sm font-medium text-slate-700">{field.label}</label>
@@ -762,14 +752,14 @@ export default function PurchaseOrderDetailPage() {
         </div>
 
         {requiredDocs.length > 0 && (
-          <div className="mt-5 space-y-3">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h5 className="text-sm font-semibold text-slate-900">Required documents</h5>
+              <h5 className="text-sm font-semibold text-slate-900">Required Documents</h5>
               {documentsLoading && (
                 <span className="text-xs text-muted-foreground">Loading…</span>
               )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-2">
               {requiredDocs.map(doc => {
                 const key = `${docStage}::${doc.id}`
                 const existing = docsByType.get(key)
@@ -778,47 +768,45 @@ export default function PurchaseOrderDetailPage() {
                 return (
                   <div
                     key={key}
-                    className="flex items-center justify-between gap-3 rounded-md border bg-white px-3 py-2"
+                    className="flex items-center justify-between gap-3 rounded-lg border bg-slate-50 px-3 py-2.5"
                   >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        {existing ? (
-                          <Check className="h-4 w-4 text-emerald-600" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-slate-400" />
-                        )}
-                        <span className="text-sm font-medium text-slate-900">{doc.label}</span>
-                      </div>
+                    <div className="flex items-center gap-3 min-w-0">
                       {existing ? (
-                        <a
-                          href={existing.viewUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block truncate text-xs text-primary hover:underline mt-0.5"
-                          title={existing.fileName}
-                        >
-                          {existing.fileName}
-                        </a>
+                        <Check className="h-4 w-4 flex-shrink-0 text-emerald-600" />
                       ) : (
-                        <span className="block text-xs text-muted-foreground mt-0.5">
-                          Not uploaded yet
-                        </span>
+                        <XCircle className="h-4 w-4 flex-shrink-0 text-slate-400" />
                       )}
+                      <div className="min-w-0">
+                        <span className="text-sm font-medium text-slate-900">{doc.label}</span>
+                        {existing ? (
+                          <a
+                            href={existing.viewUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block truncate text-xs text-primary hover:underline"
+                            title={existing.fileName}
+                          >
+                            {existing.fileName}
+                          </a>
+                        ) : (
+                          <span className="block text-xs text-muted-foreground">
+                            Not uploaded yet
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <label className="inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer">
-                        <Upload className="h-3.5 w-3.5" />
-                        {existing ? 'Replace' : 'Upload'}
-                        <input
-                          type="file"
-                          className="hidden"
-                          disabled={isUploading}
-                          onChange={e => handleUpload(e, doc.id)}
-                        />
-                      </label>
-                      {isUploading && <span className="text-xs text-muted-foreground">…</span>}
-                    </div>
+                    <label className="inline-flex items-center gap-2 rounded-md border bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors flex-shrink-0">
+                      <Upload className="h-3.5 w-3.5" />
+                      {existing ? 'Replace' : 'Upload'}
+                      <input
+                        type="file"
+                        className="hidden"
+                        disabled={isUploading}
+                        onChange={e => handleUpload(e, doc.id)}
+                      />
+                      {isUploading && <span className="text-xs text-muted-foreground ml-1">…</span>}
+                    </label>
                   </div>
                 )
               })}
@@ -829,11 +817,66 @@ export default function PurchaseOrderDetailPage() {
     )
   }
 
-  const tabConfig = [
-    { id: 'overview', label: 'Overview', icon: <FileText className="h-4 w-4" /> },
-    { id: 'cargo', label: `Cargo (${order.lines.length})`, icon: <Package2 className="h-4 w-4" /> },
-    { id: 'history', label: 'Approval History', icon: <History className="h-4 w-4" /> },
-  ]
+  // Render documents for a specific stage
+  const renderStageDocuments = (stage: 'MANUFACTURING' | 'OCEAN' | 'WAREHOUSE') => {
+    const required = STAGE_DOCUMENTS[stage] ?? []
+    const stageDocs = documents.filter(doc => doc.stage === stage)
+    const docsByType = new Map(stageDocs.map(doc => [doc.documentType, doc]))
+
+    if (required.length === 0 && stageDocs.length === 0) return null
+
+    return (
+      <div className="mt-4 pt-4 border-t">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Documents</h4>
+          {documentsLoading && <span className="text-xs text-muted-foreground">Loading...</span>}
+        </div>
+        <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+          {required.map(docType => {
+            const existing = docsByType.get(docType.id)
+            return (
+              <div
+                key={docType.id}
+                className="flex items-center justify-between rounded-md border bg-slate-50 px-3 py-2"
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  {existing ? (
+                    <Check className="h-4 w-4 flex-shrink-0 text-emerald-600" />
+                  ) : (
+                    <XCircle className="h-4 w-4 flex-shrink-0 text-slate-400" />
+                  )}
+                  <div className="min-w-0">
+                    <span className="text-sm font-medium text-slate-900">{docType.label}</span>
+                    {existing && (
+                      <a
+                        href={existing.viewUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block truncate text-xs text-primary hover:underline"
+                        title={existing.fileName}
+                      >
+                        {existing.fileName}
+                      </a>
+                    )}
+                  </div>
+                </div>
+                {existing && (
+                  <a
+                    href={existing.viewUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex-shrink-0 text-xs text-primary hover:underline ml-2"
+                  >
+                    View
+                  </a>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <DashboardLayout hideBreadcrumb customBreadcrumb={breadcrumbContent}>
@@ -849,9 +892,15 @@ export default function PurchaseOrderDetailPage() {
                 {order.poNumber || order.orderNumber}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {order.warehouseCode && order.warehouseName
-                  ? `${order.warehouseName} (${order.warehouseCode})`
-                  : 'Warehouse not set yet (selected at Stage 4)'}
+                {order.warehouseCode || order.warehouseName ? (
+                  <>
+                    Warehouse:{' '}
+                    {order.warehouseName ?? order.warehouseCode}
+                    {order.warehouseName && order.warehouseCode ? ` (${order.warehouseCode})` : null}
+                  </>
+                ) : (
+                  'Warehouse: Not assigned'
+                )}
               </p>
             </div>
           </div>
@@ -874,7 +923,7 @@ export default function PurchaseOrderDetailPage() {
               )}
             </div>
 
-            {/* Stage Progress */}
+            {/* Stage Progress - Clickable Navigation */}
             <div className="flex items-center justify-between relative">
               {/* Progress line */}
               <div className="absolute top-5 left-0 right-0 h-1 bg-slate-200 mx-8" />
@@ -888,55 +937,64 @@ export default function PurchaseOrderDetailPage() {
               {STAGES.map((stage, index) => {
                 const isCompleted = index < currentStageIndex
                 const isCurrent = index === currentStageIndex
+                const isClickable = canViewStage(stage.value)
+                const isViewing = activeViewStage === stage.value
                 const Icon = stage.icon
 
                 return (
-                  <div key={stage.value} className="flex flex-col items-center relative z-10">
+                  <button
+                    key={stage.value}
+                    type="button"
+                    onClick={() => isClickable && setSelectedStageView(stage.value)}
+                    disabled={!isClickable}
+                    className={`flex flex-col items-center relative z-10 transition-all ${
+                      isClickable ? 'cursor-pointer group' : 'cursor-not-allowed'
+                    }`}
+                  >
                     <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-colors ${
+                      className={`flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all ${
+                        isViewing
+                          ? 'ring-2 ring-offset-2 ring-emerald-400'
+                          : ''
+                      } ${
                         isCompleted
-                          ? 'bg-emerald-500 border-emerald-500 text-white'
+                          ? 'bg-emerald-500 border-emerald-500 text-white group-hover:bg-emerald-600'
                           : isCurrent
-                            ? 'bg-white border-emerald-500 text-emerald-600'
+                            ? 'bg-white border-emerald-500 text-emerald-600 group-hover:bg-emerald-50'
                             : 'bg-white border-slate-300 text-slate-400'
                       }`}
                     >
                       {isCompleted ? <Check className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
                     </div>
                     <span
-                      className={`mt-2 text-xs font-medium ${
-                        isCompleted || isCurrent ? 'text-slate-900' : 'text-slate-400'
+                      className={`mt-2 text-xs font-medium transition-colors ${
+                        isViewing
+                          ? 'text-emerald-600'
+                          : isCompleted || isCurrent
+                            ? 'text-slate-900 group-hover:text-emerald-600'
+                            : 'text-slate-400'
                       }`}
                     >
                       {stage.label}
                     </span>
-                  </div>
+                    {isViewing && (
+                      <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    )}
+                  </button>
                 )
               })}
             </div>
 
-            {/* Stage Transition Form */}
-            {renderStageTransitionForm()}
-
             {/* Action Buttons */}
             <div className="flex flex-wrap items-center gap-3 mt-6">
-	              {nextStage && (
-	                <Button
-	                  onClick={() => handleTransition(nextStage.value as POStageStatus)}
-	                  disabled={transitioning || documentsLoading || !nextStageDocsComplete}
-	                  className="gap-2"
-	                >
-                  {transitioning ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Transitioning...
-                    </>
-                  ) : (
-                    <>
-                      Advance to {nextStage.label}
-                      <ChevronRight className="h-4 w-4" />
-                    </>
-                  )}
+              {nextStage && (
+                <Button
+                  onClick={() => setAdvanceModalOpen(true)}
+                  disabled={transitioning}
+                  className="gap-2"
+                >
+                  Advance to {nextStage.label}
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               )}
               {!isTerminal && (
@@ -951,6 +1009,24 @@ export default function PurchaseOrderDetailPage() {
                 </Button>
               )}
             </div>
+
+            {order.status === 'WAREHOUSE' && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div>
+                  <p className="text-sm font-medium text-slate-900">
+                    Shipping is handled via Fulfillment Orders
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Create a fulfillment order (FO) to ship inventory out of this warehouse.
+                  </p>
+                </div>
+                <Button asChild variant="outline">
+                  <Link href="/operations/fulfillment-orders/new" prefetch={false}>
+                    Create Fulfillment Order
+                  </Link>
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
@@ -963,277 +1039,413 @@ export default function PurchaseOrderDetailPage() {
           </div>
         )}
 
-        {/* Tabs */}
-        <TabbedContainer tabs={tabConfig} defaultTab="overview">
-          <TabPanel>
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">Order Details</h3>
-                  <p className="text-xs text-muted-foreground">
-                    Core information about this purchase order
-                  </p>
-                </div>
-                {canEdit && (
-                  <div className="flex items-center gap-2">
-                    {isEditingDetails ? (
-                      <>
-                        <Button size="sm" onClick={handleSaveDetails} disabled={detailsSaving}>
-                          {detailsSaving ? 'Saving...' : 'Save'}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={handleCancelEditDetails}
-                          disabled={detailsSaving}
-                        >
-                          Cancel
-                        </Button>
-                      </>
-                    ) : (
-                      <Button size="sm" variant="outline" onClick={handleEditDetails}>
-                        Edit Details
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">PO Number</label>
-                  <Input value={order.poNumber || order.orderNumber} disabled readOnly />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Warehouse</label>
-                  <Input
-                    value={
-                      order.warehouseCode && order.warehouseName
-                        ? `${order.warehouseName} (${order.warehouseCode})`
-                        : 'Not set yet'
-                    }
-                    disabled
-                    readOnly
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Counterparty</label>
-                  {isEditingDetails ? (
-                    <Input
-                      value={detailsDraft.counterpartyName}
-                      placeholder="Enter counterparty name"
-                      onChange={e =>
-                        setDetailsDraft(d => ({ ...d, counterpartyName: e.target.value }))
-                      }
-                      disabled={detailsSaving}
-                    />
-                  ) : (
-                    <Input value={order.counterpartyName || '—'} disabled readOnly />
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Expected Date</label>
-                  {isEditingDetails ? (
-                    <Input
-                      type="date"
-                      value={detailsDraft.expectedDate}
-                      onChange={e => setDetailsDraft(d => ({ ...d, expectedDate: e.target.value }))}
-                      disabled={detailsSaving}
-                    />
-                  ) : (
-                    <Input value={formatDate(order.expectedDate)} disabled readOnly />
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Created</label>
-                  <Input value={formatDate(order.createdAt)} disabled readOnly />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-muted-foreground">Created By</label>
-                  <Input value={order.createdByName || '—'} disabled readOnly />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Notes</label>
+        {/* Stage-Based Content View */}
+        <div className="rounded-xl border bg-white shadow-sm">
+          {/* Stage Content Header */}
+          <div className="flex items-center justify-between border-b px-6 py-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                {activeViewStage === 'DRAFT' && 'Order Details'}
+                {activeViewStage === 'MANUFACTURING' && 'Manufacturing Stage'}
+                {activeViewStage === 'OCEAN' && 'In Transit Stage'}
+                {activeViewStage === 'WAREHOUSE' && 'Warehouse Stage'}
+                {activeViewStage === 'SHIPPED' && 'Shipped'}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {isViewingCurrentStage ? 'Current stage' : 'Viewing past stage (read-only)'}
+              </p>
+            </div>
+            {/* Inline edit controls for DRAFT stage */}
+            {activeViewStage === 'DRAFT' && canEdit && (
+              <div className="flex items-center gap-2">
                 {isEditingDetails ? (
-                  <Textarea
-                    value={detailsDraft.notes}
-                    onChange={e => setDetailsDraft(d => ({ ...d, notes: e.target.value }))}
-                    rows={4}
-                    disabled={detailsSaving}
-                    placeholder="Add internal notes for the team"
-                  />
+                  <>
+                    <Button size="sm" onClick={handleSaveDetails} disabled={detailsSaving} className="gap-1.5">
+                      <Save className="h-3.5 w-3.5" />
+                      {detailsSaving ? 'Saving...' : 'Save'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={handleCancelEditDetails}
+                      disabled={detailsSaving}
+                      className="gap-1.5"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Cancel
+                    </Button>
+                  </>
                 ) : (
-                  <Textarea
-                    value={order.notes || ''}
-                    disabled
-                    readOnly
-                    rows={4}
-                    placeholder="No internal notes yet."
-                  />
+                  <Button size="sm" variant="outline" onClick={handleEditDetails} className="gap-1.5">
+                    <FileEdit className="h-3.5 w-3.5" />
+                    Edit
+                  </Button>
                 )}
               </div>
+            )}
+          </div>
 
-              {/* Stage Data Summary - Clean Timeline */}
-              {hasAnyStageInfo && (
-                <div className="space-y-3 border-t pt-4">
-                  <h3 className="text-sm font-semibold text-slate-900">Stage History</h3>
+          {/* Stage Content Body */}
+          <div className="p-6 space-y-6">
+            {/* DRAFT Stage View */}
+            {activeViewStage === 'DRAFT' && (
+              <>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <div className="space-y-2">
-                    {/* Manufacturing */}
-                    {hasManufacturingInfo && (
-                      <div className="flex gap-3 text-sm">
-                        <div className="flex-shrink-0 w-24 text-slate-500 font-medium">Manufacturing</div>
-                        <div className="flex-1 text-slate-700">
-                          {[
-                            order.stageData.manufacturing?.proformaInvoiceNumber && `PI: ${order.stageData.manufacturing.proformaInvoiceNumber}`,
-                            (order.stageData.manufacturing?.manufacturingStartDate || order.stageData.manufacturing?.manufacturingStart) &&
-                              `Started: ${formatDateOnly(order.stageData.manufacturing.manufacturingStartDate || order.stageData.manufacturing.manufacturingStart)}`,
-                          ].filter(Boolean).join(' • ')}
-                        </div>
-                      </div>
-                    )}
-                    {/* Ocean/Transit */}
-                    {hasOceanInfo && (
-                      <div className="flex gap-3 text-sm">
-                        <div className="flex-shrink-0 w-24 text-slate-500 font-medium">In Transit</div>
-                        <div className="flex-1 text-slate-700">
-                          {[
-                            order.stageData.ocean?.houseBillOfLading && `B/L: ${order.stageData.ocean.houseBillOfLading}`,
-                            order.stageData.ocean?.vesselName && `Vessel: ${order.stageData.ocean.vesselName}`,
-                            (order.stageData.ocean?.portOfLoading && order.stageData.ocean?.portOfDischarge) &&
-                              `${order.stageData.ocean.portOfLoading} → ${order.stageData.ocean.portOfDischarge}`,
-                          ].filter(Boolean).join(' • ')}
-                        </div>
-                      </div>
-                    )}
-                    {/* Warehouse */}
-                    {hasWarehouseInfo && (
-                      <div className="flex gap-3 text-sm">
-                        <div className="flex-shrink-0 w-24 text-slate-500 font-medium">Warehouse</div>
-                        <div className="flex-1 text-slate-700">
-                          {[
-                            order.stageData.warehouse?.customsEntryNumber && `Customs: ${order.stageData.warehouse.customsEntryNumber}`,
-                            order.stageData.warehouse?.receivedDate && `Received: ${formatDateOnly(order.stageData.warehouse.receivedDate)}`,
-                          ].filter(Boolean).join(' • ')}
-                        </div>
-                      </div>
-                    )}
-                    {/* Shipped */}
-                    {hasShippedInfo && (
-                      <div className="flex gap-3 text-sm">
-                        <div className="flex-shrink-0 w-24 text-slate-500 font-medium">Shipped</div>
-                        <div className="flex-1 text-slate-700">
-                          {[
-                            order.stageData.shipped?.trackingNumber && `Tracking: ${order.stageData.shipped.trackingNumber}`,
-                            order.stageData.shipped?.shippedDate && `Date: ${formatDateOnly(order.stageData.shipped.shippedDate)}`,
-                          ].filter(Boolean).join(' • ')}
-                        </div>
-                      </div>
+                    <label className="text-sm font-medium text-muted-foreground">PO Number</label>
+                    <Input value={order.poNumber || order.orderNumber} disabled readOnly />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Supplier</label>
+                    <Input value={order.counterpartyName || '—'} disabled readOnly />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Expected Date</label>
+                    {isEditingDetails ? (
+                      <Input
+                        type="date"
+                        value={detailsDraft.expectedDate}
+                        onChange={e => setDetailsDraft(d => ({ ...d, expectedDate: e.target.value }))}
+                        disabled={detailsSaving}
+                      />
+                    ) : (
+                      <Input value={order.expectedDate ? formatDateOnly(order.expectedDate) : '—'} disabled readOnly />
                     )}
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">Created</label>
+                    <Input value={`${formatDate(order.createdAt)}${order.createdByName ? ` by ${order.createdByName}` : ''}`} disabled readOnly />
+                  </div>
                 </div>
-              )}
-            </div>
-          </TabPanel>
 
-          <TabPanel>
-            <div className="space-y-4">
-              <div className="flex flex-wrap items-center justify-between text-sm text-muted-foreground">
-                <span>
-                  {order.lines.length} line{order.lines.length === 1 ? '' : 's'}
-                </span>
-                <span>Total quantity: {totalQuantity.toLocaleString()}</span>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-muted-foreground">Notes</label>
+                  {isEditingDetails ? (
+                    <Textarea
+                      value={detailsDraft.notes}
+                      onChange={e => setDetailsDraft(d => ({ ...d, notes: e.target.value }))}
+                      rows={3}
+                      disabled={detailsSaving}
+                      placeholder="Add internal notes for the team"
+                    />
+                  ) : (
+                    <div className="text-sm text-slate-700 bg-slate-50 rounded-md px-3 py-2 min-h-[60px]">
+                      {order.notes || <span className="text-muted-foreground italic">No notes</span>}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* MANUFACTURING Stage View */}
+            {activeViewStage === 'MANUFACTURING' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Proforma Invoice</label>
+                    <p className="text-sm font-medium text-slate-900">{order.stageData.manufacturing?.proformaInvoiceNumber || '—'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Factory</label>
+                    <p className="text-sm font-medium text-slate-900">{order.stageData.manufacturing?.factoryName || '—'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Manufacturing Start</label>
+                    <p className="text-sm font-medium text-slate-900">{formatDateOnly(order.stageData.manufacturing?.manufacturingStartDate || order.stageData.manufacturing?.manufacturingStart) || '—'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Expected Completion</label>
+                    <p className="text-sm font-medium text-slate-900">{formatDateOnly(order.stageData.manufacturing?.expectedCompletionDate) || '—'}</p>
+                  </div>
+                </div>
+
+                {/* Manufacturing Documents */}
+                {renderStageDocuments('MANUFACTURING')}
               </div>
-              <div className="overflow-x-auto rounded-xl border">
-                <table className="min-w-full table-auto text-sm">
-                  <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-semibold">SKU</th>
-                      <th className="px-3 py-2 text-left font-semibold">Description</th>
-                      <th className="px-3 py-2 text-left font-semibold">Batch / Lot</th>
-                      <th className="px-3 py-2 text-right font-semibold">Ordered</th>
-                      <th className="px-3 py-2 text-right font-semibold">Received</th>
-                      <th className="px-3 py-2 text-left font-semibold">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {order.lines.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
-                          No lines added to this order yet.
-                        </td>
-                      </tr>
-                    ) : (
-                      order.lines.map(line => (
-                        <tr key={line.id} className="odd:bg-muted/20">
-                          <td className="px-3 py-2 font-medium text-foreground whitespace-nowrap">
-                            {line.skuCode}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
-                            {line.skuDescription || '—'}
-                          </td>
-                          <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
-                            {line.batchLot || '—'}
-                          </td>
-                          <td className="px-3 py-2 text-right font-semibold text-foreground whitespace-nowrap">
-                            {line.quantity.toLocaleString()}
-                          </td>
-                          <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
-                            {(line.quantityReceived ?? line.postedQuantity).toLocaleString()}
-                          </td>
-                          <td className="px-3 py-2 whitespace-nowrap">
-                            <Badge variant="outline">{line.status}</Badge>
-                          </td>
-                        </tr>
-                      ))
+            )}
+
+            {/* OCEAN Stage View */}
+            {activeViewStage === 'OCEAN' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">House B/L</label>
+                    <p className="text-sm font-medium text-slate-900">{order.stageData.ocean?.houseBillOfLading || '—'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Master B/L</label>
+                    <p className="text-sm font-medium text-slate-900">{order.stageData.ocean?.masterBillOfLading || '—'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Commercial Invoice</label>
+                    <p className="text-sm font-medium text-slate-900">{order.stageData.ocean?.commercialInvoiceNumber || '—'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Vessel</label>
+                    <p className="text-sm font-medium text-slate-900">{order.stageData.ocean?.vesselName || '—'}{order.stageData.ocean?.voyageNumber ? ` (${order.stageData.ocean.voyageNumber})` : ''}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Route</label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {order.stageData.ocean?.portOfLoading && order.stageData.ocean?.portOfDischarge
+                        ? `${order.stageData.ocean.portOfLoading} → ${order.stageData.ocean.portOfDischarge}`
+                        : '—'}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">ETA</label>
+                    <p className="text-sm font-medium text-slate-900">{formatDateOnly(order.stageData.ocean?.estimatedArrival) || '—'}</p>
+                  </div>
+                </div>
+
+                {/* Ocean Documents */}
+                {renderStageDocuments('OCEAN')}
+              </div>
+            )}
+
+            {/* WAREHOUSE Stage View */}
+            {activeViewStage === 'WAREHOUSE' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Warehouse</label>
+                    <p className="text-sm font-medium text-slate-900">
+                      {order.stageData.warehouse?.warehouseName || order.warehouseName || '—'}
+                      {(order.stageData.warehouse?.warehouseCode || order.warehouseCode) ? ` (${order.stageData.warehouse?.warehouseCode || order.warehouseCode})` : ''}
+                    </p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customs Entry</label>
+                    <p className="text-sm font-medium text-slate-900">{order.stageData.warehouse?.customsEntryNumber || '—'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Customs Cleared</label>
+                    <p className="text-sm font-medium text-slate-900">{formatDateOnly(order.stageData.warehouse?.customsClearedDate) || '—'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Received Date</label>
+                    <p className="text-sm font-medium text-slate-900">{formatDateOnly(order.stageData.warehouse?.receivedDate) || '—'}</p>
+                  </div>
+                  {order.stageData.warehouse?.dutyAmount != null && (
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Duty</label>
+                      <p className="text-sm font-medium text-slate-900">
+                        {order.stageData.warehouse.dutyCurrency || ''} {order.stageData.warehouse.dutyAmount.toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Warehouse Documents */}
+                {renderStageDocuments('WAREHOUSE')}
+              </div>
+            )}
+
+            {/* SHIPPED Stage View */}
+            {activeViewStage === 'SHIPPED' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Ship To</label>
+                    <p className="text-sm font-medium text-slate-900">{order.stageData.shipped?.shipToName || '—'}</p>
+                    {order.stageData.shipped?.shipToAddress && (
+                      <p className="text-xs text-muted-foreground">{order.stageData.shipped.shipToAddress}</p>
                     )}
-                  </tbody>
-                </table>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Carrier</label>
+                    <p className="text-sm font-medium text-slate-900">{order.stageData.shipped?.shippingCarrier || '—'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tracking</label>
+                    <p className="text-sm font-medium text-slate-900">{order.stageData.shipped?.trackingNumber || '—'}</p>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Shipped Date</label>
+                    <p className="text-sm font-medium text-slate-900">{formatDateOnly(order.stageData.shipped?.shippedDate || order.stageData.shipped?.shippedAt) || '—'}</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </TabPanel>
+            )}
+          </div>
+        </div>
 
-          <TabPanel>
-            <div className="space-y-4">
+        {/* Cargo Section - Always Visible */}
+        <div className="rounded-xl border bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b px-6 py-4">
+            <div className="flex items-center gap-3">
+              <h3 className="text-sm font-semibold text-foreground">Cargo</h3>
+              <Badge variant="outline" className="text-xs">{order.lines.length} items</Badge>
+            </div>
+            <span className="text-sm text-muted-foreground">
+              Total: {totalQuantity.toLocaleString()} units
+            </span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full table-auto text-sm">
+              <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-2 text-left font-semibold">SKU</th>
+                  <th className="px-4 py-2 text-left font-semibold">Description</th>
+                  <th className="px-4 py-2 text-left font-semibold">Batch / Lot</th>
+                  <th className="px-4 py-2 text-right font-semibold">Ordered</th>
+                  <th className="px-4 py-2 text-right font-semibold">Received</th>
+                  <th className="px-4 py-2 text-left font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {order.lines.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                      No lines added to this order yet.
+                    </td>
+                  </tr>
+                ) : (
+                  order.lines.map(line => (
+                    <tr key={line.id} className="border-t hover:bg-muted/10">
+                      <td className="px-4 py-2.5 font-medium text-foreground whitespace-nowrap">
+                        {line.skuCode}
+                      </td>
+                      <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap max-w-[200px] truncate">
+                        {line.skuDescription || '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                        {line.batchLot || '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-semibold text-foreground whitespace-nowrap">
+                        {line.quantity.toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                        {(line.quantityReceived ?? line.postedQuantity).toLocaleString()}
+                      </td>
+                      <td className="px-4 py-2.5 whitespace-nowrap">
+                        <Badge variant="outline">{line.status}</Badge>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Collapsible Approval History */}
+        {order.approvalHistory && order.approvalHistory.length > 0 && (
+          <div className="rounded-xl border bg-white shadow-sm">
+            <button
+              type="button"
+              onClick={() => setShowApprovalHistory(!showApprovalHistory)}
+              className="flex w-full items-center justify-between px-6 py-4 text-left hover:bg-muted/10 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-foreground">Approval History</h3>
+                <Badge variant="outline" className="text-xs">{order.approvalHistory.length}</Badge>
+              </div>
+              {showApprovalHistory ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </button>
+            {showApprovalHistory && (
+              <div className="border-t px-6 py-4 space-y-2">
+                {order.approvalHistory.map((approval, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between rounded-lg border p-3 bg-muted/20"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100">
+                        <Check className="h-3.5 w-3.5 text-emerald-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{approval.stage}</p>
+                        <p className="text-xs text-muted-foreground">
+                          by {approval.approvedBy || 'Unknown'}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-muted-foreground">
+                      {approval.approvedAt ? formatDate(approval.approvedAt) : '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Advance Stage Modal */}
+      {advanceModalOpen && nextStage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !transitioning && setAdvanceModalOpen(false)}
+          />
+          {/* Modal */}
+          <div className="relative z-10 w-full max-w-lg mx-4 bg-white rounded-xl shadow-2xl max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b bg-slate-50">
               <div>
-                <h3 className="text-sm font-semibold text-foreground">Stage Approval History</h3>
-                <p className="text-xs text-muted-foreground">
-                  Track who approved each stage transition
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Advance to {nextStage.label}
+                </h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {STAGES[currentStageIndex]?.label ?? formatStatusLabel(order.status)} → {nextStage.label}
                 </p>
               </div>
-
-              {order.approvalHistory && order.approvalHistory.length > 0 ? (
-                <div className="space-y-3">
-                  {order.approvalHistory.map((approval, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between rounded-lg border p-4 bg-white"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-100">
-                          <Check className="h-4 w-4 text-emerald-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{approval.stage}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Approved by {approval.approvedBy || 'Unknown'}
-                          </p>
-                        </div>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {approval.approvedAt ? formatDate(approval.approvedAt) : '—'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No approvals recorded yet.</p>
-              )}
+              <button
+                type="button"
+                onClick={() => !transitioning && setAdvanceModalOpen(false)}
+                className="p-1.5 rounded-md hover:bg-slate-200 text-slate-500 hover:text-slate-700 transition-colors"
+                disabled={transitioning}
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-          </TabPanel>
-        </TabbedContainer>
-      </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              {renderStageTransitionForm()}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-slate-50">
+              <Button
+                variant="outline"
+                onClick={() => setAdvanceModalOpen(false)}
+                disabled={transitioning}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={async () => {
+                  const success = await executeTransition(nextStage.value as POStageStatus)
+                  if (success) {
+                    setAdvanceModalOpen(false)
+                  }
+                }}
+                disabled={transitioning || documentsLoading || !nextStageDocsComplete}
+                className="gap-2"
+              >
+                {transitioning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Advancing...
+                  </>
+                ) : (
+                  <>
+                    Advance to {nextStage.label}
+                    <ChevronRight className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Dialog */}
       <ConfirmDialog

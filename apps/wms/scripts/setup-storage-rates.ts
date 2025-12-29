@@ -6,11 +6,19 @@
  * This script adds storage rates to warehouses for testing the storage cost system
  */
 
-import { prisma } from '../src/lib/prisma'
+import { getTenantPrismaClient } from '../src/lib/tenant/prisma-factory'
+import { DEFAULT_TENANT, isValidTenantCode, type TenantCode } from '../src/lib/tenant/constants'
+
+const resolveTenantCode = (): TenantCode => {
+  const candidate =
+    process.env.TENANT_CODE ?? process.env.WMS_TENANT ?? process.env.NEXT_PUBLIC_TENANT
+  return isValidTenantCode(candidate) ? candidate : DEFAULT_TENANT
+}
 
 async function setupStorageRates() {
   console.log('🏭 Setting up storage rates for testing...')
-  
+  const prisma = await getTenantPrismaClient(resolveTenantCode())
+
   try {
     // Get all warehouses
     const warehouses = await prisma.warehouse.findMany({
@@ -73,7 +81,8 @@ async function setupStorageRates() {
     
   } catch (error) {
     console.error('❌ Failed to setup storage rates:', error)
-    process.exit(1)
+  } finally {
+    await prisma.$disconnect()
   }
 }
 

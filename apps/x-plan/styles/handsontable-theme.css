@@ -39,6 +39,11 @@
   transition: background-color 0.12s ease, border-color 0.12s ease;
 }
 
+.x-plan-hot-sales .htCore th,
+.x-plan-hot-sales .htCore td {
+  transition: none;
+}
+
 .dark .x-plan-hot .htCore th,
 .dark .x-plan-hot .htCore td {
   color: #e2e8f0;
@@ -91,6 +96,9 @@
   align-items: center;
   justify-content: center;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
   padding: 6px 10px;
   border-radius: 0.5rem;
   border: 1px solid rgba(8, 145, 178, 0.25);
@@ -103,6 +111,16 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Ensure nested header wrappers don't overflow into adjacent columns */
+.x-plan-hot .ht_clone_top thead th .relative,
+.x-plan-hot .htCore thead th .relative {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .dark .x-plan-hot .ht_clone_top thead tr:last-child th .colHeader,
@@ -268,10 +286,45 @@
 
 /* Warning cells */
 .x-plan-hot .cell-warning {
-  background: #fee2e2 !important;
+  background-color: #fee2e2 !important;
   color: #7f1d1d !important;
-  border: 1.5px solid #ef4444 !important;
+  border-color: transparent !important;
+  transition: none;
+  background-image:
+    linear-gradient(to bottom, #ef4444, #ef4444),
+    linear-gradient(to bottom, #ef4444, #ef4444);
+  background-size: 2px 100%, 2px 100%;
+  background-position: left top, right top;
+  background-repeat: no-repeat;
   font-weight: 700 !important;
+}
+
+.x-plan-hot .cell-warning.cell-warning-start {
+  background-image:
+    linear-gradient(to bottom, #ef4444, #ef4444),
+    linear-gradient(to bottom, #ef4444, #ef4444),
+    linear-gradient(to right, #ef4444, #ef4444);
+  background-size: 2px 100%, 2px 100%, 100% 2px;
+  background-position: left top, right top, left top;
+}
+
+.x-plan-hot .cell-warning.cell-warning-end {
+  background-image:
+    linear-gradient(to bottom, #ef4444, #ef4444),
+    linear-gradient(to bottom, #ef4444, #ef4444),
+    linear-gradient(to right, #ef4444, #ef4444);
+  background-size: 2px 100%, 2px 100%, 100% 2px;
+  background-position: left top, right top, left bottom;
+}
+
+.x-plan-hot .cell-warning.cell-warning-start.cell-warning-end {
+  background-image:
+    linear-gradient(to bottom, #ef4444, #ef4444),
+    linear-gradient(to bottom, #ef4444, #ef4444),
+    linear-gradient(to right, #ef4444, #ef4444),
+    linear-gradient(to right, #ef4444, #ef4444);
+  background-size: 2px 100%, 2px 100%, 100% 2px, 100% 2px;
+  background-position: left top, right top, left top, left bottom;
 }
 
 /* Reorder suggestion cells */
@@ -286,12 +339,13 @@
 }
 
 .x-plan-hot .cell-reorder-suggest:not(.cell-warning) {
-  border: 2px dotted #eab308 !important;
+  outline: 2px dotted #eab308 !important;
+  outline-offset: -2px;
   box-shadow: inset 0 0 0 1px rgba(234, 179, 8, 0.28);
 }
 
 .dark .x-plan-hot .cell-reorder-suggest:not(.cell-warning) {
-  border-color: rgba(234, 179, 8, 0.9) !important;
+  outline-color: rgba(234, 179, 8, 0.9) !important;
   box-shadow: inset 0 0 0 1px rgba(234, 179, 8, 0.3);
 }
 
@@ -516,6 +570,9 @@
   align-items: center;
   justify-content: center;
   width: 100%;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
   padding: 6px 10px;
   border-radius: 0.5rem;
   border: 2px solid rgba(8, 145, 178, 0.55);
@@ -524,6 +581,9 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: #0e7490;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -536,13 +596,12 @@
   background: linear-gradient(180deg, rgba(8, 145, 178, 0.2), rgba(8, 145, 178, 0.1));
   border-color: rgba(8, 145, 178, 0.8);
   outline-color: rgba(8, 145, 178, 0.28);
-  transform: translateY(-1px);
   color: #164e63;
   box-shadow: 0 6px 14px rgba(8, 145, 178, 0.18), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
 }
 
 .x-plan-header-toggle:active {
-  transform: translateY(0);
+  transform: none;
 }
 
 .x-plan-header-toggle:focus-visible {
