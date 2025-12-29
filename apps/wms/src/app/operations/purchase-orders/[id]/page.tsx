@@ -536,33 +536,6 @@ export default function PurchaseOrderDetailPage() {
   const isTerminal = order.status === 'SHIPPED' || order.status === 'CANCELLED'
   const canEdit = !isTerminal && order.status === 'DRAFT'
 
-  const hasManufacturingInfo = Boolean(
-    order.stageData.manufacturing?.proformaInvoiceNumber ||
-      order.stageData.manufacturing?.proformaInvoiceId ||
-      order.stageData.manufacturing?.manufacturingStartDate ||
-      order.stageData.manufacturing?.manufacturingStart ||
-      order.stageData.manufacturing?.factoryName ||
-      order.stageData.manufacturing?.expectedCompletionDate
-  )
-
-  const hasOceanInfo = Boolean(
-    order.stageData.ocean?.houseBillOfLading ||
-      order.stageData.ocean?.masterBillOfLading ||
-      order.stageData.ocean?.vesselName ||
-      order.stageData.ocean?.commercialInvoiceNumber ||
-      order.stageData.ocean?.commercialInvoiceId
-  )
-
-  const hasWarehouseInfo = Boolean(
-    order.stageData.warehouse?.warehouseCode ||
-      order.stageData.warehouse?.customsEntryNumber ||
-      order.stageData.warehouse?.customsClearedDate ||
-      order.stageData.warehouse?.receivedDate ||
-      order.stageData.warehouse?.warehouseInvoiceId
-  )
-
-  const hasAnyStageInfo = hasManufacturingInfo || hasOceanInfo || hasWarehouseInfo
-
   const breadcrumbItems = [
     { label: 'Operations', href: '/operations' },
     { label: 'Purchase Orders', href: '/operations/purchase-orders' },
