@@ -166,18 +166,60 @@ function resolveStageEnd(row: OpsInputRow, stage: StageWeeksKey): Date | null {
 
 function recomputeStageDates(
   record: OpsInputRow,
-  entry: { values: Record<string, string | null> }
+  entry: { values: Record<string, string | null> },
+  options: { anchorStage?: StageWeeksKey | null } = {}
 ): OpsInputRow {
+  const anchorStage = options.anchorStage ?? null
   let working = { ...record }
 
-  for (const stage of STAGE_CONFIG) {
-    const end = resolveStageEnd(working, stage.weeksKey)
-    const iso = end ? toIsoDate(end) ?? '' : ''
-    const target = working[stage.overrideKey]
-    if (target !== iso) {
-      working = { ...working, [stage.overrideKey]: iso as OpsInputRow[StageOverrideKey] }
-      entry.values[stage.overrideKey] = iso
+  const baseStart = parseIsoDate(working.poDate)
+  if (!baseStart) {
+    for (const stage of STAGE_CONFIG) {
+      if (working[stage.overrideKey] !== '') {
+        working = { ...working, [stage.overrideKey]: '' as OpsInputRow[StageOverrideKey] }
+        entry.values[stage.overrideKey] = ''
+      }
     }
+    return working
+  }
+
+  const MS_PER_DAY = 24 * 60 * 60 * 1000
+  let currentStart = baseStart
+
+  for (const stage of STAGE_CONFIG) {
+    const weeksKey = stage.weeksKey
+    const overrideKey = stage.overrideKey
+
+    let stageEnd: Date | null = null
+
+    // If the user just edited a stage end date, treat it as the anchor for this stage and
+    // recompute its weeks to match exactly, then derive all downstream stages from it.
+    if (anchorStage === weeksKey) {
+      const anchored = parseIsoDate(working[overrideKey])
+      if (anchored) {
+        stageEnd = anchored
+        const diffDays = (anchored.getTime() - currentStart.getTime()) / MS_PER_DAY
+        const weeks = Math.max(0, diffDays / 7)
+        const normalizedWeeks = formatNumericInput(weeks, 2)
+        if (working[weeksKey] !== normalizedWeeks) {
+          working = { ...working, [weeksKey]: normalizedWeeks as OpsInputRow[StageWeeksKey] }
+          entry.values[weeksKey] = normalizedWeeks
+        }
+      }
+    }
+
+    if (!stageEnd) {
+      const weeks = parseWeeks(working[weeksKey]) ?? 0
+      stageEnd = addWeeks(currentStart, weeks)
+    }
+
+    const iso = stageEnd ? toIsoDate(stageEnd) ?? '' : ''
+    if (working[overrideKey] !== iso) {
+      working = { ...working, [overrideKey]: iso as OpsInputRow[StageOverrideKey] }
+      entry.values[overrideKey] = iso
+    }
+
+    currentStart = stageEnd
   }
 
   return working
@@ -663,7 +705,13 @@ export function CustomOpsPlanningGrid({
     const needsStageRecompute =
       colKey === 'poDate' || (colKey as string) in STAGE_OVERRIDE_FIELDS
     if (needsStageRecompute) {
-      updatedRow = recomputeStageDates(updatedRow, entry as { values: Record<string, string | null> })
+      const anchorStage =
+        column.type === 'stage' && stageMode === 'dates' ? (colKey as StageWeeksKey) : null
+      updatedRow = recomputeStageDates(
+        updatedRow,
+        entry as { values: Record<string, string | null> },
+        { anchorStage }
+      )
     }
 
     // Update rows
