@@ -300,6 +300,49 @@ function buildTrendSeries<T>(rows: T[], key: Extract<keyof T, string>) {
   return { labels, values }
 }
 
+function buildCashFlowTrendSeries<T>(rows: T[], key: Extract<keyof T, string>) {
+  const labels: string[] = []
+  const values: number[] = []
+  const impactFlags: boolean[] = []
+
+  for (const row of rows) {
+    if (typeof row !== 'object' || row === null) continue
+    const record = row as Record<string, unknown>
+    const raw = record[key]
+    const numeric = typeof raw === 'number' ? raw : Number(raw)
+    if (!Number.isFinite(numeric)) continue
+
+    let label = ''
+    if ('periodLabel' in record && typeof record.periodLabel === 'string' && record.periodLabel.trim()) {
+      label = record.periodLabel
+    } else if ('weekDate' in record) {
+      const weekDate = record.weekDate as Date | string | number | null | undefined
+      if (weekDate != null) {
+        const formatted = formatDateDisplay(weekDate)
+        if (formatted) {
+          label = formatted
+        }
+      }
+    }
+
+    if (!label && 'weekNumber' in record) {
+      const weekValue = record.weekNumber as string | number | null | undefined
+      if (weekValue != null && !(typeof weekValue === 'string' && weekValue.trim() === '')) {
+        label = `W${weekValue}`
+      }
+    }
+
+    const inventorySpend = record.inventorySpend as number | null | undefined
+    const hasImpact = typeof inventorySpend === 'number' && Number.isFinite(inventorySpend) && Math.abs(inventorySpend) > 0
+
+    labels.push(label)
+    values.push(Number(numeric))
+    impactFlags.push(hasImpact)
+  }
+
+  return { labels, values, impactFlags }
+}
+
 type SheetPageProps = {
   params: Promise<{ sheet: string }>
   searchParams?: Promise<Record<string, string | string[] | undefined>>
@@ -1851,7 +1894,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           description: '',
           helper: '',
           series: {
-            weekly: buildTrendSeries(cashWeekly, 'cashBalance'),
+            weekly: buildCashFlowTrendSeries(cashWeekly, 'cashBalance'),
             monthly: buildTrendSeries(cashMonthly, 'closingCash'),
             quarterly: buildTrendSeries(cashQuarterly, 'closingCash'),
           },
@@ -1864,7 +1907,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           description: '',
           helper: '',
           series: {
-            weekly: buildTrendSeries(cashWeekly, 'netCash'),
+            weekly: buildCashFlowTrendSeries(cashWeekly, 'netCash'),
             monthly: buildTrendSeries(cashMonthly, 'netCash'),
             quarterly: buildTrendSeries(cashQuarterly, 'netCash'),
           },
