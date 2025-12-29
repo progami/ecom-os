@@ -250,26 +250,32 @@ export function SalesPlanningGrid({
 
   const preserveScrollPosition = useCallback((action: () => void) => {
     const scroll = getHandsontableScroll(hotRef.current);
-    const holder = getHandsontableScrollHolder(hotRef.current);
+    const root = hotRef.current?.rootElement ?? null;
     action();
-    if (!scroll || !holder) return;
+    if (!scroll) return;
 
-    let userScroll = false;
+    const holder = getHandsontableScrollHolder(hotRef.current);
 
-    const markScroll = () => {
-      userScroll = true;
+    let userInteracted = false;
+
+    const markUserIntent = () => {
+      userInteracted = true;
     };
 
-    holder.addEventListener('scroll', markScroll, { passive: true });
+    root?.addEventListener('wheel', markUserIntent, { passive: true });
+    root?.addEventListener('touchmove', markUserIntent, { passive: true });
+    holder?.addEventListener('scroll', markUserIntent, { passive: true });
 
     const cleanup = () => {
-      holder.removeEventListener('scroll', markScroll);
+      root?.removeEventListener('wheel', markUserIntent);
+      root?.removeEventListener('touchmove', markUserIntent);
+      holder?.removeEventListener('scroll', markUserIntent);
     };
 
     const threshold = 4;
 
     const attemptRestore = (attempt = 0) => {
-      if (userScroll) {
+      if (userInteracted) {
         cleanup();
         return;
       }
