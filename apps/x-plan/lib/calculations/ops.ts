@@ -456,7 +456,7 @@ export function computePurchaseOrderDerived(
       label: 'Freight (100%)',
       baseAmount: freightTotal,
       defaultPercent: supplierDenominator > 0 ? freightTotal / supplierDenominator : 0,
-      defaultDate: freightDate ?? productionDate ?? depositDate ?? createdAt,
+      defaultDate: portDate ?? inboundEta ?? availableDate ?? freightDate ?? productionDate ?? depositDate ?? createdAt,
     },
     {
       index: 4,
