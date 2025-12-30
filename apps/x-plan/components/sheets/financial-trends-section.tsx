@@ -10,12 +10,7 @@ import {
   type PointerEvent,
 } from 'react'
 import { Check, Download } from 'lucide-react'
-import {
-  SHEET_TOOLBAR_BUTTON,
-  SHEET_TOOLBAR_GROUP,
-  SHEET_TOOLBAR_LABEL,
-  SHEET_TOOLBAR_SEGMENTED,
-} from '@/components/sheet-toolbar'
+import { SHEET_TOOLBAR_GROUP } from '@/components/sheet-toolbar'
 import { usePersistentState } from '@/hooks/usePersistentState'
 
 export type TrendGranularity = 'weekly' | 'monthly' | 'quarterly'
@@ -62,7 +57,6 @@ export function FinancialTrendsSection({ title, description, metrics, storageKey
       if (prev.includes(key)) {
         return prev.filter((k) => k !== key)
       }
-      // Don't allow disabling all metrics
       if (enabledMetrics.length <= 1) return prev
       return [...prev, key]
     })
@@ -104,54 +98,84 @@ export function FinancialTrendsSection({ title, description, metrics, storageKey
 
   if (!metrics.length) {
     return (
-      <section className="rounded-3xl border border-slate-200 dark:border-[#0b3a52] bg-white dark:bg-[#041324] p-6 text-sm text-slate-400 shadow-lg dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)]">
-        <header className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">{title}</p>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{description}</h2>
-        </header>
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-400 backdrop-blur-sm dark:border-[#0b3a52] dark:bg-[#06182b]/60">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h3>
+          <p className="text-sm text-slate-600 dark:text-[#6F7B8B]">{description}</p>
+        </div>
         <p className="mt-4">No data available yet.</p>
       </section>
     )
   }
 
   return (
-    <section className="space-y-6 rounded-3xl border border-slate-200 dark:border-[#0b3a52] bg-white dark:bg-[#041324] p-6 shadow-lg dark:shadow-[0_26px_55px_rgba(1,12,24,0.55)]">
-      <header className="space-y-4 lg:flex lg:items-end lg:justify-between lg:space-y-0">
-        <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">{title}</p>
-          <h2 className="text-xl font-semibold text-slate-900 dark:text-white">{description}</h2>
+    <div className="space-y-6">
+      {/* Controls bar - matching Sales Planning structure */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className={SHEET_TOOLBAR_GROUP}>
+          <span className="text-xs font-semibold uppercase tracking-[0.1em] text-cyan-700 dark:text-cyan-300/90">Cadence</span>
+          {granularityOptions.map((option) => {
+            const isActive = option.value === granularity
+            const isAvailable = granularityAvailability[option.value]
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => isAvailable && setGranularity(option.value)}
+                disabled={!isAvailable}
+                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all ${
+                  isActive
+                    ? 'bg-cyan-100 text-cyan-800 shadow-sm dark:bg-cyan-900/30 dark:text-cyan-200'
+                    : isAvailable
+                      ? 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/5'
+                      : 'cursor-not-allowed text-slate-400 opacity-50 dark:text-slate-500'
+                }`}
+                title={!isAvailable ? 'No data available for this cadence' : option.helper}
+              >
+                {isActive && <Check className="h-3 w-3" />}
+                {option.label}
+              </button>
+            )
+          })}
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
-          <GranularityToggle value={granularity} onChange={setGranularity} availability={granularityAvailability} />
-          <button
-            type="button"
-            onClick={() => {
-              const svg = document.querySelector('.financial-trend-svg') as SVGElement
-              if (!svg) return
-              const data = new XMLSerializer().serializeToString(svg)
-              const blob = new Blob([data], { type: 'image/svg+xml' })
-              const url = URL.createObjectURL(blob)
-              const a = document.createElement('a')
-              a.href = url
-              const safeName = title.toLowerCase().replace(/\s+/g, '-')
-              a.download = `${safeName}-${granularity}.svg`
-              a.click()
-              URL.revokeObjectURL(url)
-            }}
-            className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Export SVG
-          </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            const svg = document.querySelector('.financial-trend-svg') as SVGElement
+            if (!svg) return
+            const data = new XMLSerializer().serializeToString(svg)
+            const blob = new Blob([data], { type: 'image/svg+xml' })
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            const safeName = title.toLowerCase().replace(/\s+/g, '-')
+            a.download = `${safeName}-${granularity}.svg`
+            a.click()
+            URL.revokeObjectURL(url)
+          }}
+          className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-cyan-500 hover:text-cyan-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:hover:border-[#00C2B9]/50 dark:hover:text-cyan-100 dark:focus-visible:outline-[#00C2B9]"
+        >
+          <Download className="h-3.5 w-3.5" />
+          Export SVG
+        </button>
+      </div>
+
+      {/* Main card - matching Sales Planning structure */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 backdrop-blur-sm dark:border-[#0b3a52] dark:bg-[#06182b]/60">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h3>
+          <p className="text-sm text-slate-600 dark:text-[#6F7B8B]">{description}</p>
         </div>
-      </header>
-      <MultiMetricChart
-        metrics={metrics}
-        enabledMetrics={enabledMetrics}
-        granularity={granularity}
-        onToggleMetric={toggleMetric}
-      />
-    </section>
+
+        <MultiMetricChart
+          metrics={metrics}
+          enabledMetrics={enabledMetrics}
+          granularity={granularity}
+          onToggleMetric={toggleMetric}
+        />
+      </div>
+    </div>
   )
 }
 
@@ -161,80 +185,31 @@ const granularityOptions: Array<{ value: TrendGranularity; label: string; helper
   { value: 'quarterly', label: 'Quarterly', helper: 'Review quarter-close pacing' },
 ]
 
-function GranularityToggle({
-  value,
-  onChange,
-  availability,
-}: {
-  value: TrendGranularity
-  onChange: (value: TrendGranularity) => void
-  availability: Record<TrendGranularity, boolean>
-}) {
-  return (
-    <div className={SHEET_TOOLBAR_GROUP}>
-      <span className={SHEET_TOOLBAR_LABEL}>Rollup cadence</span>
-      <div
-        role="group"
-        aria-label="Select performance granularity"
-        className={SHEET_TOOLBAR_SEGMENTED}
-      >
-        {granularityOptions.map((option) => {
-          const isActive = option.value === value
-          const isAvailable = availability[option.value]
-          return (
-            <button
-              key={option.value}
-              type="button"
-              className={`${SHEET_TOOLBAR_BUTTON} flex items-center gap-1.5 rounded-none first:rounded-l-full last:rounded-r-full ${
-                isActive
-                  ? 'border-[#00c2b9] bg-cyan-600 text-white shadow-[0_12px_24px_rgba(0,194,185,0.15)] dark:bg-[#00c2b9]/15 dark:text-cyan-100'
-                  : 'text-slate-700 hover:text-cyan-700 dark:text-slate-200 dark:hover:text-cyan-100'
-              } ${!isAvailable ? 'cursor-not-allowed opacity-50 hover:text-slate-500 dark:hover:text-slate-400' : ''}`}
-              onClick={() => isAvailable && onChange(option.value)}
-              aria-pressed={isActive}
-              aria-disabled={!isAvailable}
-              title={!isAvailable ? 'No data available for this cadence yet' : option.helper}
-            >
-              {isActive && <Check className="h-3 w-3" />}
-              {option.label}
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-const accentPalette: Record<TrendAccent, { hex: string; hexDark: string; bg: string; text: string }> = {
+const accentPalette: Record<TrendAccent, { hex: string; hexDark: string; labelClass: string }> = {
   sky: {
     hex: '#0891b2',
     hexDark: '#22d3ee',
-    bg: 'bg-cyan-100 dark:bg-cyan-900/30',
-    text: 'text-cyan-800 dark:text-cyan-200',
+    labelClass: 'text-cyan-700 dark:text-cyan-300/80',
   },
   emerald: {
     hex: '#059669',
     hexDark: '#34d399',
-    bg: 'bg-emerald-100 dark:bg-emerald-900/30',
-    text: 'text-emerald-800 dark:text-emerald-200',
+    labelClass: 'text-emerald-700 dark:text-emerald-300/80',
   },
   violet: {
     hex: '#7c3aed',
     hexDark: '#a78bfa',
-    bg: 'bg-violet-100 dark:bg-violet-900/30',
-    text: 'text-violet-800 dark:text-violet-200',
+    labelClass: 'text-violet-700 dark:text-violet-300/80',
   },
   amber: {
     hex: '#d97706',
     hexDark: '#fbbf24',
-    bg: 'bg-amber-100 dark:bg-amber-900/30',
-    text: 'text-amber-800 dark:text-amber-200',
+    labelClass: 'text-amber-700 dark:text-amber-300/80',
   },
   rose: {
     hex: '#e11d48',
     hexDark: '#fb7185',
-    bg: 'bg-rose-100 dark:bg-rose-900/30',
-    text: 'text-rose-800 dark:text-rose-200',
+    labelClass: 'text-rose-700 dark:text-rose-300/80',
   },
 }
 
@@ -250,47 +225,20 @@ interface MultiMetricChartProps {
 function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric }: MultiMetricChartProps) {
   const [hover, setHover] = useState<TrendHover>(null)
   const chartRef = useRef<HTMLDivElement>(null)
-  const [chartSize, setChartSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 })
   const baseGradientId = useId()
 
   useEffect(() => {
     setHover(null)
   }, [granularity, enabledMetrics])
 
-  useEffect(() => {
-    if (typeof ResizeObserver === 'undefined') return
-    const element = chartRef.current
-    if (!element) return
+  // Chart dimensions - matching Sales Planning exactly
+  const viewBoxWidth = 1400
+  const chartHeight = 600
+  const padding = { top: 40, right: 40, bottom: 60, left: 80 }
+  const innerWidth = viewBoxWidth - padding.left - padding.right
+  const innerHeight = chartHeight - padding.top - padding.bottom
 
-    const applySize = (width: number, height: number) => {
-      setChartSize((prev) => {
-        if (Math.abs(prev.width - width) < 0.5 && Math.abs(prev.height - height) < 0.5) {
-          return prev
-        }
-        return { width, height }
-      })
-    }
-
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0]
-      if (!entry) return
-      const { width, height } = entry.contentRect
-      applySize(width, height)
-    })
-
-    observer.observe(element)
-    const initialRect = element.getBoundingClientRect()
-    applySize(initialRect.width, initialRect.height)
-    return () => observer.disconnect()
-  }, [])
-
-  const width = Math.max(640, chartSize.width || 640)
-  const height = 500
-  const padding = { top: 32, right: 24, bottom: 56, left: 70 }
-  const innerWidth = width - padding.left - padding.right
-  const innerHeight = height - padding.top - padding.bottom
-
-  // Get labels from first metric (they should all have same labels)
+  // Get labels from first metric
   const labels = enabledMetrics[0]?.series[granularity].labels ?? []
   const impactFlags = enabledMetrics[0]?.series[granularity].impactFlags
 
@@ -355,7 +303,7 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
       })
       return { metric, values, snappedValues, points }
     })
-  }, [enabledMetrics, granularity, domainMin, range, padding.left, padding.top, innerWidth, innerHeight])
+  }, [enabledMetrics, granularity, domainMin, range, innerWidth, innerHeight])
 
   const activeIndex = hover?.index ?? (labels.length > 0 ? labels.length - 1 : null)
 
@@ -378,17 +326,14 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
     return niceScale(Math.min(0, minVal), maxVal, 6)
   }, [enabledMetrics, granularity])
 
-  // X-axis tick indices
+  // X-axis tick indices - matching Sales Planning spacing (every ~4 weeks for 52 weeks)
   const xAxisTickIndices = useMemo(() => {
     const count = labels.length
-    if (count <= 6) return labels.map((_, i) => i)
-    const stride = Math.max(1, Math.floor(count / 6))
+    if (count <= 12) return labels.map((_, i) => i)
+    const stride = Math.max(1, Math.floor(count / 12))
     const indices: number[] = []
     for (let i = 0; i < count; i += stride) {
       indices.push(i)
-    }
-    if (indices[indices.length - 1] !== count - 1) {
-      indices.push(count - 1)
     }
     return indices
   }, [labels])
@@ -402,7 +347,7 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
     if (labels.length === 0) return
     const bounds = event.currentTarget.getBoundingClientRect()
     const relativeX = event.clientX - bounds.left
-    const scaleX = bounds.width / width || 1
+    const scaleX = bounds.width / viewBoxWidth || 1
     const paddingLeftPx = padding.left * scaleX
     const paddingRightPx = padding.right * scaleX
     const clampedX = Math.max(paddingLeftPx, Math.min(bounds.width - paddingRightPx, relativeX))
@@ -413,7 +358,7 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
     const point = firstMetricPoints[index]
     if (!point) return
 
-    const scaleY = bounds.height / height || 1
+    const scaleY = bounds.height / chartHeight || 1
     const px = point.x * scaleX
     const py = point.y * scaleY
     setHover({ index, x: px, y: py })
@@ -434,8 +379,8 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
     if (!point) return
     const bounds = chartRef.current?.getBoundingClientRect()
     if (!bounds) return
-    const scaleX = bounds.width / width || 1
-    const scaleY = bounds.height / height || 1
+    const scaleX = bounds.width / viewBoxWidth || 1
+    const scaleY = bounds.height / chartHeight || 1
     setHover({ index: nextIndex, x: point.x * scaleX, y: point.y * scaleY })
   }
 
@@ -443,7 +388,7 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
     ? padding.top + innerHeight - ((0 - domainMin) / range) * innerHeight
     : null
 
-  // Get format from first enabled metric (assume all same format)
+  // Get format from first enabled metric
   const format = enabledMetrics[0]?.format ?? 'currency'
 
   const formatAxisLabel = (value: number) => {
@@ -458,16 +403,23 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
     return value.toLocaleString('en-US', { maximumFractionDigits: 0 })
   }
 
+  // Get week label from full label (e.g., "W1 · Jan 5 2026" -> "W1")
+  const getWeekLabel = (label: string) => {
+    const parts = label.split(' · ')
+    return parts[0] || label
+  }
+
   return (
-    <article className="space-y-4">
+    <>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
-        <div ref={chartRef} className="relative aspect-[7/3] w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 backdrop-blur-sm">
+        {/* Chart area */}
+        <div ref={chartRef} className="aspect-[7/3] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-[#0b3a52] dark:bg-[#06182b]/85">
           <svg
-            viewBox={`0 0 ${width} ${height}`}
+            className="financial-trend-svg h-full w-full"
+            viewBox={`0 0 ${viewBoxWidth} ${chartHeight}`}
             preserveAspectRatio="none"
             role="img"
             aria-label="Financial trends chart"
-            className="financial-trend-svg h-full w-full"
             tabIndex={0}
             onPointerMove={handlePointerMove}
             onPointerDown={handlePointerMove}
@@ -475,15 +427,17 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
             onKeyDown={handleKeyDown}
           >
             {/* Gradient definitions */}
-            {metricData.map(({ metric }, idx) => {
-              const palette = accentPalette[metric.accent]
-              return (
-                <linearGradient key={metric.key} id={`${baseGradientId}-${idx}`} gradientTransform="rotate(90)">
-                  <stop offset="0%" stopColor={palette.hex} stopOpacity={0.3} />
-                  <stop offset="100%" stopColor={palette.hex} stopOpacity={0.02} />
-                </linearGradient>
-              )
-            })}
+            <defs>
+              {metricData.map(({ metric }, idx) => {
+                const palette = accentPalette[metric.accent]
+                return (
+                  <linearGradient key={metric.key} id={`${baseGradientId}-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={palette.hexDark} stopOpacity={0.6} />
+                    <stop offset="100%" stopColor={palette.hexDark} stopOpacity={0.05} />
+                  </linearGradient>
+                )
+              })}
+            </defs>
 
             {/* Horizontal grid lines */}
             <g className="opacity-40">
@@ -492,9 +446,9 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
                   key={`grid-y-${index}-${tick}`}
                   x1={padding.left}
                   y1={valueToY(tick)}
-                  x2={width - padding.right}
+                  x2={viewBoxWidth - padding.right}
                   y2={valueToY(tick)}
-                  stroke="#64748b"
+                  stroke="#6F7B8B"
                   strokeWidth="1"
                   strokeDasharray="4 4"
                 />
@@ -505,11 +459,11 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
             {metricData.map(({ metric, points }, idx) => (
               <path
                 key={`area-${metric.key}`}
-                d={`M${padding.left} ${height - padding.bottom} ${points
+                d={`M${padding.left} ${chartHeight - padding.bottom} ${points
                   .map((p) => `L${p.x} ${p.y}`)
-                  .join(' ')} L${width - padding.right} ${height - padding.bottom} Z`}
+                  .join(' ')} L${viewBoxWidth - padding.right} ${chartHeight - padding.bottom} Z`}
                 fill={`url(#${baseGradientId}-${idx})`}
-                opacity={0.6}
+                opacity={0.3}
               />
             ))}
 
@@ -524,7 +478,7 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
                       x1={point.x}
                       x2={point.x}
                       y1={padding.top}
-                      y2={height - padding.bottom}
+                      y2={chartHeight - padding.bottom}
                       stroke="#ef4444"
                       strokeWidth={1.5}
                       strokeOpacity={0.35}
@@ -540,13 +494,13 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
               return (
                 <path
                   key={`line-${metric.key}`}
-                  d={`M${points[0]?.x ?? padding.left} ${points[0]?.y ?? height - padding.bottom} ${points
+                  d={`M${points[0]?.x ?? padding.left} ${points[0]?.y ?? chartHeight - padding.bottom} ${points
                     .slice(1)
                     .map((p) => `L${p.x} ${p.y}`)
                     .join(' ')}`}
                   fill="none"
                   stroke={palette.hex}
-                  strokeWidth={2.5}
+                  strokeWidth={3}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   className="dark:hidden"
@@ -558,13 +512,13 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
               return (
                 <path
                   key={`line-dark-${metric.key}`}
-                  d={`M${points[0]?.x ?? padding.left} ${points[0]?.y ?? height - padding.bottom} ${points
+                  d={`M${points[0]?.x ?? padding.left} ${points[0]?.y ?? chartHeight - padding.bottom} ${points
                     .slice(1)
                     .map((p) => `L${p.x} ${p.y}`)
                     .join(' ')}`}
                   fill="none"
                   stroke={palette.hexDark}
-                  strokeWidth={2.5}
+                  strokeWidth={3}
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   className="hidden dark:block"
@@ -572,11 +526,39 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
               )
             })}
 
+            {/* Active week indicator */}
+            {activeIndex != null && metricData[0]?.points[activeIndex] && (
+              <line
+                x1={metricData[0].points[activeIndex].x}
+                x2={metricData[0].points[activeIndex].x}
+                y1={padding.top}
+                y2={chartHeight - padding.bottom}
+                stroke="#0891b2"
+                strokeWidth={3}
+                strokeDasharray="6 4"
+                opacity={0.35}
+                className="pointer-events-none dark:hidden"
+              />
+            )}
+            {activeIndex != null && metricData[0]?.points[activeIndex] && (
+              <line
+                x1={metricData[0].points[activeIndex].x}
+                x2={metricData[0].points[activeIndex].x}
+                y1={padding.top}
+                y2={chartHeight - padding.bottom}
+                stroke="#00C2B9"
+                strokeWidth={3}
+                strokeDasharray="6 4"
+                opacity={0.35}
+                className="pointer-events-none hidden dark:block"
+              />
+            )}
+
             {/* Zero line */}
             {zeroLineY != null && (
               <line
                 x1={padding.left}
-                x2={width - padding.right}
+                x2={viewBoxWidth - padding.right}
                 y1={zeroLineY}
                 y2={zeroLineY}
                 stroke="rgba(100, 116, 139, 0.5)"
@@ -588,46 +570,42 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
             {/* Data points */}
             {metricData.map(({ metric, points }) => {
               const palette = accentPalette[metric.accent]
-              return points.map((point, index) => (
-                <circle
-                  key={`point-${metric.key}-${index}`}
-                  cx={point.x}
-                  cy={point.y}
-                  r={index === activeIndex ? 5 : 3}
-                  fill={palette.hex}
-                  opacity={index === activeIndex ? 1 : 0.6}
-                  className="dark:hidden"
-                />
-              ))
+              return points.map((point, index) => {
+                const isHovered = activeIndex === index
+                return (
+                  <circle
+                    key={`point-${metric.key}-${index}`}
+                    cx={point.x}
+                    cy={point.y}
+                    r={isHovered ? 7 : 5}
+                    fill={palette.hex}
+                    stroke="#ffffff"
+                    strokeWidth="2"
+                    opacity={isHovered ? 1 : 0.75}
+                    className="pointer-events-none transition-all duration-150 dark:hidden"
+                  />
+                )
+              })
             })}
             {metricData.map(({ metric, points }) => {
               const palette = accentPalette[metric.accent]
-              return points.map((point, index) => (
-                <circle
-                  key={`point-dark-${metric.key}-${index}`}
-                  cx={point.x}
-                  cy={point.y}
-                  r={index === activeIndex ? 5 : 3}
-                  fill={palette.hexDark}
-                  opacity={index === activeIndex ? 1 : 0.6}
-                  className="hidden dark:block"
-                />
-              ))
+              return points.map((point, index) => {
+                const isHovered = activeIndex === index
+                return (
+                  <circle
+                    key={`point-dark-${metric.key}-${index}`}
+                    cx={point.x}
+                    cy={point.y}
+                    r={isHovered ? 7 : 5}
+                    fill={palette.hexDark}
+                    stroke="#041324"
+                    strokeWidth="2"
+                    opacity={isHovered ? 1 : 0.75}
+                    className="pointer-events-none hidden transition-all duration-150 dark:block"
+                  />
+                )
+              })
             })}
-
-            {/* Active point indicator line */}
-            {activeIndex != null && metricData[0]?.points[activeIndex] && (
-              <line
-                x1={metricData[0].points[activeIndex].x}
-                x2={metricData[0].points[activeIndex].x}
-                y1={padding.top}
-                y2={height - padding.bottom}
-                stroke="#64748b"
-                strokeWidth={1.5}
-                strokeDasharray="4 4"
-                opacity={0.5}
-              />
-            )}
 
             {/* Y-axis */}
             <g>
@@ -635,26 +613,26 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
                 x1={padding.left}
                 y1={padding.top}
                 x2={padding.left}
-                y2={height - padding.bottom}
-                stroke="#64748b"
-                strokeWidth="1.5"
+                y2={chartHeight - padding.bottom}
+                stroke="#6F7B8B"
+                strokeWidth="2"
               />
               {yAxisTicks.map((tick, index) => (
                 <g key={`y-tick-${index}-${tick}`}>
                   <line
-                    x1={padding.left - 4}
+                    x1={padding.left - 5}
                     y1={valueToY(tick)}
                     x2={padding.left}
                     y2={valueToY(tick)}
-                    stroke="#64748b"
-                    strokeWidth="1.5"
+                    stroke="#6F7B8B"
+                    strokeWidth="2"
                   />
                   <text
-                    x={padding.left - 8}
+                    x={padding.left - 10}
                     y={valueToY(tick)}
                     textAnchor="end"
-                    dominantBaseline="middle"
-                    className="fill-slate-500 dark:fill-slate-400 text-[10px] font-mono"
+                    alignmentBaseline="middle"
+                    className="fill-slate-600 text-xs font-mono dark:fill-[#6F7B8B]"
                   >
                     {formatAxisLabel(tick)}
                   </text>
@@ -666,11 +644,11 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
             <g>
               <line
                 x1={padding.left}
-                y1={height - padding.bottom}
-                x2={width - padding.right}
-                y2={height - padding.bottom}
-                stroke="#64748b"
-                strokeWidth="1.5"
+                y1={chartHeight - padding.bottom}
+                x2={viewBoxWidth - padding.right}
+                y2={chartHeight - padding.bottom}
+                stroke="#6F7B8B"
+                strokeWidth="2"
               />
               {xAxisTickIndices.map((tickIndex) => {
                 const point = metricData[0]?.points[tickIndex]
@@ -680,19 +658,19 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
                   <g key={`x-tick-${tickIndex}`}>
                     <line
                       x1={point.x}
-                      y1={height - padding.bottom}
+                      y1={chartHeight - padding.bottom}
                       x2={point.x}
-                      y2={height - padding.bottom + 4}
-                      stroke="#64748b"
-                      strokeWidth="1.5"
+                      y2={chartHeight - padding.bottom + 5}
+                      stroke="#6F7B8B"
+                      strokeWidth="2"
                     />
                     <text
                       x={point.x}
-                      y={height - padding.bottom + 16}
+                      y={chartHeight - padding.bottom + 20}
                       textAnchor="middle"
-                      className="fill-slate-500 dark:fill-slate-400 text-[10px]"
+                      className="fill-[#6F7B8B] text-xs"
                     >
-                      {label.split(' · ')[0]}
+                      {getWeekLabel(label)}
                     </text>
                   </g>
                 )
@@ -701,8 +679,8 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
           </svg>
         </div>
 
-        {/* Sidebar with values */}
-        <aside className="space-y-4 rounded-2xl border border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 p-4 text-sm backdrop-blur-sm">
+        {/* Sidebar - matching Sales Planning exactly */}
+        <aside className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm backdrop-blur-sm dark:border-[#0b3a52] dark:bg-[#06182b]/85">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
               {hover ? 'Selected week' : 'Latest week'}
@@ -716,17 +694,33 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
             const value = activeIndex != null ? snappedValues[activeIndex] : snappedValues.at(-1)
             const prevValue = activeIndex != null && activeIndex > 0 ? snappedValues[activeIndex - 1] : (snappedValues.length > 1 ? snappedValues.at(-2) : null)
             const change = value != null && prevValue != null ? value - prevValue : null
+            const changePercent = value != null && prevValue != null && prevValue !== 0
+              ? ((value - prevValue) / Math.abs(prevValue)) * 100
+              : null
+
             return (
-              <div key={metric.key} className="space-y-0.5">
-                <p className={`text-xs font-bold uppercase tracking-[0.28em] ${palette.text}`}>
+              <div key={metric.key} className="space-y-1">
+                <p className={`text-xs font-bold uppercase tracking-[0.28em] ${palette.labelClass}`}>
                   {metric.title}
                 </p>
                 <p className="text-2xl font-semibold text-slate-900 dark:text-white">
                   {formatSimpleValue(value ?? NaN, metric.format)}
+                  {metric.format === 'number' && (
+                    <span className="ml-1 text-sm font-normal text-slate-500 dark:text-slate-400">units</span>
+                  )}
                 </p>
                 {change != null && (
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className={`text-xs ${
+                    change > 0 ? 'text-emerald-600 dark:text-emerald-400' :
+                    change < 0 ? 'text-red-600 dark:text-red-400' :
+                    'text-slate-500 dark:text-slate-400'
+                  }`}>
                     {change >= 0 ? '+' : ''}{formatSimpleValue(change, metric.format)}
+                    {changePercent != null && (
+                      <span className="ml-1 text-slate-500 dark:text-slate-400">
+                        ({changePercent >= 0 ? '+' : ''}{changePercent.toFixed(1)}%)
+                      </span>
+                    )}
                   </p>
                 )}
               </div>
@@ -735,7 +729,7 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
         </aside>
       </div>
 
-      {/* Bottom legend */}
+      {/* Legend - matching Sales Planning style */}
       <div className="mt-6 flex items-center gap-6 border-t border-slate-200 pt-4 dark:border-[#0b3a52]">
         {metrics.map((metric) => {
           const palette = accentPalette[metric.accent]
@@ -758,7 +752,7 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
           )
         })}
       </div>
-    </article>
+    </>
   )
 }
 
@@ -772,7 +766,7 @@ function formatSimpleValue(value: number, format: TrendFormat) {
   if (!Number.isFinite(value)) return '—'
   if (format === 'currency') return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
   if (format === 'percent') return `${(value * 100).toFixed(1)}%`
-  return value.toLocaleString('en-US', { maximumFractionDigits: 1 })
+  return value.toLocaleString('en-US', { maximumFractionDigits: 0 })
 }
 
 function niceNumber(range: number, round: boolean): number {
