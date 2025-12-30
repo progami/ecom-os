@@ -14,7 +14,13 @@ import Flatpickr from 'react-flatpickr'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { usePersistentState } from '@/hooks/usePersistentState'
 import { usePersistentScroll } from '@/hooks/usePersistentScroll'
-import { deriveIsoWeek, formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
+import {
+  planningWeekDateIsoForWeekNumber,
+  weekLabelForIsoDate,
+  weekNumberForYearWeekLabel,
+  type PlanningWeekConfig,
+} from '@/lib/calculations/planning-week'
+import { formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
 import { withAppBasePath } from '@/lib/base-path'
 import '@/styles/custom-table.css'
@@ -56,6 +62,7 @@ interface CustomPurchasePaymentsGridProps {
   payments: PurchasePaymentRow[]
   activeOrderId?: string | null
   activeYear?: number | null
+  planningWeekConfig?: PlanningWeekConfig | null
   scrollKey?: string | null
   onSelectOrder?: (orderId: string) => void
   onAddPayment?: () => void
@@ -121,25 +128,6 @@ function parseWeekNumber(value: string): number | null {
   return parsed
 }
 
-function isoDateForIsoWeek(year: number, weekNumber: number): string | null {
-  if (!Number.isFinite(year) || !Number.isFinite(weekNumber)) return null
-  if (weekNumber < 1 || weekNumber > 53) return null
-
-  // Use Thursday of the ISO week to ensure the date remains within the ISO week-year.
-  const jan4 = new Date(Date.UTC(year, 0, 4))
-  const jan4Day = jan4.getUTCDay() || 7
-  const mondayOfWeek1 = new Date(jan4)
-  mondayOfWeek1.setUTCDate(jan4.getUTCDate() - (jan4Day - 1))
-
-  const target = new Date(mondayOfWeek1)
-  target.setUTCDate(mondayOfWeek1.getUTCDate() + (weekNumber - 1) * 7 + 3)
-
-  const iso = toIsoDate(target)
-  if (!iso) return null
-  const derivedWeek = deriveIsoWeek(iso)
-  return derivedWeek === String(weekNumber) ? iso : null
-}
-
 function getHeaderLabel(column: ColumnDef, scheduleMode: ScheduleMode): string {
   if (column.type === 'schedule') {
     return scheduleMode === 'weeks'
@@ -167,6 +155,7 @@ export function CustomPurchasePaymentsGrid({
   payments,
   activeOrderId,
   activeYear,
+  planningWeekConfig,
   scrollKey,
   onSelectOrder,
   onAddPayment,
@@ -383,13 +372,14 @@ export function CustomPurchasePaymentsGrid({
     if (colKey === 'weekNumber') {
       if (scheduleMode === 'dates') {
         const iso = finalValue
-        const week = deriveIsoWeek(iso)
         entry.values.dueDate = iso
         entry.values.dueDateSource = iso ? 'USER' : 'SYSTEM'
         updatedRow.dueDateIso = iso || null
         updatedRow.dueDate = iso ? formatDateDisplay(iso) : ''
         updatedRow.dueDateSource = iso ? 'USER' : 'SYSTEM'
-        updatedRow.weekNumber = week
+        updatedRow.weekNumber = planningWeekConfig
+          ? weekLabelForIsoDate(iso, planningWeekConfig)
+          : row.weekNumber ?? ''
       } else {
         if (!finalValue || finalValue.trim() === '') {
           entry.values.dueDate = ''
@@ -399,21 +389,26 @@ export function CustomPurchasePaymentsGrid({
           updatedRow.dueDateSource = 'SYSTEM'
           updatedRow.weekNumber = ''
         } else {
+          if (!planningWeekConfig) {
+            toast.error('Planning calendar unavailable')
+            cancelEditing()
+            return
+          }
           const year = activeYear ?? new Date().getFullYear()
-          const weekNumber = parseWeekNumber(finalValue)
-          const iso = weekNumber ? isoDateForIsoWeek(year, weekNumber) : null
+          const weekLabel = parseWeekNumber(finalValue)
+          const globalWeekNumber = weekNumberForYearWeekLabel(year, weekLabel, planningWeekConfig)
+          const iso = planningWeekDateIsoForWeekNumber(globalWeekNumber, planningWeekConfig)
           if (!iso) {
             toast.error('Invalid week number for selected year')
             cancelEditing()
             return
           }
-          const week = deriveIsoWeek(iso)
           entry.values.dueDate = iso
           entry.values.dueDateSource = 'USER'
           updatedRow.dueDateIso = iso
           updatedRow.dueDate = formatDateDisplay(iso)
           updatedRow.dueDateSource = 'USER'
-          updatedRow.weekNumber = week
+          updatedRow.weekNumber = finalValue
         }
       }
     } else if (colKey === 'amountPaid') {
@@ -452,7 +447,17 @@ export function CustomPurchasePaymentsGrid({
 
     scheduleFlush()
     cancelEditing()
-  }, [activeYear, editingCell, editValue, pendingRef, scheduleFlush, onRowsChange, orderSummaries, scheduleMode])
+  }, [
+    activeYear,
+    editingCell,
+    editValue,
+    pendingRef,
+    scheduleFlush,
+    onRowsChange,
+    orderSummaries,
+    planningWeekConfig,
+    scheduleMode,
+  ])
 
   const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
     let idx = startIndex + direction
