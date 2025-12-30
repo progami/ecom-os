@@ -368,7 +368,7 @@ export async function canEditField(
     return { allowed: false, reason: 'Self-editing is disabled. Contact HR for changes.' }
   }
 
-  // User editable: managers/HR can edit (self-edit disabled)
+  // User editable: managers/HR can edit; self-edit allowed only for HR/Super Admin.
   if (permission === 'USER_EDITABLE') {
     // Managers, HR, and Super Admin can edit user-editable fields
     if (isHRLike || await isManagerOf(actorId, targetEmployeeId)) {
