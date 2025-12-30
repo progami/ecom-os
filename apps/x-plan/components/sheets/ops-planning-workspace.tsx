@@ -37,8 +37,9 @@ import {
   type PurchaseOrderStatus,
   type LeadTimeProfile,
 } from '@/lib/calculations'
+import { weekLabelForIsoDate, type PlanningWeekConfig } from '@/lib/calculations/planning-week'
 import { formatNumericInput, formatPercentInput, parseNumericInput } from '@/components/sheets/validators'
-import { deriveIsoWeek, formatDateDisplay, parseDate, toIsoDate } from '@/lib/utils/dates'
+import { formatDateDisplay, parseDate, toIsoDate } from '@/lib/utils/dates'
 import { withAppBasePath } from '@/lib/base-path'
 import { usePersistentState } from '@/hooks/usePersistentState'
 
@@ -165,6 +166,7 @@ export type OpsPlanningCalculatorPayload = {
 interface OpsPlanningWorkspaceProps {
   strategyId: string
   activeYear?: number | null
+  planningWeekConfig?: PlanningWeekConfig | null
   poTableRows: OpsInputRow[]
   batchTableRows: OpsBatchRow[]
   timeline: OpsTimelineRow[]
@@ -244,11 +246,14 @@ function resolvePaymentLabel(category: string | undefined, label: string | undef
   return DEFAULT_PAYMENT_LABELS[paymentIndex] ?? `Payment ${paymentIndex}`
 }
 
-function normalizePaymentRows(rows: PurchasePaymentRow[]): PurchasePaymentRow[] {
+function normalizePaymentRows(
+  rows: PurchasePaymentRow[],
+  planningWeekConfig: PlanningWeekConfig | null | undefined,
+): PurchasePaymentRow[] {
   return rows.map((payment) => {
     const dueDateIso = toIsoDateString(payment.dueDateIso ?? payment.dueDate)
     const dueDateDefaultIso = toIsoDateString(payment.dueDateDefaultIso ?? payment.dueDateDefault)
-    const week = deriveIsoWeek(dueDateIso) ?? payment.weekNumber ?? ''
+    const week = planningWeekConfig ? weekLabelForIsoDate(dueDateIso, planningWeekConfig) : payment.weekNumber ?? ''
     return {
       ...payment,
       label: resolvePaymentLabel(payment.category, payment.label, payment.paymentIndex),
@@ -643,6 +648,7 @@ type PaymentUpdatePayload = {
 export function OpsPlanningWorkspace({
   strategyId,
   activeYear,
+  planningWeekConfig,
   poTableRows,
   batchTableRows,
   timeline,
@@ -654,6 +660,11 @@ export function OpsPlanningWorkspace({
 }: OpsPlanningWorkspaceProps) {
   const isVisualMode = mode === 'visual'
   const router = useRouter()
+  const planningWeekConfigRef = useRef(planningWeekConfig ?? null)
+
+  useEffect(() => {
+    planningWeekConfigRef.current = planningWeekConfig ?? null
+  }, [planningWeekConfig])
   const productLabel = useCallback((product: { sku?: string | null; name: string }) => {
     const sku = typeof product.sku === 'string' ? product.sku.trim() : ''
     return sku.length ? sku : product.name
@@ -732,7 +743,10 @@ export function OpsPlanningWorkspace({
     return rows
   }, [batchTableRows, initialOrders, buildBatchRow])
 
-  const initialPayments = useMemo(() => normalizePaymentRows(payments), [payments])
+  const initialPayments = useMemo(
+    () => normalizePaymentRows(payments, planningWeekConfig),
+    [payments, planningWeekConfig],
+  )
   const initialTimelineResult = useMemo(
     () =>
       buildTimelineRowsFromData({
@@ -809,6 +823,7 @@ useEffect(() => {
       const updates: PaymentUpdatePayload[] = []
 
       setPaymentRows((previous) => {
+        const weekConfig = planningWeekConfigRef.current
         const next = previous.map((row) => {
           if (!targetIds.has(row.purchaseOrderId)) return row
           const derived = derivedMapRef.current.get(row.purchaseOrderId)
@@ -821,7 +836,7 @@ useEffect(() => {
           const paidNumeric = parseNumericInput(row.amountPaid)
           const plannedDefaultIso = toIsoDateString(planned.plannedDefaultDate ?? planned.plannedDate)
           const plannedDefaultDisplay = formatIsoDate(plannedDefaultIso)
-          const plannedWeek = deriveIsoWeek(plannedDefaultIso)
+          const plannedWeek = weekConfig ? weekLabelForIsoDate(plannedDefaultIso, weekConfig) : row.weekNumber
 
           const rowDueDateSource = row.dueDateSource ?? 'SYSTEM'
           const rowDueDateIso = row.dueDateIso ?? toIsoDateString(row.dueDate)
@@ -857,7 +872,7 @@ useEffect(() => {
               nextRow.weekNumber = plannedWeek
             }
           } else if (rowDueDateIso) {
-            const manualWeek = deriveIsoWeek(rowDueDateIso)
+            const manualWeek = weekConfig ? weekLabelForIsoDate(rowDueDateIso, weekConfig) : row.weekNumber
             if (manualWeek !== row.weekNumber) {
               ensureClone()
               nextRow.weekNumber = manualWeek
@@ -933,11 +948,11 @@ useEffect(() => {
   }, [calculator.purchaseOrders, stageDefaults, applyTimelineUpdate])
 
   useEffect(() => {
-    const normalized = normalizePaymentRows(payments)
+    const normalized = normalizePaymentRows(payments, planningWeekConfig)
     setPaymentRows(normalized)
     paymentRowsRef.current = normalized
     applyTimelineUpdate(ordersRef.current, inputRowsRef.current, normalized)
-  }, [payments, applyTimelineUpdate])
+  }, [payments, planningWeekConfig, applyTimelineUpdate])
 
   useEffect(() => {
     if (inputRows.length === 0) {
@@ -1020,14 +1035,14 @@ useEffect(() => {
   const handlePaymentRowsChange = useCallback(
     (rows: PurchasePaymentRow[]) => {
       if (!activeOrderId) return
-      const normalized = normalizePaymentRows(rows)
+      const normalized = normalizePaymentRows(rows, planningWeekConfig)
       const existing = paymentRowsRef.current.filter((row) => row.purchaseOrderId !== activeOrderId)
       const next = [...existing, ...normalized]
       paymentRowsRef.current = next
       setPaymentRows(next)
       applyTimelineUpdate(ordersRef.current, inputRowsRef.current, next)
     },
-    [activeOrderId, applyTimelineUpdate]
+    [activeOrderId, applyTimelineUpdate, planningWeekConfig]
   )
 
   const handleBatchRowsChange = useCallback((updatedRows: OpsBatchRow[]) => {
@@ -1321,7 +1336,7 @@ useEffect(() => {
       }
 
       const created = (await response.json()) as PurchasePaymentRow
-      const [normalizedCreated] = normalizePaymentRows([created])
+      const [normalizedCreated] = normalizePaymentRows([created], planningWeekConfigRef.current)
 
       setPaymentRows((previous) => {
         const next = [...previous, normalizedCreated]
@@ -1644,6 +1659,7 @@ useEffect(() => {
             payments={visiblePayments}
             activeOrderId={activeOrderId}
             activeYear={activeYear}
+            planningWeekConfig={planningWeekConfig}
             scrollKey={`ops-planning:payments:${strategyId}`}
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}
             onAddPayment={handleAddPayment}

@@ -59,7 +59,8 @@ import { addMonths, endOfMonth, format, startOfMonth, startOfWeek } from 'date-f
 import { getCalendarDateForWeek, weekNumberForDate, type YearSegment } from '@/lib/calculations/calendar'
 import { findYearSegment, loadPlanningCalendar, resolveActiveYear } from '@/lib/planning'
 import type { PlanningCalendar } from '@/lib/planning'
-import { deriveIsoWeek, formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
+import { weekLabelForWeekNumber, type PlanningWeekConfig } from '@/lib/calculations/planning-week'
+import { formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
 
 const SALES_METRICS = ['stockStart', 'actualSales', 'forecastSales', 'finalSales', 'finalSalesError', 'stockWeeks', 'stockEnd'] as const
 type SalesMetric = (typeof SALES_METRICS)[number]
@@ -1141,7 +1142,13 @@ async function getOpsPlanningView(strategyId: string, planning?: PlanningCalenda
             : null
       const dueDateIso = toIsoDate(payment.dueDate ?? null)
       const dueDateDefaultIso = toIsoDate(payment.dueDateDefault ?? payment.dueDate ?? null)
-      const weekNumber = deriveIsoWeek(dueDateIso)
+      let weekNumber = ''
+      if (planning) {
+        const planningWeekNumber = weekNumberForDate(payment.dueDate ?? null, planning.calendar)
+        if (planningWeekNumber != null) {
+          weekNumber = weekLabelForWeekNumber(planningWeekNumber, planning.yearSegments)
+        }
+      }
 
       return {
         id: payment.id,
@@ -1660,6 +1667,18 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   const activeYear = resolveActiveYear(parsedSearch.year, planningCalendar.yearSegments)
   const activeSegment = findYearSegment(activeYear, planningCalendar.yearSegments)
   const viewMode = resolveViewMode(parsedSearch.view)
+  const anchorWeekNumber = planningCalendar.calendar.anchorWeekNumber
+  const anchorWeekDateIso = toIsoDate(planningCalendar.calendar.calendarStart ?? null)
+  const planningWeekConfig: PlanningWeekConfig | null =
+    anchorWeekNumber != null && anchorWeekDateIso
+      ? {
+          anchorWeekNumber,
+          anchorWeekDateIso,
+          minWeekNumber: planningCalendar.calendar.minWeekNumber,
+          maxWeekNumber: planningCalendar.calendar.maxWeekNumber,
+          yearSegments: planningCalendar.yearSegments,
+        }
+      : null
 
   const controls: ReactNode[] = []
   let contextPane: React.ReactNode = null
@@ -1742,6 +1761,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         <OpsPlanningWorkspace
           strategyId={strategyId}
           activeYear={activeYear}
+          planningWeekConfig={planningWeekConfig}
           poTableRows={view.poTableRows}
           batchTableRows={view.batchTableRows}
           timeline={view.timelineRows}
@@ -1756,6 +1776,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         <OpsPlanningWorkspace
           strategyId={strategyId}
           activeYear={activeYear}
+          planningWeekConfig={planningWeekConfig}
           poTableRows={view.poTableRows}
           batchTableRows={view.batchTableRows}
           timeline={view.timelineRows}
