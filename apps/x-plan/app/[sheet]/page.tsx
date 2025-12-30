@@ -1830,7 +1830,8 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         />
       )
 
-      const pnlWeekly = limitRows(data.profit.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment)), 52)
+      const pnlWeeklyBase = data.profit.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+      const pnlWeekly = activeSegment ? pnlWeeklyBase : limitRows(pnlWeeklyBase, 52)
       const pnlMonthly = limitRows(filterSummaryByYear(data.profit.monthly, activeYear), 12)
       const pnlQuarterly = limitRows(filterSummaryByYear(data.profit.quarterly, activeYear), 8)
       const metrics: FinancialMetricDefinition[] = [
@@ -1889,7 +1890,39 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         <CashFlowGrid strategyId={strategyId} weekly={view.weekly} />
       )
 
-      const cashWeekly = limitRows(data.cash.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment)), 52)
+      const cashWeeklyBase = data.cash.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+      const cashWeekly = activeSegment ? cashWeeklyBase : limitRows(cashWeeklyBase, 52)
+
+      const cashWeeklyWithOpening = (() => {
+        if (!activeSegment || cashWeekly.length === 0) return cashWeekly
+
+        const startWeekNumber = activeSegment.startWeekNumber
+        const firstWeek = cashWeekly.find((row) => row.weekNumber === startWeekNumber) ?? cashWeekly[0]
+        if (!firstWeek) return cashWeekly
+
+        const byWeek = new Map<number, (typeof data.cash.weekly)[number]>()
+        for (const row of data.cash.weekly) {
+          byWeek.set(row.weekNumber, row)
+        }
+
+        const previousWeek = byWeek.get(startWeekNumber - 1)
+        const openingCashBalance =
+          previousWeek?.cashBalance ?? (firstWeek.cashBalance - firstWeek.netCash)
+
+        return [
+          {
+            periodLabel: activeYear != null ? `Opening ${activeYear}` : 'Opening cash',
+            weekNumber: startWeekNumber,
+            weekDate: firstWeek.weekDate,
+            amazonPayout: 0,
+            inventorySpend: 0,
+            fixedCosts: 0,
+            netCash: 0,
+            cashBalance: openingCashBalance,
+          },
+          ...cashWeekly,
+        ]
+      })()
       const cashMonthly = limitRows(filterSummaryByYear(data.cash.monthly, activeYear), 12)
       const cashQuarterly = limitRows(filterSummaryByYear(data.cash.quarterly, activeYear), 8)
       const metrics: FinancialMetricDefinition[] = [
@@ -1899,7 +1932,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           description: '',
           helper: '',
           series: {
-            weekly: buildCashFlowTrendSeries(cashWeekly, 'cashBalance'),
+            weekly: buildCashFlowTrendSeries(cashWeeklyWithOpening, 'cashBalance'),
             monthly: buildTrendSeries(cashMonthly, 'closingCash'),
             quarterly: buildTrendSeries(cashQuarterly, 'closingCash'),
           },
