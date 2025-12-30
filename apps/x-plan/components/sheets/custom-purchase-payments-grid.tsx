@@ -13,6 +13,7 @@ import { toast } from 'sonner'
 import Flatpickr from 'react-flatpickr'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { usePersistentState } from '@/hooks/usePersistentState'
+import { usePersistentScroll } from '@/hooks/usePersistentScroll'
 import { deriveIsoWeek, formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
 import { withAppBasePath } from '@/lib/base-path'
@@ -55,6 +56,7 @@ interface CustomPurchasePaymentsGridProps {
   payments: PurchasePaymentRow[]
   activeOrderId?: string | null
   activeYear?: number | null
+  scrollKey?: string | null
   onSelectOrder?: (orderId: string) => void
   onAddPayment?: () => void
   onRemovePayment?: (paymentId: string) => Promise<void> | void
@@ -165,6 +167,7 @@ export function CustomPurchasePaymentsGrid({
   payments,
   activeOrderId,
   activeYear,
+  scrollKey,
   onSelectOrder,
   onAddPayment,
   onRemovePayment,
@@ -183,8 +186,11 @@ export function CustomPurchasePaymentsGrid({
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
+  const tableScrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const rowsRef = useRef<PurchasePaymentRow[]>(payments)
+
+  usePersistentScroll(scrollKey ?? null, true, () => tableScrollRef.current)
 
   useEffect(() => {
     rowsRef.current = payments
@@ -747,7 +753,7 @@ export function CustomPurchasePaymentsGrid({
       </header>
 
       <div className="ops-table-container">
-        <div className="ops-table-body-scroll">
+        <div ref={tableScrollRef} className="ops-table-body-scroll">
           <table className="ops-table">
             <thead>
               <tr>

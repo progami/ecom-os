@@ -11,6 +11,7 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 import Flatpickr from 'react-flatpickr'
+import { usePersistentScroll } from '@/hooks/usePersistentScroll'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { toIsoDate, formatDateDisplay } from '@/lib/utils/dates'
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
@@ -50,6 +51,7 @@ export type OpsInputRow = {
 interface CustomOpsPlanningGridProps {
   rows: OpsInputRow[]
   activeOrderId?: string | null
+  scrollKey?: string | null
   onSelectOrder?: (orderId: string) => void
   onRowsChange?: (rows: OpsInputRow[]) => void
   onCreateOrder?: () => void
@@ -473,6 +475,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
 export function CustomOpsPlanningGrid({
   rows,
   activeOrderId,
+  scrollKey,
   onSelectOrder,
   onRowsChange,
   onCreateOrder,
@@ -486,7 +489,10 @@ export function CustomOpsPlanningGrid({
   const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof OpsInputRow } | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
+  const tableScrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  usePersistentScroll(scrollKey ?? null, true, () => tableScrollRef.current)
 
   const handleFlush = useCallback(
     async (payload: Array<{ id: string; values: Record<string, string> }>) => {
@@ -930,7 +936,7 @@ export function CustomOpsPlanningGrid({
       </div>
 
       <div className="ops-table-container">
-        <div className="ops-table-body-scroll">
+        <div ref={tableScrollRef} className="ops-table-body-scroll">
           <table className="ops-table">
             <thead>
               <tr>{COLUMNS.map(renderHeader)}</tr>

@@ -12,6 +12,7 @@ import {
 import { toast } from 'sonner'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { usePersistentState } from '@/hooks/usePersistentState'
+import { usePersistentScroll } from '@/hooks/usePersistentScroll'
 import { formatNumericInput, formatPercentInput, sanitizeNumeric } from '@/components/sheets/validators'
 import { withAppBasePath } from '@/lib/base-path'
 import '@/styles/custom-table.css'
@@ -39,6 +40,7 @@ interface CustomOpsCostGridProps {
   rows: OpsBatchRow[]
   activeOrderId?: string | null
   activeBatchId?: string | null
+  scrollKey?: string | null
   onSelectOrder?: (orderId: string) => void
   onSelectBatch?: (batchId: string) => void
   onRowsChange?: (rows: OpsBatchRow[]) => void
@@ -167,6 +169,7 @@ export function CustomOpsCostGrid({
   rows,
   activeOrderId,
   activeBatchId,
+  scrollKey,
   onSelectOrder,
   onSelectBatch,
   onRowsChange,
@@ -190,6 +193,9 @@ export function CustomOpsCostGrid({
   const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof OpsBatchRow } | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null)
+  const tableScrollRef = useRef<HTMLDivElement>(null)
+
+  usePersistentScroll(scrollKey ?? null, true, () => tableScrollRef.current)
 
   // Keep a local copy to avoid UI flicker when parent props refresh after saving.
   useEffect(() => {
@@ -656,7 +662,7 @@ export function CustomOpsCostGrid({
       </header>
 
       <div className="ops-table-container">
-        <div className="ops-table-body-scroll">
+        <div ref={tableScrollRef} className="ops-table-body-scroll">
           <table className="ops-table">
             <thead>
               <tr>
