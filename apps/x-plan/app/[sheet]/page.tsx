@@ -9,6 +9,7 @@ import { ProfitAndLossGrid } from '@/components/sheets/fin-planning-pl-grid'
 import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid'
 import { SheetViewToggle, type SheetViewMode } from '@/components/sheet-view-toggle'
 import { FinancialTrendsSection, type FinancialMetricDefinition } from '@/components/sheets/financial-trends-section'
+import { POProfitabilitySection, type POProfitabilityData, type POStatus } from '@/components/sheets/po-profitability-section'
 import type { OpsInputRow } from '@/components/sheets/ops-planning-grid'
 import type { OpsTimelineRow } from '@/components/sheets/ops-planning-timeline'
 import type { PurchasePaymentRow } from '@/components/sheets/purchase-payments-grid'
@@ -1666,6 +1667,90 @@ function getCashFlowView(
   }
 }
 
+function getPOProfitabilityView(
+  financialData: FinancialData
+): { data: POProfitabilityData[] } {
+  const { derivedOrders } = financialData
+
+  const data: POProfitabilityData[] = derivedOrders.map(({ derived, input, productName }) => {
+    const quantity = Number(input.quantity ?? 0)
+    const sellingPrice = Number(derived.sellingPrice ?? 0)
+    const grossRevenue = sellingPrice * quantity
+
+    // Per-unit costs from derived
+    const manufacturingCost = Number(derived.manufacturingCost ?? 0)
+    const freightCost = Number(derived.freightCost ?? 0)
+    const tariffRate = Number(derived.tariffRate ?? 0)
+    const landedUnitCost = Number(derived.landedUnitCost ?? 0)
+    const supplierCostTotal = Number(derived.supplierCostTotal ?? 0)
+
+    // Calculate tariff cost per unit from tariff rate
+    const tariffCost = tariffRate * landedUnitCost
+
+    // Amazon fees
+    const fbaFee = Number(derived.fbaFee ?? 0)
+    const amazonReferralRate = Number(derived.amazonReferralRate ?? 0)
+    const amazonFeesPerUnit = fbaFee + (sellingPrice * amazonReferralRate)
+    const amazonFeesTotal = amazonFeesPerUnit * quantity
+
+    // PPC/Advertising
+    const tacosPercent = Number(derived.tacosPercent ?? 0)
+    const ppcCost = sellingPrice * tacosPercent * quantity
+
+    // Profit calculations
+    const cogs = landedUnitCost * quantity
+    const grossProfit = grossRevenue - cogs - amazonFeesTotal
+    const grossMarginPercent = grossRevenue > 0 ? (grossProfit / grossRevenue) * 100 : 0
+    const netProfit = grossProfit - ppcCost
+    const netMarginPercent = grossRevenue > 0 ? (netProfit / grossRevenue) * 100 : 0
+
+    // ROI = Net Profit / Total Investment (supplier cost)
+    const roi = supplierCostTotal > 0 ? (netProfit / supplierCostTotal) * 100 : 0
+
+    // Map status
+    const statusMap: Record<string, POStatus> = {
+      PLANNED: 'PLANNED',
+      PRODUCTION: 'PRODUCTION',
+      IN_TRANSIT: 'IN_TRANSIT',
+      ARRIVED: 'ARRIVED',
+      CLOSED: 'CLOSED',
+      CANCELLED: 'CANCELLED',
+    }
+    const status: POStatus = statusMap[input.status ?? ''] ?? 'PLANNED'
+
+    return {
+      id: derived.id,
+      orderCode: derived.orderCode,
+      productId: input.productId,
+      productName,
+      quantity,
+      status,
+      manufacturingCost,
+      freightCost,
+      tariffCost,
+      landedUnitCost,
+      supplierCostTotal,
+      sellingPrice,
+      grossRevenue,
+      fbaFee,
+      amazonReferralRate,
+      amazonFeesTotal,
+      tacosPercent,
+      ppcCost,
+      grossProfit,
+      grossMarginPercent,
+      netProfit,
+      netMarginPercent,
+      roi,
+      productionStart: derived.productionStart ?? null,
+      availableDate: derived.availableDate ?? null,
+      totalLeadDays: derived.totalLeadDays ?? 0,
+    }
+  })
+
+  return { data }
+}
+
 export default async function SheetPage({ params, searchParams }: SheetPageProps) {
   const [routeParams, rawSearchParams] = await Promise.all([
     params,
@@ -2015,6 +2100,21 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           storageKey="xplan:visual:cashflow"
         />
       )
+      break
+    }
+    case '6-po-profitability': {
+      const data = await getFinancialData()
+      const view = getPOProfitabilityView(data)
+      // PO Profitability uses the visual component for both views
+      const poProfitabilityContent = (
+        <POProfitabilitySection
+          data={view.data}
+          title="PO Profitability Analysis"
+          description="Compare purchase order performance and profitability metrics"
+        />
+      )
+      tabularContent = poProfitabilityContent
+      visualContent = poProfitabilityContent
       break
     }
     default: {
