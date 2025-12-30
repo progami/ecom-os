@@ -188,12 +188,12 @@ const granularityOptions: Array<{ value: TrendGranularity; label: string; helper
 const accentPalette: Record<TrendAccent, { hex: string; hexDark: string; labelClass: string }> = {
   sky: {
     hex: '#0891b2',
-    hexDark: '#22d3ee',
+    hexDark: '#00C2B9',
     labelClass: 'text-cyan-700 dark:text-cyan-300/80',
   },
   emerald: {
     hex: '#059669',
-    hexDark: '#34d399',
+    hexDark: '#10b981',
     labelClass: 'text-emerald-700 dark:text-emerald-300/80',
   },
   violet: {
