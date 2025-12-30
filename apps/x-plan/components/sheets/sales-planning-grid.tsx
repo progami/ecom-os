@@ -766,7 +766,11 @@ export function SalesPlanningGrid({
         }
 
         hot.batchRender(() => {
-          hot.setDataAtRowProp(slicedChanges, 'derived-update');
+          for (const [rowIndex, prop, value] of slicedChanges) {
+            const record = sourceData[rowIndex];
+            if (!record) continue;
+            record[prop] = value;
+          }
         });
         return;
       }
