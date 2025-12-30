@@ -171,11 +171,11 @@ export function computeProfitAndLoss(
     const units = override?.units != null ? coerceNumber(override.units) : derived.units
     const revenue = override?.revenue != null ? coerceNumber(override.revenue) : derived.revenue
     const cogs = override?.cogs != null ? coerceNumber(override.cogs) : derived.cogs
-    const grossProfit = override?.grossProfit != null ? coerceNumber(override.grossProfit) : revenue - cogs
     const amazonFees = override?.amazonFees != null ? coerceNumber(override.amazonFees) : derived.amazonFees
+    const grossProfit = override?.grossProfit != null ? coerceNumber(override.grossProfit) : revenue - cogs - amazonFees
     const ppcSpend = override?.ppcSpend != null ? coerceNumber(override.ppcSpend) : derived.ppcSpend
     const fixedCosts = override?.fixedCosts != null ? coerceNumber(override.fixedCosts) : businessParams.weeklyFixedCosts
-    const totalOpex = override?.totalOpex != null ? coerceNumber(override.totalOpex) : amazonFees + ppcSpend + fixedCosts
+    const totalOpex = override?.totalOpex != null ? coerceNumber(override.totalOpex) : ppcSpend + fixedCosts
     const netProfit = override?.netProfit != null ? coerceNumber(override.netProfit) : grossProfit - totalOpex
     const grossMargin = revenue === 0 ? 0 : grossProfit / revenue
 
