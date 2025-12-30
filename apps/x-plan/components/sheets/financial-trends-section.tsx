@@ -718,10 +718,10 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
             const change = value != null && prevValue != null ? value - prevValue : null
             return (
               <div key={metric.key} className="space-y-0.5">
-                <p className={`text-xs font-bold uppercase tracking-[0.2em] ${palette.text}`}>
+                <p className={`text-xs font-bold uppercase tracking-[0.28em] ${palette.text}`}>
                   {metric.title}
                 </p>
-                <p className="text-xl font-semibold text-slate-900 dark:text-white">
+                <p className="text-2xl font-semibold text-slate-900 dark:text-white">
                   {formatSimpleValue(value ?? NaN, metric.format)}
                 </p>
                 {change != null && (

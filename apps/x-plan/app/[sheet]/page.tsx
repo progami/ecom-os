@@ -278,20 +278,30 @@ function buildTrendSeries<T>(rows: T[], key: Extract<keyof T, string>) {
     let label = ''
     if ('periodLabel' in record && typeof record.periodLabel === 'string' && record.periodLabel.trim()) {
       label = record.periodLabel
-    } else if ('weekDate' in record) {
-      const weekDate = record.weekDate as Date | string | number | null | undefined
-      if (weekDate != null) {
-        const formatted = formatDateDisplay(weekDate)
-        if (formatted) {
-          label = formatted
+    } else {
+      // Get week label (relative to year segment)
+      const weekLabel = 'weekLabel' in record ? record.weekLabel as string | number | null | undefined : null
+      const weekNumber = 'weekNumber' in record ? record.weekNumber as string | number | null | undefined : null
+      const weekIdentifier = weekLabel ?? weekNumber
+
+      // Get formatted date
+      let formattedDate = ''
+      if ('weekDate' in record) {
+        const weekDate = record.weekDate as Date | string | number | null | undefined
+        if (weekDate != null) {
+          formattedDate = formatDateDisplay(weekDate) ?? ''
         }
       }
-    }
 
-    if (!label && 'weekNumber' in record) {
-      const weekValue = record.weekNumber as string | number | null | undefined
-      if (weekValue != null && !(typeof weekValue === 'string' && weekValue.trim() === '')) {
-        label = `W${weekValue}`
+      // Combine week number and date if both available
+      if (weekIdentifier != null && !(typeof weekIdentifier === 'string' && weekIdentifier.trim() === '')) {
+        if (formattedDate) {
+          label = `W${weekIdentifier} · ${formattedDate}`
+        } else {
+          label = `W${weekIdentifier}`
+        }
+      } else if (formattedDate) {
+        label = formattedDate
       }
     }
 
@@ -317,20 +327,30 @@ function buildCashFlowTrendSeries<T>(rows: T[], key: Extract<keyof T, string>) {
     let label = ''
     if ('periodLabel' in record && typeof record.periodLabel === 'string' && record.periodLabel.trim()) {
       label = record.periodLabel
-    } else if ('weekDate' in record) {
-      const weekDate = record.weekDate as Date | string | number | null | undefined
-      if (weekDate != null) {
-        const formatted = formatDateDisplay(weekDate)
-        if (formatted) {
-          label = formatted
+    } else {
+      // Get week label (relative to year segment)
+      const weekLabel = 'weekLabel' in record ? record.weekLabel as string | number | null | undefined : null
+      const weekNumber = 'weekNumber' in record ? record.weekNumber as string | number | null | undefined : null
+      const weekIdentifier = weekLabel ?? weekNumber
+
+      // Get formatted date
+      let formattedDate = ''
+      if ('weekDate' in record) {
+        const weekDate = record.weekDate as Date | string | number | null | undefined
+        if (weekDate != null) {
+          formattedDate = formatDateDisplay(weekDate) ?? ''
         }
       }
-    }
 
-    if (!label && 'weekNumber' in record) {
-      const weekValue = record.weekNumber as string | number | null | undefined
-      if (weekValue != null && !(typeof weekValue === 'string' && weekValue.trim() === '')) {
-        label = `W${weekValue}`
+      // Combine week number and date if both available
+      if (weekIdentifier != null && !(typeof weekIdentifier === 'string' && weekIdentifier.trim() === '')) {
+        if (formattedDate) {
+          label = `W${weekIdentifier} · ${formattedDate}`
+        } else {
+          label = `W${weekIdentifier}`
+        }
+      } else if (formattedDate) {
+        label = formattedDate
       }
     }
 
@@ -1851,7 +1871,13 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         />
       )
 
-      const pnlWeeklyBase = data.profit.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+      const segmentStart = activeSegment?.startWeekNumber ?? null
+      const pnlWeeklyBase = data.profit.weekly
+        .filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+        .map((entry) => ({
+          ...entry,
+          weekLabel: segmentStart != null ? String(entry.weekNumber - segmentStart + 1) : String(entry.weekNumber),
+        }))
       const pnlWeekly = activeSegment ? pnlWeeklyBase : limitRows(pnlWeeklyBase, 52)
       const pnlMonthly = limitRows(filterSummaryByYear(data.profit.monthly, activeYear), 12)
       const pnlQuarterly = limitRows(filterSummaryByYear(data.profit.quarterly, activeYear), 8)
@@ -1911,7 +1937,13 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         <CashFlowGrid strategyId={strategyId} weekly={view.weekly} />
       )
 
-      const cashWeeklyBase = data.cash.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+      const cashSegmentStart = activeSegment?.startWeekNumber ?? null
+      const cashWeeklyBase = data.cash.weekly
+        .filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+        .map((entry) => ({
+          ...entry,
+          weekLabel: cashSegmentStart != null ? String(entry.weekNumber - cashSegmentStart + 1) : String(entry.weekNumber),
+        }))
       const cashWeekly = activeSegment ? cashWeeklyBase : limitRows(cashWeeklyBase, 52)
 
       const cashWeeklyWithOpening = (() => {
