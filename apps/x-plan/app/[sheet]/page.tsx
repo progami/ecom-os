@@ -59,7 +59,8 @@ import { addMonths, endOfMonth, format, startOfMonth, startOfWeek } from 'date-f
 import { getCalendarDateForWeek, weekNumberForDate, type YearSegment } from '@/lib/calculations/calendar'
 import { findYearSegment, loadPlanningCalendar, resolveActiveYear } from '@/lib/planning'
 import type { PlanningCalendar } from '@/lib/planning'
-import { deriveIsoWeek, formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
+import { weekLabelForWeekNumber, type PlanningWeekConfig } from '@/lib/calculations/planning-week'
+import { formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
 
 const SALES_METRICS = ['stockStart', 'actualSales', 'forecastSales', 'finalSales', 'finalSalesError', 'stockWeeks', 'stockEnd'] as const
 type SalesMetric = (typeof SALES_METRICS)[number]
@@ -210,6 +211,7 @@ function serializePurchaseOrder(order: PurchaseOrderInput): PurchaseOrderSeriali
       overrideManufacturingCost: batch.overrideManufacturingCost ?? null,
       overrideFreightCost: batch.overrideFreightCost ?? null,
       overrideTariffRate: batch.overrideTariffRate ?? null,
+      overrideTariffCost: batch.overrideTariffCost ?? null,
       overrideTacosPercent: batch.overrideTacosPercent ?? null,
       overrideFbaFee: batch.overrideFbaFee ?? null,
       overrideReferralRate: batch.overrideReferralRate ?? null,
@@ -298,6 +300,49 @@ function buildTrendSeries<T>(rows: T[], key: Extract<keyof T, string>) {
   }
 
   return { labels, values }
+}
+
+function buildCashFlowTrendSeries<T>(rows: T[], key: Extract<keyof T, string>) {
+  const labels: string[] = []
+  const values: number[] = []
+  const impactFlags: boolean[] = []
+
+  for (const row of rows) {
+    if (typeof row !== 'object' || row === null) continue
+    const record = row as Record<string, unknown>
+    const raw = record[key]
+    const numeric = typeof raw === 'number' ? raw : Number(raw)
+    if (!Number.isFinite(numeric)) continue
+
+    let label = ''
+    if ('periodLabel' in record && typeof record.periodLabel === 'string' && record.periodLabel.trim()) {
+      label = record.periodLabel
+    } else if ('weekDate' in record) {
+      const weekDate = record.weekDate as Date | string | number | null | undefined
+      if (weekDate != null) {
+        const formatted = formatDateDisplay(weekDate)
+        if (formatted) {
+          label = formatted
+        }
+      }
+    }
+
+    if (!label && 'weekNumber' in record) {
+      const weekValue = record.weekNumber as string | number | null | undefined
+      if (weekValue != null && !(typeof weekValue === 'string' && weekValue.trim() === '')) {
+        label = `W${weekValue}`
+      }
+    }
+
+    const inventorySpend = record.inventorySpend as number | null | undefined
+    const hasImpact = typeof inventorySpend === 'number' && Number.isFinite(inventorySpend) && Math.abs(inventorySpend) > 0
+
+    labels.push(label)
+    values.push(Number(numeric))
+    impactFlags.push(hasImpact)
+  }
+
+  return { labels, values, impactFlags }
 }
 
 type SheetPageProps = {
@@ -981,6 +1026,7 @@ async function getOpsPlanningView(strategyId: string, planning?: PlanningCalenda
     manufacturingCost: string
     freightCost: string
     tariffRate: string
+    tariffCost: string
     tacosPercent: string
     fbaFee: string
     referralRate: string
@@ -1096,7 +1142,13 @@ async function getOpsPlanningView(strategyId: string, planning?: PlanningCalenda
             : null
       const dueDateIso = toIsoDate(payment.dueDate ?? null)
       const dueDateDefaultIso = toIsoDate(payment.dueDateDefault ?? payment.dueDate ?? null)
-      const weekNumber = deriveIsoWeek(dueDateIso)
+      let weekNumber = ''
+      if (planning) {
+        const planningWeekNumber = weekNumberForDate(payment.dueDate ?? null, planning.calendar)
+        if (planningWeekNumber != null) {
+          weekNumber = weekLabelForWeekNumber(planningWeekNumber, planning.yearSegments)
+        }
+      }
 
       return {
         id: payment.id,
@@ -1142,6 +1194,7 @@ async function getOpsPlanningView(strategyId: string, planning?: PlanningCalenda
       manufacturingCost: formatNumeric(batch.overrideManufacturingCost ?? order.overrideManufacturingCost ?? null),
       freightCost: formatNumeric(batch.overrideFreightCost ?? order.overrideFreightCost ?? null),
       tariffRate: formatPercentDecimal(batch.overrideTariffRate ?? order.overrideTariffRate ?? null),
+      tariffCost: formatNumeric(batch.overrideTariffCost ?? null, 3),
       tacosPercent: formatPercentDecimal(batch.overrideTacosPercent ?? order.overrideTacosPercent ?? null),
       fbaFee: formatNumeric(batch.overrideFbaFee ?? order.overrideFbaFee ?? null),
       referralRate: formatPercentDecimal(batch.overrideReferralRate ?? order.overrideReferralRate ?? null),
@@ -1302,13 +1355,26 @@ function getSalesPlanningView(
       }
     })
   }
-  const weeks = buildWeekRange(activeSegment, planning.calendar)
-  const weekNumbers = weeks.length
-    ? weeks
+  const visibleWeeks = buildWeekRange(activeSegment, planning.calendar)
+  const weekNumbers = visibleWeeks.length
+    ? activeSegment
+      ? (() => {
+          const maxWeek = planning.calendar.maxWeekNumber ?? activeSegment.endWeekNumber
+          const endWeek = maxWeek != null ? Math.max(activeSegment.endWeekNumber, maxWeek) : activeSegment.endWeekNumber
+          return Array.from({ length: endWeek - activeSegment.startWeekNumber + 1 }, (_, index) => activeSegment.startWeekNumber + index)
+        })()
+      : visibleWeeks
     : activeSegment
       ? []
       : Array.from(new Set(financialData.salesPlan.map((row) => row.weekNumber))).sort((a, b) => a - b)
   const weekSet = new Set(weekNumbers)
+  const visibleWeekSet = new Set(visibleWeeks)
+  const hiddenRowIndices =
+    activeSegment && weekNumbers.length > 0
+      ? weekNumbers
+          .map((weekNumber, index) => (!visibleWeekSet.has(weekNumber) ? index : null))
+          .filter((value): value is number => value != null)
+      : []
   const columnMeta: Record<string, { productId: string; field: string }> = {}
   const columnKeys: string[] = []
   const hasProducts = productList.length > 0
@@ -1338,8 +1404,22 @@ function getSalesPlanningView(
     }
   })
 
+  const segmentForWeek = (weekNumber: number): YearSegment | null => {
+    if (!planning.yearSegments.length) return null
+    return (
+      planning.yearSegments.find(
+        (segment) =>
+          segment.weekCount > 0 &&
+          weekNumber >= segment.startWeekNumber &&
+          weekNumber <= segment.endWeekNumber,
+      ) ?? null
+    )
+  }
+
   const rows = weekNumbers.map((weekNumber) => {
-    const weekLabel = activeSegment ? String(weekNumber - activeSegment.startWeekNumber + 1) : String(weekNumber)
+    const segment = segmentForWeek(weekNumber)
+    const weekLabel =
+      segment != null ? String(weekNumber - segment.startWeekNumber + 1) : String(weekNumber)
     const calendarDate = getCalendarDateForWeek(weekNumber, planning.calendar)
     const row: SalesRow = {
       weekNumber: String(weekNumber),
@@ -1424,8 +1504,14 @@ function getSalesPlanningView(
     })
   })
 
+  const hiddenRowSet = new Set(hiddenRowIndices)
+  const visibleRows = hiddenRowIndices.length > 0
+    ? rows.filter((_, index) => !hiddenRowSet.has(index))
+    : rows
+
   return {
     rows,
+    visibleRows,
     columnMeta,
     columnKeys,
     nestedHeaders,
@@ -1434,6 +1520,7 @@ function getSalesPlanningView(
     leadTimeByProduct,
     batchAllocations,
     reorderCueByProduct,
+    hiddenRowIndices,
   }
 }
 
@@ -1580,6 +1667,18 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
   const activeYear = resolveActiveYear(parsedSearch.year, planningCalendar.yearSegments)
   const activeSegment = findYearSegment(activeYear, planningCalendar.yearSegments)
   const viewMode = resolveViewMode(parsedSearch.view)
+  const anchorWeekNumber = planningCalendar.calendar.anchorWeekNumber
+  const anchorWeekDateIso = toIsoDate(planningCalendar.calendar.calendarStart ?? null)
+  const planningWeekConfig: PlanningWeekConfig | null =
+    anchorWeekNumber != null && anchorWeekDateIso
+      ? {
+          anchorWeekNumber,
+          anchorWeekDateIso,
+          minWeekNumber: planningCalendar.calendar.minWeekNumber,
+          maxWeekNumber: planningCalendar.calendar.maxWeekNumber,
+          yearSegments: planningCalendar.yearSegments,
+        }
+      : null
 
   const controls: ReactNode[] = []
   let contextPane: React.ReactNode = null
@@ -1661,6 +1760,8 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       tabularContent = (
         <OpsPlanningWorkspace
           strategyId={strategyId}
+          activeYear={activeYear}
+          planningWeekConfig={planningWeekConfig}
           poTableRows={view.poTableRows}
           batchTableRows={view.batchTableRows}
           timeline={view.timelineRows}
@@ -1674,6 +1775,8 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       visualContent = (
         <OpsPlanningWorkspace
           strategyId={strategyId}
+          activeYear={activeYear}
+          planningWeekConfig={planningWeekConfig}
           poTableRows={view.poTableRows}
           batchTableRows={view.batchTableRows}
           timeline={view.timelineRows}
@@ -1705,6 +1808,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         <SalesPlanningGrid
           strategyId={strategyId}
           rows={view.rows}
+          hiddenRowIndices={view.hiddenRowIndices}
           columnMeta={view.columnMeta}
           columnKeys={view.columnKeys}
           nestedHeaders={view.nestedHeaders}
@@ -1717,7 +1821,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
       )
       visualContent = (
         <SalesPlanningVisual
-          rows={view.rows}
+          rows={view.visibleRows}
           columnMeta={view.columnMeta}
           columnKeys={view.columnKeys}
           productOptions={view.productOptions}
@@ -1747,7 +1851,8 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         />
       )
 
-      const pnlWeekly = limitRows(data.profit.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment)), 52)
+      const pnlWeeklyBase = data.profit.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+      const pnlWeekly = activeSegment ? pnlWeeklyBase : limitRows(pnlWeeklyBase, 52)
       const pnlMonthly = limitRows(filterSummaryByYear(data.profit.monthly, activeYear), 12)
       const pnlQuarterly = limitRows(filterSummaryByYear(data.profit.quarterly, activeYear), 8)
       const metrics: FinancialMetricDefinition[] = [
@@ -1806,7 +1911,39 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
         <CashFlowGrid strategyId={strategyId} weekly={view.weekly} />
       )
 
-      const cashWeekly = limitRows(data.cash.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment)), 52)
+      const cashWeeklyBase = data.cash.weekly.filter((entry) => isWeekInSegment(entry.weekNumber, activeSegment))
+      const cashWeekly = activeSegment ? cashWeeklyBase : limitRows(cashWeeklyBase, 52)
+
+      const cashWeeklyWithOpening = (() => {
+        if (!activeSegment || cashWeekly.length === 0) return cashWeekly
+
+        const startWeekNumber = activeSegment.startWeekNumber
+        const firstWeek = cashWeekly.find((row) => row.weekNumber === startWeekNumber) ?? cashWeekly[0]
+        if (!firstWeek) return cashWeekly
+
+        const byWeek = new Map<number, (typeof data.cash.weekly)[number]>()
+        for (const row of data.cash.weekly) {
+          byWeek.set(row.weekNumber, row)
+        }
+
+        const previousWeek = byWeek.get(startWeekNumber - 1)
+        const openingCashBalance =
+          previousWeek?.cashBalance ?? (firstWeek.cashBalance - firstWeek.netCash)
+
+        return [
+          {
+            periodLabel: activeYear != null ? `Opening ${activeYear}` : 'Opening cash',
+            weekNumber: startWeekNumber,
+            weekDate: firstWeek.weekDate,
+            amazonPayout: 0,
+            inventorySpend: 0,
+            fixedCosts: 0,
+            netCash: 0,
+            cashBalance: openingCashBalance,
+          },
+          ...cashWeekly,
+        ]
+      })()
       const cashMonthly = limitRows(filterSummaryByYear(data.cash.monthly, activeYear), 12)
       const cashQuarterly = limitRows(filterSummaryByYear(data.cash.quarterly, activeYear), 8)
       const metrics: FinancialMetricDefinition[] = [
@@ -1816,7 +1953,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           description: '',
           helper: '',
           series: {
-            weekly: buildTrendSeries(cashWeekly, 'cashBalance'),
+            weekly: buildCashFlowTrendSeries(cashWeeklyWithOpening, 'cashBalance'),
             monthly: buildTrendSeries(cashMonthly, 'closingCash'),
             quarterly: buildTrendSeries(cashQuarterly, 'closingCash'),
           },
@@ -1829,7 +1966,7 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
           description: '',
           helper: '',
           series: {
-            weekly: buildTrendSeries(cashWeekly, 'netCash'),
+            weekly: buildCashFlowTrendSeries(cashWeekly, 'netCash'),
             monthly: buildTrendSeries(cashMonthly, 'netCash'),
             quarterly: buildTrendSeries(cashQuarterly, 'netCash'),
           },

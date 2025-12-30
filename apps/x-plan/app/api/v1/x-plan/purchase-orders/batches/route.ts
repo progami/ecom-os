@@ -22,6 +22,7 @@ const allowedFields = [
   'overrideManufacturingCost',
   'overrideFreightCost',
   'overrideTariffRate',
+  'overrideTariffCost',
   'overrideTacosPercent',
   'overrideFbaFee',
   'overrideReferralRate',
@@ -38,6 +39,7 @@ const decimalFields: Record<string, true> = {
   overrideSellingPrice: true,
   overrideManufacturingCost: true,
   overrideFreightCost: true,
+  overrideTariffCost: true,
   overrideFbaFee: true,
   overrideStoragePerMonth: true,
 }

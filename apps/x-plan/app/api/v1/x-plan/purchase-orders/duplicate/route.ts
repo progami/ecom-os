@@ -122,6 +122,7 @@ export const POST = withXPlanAuth(async (request: Request) => {
               overrideManufacturingCost: batch.overrideManufacturingCost,
               overrideFreightCost: batch.overrideFreightCost,
               overrideTariffRate: batch.overrideTariffRate,
+              overrideTariffCost: batch.overrideTariffCost,
               overrideTacosPercent: batch.overrideTacosPercent,
               overrideFbaFee: batch.overrideFbaFee,
               overrideReferralRate: batch.overrideReferralRate,

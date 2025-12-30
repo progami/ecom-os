@@ -37,15 +37,18 @@ import {
   type PurchaseOrderStatus,
   type LeadTimeProfile,
 } from '@/lib/calculations'
+import { weekLabelForIsoDate, type PlanningWeekConfig } from '@/lib/calculations/planning-week'
 import { formatNumericInput, formatPercentInput, parseNumericInput } from '@/components/sheets/validators'
-import { deriveIsoWeek, formatDateDisplay, parseDate, toIsoDate } from '@/lib/utils/dates'
+import { formatDateDisplay, parseDate, toIsoDate } from '@/lib/utils/dates'
 import { withAppBasePath } from '@/lib/base-path'
+import { usePersistentState } from '@/hooks/usePersistentState'
 
 const BATCH_NUMERIC_PRECISION = {
   quantity: 0,
   sellingPrice: 2,
   manufacturingCost: 3,
   freightCost: 3,
+  tariffCost: 3,
   fbaFee: 3,
   storagePerMonth: 3,
 } as const
@@ -118,6 +121,7 @@ export type PurchaseOrderSerialized = {
     overrideManufacturingCost?: number | null
     overrideFreightCost?: number | null
     overrideTariffRate?: number | null
+    overrideTariffCost?: number | null
     overrideTacosPercent?: number | null
     overrideFbaFee?: number | null
     overrideReferralRate?: number | null
@@ -161,6 +165,8 @@ export type OpsPlanningCalculatorPayload = {
 
 interface OpsPlanningWorkspaceProps {
   strategyId: string
+  activeYear?: number | null
+  planningWeekConfig?: PlanningWeekConfig | null
   poTableRows: OpsInputRow[]
   batchTableRows: OpsBatchRow[]
   timeline: OpsTimelineRow[]
@@ -240,11 +246,14 @@ function resolvePaymentLabel(category: string | undefined, label: string | undef
   return DEFAULT_PAYMENT_LABELS[paymentIndex] ?? `Payment ${paymentIndex}`
 }
 
-function normalizePaymentRows(rows: PurchasePaymentRow[]): PurchasePaymentRow[] {
+function normalizePaymentRows(
+  rows: PurchasePaymentRow[],
+  planningWeekConfig: PlanningWeekConfig | null | undefined,
+): PurchasePaymentRow[] {
   return rows.map((payment) => {
     const dueDateIso = toIsoDateString(payment.dueDateIso ?? payment.dueDate)
     const dueDateDefaultIso = toIsoDateString(payment.dueDateDefaultIso ?? payment.dueDateDefault)
-    const week = deriveIsoWeek(dueDateIso) ?? payment.weekNumber ?? ''
+    const week = planningWeekConfig ? weekLabelForIsoDate(dueDateIso, planningWeekConfig) : payment.weekNumber ?? ''
     return {
       ...payment,
       label: resolvePaymentLabel(payment.category, payment.label, payment.paymentIndex),
@@ -374,6 +383,7 @@ function deserializeOrders(
         overrideManufacturingCost: batch.overrideManufacturingCost ?? null,
         overrideFreightCost: batch.overrideFreightCost ?? null,
         overrideTariffRate: batch.overrideTariffRate ?? null,
+        overrideTariffCost: batch.overrideTariffCost ?? null,
         overrideTacosPercent: batch.overrideTacosPercent ?? null,
         overrideFbaFee: batch.overrideFbaFee ?? null,
         overrideReferralRate: batch.overrideReferralRate ?? null,
@@ -637,6 +647,8 @@ type PaymentUpdatePayload = {
 
 export function OpsPlanningWorkspace({
   strategyId,
+  activeYear,
+  planningWeekConfig,
   poTableRows,
   batchTableRows,
   timeline,
@@ -648,6 +660,11 @@ export function OpsPlanningWorkspace({
 }: OpsPlanningWorkspaceProps) {
   const isVisualMode = mode === 'visual'
   const router = useRouter()
+  const planningWeekConfigRef = useRef(planningWeekConfig ?? null)
+
+  useEffect(() => {
+    planningWeekConfigRef.current = planningWeekConfig ?? null
+  }, [planningWeekConfig])
   const productLabel = useCallback((product: { sku?: string | null; name: string }) => {
     const sku = typeof product.sku === 'string' ? product.sku.trim() : ''
     return sku.length ? sku : product.name
@@ -703,6 +720,7 @@ export function OpsPlanningWorkspace({
       ),
       freightCost: formatNumericInput(batch.overrideFreightCost, BATCH_NUMERIC_PRECISION.freightCost),
       tariffRate: formatPercentInput(batch.overrideTariffRate, BATCH_PERCENT_PRECISION.tariffRate),
+      tariffCost: formatNumericInput(batch.overrideTariffCost, BATCH_NUMERIC_PRECISION.tariffCost),
       tacosPercent: formatPercentInput(batch.overrideTacosPercent, BATCH_PERCENT_PRECISION.tacosPercent),
       fbaFee: formatNumericInput(batch.overrideFbaFee, BATCH_NUMERIC_PRECISION.fbaFee),
       referralRate: formatPercentInput(batch.overrideReferralRate, BATCH_PERCENT_PRECISION.referralRate),
@@ -725,7 +743,10 @@ export function OpsPlanningWorkspace({
     return rows
   }, [batchTableRows, initialOrders, buildBatchRow])
 
-  const initialPayments = useMemo(() => normalizePaymentRows(payments), [payments])
+  const initialPayments = useMemo(
+    () => normalizePaymentRows(payments, planningWeekConfig),
+    [payments, planningWeekConfig],
+  )
   const initialTimelineResult = useMemo(
     () =>
       buildTimelineRowsFromData({
@@ -749,8 +770,14 @@ export function OpsPlanningWorkspace({
   const [orders, setOrders] = useState<PurchaseOrderInput[]>(initialOrders)
   const [paymentRows, setPaymentRows] = useState<PurchasePaymentRow[]>(initialPayments)
   const [batchRows, setBatchRows] = useState<OpsBatchRow[]>(initialBatchRows)
-  const [activeOrderId, setActiveOrderId] = useState<string | null>(poTableRows[0]?.id ?? null)
-  const [activeBatchId, setActiveBatchId] = useState<string | null>(null)
+  const [activeOrderId, setActiveOrderId] = usePersistentState<string | null>(
+    `xplan:ops:active-order:${strategyId}`,
+    poTableRows[0]?.id ?? null,
+  )
+  const [activeBatchId, setActiveBatchId] = usePersistentState<string | null>(
+    `xplan:ops:active-batch:${strategyId}`,
+    null,
+  )
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false)
   const [newOrderCode, setNewOrderCode] = useState('')
   const [isAddingPayment, setIsAddingPayment] = useState(false)
@@ -796,6 +823,7 @@ useEffect(() => {
       const updates: PaymentUpdatePayload[] = []
 
       setPaymentRows((previous) => {
+        const weekConfig = planningWeekConfigRef.current
         const next = previous.map((row) => {
           if (!targetIds.has(row.purchaseOrderId)) return row
           const derived = derivedMapRef.current.get(row.purchaseOrderId)
@@ -808,7 +836,7 @@ useEffect(() => {
           const paidNumeric = parseNumericInput(row.amountPaid)
           const plannedDefaultIso = toIsoDateString(planned.plannedDefaultDate ?? planned.plannedDate)
           const plannedDefaultDisplay = formatIsoDate(plannedDefaultIso)
-          const plannedWeek = deriveIsoWeek(plannedDefaultIso)
+          const plannedWeek = weekConfig ? weekLabelForIsoDate(plannedDefaultIso, weekConfig) : row.weekNumber
 
           const rowDueDateSource = row.dueDateSource ?? 'SYSTEM'
           const rowDueDateIso = row.dueDateIso ?? toIsoDateString(row.dueDate)
@@ -844,7 +872,7 @@ useEffect(() => {
               nextRow.weekNumber = plannedWeek
             }
           } else if (rowDueDateIso) {
-            const manualWeek = deriveIsoWeek(rowDueDateIso)
+            const manualWeek = weekConfig ? weekLabelForIsoDate(rowDueDateIso, weekConfig) : row.weekNumber
             if (manualWeek !== row.weekNumber) {
               ensureClone()
               nextRow.weekNumber = manualWeek
@@ -920,11 +948,11 @@ useEffect(() => {
   }, [calculator.purchaseOrders, stageDefaults, applyTimelineUpdate])
 
   useEffect(() => {
-    const normalized = normalizePaymentRows(payments)
+    const normalized = normalizePaymentRows(payments, planningWeekConfig)
     setPaymentRows(normalized)
     paymentRowsRef.current = normalized
     applyTimelineUpdate(ordersRef.current, inputRowsRef.current, normalized)
-  }, [payments, applyTimelineUpdate])
+  }, [payments, planningWeekConfig, applyTimelineUpdate])
 
   useEffect(() => {
     if (inputRows.length === 0) {
@@ -934,16 +962,23 @@ useEffect(() => {
     if (!activeOrderId || !inputRows.some((row) => row.id === activeOrderId)) {
       setActiveOrderId(inputRows[0].id)
     }
-  }, [inputRows, activeOrderId])
+  }, [inputRows, activeOrderId, setActiveOrderId])
 
   useEffect(() => {
     if (!activeOrderId) {
       setActiveBatchId(null)
       return
     }
-    const firstBatch = batchRows.find((row) => row.purchaseOrderId === activeOrderId)
-    setActiveBatchId(firstBatch?.id ?? null)
-  }, [activeOrderId, batchRows])
+    const matchingBatches = batchRows.filter((row) => row.purchaseOrderId === activeOrderId)
+    if (matchingBatches.length === 0) {
+      setActiveBatchId(null)
+      return
+    }
+    if (activeBatchId && matchingBatches.some((row) => row.id === activeBatchId)) {
+      return
+    }
+    setActiveBatchId(matchingBatches[0]?.id ?? null)
+  }, [activeOrderId, activeBatchId, batchRows, setActiveBatchId])
 
   const handleInputRowsChange = useCallback(
     (updatedRows: OpsInputRow[]) => {
@@ -1000,14 +1035,14 @@ useEffect(() => {
   const handlePaymentRowsChange = useCallback(
     (rows: PurchasePaymentRow[]) => {
       if (!activeOrderId) return
-      const normalized = normalizePaymentRows(rows)
+      const normalized = normalizePaymentRows(rows, planningWeekConfig)
       const existing = paymentRowsRef.current.filter((row) => row.purchaseOrderId !== activeOrderId)
       const next = [...existing, ...normalized]
       paymentRowsRef.current = next
       setPaymentRows(next)
       applyTimelineUpdate(ordersRef.current, inputRowsRef.current, next)
     },
-    [activeOrderId, applyTimelineUpdate]
+    [activeOrderId, applyTimelineUpdate, planningWeekConfig]
   )
 
   const handleBatchRowsChange = useCallback((updatedRows: OpsBatchRow[]) => {
@@ -1037,6 +1072,8 @@ useEffect(() => {
         for (const update of updates) {
           const batchIndex = batches.findIndex((batch) => batch.id === update.id)
           if (batchIndex === -1) continue
+          const tariffCost = parseNumber(update.tariffCost)
+          const tariffRate = parsePercent(update.tariffRate)
           batches[batchIndex] = {
             ...batches[batchIndex],
             productId: update.productId,
@@ -1044,7 +1081,8 @@ useEffect(() => {
             overrideSellingPrice: parseNumber(update.sellingPrice),
             overrideManufacturingCost: parseNumber(update.manufacturingCost),
             overrideFreightCost: parseNumber(update.freightCost),
-            overrideTariffRate: parsePercent(update.tariffRate),
+            overrideTariffCost: tariffCost,
+            overrideTariffRate: tariffCost != null ? null : tariffRate,
             overrideTacosPercent: parsePercent(update.tacosPercent),
             overrideFbaFee: parseNumber(update.fbaFee),
             overrideReferralRate: parsePercent(update.referralRate),
@@ -1063,7 +1101,7 @@ useEffect(() => {
 
   const handleSelectBatch = useCallback((batchId: string) => {
     setActiveBatchId(batchId)
-  }, [])
+  }, [setActiveBatchId])
 
   const handleAddBatch = useCallback(() => {
     const orderId = activeOrderId
@@ -1110,6 +1148,7 @@ useEffect(() => {
           manufacturingCost: '',
           freightCost: '',
           tariffRate: '',
+          tariffCost: '',
           tacosPercent: '',
           fbaFee: '',
           referralRate: '',
@@ -1133,6 +1172,7 @@ useEffect(() => {
               overrideManufacturingCost: null,
               overrideFreightCost: null,
               overrideTariffRate: null,
+              overrideTariffCost: null,
               overrideTacosPercent: null,
               overrideFbaFee: null,
               overrideReferralRate: null,
@@ -1155,7 +1195,7 @@ useEffect(() => {
         toast.error(error instanceof Error ? error.message : 'Unable to add batch')
       }
     })
-  }, [activeOrderId, applyTimelineUpdate, productNameIndex, productOptions, startTransition])
+  }, [activeOrderId, applyTimelineUpdate, productNameIndex, productOptions, setActiveBatchId, startTransition])
 
   const performDeleteBatch = useCallback((batchId: string) => {
     const batch = batchRowsRef.current.find((row) => row.id === batchId)
@@ -1296,7 +1336,7 @@ useEffect(() => {
       }
 
       const created = (await response.json()) as PurchasePaymentRow
-      const [normalizedCreated] = normalizePaymentRows([created])
+      const [normalizedCreated] = normalizePaymentRows([created], planningWeekConfigRef.current)
 
       setPaymentRows((previous) => {
         const next = [...previous, normalizedCreated]
@@ -1433,7 +1473,7 @@ useEffect(() => {
         }
       })
     },
-    [activeOrderId, router, startTransition]
+    [activeOrderId, router, setActiveOrderId, startTransition]
   )
 
   const handleDeleteOrder = useCallback((orderId: string) => {
@@ -1480,7 +1520,7 @@ useEffect(() => {
         }
       })
     },
-    [router, startTransition],
+    [router, setActiveOrderId, startTransition],
   )
 
   const handleCreateOrder = useCallback(() => {
@@ -1533,7 +1573,7 @@ useEffect(() => {
         toast.error(error instanceof Error ? error.message : 'Unable to create purchase order')
       }
     })
-  }, [strategyId, newOrderCode, productOptions, router, startTransition])
+  }, [strategyId, newOrderCode, productOptions, router, setActiveOrderId, startTransition])
 
   return (
     <div className="space-y-8">
@@ -1542,6 +1582,7 @@ useEffect(() => {
           <CustomOpsPlanningGrid
             rows={inputRows}
             activeOrderId={activeOrderId}
+            scrollKey={`ops-planning:po:${strategyId}`}
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}
             onRowsChange={handleInputRowsChange}
             onCreateOrder={() => setIsCreateOrderOpen(true)}
@@ -1603,6 +1644,7 @@ useEffect(() => {
             rows={visibleBatches}
             activeOrderId={activeOrderId}
             activeBatchId={activeBatchId}
+            scrollKey={`ops-planning:batch:${strategyId}`}
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}
             onSelectBatch={handleSelectBatch}
             onRowsChange={handleBatchRowsChange}
@@ -1616,6 +1658,9 @@ useEffect(() => {
           <CustomPurchasePaymentsGrid
             payments={visiblePayments}
             activeOrderId={activeOrderId}
+            activeYear={activeYear}
+            planningWeekConfig={planningWeekConfig}
+            scrollKey={`ops-planning:payments:${strategyId}`}
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}
             onAddPayment={handleAddPayment}
             onRemovePayment={handleRemovePayment}

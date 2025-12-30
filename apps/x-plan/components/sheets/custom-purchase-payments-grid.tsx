@@ -12,7 +12,15 @@ import {
 import { toast } from 'sonner'
 import Flatpickr from 'react-flatpickr'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
-import { deriveIsoWeek, formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
+import { usePersistentState } from '@/hooks/usePersistentState'
+import { usePersistentScroll } from '@/hooks/usePersistentScroll'
+import {
+  planningWeekDateIsoForWeekNumber,
+  weekLabelForIsoDate,
+  weekNumberForYearWeekLabel,
+  type PlanningWeekConfig,
+} from '@/lib/calculations/planning-week'
+import { formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
 import { withAppBasePath } from '@/lib/base-path'
 import '@/styles/custom-table.css'
@@ -53,6 +61,9 @@ export interface PaymentSummary {
 interface CustomPurchasePaymentsGridProps {
   payments: PurchasePaymentRow[]
   activeOrderId?: string | null
+  activeYear?: number | null
+  planningWeekConfig?: PlanningWeekConfig | null
+  scrollKey?: string | null
   onSelectOrder?: (orderId: string) => void
   onAddPayment?: () => void
   onRemovePayment?: (paymentId: string) => Promise<void> | void
@@ -66,8 +77,10 @@ interface CustomPurchasePaymentsGridProps {
 type ColumnDef = {
   key: keyof PurchasePaymentRow
   header: string
+  headerWeeks?: string
+  headerDates?: string
   width: number
-  type: 'text' | 'numeric' | 'percent' | 'date' | 'currency'
+  type: 'text' | 'numeric' | 'percent' | 'date' | 'currency' | 'schedule'
   editable: boolean
   precision?: number
 }
@@ -75,12 +88,21 @@ type ColumnDef = {
 const COLUMNS: ColumnDef[] = [
   { key: 'orderCode', header: 'PO Code', width: 120, type: 'text', editable: false },
   { key: 'label', header: 'Invoice', width: 140, type: 'text', editable: false },
-  { key: 'weekNumber', header: 'Week', width: 70, type: 'text', editable: false },
-  { key: 'dueDateIso', header: 'Due Date', width: 130, type: 'date', editable: true },
+  {
+    key: 'weekNumber',
+    header: 'Week',
+    headerWeeks: 'Week',
+    headerDates: 'Due Date',
+    width: 130,
+    type: 'schedule',
+    editable: true,
+  },
   { key: 'percentage', header: 'Percent', width: 90, type: 'percent', editable: false, precision: 2 },
   { key: 'amountExpected', header: 'Expected $', width: 110, type: 'currency', editable: false, precision: 2 },
   { key: 'amountPaid', header: 'Paid $', width: 110, type: 'currency', editable: true, precision: 2 },
 ]
+
+type ScheduleMode = 'weeks' | 'dates'
 
 function normalizeNumeric(value: unknown, fractionDigits = 2): string {
   return formatNumericInput(value, fractionDigits)
@@ -99,9 +121,42 @@ function parseNumericInput(value: string | null | undefined): number | null {
   return Number.isNaN(num) ? null : num
 }
 
+function parseWeekNumber(value: string): number | null {
+  if (!value || value.trim() === '') return null
+  const parsed = Number.parseInt(value, 10)
+  if (Number.isNaN(parsed) || parsed <= 0) return null
+  return parsed
+}
+
+function getHeaderLabel(column: ColumnDef, scheduleMode: ScheduleMode): string {
+  if (column.type === 'schedule') {
+    return scheduleMode === 'weeks'
+      ? column.headerWeeks ?? column.header
+      : column.headerDates ?? column.header
+  }
+  return column.header
+}
+
+function getCellEditValue(row: PurchasePaymentRow, column: ColumnDef, scheduleMode: ScheduleMode): string {
+  if (column.type === 'schedule') {
+    return scheduleMode === 'weeks' ? row.weekNumber : row.dueDateIso ?? ''
+  }
+
+  if (column.type === 'date') {
+    const raw = row[column.key]
+    return raw === null || raw === undefined ? '' : String(raw)
+  }
+
+  const raw = row[column.key]
+  return raw === null || raw === undefined ? '' : String(raw)
+}
+
 export function CustomPurchasePaymentsGrid({
   payments,
   activeOrderId,
+  activeYear,
+  planningWeekConfig,
+  scrollKey,
   onSelectOrder,
   onAddPayment,
   onRemovePayment,
@@ -111,13 +166,20 @@ export function CustomPurchasePaymentsGrid({
   orderSummaries,
   summaryLine,
 }: CustomPurchasePaymentsGridProps) {
+  const [scheduleMode, setScheduleMode] = usePersistentState<ScheduleMode>(
+    'xplan:ops:payments-schedule-mode',
+    'dates'
+  )
   const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof PurchasePaymentRow } | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
+  const tableScrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const rowsRef = useRef<PurchasePaymentRow[]>(payments)
+
+  usePersistentScroll(scrollKey ?? null, true, () => tableScrollRef.current)
 
   useEffect(() => {
     rowsRef.current = payments
@@ -209,6 +271,13 @@ export function CustomPurchasePaymentsGrid({
 
   const summaryText = summaryLine ?? computedSummaryLine
 
+  const toggleScheduleMode = useCallback(() => {
+    setIsDatePickerOpen(false)
+    setEditingCell(null)
+    setEditValue('')
+    setScheduleMode((previous) => (previous === 'weeks' ? 'dates' : 'weeks'))
+  }, [setScheduleMode])
+
   const startEditing = (rowId: string, colKey: keyof PurchasePaymentRow, currentValue: string) => {
     setIsDatePickerOpen(false)
     setEditingCell({ rowId, colKey })
@@ -247,17 +316,43 @@ export function CustomPurchasePaymentsGrid({
         return
       }
       finalValue = normalizeNumeric(finalValue, column.precision ?? 2)
-    } else if (column.type === 'date') {
-      // For date columns, convert to ISO
-      if (finalValue) {
-        const iso = toIsoDate(finalValue)
-        finalValue = iso ?? ''
+    } else if (column.type === 'schedule') {
+      if (scheduleMode === 'dates') {
+        if (!finalValue || finalValue.trim() === '') {
+          finalValue = ''
+        } else {
+          const iso = toIsoDate(finalValue)
+          if (!iso) {
+            toast.error('Invalid date')
+            cancelEditing()
+            return
+          }
+          finalValue = iso
+        }
+      } else {
+        if (!finalValue || finalValue.trim() === '') {
+          finalValue = ''
+        } else {
+          const weekNumber = parseWeekNumber(finalValue)
+          if (!weekNumber || weekNumber > 53) {
+            toast.error('Invalid week number')
+            cancelEditing()
+            return
+          }
+          finalValue = String(weekNumber)
+        }
       }
     }
 
     // Get the current value for comparison
-    const currentValue = row[colKey]
-    const currentValueStr = currentValue === null || currentValue === undefined ? '' : String(currentValue)
+    const currentValueStr =
+      colKey === 'weekNumber' && column.type === 'schedule'
+        ? scheduleMode === 'dates'
+          ? row.dueDateIso ?? ''
+          : row.weekNumber ?? ''
+        : row[colKey] === null || row[colKey] === undefined
+          ? ''
+          : String(row[colKey])
 
     // Don't update if value hasn't changed
     if (currentValueStr === finalValue) {
@@ -274,16 +369,48 @@ export function CustomPurchasePaymentsGrid({
     // Create updated row
     const updatedRow = { ...row }
 
-    if (colKey === 'dueDateIso') {
-      const iso = finalValue
-      const week = deriveIsoWeek(iso)
-      entry.values.dueDate = iso
-      entry.values.dueDateSource = iso ? 'USER' : 'SYSTEM'
-      entry.values.weekNumber = week
-      updatedRow.dueDateIso = iso || null
-      updatedRow.dueDate = iso ? formatDateDisplay(iso) : ''
-      updatedRow.dueDateSource = iso ? 'USER' : 'SYSTEM'
-      updatedRow.weekNumber = week
+    if (colKey === 'weekNumber') {
+      if (scheduleMode === 'dates') {
+        const iso = finalValue
+        entry.values.dueDate = iso
+        entry.values.dueDateSource = iso ? 'USER' : 'SYSTEM'
+        updatedRow.dueDateIso = iso || null
+        updatedRow.dueDate = iso ? formatDateDisplay(iso) : ''
+        updatedRow.dueDateSource = iso ? 'USER' : 'SYSTEM'
+        updatedRow.weekNumber = planningWeekConfig
+          ? weekLabelForIsoDate(iso, planningWeekConfig)
+          : row.weekNumber ?? ''
+      } else {
+        if (!finalValue || finalValue.trim() === '') {
+          entry.values.dueDate = ''
+          entry.values.dueDateSource = 'SYSTEM'
+          updatedRow.dueDateIso = null
+          updatedRow.dueDate = ''
+          updatedRow.dueDateSource = 'SYSTEM'
+          updatedRow.weekNumber = ''
+        } else {
+          if (!planningWeekConfig) {
+            toast.error('Planning calendar unavailable')
+            cancelEditing()
+            return
+          }
+          const year = activeYear ?? new Date().getFullYear()
+          const weekLabel = parseWeekNumber(finalValue)
+          const globalWeekNumber = weekNumberForYearWeekLabel(year, weekLabel, planningWeekConfig)
+          const iso = planningWeekDateIsoForWeekNumber(globalWeekNumber, planningWeekConfig)
+          if (!iso) {
+            toast.error('Invalid week number for selected year')
+            cancelEditing()
+            return
+          }
+          entry.values.dueDate = iso
+          entry.values.dueDateSource = 'USER'
+          updatedRow.dueDateIso = iso
+          updatedRow.dueDate = formatDateDisplay(iso)
+          updatedRow.dueDateSource = 'USER'
+          updatedRow.weekNumber = finalValue
+        }
+      }
     } else if (colKey === 'amountPaid') {
       // Validate that amount doesn't exceed planned
       const plannedAmount = orderSummaries?.get(row.purchaseOrderId)?.plannedAmount ?? 0
@@ -320,7 +447,17 @@ export function CustomPurchasePaymentsGrid({
 
     scheduleFlush()
     cancelEditing()
-  }, [editingCell, editValue, pendingRef, scheduleFlush, onRowsChange, orderSummaries])
+  }, [
+    activeYear,
+    editingCell,
+    editValue,
+    pendingRef,
+    scheduleFlush,
+    onRowsChange,
+    orderSummaries,
+    planningWeekConfig,
+    scheduleMode,
+  ])
 
   const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
     let idx = startIndex + direction
@@ -337,8 +474,7 @@ export function CustomPurchasePaymentsGrid({
     const column = COLUMNS[colIndex]
     if (!column.editable) return
     const row = data[rowIndex]
-    const rawValue = row[column.key] ?? ''
-    startEditing(row.id, column.key, typeof rawValue === 'string' ? rawValue : String(rawValue))
+    startEditing(row.id, column.key, getCellEditValue(row, column, scheduleMode))
   }
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -444,8 +580,7 @@ export function CustomPurchasePaymentsGrid({
     onSelectOrder?.(row.purchaseOrderId)
     setSelectedPaymentId(row.id)
     if (column.editable) {
-      const rawValue = row[column.key] ?? ''
-      startEditing(row.id, column.key, typeof rawValue === 'string' ? rawValue : String(rawValue))
+      startEditing(row.id, column.key, getCellEditValue(row, column, scheduleMode))
     }
   }
 
@@ -454,6 +589,13 @@ export function CustomPurchasePaymentsGrid({
   }
 
   const formatDisplayValue = (row: PurchasePaymentRow, column: ColumnDef): string => {
+    if (column.type === 'schedule') {
+      if (scheduleMode === 'dates') {
+        return row.dueDateIso ? formatDateDisplay(row.dueDateIso) : ''
+      }
+      return row.weekNumber ?? ''
+    }
+
     const value = row[column.key]
     if (value === null || value === undefined || value === '') return ''
 
@@ -480,12 +622,13 @@ export function CustomPurchasePaymentsGrid({
   const renderCell = (row: PurchasePaymentRow, column: ColumnDef) => {
     const isEditing = editingCell?.rowId === row.id && editingCell?.colKey === column.key
     const displayValue = formatDisplayValue(row, column)
+    const isScheduleDate = column.type === 'schedule' && scheduleMode === 'dates'
 
     const cellClasses = [
       column.editable ? 'ops-cell-editable' : 'ops-cell-readonly',
       column.type === 'currency' || column.type === 'percent' ? 'ops-cell-numeric' : '',
-      column.type === 'date' ? 'ops-cell-date' : '',
-      column.key === 'weekNumber' ? 'text-center' : '',
+      column.type === 'date' || isScheduleDate ? 'ops-cell-date' : '',
+      column.key === 'weekNumber' && !isScheduleDate ? 'text-center' : '',
     ]
       .filter(Boolean)
       .join(' ')
@@ -497,7 +640,7 @@ export function CustomPurchasePaymentsGrid({
           className={cellClasses}
           style={{ width: column.width, minWidth: column.width }}
         >
-	          {column.type === 'date' ? (
+	          {column.type === 'date' || isScheduleDate ? (
 	            <Flatpickr
 	              value={editValue}
 	              options={{
@@ -548,7 +691,7 @@ export function CustomPurchasePaymentsGrid({
       )
     }
 
-    const showPlaceholder = column.type === 'date' && !displayValue
+    const showPlaceholder = (column.type === 'date' || isScheduleDate) && !displayValue
     const displayContent = showPlaceholder ? (
       <span className="ops-cell-placeholder">Click to select</span>
     ) : (
@@ -615,13 +758,28 @@ export function CustomPurchasePaymentsGrid({
       </header>
 
       <div className="ops-table-container">
-        <div className="ops-table-body-scroll">
+        <div ref={tableScrollRef} className="ops-table-body-scroll">
           <table className="ops-table">
             <thead>
               <tr>
                 {COLUMNS.map((column) => (
                   <th key={column.key} style={{ width: column.width, minWidth: column.width }}>
-                    {column.header}
+                    {column.type === 'schedule' ? (
+                      <button
+                        type="button"
+                        className="ops-header-toggle"
+                        title={`Click to switch to ${scheduleMode === 'weeks' ? 'date' : 'week'} input`}
+                        onClick={(event) => {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          toggleScheduleMode()
+                        }}
+                      >
+                        {getHeaderLabel(column, scheduleMode)}
+                      </button>
+                    ) : (
+                      getHeaderLabel(column, scheduleMode)
+                    )}
                   </th>
                 ))}
               </tr>

@@ -200,6 +200,7 @@ type ReorderCueMeta = {
 interface SalesPlanningGridProps {
   strategyId: string;
   rows: SalesRow[];
+  hiddenRowIndices?: number[];
   columnMeta: ColumnMeta;
   nestedHeaders: NestedHeaderCell[][];
   columnKeys: string[];
@@ -213,6 +214,7 @@ interface SalesPlanningGridProps {
 export function SalesPlanningGrid({
   strategyId,
   rows,
+  hiddenRowIndices,
   columnMeta,
   nestedHeaders,
   columnKeys,
@@ -224,6 +226,7 @@ export function SalesPlanningGrid({
 }: SalesPlanningGridProps) {
   const hotRef = useRef<Handsontable | null>(null);
   const focusContext = useContext(SalesPlanningFocusContext);
+  const scrollRestoreRequestRef = useRef(0);
   const [activeStockMetric, setActiveStockMetric] = usePersistentState<StockMetricId>(
     'xplan:sales-grid:metric',
     'stockWeeks',
@@ -250,11 +253,11 @@ export function SalesPlanningGrid({
 
   const preserveScrollPosition = useCallback((action: () => void) => {
     const scroll = getHandsontableScroll(hotRef.current);
-    const root = hotRef.current?.rootElement ?? null;
     action();
     if (!scroll) return;
 
-    const holder = getHandsontableScrollHolder(hotRef.current);
+    scrollRestoreRequestRef.current += 1;
+    const requestId = scrollRestoreRequestRef.current;
 
     let userInteracted = false;
 
@@ -262,19 +265,42 @@ export function SalesPlanningGrid({
       userInteracted = true;
     };
 
-    root?.addEventListener('wheel', markUserIntent, { passive: true });
-    root?.addEventListener('touchmove', markUserIntent, { passive: true });
+    const markUserIntentWithinHot = (event: Event) => {
+      const root = hotRef.current?.rootElement ?? null;
+      if (!root) return;
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (!root.contains(target)) return;
+      markUserIntent();
+    };
+
+    const holder = getHandsontableScrollHolder(hotRef.current);
+
+    // Use capture on window to ensure we detect wheel/touch events even if Handsontable
+    // stops propagation within the table. This prevents scroll restore from fighting user scroll.
+    window.addEventListener('wheel', markUserIntentWithinHot, { passive: true, capture: true });
+    window.addEventListener('touchmove', markUserIntentWithinHot, { passive: true, capture: true });
+    window.addEventListener('pointerdown', markUserIntentWithinHot, { passive: true, capture: true });
+
+    holder?.addEventListener('wheel', markUserIntent, { passive: true, capture: true });
     holder?.addEventListener('scroll', markUserIntent, { passive: true });
 
     const cleanup = () => {
-      root?.removeEventListener('wheel', markUserIntent);
-      root?.removeEventListener('touchmove', markUserIntent);
+      window.removeEventListener('wheel', markUserIntentWithinHot, { capture: true });
+      window.removeEventListener('touchmove', markUserIntentWithinHot, { capture: true });
+      window.removeEventListener('pointerdown', markUserIntentWithinHot, { capture: true });
+
+      holder?.removeEventListener('wheel', markUserIntent, { capture: true });
       holder?.removeEventListener('scroll', markUserIntent);
     };
 
     const threshold = 4;
 
     const attemptRestore = (attempt = 0) => {
+      if (requestId !== scrollRestoreRequestRef.current) {
+        cleanup();
+        return;
+      }
       if (userInteracted) {
         cleanup();
         return;
@@ -292,7 +318,11 @@ export function SalesPlanningGrid({
 
       const deltaTop = Math.abs(current.top - scroll.top);
       const deltaLeft = Math.abs(current.left - scroll.left);
-      if (deltaTop > threshold || deltaLeft > threshold) {
+      const shouldRestoreTop =
+        current.top <= threshold && scroll.top > threshold && deltaTop > threshold;
+      const shouldRestoreLeft =
+        current.left <= threshold && scroll.left > threshold && deltaLeft > threshold;
+      if (shouldRestoreTop || shouldRestoreLeft) {
         restoreHandsontableScroll(hotRef.current, scroll);
       }
       cleanup();
@@ -736,7 +766,11 @@ export function SalesPlanningGrid({
         }
 
         hot.batchRender(() => {
-          hot.setDataAtRowProp(slicedChanges, 'derived-update');
+          for (const [rowIndex, prop, value] of slicedChanges) {
+            const record = sourceData[rowIndex];
+            if (!record) continue;
+            record[prop] = value;
+          }
         });
         return;
       }
@@ -875,6 +909,8 @@ export function SalesPlanningGrid({
         button.textContent = label;
         button.title = title;
 
+        let pointerTriggered = false;
+
         const trigger = (event: Event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -886,24 +922,40 @@ export function SalesPlanningGrid({
 
         const supportsPointer = typeof window !== 'undefined' && 'PointerEvent' in window;
         if (supportsPointer) {
-          button.addEventListener('pointerdown', trigger, { capture: true });
+          button.addEventListener(
+            'pointerdown',
+            (event) => {
+              pointerTriggered = true;
+              trigger(event);
+            },
+            { capture: true },
+          );
         } else {
-          button.addEventListener('mousedown', trigger, { capture: true });
+          button.addEventListener(
+            'mousedown',
+            (event) => {
+              pointerTriggered = true;
+              trigger(event);
+            },
+            { capture: true },
+          );
         }
 
         button.addEventListener('click', (event) => {
           event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation();
-          if ((event as MouseEvent).detail === 0) {
-            trigger(event);
+          if (pointerTriggered) {
+            pointerTriggered = false;
+            return;
           }
+          trigger(event);
         });
         TH.appendChild(button);
       };
 
       if (meta.field === activeStockMetric) {
-        const stockLabel = activeStockMetric === 'stockWeeks' ? 'Stockout (Wks)' : 'Stock Qty';
+        const stockLabel = activeStockMetric === 'stockWeeks' ? 'Stockout' : 'Stock Qty';
         const stockTitle = activeStockMetric === 'stockWeeks' ? 'Stockout (Weeks)' : 'Stock Qty';
         renderToggle(stockLabel, () => {
           preserveScrollPosition(() => {
@@ -992,6 +1044,11 @@ export function SalesPlanningGrid({
           undo
           comments={true}
           hiddenColumns={{ columns: hiddenColumns, indicators: true }}
+          hiddenRows={
+            hiddenRowIndices && hiddenRowIndices.length > 0
+              ? { rows: hiddenRowIndices, indicators: false }
+              : undefined
+          }
           autoColumnSize={false}
           colWidths={columnWidths}
           beforeStretchingColumnWidth={clampStretchWidth}
@@ -1180,13 +1237,11 @@ export function SalesPlanningGrid({
                 minRowByProduct.set(meta.productId, rowIndex);
               }
             }
-            if (changedProductIds.size > 0) {
-              preserveScrollPosition(() => {
-                for (const productId of changedProductIds) {
-                  recomputeDerivedForProduct(productId, minRowByProduct.get(productId) ?? null);
-                }
-              });
-            }
+	            if (changedProductIds.size > 0) {
+	              for (const productId of changedProductIds) {
+	                recomputeDerivedForProduct(productId, minRowByProduct.get(productId) ?? null);
+	              }
+	            }
             scheduleFlush();
           }}
           afterSelectionEnd={() => {

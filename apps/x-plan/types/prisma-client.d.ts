@@ -83,6 +83,7 @@ declare module '@ecom-os/prisma-x-plan' {
     overrideManufacturingCost?: number | null;
     overrideFreightCost?: number | null;
     overrideTariffRate?: number | null;
+    overrideTariffCost?: number | null;
     overrideTacosPercent?: number | null;
     overrideFbaFee?: number | null;
     overrideReferralRate?: number | null;

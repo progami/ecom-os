@@ -303,11 +303,14 @@ export function computePurchaseOrderDerived(
       product.freightCost,
       batch.overrideFreightCost ?? orderFreightOverride ?? null,
     )
-    const tariffRate = resolveOverride(
+    const tariffRateInput = resolveOverride(
       product.tariffRate,
       parsePercent(batch.overrideTariffRate ?? orderTariffOverride ?? null),
     )
-    const tariffUnitCost = manufacturingUnitCost * tariffRate
+    const tariffCostOverride = parseNumber(batch.overrideTariffCost)
+    const tariffUnitCost = tariffCostOverride ?? manufacturingUnitCost * tariffRateInput
+    const effectiveTariffRate =
+      manufacturingUnitCost > 0 ? tariffUnitCost / manufacturingUnitCost : tariffRateInput
     const batchManufacturingTotal = manufacturingUnitCost * quantity
     const batchFreightTotal = freightUnitCost * quantity
     const batchTariffTotal = tariffUnitCost * quantity
@@ -332,7 +335,7 @@ export function computePurchaseOrderDerived(
       sellingPrice,
       manufacturingCost: manufacturingUnitCost,
       freightCost: freightUnitCost,
-      tariffRate,
+      tariffRate: effectiveTariffRate,
       tacosPercent,
       fbaFee,
       amazonReferralRate: referralRate,
@@ -453,7 +456,7 @@ export function computePurchaseOrderDerived(
       label: 'Freight (100%)',
       baseAmount: freightTotal,
       defaultPercent: supplierDenominator > 0 ? freightTotal / supplierDenominator : 0,
-      defaultDate: freightDate ?? productionDate ?? depositDate ?? createdAt,
+      defaultDate: portDate ?? inboundEta ?? availableDate ?? freightDate ?? productionDate ?? depositDate ?? createdAt,
     },
     {
       index: 4,
