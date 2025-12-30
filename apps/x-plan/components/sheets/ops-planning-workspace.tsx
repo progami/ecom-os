@@ -40,6 +40,7 @@ import {
 import { formatNumericInput, formatPercentInput, parseNumericInput } from '@/components/sheets/validators'
 import { deriveIsoWeek, formatDateDisplay, parseDate, toIsoDate } from '@/lib/utils/dates'
 import { withAppBasePath } from '@/lib/base-path'
+import { usePersistentState } from '@/hooks/usePersistentState'
 
 const BATCH_NUMERIC_PRECISION = {
   quantity: 0,
@@ -755,8 +756,14 @@ export function OpsPlanningWorkspace({
   const [orders, setOrders] = useState<PurchaseOrderInput[]>(initialOrders)
   const [paymentRows, setPaymentRows] = useState<PurchasePaymentRow[]>(initialPayments)
   const [batchRows, setBatchRows] = useState<OpsBatchRow[]>(initialBatchRows)
-  const [activeOrderId, setActiveOrderId] = useState<string | null>(poTableRows[0]?.id ?? null)
-  const [activeBatchId, setActiveBatchId] = useState<string | null>(null)
+  const [activeOrderId, setActiveOrderId] = usePersistentState<string | null>(
+    `xplan:ops:active-order:${strategyId}`,
+    poTableRows[0]?.id ?? null,
+  )
+  const [activeBatchId, setActiveBatchId] = usePersistentState<string | null>(
+    `xplan:ops:active-batch:${strategyId}`,
+    null,
+  )
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false)
   const [newOrderCode, setNewOrderCode] = useState('')
   const [isAddingPayment, setIsAddingPayment] = useState(false)
@@ -940,16 +947,23 @@ useEffect(() => {
     if (!activeOrderId || !inputRows.some((row) => row.id === activeOrderId)) {
       setActiveOrderId(inputRows[0].id)
     }
-  }, [inputRows, activeOrderId])
+  }, [inputRows, activeOrderId, setActiveOrderId])
 
   useEffect(() => {
     if (!activeOrderId) {
       setActiveBatchId(null)
       return
     }
-    const firstBatch = batchRows.find((row) => row.purchaseOrderId === activeOrderId)
-    setActiveBatchId(firstBatch?.id ?? null)
-  }, [activeOrderId, batchRows])
+    const matchingBatches = batchRows.filter((row) => row.purchaseOrderId === activeOrderId)
+    if (matchingBatches.length === 0) {
+      setActiveBatchId(null)
+      return
+    }
+    if (activeBatchId && matchingBatches.some((row) => row.id === activeBatchId)) {
+      return
+    }
+    setActiveBatchId(matchingBatches[0]?.id ?? null)
+  }, [activeOrderId, activeBatchId, batchRows, setActiveBatchId])
 
   const handleInputRowsChange = useCallback(
     (updatedRows: OpsInputRow[]) => {
@@ -1072,7 +1086,7 @@ useEffect(() => {
 
   const handleSelectBatch = useCallback((batchId: string) => {
     setActiveBatchId(batchId)
-  }, [])
+  }, [setActiveBatchId])
 
   const handleAddBatch = useCallback(() => {
     const orderId = activeOrderId
@@ -1166,7 +1180,7 @@ useEffect(() => {
         toast.error(error instanceof Error ? error.message : 'Unable to add batch')
       }
     })
-  }, [activeOrderId, applyTimelineUpdate, productNameIndex, productOptions, startTransition])
+  }, [activeOrderId, applyTimelineUpdate, productNameIndex, productOptions, setActiveBatchId, startTransition])
 
   const performDeleteBatch = useCallback((batchId: string) => {
     const batch = batchRowsRef.current.find((row) => row.id === batchId)
@@ -1444,7 +1458,7 @@ useEffect(() => {
         }
       })
     },
-    [activeOrderId, router, startTransition]
+    [activeOrderId, router, setActiveOrderId, startTransition]
   )
 
   const handleDeleteOrder = useCallback((orderId: string) => {
@@ -1491,7 +1505,7 @@ useEffect(() => {
         }
       })
     },
-    [router, startTransition],
+    [router, setActiveOrderId, startTransition],
   )
 
   const handleCreateOrder = useCallback(() => {
@@ -1544,7 +1558,7 @@ useEffect(() => {
         toast.error(error instanceof Error ? error.message : 'Unable to create purchase order')
       }
     })
-  }, [strategyId, newOrderCode, productOptions, router, startTransition])
+  }, [strategyId, newOrderCode, productOptions, router, setActiveOrderId, startTransition])
 
   return (
     <div className="space-y-8">
@@ -1553,6 +1567,7 @@ useEffect(() => {
           <CustomOpsPlanningGrid
             rows={inputRows}
             activeOrderId={activeOrderId}
+            scrollKey={`ops-planning:po:${strategyId}`}
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}
             onRowsChange={handleInputRowsChange}
             onCreateOrder={() => setIsCreateOrderOpen(true)}
@@ -1614,6 +1629,7 @@ useEffect(() => {
             rows={visibleBatches}
             activeOrderId={activeOrderId}
             activeBatchId={activeBatchId}
+            scrollKey={`ops-planning:batch:${strategyId}`}
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}
             onSelectBatch={handleSelectBatch}
             onRowsChange={handleBatchRowsChange}
@@ -1628,6 +1644,7 @@ useEffect(() => {
             payments={visiblePayments}
             activeOrderId={activeOrderId}
             activeYear={activeYear}
+            scrollKey={`ops-planning:payments:${strategyId}`}
             onSelectOrder={(orderId) => setActiveOrderId(orderId)}
             onAddPayment={handleAddPayment}
             onRemovePayment={handleRemovePayment}
