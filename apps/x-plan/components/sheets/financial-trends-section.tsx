@@ -692,7 +692,7 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
                       textAnchor="middle"
                       className="fill-slate-500 dark:fill-slate-400 text-[10px]"
                     >
-                      {label}
+                      {label.split(' · ')[0]}
                     </text>
                   </g>
                 )
@@ -736,7 +736,7 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
       </div>
 
       {/* Bottom legend */}
-      <div className="flex flex-wrap items-center gap-4 border-t border-slate-200 pt-4 dark:border-[#0b3a52]">
+      <div className="mt-6 flex items-center gap-6 border-t border-slate-200 pt-4 dark:border-[#0b3a52]">
         {metrics.map((metric) => {
           const palette = accentPalette[metric.accent]
           const isEnabled = enabledMetrics.some((m) => m.key === metric.key)
@@ -745,18 +745,15 @@ function MultiMetricChart({ metrics, enabledMetrics, granularity, onToggleMetric
               key={metric.key}
               type="button"
               onClick={() => onToggleMetric(metric.key)}
-              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                isEnabled
-                  ? `${palette.bg} ${palette.text}`
-                  : 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500'
-              }`}
+              className="flex items-center gap-2"
             >
               <div
-                className="h-3 w-6 rounded-sm"
+                className="h-3 w-8 rounded-sm"
                 style={{ backgroundColor: isEnabled ? palette.hex : '#94a3b8' }}
               />
-              {metric.title}
-              {isEnabled && <Check className="h-3 w-3" />}
+              <span className={`text-xs ${isEnabled ? 'text-slate-600 dark:text-[#6F7B8B]' : 'text-slate-400 dark:text-slate-500'}`}>
+                {metric.title}
+              </span>
             </button>
           )
         })}
