@@ -1,44 +1,42 @@
 'use client';
 
 import { addWeeks } from 'date-fns';
+import { clsx } from 'clsx';
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
+  type ClipboardEvent,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
 } from 'react';
-import { HotTable } from '@handsontable/react-wrapper';
-import Handsontable from 'handsontable';
-import { registerAllModules } from 'handsontable/registry';
+import {
+  createColumnHelper,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+  type ColumnDef,
+} from '@tanstack/react-table';
 import { toast } from 'sonner';
 import { SelectionStatsBar } from '@/components/ui/selection-stats-bar';
 import {
   formatNumericInput,
-  numericValidator,
   parseNumericInput,
+  sanitizeNumeric,
 } from '@/components/sheets/validators';
 import { useMutationQueue } from '@/hooks/useMutationQueue';
-import { useHandsontableThemeName } from '@/hooks/useHandsontableThemeName';
-import { usePersistentHandsontableScroll } from '@/hooks/usePersistentHandsontableScroll';
-import {
-  SHEET_TOOLBAR_GROUP,
-  SHEET_TOOLBAR_LABEL,
-  SHEET_TOOLBAR_SELECT,
-} from '@/components/sheet-toolbar';
+import { usePersistentScroll } from '@/hooks/usePersistentScroll';
 import { usePersistentState } from '@/hooks/usePersistentState';
 import { withAppBasePath } from '@/lib/base-path';
-import {
-  finishEditingSafely,
-  getSelectionStats,
-  type HandsontableSelectionStats,
-} from '@/lib/handsontable';
+import type { HandsontableSelectionStats } from '@/lib/handsontable';
 import { formatDateDisplay } from '@/lib/utils/dates';
-
-registerAllModules();
 
 const PLANNING_ANCHOR_WEEK = 1;
 const PLANNING_ANCHOR_DATE = new Date('2025-01-05T00:00:00.000Z');
@@ -47,42 +45,18 @@ function formatWeekDateFallback(weekNumber: number): string {
   return formatDateDisplay(addWeeks(PLANNING_ANCHOR_DATE, weekNumber - PLANNING_ANCHOR_WEEK));
 }
 
-function getHandsontableScrollHolder(hot: Handsontable | null): HTMLElement | null {
-  if (!hot?.rootElement) return null;
-  return (
-    (hot.rootElement.querySelector('.ht_master .wtHolder') as HTMLElement | null) ??
-    (hot.rootElement.querySelector('.wtHolder') as HTMLElement | null)
-  );
-}
-
-function getHandsontableScroll(hot: Handsontable | null): { top: number; left: number } | null {
-  const holder = getHandsontableScrollHolder(hot);
-  if (!holder) return null;
-  return { top: holder.scrollTop, left: holder.scrollLeft };
-}
-
-function restoreHandsontableScroll(
-  hot: Handsontable | null,
-  scroll: { top: number; left: number },
-): boolean {
-  const holder = getHandsontableScrollHolder(hot);
-  if (!holder) return false;
-  holder.scrollTop = scroll.top;
-  holder.scrollLeft = scroll.left;
-  return true;
-}
-
 type SalesRow = {
   weekNumber: string;
   weekLabel: string;
   weekDate: string;
+  arrivalDetail?: string;
   arrivalNote?: string;
   [key: string]: string | undefined;
 };
 
 type ColumnMeta = Record<string, { productId: string; field: string }>;
 type NestedHeaderCell = string | { label: string; colspan?: number; rowspan?: number };
-type HandsontableNestedHeaders = NonNullable<Handsontable.GridSettings['nestedHeaders']>;
+
 const editableMetrics = new Set(['actualSales', 'forecastSales']);
 const BASE_SALES_METRICS = [
   'stockStart',
@@ -92,7 +66,7 @@ const BASE_SALES_METRICS = [
   'finalSalesError',
 ] as const;
 const STOCK_METRIC_OPTIONS = [
-  { id: 'stockWeeks', label: 'Stockout (Weeks)' },
+  { id: 'stockWeeks', label: 'Stockout' },
   { id: 'stockEnd', label: 'Stock Qty' },
 ] as const;
 type StockMetricId = (typeof STOCK_METRIC_OPTIONS)[number]['id'];
@@ -100,6 +74,8 @@ type StockMetricId = (typeof STOCK_METRIC_OPTIONS)[number]['id'];
 const WEEK_COLUMN_WIDTH = 92;
 const DATE_COLUMN_WIDTH = 136;
 const METRIC_MIN_WIDTH = 132;
+const HEADER_ROW_HEIGHT = 34;
+const BODY_ROW_HEIGHT = 32;
 
 function isEditableMetric(field: string | undefined) {
   return Boolean(field && editableMetrics.has(field));
@@ -148,12 +124,14 @@ export function SalesPlanningFocusControl({
   const { focusProductId, setFocusProductId } = context;
 
   return (
-    <label className={`${SHEET_TOOLBAR_GROUP} cursor-pointer`}>
-      <span className={SHEET_TOOLBAR_LABEL}>Focus SKU</span>
+    <label className="flex items-center gap-2">
+      <span className="text-xs font-semibold uppercase tracking-[0.1em] text-cyan-700 dark:text-cyan-300/90">
+        Focus SKU
+      </span>
       <select
         value={focusProductId}
         onChange={(event) => setFocusProductId(event.target.value)}
-        className={SHEET_TOOLBAR_SELECT}
+        className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-600 dark:border-white/15 dark:bg-white/5 dark:text-slate-200 dark:focus-visible:outline-[#00C2B9]"
       >
         <option value="ALL">Show all</option>
         {productOptions.map((option) => (
@@ -211,12 +189,103 @@ interface SalesPlanningGridProps {
   reorderCueByProduct: Map<string, ReorderCueMeta>;
 }
 
+type CellCoords = { row: number; col: number };
+type CellRange = { from: CellCoords; to: CellCoords };
+
+function normalizeRange(range: CellRange): { top: number; bottom: number; left: number; right: number } {
+  const top = Math.min(range.from.row, range.to.row);
+  const bottom = Math.max(range.from.row, range.to.row);
+  const left = Math.min(range.from.col, range.to.col);
+  const right = Math.max(range.from.col, range.to.col);
+  return { top, bottom, left, right };
+}
+
+function formatNumberDisplay(value: unknown, useGrouping: boolean): string {
+  const parsed = typeof value === 'number' ? value : sanitizeNumeric(value);
+  if (!Number.isFinite(parsed)) return '';
+  return parsed.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping,
+  });
+}
+
+function formatBatchComment(allocations: BatchAllocationMeta[]): string {
+  if (!allocations || allocations.length === 0) return '';
+  const lines = allocations.map((alloc) => {
+    const batchId = alloc.batchCode || alloc.orderCode;
+    const qty = Number(alloc.quantity).toFixed(0);
+    const price = Number(alloc.sellingPrice).toFixed(2);
+    const cost = Number(alloc.landedUnitCost).toFixed(3);
+    return `${batchId}: ${qty} units @ $${price} (cost: $${cost})`;
+  });
+  return `FIFO Batch Allocation:\n${lines.join('\n')}`;
+}
+
+function parseNumericCandidate(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string') return null;
+
+  let raw = value.trim();
+  if (!raw || raw === '∞') return null;
+
+  let isNegative = false;
+  if (raw.startsWith('(') && raw.endsWith(')')) {
+    isNegative = true;
+    raw = raw.slice(1, -1).trim();
+  }
+
+  const normalized = raw.replace(/[$,%\s]/g, '').replace(/,/g, '');
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed)) return null;
+  return isNegative ? -parsed : parsed;
+}
+
+function computeSelectionStatsFromData(
+  data: SalesRow[],
+  visibleRowIndices: number[],
+  columnIds: string[],
+  range: CellRange | null,
+): HandsontableSelectionStats | null {
+  if (!range) return null;
+  const { top, bottom, left, right } = normalizeRange(range);
+  if (top < 0 || left < 0) return null;
+
+  let cellCount = 0;
+  let numericCount = 0;
+  let sum = 0;
+
+  for (let rowIndex = top; rowIndex <= bottom; rowIndex += 1) {
+    const absoluteRowIndex = visibleRowIndices[rowIndex];
+    const row = data[absoluteRowIndex];
+    if (!row) continue;
+
+    for (let colIndex = left; colIndex <= right; colIndex += 1) {
+      const columnId = columnIds[colIndex];
+      if (!columnId) continue;
+      cellCount += 1;
+      const numeric = parseNumericCandidate(row[columnId]);
+      if (numeric == null) continue;
+      numericCount += 1;
+      sum += numeric;
+    }
+  }
+
+  if (cellCount === 0) return null;
+  return {
+    rangeCount: 1,
+    cellCount,
+    numericCount,
+    sum,
+    average: numericCount > 0 ? sum / numericCount : null,
+  };
+}
+
 export function SalesPlanningGrid({
   strategyId,
   rows,
   hiddenRowIndices,
   columnMeta,
-  nestedHeaders,
   columnKeys,
   productOptions,
   stockWarningWeeks,
@@ -224,9 +293,10 @@ export function SalesPlanningGrid({
   batchAllocations,
   reorderCueByProduct,
 }: SalesPlanningGridProps) {
-  const hotRef = useRef<Handsontable | null>(null);
+  const columnHelper = useMemo(() => createColumnHelper<SalesRow>(), []);
   const focusContext = useContext(SalesPlanningFocusContext);
-  const scrollRestoreRequestRef = useRef(0);
+  const focusProductId = focusContext?.focusProductId ?? 'ALL';
+
   const [activeStockMetric, setActiveStockMetric] = usePersistentState<StockMetricId>(
     'xplan:sales-grid:metric',
     'stockWeeks',
@@ -235,107 +305,96 @@ export function SalesPlanningGrid({
     'xplan:sales-grid:show-final-error',
     false,
   );
-  const [selectionStats, setSelectionStats] = useState<HandsontableSelectionStats | null>(null);
-  const reorderCueByProductRef = useRef<Map<string, ReorderCueMeta>>(new Map());
-  const themeName = useHandsontableThemeName();
-  const focusProductId = focusContext?.focusProductId ?? 'ALL';
+
   const warningThreshold = Number.isFinite(stockWarningWeeks)
     ? stockWarningWeeks
     : Number.POSITIVE_INFINITY;
 
-  usePersistentHandsontableScroll(hotRef, `sales-planning:${strategyId}`);
-
-  const updateSelectionStats = useCallback(() => {
-    const hot = hotRef.current;
-    if (!hot) return;
-    setSelectionStats(getSelectionStats(hot));
-  }, []);
-
-  const preserveScrollPosition = useCallback((action: () => void) => {
-    const scroll = getHandsontableScroll(hotRef.current);
-    action();
-    if (!scroll) return;
-
-    scrollRestoreRequestRef.current += 1;
-    const requestId = scrollRestoreRequestRef.current;
-
-    let userInteracted = false;
-
-    const markUserIntent = () => {
-      userInteracted = true;
-    };
-
-    const markUserIntentWithinHot = (event: Event) => {
-      const root = hotRef.current?.rootElement ?? null;
-      if (!root) return;
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (!root.contains(target)) return;
-      markUserIntent();
-    };
-
-    const holder = getHandsontableScrollHolder(hotRef.current);
-
-    // Use capture on window to ensure we detect wheel/touch events even if Handsontable
-    // stops propagation within the table. This prevents scroll restore from fighting user scroll.
-    window.addEventListener('wheel', markUserIntentWithinHot, { passive: true, capture: true });
-    window.addEventListener('touchmove', markUserIntentWithinHot, { passive: true, capture: true });
-    window.addEventListener('pointerdown', markUserIntentWithinHot, { passive: true, capture: true });
-
-    holder?.addEventListener('wheel', markUserIntent, { passive: true, capture: true });
-    holder?.addEventListener('scroll', markUserIntent, { passive: true });
-
-    const cleanup = () => {
-      window.removeEventListener('wheel', markUserIntentWithinHot, { capture: true });
-      window.removeEventListener('touchmove', markUserIntentWithinHot, { capture: true });
-      window.removeEventListener('pointerdown', markUserIntentWithinHot, { capture: true });
-
-      holder?.removeEventListener('wheel', markUserIntent, { capture: true });
-      holder?.removeEventListener('scroll', markUserIntent);
-    };
-
-    const threshold = 4;
-
-    const attemptRestore = (attempt = 0) => {
-      if (requestId !== scrollRestoreRequestRef.current) {
-        cleanup();
-        return;
-      }
-      if (userInteracted) {
-        cleanup();
-        return;
-      }
-
-      const current = getHandsontableScroll(hotRef.current);
-      if (!current) {
-        if (attempt < 24) {
-          requestAnimationFrame(() => attemptRestore(attempt + 1));
-        } else {
-          cleanup();
-        }
-        return;
-      }
-
-      const deltaTop = Math.abs(current.top - scroll.top);
-      const deltaLeft = Math.abs(current.left - scroll.left);
-      const shouldRestoreTop =
-        current.top <= threshold && scroll.top > threshold && deltaTop > threshold;
-      const shouldRestoreLeft =
-        current.left <= threshold && scroll.left > threshold && deltaLeft > threshold;
-      if (shouldRestoreTop || shouldRestoreLeft) {
-        restoreHandsontableScroll(hotRef.current, scroll);
-      }
-      cleanup();
-    };
-
-    requestAnimationFrame(() => requestAnimationFrame(() => attemptRestore()));
-  }, []);
-
+  const reorderCueByProductRef = useRef<Map<string, ReorderCueMeta>>(new Map());
   useEffect(() => {
     reorderCueByProductRef.current = new Map(reorderCueByProduct);
   }, [reorderCueByProduct]);
 
-  const data = useMemo(() => rows, [rows]);
+  const [data, setData] = useState<SalesRow[]>(() => rows.map((row) => ({ ...row })));
+  useEffect(() => {
+    setData(rows.map((row) => ({ ...row })));
+  }, [rows]);
+
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const getScrollElement = useCallback(() => scrollRef.current, []);
+  usePersistentScroll(`hot:sales-planning:${strategyId}`, true, getScrollElement);
+
+  const preserveGridScroll = useCallback((action: () => void) => {
+    const holder = scrollRef.current;
+    if (!holder) {
+      action();
+      return;
+    }
+    const top = holder.scrollTop;
+    const left = holder.scrollLeft;
+    action();
+    requestAnimationFrame(() => {
+      const current = scrollRef.current;
+      if (!current) return;
+      current.scrollTop = top;
+      current.scrollLeft = left;
+    });
+  }, []);
+
+  const [containerWidth, setContainerWidth] = useState<number>(0);
+  useLayoutEffect(() => {
+    if (!scrollRef.current || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      const nextWidth = entries[0]?.contentRect?.width ?? 0;
+      setContainerWidth((prev) => (prev === nextWidth ? prev : nextWidth));
+    });
+    observer.observe(scrollRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  const hiddenRowSet = useMemo(
+    () => new Set(hiddenRowIndices ?? []),
+    [hiddenRowIndices],
+  );
+  const visibleRowIndices = useMemo(
+    () => data.map((_, index) => index).filter((index) => !hiddenRowSet.has(index)),
+    [data, hiddenRowSet],
+  );
+  const visibleRows = useMemo(
+    () => visibleRowIndices.map((index) => data[index]).filter(Boolean),
+    [data, visibleRowIndices],
+  );
+
+  const visibleMetrics = useMemo(() => {
+    const metrics = new Set<string>(['stockStart', 'actualSales', 'forecastSales']);
+    metrics.add(showFinalError ? 'finalSalesError' : 'finalSales');
+    metrics.add(activeStockMetric);
+    return metrics;
+  }, [activeStockMetric, showFinalError]);
+
+  const keyByProductField = useMemo(() => {
+    const map = new Map<string, Record<string, string>>();
+    for (const key of columnKeys) {
+      const meta = columnMeta[key];
+      if (!meta) continue;
+      const entry = map.get(meta.productId) ?? {};
+      entry[meta.field] = key;
+      map.set(meta.productId, entry);
+    }
+    return map;
+  }, [columnKeys, columnMeta]);
+
+  const stockWeeksKeyByProduct = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const key of columnKeys) {
+      const meta = columnMeta[key];
+      if (meta?.field === 'stockWeeks') {
+        map.set(meta.productId, key);
+      }
+    }
+    return map;
+  }, [columnKeys, columnMeta]);
+
   const weekDateByNumber = useMemo(() => {
     const map = new Map<number, string>();
     data.forEach((row) => {
@@ -345,6 +404,7 @@ export function SalesPlanningGrid({
     });
     return map;
   }, [data]);
+
   const weekLabelByNumber = useMemo(() => {
     const map = new Map<number, string>();
     data.forEach((row) => {
@@ -354,9 +414,10 @@ export function SalesPlanningGrid({
     });
     return map;
   }, [data]);
+
   const hasInboundByWeek = useMemo(() => {
     const set = new Set<number>();
-    rows.forEach((row) => {
+    data.forEach((row) => {
       const week = Number(row.weekNumber);
       if (!Number.isFinite(week)) return;
       if ((row.arrivalDetail ?? '').trim()) {
@@ -364,60 +425,207 @@ export function SalesPlanningGrid({
       }
     });
     return set;
-  }, [rows]);
-
-  const stockWeeksKeyByProduct = useMemo(() => {
-    const map = new Map<string, string>();
-    columnKeys.forEach((columnKey) => {
-      const meta = columnMeta[columnKey];
-      if (meta?.field === 'stockWeeks') {
-        map.set(meta.productId, columnKey);
-      }
-    });
-    return map;
-  }, [columnKeys, columnMeta]);
-
-  const formatBatchComment = useCallback((allocations: BatchAllocationMeta[]): string => {
-    if (!allocations || allocations.length === 0) return '';
-    const lines = allocations.map((alloc) => {
-      const batchId = alloc.batchCode || alloc.orderCode;
-      const qty = Number(alloc.quantity).toFixed(0);
-      const price = Number(alloc.sellingPrice).toFixed(2);
-      const cost = Number(alloc.landedUnitCost).toFixed(3);
-      return `${batchId}: ${qty} units @ $${price} (cost: $${cost})`;
-    });
-    return `FIFO Batch Allocation:\n${lines.join('\n')}`;
-  }, []);
-
-  const visibleMetrics = useMemo(() => {
-    const metrics = new Set<string>(['stockStart', 'actualSales', 'forecastSales']);
-    metrics.add(showFinalError ? 'finalSalesError' : 'finalSales');
-    metrics.add(activeStockMetric);
-    return metrics;
-  }, [activeStockMetric, showFinalError]);
-
-  useEffect(() => {
-    if (!focusContext) return;
-    if (
-      focusContext.focusProductId !== 'ALL' &&
-      !productOptions.some((option) => option.id === focusContext.focusProductId)
-    ) {
-      focusContext.setFocusProductId('ALL');
-    }
-  }, [focusContext, productOptions]);
-
-  useEffect(() => {
-    if (hotRef.current) {
-      hotRef.current.loadData(data);
-    }
   }, [data]);
 
-  useEffect(() => {
-    hotRef.current?.render();
-  }, [activeStockMetric, showFinalError]);
+  const displayedProducts = useMemo(() => {
+    const base = focusProductId === 'ALL'
+      ? productOptions
+      : productOptions.filter((product) => product.id === focusProductId);
+    return base.filter((product) => {
+      const keys = keyByProductField.get(product.id) ?? {};
+      return BASE_SALES_METRICS.some((metric) => keys[metric]) && Boolean(keys.stockWeeks) && Boolean(keys.stockEnd);
+    });
+  }, [focusProductId, keyByProductField, productOptions]);
 
-  const widthByColumn = useMemo(() => {
-    const measure = (values: string[], { min = 80, max = 200, padding = 18 } = {}) => {
+  const columns = useMemo<ColumnDef<SalesRow, unknown>[]>(() => {
+    const metricSequence: string[] = [
+      'stockStart',
+      'actualSales',
+      'forecastSales',
+      showFinalError ? 'finalSalesError' : 'finalSales',
+      activeStockMetric,
+    ];
+
+    const baseGroup = columnHelper.group({
+      id: '__base__',
+      header: () => null,
+      columns: [
+        columnHelper.accessor('weekLabel', {
+          id: 'weekLabel',
+          header: () => 'Week',
+          meta: { sticky: true, width: WEEK_COLUMN_WIDTH, kind: 'pinned' },
+        }),
+        columnHelper.accessor('weekDate', {
+          id: 'weekDate',
+          header: () => 'Date',
+          meta: { sticky: true, width: DATE_COLUMN_WIDTH, kind: 'pinned' },
+        }),
+        columnHelper.accessor((row) => row.arrivalDetail ?? '', {
+          id: 'arrivalDetail',
+          header: () => 'Inbound PO',
+          meta: { sticky: true, width: 160, kind: 'pinned' },
+        }),
+      ],
+    });
+
+    const productGroups = displayedProducts.map((product) => {
+      const keys = keyByProductField.get(product.id) ?? {};
+      const currentProductIndex = productOptions.findIndex((option) => option.id === product.id);
+      const hasPrev = currentProductIndex > 0;
+      const hasNext = currentProductIndex >= 0 && currentProductIndex < productOptions.length - 1;
+      const showAllArrow = currentProductIndex === 0;
+      const prevLabel = hasPrev ? productOptions[currentProductIndex - 1]?.name ?? '' : '';
+      const nextLabel = hasNext ? productOptions[currentProductIndex + 1]?.name ?? '' : '';
+      return columnHelper.group({
+        id: product.id,
+        header: () => (
+          <div className="x-plan-sku-header-nav">
+            <button
+              type="button"
+              className={clsx(
+                'x-plan-sku-nav-arrow',
+                showAllArrow
+                  ? 'x-plan-sku-nav-arrow-all x-plan-sku-nav-arrow-prev'
+                  : 'x-plan-sku-nav-arrow-prev',
+              )}
+              title={
+                showAllArrow ? 'Show All SKUs' : hasPrev ? `Previous SKU: ${prevLabel}` : ''
+              }
+              disabled={!(hasPrev || showAllArrow) || productOptions.length <= 1}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                preserveGridScroll(() => {
+                  if (!focusContext) return;
+                  if (showAllArrow) {
+                    focusContext.setFocusProductId('ALL');
+                    return;
+                  }
+                  if (!hasPrev) return;
+                  const previousId = productOptions[currentProductIndex - 1]?.id;
+                  if (!previousId) return;
+                  focusContext.setFocusProductId(previousId);
+                });
+              }}
+            >
+              {showAllArrow ? '⊞' : '◀'}
+            </button>
+            <span className="x-plan-sku-header-label">{product.name}</span>
+            <button
+              type="button"
+              className="x-plan-sku-nav-arrow x-plan-sku-nav-arrow-next"
+              title={hasNext ? `Next SKU: ${nextLabel}` : ''}
+              disabled={!hasNext || productOptions.length <= 1}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                preserveGridScroll(() => {
+                  if (!focusContext) return;
+                  if (!hasNext) return;
+                  const nextId = productOptions[currentProductIndex + 1]?.id;
+                  if (!nextId) return;
+                  focusContext.setFocusProductId(nextId);
+                });
+              }}
+            >
+              ▶
+            </button>
+          </div>
+        ),
+        columns: metricSequence
+          .map((field) => {
+            const key = keys[field];
+            if (!key) return null;
+            return columnHelper.accessor((row) => row[key] ?? '', {
+              id: key,
+              header: () => {
+                if (field === activeStockMetric) {
+                  const label = activeStockMetric === 'stockWeeks' ? 'Stockout' : 'Stock Qty';
+                  return (
+                    <button
+                      type="button"
+                      className="x-plan-header-toggle"
+                      tabIndex={-1}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() =>
+                        preserveGridScroll(() =>
+                          setActiveStockMetric((prev) =>
+                            prev === 'stockWeeks' ? 'stockEnd' : 'stockWeeks',
+                          ),
+                        )
+                      }
+                      title={label}
+                    >
+                      {label}
+                    </button>
+                  );
+                }
+
+                const activeFinalField = showFinalError ? 'finalSalesError' : 'finalSales';
+                if (field === activeFinalField) {
+                  return (
+                    <button
+                      type="button"
+                      className="x-plan-header-toggle"
+                      tabIndex={-1}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => preserveGridScroll(() => setShowFinalError((prev) => !prev))}
+                      title={field === 'finalSalesError' ? '% Error' : 'Final Sales'}
+                    >
+                      {field === 'finalSalesError' ? '% Error' : 'Final Sales'}
+                    </button>
+                  );
+                }
+
+                const labelMap: Record<string, string> = {
+                  stockStart: 'Stock Start',
+                  actualSales: 'Actual Sales',
+                  forecastSales: 'Fcst Sales',
+                  finalSales: 'Final Sales',
+                  finalSalesError: '% Error',
+                  stockWeeks: 'Stockout',
+                  stockEnd: 'Stock Qty',
+                };
+                return (
+                  <div className="x-plan-sales-header-pill" title={labelMap[field] ?? field}>
+                    {labelMap[field] ?? field}
+                  </div>
+                );
+              },
+              meta: {
+                kind: 'metric',
+                productId: product.id,
+                field,
+              },
+            });
+          })
+          .filter((col): col is NonNullable<typeof col> => Boolean(col)),
+      });
+    });
+
+    return [baseGroup, ...productGroups];
+  }, [
+    activeStockMetric,
+    columnHelper,
+    displayedProducts,
+    focusContext,
+    keyByProductField,
+    preserveGridScroll,
+    productOptions,
+    setActiveStockMetric,
+    setShowFinalError,
+    showFinalError,
+  ]);
+
+  const table = useReactTable({
+    data: visibleRows,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
+
+  const leafColumns = table.getAllLeafColumns();
+  const leafColumnIds = useMemo(() => leafColumns.map((col) => col.id), [leafColumns]);
+
+  const widthByColumnId = useMemo(() => {
+    const measure = (values: string[], { min = 80, max = 240, padding = 18 } = {}) => {
       const normalized = values.map((value) =>
         (value ?? '').toString().replace(/\s+/g, ' ').trim(),
       );
@@ -429,136 +637,84 @@ export function SalesPlanningGrid({
     map.weekLabel = WEEK_COLUMN_WIDTH;
     map.weekDate = DATE_COLUMN_WIDTH;
     map.arrivalDetail = measure(
-      rows.map((row) => row.arrivalDetail ?? ''),
+      data.map((row) => row.arrivalDetail ?? ''),
       { min: 110, max: 220, padding: 14 },
     );
 
-    columnKeys.forEach((key) => {
-      const values = rows.map((row) => row[key] ?? '');
-      const meta = columnMeta[key];
-      let bounds: { min: number; max: number; padding: number };
-      switch (meta?.field) {
-        case 'actualSales':
-        case 'forecastSales':
-          bounds = { min: 150, max: 260, padding: 32 };
-          break;
-        case 'finalSalesError':
-          bounds = { min: 120, max: 200, padding: 26 };
-          break;
-        case 'stockStart':
-          bounds = { min: 140, max: 240, padding: 36 };
-          break;
-        default:
-          bounds = { min: 130, max: 220, padding: 24 };
-          break;
-      }
-      map[key] = measure(values, bounds);
-    });
+    for (const column of leafColumns) {
+      if (map[column.id] != null) continue;
+      const meta = columnMeta[column.id];
+      const field = meta?.field;
+
+      const bounds =
+        field === 'actualSales' || field === 'forecastSales'
+          ? { min: 150, max: 260, padding: 32 }
+          : field === 'finalSalesError'
+            ? { min: 120, max: 200, padding: 26 }
+            : field === 'stockStart'
+              ? { min: 140, max: 240, padding: 36 }
+              : { min: 130, max: 220, padding: 24 };
+
+      const values = data.map((row) => row[column.id] ?? '');
+      const measured = measure(values, bounds);
+      map[column.id] = field === 'finalSalesError' ? measured : Math.max(METRIC_MIN_WIDTH, measured);
+    }
 
     return map;
-  }, [columnKeys, columnMeta, rows]);
+  }, [columnMeta, data, leafColumns]);
 
-  const columns: Handsontable.ColumnSettings[] = useMemo(() => {
-    const base: Handsontable.ColumnSettings[] = [
-      {
-        data: 'weekLabel',
-        readOnly: true,
-        className: 'cell-readonly cell-common',
-        width: WEEK_COLUMN_WIDTH,
-      },
-      {
-        data: 'weekDate',
-        readOnly: true,
-        className: 'cell-readonly cell-common',
-        width: DATE_COLUMN_WIDTH,
-      },
-      {
-        data: 'arrivalDetail',
-        readOnly: true,
-        className: 'cell-readonly cell-note cell-common',
-        editor: false,
-        width: widthByColumn.arrivalDetail,
-        wordWrap: true,
-      },
-    ];
-    for (const key of columnKeys) {
-      const meta = columnMeta[key];
-      if (!meta) {
-        base.push({
-          data: key,
-          readOnly: true,
-          className: 'cell-readonly',
-          editor: false,
-          width: widthByColumn[key] ?? 100,
-        });
-        continue;
-      }
-      const editable = isEditableMetric(meta.field);
-      const isFinalError = meta.field === 'finalSalesError';
-      const measured = widthByColumn[key] ?? (isFinalError ? 96 : editable ? 88 : 86);
-      const columnWidth = isFinalError ? measured : Math.max(METRIC_MIN_WIDTH, measured);
-      base.push({
-        data: key,
-        type: isFinalError ? 'text' : 'numeric',
-        numericFormat: !isFinalError
-          ? editable
-            ? { pattern: '0,0.00' }
-            : { pattern: '0.00' }
-          : undefined,
-        readOnly: !editable,
-        editor: editable ? Handsontable.editors.NumericEditor : false,
-        className: isFinalError
-          ? 'cell-readonly cell-note'
-          : editable
-            ? 'cell-editable'
-            : 'cell-readonly',
-        validator: editable ? numericValidator : undefined,
-        allowInvalid: false,
-        width: columnWidth,
-        wordWrap: isFinalError,
-      });
+  const stretchedWidths = useMemo(() => {
+    const widths = leafColumns.map((column) => widthByColumnId[column.id] ?? METRIC_MIN_WIDTH);
+    const total = widths.reduce((sum, width) => sum + width, 0);
+    if (containerWidth <= 0 || total <= 0 || containerWidth <= total) return widths;
+
+    const stretchableIndices = widths.map((_, idx) => idx).filter((idx) => idx > 1);
+    if (stretchableIndices.length === 0) return widths;
+
+    const extra = containerWidth - total;
+    const per = Math.floor(extra / stretchableIndices.length);
+    const remainder = extra - per * stretchableIndices.length;
+
+    const next = widths.slice();
+    stretchableIndices.forEach((idx, offset) => {
+      next[idx] = next[idx] + per + (offset < remainder ? 1 : 0);
+    });
+    return next;
+  }, [containerWidth, leafColumns, widthByColumnId]);
+
+  const columnOffsets = useMemo(() => {
+    const offsets: number[] = [];
+    let cursor = 0;
+    for (const width of stretchedWidths) {
+      offsets.push(cursor);
+      cursor += width;
     }
-    return base;
-  }, [columnMeta, columnKeys, widthByColumn]);
+    return offsets;
+  }, [stretchedWidths]);
 
-  const columnWidths = useMemo<number[]>(
-    () =>
-      columns.map((column) => (typeof column.width === 'number' ? column.width : METRIC_MIN_WIDTH)),
-    [columns],
+  const gridTemplateColumns = useMemo(
+    () => stretchedWidths.map((width) => `${width}px`).join(' '),
+    [stretchedWidths],
   );
 
-  const clampStretchWidth = useCallback((width: number, column: number) => {
-    if (column === 0) return WEEK_COLUMN_WIDTH;
-    if (column === 1) return DATE_COLUMN_WIDTH;
-    return width;
-  }, []);
+  const [selection, setSelection] = useState<CellRange | null>(null);
+  const selectionAnchorRef = useRef<CellCoords | null>(null);
+  const selectionRef = useRef<CellRange | null>(null);
+  selectionRef.current = selection;
 
-  const hiddenColumns = useMemo(() => {
-    const hidden: number[] = [];
-    const offset = 3;
-    columnKeys.forEach((key, index) => {
-      const meta = columnMeta[key];
-      if (!meta) return;
-      const columnIndex = index + offset;
-      if (focusProductId !== 'ALL' && meta.productId !== focusProductId) {
-        hidden.push(columnIndex);
-        return;
-      }
-      if (!visibleMetrics.has(meta.field)) {
-        hidden.push(columnIndex);
-      }
-    });
-    return hidden;
-  }, [columnKeys, columnMeta, focusProductId, visibleMetrics]);
+  const [activeCell, setActiveCell] = useState<CellCoords | null>(null);
+  const [selectionStats, setSelectionStats] = useState<HandsontableSelectionStats | null>(null);
+
+  const [editingCell, setEditingCell] = useState<{
+    coords: CellCoords;
+    columnId: string;
+    productId: string;
+    field: string;
+    value: string;
+  } | null>(null);
 
   const recomputeDerivedForProduct = useCallback(
-    (productId: string, startRowIndex: number | null = null) => {
-      const hot = hotRef.current;
-      if (!hot) return;
-
-      const sourceData = hot.getSourceData() as SalesRow[];
-      if (!sourceData || sourceData.length === 0) return;
-
+    (productId: string, nextData: SalesRow[], startRowIndex: number | null = null): SalesRow[] => {
       const extractYear = (label: string): number | null => {
         const match = label.match(/(\d{4})\s*$/);
         if (!match) return null;
@@ -590,17 +746,17 @@ export function SalesPlanningGrid({
         !stockWeeksKey ||
         !stockEndKey
       ) {
-        return;
+        return nextData;
       }
 
-      const n = sourceData.length;
+      const n = nextData.length;
       const previousStockStart: number[] = new Array(n);
       const previousStockEnd: number[] = new Array(n);
       const actual: Array<number | null> = new Array(n);
       const forecast: Array<number | null> = new Array(n);
 
       for (let i = 0; i < n; i += 1) {
-        const row = sourceData[i];
+        const row = nextData[i];
         previousStockStart[i] = parseNumericInput(row?.[stockStartKey]) ?? 0;
         previousStockEnd[i] = parseNumericInput(row?.[stockEndKey]) ?? 0;
         actual[i] = parseNumericInput(row?.[actualSalesKey]);
@@ -688,17 +844,17 @@ export function SalesPlanningGrid({
           }
 
           if (breachIndex != null) {
-            const breachWeekNumber = Number(sourceData[breachIndex]?.weekNumber);
+            const breachWeekNumber = Number(nextData[breachIndex]?.weekNumber);
             if (!Number.isFinite(breachWeekNumber)) {
               reorderCueByProductRef.current.delete(productId);
             } else {
               const startWeekNumber = breachWeekNumber - leadTimeWeeks;
-              const breachWeekLabel = sourceData[breachIndex]?.weekLabel ?? null;
+              const breachWeekLabel = nextData[breachIndex]?.weekLabel ?? null;
               const startWeekLabel = weekLabelByNumber.get(startWeekNumber) || null;
               const startDate =
                 weekDateByNumber.get(startWeekNumber) || formatWeekDateFallback(startWeekNumber);
               const breachDate =
-                sourceData[breachIndex]?.weekDate ||
+                nextData[breachIndex]?.weekDate ||
                 weekDateByNumber.get(breachWeekNumber) ||
                 formatWeekDateFallback(breachWeekNumber);
 
@@ -724,267 +880,40 @@ export function SalesPlanningGrid({
 
       const changes: Array<[number, string, string]> = [];
       for (let i = 0; i < n; i += 1) {
-        const row = sourceData[i];
+        const row = nextData[i];
 
-        const stockStartValue = Number.isFinite(nextStockStart[i])
-          ? nextStockStart[i].toFixed(2)
-          : '';
-        const finalSalesValue = Number.isFinite(nextFinalSales[i])
-          ? nextFinalSales[i].toFixed(2)
-          : '';
+        const stockStartValue = Number.isFinite(nextStockStart[i]) ? nextStockStart[i].toFixed(2) : '';
+        const finalSalesValue = Number.isFinite(nextFinalSales[i]) ? nextFinalSales[i].toFixed(2) : '';
         const stockEndValue = Number.isFinite(nextStockEnd[i]) ? nextStockEnd[i].toFixed(2) : '';
-        const stockWeeksValue = Number.isFinite(nextStockWeeks[i])
-          ? nextStockWeeks[i].toFixed(2)
-          : '∞';
+        const stockWeeksValue = Number.isFinite(nextStockWeeks[i]) ? nextStockWeeks[i].toFixed(2) : '∞';
         const errorValue = nextError[i] == null ? '' : `${(nextError[i]! * 100).toFixed(1)}%`;
 
-        if (row?.[stockStartKey] !== stockStartValue) {
-          changes.push([i, stockStartKey, stockStartValue]);
-        }
-        if (row?.[finalSalesKey] !== finalSalesValue) {
-          changes.push([i, finalSalesKey, finalSalesValue]);
-        }
-        if (row?.[stockEndKey] !== stockEndValue) {
-          changes.push([i, stockEndKey, stockEndValue]);
-        }
-        if (row?.[stockWeeksKey] !== stockWeeksValue) {
-          changes.push([i, stockWeeksKey, stockWeeksValue]);
-        }
-        if (row?.[finalSalesErrorKey] !== errorValue) {
-          changes.push([i, finalSalesErrorKey, errorValue]);
-        }
+        if (row?.[stockStartKey] !== stockStartValue) changes.push([i, stockStartKey, stockStartValue]);
+        if (row?.[finalSalesKey] !== finalSalesValue) changes.push([i, finalSalesKey, finalSalesValue]);
+        if (row?.[stockEndKey] !== stockEndValue) changes.push([i, stockEndKey, stockEndValue]);
+        if (row?.[stockWeeksKey] !== stockWeeksValue) changes.push([i, stockWeeksKey, stockWeeksValue]);
+        if (row?.[finalSalesErrorKey] !== errorValue) changes.push([i, finalSalesErrorKey, errorValue]);
       }
 
-      if (changes.length > 0) {
-        const startIndex = Math.max(0, Math.min(n - 1, startRowIndex ?? 0));
-        const slicedChanges =
-          startIndex === 0 ? changes : changes.filter(([rowIndex]) => rowIndex >= startIndex);
+      const startIndex = Math.max(0, Math.min(n - 1, startRowIndex ?? 0));
+      const slicedChanges =
+        startIndex === 0 ? changes : changes.filter(([rowIndex]) => rowIndex >= startIndex);
 
-        if (slicedChanges.length === 0) {
-          hot.render();
-          return;
-        }
+      if (slicedChanges.length === 0) return nextData;
 
-        hot.batchRender(() => {
-          for (const [rowIndex, prop, value] of slicedChanges) {
-            const record = sourceData[rowIndex];
-            if (!record) continue;
-            record[prop] = value;
-          }
-        });
-        return;
+      const next = nextData.slice();
+      const updatedRows = new Map<number, SalesRow>();
+      for (const [rowIndex, prop, value] of slicedChanges) {
+        const base = updatedRows.get(rowIndex) ?? { ...(next[rowIndex] ?? {}) };
+        base[prop] = value;
+        updatedRows.set(rowIndex, base);
       }
+      updatedRows.forEach((row, rowIndex) => {
+        next[rowIndex] = row;
+      });
+      return next;
     },
-    [
-      columnKeys,
-      columnMeta,
-      leadTimeByProduct,
-      warningThreshold,
-      weekDateByNumber,
-      weekLabelByNumber,
-    ],
-  );
-
-  const handleColHeader = useCallback(
-    (col: number, TH: HTMLTableCellElement, headerLevel: number) => {
-      const offset = 3;
-
-      // Apply consistent font sizing for second header row to match P&L/Cash Flow
-      if (headerLevel === 1) {
-        TH.style.fontSize = '11px';
-        TH.style.fontWeight = '700';
-        TH.style.letterSpacing = '0.1em';
-        TH.style.textTransform = 'uppercase';
-      }
-
-      // Handle SKU header row (headerLevel 0) with navigation arrows
-      if (headerLevel === 0 && col >= offset) {
-        const key = columnKeys[col - offset];
-        const meta = columnMeta[key];
-        if (!meta) return;
-
-        // Find the current product index and check if we need arrows
-        const currentProductId = meta.productId;
-        const currentProductIndex = productOptions.findIndex((p) => p.id === currentProductId);
-        if (currentProductIndex === -1) return;
-
-        // Only add arrows if there are multiple products
-        if (productOptions.length <= 1) return;
-
-        const hasPrev = currentProductIndex > 0;
-        const hasNext = currentProductIndex < productOptions.length - 1;
-        const showAllArrow = currentProductIndex === 0;
-
-        // Check if this is the first column of this product's section
-        const isFirstColumnOfProduct =
-          col === offset ||
-          columnMeta[columnKeys[col - offset - 1]]?.productId !== currentProductId;
-        if (!isFirstColumnOfProduct) return;
-
-        Handsontable.dom.empty(TH);
-        const container = document.createElement('div');
-        container.className = 'x-plan-sku-header-nav';
-
-        // Previous arrow / Show All button
-        const prevBtn = document.createElement('button');
-        prevBtn.type = 'button';
-        if (showAllArrow) {
-          prevBtn.className = 'x-plan-sku-nav-arrow x-plan-sku-nav-arrow-all';
-          prevBtn.innerHTML = '⊞';
-          prevBtn.title = 'Show All SKUs';
-        } else {
-          prevBtn.className = 'x-plan-sku-nav-arrow x-plan-sku-nav-arrow-prev';
-          prevBtn.innerHTML = '◀';
-          prevBtn.title = hasPrev
-            ? `Previous SKU: ${productOptions[currentProductIndex - 1].name}`
-            : '';
-        }
-        prevBtn.style.visibility = hasPrev || showAllArrow ? 'visible' : 'hidden';
-        prevBtn.disabled = !(hasPrev || showAllArrow);
-        prevBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          preserveScrollPosition(() => {
-            if (showAllArrow) {
-              focusContext?.setFocusProductId('ALL');
-            } else if (hasPrev) {
-              focusContext?.setFocusProductId(productOptions[currentProductIndex - 1].id);
-            }
-          });
-        });
-        prevBtn.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-        });
-        container.appendChild(prevBtn);
-
-        // SKU name
-        const label = document.createElement('span');
-        label.className = 'x-plan-sku-header-label';
-        label.textContent = productOptions[currentProductIndex].name;
-        container.appendChild(label);
-
-        // Next arrow
-        const nextBtn = document.createElement('button');
-        nextBtn.type = 'button';
-        nextBtn.className = 'x-plan-sku-nav-arrow x-plan-sku-nav-arrow-next';
-        nextBtn.innerHTML = '▶';
-        nextBtn.style.visibility = hasNext ? 'visible' : 'hidden';
-        nextBtn.title = hasNext ? `Next SKU: ${productOptions[currentProductIndex + 1].name}` : '';
-        nextBtn.disabled = !hasNext;
-        nextBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          preserveScrollPosition(() => {
-            if (hasNext) {
-              focusContext?.setFocusProductId(productOptions[currentProductIndex + 1].id);
-            }
-          });
-        });
-        nextBtn.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-        });
-        container.appendChild(nextBtn);
-
-        TH.appendChild(container);
-        return;
-      }
-
-      // Handle metric header row (headerLevel 1)
-      if (headerLevel !== 1 || col < offset) return;
-      const key = columnKeys[col - offset];
-      const meta = columnMeta[key];
-      if (!meta) return;
-
-      const renderToggle = (label: string, handler: () => void, title = label) => {
-        Handsontable.dom.empty(TH);
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'x-plan-header-toggle';
-        button.textContent = label;
-        button.title = title;
-
-        let pointerTriggered = false;
-
-        const trigger = (event: Event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          (event as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
-          const hot = hotRef.current;
-          if (hot) finishEditingSafely(hot);
-          handler();
-        };
-
-        const supportsPointer = typeof window !== 'undefined' && 'PointerEvent' in window;
-        if (supportsPointer) {
-          button.addEventListener(
-            'pointerdown',
-            (event) => {
-              pointerTriggered = true;
-              trigger(event);
-            },
-            { capture: true },
-          );
-        } else {
-          button.addEventListener(
-            'mousedown',
-            (event) => {
-              pointerTriggered = true;
-              trigger(event);
-            },
-            { capture: true },
-          );
-        }
-
-        button.addEventListener('click', (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          event.stopImmediatePropagation();
-          if (pointerTriggered) {
-            pointerTriggered = false;
-            return;
-          }
-          trigger(event);
-        });
-        TH.appendChild(button);
-      };
-
-      if (meta.field === activeStockMetric) {
-        const stockLabel = activeStockMetric === 'stockWeeks' ? 'Stockout' : 'Stock Qty';
-        const stockTitle = activeStockMetric === 'stockWeeks' ? 'Stockout (Weeks)' : 'Stock Qty';
-        renderToggle(stockLabel, () => {
-          preserveScrollPosition(() => {
-            setActiveStockMetric((prev) => (prev === 'stockWeeks' ? 'stockEnd' : 'stockWeeks'));
-          });
-        }, stockTitle);
-        return;
-      }
-
-      const activeFinalField = showFinalError ? 'finalSalesError' : 'finalSales';
-      if (meta.field === activeFinalField) {
-        renderToggle(showFinalError ? '% Error' : 'Final Sales', () => {
-          preserveScrollPosition(() => {
-            setShowFinalError((prev) => !prev);
-          });
-        });
-      }
-    },
-    [
-      activeStockMetric,
-      columnKeys,
-      columnMeta,
-      preserveScrollPosition,
-      setActiveStockMetric,
-      setShowFinalError,
-      showFinalError,
-      productOptions,
-      focusContext,
-    ],
+    [columnKeys, columnMeta, leadTimeByProduct, warningThreshold, weekDateByNumber, weekLabelByNumber],
   );
 
   const handleFlush = useCallback(
@@ -1014,10 +943,547 @@ export function SalesPlanningGrid({
   useEffect(() => {
     return () => {
       flushNow().catch(() => {
-        // errors handled inside handleFlush
+        // handled in handleFlush
       });
     };
   }, [flushNow]);
+
+  const queueUpdate = useCallback(
+    (productId: string, weekNumber: number, field: string, value: string) => {
+      const key = `${productId}-${weekNumber}`;
+      if (!pendingRef.current.has(key)) {
+        pendingRef.current.set(key, { productId, weekNumber, values: {} });
+      }
+      const entry = pendingRef.current.get(key);
+      if (!entry) return;
+      entry.values[field] = value;
+      scheduleFlush();
+    },
+    [pendingRef, scheduleFlush],
+  );
+
+  const applyEdits = useCallback(
+    (edits: Array<{ visibleRowIndex: number; columnId: string; rawValue: string }>) => {
+      if (edits.length === 0) return;
+
+      const editsByProduct = new Map<string, { minRow: number; items: typeof edits }>();
+      const queued: Array<{ productId: string; weekNumber: number; field: string; value: string }> = [];
+
+      edits.forEach((edit) => {
+        const colMeta = columnMeta[edit.columnId];
+        if (!colMeta || !isEditableMetric(colMeta.field)) return;
+
+        const absoluteRowIndex = visibleRowIndices[edit.visibleRowIndex];
+        const row = data[absoluteRowIndex];
+        if (!row) return;
+        const weekNumber = Number(row.weekNumber);
+        if (!Number.isFinite(weekNumber)) return;
+
+        const formatted = formatNumericInput(edit.rawValue);
+
+        queued.push({
+          productId: colMeta.productId,
+          weekNumber,
+          field: colMeta.field,
+          value: formatted,
+        });
+
+        const existing = editsByProduct.get(colMeta.productId);
+        if (!existing) {
+          editsByProduct.set(colMeta.productId, { minRow: absoluteRowIndex, items: [edit] });
+        } else {
+          existing.items.push(edit);
+          existing.minRow = Math.min(existing.minRow, absoluteRowIndex);
+        }
+      });
+
+      if (queued.length === 0) return;
+
+      setData((prev) => {
+        let next = prev.slice();
+
+        const touchedRows = new Map<number, SalesRow>();
+        edits.forEach((edit) => {
+          const colMeta = columnMeta[edit.columnId];
+          if (!colMeta || !isEditableMetric(colMeta.field)) return;
+
+          const absoluteRowIndex = visibleRowIndices[edit.visibleRowIndex];
+          const current = touchedRows.get(absoluteRowIndex) ?? { ...(next[absoluteRowIndex] ?? {}) };
+          current[edit.columnId] = formatNumericInput(edit.rawValue);
+          touchedRows.set(absoluteRowIndex, current);
+        });
+
+        touchedRows.forEach((rowValue, rowIndex) => {
+          next[rowIndex] = rowValue;
+        });
+
+        for (const [productId, payload] of editsByProduct.entries()) {
+          next = recomputeDerivedForProduct(productId, next, payload.minRow);
+        }
+
+        return next;
+      });
+
+      queued.forEach((item) => queueUpdate(item.productId, item.weekNumber, item.field, item.value));
+    },
+    [columnMeta, data, queueUpdate, recomputeDerivedForProduct, visibleRowIndices],
+  );
+
+  const startEditing = useCallback(
+    (coords: CellCoords) => {
+      const columnId = leafColumnIds[coords.col];
+      if (!columnId) return;
+      const meta = columnMeta[columnId];
+      if (!meta || !isEditableMetric(meta.field)) return;
+
+      const absoluteRowIndex = visibleRowIndices[coords.row];
+      const row = data[absoluteRowIndex];
+      if (!row) return;
+
+      setEditingCell({
+        coords,
+        columnId,
+        productId: meta.productId,
+        field: meta.field,
+        value: row[columnId] ?? '',
+      });
+    },
+    [columnMeta, data, leafColumnIds, visibleRowIndices],
+  );
+
+  const commitEditing = useCallback(() => {
+    if (!editingCell) return;
+    applyEdits([
+      {
+        visibleRowIndex: editingCell.coords.row,
+        columnId: editingCell.columnId,
+        rawValue: editingCell.value,
+      },
+    ]);
+    setEditingCell(null);
+  }, [applyEdits, editingCell]);
+
+  const cancelEditing = useCallback(() => setEditingCell(null), []);
+
+  const moveActiveCell = useCallback(
+    (deltaRow: number, deltaCol: number) => {
+      if (!activeCell) return;
+      const nextRow = Math.max(0, Math.min(visibleRows.length - 1, activeCell.row + deltaRow));
+      const nextCol = Math.max(0, Math.min(leafColumnIds.length - 1, activeCell.col + deltaCol));
+      const nextCoords = { row: nextRow, col: nextCol };
+      setActiveCell(nextCoords);
+      setSelection({ from: nextCoords, to: nextCoords });
+      selectionAnchorRef.current = nextCoords;
+      setSelectionStats(computeSelectionStatsFromData(data, visibleRowIndices, leafColumnIds, { from: nextCoords, to: nextCoords }));
+      requestAnimationFrame(() => {
+        const holder = scrollRef.current;
+        if (!holder) return;
+        const selector = `[data-xplan-cell=\"1\"][data-row=\"${nextCoords.row}\"][data-col=\"${nextCoords.col}\"]`;
+        const node = holder.querySelector(selector) as HTMLElement | null;
+        node?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      });
+    },
+    [activeCell, data, leafColumnIds, visibleRowIndices, visibleRows.length],
+  );
+
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (editingCell) {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          cancelEditing();
+        }
+        return;
+      }
+
+      if (!activeCell) return;
+
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'c') {
+        return;
+      }
+
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === 'v') {
+        return;
+      }
+
+      if (event.key === 'Enter') {
+        const columnId = leafColumnIds[activeCell.col];
+        const meta = columnId ? columnMeta[columnId] : undefined;
+        if (meta && isEditableMetric(meta.field)) {
+          event.preventDefault();
+          startEditing(activeCell);
+          return;
+        }
+        moveActiveCell(1, 0);
+        return;
+      }
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        moveActiveCell(1, 0);
+        return;
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        moveActiveCell(-1, 0);
+        return;
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        moveActiveCell(0, 1);
+        return;
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        moveActiveCell(0, -1);
+        return;
+      }
+
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        const columnId = leafColumnIds[activeCell.col];
+        const meta = columnId ? columnMeta[columnId] : undefined;
+        if (!meta || !isEditableMetric(meta.field)) return;
+        event.preventDefault();
+        applyEdits([{ visibleRowIndex: activeCell.row, columnId, rawValue: '' }]);
+        return;
+      }
+
+      if (/^[0-9.,-]$/.test(event.key)) {
+        const columnId = leafColumnIds[activeCell.col];
+        const meta = columnId ? columnMeta[columnId] : undefined;
+        if (!meta || !isEditableMetric(meta.field)) return;
+        event.preventDefault();
+        setEditingCell({
+          coords: activeCell,
+          columnId,
+          productId: meta.productId,
+          field: meta.field,
+          value: event.key,
+        });
+      }
+    },
+    [
+      activeCell,
+      applyEdits,
+      cancelEditing,
+      columnMeta,
+      editingCell,
+      leafColumnIds,
+      moveActiveCell,
+      startEditing,
+    ],
+  );
+
+  const handleCopy = useCallback(
+    (event: ClipboardEvent<HTMLDivElement>) => {
+      if (!selectionRef.current) return;
+      const range = normalizeRange(selectionRef.current);
+      const lines: string[] = [];
+
+      for (let rowIndex = range.top; rowIndex <= range.bottom; rowIndex += 1) {
+        const absoluteRowIndex = visibleRowIndices[rowIndex];
+        const row = data[absoluteRowIndex];
+        if (!row) continue;
+
+        const parts: string[] = [];
+        for (let colIndex = range.left; colIndex <= range.right; colIndex += 1) {
+          const columnId = leafColumnIds[colIndex];
+          if (!columnId) continue;
+          parts.push(row[columnId] ?? '');
+        }
+        lines.push(parts.join('\t'));
+      }
+
+      event.preventDefault();
+      event.clipboardData.setData('text/plain', lines.join('\n'));
+    },
+    [data, leafColumnIds, visibleRowIndices],
+  );
+
+  const handlePaste = useCallback(
+    (event: ClipboardEvent<HTMLDivElement>) => {
+      if (!activeCell) return;
+      const text = event.clipboardData.getData('text/plain');
+      if (!text) return;
+      event.preventDefault();
+
+      const rowsMatrix = text
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .split('\n')
+        .filter((line) => line.length > 0)
+        .map((line) => line.split('\t'));
+
+      if (rowsMatrix.length === 0) return;
+
+      const edits: Array<{ visibleRowIndex: number; columnId: string; rawValue: string }> = [];
+      for (let r = 0; r < rowsMatrix.length; r += 1) {
+        for (let c = 0; c < rowsMatrix[r]!.length; c += 1) {
+          const targetRow = activeCell.row + r;
+          const targetCol = activeCell.col + c;
+          if (targetRow >= visibleRows.length) continue;
+          if (targetCol >= leafColumnIds.length) continue;
+          const columnId = leafColumnIds[targetCol];
+          if (!columnId) continue;
+          edits.push({
+            visibleRowIndex: targetRow,
+            columnId,
+            rawValue: rowsMatrix[r]![c] ?? '',
+          });
+        }
+      }
+
+      applyEdits(edits);
+    },
+    [activeCell, applyEdits, leafColumnIds, visibleRows.length],
+  );
+
+  const [tooltip, setTooltip] = useState<{ content: string; x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    const holder = scrollRef.current;
+    if (!holder) return;
+    const hide = () => setTooltip(null);
+    holder.addEventListener('scroll', hide, { passive: true });
+    return () => holder.removeEventListener('scroll', hide);
+  }, []);
+
+  const computeCellPresentation = useCallback(
+    (
+      visibleRowIndex: number,
+      column: { id: string; meta: { productId?: string; field?: string } | undefined },
+    ): { display: string; className: string; tooltip: string } => {
+      const absoluteRowIndex = visibleRowIndices[visibleRowIndex];
+      const row = data[absoluteRowIndex];
+      const columnId = column.id;
+      const colMeta = columnMeta[columnId];
+      const weekNumber = Number(row?.weekNumber);
+      const hasInbound = Number.isFinite(weekNumber) && hasInboundByWeek.has(weekNumber);
+
+      if (!row) {
+        return { display: '', className: 'cell-readonly', tooltip: '' };
+      }
+
+      if (columnId === 'weekLabel' || columnId === 'weekDate') {
+        return {
+          display: row[columnId] ?? '',
+          className: clsx('cell-readonly cell-common', hasInbound && 'row-inbound-sales'),
+          tooltip: '',
+        };
+      }
+
+      if (columnId === 'arrivalDetail') {
+        return {
+          display: row.arrivalDetail ?? '',
+          className: clsx('cell-readonly cell-note cell-common', hasInbound && 'row-inbound-sales'),
+          tooltip: row.arrivalNote ?? '',
+        };
+      }
+
+      const field = colMeta?.field;
+      const editable = isEditableMetric(field);
+      const baseClass = editable ? 'cell-editable' : 'cell-readonly';
+
+      let tooltipText = '';
+      let className = baseClass;
+
+      const productId = colMeta?.productId;
+      const reorderInfo = productId ? reorderCueByProductRef.current.get(productId) : undefined;
+      const isReorderWeek = reorderInfo != null && reorderInfo.startWeekNumber === weekNumber;
+
+      if (productId && isReorderWeek && field && visibleMetrics.has(field)) {
+        className = `${className} cell-reorder-band cell-reorder-suggest`;
+      }
+
+      const weeksKey = productId ? stockWeeksKeyByProduct.get(productId) : undefined;
+      const rawWeeks = weeksKey ? row[weeksKey] : undefined;
+
+      if (field === 'stockWeeks' && rawWeeks === '∞') {
+        const previousValue = visibleRowIndex > 0
+          ? data[visibleRowIndices[visibleRowIndex - 1]]?.[weeksKey ?? '']
+          : undefined;
+        const isFirstInfinity = visibleRowIndex === 0 || previousValue !== '∞';
+        if (isFirstInfinity) {
+          tooltipText =
+            `Stockout (Weeks) is forward-looking coverage until projected inventory reaches 0.\n` +
+            `∞ means inventory never reaches 0 within the loaded horizon.\n` +
+            `This usually happens when Final Sales is 0 (no demand entered) or inbound covers demand.`;
+        }
+      }
+
+      const isStockColumn = field === activeStockMetric;
+      if (productId && isStockColumn && weeksKey) {
+        const weeksNumeric = parseNumericInput(rawWeeks);
+        const previousWeeksRaw =
+          visibleRowIndex > 0
+            ? data[visibleRowIndices[visibleRowIndex - 1]]?.[weeksKey]
+            : undefined;
+        const previousWeeksNumeric = parseNumericInput(previousWeeksRaw);
+        const wasBelowThreshold =
+          previousWeeksNumeric != null && previousWeeksNumeric <= warningThreshold;
+        const isBelowThreshold = weeksNumeric != null && weeksNumeric <= warningThreshold;
+
+        const nextWeeksRaw =
+          visibleRowIndex + 1 < visibleRowIndices.length
+            ? data[visibleRowIndices[visibleRowIndex + 1]]?.[weeksKey]
+            : undefined;
+        const nextWeeksNumeric = parseNumericInput(nextWeeksRaw);
+        const willBeBelowThreshold =
+          nextWeeksNumeric != null && nextWeeksNumeric <= warningThreshold;
+
+        const isWarningStart = isBelowThreshold && !wasBelowThreshold;
+        const isWarningEnd = isBelowThreshold && !willBeBelowThreshold;
+
+        if (isBelowThreshold) {
+          className = `${className} cell-warning`;
+          if (isWarningStart) className = `${className} cell-warning-start`;
+          if (isWarningEnd) className = `${className} cell-warning-end`;
+
+          const leadProfile = leadTimeByProduct[productId];
+          const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : 0;
+          if (Number.isFinite(weekNumber) && isWarningStart && leadTimeWeeks > 0 && !tooltipText) {
+            const startWeekRaw = weekNumber - leadTimeWeeks;
+            const startDate = weekDateByNumber.get(startWeekRaw) || formatWeekDateFallback(startWeekRaw);
+            const leadBreakdown = leadProfile
+              ? `${leadTimeWeeks}w (prod ${leadProfile.productionWeeks}w + source ${leadProfile.sourceWeeks}w + ocean ${leadProfile.oceanWeeks}w + final ${leadProfile.finalWeeks}w)`
+              : `${leadTimeWeeks}w`;
+
+            tooltipText =
+              `Low stock warning (≤ ${warningThreshold}w).\n` +
+              `Suggested production start: ${startDate}.\n` +
+              `Lead time: ${leadBreakdown}.`;
+          }
+        }
+
+        if (isReorderWeek && reorderInfo && !tooltipText) {
+          const leadProfile = leadTimeByProduct[productId];
+          const leadTimeWeeks = leadProfile
+            ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks)))
+            : (reorderInfo.leadTimeWeeks ?? 0);
+          const leadBreakdown = leadProfile
+            ? `${leadTimeWeeks}w (prod ${leadProfile.productionWeeks}w + source ${leadProfile.sourceWeeks}w + ocean ${leadProfile.oceanWeeks}w + final ${leadProfile.finalWeeks}w)`
+            : `${leadTimeWeeks}w`;
+
+          const startLabel =
+            reorderInfo.startYear != null && reorderInfo.startWeekLabel != null
+              ? `${reorderInfo.startYear} W${reorderInfo.startWeekLabel}${reorderInfo.startDate ? ` (${reorderInfo.startDate})` : ''}`
+              : reorderInfo.startDate || `Week ${reorderInfo.startWeekNumber}`;
+
+          const breachLabel =
+            reorderInfo.breachYear != null && reorderInfo.breachWeekLabel != null
+              ? `${reorderInfo.breachYear} W${reorderInfo.breachWeekLabel}${reorderInfo.breachDate ? ` (${reorderInfo.breachDate})` : ''}`
+              : reorderInfo.breachDate || `Week ${reorderInfo.breachWeekNumber}`;
+
+          tooltipText =
+            `Reorder signal (target ≥ ${warningThreshold}w).\n` +
+            `Start production: ${startLabel}.\n` +
+            `Threshold breach: ${breachLabel}.\n` +
+            `Lead time: ${leadBreakdown}.`;
+        }
+      }
+
+      if (field === 'finalSales') {
+        const cellKey = `${weekNumber}-${columnId}`;
+        const allocations = batchAllocations.get(cellKey);
+        if (allocations && allocations.length > 0) {
+          tooltipText = tooltipText || formatBatchComment(allocations);
+        }
+      }
+
+      const raw = row[columnId] ?? '';
+      if (field === 'finalSalesError') {
+        return { display: raw, className: clsx(className, 'cell-note'), tooltip: tooltipText };
+      }
+
+      if (raw === '∞') {
+        return { display: '∞', className, tooltip: tooltipText };
+      }
+
+      if (!raw) {
+        return { display: '', className, tooltip: tooltipText };
+      }
+
+      if (editable) {
+        return { display: formatNumberDisplay(raw, true), className, tooltip: tooltipText };
+      }
+
+      return { display: formatNumberDisplay(raw, false), className, tooltip: tooltipText };
+    },
+    [
+      activeStockMetric,
+      batchAllocations,
+      columnMeta,
+      data,
+      hasInboundByWeek,
+      leadTimeByProduct,
+      stockWeeksKeyByProduct,
+      visibleMetrics,
+      visibleRowIndices,
+      warningThreshold,
+      weekDateByNumber,
+      visibleRowIndices.length,
+    ],
+  );
+
+  const handlePointerDown = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      const target = event.target as HTMLElement | null;
+      const cellNode = target?.closest('[data-xplan-cell="1"]') as HTMLElement | null;
+      if (!cellNode) return;
+
+      const row = Number(cellNode.dataset.row);
+      const col = Number(cellNode.dataset.col);
+      if (!Number.isFinite(row) || !Number.isFinite(col)) return;
+
+      scrollRef.current?.focus();
+
+      const coords = { row, col };
+      setActiveCell(coords);
+
+      if (event.shiftKey && selectionAnchorRef.current) {
+        const nextRange = { from: selectionAnchorRef.current, to: coords };
+        setSelection(nextRange);
+        return;
+      }
+
+      selectionAnchorRef.current = coords;
+      setSelection({ from: coords, to: coords });
+      setSelectionStats(null);
+    },
+    [],
+  );
+
+  const handlePointerMove = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    if (!event.buttons) return;
+    const target = event.target as HTMLElement | null;
+    const cellNode = target?.closest('[data-xplan-cell="1"]') as HTMLElement | null;
+    if (!cellNode) return;
+    const row = Number(cellNode.dataset.row);
+    const col = Number(cellNode.dataset.col);
+    if (!Number.isFinite(row) || !Number.isFinite(col)) return;
+    if (!selectionAnchorRef.current) return;
+    setSelection({ from: selectionAnchorRef.current, to: { row, col } });
+  }, []);
+
+  const handlePointerUp = useCallback(() => {
+    if (!selectionRef.current) return;
+    setSelectionStats(computeSelectionStatsFromData(data, visibleRowIndices, leafColumnIds, selectionRef.current));
+  }, [data, leafColumnIds, visibleRowIndices]);
+
+  const handleDoubleClick = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      const target = event.target as HTMLElement | null;
+      const cellNode = target?.closest('[data-xplan-cell="1"]') as HTMLElement | null;
+      if (!cellNode) return;
+      const row = Number(cellNode.dataset.row);
+      const col = Number(cellNode.dataset.col);
+      if (!Number.isFinite(row) || !Number.isFinite(col)) return;
+      startEditing({ row, col });
+    },
+    [startEditing],
+  );
+
+  const headerGroups = table.getHeaderGroups();
 
   return (
     <div className="p-4">
@@ -1025,232 +1491,192 @@ export function SalesPlanningGrid({
         className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm backdrop-blur-sm dark:border-slate-700/60 dark:bg-slate-900/60"
         style={{ height: 'calc(100vh - 260px)', minHeight: '420px' }}
       >
-        <HotTable
-          ref={(instance) => {
-            hotRef.current = instance?.hotInstance ?? null;
-          }}
-          data={data}
-          licenseKey="non-commercial-and-evaluation"
-          themeName={themeName}
-          width="100%"
-          colHeaders={false}
-          columns={columns}
-          nestedHeaders={nestedHeaders as unknown as HandsontableNestedHeaders}
-          afterGetColHeader={handleColHeader}
-          stretchH="all"
-          className="x-plan-hot x-plan-hot-sales h-full"
-          height="100%"
-          rowHeaders={false}
-          undo
-          comments={true}
-          hiddenColumns={{ columns: hiddenColumns, indicators: true }}
-          hiddenRows={
-            hiddenRowIndices && hiddenRowIndices.length > 0
-              ? { rows: hiddenRowIndices, indicators: false }
-              : undefined
-          }
-          autoColumnSize={false}
-          colWidths={columnWidths}
-          beforeStretchingColumnWidth={clampStretchWidth}
-          cells={(row, col) => {
-            const cell: Handsontable.CellMeta = {};
-            const offset = 3;
-            const weekNumber = Number(data[row]?.weekNumber);
-            const hasInbound = Number.isFinite(weekNumber) && hasInboundByWeek.has(weekNumber);
+        <div
+          ref={scrollRef}
+          tabIndex={0}
+          className="x-plan-hot x-plan-hot-sales x-plan-sales-grid h-full overflow-auto outline-none"
+          onKeyDown={handleKeyDown}
+          onCopy={handleCopy}
+          onPaste={handlePaste}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onDoubleClick={handleDoubleClick}
+        >
+          <div style={{ minWidth: columnOffsets[columnOffsets.length - 1] + stretchedWidths[stretchedWidths.length - 1] }}>
+            <div className="x-plan-sales-grid-header sticky top-0 z-20">
+              {headerGroups.map((headerGroup, headerRowIndex) => {
+                let cursor = 0;
+                return (
+                  <div
+                    key={headerGroup.id}
+                    className="x-plan-sales-grid-row x-plan-sales-grid-row-header"
+                    style={{
+                      gridTemplateColumns,
+                      height: HEADER_ROW_HEIGHT,
+                      top: headerRowIndex * HEADER_ROW_HEIGHT,
+                    }}
+                  >
+                    {headerGroup.headers.map((header) => {
+                      const start = cursor;
+                      cursor += header.colSpan;
 
-            if (col < offset) {
-              if (hasInbound) {
-                cell.className = cell.className
-                  ? `${cell.className} row-inbound-sales`
-                  : 'row-inbound-sales';
-              }
-              if (col === 2) {
-                const note = data[row]?.arrivalNote;
-                if (note && note.trim().length > 0) {
-                  cell.comment = { value: note };
-                }
-              }
-              return cell;
-            }
+                      const firstLeafId = header.column.getLeafColumns()[0]?.id ?? header.id;
+                      const leafIndex = leafColumnIds.indexOf(firstLeafId);
+                      const isPinned = leafIndex >= 0 && leafIndex <= 2;
+                      const stickyLeft = isPinned ? columnOffsets[leafIndex] : undefined;
 
-            const columnKey = columnKeys[col - offset];
-            const meta = columnMeta[columnKey];
-            const editable = isEditableMetric(meta?.field);
-            cell.readOnly = !editable;
-            cell.className = editable ? 'cell-editable' : 'cell-readonly';
+                      return (
+                        <div
+                          key={header.id}
+                          className={clsx(
+                            'x-plan-sales-grid-header-cell',
+                            isPinned && 'x-plan-sales-grid-sticky',
+                          )}
+                          style={{
+                            gridColumn: `${start + 1} / span ${header.colSpan}`,
+                            left: stickyLeft,
+                            height: HEADER_ROW_HEIGHT,
+                          }}
+                        >
+                          {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
 
-            if (meta?.productId) {
-              const productId = meta.productId;
-              const field = meta.field;
-              const reorderInfo = reorderCueByProductRef.current.get(productId);
-              const isReorderWeek =
-                reorderInfo != null && reorderInfo.startWeekNumber === weekNumber;
+            <div className="x-plan-sales-grid-body">
+              {table.getRowModel().rows.map((row, visibleRowIndex) => {
+                return (
+                  <div
+                    key={row.id}
+                    className="x-plan-sales-grid-row x-plan-sales-grid-row-body"
+                    style={{ gridTemplateColumns, height: BODY_ROW_HEIGHT }}
+                  >
+	                    {leafColumns.map((column, colIndex) => {
+	                      const meta = columnMeta[column.id];
+	                      const editable = isEditableMetric(meta?.field);
+	                      const isPinnedColumn = colIndex <= 2;
+	                      const isSelected = selection
+	                        ? (() => {
+	                            const range = normalizeRange(selection);
+	                            return (
+	                              visibleRowIndex >= range.top &&
+                              visibleRowIndex <= range.bottom &&
+                              colIndex >= range.left &&
+                              colIndex <= range.right
+                            );
+                          })()
+                        : false;
+                      const isCurrent =
+                        activeCell?.row === visibleRowIndex && activeCell?.col === colIndex;
 
-              if (isReorderWeek && visibleMetrics.has(field)) {
-                cell.className = `${cell.className} cell-reorder-band cell-reorder-suggest`;
-              }
+                      const { display, className, tooltip } = computeCellPresentation(visibleRowIndex, {
+                        id: column.id,
+                        meta: meta,
+                      });
 
-              const isStockColumn = field === activeStockMetric;
-              const weeksKey =
-                isStockColumn || field === 'stockWeeks'
-                  ? stockWeeksKeyByProduct.get(productId)
-                  : undefined;
+                      const left =
+                        colIndex <= 2 ? columnOffsets[colIndex] : undefined;
 
-              if (weeksKey) {
-                const rawWeeks = data[row]?.[weeksKey];
+                      const isEditing =
+                        editingCell?.coords.row === visibleRowIndex &&
+                        editingCell?.coords.col === colIndex &&
+                        editingCell.columnId === column.id;
 
-                if (field === 'stockWeeks' && rawWeeks === '∞') {
-                  const previousValue = row > 0 ? data[row - 1]?.[weeksKey] : undefined;
-                  const isFirstInfinity = row === 0 || previousValue !== '∞';
-                  if (isFirstInfinity && !cell.comment) {
-                    cell.comment = {
-                      value:
-                        `Stockout (Weeks) is forward-looking coverage until projected inventory reaches 0.\n` +
-                        `∞ means inventory never reaches 0 within the loaded horizon.\n` +
-                        `This usually happens when Final Sales is 0 (no demand entered) or inbound covers demand.`,
-                      readOnly: true,
-                    };
-                  }
-                }
+                      return (
+                        <div
+                          key={`${row.id}-${column.id}`}
+                          data-xplan-cell="1"
+                          data-row={visibleRowIndex}
+                          data-col={colIndex}
+                          className={clsx(
+                            'x-plan-sales-grid-cell',
+                            colIndex <= 2 && 'x-plan-sales-grid-sticky',
+                            className,
+                            isSelected && 'area',
+                            isCurrent && 'x-plan-sales-cell-current',
+                          )}
+                          style={{
+                            left,
+                            width: stretchedWidths[colIndex],
+                          }}
+                          onMouseEnter={(event) => {
+                            if (!tooltip) return;
+                            const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+                            setTooltip({
+                              content: tooltip,
+                              x: Math.min(window.innerWidth - 340, rect.right + 12),
+                              y: Math.min(window.innerHeight - 160, rect.top),
+                            });
+                          }}
+                          onMouseLeave={() => setTooltip(null)}
+                        >
+                          {isEditing ? (
+                            <input
+                              className="handsontableInput w-full"
+                              autoFocus
+                              value={editingCell.value}
+                              onChange={(event) =>
+                                setEditingCell((prev) =>
+                                  prev ? { ...prev, value: event.target.value } : prev,
+                                )
+                              }
+                              onBlur={commitEditing}
+                              onKeyDown={(event) => {
+                                if (event.key === 'Enter') {
+                                  event.preventDefault();
+                                  commitEditing();
+                                  moveActiveCell(1, 0);
+                                  return;
+                                }
+                                if (event.key === 'Tab') {
+                                  event.preventDefault();
+                                  commitEditing();
+                                  moveActiveCell(0, event.shiftKey ? -1 : 1);
+                                  return;
+                                }
+                                if (event.key === 'Escape') {
+                                  event.preventDefault();
+                                  cancelEditing();
+                                }
+                              }}
+                            />
+	                          ) : (
+	                            <div
+	                              className={clsx(
+	                                'x-plan-sales-grid-cell-content tabular-nums',
+	                                column.id === 'arrivalDetail'
+	                                  ? 'whitespace-pre-line text-left'
+	                                  : clsx('truncate', isPinnedColumn ? 'text-left' : 'text-right'),
+	                              )}
+	                            >
+	                              {display}
+	                            </div>
+	                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
 
-                if (isStockColumn) {
-                  const weeksNumeric = parseNumericInput(rawWeeks);
-                  const previousWeeksRaw = row > 0 ? data[row - 1]?.[weeksKey] : undefined;
-                  const previousWeeksNumeric = parseNumericInput(previousWeeksRaw);
-                  const wasBelowThreshold =
-                    previousWeeksNumeric != null && previousWeeksNumeric <= warningThreshold;
-                  const isBelowThreshold = weeksNumeric != null && weeksNumeric <= warningThreshold;
+        {tooltip ? (
+          <div
+            className="x-plan-sales-tooltip"
+            style={{ left: tooltip.x, top: tooltip.y }}
+            role="tooltip"
+          >
+            <pre className="whitespace-pre-wrap text-left">{tooltip.content}</pre>
+          </div>
+        ) : null}
 
-                  const nextWeeksRaw =
-                    row + 1 < data.length ? data[row + 1]?.[weeksKey] : undefined;
-                  const nextWeeksNumeric = parseNumericInput(nextWeeksRaw);
-                  const willBeBelowThreshold =
-                    nextWeeksNumeric != null && nextWeeksNumeric <= warningThreshold;
-
-                  const isWarningStart = isBelowThreshold && !wasBelowThreshold;
-                  const isWarningEnd = isBelowThreshold && !willBeBelowThreshold;
-
-                  if (isBelowThreshold) {
-                    cell.className = `${cell.className} cell-warning`;
-                    if (isWarningStart) cell.className = `${cell.className} cell-warning-start`;
-                    if (isWarningEnd) cell.className = `${cell.className} cell-warning-end`;
-
-                    const leadProfile = leadTimeByProduct[productId];
-                    const leadTimeWeeks = leadProfile
-                      ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks)))
-                      : 0;
-                    if (
-                      Number.isFinite(weekNumber) &&
-                      isWarningStart &&
-                      leadTimeWeeks > 0 &&
-                      !cell.comment
-                    ) {
-                      const startWeekRaw = weekNumber - leadTimeWeeks;
-                      const startDate =
-                        weekDateByNumber.get(startWeekRaw) || formatWeekDateFallback(startWeekRaw);
-                      const leadBreakdown = leadProfile
-                        ? `${leadTimeWeeks}w (prod ${leadProfile.productionWeeks}w + source ${leadProfile.sourceWeeks}w + ocean ${leadProfile.oceanWeeks}w + final ${leadProfile.finalWeeks}w)`
-                        : `${leadTimeWeeks}w`;
-
-                      cell.comment = {
-                        value:
-                          `Low stock warning (≤ ${warningThreshold}w).\n` +
-                          `Suggested production start: ${startDate}.\n` +
-                          `Lead time: ${leadBreakdown}.`,
-                        readOnly: true,
-                      };
-                    }
-                  }
-
-                  if (isReorderWeek && reorderInfo && !cell.comment) {
-                    const leadProfile = leadTimeByProduct[productId];
-                    const leadTimeWeeks = leadProfile
-                      ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks)))
-                      : (reorderInfo.leadTimeWeeks ?? 0);
-                    const leadBreakdown = leadProfile
-                      ? `${leadTimeWeeks}w (prod ${leadProfile.productionWeeks}w + source ${leadProfile.sourceWeeks}w + ocean ${leadProfile.oceanWeeks}w + final ${leadProfile.finalWeeks}w)`
-                      : `${leadTimeWeeks}w`;
-
-                    const startLabel =
-                      reorderInfo.startYear != null && reorderInfo.startWeekLabel != null
-                        ? `${reorderInfo.startYear} W${reorderInfo.startWeekLabel}${reorderInfo.startDate ? ` (${reorderInfo.startDate})` : ''}`
-                        : reorderInfo.startDate || `Week ${reorderInfo.startWeekNumber}`;
-
-                    const breachLabel =
-                      reorderInfo.breachYear != null && reorderInfo.breachWeekLabel != null
-                        ? `${reorderInfo.breachYear} W${reorderInfo.breachWeekLabel}${reorderInfo.breachDate ? ` (${reorderInfo.breachDate})` : ''}`
-                        : reorderInfo.breachDate || `Week ${reorderInfo.breachWeekNumber}`;
-
-                    cell.comment = {
-                      value:
-                        `Reorder signal (target ≥ ${warningThreshold}w).\n` +
-                        `Start production: ${startLabel}.\n` +
-                        `Threshold breach: ${breachLabel}.\n` +
-                        `Lead time: ${leadBreakdown}.`,
-                      readOnly: true,
-                    };
-                  }
-                }
-              }
-            }
-
-            if (meta?.field === 'finalSales') {
-              const cellKey = `${weekNumber}-${columnKey}`;
-              const allocations = batchAllocations.get(cellKey);
-              if (allocations && allocations.length > 0) {
-                cell.comment = { value: formatBatchComment(allocations) };
-              }
-            }
-
-            return cell;
-          }}
-          afterChange={(changes, source) => {
-            if (!changes) return;
-            const sourceString = String(source);
-            if (sourceString === 'loadData' || sourceString === 'derived-update') return;
-            const hot = hotRef.current;
-            if (!hot) return;
-            const changedProductIds = new Set<string>();
-            const minRowByProduct = new Map<string, number>();
-            for (const change of changes) {
-              const [rowIndex, prop, _oldValue, newValue] = change as [number, string, any, any];
-              const meta = columnMeta[prop];
-              if (!meta || !editableMetrics.has(meta.field)) continue;
-              const record = hot.getSourceDataAtRow(rowIndex) as SalesRow | null;
-              if (!record) continue;
-              const key = `${meta.productId}-${record.weekNumber}`;
-              if (!pendingRef.current.has(key)) {
-                pendingRef.current.set(key, {
-                  productId: meta.productId,
-                  weekNumber: Number(record.weekNumber),
-                  values: {},
-                });
-              }
-              const entry = pendingRef.current.get(key);
-              if (!entry) continue;
-              const formatted = formatNumericInput(newValue);
-              entry.values[meta.field] = formatted;
-              record[prop] = formatted;
-              changedProductIds.add(meta.productId);
-              const existingMin = minRowByProduct.get(meta.productId);
-              if (existingMin == null || rowIndex < existingMin) {
-                minRowByProduct.set(meta.productId, rowIndex);
-              }
-            }
-	            if (changedProductIds.size > 0) {
-	              for (const productId of changedProductIds) {
-	                recomputeDerivedForProduct(productId, minRowByProduct.get(productId) ?? null);
-	              }
-	            }
-            scheduleFlush();
-          }}
-          afterSelectionEnd={() => {
-            updateSelectionStats();
-          }}
-          afterDeselect={() => {
-            setSelectionStats(null);
-          }}
-        />
         <SelectionStatsBar stats={selectionStats} />
       </div>
     </div>
