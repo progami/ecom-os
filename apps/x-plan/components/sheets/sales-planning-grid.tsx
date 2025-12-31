@@ -207,12 +207,12 @@ function normalizeRange(range: CellRange): { top: number; bottom: number; left: 
   return { top, bottom, left, right }
 }
 
-function formatNumberDisplay(value: unknown, useGrouping: boolean): string {
+function formatNumberDisplay(value: unknown, useGrouping: boolean, fractionDigits: number): string {
   const parsed = typeof value === 'number' ? value : sanitizeNumeric(value)
   if (!Number.isFinite(parsed)) return ''
   return parsed.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
     useGrouping,
   })
 }
@@ -601,6 +601,13 @@ export function SalesPlanningGrid({
 
   const leafColumns = table.getAllLeafColumns()
   const leafColumnIds = useMemo(() => leafColumns.map((col) => col.id), [leafColumns])
+  const tableWidth = useMemo(() => {
+    return leafColumns.reduce((sum, column) => {
+      const meta = column.columnDef.meta as { width?: number } | undefined
+      const width = typeof meta?.width === 'number' ? meta.width : 110
+      return sum + width
+    }, 0)
+  }, [leafColumns])
 
   const [selection, setSelection] = useState<CellRange | null>(null)
   const selectionAnchorRef = useRef<CellCoords | null>(null)
@@ -787,9 +794,9 @@ export function SalesPlanningGrid({
       for (let i = 0; i < n; i += 1) {
         const row = nextData[i]
 
-        const stockStartValue = Number.isFinite(nextStockStart[i]) ? nextStockStart[i].toFixed(2) : ''
-        const finalSalesValue = Number.isFinite(nextFinalSales[i]) ? nextFinalSales[i].toFixed(2) : ''
-        const stockEndValue = Number.isFinite(nextStockEnd[i]) ? nextStockEnd[i].toFixed(2) : ''
+        const stockStartValue = Number.isFinite(nextStockStart[i]) ? nextStockStart[i].toFixed(0) : ''
+        const finalSalesValue = Number.isFinite(nextFinalSales[i]) ? nextFinalSales[i].toFixed(0) : ''
+        const stockEndValue = Number.isFinite(nextStockEnd[i]) ? nextStockEnd[i].toFixed(0) : ''
         const stockWeeksValue = Number.isFinite(nextStockWeeks[i]) ? nextStockWeeks[i].toFixed(2) : '∞'
         const errorValue = nextError[i] == null ? '' : `${(nextError[i]! * 100).toFixed(1)}%`
 
@@ -831,7 +838,7 @@ export function SalesPlanningGrid({
           body: JSON.stringify({ strategyId, updates: payload }),
         })
         if (!response.ok) throw new Error('Failed to update sales planning')
-        toast.success('Sales planning updated')
+        toast.success('Sales planning updated', { id: 'sales-planning-updated' })
       } catch (error) {
         console.error(error)
         toast.error('Unable to save sales planning changes')
@@ -871,6 +878,8 @@ export function SalesPlanningGrid({
 
       const editsByProduct = new Map<string, { minRow: number; items: typeof edits }>()
       const queued: Array<{ productId: string; weekNumber: number; field: string; value: string }> = []
+      const normalizedEdits: Array<{ visibleRowIndex: number; columnId: string; value: string }> =
+        []
 
       edits.forEach((edit) => {
         const colMeta = columnMeta[edit.columnId]
@@ -882,12 +891,20 @@ export function SalesPlanningGrid({
         const weekNumber = Number(row.weekNumber)
         if (!Number.isFinite(weekNumber)) return
 
-        const formatted = formatNumericInput(edit.rawValue)
+        const formatted = formatNumericInput(edit.rawValue, 0)
+        const currentRaw = row[edit.columnId]
+        const current = typeof currentRaw === 'string' ? currentRaw.trim() : ''
+        if (formatted === current) return
 
         queued.push({
           productId: colMeta.productId,
           weekNumber,
           field: colMeta.field,
+          value: formatted,
+        })
+        normalizedEdits.push({
+          visibleRowIndex: edit.visibleRowIndex,
+          columnId: edit.columnId,
           value: formatted,
         })
 
@@ -906,13 +923,13 @@ export function SalesPlanningGrid({
         let next = prev.slice()
 
         const touchedRows = new Map<number, SalesRow>()
-        edits.forEach((edit) => {
+        normalizedEdits.forEach((edit) => {
           const colMeta = columnMeta[edit.columnId]
           if (!colMeta || !isEditableMetric(colMeta.field)) return
 
           const absoluteRowIndex = visibleRowIndices[edit.visibleRowIndex]
           const current = touchedRows.get(absoluteRowIndex) ?? { ...(next[absoluteRowIndex] ?? {}) }
-          current[edit.columnId] = formatNumericInput(edit.rawValue)
+          current[edit.columnId] = edit.value
           touchedRows.set(absoluteRowIndex, current)
         })
 
@@ -1276,7 +1293,7 @@ export function SalesPlanningGrid({
       }
 
       return {
-        display: formatNumberDisplay(raw, !editable),
+        display: formatNumberDisplay(raw, !editable, field === 'stockWeeks' ? 2 : 0),
         isEditable: editable,
         isWarning,
         isReorder,
@@ -1316,7 +1333,17 @@ export function SalesPlanningGrid({
           onCopy={handleCopy}
           onPaste={handlePaste}
         >
-          <Table className="relative w-full border-collapse">
+          <Table
+            className="relative border-collapse table-fixed"
+            style={{ width: tableWidth, minWidth: tableWidth }}
+          >
+            <colgroup>
+              {leafColumns.map((column) => {
+                const meta = column.columnDef.meta as { width?: number } | undefined
+                const width = typeof meta?.width === 'number' ? meta.width : 110
+                return <col key={column.id} style={{ width, minWidth: width }} />
+              })}
+            </colgroup>
             {/* x-plan-hot header styling */}
             <TableHeader className="sticky top-0 z-20">
               {headerGroups.map((headerGroup) => (
