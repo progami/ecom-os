@@ -1453,54 +1453,39 @@ export function SalesPlanningGrid({
                       <TableCell
                         key={column.id}
                         className={cn(
-                          // Base cell styling (x-plan-hot)
-                          'h-8 whitespace-nowrap border-r border-slate-200/50 px-2 py-[5px] text-xs font-medium leading-[1.4] text-slate-900 dark:border-[#0b3a52]/40 dark:text-slate-100',
-                          // Sticky pinned columns
-                          meta?.sticky && [
-                            'sticky z-10',
-                            isEvenRow
-                              ? 'bg-slate-50 dark:bg-[#0f2942]'
-                              : 'bg-white dark:bg-[#0c2537]',
-                          ],
-                          // Non-sticky cell backgrounds
-                          !meta?.sticky && [
-                            isEvenRow
-                              ? 'bg-slate-50 dark:bg-[#0f2942]'
-                              : 'bg-white dark:bg-[#0c2537]',
-                          ],
-                          // Pinned column styling (like row headers)
-                          isPinned && [
-                            'border-r-2 border-r-slate-300 font-bold text-cyan-700 dark:border-r-[#0b3a52] dark:text-teal-300',
-                            isEvenRow
-                              ? 'bg-slate-100 dark:bg-[#0a1f35]'
-                              : 'bg-slate-100 dark:bg-[#0a1f35]',
-                          ],
-                          // Editable cells (x-plan-hot .cell-editable)
+                          // Base cell styling
+                          'h-8 whitespace-nowrap border-r border-slate-200/50 px-2 py-[5px] text-xs font-medium leading-[1.4] text-slate-800 dark:border-[#0b3a52]/40 dark:text-slate-200',
+                          // Default background with zebra striping
+                          isEvenRow
+                            ? 'bg-slate-50/80 dark:bg-[#0f2942]'
+                            : 'bg-white dark:bg-[#0c2537]',
+                          // Sticky positioning for pinned columns
+                          meta?.sticky && 'sticky z-10',
+                          // Last pinned column gets thicker border
+                          colIndex === 2 && 'border-r-2 border-r-slate-300 dark:border-r-[#0b3a52]',
+                          // Editable cells - subtle cyan tint
                           presentation.isEditable && [
-                            'cursor-text border border-cyan-600 bg-cyan-50 font-semibold text-cyan-900 hover:bg-cyan-100 dark:border-[#00c2b9] dark:bg-teal-100 dark:text-[#0a1f35] dark:hover:bg-teal-200',
+                            'cursor-text border-[1.5px] border-cyan-500/60 bg-cyan-50/70 font-semibold text-cyan-800 hover:bg-cyan-100/80 dark:border-[#00c2b9]/60 dark:bg-[#ccfbf1] dark:text-[#0a1f35] dark:hover:bg-[#99f6e4]',
                           ],
-                          // Warning cells (x-plan-hot .cell-warning)
-                          presentation.isWarning && [
-                            'bg-red-100 font-bold text-red-900 shadow-[inset_2px_0_0_#ef4444,inset_-2px_0_0_#ef4444] dark:bg-red-100 dark:text-red-900',
+                          // Warning cells - red background
+                          presentation.isWarning && !presentation.isEditable && [
+                            'bg-red-50 font-bold text-red-800 dark:bg-red-100 dark:text-red-900',
                           ],
                           // Reorder suggestion cells
-                          presentation.isReorder && [
-                            'bg-yellow-100 shadow-[inset_0_0_0_1px_rgba(234,179,8,0.22)] dark:bg-yellow-500/25 dark:shadow-[inset_0_0_0_1px_rgba(234,179,8,0.28)]',
-                          ],
-                          // Inbound row highlighting (x-plan-hot .row-inbound-sales)
+                          presentation.isReorder &&
+                            !presentation.isWarning && [
+                              'bg-yellow-50 dark:bg-yellow-500/20',
+                            ],
+                          // Inbound row highlighting
                           presentation.hasInbound &&
                             !presentation.isEditable &&
                             !presentation.isWarning && [
-                              'border-l-[6px] border-l-emerald-500 bg-emerald-100 font-bold text-emerald-900 outline outline-1 outline-emerald-500/40 dark:bg-teal-700 dark:text-emerald-50 dark:outline-teal-400/35',
+                              'border-l-4 border-l-emerald-500 bg-emerald-50 font-semibold text-emerald-800 dark:bg-teal-900/40 dark:text-emerald-200',
                             ],
-                          // Selection area (x-plan-hot .area)
-                          isSelected && [
-                            'bg-cyan-600/10 dark:bg-[#00c2b9]/15',
-                          ],
-                          // Current cell border (x-plan-hot .wtBorder.current)
-                          isCurrent && [
-                            'shadow-[inset_0_0_0_2px_#0891b2] dark:shadow-[inset_0_0_0_2px_#00c2b9]',
-                          ]
+                          // Selection area
+                          isSelected && 'bg-cyan-100/50 dark:bg-cyan-900/30',
+                          // Current cell border
+                          isCurrent && 'ring-2 ring-inset ring-cyan-500 dark:ring-[#00c2b9]'
                         )}
                         style={{
                           left: meta?.sticky ? meta.stickyOffset : undefined,
