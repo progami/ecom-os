@@ -477,10 +477,10 @@ export function SalesPlanningGrid({
             header: () => {
               if (fieldIndex === 0) {
                 return (
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center justify-center gap-1">
                     <button
                       type="button"
-                      className="rounded p-0.5 hover:bg-muted disabled:opacity-30"
+                      className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded bg-cyan-600/10 text-cyan-600 transition-all hover:scale-105 hover:bg-cyan-600/20 hover:text-cyan-700 disabled:cursor-default disabled:opacity-0 dark:bg-[#00c2b9]/15 dark:text-teal-300 dark:hover:bg-[#00c2b9]/25 dark:hover:text-teal-200"
                       disabled={!hasPrev && focusProductId !== 'ALL'}
                       onClick={() => {
                         preserveGridScroll(() => {
@@ -495,15 +495,17 @@ export function SalesPlanningGrid({
                       }}
                     >
                       {focusProductId !== 'ALL' && !hasPrev ? (
-                        <LayoutGrid className="h-3 w-3" />
+                        <LayoutGrid className="h-3.5 w-3.5" />
                       ) : (
-                        <ChevronLeft className="h-3 w-3" />
+                        <ChevronLeft className="h-3.5 w-3.5" />
                       )}
                     </button>
-                    <span className="font-semibold text-foreground">{product.name}</span>
+                    <span className="text-[13px] font-extrabold tracking-[0.05em] text-slate-900 dark:text-slate-100">
+                      {product.name}
+                    </span>
                     <button
                       type="button"
-                      className="rounded p-0.5 hover:bg-muted disabled:opacity-30"
+                      className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded bg-cyan-600/10 text-cyan-600 transition-all hover:scale-105 hover:bg-cyan-600/20 hover:text-cyan-700 disabled:cursor-default disabled:opacity-0 dark:bg-[#00c2b9]/15 dark:text-teal-300 dark:hover:bg-[#00c2b9]/25 dark:hover:text-teal-200"
                       disabled={!hasNext}
                       onClick={() => {
                         preserveGridScroll(() => {
@@ -513,7 +515,7 @@ export function SalesPlanningGrid({
                         })
                       }}
                     >
-                      <ChevronRight className="h-3 w-3" />
+                      <ChevronRight className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 )
@@ -533,7 +535,7 @@ export function SalesPlanningGrid({
                 return (
                   <button
                     type="button"
-                    className="rounded-md border border-cyan-500/30 bg-cyan-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cyan-700 transition hover:bg-cyan-100 dark:border-cyan-400/30 dark:bg-cyan-950 dark:text-cyan-300 dark:hover:bg-cyan-900"
+                    className="inline-flex items-center justify-center rounded-lg border-2 border-cyan-600/55 bg-gradient-to-b from-cyan-600/15 to-cyan-600/5 px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-cyan-700 shadow-[0_1px_0_rgba(15,23,42,0.06),inset_0_0_0_1px_rgba(255,255,255,0.5)] outline-[3px] outline-transparent transition-all hover:border-cyan-600/80 hover:bg-gradient-to-b hover:from-cyan-600/20 hover:to-cyan-600/10 hover:text-cyan-900 hover:shadow-[0_6px_14px_rgba(8,145,178,0.18),inset_0_0_0_1px_rgba(255,255,255,0.6)] hover:outline-cyan-600/25 dark:border-[#00c2b9]/55 dark:bg-gradient-to-b dark:from-[#00c2b9]/20 dark:to-[#00c2b9]/5 dark:text-teal-300 dark:shadow-[0_1px_0_rgba(0,0,0,0.25),inset_0_0_0_1px_rgba(255,255,255,0.05)] dark:hover:border-[#00c2b9]/85 dark:hover:text-teal-100 dark:hover:shadow-[0_8px_18px_rgba(0,194,185,0.18),inset_0_0_0_1px_rgba(255,255,255,0.08)]"
                     onClick={() =>
                       preserveGridScroll(() =>
                         setActiveStockMetric((prev) =>
@@ -551,7 +553,7 @@ export function SalesPlanningGrid({
                 return (
                   <button
                     type="button"
-                    className="rounded-md border border-cyan-500/30 bg-cyan-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-cyan-700 transition hover:bg-cyan-100 dark:border-cyan-400/30 dark:bg-cyan-950 dark:text-cyan-300 dark:hover:bg-cyan-900"
+                    className="inline-flex items-center justify-center rounded-lg border-2 border-cyan-600/55 bg-gradient-to-b from-cyan-600/15 to-cyan-600/5 px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-cyan-700 shadow-[0_1px_0_rgba(15,23,42,0.06),inset_0_0_0_1px_rgba(255,255,255,0.5)] outline-[3px] outline-transparent transition-all hover:border-cyan-600/80 hover:bg-gradient-to-b hover:from-cyan-600/20 hover:to-cyan-600/10 hover:text-cyan-900 hover:shadow-[0_6px_14px_rgba(8,145,178,0.18),inset_0_0_0_1px_rgba(255,255,255,0.6)] hover:outline-cyan-600/25 dark:border-[#00c2b9]/55 dark:bg-gradient-to-b dark:from-[#00c2b9]/20 dark:to-[#00c2b9]/5 dark:text-teal-300 dark:shadow-[0_1px_0_rgba(0,0,0,0.25),inset_0_0_0_1px_rgba(255,255,255,0.05)] dark:hover:border-[#00c2b9]/85 dark:hover:text-teal-100 dark:hover:shadow-[0_8px_18px_rgba(0,194,185,0.18),inset_0_0_0_1px_rgba(255,255,255,0.08)]"
                     onClick={() => preserveGridScroll(() => setShowFinalError((prev) => !prev))}
                   >
                     {labelMap[field]}
@@ -560,7 +562,7 @@ export function SalesPlanningGrid({
               }
 
               return (
-                <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                <span className="inline-flex items-center justify-center rounded-lg border border-cyan-600/25 bg-white/65 px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-cyan-700 dark:border-[#00c2b9]/25 dark:bg-[#0a1f35]/80 dark:text-teal-300">
                   {labelMap[field] ?? field}
                 </span>
               )
@@ -1301,161 +1303,211 @@ export function SalesPlanningGrid({
 
   return (
     <div className="p-4">
+      {/* x-plan-hot themed container */}
       <div
-        className="relative overflow-hidden rounded-xl border bg-card shadow-sm"
+        className="relative overflow-hidden rounded-xl border border-slate-300 bg-white shadow-[0_4px_16px_rgba(15,23,42,0.08)] dark:border-[#0b3a52] dark:bg-[#041324] dark:shadow-[0_20px_40px_rgba(1,12,24,0.4)]"
         style={{ height: 'calc(100vh - 260px)', minHeight: '420px' }}
       >
-          <div
-            ref={scrollRef}
-            tabIndex={0}
-            className="h-full overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            onKeyDown={handleKeyDown}
-            onCopy={handleCopy}
-            onPaste={handlePaste}
-          >
-            <Table className="relative">
-              <TableHeader className="sticky top-0 z-20 bg-muted/95 backdrop-blur supports-[backdrop-filter]:bg-muted/80">
-                {headerGroups.map((headerGroup) => (
-                  <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                    {headerGroup.headers.map((header, colIndex) => {
-                      const meta = header.column.columnDef.meta as
-                        | { sticky?: boolean; stickyOffset?: number; width?: number }
-                        | undefined
-                      return (
-                        <TableHead
-                          key={header.id}
-                          className={cn(
-                            'h-10 whitespace-nowrap border-r border-border/50 px-3 text-center',
-                            meta?.sticky && 'sticky z-30 bg-muted/95 backdrop-blur'
-                          )}
-                          style={{
-                            left: meta?.sticky ? meta.stickyOffset : undefined,
-                            width: meta?.width,
-                            minWidth: meta?.width,
-                          }}
-                        >
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(header.column.columnDef.header, header.getContext())}
-                        </TableHead>
-                      )
-                    })}
-                  </TableRow>
-                ))}
-              </TableHeader>
-              <TableBody>
-                {table.getRowModel().rows.map((row, visibleRowIndex) => (
-                  <TableRow key={row.id} className="hover:bg-muted/30">
-                    {leafColumns.map((column, colIndex) => {
-                      const meta = column.columnDef.meta as
-                        | { sticky?: boolean; stickyOffset?: number; width?: number; field?: string }
-                        | undefined
-                      const presentation = getCellPresentation(visibleRowIndex, column.id)
-                      const isSelected = selection
-                        ? (() => {
-                            const range = normalizeRange(selection)
-                            return (
-                              visibleRowIndex >= range.top &&
-                              visibleRowIndex <= range.bottom &&
-                              colIndex >= range.left &&
-                              colIndex <= range.right
-                            )
-                          })()
-                        : false
-                      const isCurrent =
-                        activeCell?.row === visibleRowIndex && activeCell?.col === colIndex
-                      const isEditing =
-                        editingCell?.coords.row === visibleRowIndex &&
-                        editingCell?.coords.col === colIndex
+        <div
+          ref={scrollRef}
+          tabIndex={0}
+          className="h-full overflow-auto outline-none"
+          onKeyDown={handleKeyDown}
+          onCopy={handleCopy}
+          onPaste={handlePaste}
+        >
+          <Table className="relative w-full border-collapse">
+            {/* x-plan-hot header styling */}
+            <TableHeader className="sticky top-0 z-20">
+              {headerGroups.map((headerGroup) => (
+                <TableRow
+                  key={headerGroup.id}
+                  className="border-b-[3px] border-b-cyan-600 bg-slate-100 hover:bg-slate-100 dark:border-b-[#00c2b9] dark:bg-[#0a1f35]"
+                >
+                  {headerGroup.headers.map((header) => {
+                    const meta = header.column.columnDef.meta as
+                      | { sticky?: boolean; stickyOffset?: number; width?: number }
+                      | undefined
+                    return (
+                      <TableHead
+                        key={header.id}
+                        className={cn(
+                          'h-[34px] whitespace-nowrap border-r border-slate-300/60 px-2 py-2 text-center text-[11px] font-bold uppercase tracking-[0.1em] text-cyan-700 dark:border-[#0b3a52]/60 dark:text-teal-300',
+                          meta?.sticky &&
+                            'sticky z-30 bg-slate-100 dark:bg-[#0a1f35]'
+                        )}
+                        style={{
+                          left: meta?.sticky ? meta.stickyOffset : undefined,
+                          width: meta?.width,
+                          minWidth: meta?.width,
+                        }}
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(header.column.columnDef.header, header.getContext())}
+                      </TableHead>
+                    )
+                  })}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.map((row, visibleRowIndex) => (
+                <TableRow
+                  key={row.id}
+                  className={cn(
+                    'border-b border-slate-200/50 hover:bg-transparent dark:border-[#0b3a52]/40',
+                    visibleRowIndex % 2 === 1 &&
+                      'bg-slate-50 dark:bg-[#0f2942]'
+                  )}
+                >
+                  {leafColumns.map((column, colIndex) => {
+                    const meta = column.columnDef.meta as
+                      | { sticky?: boolean; stickyOffset?: number; width?: number; field?: string }
+                      | undefined
+                    const presentation = getCellPresentation(visibleRowIndex, column.id)
+                    const isSelected = selection
+                      ? (() => {
+                          const range = normalizeRange(selection)
+                          return (
+                            visibleRowIndex >= range.top &&
+                            visibleRowIndex <= range.bottom &&
+                            colIndex >= range.left &&
+                            colIndex <= range.right
+                          )
+                        })()
+                      : false
+                    const isCurrent =
+                      activeCell?.row === visibleRowIndex && activeCell?.col === colIndex
+                    const isEditing =
+                      editingCell?.coords.row === visibleRowIndex &&
+                      editingCell?.coords.col === colIndex
 
-                      const cellContent = isEditing ? (
-                        <Input
-                          autoFocus
-                          value={editingCell.value}
-                          onChange={(e) =>
-                            setEditingCell((prev) => (prev ? { ...prev, value: e.target.value } : prev))
+                    // Determine base cell background
+                    const isEvenRow = visibleRowIndex % 2 === 1
+                    const isPinned = colIndex <= 2
+
+                    const cellContent = isEditing ? (
+                      <Input
+                        autoFocus
+                        value={editingCell.value}
+                        onChange={(e) =>
+                          setEditingCell((prev) => (prev ? { ...prev, value: e.target.value } : prev))
+                        }
+                        onBlur={commitEditing}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            commitEditing()
+                            moveActiveCell(1, 0)
+                          } else if (e.key === 'Tab') {
+                            e.preventDefault()
+                            commitEditing()
+                            moveActiveCell(0, e.shiftKey ? -1 : 1)
+                          } else if (e.key === 'Escape') {
+                            e.preventDefault()
+                            cancelEditing()
                           }
-                          onBlur={commitEditing}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              commitEditing()
-                              moveActiveCell(1, 0)
-                            } else if (e.key === 'Tab') {
-                              e.preventDefault()
-                              commitEditing()
-                              moveActiveCell(0, e.shiftKey ? -1 : 1)
-                            } else if (e.key === 'Escape') {
-                              e.preventDefault()
-                              cancelEditing()
-                            }
-                          }}
-                          className="h-7 w-full rounded-none border-0 bg-cyan-50 px-2 text-right text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-cyan-950"
-                        />
-                      ) : (
-                        <div
-                          className={cn(
-                            'truncate tabular-nums',
-                            colIndex <= 2 ? 'text-left' : 'text-right',
-                            presentation.isEditable && 'font-medium'
-                          )}
-                        >
-                          {presentation.display}
-                        </div>
-                      )
+                        }}
+                        className="h-full w-full rounded-lg border-2 border-cyan-600 bg-white px-2 text-right text-[13px] font-medium text-slate-900 shadow-[0_4px_12px_rgba(8,145,178,0.15)] focus-visible:ring-0 dark:border-[#00c2b9] dark:bg-[#0a1f35] dark:text-slate-100 dark:shadow-[0_8px_16px_rgba(0,194,185,0.25)]"
+                      />
+                    ) : (
+                      <div
+                        className={cn(
+                          'truncate tabular-nums',
+                          isPinned ? 'text-left' : 'text-right'
+                        )}
+                      >
+                        {presentation.display}
+                      </div>
+                    )
 
-                      const cell = (
-                        <TableCell
+                    const cell = (
+                      <TableCell
+                        key={column.id}
+                        className={cn(
+                          // Base cell styling (x-plan-hot)
+                          'h-8 whitespace-nowrap border-r border-slate-200/50 px-2 py-[5px] text-xs font-medium leading-[1.4] text-slate-900 dark:border-[#0b3a52]/40 dark:text-slate-100',
+                          // Sticky pinned columns
+                          meta?.sticky && [
+                            'sticky z-10',
+                            isEvenRow
+                              ? 'bg-slate-50 dark:bg-[#0f2942]'
+                              : 'bg-white dark:bg-[#0c2537]',
+                          ],
+                          // Non-sticky cell backgrounds
+                          !meta?.sticky && [
+                            isEvenRow
+                              ? 'bg-slate-50 dark:bg-[#0f2942]'
+                              : 'bg-white dark:bg-[#0c2537]',
+                          ],
+                          // Pinned column styling (like row headers)
+                          isPinned && [
+                            'border-r-2 border-r-slate-300 font-bold text-cyan-700 dark:border-r-[#0b3a52] dark:text-teal-300',
+                            isEvenRow
+                              ? 'bg-slate-100 dark:bg-[#0a1f35]'
+                              : 'bg-slate-100 dark:bg-[#0a1f35]',
+                          ],
+                          // Editable cells (x-plan-hot .cell-editable)
+                          presentation.isEditable && [
+                            'cursor-text border border-cyan-600 bg-cyan-50 font-semibold text-cyan-900 hover:bg-cyan-100 dark:border-[#00c2b9] dark:bg-teal-100 dark:text-[#0a1f35] dark:hover:bg-teal-200',
+                          ],
+                          // Warning cells (x-plan-hot .cell-warning)
+                          presentation.isWarning && [
+                            'bg-red-100 font-bold text-red-900 shadow-[inset_2px_0_0_#ef4444,inset_-2px_0_0_#ef4444] dark:bg-red-100 dark:text-red-900',
+                          ],
+                          // Reorder suggestion cells
+                          presentation.isReorder && [
+                            'bg-yellow-100 shadow-[inset_0_0_0_1px_rgba(234,179,8,0.22)] dark:bg-yellow-500/25 dark:shadow-[inset_0_0_0_1px_rgba(234,179,8,0.28)]',
+                          ],
+                          // Inbound row highlighting (x-plan-hot .row-inbound-sales)
+                          presentation.hasInbound &&
+                            !presentation.isEditable &&
+                            !presentation.isWarning && [
+                              'border-l-[6px] border-l-emerald-500 bg-emerald-100 font-bold text-emerald-900 outline outline-1 outline-emerald-500/40 dark:bg-teal-700 dark:text-emerald-50 dark:outline-teal-400/35',
+                            ],
+                          // Selection area (x-plan-hot .area)
+                          isSelected && [
+                            'bg-cyan-600/10 dark:bg-[#00c2b9]/15',
+                          ],
+                          // Current cell border (x-plan-hot .wtBorder.current)
+                          isCurrent && [
+                            'shadow-[inset_0_0_0_2px_#0891b2] dark:shadow-[inset_0_0_0_2px_#00c2b9]',
+                          ]
+                        )}
+                        style={{
+                          left: meta?.sticky ? meta.stickyOffset : undefined,
+                          width: meta?.width,
+                          minWidth: meta?.width,
+                        }}
+                        onPointerDown={(e) => handlePointerDown(e, visibleRowIndex, colIndex)}
+                        onPointerMove={(e) => handlePointerMove(e, visibleRowIndex, colIndex)}
+                        onPointerUp={handlePointerUp}
+                        onDoubleClick={() => handleDoubleClick(visibleRowIndex, colIndex)}
+                      >
+                        {cellContent}
+                      </TableCell>
+                    )
+
+                    if (presentation.tooltip) {
+                      return (
+                        <Tooltip
                           key={column.id}
-                          className={cn(
-                            'h-8 whitespace-nowrap border-r border-border/30 px-3 py-0 text-sm transition-colors',
-                            meta?.sticky && 'sticky z-10 bg-card',
-                            presentation.isEditable &&
-                              'cursor-text bg-cyan-50/50 text-cyan-900 dark:bg-cyan-950/30 dark:text-cyan-100',
-                            presentation.isWarning &&
-                              'bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-200',
-                            presentation.isReorder &&
-                              'ring-2 ring-inset ring-violet-500/50',
-                            presentation.hasInbound &&
-                              !presentation.isEditable &&
-                              !presentation.isWarning &&
-                              'bg-emerald-50/50 dark:bg-emerald-950/20',
-                            isSelected && 'bg-accent',
-                            isCurrent && 'ring-2 ring-inset ring-ring'
-                          )}
-                          style={{
-                            left: meta?.sticky ? meta.stickyOffset : undefined,
-                            width: meta?.width,
-                            minWidth: meta?.width,
-                          }}
-                          onPointerDown={(e) => handlePointerDown(e, visibleRowIndex, colIndex)}
-                          onPointerMove={(e) => handlePointerMove(e, visibleRowIndex, colIndex)}
-                          onPointerUp={handlePointerUp}
-                          onDoubleClick={() => handleDoubleClick(visibleRowIndex, colIndex)}
+                          content={presentation.tooltip}
+                          position="right"
                         >
-                          {cellContent}
-                        </TableCell>
+                          {cell}
+                        </Tooltip>
                       )
+                    }
 
-                      if (presentation.tooltip) {
-                        return (
-                          <Tooltip
-                            key={column.id}
-                            content={presentation.tooltip}
-                            position="right"
-                          >
-                            {cell}
-                          </Tooltip>
-                        )
-                      }
-
-                      return cell
-                    })}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                    return cell
+                  })}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
 
         <SelectionStatsBar stats={selectionStats} />
       </div>
