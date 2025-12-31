@@ -3,11 +3,12 @@
 import {
   useId,
   useMemo,
+  useRef,
   useState,
   type KeyboardEvent,
   type PointerEvent,
 } from 'react'
-import { Check, Download } from 'lucide-react'
+import { Check, Download, ChevronDown, ChevronUp } from 'lucide-react'
 import { SHEET_TOOLBAR_GROUP } from '@/components/sheet-toolbar'
 
 export type POStatus = 'PLANNED' | 'PRODUCTION' | 'IN_TRANSIT' | 'ARRIVED' | 'CLOSED' | 'CANCELLED'
@@ -48,20 +49,39 @@ interface POProfitabilitySectionProps {
 }
 
 type StatusFilter = 'ALL' | POStatus
+type SortField = 'orderCode' | 'grossRevenue' | 'netProfit' | 'netMarginPercent' | 'roi'
+type SortDirection = 'asc' | 'desc'
 
-const statusColors: Record<POStatus, string> = {
-  PLANNED: '#64748b',
-  PRODUCTION: '#f59e0b',
-  IN_TRANSIT: '#3b82f6',
-  ARRIVED: '#10b981',
-  CLOSED: '#0891b2',
-  CANCELLED: '#ef4444',
+type MetricKey = 'grossMarginPercent' | 'netMarginPercent' | 'roi'
+
+const metricConfig: Record<MetricKey, { label: string; hex: string; hexDark: string; labelClass: string }> = {
+  grossMarginPercent: {
+    label: 'Gross Margin %',
+    hex: '#0891b2',
+    hexDark: '#00C2B9',
+    labelClass: 'text-cyan-700 dark:text-cyan-300/80',
+  },
+  netMarginPercent: {
+    label: 'Net Margin %',
+    hex: '#059669',
+    hexDark: '#10b981',
+    labelClass: 'text-emerald-700 dark:text-emerald-300/80',
+  },
+  roi: {
+    label: 'ROI %',
+    hex: '#7c3aed',
+    hexDark: '#a78bfa',
+    labelClass: 'text-violet-700 dark:text-violet-300/80',
+  },
 }
 
-const accentPalette = {
-  revenue: { hex: '#0891b2', hexDark: '#00C2B9', label: 'Revenue' },
-  cogs: { hex: '#64748b', hexDark: '#94a3b8', label: 'COGS' },
-  profit: { hex: '#059669', hexDark: '#10b981', label: 'Net Profit' },
+const statusLabels: Record<POStatus, string> = {
+  PLANNED: 'Planned',
+  PRODUCTION: 'Production',
+  IN_TRANSIT: 'Transit',
+  ARRIVED: 'Arrived',
+  CLOSED: 'Closed',
+  CANCELLED: 'Cancelled',
 }
 
 export function POProfitabilitySection({
@@ -71,65 +91,133 @@ export function POProfitabilitySection({
 }: POProfitabilitySectionProps) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL')
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  const [enabledMetrics, setEnabledMetrics] = useState<MetricKey[]>(['grossMarginPercent', 'netMarginPercent', 'roi'])
+  const [sortField, setSortField] = useState<SortField>('grossRevenue')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+  const chartRef = useRef<HTMLDivElement>(null)
   const gradientId = useId()
 
   const filteredData = useMemo(() => {
     let result = statusFilter === 'ALL' ? data : data.filter((po) => po.status === statusFilter)
-    return [...result].sort((a, b) => b.grossRevenue - a.grossRevenue)
+    // Sort by arrival date for chart (oldest first)
+    return [...result].sort((a, b) => {
+      const dateA = a.availableDate ? new Date(a.availableDate).getTime() : 0
+      const dateB = b.availableDate ? new Date(b.availableDate).getTime() : 0
+      return dateA - dateB
+    })
   }, [data, statusFilter])
 
-  const hoveredIndex = activeIndex ?? (filteredData.length > 0 ? 0 : null)
+  const tableSortedData = useMemo(() => {
+    return [...filteredData].sort((a, b) => {
+      const aVal = a[sortField]
+      const bVal = b[sortField]
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal)
+      }
+      const aNum = typeof aVal === 'number' ? aVal : 0
+      const bNum = typeof bVal === 'number' ? bVal : 0
+      return sortDirection === 'asc' ? aNum - bNum : bNum - aNum
+    })
+  }, [filteredData, sortField, sortDirection])
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('desc')
+    }
+  }
+
+  const hoveredIndex = activeIndex ?? (filteredData.length > 0 ? filteredData.length - 1 : null)
   const selectedPO = hoveredIndex !== null ? filteredData[hoveredIndex] : null
 
-  // Chart dimensions - matching existing sheets exactly
+  // Chart dimensions
   const viewBoxWidth = 1400
-  const chartHeight = 600
-  const padding = { top: 40, right: 40, bottom: 80, left: 80 }
+  const chartHeight = 500
+  const padding = { top: 40, right: 40, bottom: 60, left: 80 }
   const innerWidth = viewBoxWidth - padding.left - padding.right
   const innerHeight = chartHeight - padding.top - padding.bottom
 
-  // Calculate scales
-  const { maxValue, barWidth } = useMemo(() => {
-    if (filteredData.length === 0) return { maxValue: 1, barWidth: 40 }
-    const maxRevenue = Math.max(...filteredData.map((po) => po.grossRevenue), 1)
-    const maxValue = maxRevenue * 1.1
-    const numPOs = filteredData.length
-    const groupWidth = Math.min(innerWidth / numPOs, 120)
-    const barWidth = groupWidth * 0.25
-    return { maxValue, barWidth }
-  }, [filteredData, innerWidth])
+  // Calculate domain across enabled metrics
+  const { domainMin, domainMax } = useMemo(() => {
+    if (!filteredData.length || !enabledMetrics.length) return { domainMin: -10, domainMax: 100 }
 
-  const valueToY = (value: number) => {
-    return padding.top + innerHeight - (value / maxValue) * innerHeight
-  }
+    let minBound = Infinity
+    let maxBound = -Infinity
+
+    for (const po of filteredData) {
+      for (const key of enabledMetrics) {
+        const value = po[key]
+        if (Number.isFinite(value)) {
+          if (value < minBound) minBound = value
+          if (value > maxBound) maxBound = value
+        }
+      }
+    }
+
+    if (!Number.isFinite(minBound)) minBound = 0
+    if (!Number.isFinite(maxBound)) maxBound = 100
+
+    const span = maxBound - minBound
+    const basePadding = span === 0 ? 10 : span * 0.1
+    minBound -= basePadding
+    maxBound += basePadding
+
+    return { domainMin: minBound, domainMax: maxBound }
+  }, [filteredData, enabledMetrics])
+
+  const range = domainMax - domainMin || 1
+
+  // Calculate points for each metric
+  const metricData = useMemo(() => {
+    return enabledMetrics.map((key) => {
+      const config = metricConfig[key]
+      const values = filteredData.map((po) => po[key])
+      const points = values.map((value, index) => {
+        const x = padding.left + (filteredData.length === 1 ? innerWidth / 2 : (index / (filteredData.length - 1)) * innerWidth)
+        const normalized = (value - domainMin) / range
+        const y = padding.top + innerHeight - normalized * innerHeight
+        return { x, y }
+      })
+      return { key, config, values, points }
+    })
+  }, [enabledMetrics, filteredData, domainMin, range, innerWidth, innerHeight])
 
   // Y-axis ticks
   const yAxisTicks = useMemo(() => {
-    return niceScale(0, maxValue, 6)
-  }, [maxValue])
+    return niceScale(domainMin, domainMax, 6)
+  }, [domainMin, domainMax])
 
-  const formatCurrency = (value: number) => {
-    if (Math.abs(value) >= 1000000) return `$${(value / 1000000).toFixed(1)}M`
-    if (Math.abs(value) >= 1000) return `$${(value / 1000).toFixed(0)}K`
-    return `$${value.toFixed(0)}`
+  // X-axis tick indices
+  const xAxisTickIndices = useMemo(() => {
+    const count = filteredData.length
+    if (count <= 12) return filteredData.map((_, i) => i)
+    const stride = Math.max(1, Math.floor(count / 12))
+    const indices: number[] = []
+    for (let i = 0; i < count; i += stride) {
+      indices.push(i)
+    }
+    return indices
+  }, [filteredData])
+
+  const valueToY = (value: number) => {
+    const normalized = (value - domainMin) / range
+    return padding.top + innerHeight - normalized * innerHeight
   }
-
-  const formatPercent = (value: number) => `${value.toFixed(1)}%`
 
   const handlePointerMove = (event: PointerEvent<SVGSVGElement>) => {
     if (filteredData.length === 0) return
     const bounds = event.currentTarget.getBoundingClientRect()
     const relativeX = event.clientX - bounds.left
     const scaleX = bounds.width / viewBoxWidth || 1
-    const svgX = relativeX / scaleX
-
-    if (svgX < padding.left || svgX > viewBoxWidth - padding.right) {
-      return
-    }
-
-    const normalized = (svgX - padding.left) / innerWidth
-    const index = Math.floor(normalized * filteredData.length)
-    setActiveIndex(Math.max(0, Math.min(filteredData.length - 1, index)))
+    const paddingLeftPx = padding.left * scaleX
+    const paddingRightPx = padding.right * scaleX
+    const clampedX = Math.max(paddingLeftPx, Math.min(bounds.width - paddingRightPx, relativeX))
+    const normalized = (clampedX - paddingLeftPx) / Math.max(1, bounds.width - paddingLeftPx - paddingRightPx)
+    const maxIndex = Math.max(0, filteredData.length - 1)
+    const index = Math.round(normalized * maxIndex)
+    setActiveIndex(index)
   }
 
   const handlePointerLeave = () => setActiveIndex(null)
@@ -138,12 +226,48 @@ export function POProfitabilitySection({
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
     if (filteredData.length === 0) return
     event.preventDefault()
-    const currentIndex = hoveredIndex ?? 0
+    const currentIndex = hoveredIndex ?? filteredData.length - 1
     const nextIndex = event.key === 'ArrowLeft'
       ? Math.max(0, currentIndex - 1)
       : Math.min(filteredData.length - 1, currentIndex + 1)
     setActiveIndex(nextIndex)
   }
+
+  const toggleMetric = (key: MetricKey) => {
+    setEnabledMetrics((prev) => {
+      if (prev.includes(key)) {
+        if (prev.length <= 1) return prev
+        return prev.filter((k) => k !== key)
+      }
+      return [...prev, key]
+    })
+  }
+
+  const formatCurrency = (value: number) => {
+    if (Math.abs(value) >= 1000000) return `$${(value / 1000000).toFixed(1)}M`
+    if (Math.abs(value) >= 1000) return `$${(value / 1000).toFixed(1)}K`
+    return `$${value.toFixed(0)}`
+  }
+
+  const formatCurrencyFull = (value: number) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(value)
+  }
+
+  const formatPercent = (value: number) => `${value.toFixed(1)}%`
+
+  const zeroLineY = domainMin < 0 && domainMax > 0
+    ? padding.top + innerHeight - ((0 - domainMin) / range) * innerHeight
+    : null
+
+  // Summary stats
+  const summary = useMemo(() => {
+    if (filteredData.length === 0) return { totalRevenue: 0, totalProfit: 0, avgMargin: 0, avgROI: 0 }
+    const totalRevenue = filteredData.reduce((sum, po) => sum + po.grossRevenue, 0)
+    const totalProfit = filteredData.reduce((sum, po) => sum + po.netProfit, 0)
+    const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0
+    const avgROI = filteredData.reduce((sum, po) => sum + po.roi, 0) / filteredData.length
+    return { totalRevenue, totalProfit, avgMargin, avgROI }
+  }, [filteredData])
 
   if (data.length === 0) {
     return (
@@ -161,13 +285,13 @@ export function POProfitabilitySection({
 
   return (
     <div className="space-y-6">
-      {/* Controls bar - matching existing sheets */}
+      {/* Controls bar */}
       <div className="flex flex-wrap items-center gap-3">
         <div className={SHEET_TOOLBAR_GROUP}>
           <span className="text-xs font-semibold uppercase tracking-[0.1em] text-cyan-700 dark:text-cyan-300/90">Status</span>
           {(['ALL', 'PLANNED', 'PRODUCTION', 'IN_TRANSIT', 'ARRIVED', 'CLOSED'] as const).map((status) => {
             const isActive = statusFilter === status
-            const label = status === 'ALL' ? 'All' : status === 'IN_TRANSIT' ? 'Transit' : status.charAt(0) + status.slice(1).toLowerCase()
+            const label = status === 'ALL' ? 'All' : statusLabels[status]
             return (
               <button
                 key={status}
@@ -207,36 +331,36 @@ export function POProfitabilitySection({
         </button>
       </div>
 
-      {/* Main card - matching existing sheets */}
+      {/* Chart Section */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 backdrop-blur-sm dark:border-[#0b3a52] dark:bg-[#06182b]/60">
         <div className="mb-4">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{title}</h3>
-          <p className="text-sm text-slate-600 dark:text-[#6F7B8B]">{description}</p>
+          <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Margin Trends</h3>
+          <p className="text-sm text-slate-600 dark:text-[#6F7B8B]">Performance across purchase orders by arrival date</p>
         </div>
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
           {/* Chart area */}
-          <div className="aspect-[7/3] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-[#0b3a52] dark:bg-[#06182b]/85">
+          <div ref={chartRef} className="aspect-[7/3] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-[#0b3a52] dark:bg-[#06182b]/85">
             <svg
               className="po-profitability-svg h-full w-full"
               viewBox={`0 0 ${viewBoxWidth} ${chartHeight}`}
-              preserveAspectRatio="xMidYMid meet"
+              preserveAspectRatio="none"
               role="img"
-              aria-label="PO Profitability Chart"
+              aria-label="PO Profitability Trends Chart"
               tabIndex={0}
               onPointerMove={handlePointerMove}
+              onPointerDown={handlePointerMove}
               onPointerLeave={handlePointerLeave}
               onKeyDown={handleKeyDown}
             >
+              {/* Gradient definitions */}
               <defs>
-                <linearGradient id={`${gradientId}-revenue`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" className="[stop-color:#0891b2] dark:[stop-color:#00C2B9]" stopOpacity={0.8} />
-                  <stop offset="100%" className="[stop-color:#0891b2] dark:[stop-color:#00C2B9]" stopOpacity={0.3} />
-                </linearGradient>
-                <linearGradient id={`${gradientId}-profit`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" className="[stop-color:#059669] dark:[stop-color:#10b981]" stopOpacity={0.8} />
-                  <stop offset="100%" className="[stop-color:#059669] dark:[stop-color:#10b981]" stopOpacity={0.3} />
-                </linearGradient>
+                {metricData.map(({ key, config }, idx) => (
+                  <linearGradient key={key} id={`${gradientId}-${idx}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={config.hexDark} stopOpacity={0.4} />
+                    <stop offset="100%" stopColor={config.hexDark} stopOpacity={0.05} />
+                  </linearGradient>
+                ))}
               </defs>
 
               {/* Horizontal grid lines */}
@@ -255,54 +379,129 @@ export function POProfitabilitySection({
                 ))}
               </g>
 
-              {/* Bars for each PO */}
-              {filteredData.map((po, index) => {
-                const numPOs = filteredData.length
-                const groupWidth = innerWidth / numPOs
-                const groupX = padding.left + index * groupWidth + groupWidth * 0.1
-                const actualBarWidth = groupWidth * 0.35
-                const gap = groupWidth * 0.05
-                const isActive = index === hoveredIndex
+              {/* Zero line */}
+              {zeroLineY != null && (
+                <line
+                  x1={padding.left}
+                  x2={viewBoxWidth - padding.right}
+                  y1={zeroLineY}
+                  y2={zeroLineY}
+                  stroke="rgba(100, 116, 139, 0.6)"
+                  strokeWidth={2}
+                />
+              )}
 
-                const revenueHeight = (po.grossRevenue / maxValue) * innerHeight
-                const profitHeight = Math.abs(po.netProfit / maxValue) * innerHeight
-                const profitIsNegative = po.netProfit < 0
+              {/* Area fills */}
+              {metricData.map(({ key, points }, idx) => (
+                <path
+                  key={`area-${key}`}
+                  d={`M${padding.left} ${chartHeight - padding.bottom} ${points
+                    .map((p) => `L${p.x} ${p.y}`)
+                    .join(' ')} L${viewBoxWidth - padding.right} ${chartHeight - padding.bottom} Z`}
+                  fill={`url(#${gradientId}-${idx})`}
+                  opacity={0.3}
+                />
+              ))}
 
-                return (
-                  <g key={po.id} className="transition-opacity duration-150" opacity={isActive ? 1 : 0.7}>
-                    {/* Revenue bar */}
-                    <rect
-                      x={groupX}
-                      y={valueToY(po.grossRevenue)}
-                      width={actualBarWidth}
-                      height={revenueHeight}
-                      fill={`url(#${gradientId}-revenue)`}
-                      rx={3}
+              {/* Lines - light mode */}
+              {metricData.map(({ key, config, points }) => (
+                <path
+                  key={`line-${key}`}
+                  d={`M${points[0]?.x ?? padding.left} ${points[0]?.y ?? chartHeight - padding.bottom} ${points
+                    .slice(1)
+                    .map((p) => `L${p.x} ${p.y}`)
+                    .join(' ')}`}
+                  fill="none"
+                  stroke={config.hex}
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="dark:hidden"
+                />
+              ))}
+              {/* Lines - dark mode */}
+              {metricData.map(({ key, config, points }) => (
+                <path
+                  key={`line-dark-${key}`}
+                  d={`M${points[0]?.x ?? padding.left} ${points[0]?.y ?? chartHeight - padding.bottom} ${points
+                    .slice(1)
+                    .map((p) => `L${p.x} ${p.y}`)
+                    .join(' ')}`}
+                  fill="none"
+                  stroke={config.hexDark}
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="hidden dark:block"
+                />
+              ))}
+
+              {/* Active index indicator */}
+              {hoveredIndex != null && metricData[0]?.points[hoveredIndex] && (
+                <>
+                  <line
+                    x1={metricData[0].points[hoveredIndex].x}
+                    x2={metricData[0].points[hoveredIndex].x}
+                    y1={padding.top}
+                    y2={chartHeight - padding.bottom}
+                    stroke="#0891b2"
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    opacity={0.5}
+                    className="pointer-events-none dark:hidden"
+                  />
+                  <line
+                    x1={metricData[0].points[hoveredIndex].x}
+                    x2={metricData[0].points[hoveredIndex].x}
+                    y1={padding.top}
+                    y2={chartHeight - padding.bottom}
+                    stroke="#00C2B9"
+                    strokeWidth={2}
+                    strokeDasharray="6 4"
+                    opacity={0.5}
+                    className="pointer-events-none hidden dark:block"
+                  />
+                </>
+              )}
+
+              {/* Data points - light mode */}
+              {metricData.map(({ key, config, points }) =>
+                points.map((point, index) => {
+                  const isHovered = hoveredIndex === index
+                  return (
+                    <circle
+                      key={`point-${key}-${index}`}
+                      cx={point.x}
+                      cy={point.y}
+                      r={isHovered ? 7 : 4}
+                      fill={config.hex}
+                      stroke="#ffffff"
+                      strokeWidth="2"
+                      opacity={isHovered ? 1 : 0.7}
+                      className="pointer-events-none transition-all duration-150 dark:hidden"
                     />
-                    {/* Profit bar */}
-                    <rect
-                      x={groupX + actualBarWidth + gap}
-                      y={profitIsNegative ? valueToY(0) : valueToY(po.netProfit)}
-                      width={actualBarWidth}
-                      height={profitHeight}
-                      fill={profitIsNegative ? '#ef4444' : `url(#${gradientId}-profit)`}
-                      rx={3}
+                  )
+                })
+              )}
+              {/* Data points - dark mode */}
+              {metricData.map(({ key, config, points }) =>
+                points.map((point, index) => {
+                  const isHovered = hoveredIndex === index
+                  return (
+                    <circle
+                      key={`point-dark-${key}-${index}`}
+                      cx={point.x}
+                      cy={point.y}
+                      r={isHovered ? 7 : 4}
+                      fill={config.hexDark}
+                      stroke="#041324"
+                      strokeWidth="2"
+                      opacity={isHovered ? 1 : 0.7}
+                      className="pointer-events-none hidden transition-all duration-150 dark:block"
                     />
-
-                    {/* Hover highlight */}
-                    {isActive && (
-                      <rect
-                        x={groupX - groupWidth * 0.05}
-                        y={padding.top}
-                        width={groupWidth * 0.8}
-                        height={innerHeight}
-                        className="fill-cyan-500/5 dark:fill-[#00C2B9]/5"
-                        rx={4}
-                      />
-                    )}
-                  </g>
-                )
-              })}
+                  )
+                })
+              )}
 
               {/* Y-axis */}
               <g>
@@ -331,7 +530,7 @@ export function POProfitabilitySection({
                       alignmentBaseline="middle"
                       className="fill-slate-600 text-xs font-mono dark:fill-[#6F7B8B]"
                     >
-                      {formatCurrency(tick)}
+                      {formatPercent(tick)}
                     </text>
                   </g>
                 ))}
@@ -347,37 +546,27 @@ export function POProfitabilitySection({
                   stroke="#6F7B8B"
                   strokeWidth="2"
                 />
-                {filteredData.map((po, index) => {
-                  const numPOs = filteredData.length
-                  const groupWidth = innerWidth / numPOs
-                  const x = padding.left + index * groupWidth + groupWidth * 0.4
-                  const showLabel = numPOs <= 12 || index % Math.ceil(numPOs / 12) === 0
-                  if (!showLabel) return null
+                {xAxisTickIndices.map((tickIndex) => {
+                  const point = metricData[0]?.points[tickIndex]
+                  const po = filteredData[tickIndex]
+                  if (!point || !po) return null
                   return (
-                    <g key={`x-tick-${index}`}>
+                    <g key={`x-tick-${tickIndex}`}>
                       <line
-                        x1={x}
+                        x1={point.x}
                         y1={chartHeight - padding.bottom}
-                        x2={x}
+                        x2={point.x}
                         y2={chartHeight - padding.bottom + 5}
                         stroke="#6F7B8B"
                         strokeWidth="2"
                       />
                       <text
-                        x={x}
+                        x={point.x}
                         y={chartHeight - padding.bottom + 20}
                         textAnchor="middle"
                         className="fill-[#6F7B8B] text-[11px]"
                       >
                         {po.orderCode}
-                      </text>
-                      <text
-                        x={x}
-                        y={chartHeight - padding.bottom + 36}
-                        textAnchor="middle"
-                        className="fill-[#6F7B8B] text-[10px]"
-                      >
-                        {formatPercent(po.netMarginPercent)}
                       </text>
                     </g>
                   )
@@ -386,91 +575,215 @@ export function POProfitabilitySection({
             </svg>
           </div>
 
-          {/* Sidebar - matching existing sheets exactly */}
+          {/* Sidebar */}
           <aside className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm backdrop-blur-sm dark:border-[#0b3a52] dark:bg-[#06182b]/85">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
-                {activeIndex !== null ? 'Selected PO' : 'Top PO'}
+                {activeIndex !== null ? 'Selected PO' : 'Latest PO'}
               </p>
               <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-white">
                 {selectedPO?.orderCode ?? '—'}
               </p>
               {selectedPO && (
-                <p className="text-xs text-slate-500 dark:text-slate-400">
+                <p className="truncate text-xs text-slate-500 dark:text-slate-400" title={selectedPO.productName}>
                   {selectedPO.productName}
                 </p>
               )}
             </div>
 
-            <div className="space-y-1">
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
-                Revenue
-              </p>
-              <p className="text-2xl font-semibold text-slate-900 dark:text-white">
-                {selectedPO ? formatCurrency(selectedPO.grossRevenue) : '—'}
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {selectedPO ? `${selectedPO.quantity.toLocaleString()} units` : '—'}
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-emerald-700 dark:text-emerald-300/80">
-                Net Profit
-              </p>
-              <p className={`text-2xl font-semibold ${selectedPO && selectedPO.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                {selectedPO ? formatCurrency(selectedPO.netProfit) : '—'}
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {selectedPO ? `${formatPercent(selectedPO.netMarginPercent)} margin` : '—'}
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">
-                ROI
-              </p>
-              <p className={`text-xl font-semibold ${selectedPO && selectedPO.roi >= 0 ? 'text-slate-900 dark:text-white' : 'text-red-600 dark:text-red-400'}`}>
-                {selectedPO ? formatPercent(selectedPO.roi) : '—'}
-              </p>
-            </div>
+            {enabledMetrics.map((key) => {
+              const config = metricConfig[key]
+              const value = selectedPO ? selectedPO[key] : null
+              return (
+                <div key={key} className="space-y-1">
+                  <p className={`text-xs font-bold uppercase tracking-[0.28em] ${config.labelClass}`}>
+                    {config.label}
+                  </p>
+                  <p className={`text-2xl font-semibold ${value !== null && value < 0 ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-white'}`}>
+                    {value !== null ? formatPercent(value) : '—'}
+                  </p>
+                </div>
+              )
+            })}
 
             <div className="space-y-1 border-t border-slate-200 pt-3 dark:border-[#0b3a52]">
               <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-500 dark:text-slate-400">
-                Cost Breakdown
+                Summary
               </p>
               <div className="space-y-1 text-xs">
                 <div className="flex justify-between">
-                  <span className="text-slate-600 dark:text-slate-400">COGS</span>
-                  <span className="font-medium text-slate-900 dark:text-white">{selectedPO ? formatCurrency(selectedPO.supplierCostTotal) : '—'}</span>
+                  <span className="text-slate-600 dark:text-slate-400">Revenue</span>
+                  <span className="font-medium text-slate-900 dark:text-white">{selectedPO ? formatCurrency(selectedPO.grossRevenue) : '—'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-600 dark:text-slate-400">Amazon Fees</span>
-                  <span className="font-medium text-slate-900 dark:text-white">{selectedPO ? formatCurrency(selectedPO.amazonFeesTotal) : '—'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600 dark:text-slate-400">PPC Cost</span>
-                  <span className="font-medium text-slate-900 dark:text-white">{selectedPO ? formatCurrency(selectedPO.ppcCost) : '—'}</span>
+                  <span className="text-slate-600 dark:text-slate-400">Net Profit</span>
+                  <span className={`font-medium ${selectedPO && selectedPO.netProfit < 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {selectedPO ? formatCurrency(selectedPO.netProfit) : '—'}
+                  </span>
                 </div>
               </div>
             </div>
           </aside>
         </div>
 
-        {/* Legend - matching existing sheets */}
+        {/* Legend */}
         <div className="mt-6 flex items-center gap-6 border-t border-slate-200 pt-4 dark:border-[#0b3a52]">
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-8 rounded-sm bg-cyan-600 dark:bg-[#00C2B9]" />
-            <span className="text-xs text-slate-600 dark:text-[#6F7B8B]">Revenue</span>
+          {(Object.keys(metricConfig) as MetricKey[]).map((key) => {
+            const config = metricConfig[key]
+            const isEnabled = enabledMetrics.includes(key)
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => toggleMetric(key)}
+                className="flex items-center gap-2"
+              >
+                <div
+                  className="h-3 w-8 rounded-sm transition-colors"
+                  style={{ backgroundColor: isEnabled ? config.hex : '#94a3b8' }}
+                />
+                <span className={`text-xs ${isEnabled ? 'text-slate-600 dark:text-[#6F7B8B]' : 'text-slate-400 dark:text-slate-500'}`}>
+                  {config.label}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* P&L Table Section */}
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 backdrop-blur-sm dark:border-[#0b3a52] dark:bg-[#06182b]/60">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">P&L Breakdown</h3>
+            <p className="text-sm text-slate-600 dark:text-[#6F7B8B]">Detailed profitability by purchase order</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-8 rounded-sm bg-emerald-600 dark:bg-emerald-500" />
-            <span className="text-xs text-slate-600 dark:text-[#6F7B8B]">Net Profit</span>
+          <div className="text-right text-xs text-slate-500 dark:text-slate-400">
+            <div>Total Revenue: <span className="font-semibold text-slate-900 dark:text-white">{formatCurrencyFull(summary.totalRevenue)}</span></div>
+            <div>Total Profit: <span className={`font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>{formatCurrencyFull(summary.totalProfit)}</span></div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="h-3 w-8 rounded-sm bg-red-500" />
-            <span className="text-xs text-slate-600 dark:text-[#6F7B8B]">Loss</span>
-          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-[#0b3a52]">
+                <th className="whitespace-nowrap px-3 py-2 text-left">
+                  <button onClick={() => handleSort('orderCode')} className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+                    PO Code
+                    {sortField === 'orderCode' && (sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                  </button>
+                </th>
+                <th className="whitespace-nowrap px-3 py-2 text-left text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Status</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Units</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">
+                  <button onClick={() => handleSort('grossRevenue')} className="ml-auto flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-cyan-700 hover:text-cyan-800 dark:text-cyan-300 dark:hover:text-cyan-200">
+                    Revenue
+                    {sortField === 'grossRevenue' && (sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                  </button>
+                </th>
+                <th className="whitespace-nowrap px-3 py-2 text-right text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">COGS</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Amz Fees</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">PPC</th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">
+                  <button onClick={() => handleSort('netProfit')} className="ml-auto flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-emerald-700 hover:text-emerald-800 dark:text-emerald-300 dark:hover:text-emerald-200">
+                    Net Profit
+                    {sortField === 'netProfit' && (sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                  </button>
+                </th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">
+                  <button onClick={() => handleSort('netMarginPercent')} className="ml-auto flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+                    Margin
+                    {sortField === 'netMarginPercent' && (sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                  </button>
+                </th>
+                <th className="whitespace-nowrap px-3 py-2 text-right">
+                  <button onClick={() => handleSort('roi')} className="ml-auto flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-violet-700 hover:text-violet-800 dark:text-violet-300 dark:hover:text-violet-200">
+                    ROI
+                    {sortField === 'roi' && (sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                  </button>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {tableSortedData.map((po) => (
+                <tr key={po.id} className="border-b border-slate-100 transition-colors hover:bg-slate-50 dark:border-[#0b3a52]/50 dark:hover:bg-[#06182b]/40">
+                  <td className="whitespace-nowrap px-3 py-2">
+                    <div className="font-medium text-slate-900 dark:text-white">{po.orderCode}</div>
+                    <div className="truncate text-xs text-slate-500 dark:text-slate-400" style={{ maxWidth: '150px' }} title={po.productName}>
+                      {po.productName}
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2">
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                      po.status === 'ARRIVED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' :
+                      po.status === 'CLOSED' ? 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300' :
+                      po.status === 'IN_TRANSIT' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
+                      po.status === 'PRODUCTION' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' :
+                      po.status === 'CANCELLED' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
+                      'bg-slate-100 text-slate-600 dark:bg-slate-700/30 dark:text-slate-300'
+                    }`}>
+                      {statusLabels[po.status]}
+                    </span>
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-slate-700 dark:text-slate-300">
+                    {po.quantity.toLocaleString()}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right font-mono font-medium text-cyan-700 dark:text-cyan-300">
+                    {formatCurrencyFull(po.grossRevenue)}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
+                    {formatCurrencyFull(po.supplierCostTotal)}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
+                    {formatCurrencyFull(po.amazonFeesTotal)}
+                  </td>
+                  <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
+                    {formatCurrencyFull(po.ppcCost)}
+                  </td>
+                  <td className={`whitespace-nowrap px-3 py-2 text-right font-mono font-medium ${po.netProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {formatCurrencyFull(po.netProfit)}
+                  </td>
+                  <td className={`whitespace-nowrap px-3 py-2 text-right font-mono ${po.netMarginPercent >= 0 ? 'text-slate-700 dark:text-slate-300' : 'text-red-600 dark:text-red-400'}`}>
+                    {formatPercent(po.netMarginPercent)}
+                  </td>
+                  <td className={`whitespace-nowrap px-3 py-2 text-right font-mono font-medium ${po.roi >= 0 ? 'text-violet-600 dark:text-violet-400' : 'text-red-600 dark:text-red-400'}`}>
+                    {formatPercent(po.roi)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="border-t-2 border-slate-300 bg-slate-50 font-semibold dark:border-[#0b3a52] dark:bg-[#06182b]/40">
+                <td className="whitespace-nowrap px-3 py-2 text-slate-900 dark:text-white">Total ({filteredData.length} POs)</td>
+                <td className="px-3 py-2" />
+                <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-slate-700 dark:text-slate-300">
+                  {filteredData.reduce((sum, po) => sum + po.quantity, 0).toLocaleString()}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-cyan-700 dark:text-cyan-300">
+                  {formatCurrencyFull(summary.totalRevenue)}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
+                  {formatCurrencyFull(filteredData.reduce((sum, po) => sum + po.supplierCostTotal, 0))}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
+                  {formatCurrencyFull(filteredData.reduce((sum, po) => sum + po.amazonFeesTotal, 0))}
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-slate-600 dark:text-slate-400">
+                  {formatCurrencyFull(filteredData.reduce((sum, po) => sum + po.ppcCost, 0))}
+                </td>
+                <td className={`whitespace-nowrap px-3 py-2 text-right font-mono ${summary.totalProfit >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {formatCurrencyFull(summary.totalProfit)}
+                </td>
+                <td className={`whitespace-nowrap px-3 py-2 text-right font-mono ${summary.avgMargin >= 0 ? 'text-slate-700 dark:text-slate-300' : 'text-red-600 dark:text-red-400'}`}>
+                  {formatPercent(summary.avgMargin)}
+                </td>
+                <td className={`whitespace-nowrap px-3 py-2 text-right font-mono ${summary.avgROI >= 0 ? 'text-violet-600 dark:text-violet-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {formatPercent(summary.avgROI)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
         </div>
       </div>
     </div>
