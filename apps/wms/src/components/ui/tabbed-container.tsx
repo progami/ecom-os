@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 
 interface Tab {
@@ -15,15 +15,34 @@ interface TabbedContainerProps {
  tabs: Tab[]
  children: React.ReactNode
  defaultTab?: string
+ value?: string
  onChange?: (tabId: string) => void
 }
 
-export function TabbedContainer({ tabs, children, defaultTab, onChange }: TabbedContainerProps) {
- const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id)
+export function TabbedContainer({ tabs, children, defaultTab, value, onChange }: TabbedContainerProps) {
+ const [internalActiveTab, setInternalActiveTab] = useState(defaultTab || tabs[0]?.id)
+
+ const isControlled = value !== undefined
+ const activeTab = isControlled ? value : internalActiveTab
+
+ useEffect(() => {
+   if (!tabs.find(t => t.id === activeTab) && tabs.length > 0) {
+     const newTab = tabs[0].id
+     if (isControlled) {
+       onChange?.(newTab)
+     } else {
+       setInternalActiveTab(newTab)
+     }
+   }
+ }, [tabs, activeTab, isControlled, onChange])
 
  const handleTabChange = (tabId: string) => {
- setActiveTab(tabId)
- onChange?.(tabId)
+   if (isControlled) {
+     onChange?.(tabId)
+   } else {
+     setInternalActiveTab(tabId)
+     onChange?.(tabId)
+   }
  }
 
  const childrenArray = React.Children.toArray(children)
