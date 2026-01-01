@@ -591,11 +591,12 @@ export function POProfitabilitySection({
               )}
             </div>
 
-            {enabledMetrics.map((key) => {
+            {(Object.keys(metricConfig) as MetricKey[]).map((key) => {
               const config = metricConfig[key]
+              const isEnabled = enabledMetrics.includes(key)
               const value = selectedPO ? selectedPO[key] : null
               return (
-                <div key={key} className="space-y-1">
+                <div key={key} className={`space-y-1 ${!isEnabled ? 'opacity-40' : ''}`}>
                   <p className={`text-xs font-bold uppercase tracking-[0.28em] ${config.labelClass}`}>
                     {config.label}
                   </p>
