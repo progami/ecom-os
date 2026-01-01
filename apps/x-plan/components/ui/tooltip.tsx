@@ -96,7 +96,7 @@ export function Tooltip({ content, children, position = 'top', delay = 100, clas
 
   const tooltipContent = isVisible && mounted && createPortal(
     <div
-      className="fixed z-[9999] pointer-events-none animate-in fade-in-0 zoom-in-95 duration-150"
+      className="fixed z-[9999] pointer-events-none"
       style={{
         top: `${coords.top}px`,
         left: `${coords.left}px`,
