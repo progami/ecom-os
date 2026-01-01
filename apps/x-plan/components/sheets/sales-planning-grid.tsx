@@ -480,7 +480,7 @@ export function SalesPlanningGrid({
                   <div className="flex items-center justify-center gap-1">
                     <button
                       type="button"
-                      className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded bg-cyan-600/10 text-cyan-600 transition-all hover:scale-105 hover:bg-cyan-600/20 hover:text-cyan-700 disabled:cursor-default disabled:opacity-0 dark:bg-[#00c2b9]/15 dark:text-teal-300 dark:hover:bg-[#00c2b9]/25 dark:hover:text-teal-200"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-accent disabled:opacity-0"
                       disabled={!hasPrev && focusProductId !== 'ALL'}
                       onClick={() => {
                         preserveGridScroll(() => {
@@ -500,12 +500,10 @@ export function SalesPlanningGrid({
                         <ChevronLeft className="h-3.5 w-3.5" />
                       )}
                     </button>
-                    <span className="text-[13px] font-extrabold tracking-[0.05em] text-slate-900 dark:text-slate-100">
-                      {product.name}
-                    </span>
+                    <span className="text-sm font-semibold">{product.name}</span>
                     <button
                       type="button"
-                      className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded bg-cyan-600/10 text-cyan-600 transition-all hover:scale-105 hover:bg-cyan-600/20 hover:text-cyan-700 disabled:cursor-default disabled:opacity-0 dark:bg-[#00c2b9]/15 dark:text-teal-300 dark:hover:bg-[#00c2b9]/25 dark:hover:text-teal-200"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-accent disabled:opacity-0"
                       disabled={!hasNext}
                       onClick={() => {
                         preserveGridScroll(() => {
@@ -535,7 +533,7 @@ export function SalesPlanningGrid({
                 return (
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center rounded-lg border-2 border-cyan-600/55 bg-gradient-to-b from-cyan-600/15 to-cyan-600/5 px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-cyan-700 shadow-[0_1px_0_rgba(15,23,42,0.06),inset_0_0_0_1px_rgba(255,255,255,0.5)] outline-[3px] outline-transparent transition-all hover:border-cyan-600/80 hover:bg-gradient-to-b hover:from-cyan-600/20 hover:to-cyan-600/10 hover:text-cyan-900 hover:shadow-[0_6px_14px_rgba(8,145,178,0.18),inset_0_0_0_1px_rgba(255,255,255,0.6)] hover:outline-cyan-600/25 dark:border-[#00c2b9]/55 dark:bg-gradient-to-b dark:from-[#00c2b9]/20 dark:to-[#00c2b9]/5 dark:text-teal-300 dark:shadow-[0_1px_0_rgba(0,0,0,0.25),inset_0_0_0_1px_rgba(255,255,255,0.05)] dark:hover:border-[#00c2b9]/85 dark:hover:text-teal-100 dark:hover:shadow-[0_8px_18px_rgba(0,194,185,0.18),inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+                    className="rounded border bg-secondary px-2 py-0.5 text-xs font-medium hover:bg-secondary/80"
                     onClick={() =>
                       preserveGridScroll(() =>
                         setActiveStockMetric((prev) =>
@@ -553,7 +551,7 @@ export function SalesPlanningGrid({
                 return (
                   <button
                     type="button"
-                    className="inline-flex items-center justify-center rounded-lg border-2 border-cyan-600/55 bg-gradient-to-b from-cyan-600/15 to-cyan-600/5 px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-cyan-700 shadow-[0_1px_0_rgba(15,23,42,0.06),inset_0_0_0_1px_rgba(255,255,255,0.5)] outline-[3px] outline-transparent transition-all hover:border-cyan-600/80 hover:bg-gradient-to-b hover:from-cyan-600/20 hover:to-cyan-600/10 hover:text-cyan-900 hover:shadow-[0_6px_14px_rgba(8,145,178,0.18),inset_0_0_0_1px_rgba(255,255,255,0.6)] hover:outline-cyan-600/25 dark:border-[#00c2b9]/55 dark:bg-gradient-to-b dark:from-[#00c2b9]/20 dark:to-[#00c2b9]/5 dark:text-teal-300 dark:shadow-[0_1px_0_rgba(0,0,0,0.25),inset_0_0_0_1px_rgba(255,255,255,0.05)] dark:hover:border-[#00c2b9]/85 dark:hover:text-teal-100 dark:hover:shadow-[0_8px_18px_rgba(0,194,185,0.18),inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+                    className="rounded border bg-secondary px-2 py-0.5 text-xs font-medium hover:bg-secondary/80"
                     onClick={() => preserveGridScroll(() => setShowFinalError((prev) => !prev))}
                   >
                     {labelMap[field]}
@@ -562,7 +560,7 @@ export function SalesPlanningGrid({
               }
 
               return (
-                <span className="inline-flex items-center justify-center rounded-lg border border-cyan-600/25 bg-white/65 px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.06em] text-cyan-700 dark:border-[#00c2b9]/25 dark:bg-[#0a1f35]/80 dark:text-teal-300">
+                <span className="text-xs font-medium text-muted-foreground">
                   {labelMap[field] ?? field}
                 </span>
               )
@@ -1320,9 +1318,8 @@ export function SalesPlanningGrid({
 
   return (
     <div className="p-4">
-      {/* x-plan-hot themed container */}
       <div
-        className="relative overflow-hidden rounded-xl border border-slate-300 bg-white shadow-[0_4px_16px_rgba(15,23,42,0.08)] dark:border-[#0b3a52] dark:bg-[#041324] dark:shadow-[0_20px_40px_rgba(1,12,24,0.4)]"
+        className="relative overflow-hidden rounded-lg border bg-card"
         style={{ height: 'calc(100vh - 260px)', minHeight: '420px' }}
       >
         <div
@@ -1344,13 +1341,9 @@ export function SalesPlanningGrid({
                 return <col key={column.id} style={{ width, minWidth: width }} />
               })}
             </colgroup>
-            {/* x-plan-hot header styling */}
             <TableHeader>
               {headerGroups.map((headerGroup) => (
-                <TableRow
-                  key={headerGroup.id}
-                  className="border-b-[3px] border-b-cyan-600 bg-slate-100 hover:bg-slate-100 dark:border-b-[#00c2b9] dark:bg-[#0a1f35]"
-                >
+                <TableRow key={headerGroup.id} className="hover:bg-transparent">
                   {headerGroup.headers.map((header) => {
                     const meta = header.column.columnDef.meta as
                       | { sticky?: boolean; stickyOffset?: number; width?: number }
@@ -1359,9 +1352,7 @@ export function SalesPlanningGrid({
                       <TableHead
                         key={header.id}
                         className={cn(
-                          // All header cells sticky to top
-                          'sticky top-0 z-20 h-[34px] whitespace-nowrap border-r border-slate-300/60 bg-slate-100 px-2 py-2 text-center text-[11px] font-bold uppercase tracking-[0.1em] text-cyan-700 dark:border-[#0b3a52]/60 dark:bg-[#0a1f35] dark:text-teal-300',
-                          // Pinned columns also sticky left
+                          'sticky top-0 z-20 h-9 whitespace-nowrap border-b border-r bg-muted px-2 text-center text-xs font-semibold',
                           meta?.sticky && 'z-30'
                         )}
                         style={{
@@ -1384,9 +1375,8 @@ export function SalesPlanningGrid({
                 <TableRow
                   key={row.id}
                   className={cn(
-                    'border-b border-slate-200/50 hover:bg-transparent dark:border-[#0b3a52]/40',
-                    visibleRowIndex % 2 === 1 &&
-                      'bg-slate-50 dark:bg-[#0f2942]'
+                    'hover:bg-transparent',
+                    visibleRowIndex % 2 === 1 && 'bg-muted/30'
                   )}
                 >
                   {leafColumns.map((column, colIndex) => {
@@ -1411,7 +1401,6 @@ export function SalesPlanningGrid({
                       editingCell?.coords.row === visibleRowIndex &&
                       editingCell?.coords.col === colIndex
 
-                    // Determine base cell background
                     const isEvenRow = visibleRowIndex % 2 === 1
                     const isPinned = colIndex <= 2
 
@@ -1437,56 +1426,37 @@ export function SalesPlanningGrid({
                             cancelEditing()
                           }
                         }}
-                        className="h-full w-full rounded-lg border-2 border-cyan-600 bg-white px-2 text-right text-[13px] font-medium text-slate-900 shadow-[0_4px_12px_rgba(8,145,178,0.15)] focus-visible:ring-0 dark:border-[#00c2b9] dark:bg-[#0a1f35] dark:text-slate-100 dark:shadow-[0_8px_16px_rgba(0,194,185,0.25)]"
+                        className="h-7 w-full border-primary px-2 text-right text-sm focus-visible:ring-1"
                       />
                     ) : (
-                      <div
+                      <span
                         className={cn(
-                          'truncate tabular-nums',
+                          'block truncate tabular-nums',
                           isPinned ? 'text-left' : 'text-right'
                         )}
                       >
                         {presentation.display}
-                      </div>
+                      </span>
                     )
 
                     const cell = (
                       <TableCell
                         key={column.id}
                         className={cn(
-                          // Base cell styling
-                          'h-8 whitespace-nowrap border-r border-slate-200/50 px-2 py-[5px] text-xs font-medium leading-[1.4] text-slate-800 dark:border-[#0b3a52]/40 dark:text-slate-200',
-                          // Default background with zebra striping
-                          isEvenRow
-                            ? 'bg-slate-50/80 dark:bg-[#0f2942]'
-                            : 'bg-white dark:bg-[#0c2537]',
-                          // Sticky positioning for pinned columns
+                          'h-8 whitespace-nowrap border-r px-2 text-sm',
+                          isEvenRow ? 'bg-muted/30' : 'bg-card',
                           meta?.sticky && 'sticky z-10',
-                          // Last pinned column gets thicker border
-                          colIndex === 2 && 'border-r-2 border-r-slate-300 dark:border-r-[#0b3a52]',
-                          // Editable cells - subtle cyan tint
-                          presentation.isEditable && [
-                            'cursor-text border-[1.5px] border-cyan-500/60 bg-cyan-50/70 font-semibold text-cyan-800 hover:bg-cyan-100/80 dark:border-[#00c2b9]/60 dark:bg-[#ccfbf1] dark:text-[#0a1f35] dark:hover:bg-[#99f6e4]',
-                          ],
-                          // Warning cells - red background
-                          presentation.isWarning && !presentation.isEditable && [
-                            'bg-red-50 font-bold text-red-800 dark:bg-red-100 dark:text-red-900',
-                          ],
-                          // Reorder suggestion cells
-                          presentation.isReorder &&
-                            !presentation.isWarning && [
-                              'bg-yellow-50 dark:bg-yellow-500/20',
-                            ],
-                          // Inbound row highlighting
+                          meta?.sticky && (isEvenRow ? 'bg-muted/50' : 'bg-card'),
+                          colIndex === 2 && 'border-r-2',
+                          presentation.isEditable && 'cursor-text bg-accent/50 font-medium',
+                          presentation.isWarning && 'bg-destructive/10 text-destructive',
+                          presentation.isReorder && 'bg-warning/10',
                           presentation.hasInbound &&
                             !presentation.isEditable &&
-                            !presentation.isWarning && [
-                              'border-l-4 border-l-emerald-500 bg-emerald-50 font-semibold text-emerald-800 dark:bg-teal-900/40 dark:text-emerald-200',
-                            ],
-                          // Selection area
-                          isSelected && 'bg-cyan-100/50 dark:bg-cyan-900/30',
-                          // Current cell border
-                          isCurrent && 'ring-2 ring-inset ring-cyan-500 dark:ring-[#00c2b9]'
+                            !presentation.isWarning &&
+                            'bg-success/10 text-success-foreground',
+                          isSelected && 'bg-accent',
+                          isCurrent && 'ring-2 ring-inset ring-ring'
                         )}
                         style={{
                           left: meta?.sticky ? meta.stickyOffset : undefined,
