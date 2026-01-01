@@ -18,7 +18,6 @@ import {
 } from 'react'
 import {
   createColumnHelper,
-  flexRender,
   getCoreRowModel,
   useReactTable,
   type ColumnDef,
@@ -435,15 +434,17 @@ export function SalesPlanningGrid({
     })
   }, [focusProductId, keyByProductField, productOptions])
 
-  const columns = useMemo(() => {
-    const metricSequence: string[] = [
+  const metricSequence = useMemo(() => {
+    return [
       'stockStart',
       'actualSales',
       'forecastSales',
       showFinalError ? 'finalSalesError' : 'finalSales',
       activeStockMetric,
     ]
+  }, [activeStockMetric, showFinalError])
 
+  const columns = useMemo(() => {
     const baseColumns = [
       columnHelper.accessor('weekLabel', {
         id: 'weekLabel',
@@ -464,61 +465,14 @@ export function SalesPlanningGrid({
 
     const productColumns = displayedProducts.flatMap((product) => {
       const keys = keyByProductField.get(product.id) ?? {}
-      const currentProductIndex = productOptions.findIndex((option) => option.id === product.id)
-      const hasPrev = currentProductIndex > 0
-      const hasNext = currentProductIndex >= 0 && currentProductIndex < productOptions.length - 1
 
       return metricSequence
-        .map((field, fieldIndex) => {
+        .map((field) => {
           const key = keys[field]
           if (!key) return null
           return columnHelper.accessor((row) => row[key] ?? '', {
             id: key,
             header: () => {
-              if (fieldIndex === 0) {
-                return (
-                  <div className="flex items-center justify-center gap-1">
-                    <button
-                      type="button"
-                      className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-accent disabled:opacity-0"
-                      disabled={!hasPrev && focusProductId !== 'ALL'}
-                      onClick={() => {
-                        preserveGridScroll(() => {
-                          if (!focusContext) return
-                          if (focusProductId !== 'ALL' && !hasPrev) {
-                            focusContext.setFocusProductId('ALL')
-                            return
-                          }
-                          const prevId = productOptions[currentProductIndex - 1]?.id
-                          if (prevId) focusContext.setFocusProductId(prevId)
-                        })
-                      }}
-                    >
-                      {focusProductId !== 'ALL' && !hasPrev ? (
-                        <LayoutGrid className="h-3.5 w-3.5" />
-                      ) : (
-                        <ChevronLeft className="h-3.5 w-3.5" />
-                      )}
-                    </button>
-                    <span className="text-sm font-semibold">{product.name}</span>
-                    <button
-                      type="button"
-                      className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-accent disabled:opacity-0"
-                      disabled={!hasNext}
-                      onClick={() => {
-                        preserveGridScroll(() => {
-                          if (!focusContext || !hasNext) return
-                          const nextId = productOptions[currentProductIndex + 1]?.id
-                          if (nextId) focusContext.setFocusProductId(nextId)
-                        })
-                      }}
-                    >
-                      <ChevronRight className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )
-              }
-
               const labelMap: Record<string, string> = {
                 stockStart: 'Stock Start',
                 actualSales: 'Actual',
@@ -581,11 +535,9 @@ export function SalesPlanningGrid({
     activeStockMetric,
     columnHelper,
     displayedProducts,
-    focusContext,
-    focusProductId,
     keyByProductField,
+    metricSequence,
     preserveGridScroll,
-    productOptions,
     setActiveStockMetric,
     setShowFinalError,
     showFinalError,
@@ -1314,7 +1266,127 @@ export function SalesPlanningGrid({
     ]
   )
 
-  const headerGroups = table.getHeaderGroups()
+  const productMetricColumnIds = useMemo(() => {
+    return displayedProducts.map((product) => {
+      const keys = keyByProductField.get(product.id) ?? {}
+      const columnIds = metricSequence.map((metric) => keys[metric]).filter(Boolean) as string[]
+      return { product, columnIds }
+    })
+  }, [displayedProducts, keyByProductField, metricSequence])
+
+  const baseHeaderColumns = useMemo(() => {
+    const pinned = leafColumns.filter((column) => {
+      const meta = column.columnDef.meta as { kind?: string } | undefined
+      return meta?.kind === 'pinned'
+    })
+    return pinned.length > 0 ? pinned : leafColumns.slice(0, 3)
+  }, [leafColumns])
+
+  const renderProductGroupHeader = useCallback(
+    (product: { id: string; name: string }) => {
+      const currentProductIndex = productOptions.findIndex((option) => option.id === product.id)
+      const hasPrev = currentProductIndex > 0
+      const hasNext = currentProductIndex >= 0 && currentProductIndex < productOptions.length - 1
+
+      return (
+        <div className="flex items-center justify-center gap-1 whitespace-nowrap">
+          <button
+            type="button"
+            className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-accent disabled:opacity-0"
+            disabled={!hasPrev && focusProductId !== 'ALL'}
+            onClick={() => {
+              preserveGridScroll(() => {
+                if (!focusContext) return
+                if (focusProductId !== 'ALL' && !hasPrev) {
+                  focusContext.setFocusProductId('ALL')
+                  return
+                }
+                const prevId = productOptions[currentProductIndex - 1]?.id
+                if (prevId) focusContext.setFocusProductId(prevId)
+              })
+            }}
+          >
+            {focusProductId !== 'ALL' && !hasPrev ? (
+              <LayoutGrid className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronLeft className="h-3.5 w-3.5" />
+            )}
+          </button>
+          <span className="text-xs font-semibold">{product.name}</span>
+          <button
+            type="button"
+            className="inline-flex h-6 w-6 items-center justify-center rounded hover:bg-accent disabled:opacity-0"
+            disabled={!hasNext}
+            onClick={() => {
+              preserveGridScroll(() => {
+                if (!focusContext || !hasNext) return
+                const nextId = productOptions[currentProductIndex + 1]?.id
+                if (nextId) focusContext.setFocusProductId(nextId)
+              })
+            }}
+          >
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      )
+    },
+    [focusContext, focusProductId, preserveGridScroll, productOptions]
+  )
+
+  const renderMetricHeader = useCallback(
+    (field: string) => {
+      const labelMap: Record<string, string> = {
+        stockStart: 'Stock Start',
+        actualSales: 'Actual',
+        forecastSales: 'Forecast',
+        finalSales: 'Final',
+        finalSalesError: '% Error',
+        stockWeeks: 'Stockout',
+        stockEnd: 'Stock Qty',
+      }
+
+      if (field === activeStockMetric) {
+        return (
+          <button
+            type="button"
+            className="rounded border bg-secondary px-2 py-0.5 text-xs font-medium hover:bg-secondary/80"
+            onClick={() =>
+              preserveGridScroll(() =>
+                setActiveStockMetric((prev) => (prev === 'stockWeeks' ? 'stockEnd' : 'stockWeeks'))
+              )
+            }
+          >
+            {labelMap[field]}
+          </button>
+        )
+      }
+
+      if (field === (showFinalError ? 'finalSalesError' : 'finalSales')) {
+        return (
+          <button
+            type="button"
+            className="rounded border bg-secondary px-2 py-0.5 text-xs font-medium hover:bg-secondary/80"
+            onClick={() => preserveGridScroll(() => setShowFinalError((prev) => !prev))}
+          >
+            {labelMap[field]}
+          </button>
+        )
+      }
+
+      return (
+        <span className="text-xs font-medium text-muted-foreground">
+          {labelMap[field] ?? field}
+        </span>
+      )
+    },
+    [
+      activeStockMetric,
+      preserveGridScroll,
+      setActiveStockMetric,
+      setShowFinalError,
+      showFinalError,
+    ]
+  )
 
   return (
     <div className="p-4">
@@ -1342,33 +1414,60 @@ export function SalesPlanningGrid({
               })}
             </colgroup>
             <TableHeader>
-              {headerGroups.map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                  {headerGroup.headers.map((header) => {
-                    const meta = header.column.columnDef.meta as
-                      | { sticky?: boolean; stickyOffset?: number; width?: number }
-                      | undefined
+              <TableRow className="hover:bg-transparent">
+                {baseHeaderColumns.map((column) => {
+                  const meta = column.columnDef.meta as
+                    | { sticky?: boolean; stickyOffset?: number; width?: number }
+                    | undefined
+                  const labelMap: Record<string, string> = {
+                    weekLabel: 'Week',
+                    weekDate: 'Date',
+                    arrivalDetail: 'Inbound PO',
+                  }
+                  return (
+                    <TableHead
+                      key={column.id}
+                      rowSpan={2}
+                      className={cn(
+                        'sticky top-0 z-40 h-9 whitespace-nowrap border-b border-r bg-muted px-2 text-center text-xs font-semibold align-middle',
+                        meta?.sticky && 'z-50'
+                      )}
+                      style={{
+                        left: meta?.sticky ? meta.stickyOffset : undefined,
+                        width: meta?.width,
+                        minWidth: meta?.width,
+                      }}
+                    >
+                      {labelMap[column.id] ?? column.id}
+                    </TableHead>
+                  )
+                })}
+                {productMetricColumnIds.map(({ product, columnIds }) => (
+                  <TableHead
+                    key={product.id}
+                    colSpan={columnIds.length}
+                    className="sticky top-0 z-20 h-9 whitespace-nowrap border-b border-r bg-muted px-2 text-center text-xs font-semibold"
+                  >
+                    {renderProductGroupHeader(product)}
+                  </TableHead>
+                ))}
+              </TableRow>
+              <TableRow className="hover:bg-transparent">
+                {productMetricColumnIds.flatMap(({ product, columnIds }) =>
+                  columnIds.map((columnId) => {
+                    const meta = columnMeta[columnId]
+                    const field = meta?.field ?? ''
                     return (
                       <TableHead
-                        key={header.id}
-                        className={cn(
-                          'sticky top-0 z-20 h-9 whitespace-nowrap border-b border-r bg-muted px-2 text-center text-xs font-semibold',
-                          meta?.sticky && 'z-30'
-                        )}
-                        style={{
-                          left: meta?.sticky ? meta.stickyOffset : undefined,
-                          width: meta?.width,
-                          minWidth: meta?.width,
-                        }}
+                        key={`${product.id}:${columnId}`}
+                        className="sticky top-9 z-20 h-9 whitespace-nowrap border-b border-r bg-muted px-2 text-center text-xs font-semibold"
                       >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(header.column.columnDef.header, header.getContext())}
+                        {renderMetricHeader(field)}
                       </TableHead>
                     )
-                  })}
-                </TableRow>
-              ))}
+                  })
+                )}
+              </TableRow>
             </TableHeader>
             <TableBody>
               {table.getRowModel().rows.map((row, visibleRowIndex) => (
