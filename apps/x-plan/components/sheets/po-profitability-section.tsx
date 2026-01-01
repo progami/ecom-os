@@ -340,7 +340,7 @@ export function POProfitabilitySection({
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
           {/* Chart area */}
-          <div ref={chartRef} className="aspect-[7/3] w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-[#0b3a52] dark:bg-[#06182b]/85">
+          <div ref={chartRef} className="h-[350px] w-full overflow-hidden rounded-lg border bg-muted/30">
             <svg
               className="po-profitability-svg h-full w-full"
               viewBox={`0 0 ${viewBoxWidth} ${chartHeight}`}
