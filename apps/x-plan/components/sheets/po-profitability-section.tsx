@@ -340,11 +340,11 @@ export function POProfitabilitySection({
 
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
           {/* Chart area */}
-          <div ref={chartRef} className="h-[350px] w-full overflow-hidden rounded-lg border bg-muted/30">
+          <div ref={chartRef} className="h-[350px] w-full max-w-4xl overflow-hidden rounded-lg border bg-muted/30">
             <svg
               className="po-profitability-svg h-full w-full"
               viewBox={`0 0 ${viewBoxWidth} ${chartHeight}`}
-              preserveAspectRatio="none"
+              preserveAspectRatio="xMidYMid meet"
               role="img"
               aria-label="PO Profitability Trends Chart"
               tabIndex={0}
