@@ -1345,7 +1345,7 @@ export function SalesPlanningGrid({
               })}
             </colgroup>
             {/* x-plan-hot header styling */}
-            <TableHeader className="sticky top-0 z-20">
+            <TableHeader>
               {headerGroups.map((headerGroup) => (
                 <TableRow
                   key={headerGroup.id}
@@ -1359,9 +1359,10 @@ export function SalesPlanningGrid({
                       <TableHead
                         key={header.id}
                         className={cn(
-                          'h-[34px] whitespace-nowrap border-r border-slate-300/60 px-2 py-2 text-center text-[11px] font-bold uppercase tracking-[0.1em] text-cyan-700 dark:border-[#0b3a52]/60 dark:text-teal-300',
-                          meta?.sticky &&
-                            'sticky z-30 bg-slate-100 dark:bg-[#0a1f35]'
+                          // All header cells sticky to top
+                          'sticky top-0 z-20 h-[34px] whitespace-nowrap border-r border-slate-300/60 bg-slate-100 px-2 py-2 text-center text-[11px] font-bold uppercase tracking-[0.1em] text-cyan-700 dark:border-[#0b3a52]/60 dark:bg-[#0a1f35] dark:text-teal-300',
+                          // Pinned columns also sticky left
+                          meta?.sticky && 'z-30'
                         )}
                         style={{
                           left: meta?.sticky ? meta.stickyOffset : undefined,
