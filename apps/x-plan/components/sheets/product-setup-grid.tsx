@@ -4,6 +4,14 @@ import clsx from 'clsx'
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import { Plus, Pencil, Trash2, Check, X } from 'lucide-react'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { withAppBasePath } from '@/lib/base-path'
 
 interface ProductSetupGridProps {
@@ -163,16 +171,16 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
 
   return (
     <div className={clsx('overflow-hidden rounded-xl border border-slate-200 bg-white dark:border-white/10 dark:bg-[#041324]', className)}>
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-white/5">
-            <th className="w-28 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+      <Table className="w-full table-fixed">
+        <TableHeader>
+          <TableRow className="border-b border-slate-200 bg-slate-50 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/5">
+            <TableHead className="w-28 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               SKU
-            </th>
-            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            </TableHead>
+            <TableHead className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               Product Name
-            </th>
-            <th className="w-28 px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            </TableHead>
+            <TableHead className="w-28 px-3 py-2 text-right text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
               {!isAdding && (
                 <button
                   type="button"
@@ -183,13 +191,13 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
                   Add
                 </button>
               )}
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody className="divide-y divide-slate-100 dark:divide-white/5">
           {isAdding && (
-            <tr className="bg-cyan-50/50 dark:bg-cyan-900/10">
-              <td className="px-3 py-2">
+            <TableRow className="bg-cyan-50/50 hover:bg-cyan-50/50 dark:bg-cyan-900/10 dark:hover:bg-cyan-900/10">
+              <TableCell className="px-3 py-2">
                 <input
                   value={creatingSku}
                   onChange={(event) => setCreatingSku(event.target.value)}
@@ -197,8 +205,8 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
                   autoFocus
                   className="w-full rounded border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-white/15 dark:bg-white/5 dark:text-slate-100 dark:placeholder-slate-500"
                 />
-              </td>
-              <td className="px-3 py-2">
+              </TableCell>
+              <TableCell className="px-3 py-2">
                 <input
                   value={creatingName}
                   onChange={(event) => setCreatingName(event.target.value)}
@@ -209,8 +217,8 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
                   }}
                   className="w-full rounded border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-100 dark:border-white/15 dark:bg-white/5 dark:text-slate-100 dark:placeholder-slate-500"
                 />
-              </td>
-              <td className="px-3 py-2">
+              </TableCell>
+              <TableCell className="px-3 py-2">
                 <div className="flex justify-end gap-0.5">
                   <button
                     type="button"
@@ -229,17 +237,17 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
                     <X className="h-4 w-4" />
                   </button>
                 </div>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           )}
           {rows.length === 0 && !isAdding ? (
-            <tr>
-              <td colSpan={3} className="px-3 py-8 text-center">
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={3} className="px-3 py-8 text-center">
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   No products yet. Click &ldquo;Add&rdquo; to get started.
                 </p>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ) : (
             rows.map((row) => {
               const isEditing = editingId === row.id
@@ -247,8 +255,8 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
               const isDeleting = deletingId === row.id
 
               return (
-                <tr key={row.id} className="bg-white dark:bg-transparent">
-                  <td className="px-3 py-2">
+                <TableRow key={row.id} className="bg-white hover:bg-slate-50 dark:bg-transparent dark:hover:bg-white/5">
+                  <TableCell className="px-3 py-2">
                     {isEditing ? (
                       <input
                         value={editDraftSku}
@@ -258,8 +266,8 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
                     ) : (
                       <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{row.sku}</span>
                     )}
-                  </td>
-                  <td className="px-3 py-2">
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
                     {isEditing ? (
                       <input
                         value={editDraftName}
@@ -273,8 +281,8 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
                     ) : (
                       <span className="text-sm text-slate-700 dark:text-slate-300">{row.name}</span>
                     )}
-                  </td>
-                  <td className="px-3 py-2">
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
                     <div className="flex justify-end gap-0.5">
                       {isEditing ? (
                         <>
@@ -314,13 +322,13 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
                         </>
                       )}
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               )
             })
           )}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   )
 }

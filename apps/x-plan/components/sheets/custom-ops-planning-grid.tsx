@@ -14,9 +14,17 @@ import Flatpickr from 'react-flatpickr'
 import { usePersistentScroll } from '@/hooks/usePersistentScroll'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { toIsoDate, formatDateDisplay } from '@/lib/utils/dates'
+import { cn } from '@/lib/utils'
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { withAppBasePath } from '@/lib/base-path'
-import '@/styles/custom-table.css'
 
 export type OpsInputRow = {
   id: string
@@ -342,6 +350,7 @@ function getCellFormattedValue(row: OpsInputRow, column: ColumnDef, stageMode: S
 
 type CustomOpsPlanningRowProps = {
   row: OpsInputRow
+  rowIndex: number
   stageMode: StageMode
   isActive: boolean
   editingColKey: keyof OpsInputRow | null
@@ -358,6 +367,7 @@ type CustomOpsPlanningRowProps = {
 
 const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
   row,
+  rowIndex,
   stageMode,
   isActive,
   editingColKey,
@@ -371,26 +381,43 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
   onInputKeyDown,
   setIsDatePickerOpen,
 }: CustomOpsPlanningRowProps) {
+  const isEvenRow = rowIndex % 2 === 1
+
   return (
-    <tr className={isActive ? 'row-active' : ''} onClick={() => onSelectOrder?.(row.id)}>
-      {COLUMNS.map((column) => {
+    <TableRow
+      className={cn(
+        'hover:bg-transparent',
+        isEvenRow ? 'bg-muted/30' : 'bg-card',
+        isActive && 'bg-cyan-50/70 dark:bg-cyan-900/20'
+      )}
+      onClick={() => onSelectOrder?.(row.id)}
+    >
+      {COLUMNS.map((column, colIndex) => {
         const isEditing = editingColKey === column.key
         const isEditable = column.editable !== false
         const isDateCell = column.type === 'date' || (column.type === 'stage' && stageMode === 'dates')
+        const isNumericCell =
+          column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')
 
-        const cellClasses = [
-          isEditable ? 'ops-cell-editable' : 'ops-cell-readonly',
-          column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks') ? 'ops-cell-numeric' : '',
-          isDateCell ? 'ops-cell-date' : '',
-        ]
-          .filter(Boolean)
-          .join(' ')
+        const cellClassName = cn(
+          'h-9 whitespace-nowrap border-r p-0 align-middle text-sm',
+          colIndex === 0 && isActive && 'border-l-4 border-cyan-600 dark:border-cyan-400',
+          isNumericCell && 'text-right',
+          isEditable ? 'cursor-text bg-accent/50 font-medium' : 'bg-muted/50 text-muted-foreground',
+          isEditing && 'ring-2 ring-inset ring-ring',
+          colIndex === COLUMNS.length - 1 && 'border-r-0'
+        )
+
+        const inputClassName = cn(
+          'h-9 w-full bg-transparent px-3 text-sm font-semibold text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring',
+          isNumericCell && 'text-right'
+        )
 
         if (isEditing && onCommitEdit) {
           return (
-            <td
+            <TableCell
               key={column.key}
-              className={cellClasses}
+              className={cellClassName}
               style={{ width: column.width, minWidth: column.width }}
             >
               {isDateCell ? (
@@ -424,7 +451,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
                           onCommitEdit()
                         }
                       }}
-                      className="ops-cell-input"
+                      className={inputClassName}
                       placeholder="YYYY-MM-DD"
                     />
                   )}
@@ -437,25 +464,25 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
                   onChange={(event: ChangeEvent<HTMLInputElement>) => onSetEditValue(event.target.value)}
                   onKeyDown={onInputKeyDown}
                   onBlur={() => onCommitEdit()}
-                  className="ops-cell-input"
+                  className={inputClassName}
                 />
               )}
-            </td>
+            </TableCell>
           )
         }
 
         const formattedValue = getCellFormattedValue(row, column, stageMode)
         const showPlaceholder = isDateCell && !formattedValue
         const displayContent = showPlaceholder ? (
-          <span className="ops-cell-placeholder">Click to select date</span>
+          <span className="px-3 text-xs italic text-muted-foreground">Click to select date</span>
         ) : (
           formattedValue
         )
 
         return (
-          <td
+          <TableCell
             key={column.key}
-            className={cellClasses}
+            className={cellClassName}
             style={{ width: column.width, minWidth: column.width }}
             onClick={(event) => {
               event.stopPropagation()
@@ -464,11 +491,13 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
               onStartEditing(row.id, column.key, getCellEditValue(row, column, stageMode))
             }}
           >
-            <div className="ops-cell-display">{displayContent}</div>
-          </td>
+            <div className={cn('flex h-9 items-center px-3', isNumericCell && 'justify-end')}>
+              {displayContent}
+            </div>
+          </TableCell>
         )
       })}
-    </tr>
+    </TableRow>
   )
 })
 
@@ -865,29 +894,29 @@ export function CustomOpsPlanningGrid({
     const isStageColumn = column.type === 'stage'
     const headerLabel = getHeaderLabel(column)
 
-    if (isStageColumn) {
-      return (
-        <th key={column.key} style={{ width: column.width, minWidth: column.width }}>
+    return (
+      <TableHead
+        key={column.key}
+        style={{ width: column.width, minWidth: column.width }}
+        className="sticky top-0 z-10 h-10 whitespace-nowrap border-b border-r bg-muted px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80"
+      >
+        {isStageColumn ? (
           <button
             type="button"
-            className="ops-header-toggle"
+            className="inline-flex w-full items-center justify-center rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-cyan-700 transition hover:bg-cyan-500/20 dark:border-cyan-300/35 dark:bg-cyan-300/10 dark:text-cyan-200 dark:hover:bg-cyan-300/20"
             title={`Click to switch to ${stageMode === 'weeks' ? 'dates' : 'weeks'} view`}
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
               toggleStageMode()
             }}
           >
             {headerLabel}
           </button>
-        </th>
-      )
-    }
-
-    return (
-      <th key={column.key} style={{ width: column.width, minWidth: column.width }}>
-        {headerLabel}
-      </th>
+        ) : (
+          headerLabel
+        )}
+      </TableHead>
     )
   }
 
@@ -935,26 +964,27 @@ export function CustomOpsPlanningGrid({
         )}
       </div>
 
-      <div className="ops-table-container">
-        <div ref={tableScrollRef} className="ops-table-body-scroll">
-          <table className="ops-table">
-            <thead>
-              <tr>{COLUMNS.map(renderHeader)}</tr>
-            </thead>
-            <tbody>
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10">
+        <div ref={tableScrollRef} className="max-h-[400px] overflow-auto">
+          <Table className="table-fixed border-collapse">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">{COLUMNS.map(renderHeader)}</TableRow>
+            </TableHeader>
+            <TableBody>
               {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={COLUMNS.length} className="ops-table-empty">
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={COLUMNS.length} className="p-6 text-center text-sm text-muted-foreground">
                     No purchase orders yet. Click &ldquo;Add purchase order&rdquo; to get started.
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
-                rows.map((row) => {
+                rows.map((row, rowIndex) => {
                   const isEditingRow = editingCell?.rowId === row.id
                   return (
                     <CustomOpsPlanningRow
                       key={row.id}
                       row={row}
+                      rowIndex={rowIndex}
                       stageMode={stageMode}
                       isActive={activeOrderId === row.id}
                       editingColKey={isEditingRow ? editingCell!.colKey : null}
@@ -971,8 +1001,8 @@ export function CustomOpsPlanningGrid({
                   )
                 })
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
     </section>

@@ -14,6 +14,7 @@ import Flatpickr from 'react-flatpickr'
 import { useMutationQueue } from '@/hooks/useMutationQueue'
 import { usePersistentState } from '@/hooks/usePersistentState'
 import { usePersistentScroll } from '@/hooks/usePersistentScroll'
+import { cn } from '@/lib/utils'
 import {
   planningWeekDateIsoForWeekNumber,
   weekLabelForIsoDate,
@@ -22,8 +23,15 @@ import {
 } from '@/lib/calculations/planning-week'
 import { formatDateDisplay, toIsoDate } from '@/lib/utils/dates'
 import { formatNumericInput, sanitizeNumeric } from '@/components/sheets/validators'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { withAppBasePath } from '@/lib/base-path'
-import '@/styles/custom-table.css'
 
 export type PurchasePaymentRow = {
   id: string
@@ -619,63 +627,73 @@ export function CustomPurchasePaymentsGrid({
     return String(value)
   }
 
-  const renderCell = (row: PurchasePaymentRow, column: ColumnDef) => {
+  const renderCell = (row: PurchasePaymentRow, column: ColumnDef, colIndex: number) => {
     const isEditing = editingCell?.rowId === row.id && editingCell?.colKey === column.key
     const displayValue = formatDisplayValue(row, column)
     const isScheduleDate = column.type === 'schedule' && scheduleMode === 'dates'
+    const isWeekLabel = column.type === 'schedule' && scheduleMode === 'weeks'
+    const isNumericCell = column.type === 'currency' || column.type === 'percent'
+    const rowSelected = isRowActive(row)
 
-    const cellClasses = [
-      column.editable ? 'ops-cell-editable' : 'ops-cell-readonly',
-      column.type === 'currency' || column.type === 'percent' ? 'ops-cell-numeric' : '',
-      column.type === 'date' || isScheduleDate ? 'ops-cell-date' : '',
-      column.key === 'weekNumber' && !isScheduleDate ? 'text-center' : '',
-    ]
-      .filter(Boolean)
-      .join(' ')
+    const cellClassName = cn(
+      'h-9 whitespace-nowrap border-r p-0 align-middle text-sm',
+      colIndex === 0 && rowSelected && 'border-l-4 border-cyan-600 dark:border-cyan-400',
+      isNumericCell && 'text-right',
+      isWeekLabel && 'text-center',
+      column.editable ? 'cursor-text bg-accent/50 font-medium' : 'bg-muted/50 text-muted-foreground',
+      isEditing && 'ring-2 ring-inset ring-ring',
+      colIndex === COLUMNS.length - 1 && 'border-r-0'
+    )
+
+    const inputClassName = cn(
+      'h-9 w-full bg-transparent px-3 text-sm font-semibold text-foreground outline-none focus:bg-background focus:ring-1 focus:ring-inset focus:ring-ring',
+      isNumericCell && 'text-right',
+      isWeekLabel && 'text-center'
+    )
 
     if (isEditing) {
       return (
-        <td
+        <TableCell
           key={column.key}
-          className={cellClasses}
+          className={cellClassName}
           style={{ width: column.width, minWidth: column.width }}
         >
-	          {column.type === 'date' || isScheduleDate ? (
-	            <Flatpickr
-	              value={editValue}
-	              options={{
-	                dateFormat: 'Y-m-d',
-	                allowInput: true,
-	                disableMobile: true,
-	                onOpen: () => setIsDatePickerOpen(true),
-	                onClose: (_dates: Date[], dateStr: string) => {
-	                  setIsDatePickerOpen(false)
-	                  commitEdit(dateStr || editValue)
-	                },
-	              }}
-	              onChange={(_dates: Date[], dateStr: string) => {
-	                setEditValue(dateStr)
-	              }}
-	              render={(_props: any, handleNodeChange: (node: HTMLElement | null) => void) => (
-	                <input
-	                  ref={(node) => {
-	                    handleNodeChange(node)
-	                    inputRef.current = node as HTMLInputElement | null
-	                  }}
-	                  type="text"
-	                  value={editValue}
-	                  onChange={handleInputChange}
-	                  onKeyDown={handleKeyDown}
-	                  onBlur={() => {
-	                    if (!isDatePickerOpen) {
-	                      handleCellBlur()
-	                    }
-	                  }}
-	                  className="ops-cell-input"
-	                  placeholder="YYYY-MM-DD"
-	                />
-	              )}
-	            />
+          {column.type === 'date' || isScheduleDate ? (
+            <Flatpickr
+              value={editValue}
+              options={{
+                dateFormat: 'Y-m-d',
+                allowInput: true,
+                disableMobile: true,
+                onOpen: () => setIsDatePickerOpen(true),
+                onClose: (_dates: Date[], dateStr: string) => {
+                  setIsDatePickerOpen(false)
+                  commitEdit(dateStr || editValue)
+                },
+              }}
+              onChange={(_dates: Date[], dateStr: string) => {
+                setEditValue(dateStr)
+              }}
+              render={(_props: any, handleNodeChange: (node: HTMLElement | null) => void) => (
+                <input
+                  ref={(node) => {
+                    handleNodeChange(node)
+                    inputRef.current = node as HTMLInputElement | null
+                  }}
+                  type="text"
+                  value={editValue}
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  onBlur={() => {
+                    if (!isDatePickerOpen) {
+                      handleCellBlur()
+                    }
+                  }}
+                  className={inputClassName}
+                  placeholder="YYYY-MM-DD"
+                />
+              )}
+            />
           ) : (
             <input
               ref={inputRef}
@@ -684,29 +702,37 @@ export function CustomPurchasePaymentsGrid({
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               onBlur={handleCellBlur}
-              className="ops-cell-input"
+              className={inputClassName}
             />
           )}
-        </td>
+        </TableCell>
       )
     }
 
     const showPlaceholder = (column.type === 'date' || isScheduleDate) && !displayValue
     const displayContent = showPlaceholder ? (
-      <span className="ops-cell-placeholder">Click to select</span>
+      <span className="px-3 text-xs italic text-muted-foreground">Click to select</span>
     ) : (
       displayValue
     )
 
     return (
-      <td
+      <TableCell
         key={column.key}
-        className={cellClasses}
+        className={cellClassName}
         style={{ width: column.width, minWidth: column.width }}
         onClick={() => handleCellClick(row, column)}
       >
-        <div className="ops-cell-display">{displayContent}</div>
-      </td>
+        <div
+          className={cn(
+            'flex h-9 items-center px-3',
+            isNumericCell && 'justify-end',
+            isWeekLabel && 'justify-center'
+          )}
+        >
+          {displayContent}
+        </div>
+      </TableCell>
     )
   }
 
@@ -757,17 +783,21 @@ export function CustomPurchasePaymentsGrid({
         </div>
       </header>
 
-      <div className="ops-table-container">
-        <div ref={tableScrollRef} className="ops-table-body-scroll">
-          <table className="ops-table">
-            <thead>
-              <tr>
+      <div className="overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10">
+        <div ref={tableScrollRef} className="max-h-[400px] overflow-auto">
+          <Table className="table-fixed border-collapse">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
                 {COLUMNS.map((column) => (
-                  <th key={column.key} style={{ width: column.width, minWidth: column.width }}>
+                  <TableHead
+                    key={column.key}
+                    style={{ width: column.width, minWidth: column.width }}
+                    className="sticky top-0 z-10 h-10 whitespace-nowrap border-b border-r bg-muted px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80"
+                  >
                     {column.type === 'schedule' ? (
                       <button
                         type="button"
-                        className="ops-header-toggle"
+                        className="inline-flex w-full items-center justify-center rounded-md border border-cyan-500/30 bg-cyan-500/10 px-2 py-1 text-[11px] font-extrabold uppercase tracking-[0.12em] text-cyan-700 transition hover:bg-cyan-500/20 dark:border-cyan-300/35 dark:bg-cyan-300/10 dark:text-cyan-200 dark:hover:bg-cyan-300/20"
                         title={`Click to switch to ${scheduleMode === 'weeks' ? 'date' : 'week'} input`}
                         onClick={(event) => {
                           event.preventDefault()
@@ -780,35 +810,39 @@ export function CustomPurchasePaymentsGrid({
                     ) : (
                       getHeaderLabel(column, scheduleMode)
                     )}
-                  </th>
+                  </TableHead>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {data.length === 0 ? (
-                <tr>
-                  <td colSpan={COLUMNS.length} className="ops-table-empty">
+                <TableRow className="hover:bg-transparent">
+                  <TableCell colSpan={COLUMNS.length} className="p-6 text-center text-sm text-muted-foreground">
                     {activeOrderId
                       ? 'No payments for this order. Click "Add Payment" to schedule one.'
                       : 'Select a purchase order above to view or add payments.'}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ) : (
-                data.map((row) => (
-                  <tr
+                data.map((row, rowIndex) => (
+                  <TableRow
                     key={row.id}
-                    className={isRowActive(row) ? 'row-active' : ''}
+                    className={cn(
+                      'hover:bg-transparent',
+                      rowIndex % 2 === 1 && 'bg-muted/30',
+                      isRowActive(row) && 'bg-cyan-50/70 dark:bg-cyan-900/20'
+                    )}
                     onClick={() => {
                       onSelectOrder?.(row.purchaseOrderId)
                       setSelectedPaymentId(row.id)
                     }}
                   >
-                    {COLUMNS.map((column) => renderCell(row, column))}
-                  </tr>
+                    {COLUMNS.map((column, colIndex) => renderCell(row, column, colIndex))}
+                  </TableRow>
                 ))
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </div>
     </section>
