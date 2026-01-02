@@ -199,6 +199,7 @@ export function CustomOpsCostGrid({
 
   const [localRows, setLocalRows] = useState<OpsBatchRow[]>(rows)
   const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof OpsBatchRow } | null>(null)
+  const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: keyof OpsBatchRow } | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null)
   const tableScrollRef = useRef<HTMLDivElement>(null)
@@ -277,6 +278,7 @@ export function CustomOpsCostGrid({
   }, [editingCell])
 
   const startEditing = (rowId: string, colKey: keyof OpsBatchRow, currentValue: string) => {
+    setActiveCell({ rowId, colKey })
     setEditingCell({ rowId, colKey })
     setEditValue(currentValue)
   }
@@ -518,9 +520,7 @@ export function CustomOpsCostGrid({
   const handleCellClick = (row: OpsBatchRow, column: ColumnDef) => {
     onSelectOrder?.(row.purchaseOrderId)
     onSelectBatch?.(row.id)
-    if (column.editable) {
-      startEditing(row.id, column.key, row[column.key] ?? '')
-    }
+    setActiveCell({ rowId: row.id, colKey: column.key })
   }
 
   const handleCellBlur = () => {
@@ -556,6 +556,7 @@ export function CustomOpsCostGrid({
 
   const renderCell = (row: OpsBatchRow, column: ColumnDef, colIndex: number) => {
     const isEditing = editingCell?.rowId === row.id && editingCell?.colKey === column.key
+    const isCurrent = activeCell?.rowId === row.id && activeCell?.colKey === column.key
     const displayValue = formatDisplayValue(row, column)
 
     const isNumericCell = column.type === 'numeric' || column.type === 'percent'
@@ -571,7 +572,7 @@ export function CustomOpsCostGrid({
           ? 'cursor-pointer bg-accent/50 font-medium'
           : 'cursor-text bg-accent/50 font-medium'
         : 'bg-muted/50 text-muted-foreground',
-      isEditing && 'ring-2 ring-inset ring-ring',
+      (isEditing || isCurrent) && 'ring-2 ring-inset ring-ring',
       colIndex === columns.length - 1 && 'border-r-0'
     )
 
@@ -639,6 +640,11 @@ export function CustomOpsCostGrid({
         onClick={(event) => {
           event.stopPropagation()
           handleCellClick(row, column)
+        }}
+        onDoubleClick={(event) => {
+          event.stopPropagation()
+          if (!column.editable) return
+          startEditing(row.id, column.key, row[column.key] ?? '')
         }}
       >
         <div className={cn('flex h-9 items-center px-3', isNumericCell && 'justify-end')}>{displayValue}</div>

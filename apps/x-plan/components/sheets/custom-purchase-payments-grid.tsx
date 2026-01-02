@@ -179,6 +179,7 @@ export function CustomPurchasePaymentsGrid({
     'dates'
   )
   const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof PurchasePaymentRow } | null>(null)
+  const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: keyof PurchasePaymentRow } | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null)
   const [isRemoving, setIsRemoving] = useState(false)
@@ -242,6 +243,7 @@ export function CustomPurchasePaymentsGrid({
 
   useEffect(() => {
     setSelectedPaymentId(null)
+    setActiveCell(null)
   }, [activeOrderId])
 
   useEffect(() => {
@@ -282,15 +284,26 @@ export function CustomPurchasePaymentsGrid({
   const toggleScheduleMode = useCallback(() => {
     setIsDatePickerOpen(false)
     setEditingCell(null)
+    setActiveCell(null)
     setEditValue('')
     setScheduleMode((previous) => (previous === 'weeks' ? 'dates' : 'weeks'))
   }, [setScheduleMode])
 
   const startEditing = (rowId: string, colKey: keyof PurchasePaymentRow, currentValue: string) => {
     setIsDatePickerOpen(false)
+    setActiveCell({ rowId, colKey })
     setEditingCell({ rowId, colKey })
     setEditValue(currentValue)
   }
+
+  const selectCell = useCallback(
+    (row: PurchasePaymentRow, column: ColumnDef) => {
+      onSelectOrder?.(row.purchaseOrderId)
+      setSelectedPaymentId(row.id)
+      setActiveCell({ rowId: row.id, colKey: column.key })
+    },
+    [onSelectOrder]
+  )
 
   const cancelEditing = () => {
     setIsDatePickerOpen(false)
@@ -585,11 +598,7 @@ export function CustomPurchasePaymentsGrid({
   }
 
   const handleCellClick = (row: PurchasePaymentRow, column: ColumnDef) => {
-    onSelectOrder?.(row.purchaseOrderId)
-    setSelectedPaymentId(row.id)
-    if (column.editable) {
-      startEditing(row.id, column.key, getCellEditValue(row, column, scheduleMode))
-    }
+    selectCell(row, column)
   }
 
   const handleCellBlur = () => {
@@ -629,6 +638,7 @@ export function CustomPurchasePaymentsGrid({
 
   const renderCell = (row: PurchasePaymentRow, column: ColumnDef, colIndex: number) => {
     const isEditing = editingCell?.rowId === row.id && editingCell?.colKey === column.key
+    const isCurrent = activeCell?.rowId === row.id && activeCell?.colKey === column.key
     const displayValue = formatDisplayValue(row, column)
     const isScheduleDate = column.type === 'schedule' && scheduleMode === 'dates'
     const isWeekLabel = column.type === 'schedule' && scheduleMode === 'weeks'
@@ -641,7 +651,7 @@ export function CustomPurchasePaymentsGrid({
       isNumericCell && 'text-right',
       isWeekLabel && 'text-center',
       column.editable ? 'cursor-text bg-accent/50 font-medium' : 'bg-muted/50 text-muted-foreground',
-      isEditing && 'ring-2 ring-inset ring-ring',
+      (isEditing || isCurrent) && 'ring-2 ring-inset ring-ring',
       colIndex === COLUMNS.length - 1 && 'border-r-0'
     )
 
@@ -721,7 +731,15 @@ export function CustomPurchasePaymentsGrid({
         key={column.key}
         className={cellClassName}
         style={{ width: column.width, minWidth: column.width }}
-        onClick={() => handleCellClick(row, column)}
+        onClick={(event) => {
+          event.stopPropagation()
+          handleCellClick(row, column)
+        }}
+        onDoubleClick={(event) => {
+          event.stopPropagation()
+          if (!column.editable) return
+          startEditing(row.id, column.key, getCellEditValue(row, column, scheduleMode))
+        }}
       >
         <div
           className={cn(
@@ -830,7 +848,7 @@ export function CustomPurchasePaymentsGrid({
                     className={cn(
                       'hover:bg-transparent',
                       rowIndex % 2 === 1 && 'bg-muted/30',
-                      isRowActive(row) && 'bg-cyan-50/70 dark:bg-cyan-900/20'
+                  isRowActive(row) && 'bg-cyan-50/70 dark:bg-cyan-900/20'
                     )}
                     onClick={() => {
                       onSelectOrder?.(row.purchaseOrderId)
