@@ -985,7 +985,8 @@ export function SalesPlanningGrid({
       } else if (cellBottom > viewBottom) {
         nextScrollTop = Math.max(0, cellBottom - holder.clientHeight)
       }
-      nextScrollTop = Math.min(nextScrollTop, holder.scrollHeight - holder.clientHeight)
+      const maxScrollTop = Math.max(0, holder.scrollHeight - holder.clientHeight)
+      nextScrollTop = Math.min(nextScrollTop, maxScrollTop)
 
       let nextScrollLeft = holder.scrollLeft
       if (coords.col >= columnLayout.pinnedCount) {
@@ -1000,7 +1001,8 @@ export function SalesPlanningGrid({
         } else if (cellRight > viewRight) {
           nextScrollLeft = Math.max(0, cellRight - holder.clientWidth)
         }
-        nextScrollLeft = Math.min(nextScrollLeft, holder.scrollWidth - holder.clientWidth)
+        const maxScrollLeft = Math.max(0, holder.scrollWidth - holder.clientWidth)
+        nextScrollLeft = Math.min(nextScrollLeft, maxScrollLeft)
       }
 
       if (nextScrollTop !== holder.scrollTop || nextScrollLeft !== holder.scrollLeft) {
