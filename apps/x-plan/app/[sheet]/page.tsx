@@ -10,9 +10,10 @@ import { CashFlowGrid } from '@/components/sheets/fin-planning-cash-grid'
 import { SheetViewToggle, type SheetViewMode } from '@/components/sheet-view-toggle'
 import { FinancialTrendsSection, type FinancialMetricDefinition } from '@/components/sheets/financial-trends-section'
 import { POProfitabilitySection, type POProfitabilityData, type POStatus } from '@/components/sheets/po-profitability-section'
-import type { OpsInputRow } from '@/components/sheets/ops-planning-grid'
+import type { OpsInputRow } from '@/components/sheets/custom-ops-planning-grid'
+import type { OpsBatchRow } from '@/components/sheets/custom-ops-cost-grid'
 import type { OpsTimelineRow } from '@/components/sheets/ops-planning-timeline'
-import type { PurchasePaymentRow } from '@/components/sheets/purchase-payments-grid'
+import type { PurchasePaymentRow } from '@/components/sheets/custom-purchase-payments-grid'
 import type { OpsPlanningCalculatorPayload, PurchaseOrderSerialized } from '@/components/sheets/ops-planning-workspace'
 import prisma from '@/lib/prisma'
 import {
@@ -1035,24 +1036,7 @@ type FinancialData = Awaited<ReturnType<typeof loadFinancialData>>
 
 async function getOpsPlanningView(strategyId: string, planning?: PlanningCalendar, activeSegment?: YearSegment | null): Promise<{
   poTableRows: OpsInputRow[]
-  batchTableRows: Array<{
-    id: string
-    purchaseOrderId: string
-    orderCode: string
-    batchCode?: string
-    productId: string
-    productName: string
-    quantity: string
-    sellingPrice: string
-    manufacturingCost: string
-    freightCost: string
-    tariffRate: string
-    tariffCost: string
-    tacosPercent: string
-    fbaFee: string
-    referralRate: string
-    storagePerMonth: string
-  }>
+  batchTableRows: OpsBatchRow[]
   timelineRows: OpsTimelineRow[]
   timelineOrders: PurchaseTimelineOrder[]
   payments: PurchasePaymentRow[]
