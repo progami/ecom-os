@@ -353,11 +353,12 @@ type CustomOpsPlanningRowProps = {
   rowIndex: number
   stageMode: StageMode
   isActive: boolean
+  activeColKey: keyof OpsInputRow | null
   editingColKey: keyof OpsInputRow | null
   editValue: string
   isDatePickerOpen: boolean
   inputRef: { current: HTMLInputElement | null }
-  onSelectOrder?: (orderId: string) => void
+  onSelectCell: (rowId: string, colKey: keyof OpsInputRow) => void
   onStartEditing: (rowId: string, colKey: keyof OpsInputRow, currentValue: string) => void
   onSetEditValue: (value: string) => void
   onCommitEdit?: (nextValue?: string) => void
@@ -370,11 +371,12 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
   rowIndex,
   stageMode,
   isActive,
+  activeColKey,
   editingColKey,
   editValue,
   isDatePickerOpen,
   inputRef,
-  onSelectOrder,
+  onSelectCell,
   onStartEditing,
   onSetEditValue,
   onCommitEdit,
@@ -390,7 +392,6 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
         isEvenRow ? 'bg-muted/30' : 'bg-card',
         isActive && 'bg-cyan-50/70 dark:bg-cyan-900/20'
       )}
-      onClick={() => onSelectOrder?.(row.id)}
     >
       {COLUMNS.map((column, colIndex) => {
         const isEditing = editingColKey === column.key
@@ -399,12 +400,14 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
         const isNumericCell =
           column.type === 'numeric' || (column.type === 'stage' && stageMode === 'weeks')
 
+        const isCurrentCell = activeColKey === column.key
+
         const cellClassName = cn(
           'h-9 whitespace-nowrap border-r p-0 align-middle text-sm',
           colIndex === 0 && isActive && 'border-l-4 border-cyan-600 dark:border-cyan-400',
           isNumericCell && 'text-right',
           isEditable ? 'cursor-text bg-accent/50 font-medium' : 'bg-muted/50 text-muted-foreground',
-          isEditing && 'ring-2 ring-inset ring-ring',
+          (isEditing || isCurrentCell) && 'ring-2 ring-inset ring-ring',
           colIndex === COLUMNS.length - 1 && 'border-r-0'
         )
 
@@ -486,7 +489,10 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
             style={{ width: column.width, minWidth: column.width }}
             onClick={(event) => {
               event.stopPropagation()
-              onSelectOrder?.(row.id)
+              onSelectCell(row.id, column.key)
+            }}
+            onDoubleClick={(event) => {
+              event.stopPropagation()
               if (!isEditable) return
               onStartEditing(row.id, column.key, getCellEditValue(row, column, stageMode))
             }}
@@ -516,6 +522,7 @@ export function CustomOpsPlanningGrid({
 }: CustomOpsPlanningGridProps) {
   const [stageMode, setStageMode] = useState<StageMode>('dates')
   const [editingCell, setEditingCell] = useState<{ rowId: string; colKey: keyof OpsInputRow } | null>(null)
+  const [activeCell, setActiveCell] = useState<{ rowId: string; colKey: keyof OpsInputRow } | null>(null)
   const [editValue, setEditValue] = useState<string>('')
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false)
   const tableScrollRef = useRef<HTMLDivElement>(null)
@@ -601,9 +608,18 @@ export function CustomOpsPlanningGrid({
 
   const startEditing = useCallback((rowId: string, colKey: keyof OpsInputRow, currentValue: string) => {
     setIsDatePickerOpen(false)
+    setActiveCell({ rowId, colKey })
     setEditingCell({ rowId, colKey })
     setEditValue(currentValue)
   }, [])
+
+  const selectCell = useCallback(
+    (rowId: string, colKey: keyof OpsInputRow) => {
+      setActiveCell({ rowId, colKey })
+      onSelectOrder?.(rowId)
+    },
+    [onSelectOrder]
+  )
 
   const cancelEditing = useCallback(() => {
     setIsDatePickerOpen(false)
@@ -660,8 +676,38 @@ export function CustomOpsPlanningGrid({
       }
     }
 
-    // Don't update if value hasn't changed
-    if (row[colKey] === finalValue) {
+    // Treat stage/date cells as the resolved stage end date, not the underlying weeks value.
+    if (column.type === 'stage' && stageMode === 'dates') {
+      const stageField = colKey as StageWeeksKey
+      const overrideField = STAGE_OVERRIDE_FIELDS[stageField]
+      const currentIso = toIsoDate(resolveStageEnd(row, stageField)) ?? ''
+
+      if (!finalValue || finalValue.trim() === '') {
+        finalValue = ''
+        if ((row[overrideField] ?? '') === '') {
+          cancelEditing()
+          return
+        }
+      } else {
+        const iso = toIsoDate(finalValue)
+        if (!iso) {
+          toast.error('Invalid date')
+          cancelEditing()
+          return
+        }
+        finalValue = iso
+        if (finalValue === currentIso) {
+          cancelEditing()
+          return
+        }
+      }
+    } else if (column.type === 'date') {
+      const currentIso = row[colKey] ? (toIsoDate(row[colKey]) ?? '') : ''
+      if (currentIso === finalValue) {
+        cancelEditing()
+        return
+      }
+    } else if (row[colKey] === finalValue) {
       cancelEditing()
       return
     }
@@ -691,10 +737,12 @@ export function CustomOpsPlanningGrid({
     if (column.type === 'stage' && stageMode === 'dates') {
       const stageField = colKey as StageWeeksKey
       const overrideField = STAGE_OVERRIDE_FIELDS[stageField]
-      const iso = finalValue ? toIsoDate(finalValue) : ''
+      const iso = finalValue
 
       if (!iso) {
-        entry.values[overrideField] = ''
+        if ((row[overrideField] ?? '') !== '') {
+          entry.values[overrideField] = ''
+        }
       } else {
         const picked = new Date(`${iso}T00:00:00Z`)
         const stageStart = resolveStageStart(row, stageField)
@@ -712,9 +760,13 @@ export function CustomOpsPlanningGrid({
             return
           }
           const normalized = formatNumericInput(weeks, 2)
-          entry.values[colKey] = normalized
+          if (row[colKey] !== normalized) {
+            entry.values[colKey] = normalized
+          }
         }
-        entry.values[overrideField] = iso ?? ''
+        if ((row[overrideField] ?? '') !== iso) {
+          entry.values[overrideField] = iso ?? ''
+        }
       }
     } else if (NUMERIC_FIELDS.has(colKey)) {
       entry.values[colKey] = finalValue
@@ -722,7 +774,9 @@ export function CustomOpsPlanningGrid({
       // Clear override if weeks changed
       if ((colKey as string) in STAGE_OVERRIDE_FIELDS) {
         const overrideField = STAGE_OVERRIDE_FIELDS[colKey as StageWeeksKey]
-        entry.values[overrideField] = ''
+        if ((row[overrideField] ?? '') !== '') {
+          entry.values[overrideField] = ''
+        }
       }
     } else if (DATE_FIELDS.has(colKey)) {
       entry.values[colKey] = finalValue
@@ -749,13 +803,19 @@ export function CustomOpsPlanningGrid({
       )
     }
 
+    if (Object.keys(entry.values).length === 0) {
+      pendingRef.current.delete(rowId)
+      cancelEditing()
+      return
+    }
+
     // Update rows
     const updatedRows = rows.map((r) => (r.id === rowId ? updatedRow : r))
     onRowsChange?.(updatedRows)
 
     scheduleFlush()
     cancelEditing()
-	  }, [editingCell, editValue, rows, stageMode, pendingRef, scheduleFlush, onRowsChange, cancelEditing])
+  }, [editingCell, editValue, rows, stageMode, pendingRef, scheduleFlush, onRowsChange, cancelEditing])
 
   const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
     let idx = startIndex + direction
@@ -987,11 +1047,12 @@ export function CustomOpsPlanningGrid({
                       rowIndex={rowIndex}
                       stageMode={stageMode}
                       isActive={activeOrderId === row.id}
+                      activeColKey={activeCell?.rowId === row.id ? activeCell.colKey : null}
                       editingColKey={isEditingRow ? editingCell!.colKey : null}
                       editValue={isEditingRow ? editValue : ''}
                       isDatePickerOpen={isEditingRow ? isDatePickerOpen : false}
                       inputRef={inputRef}
-                      onSelectOrder={onSelectOrder}
+                      onSelectCell={selectCell}
                       onStartEditing={startEditing}
                       onSetEditValue={setEditValue}
                       onCommitEdit={isEditingRow ? commitEdit : undefined}
