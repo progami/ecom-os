@@ -235,20 +235,18 @@ export function FinancialTrendsSection({ title, description, metrics, storageKey
                       </linearGradient>
                     ))}
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" />
                   <XAxis
                     dataKey="label"
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fontSize: 11 }}
-                    className="text-muted-foreground"
+                    tick={{ fontSize: 11, fill: '#64748b' }}
                     interval="preserveStartEnd"
                   />
                   <YAxis
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fontSize: 11 }}
-                    className="text-muted-foreground"
+                    tick={{ fontSize: 11, fill: '#64748b' }}
                     tickFormatter={formatAxisValue}
                     width={60}
                   />
