@@ -318,6 +318,16 @@ const COLUMNS: ColumnDef[] = [
 
 type StageMode = 'weeks' | 'dates'
 
+const CELL_ID_PREFIX = 'xplan-ops-po'
+
+function sanitizeDomId(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]/g, '_')
+}
+
+function cellDomId(rowId: string, colKey: keyof OpsInputRow): string {
+  return `${CELL_ID_PREFIX}:${sanitizeDomId(rowId)}:${String(colKey)}`
+}
+
 function getCellEditValue(row: OpsInputRow, column: ColumnDef, stageMode: StageMode): string {
   if (column.type === 'stage' && stageMode === 'dates') {
     const stageField = column.key as StageWeeksKey
@@ -485,6 +495,7 @@ const CustomOpsPlanningRow = memo(function CustomOpsPlanningRow({
         return (
           <TableCell
             key={column.key}
+            id={cellDomId(row.id, column.key)}
             className={cellClassName}
             style={{ width: column.width, minWidth: column.width }}
             onClick={(event) => {
@@ -615,6 +626,7 @@ export function CustomOpsPlanningGrid({
 
   const selectCell = useCallback(
     (rowId: string, colKey: keyof OpsInputRow) => {
+      tableScrollRef.current?.focus()
       setActiveCell({ rowId, colKey })
       onSelectOrder?.(rowId)
     },
@@ -816,6 +828,116 @@ export function CustomOpsPlanningGrid({
     scheduleFlush()
     cancelEditing()
   }, [editingCell, editValue, rows, stageMode, pendingRef, scheduleFlush, onRowsChange, cancelEditing])
+
+  const scrollToCell = useCallback((rowId: string, colKey: keyof OpsInputRow) => {
+    requestAnimationFrame(() => {
+      const node = document.getElementById(cellDomId(rowId, colKey))
+      node?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    })
+  }, [])
+
+  const moveSelection = useCallback(
+    (deltaRow: number, deltaCol: number) => {
+      if (!activeCell) return
+
+      const currentRowIndex = rows.findIndex((row) => row.id === activeCell.rowId)
+      const currentColIndex = COLUMNS.findIndex((column) => column.key === activeCell.colKey)
+      if (currentRowIndex < 0 || currentColIndex < 0) return
+
+      const nextRowIndex = Math.max(0, Math.min(rows.length - 1, currentRowIndex + deltaRow))
+      const nextColIndex = Math.max(0, Math.min(COLUMNS.length - 1, currentColIndex + deltaCol))
+
+      const nextRowId = rows[nextRowIndex]?.id
+      const nextColKey = COLUMNS[nextColIndex]?.key
+      if (!nextRowId || !nextColKey) return
+
+      setActiveCell({ rowId: nextRowId, colKey: nextColKey })
+      onSelectOrder?.(nextRowId)
+      scrollToCell(nextRowId, nextColKey)
+    },
+    [activeCell, rows, onSelectOrder, scrollToCell]
+  )
+
+  const moveSelectionTab = useCallback(
+    (direction: 1 | -1) => {
+      if (!activeCell) return
+
+      const currentRowIndex = rows.findIndex((row) => row.id === activeCell.rowId)
+      const currentColIndex = COLUMNS.findIndex((column) => column.key === activeCell.colKey)
+      if (currentRowIndex < 0 || currentColIndex < 0) return
+
+      let nextRowIndex = currentRowIndex
+      let nextColIndex = currentColIndex + direction
+
+      if (nextColIndex >= COLUMNS.length) {
+        nextColIndex = 0
+        nextRowIndex = Math.min(rows.length - 1, currentRowIndex + 1)
+      } else if (nextColIndex < 0) {
+        nextColIndex = COLUMNS.length - 1
+        nextRowIndex = Math.max(0, currentRowIndex - 1)
+      }
+
+      const nextRowId = rows[nextRowIndex]?.id
+      const nextColKey = COLUMNS[nextColIndex]?.key
+      if (!nextRowId || !nextColKey) return
+
+      setActiveCell({ rowId: nextRowId, colKey: nextColKey })
+      onSelectOrder?.(nextRowId)
+      scrollToCell(nextRowId, nextColKey)
+    },
+    [activeCell, rows, onSelectOrder, scrollToCell]
+  )
+
+  const startEditingActiveCell = useCallback(() => {
+    if (!activeCell) return
+    const row = rows.find((r) => r.id === activeCell.rowId)
+    const column = COLUMNS.find((c) => c.key === activeCell.colKey)
+    if (!row || !column) return
+    if ((column.editable ?? true) === false) return
+    startEditing(row.id, column.key, getCellEditValue(row, column, stageMode))
+  }, [activeCell, rows, stageMode, startEditing])
+
+  const handleTableKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.target !== event.currentTarget) return
+      if (editingCell) return
+      if (!activeCell) return
+
+      if (event.key === 'Enter' || event.key === 'F2') {
+        event.preventDefault()
+        startEditingActiveCell()
+        return
+      }
+
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        moveSelectionTab(event.shiftKey ? -1 : 1)
+        return
+      }
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        moveSelection(1, 0)
+        return
+      }
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        moveSelection(-1, 0)
+        return
+      }
+      if (event.key === 'ArrowRight') {
+        event.preventDefault()
+        moveSelection(0, 1)
+        return
+      }
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        moveSelection(0, -1)
+        return
+      }
+    },
+    [activeCell, editingCell, moveSelection, moveSelectionTab, startEditingActiveCell]
+  )
 
   const findNextEditableColumn = (startIndex: number, direction: 1 | -1): number => {
     let idx = startIndex + direction
@@ -1025,7 +1147,12 @@ export function CustomOpsPlanningGrid({
       </div>
 
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10">
-        <div ref={tableScrollRef} className="max-h-[400px] overflow-auto">
+        <div
+          ref={tableScrollRef}
+          tabIndex={0}
+          onKeyDown={handleTableKeyDown}
+          className="max-h-[400px] overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
           <Table className="table-fixed border-collapse">
             <TableHeader>
               <TableRow className="hover:bg-transparent">{COLUMNS.map(renderHeader)}</TableRow>
