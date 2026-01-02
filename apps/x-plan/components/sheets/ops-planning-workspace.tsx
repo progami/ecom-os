@@ -1594,12 +1594,12 @@ useEffect(() => {
           />
 
           {isCreateOrderOpen ? (
-            <section className="space-y-4 rounded-xl border border-dashed border-slate-200 dark:border-[#0b3a52] bg-slate-50 dark:bg-[#06182b]/85 p-4 shadow-[0_26px_55px_rgba(1,12,24,0.25)] backdrop-blur-sm">
+            <section className="space-y-4 rounded-xl border border-dashed bg-muted/50 p-4">
               <header className="space-y-1">
-                <h3 className="text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
+                <h3 className="text-xs font-bold uppercase tracking-wide text-primary">
                   New purchase order
                 </h3>
-                <p className="text-xs text-slate-600 dark:text-slate-200/80">
+                <p className="text-xs text-muted-foreground">
                   Set the PO identifier now — assign cost details and the target product in the batch cost table below.
                 </p>
               </header>
@@ -1610,28 +1610,28 @@ useEffect(() => {
                   handleCreateOrder()
                 }}
               >
-                <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-[0.28em] text-cyan-700 dark:text-cyan-300/80">
+                <label className="flex flex-col gap-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
                   Order code
                   <input
                     type="text"
                     value={newOrderCode}
                     onChange={(event) => setNewOrderCode(event.target.value)}
                     placeholder="Auto-generate if blank"
-                    className="rounded-lg border border-slate-300 dark:border-white/15 bg-white dark:bg-white/5 px-3 py-2 text-sm text-slate-900 dark:text-slate-200 transition focus:outline-none focus:ring-2 focus:ring-cyan-400/60 hover:border-cyan-300/50"
+                    className="rounded-lg border bg-background px-3 py-2 text-sm text-foreground transition focus:outline-none focus:ring-2 focus:ring-primary/60 hover:border-primary/50"
                   />
                 </label>
                 <div className="flex items-center justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setIsCreateOrderOpen(false)}
-                    className="rounded-lg border border-slate-300 dark:border-white/15 bg-white dark:bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-700 dark:text-slate-200 transition hover:border-cyan-500 hover:text-cyan-700 dark:hover:border-cyan-300/50 dark:hover:text-cyan-100"
+                    className="rounded-lg border bg-background px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground transition hover:bg-accent hover:text-accent-foreground"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={isPending}
-                    className="rounded-lg bg-cyan-600 dark:bg-[#00c2b9] px-3 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-white dark:text-[#002430] shadow-md dark:shadow-[0_12px_24px_rgba(0,194,185,0.25)] transition enabled:hover:bg-cyan-700 dark:bg-[#00a39e] disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold uppercase tracking-wide text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Create
                   </button>

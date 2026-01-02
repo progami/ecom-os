@@ -2089,16 +2089,15 @@ export default async function SheetPage({ params, searchParams }: SheetPageProps
     case '6-po-profitability': {
       const data = await getFinancialData()
       const view = getPOProfitabilityView(data)
-      // PO Profitability uses the visual component for both views
-      const poProfitabilityContent = (
+      // PO Profitability shows chart + table in one unified view, no toggle needed
+      tabularContent = (
         <POProfitabilitySection
           data={view.data}
           title="PO Profitability Analysis"
           description="Compare purchase order performance and profitability metrics"
         />
       )
-      tabularContent = poProfitabilityContent
-      visualContent = poProfitabilityContent
+      visualContent = null
       break
     }
     default: {
