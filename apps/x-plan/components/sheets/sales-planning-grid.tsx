@@ -407,6 +407,21 @@ export function SalesPlanningGrid({
     return map
   }, [data])
 
+  const visibleWeekRange = useMemo(() => {
+    let minWeekNumber = Number.POSITIVE_INFINITY
+    let maxWeekNumber = Number.NEGATIVE_INFINITY
+    for (const row of visibleRows) {
+      const weekNumber = Number(row?.weekNumber)
+      if (!Number.isFinite(weekNumber)) continue
+      minWeekNumber = Math.min(minWeekNumber, weekNumber)
+      maxWeekNumber = Math.max(maxWeekNumber, weekNumber)
+    }
+    if (!Number.isFinite(minWeekNumber) || !Number.isFinite(maxWeekNumber)) {
+      return { minWeekNumber: null as number | null, maxWeekNumber: null as number | null }
+    }
+    return { minWeekNumber, maxWeekNumber }
+  }, [visibleRows])
+
   const hasInboundByWeek = useMemo(() => {
     const set = new Set<number>()
     data.forEach((row) => {
@@ -1263,7 +1278,19 @@ export function SalesPlanningGrid({
 
       const productId = colMeta?.productId
       const reorderInfo = productId ? reorderCueByProductRef.current.get(productId) : undefined
-      const isReorderWeek = reorderInfo != null && reorderInfo.startWeekNumber === weekNumber
+      const reorderCueWeekNumber =
+        reorderInfo == null || !Number.isFinite(weekNumber)
+          ? null
+          : visibleWeekRange.minWeekNumber != null &&
+              visibleWeekRange.maxWeekNumber != null &&
+              reorderInfo.startWeekNumber >= visibleWeekRange.minWeekNumber &&
+              reorderInfo.startWeekNumber <= visibleWeekRange.maxWeekNumber
+            ? reorderInfo.startWeekNumber
+            : visibleWeekRange.minWeekNumber != null &&
+                reorderInfo.startWeekNumber < visibleWeekRange.minWeekNumber
+              ? visibleWeekRange.minWeekNumber
+              : null
+      const isReorderWeek = reorderCueWeekNumber != null && reorderCueWeekNumber === weekNumber
 
       if (productId && isReorderWeek && field && visibleMetrics.has(field)) {
         isReorder = true
@@ -1307,6 +1334,38 @@ export function SalesPlanningGrid({
         }
       }
 
+      if (productId && reorderInfo && isReorderWeek) {
+        const leadProfile = leadTimeByProduct[productId]
+        const leadTimeWeeks = leadProfile ? Math.max(0, Math.ceil(Number(leadProfile.totalWeeks))) : reorderInfo.leadTimeWeeks
+        const leadParts = leadProfile
+          ? [
+              `prod ${Math.max(0, Math.ceil(Number(leadProfile.productionWeeks)))}w`,
+              `source ${Math.max(0, Math.ceil(Number(leadProfile.sourceWeeks)))}w`,
+              `ocean ${Math.max(0, Math.ceil(Number(leadProfile.oceanWeeks)))}w`,
+              `final ${Math.max(0, Math.ceil(Number(leadProfile.finalWeeks)))}w`,
+            ]
+          : []
+
+        const breachLabel = reorderInfo.breachWeekLabel ? `W${reorderInfo.breachWeekLabel}` : `week ${reorderInfo.breachWeekNumber}`
+        const lateByWeeks =
+          reorderCueWeekNumber != null ? Math.max(0, reorderCueWeekNumber - reorderInfo.startWeekNumber) : 0
+        const startLine =
+          lateByWeeks > 0
+            ? `Start production: ASAP (recommended ${reorderInfo.startDate} · late by ${lateByWeeks}w).`
+            : `Start production: ${reorderInfo.startDate}.`
+
+        tooltipText =
+          [
+            `Reorder signal (target ≥ ${warningThreshold}w).`,
+            startLine,
+            `Threshold breach: ${breachLabel} (${reorderInfo.breachDate}).`,
+            `Lead time: ${leadTimeWeeks}w${leadParts.length ? ` (${leadParts.join(' + ')})` : ''}.`,
+            tooltipText,
+          ]
+            .filter(Boolean)
+            .join('\n\n')
+      }
+
       const raw = row[columnId] ?? ''
       if (field === 'finalSalesError') {
         return { display: raw, isEditable: false, isWarning, isReorder, hasInbound, tooltip: tooltipText }
@@ -1338,6 +1397,7 @@ export function SalesPlanningGrid({
       leadTimeByProduct,
       stockWeeksKeyByProduct,
       visibleMetrics,
+      visibleWeekRange,
       visibleRowIndices,
       warningThreshold,
       weekDateByNumber,
@@ -1627,11 +1687,12 @@ export function SalesPlanningGrid({
                           colIndex === 2 && 'border-r-2',
                           presentation.isEditable && 'cursor-text bg-accent/50 font-medium',
                           presentation.isWarning && 'bg-destructive/10 text-destructive',
-                          presentation.isReorder && 'bg-warning/10',
+                          presentation.isReorder && 'bg-warning-100/80 dark:bg-warning-900/30',
                           presentation.hasInbound &&
                             !presentation.isEditable &&
                             !presentation.isWarning &&
-                            'bg-success/10 text-success-foreground',
+                            !presentation.isReorder &&
+                            'bg-success-100/70 text-success-900 dark:bg-success-900/30 dark:text-success-100',
                           isSelected && 'bg-accent',
                           isCurrent && 'ring-2 ring-inset ring-ring'
                         )}

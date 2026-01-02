@@ -103,7 +103,7 @@ export function Tooltip({ content, children, position = 'top', delay = 100, clas
         transform: getTransform(),
       }}
     >
-      <div className="relative rounded-lg bg-slate-900 dark:bg-[#0d2a3f] px-3 py-2 text-sm text-white shadow-lg dark:shadow-[0_12px_32px_rgba(0,0,0,0.4)] border border-slate-800 dark:border-[#0b3a52] max-w-xs">
+      <div className="relative max-w-xs whitespace-pre-line rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm text-white shadow-lg dark:border-[#0b3a52] dark:bg-[#0d2a3f] dark:shadow-[0_12px_32px_rgba(0,0,0,0.4)]">
         {content}
         <div
           className={`absolute w-2.5 h-2.5 bg-slate-900 dark:bg-[#0d2a3f] border-slate-800 dark:border-[#0b3a52] transform rotate-45 ${getArrowPosition()} ${
