@@ -210,20 +210,18 @@ export function SalesPlanningVisual({ rows, columnMeta, columnKeys, productOptio
                       <stop offset="95%" stopColor="hsl(var(--chart-1))" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" />
                   <XAxis
                     dataKey="weekLabel"
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fontSize: 11 }}
-                    className="text-muted-foreground"
+                    tick={{ fontSize: 11, fill: '#64748b' }}
                     interval="preserveStartEnd"
                   />
                   <YAxis
                     tickLine={false}
                     axisLine={false}
-                    tick={{ fontSize: 11 }}
-                    className="text-muted-foreground"
+                    tick={{ fontSize: 11, fill: '#64748b' }}
                     tickFormatter={(value) => value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toString()}
                     width={50}
                   />
