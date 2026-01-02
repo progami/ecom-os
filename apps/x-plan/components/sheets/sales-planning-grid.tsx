@@ -559,6 +559,34 @@ export function SalesPlanningGrid({
     }, 0)
   }, [leafColumns])
 
+  const columnLayout = useMemo(() => {
+    const widths = leafColumns.map((column) => {
+      const meta = column.columnDef.meta as { width?: number } | undefined
+      return typeof meta?.width === 'number' ? meta.width : 110
+    })
+
+    const offsets: number[] = new Array(widths.length)
+    let running = 0
+    for (let index = 0; index < widths.length; index += 1) {
+      offsets[index] = running
+      running += widths[index] ?? 0
+    }
+
+    const pinnedColumns = leafColumns.filter((column) => {
+      const meta = column.columnDef.meta as { kind?: string } | undefined
+      return meta?.kind === 'pinned'
+    })
+    const pinnedWidth = pinnedColumns.reduce((sum, column) => {
+      const meta = column.columnDef.meta as { width?: number } | undefined
+      const width = typeof meta?.width === 'number' ? meta.width : 110
+      return sum + width
+    }, 0)
+    const pinnedCount =
+      pinnedColumns.length > 0 ? pinnedColumns.length : Math.min(3, leafColumns.length)
+
+    return { widths, offsets, pinnedWidth, pinnedCount }
+  }, [leafColumns])
+
   const [selection, setSelection] = useState<CellRange | null>(null)
   const selectionAnchorRef = useRef<CellCoords | null>(null)
   const selectionRef = useRef<CellRange | null>(null)
@@ -935,6 +963,53 @@ export function SalesPlanningGrid({
 
   const cancelEditing = useCallback(() => setEditingCell(null), [])
 
+  const ensureCellVisible = useCallback(
+    (coords: CellCoords) => {
+      const holder = scrollRef.current
+      if (!holder) return
+
+      const headerHeight =
+        holder.querySelector('thead')?.getBoundingClientRect().height ?? 72
+      const rowHeight =
+        holder.querySelector('tbody tr')?.getBoundingClientRect().height ?? 32
+
+      const cellTop = headerHeight + coords.row * rowHeight
+      const cellBottom = cellTop + rowHeight
+
+      const viewTop = holder.scrollTop + headerHeight
+      const viewBottom = holder.scrollTop + holder.clientHeight
+
+      let nextScrollTop = holder.scrollTop
+      if (cellTop < viewTop) {
+        nextScrollTop = Math.max(0, cellTop - headerHeight)
+      } else if (cellBottom > viewBottom) {
+        nextScrollTop = Math.max(0, cellBottom - holder.clientHeight)
+      }
+      nextScrollTop = Math.min(nextScrollTop, holder.scrollHeight - holder.clientHeight)
+
+      let nextScrollLeft = holder.scrollLeft
+      if (coords.col >= columnLayout.pinnedCount) {
+        const cellLeft = columnLayout.offsets[coords.col] ?? 0
+        const cellRight = cellLeft + (columnLayout.widths[coords.col] ?? 0)
+
+        const viewLeft = holder.scrollLeft + columnLayout.pinnedWidth
+        const viewRight = holder.scrollLeft + holder.clientWidth
+
+        if (cellLeft < viewLeft) {
+          nextScrollLeft = Math.max(0, cellLeft - columnLayout.pinnedWidth)
+        } else if (cellRight > viewRight) {
+          nextScrollLeft = Math.max(0, cellRight - holder.clientWidth)
+        }
+        nextScrollLeft = Math.min(nextScrollLeft, holder.scrollWidth - holder.clientWidth)
+      }
+
+      if (nextScrollTop !== holder.scrollTop || nextScrollLeft !== holder.scrollLeft) {
+        holder.scrollTo({ top: nextScrollTop, left: nextScrollLeft, behavior: 'auto' })
+      }
+    },
+    [columnLayout]
+  )
+
   const moveActiveCell = useCallback(
     (deltaRow: number, deltaCol: number) => {
       if (!activeCell) return
@@ -950,8 +1025,9 @@ export function SalesPlanningGrid({
           to: nextCoords,
         })
       )
+      requestAnimationFrame(() => ensureCellVisible(nextCoords))
     },
-    [activeCell, data, leafColumnIds, visibleRowIndices, visibleRows.length]
+    [activeCell, data, ensureCellVisible, leafColumnIds, visibleRowIndices, visibleRows.length]
   )
 
   const handleKeyDown = useCallback(
