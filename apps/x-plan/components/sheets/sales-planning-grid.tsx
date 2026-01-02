@@ -1567,21 +1567,15 @@ export function SalesPlanningGrid({
                         onPointerUp={handlePointerUp}
                         onDoubleClick={() => handleDoubleClick(visibleRowIndex, colIndex)}
                       >
-                        {cellContent}
+                        {presentation.tooltip ? (
+                          <Tooltip content={presentation.tooltip} position="right" className="block h-full w-full">
+                            {cellContent}
+                          </Tooltip>
+                        ) : (
+                          cellContent
+                        )}
                       </TableCell>
                     )
-
-                    if (presentation.tooltip) {
-                      return (
-                        <Tooltip
-                          key={column.id}
-                          content={presentation.tooltip}
-                          position="right"
-                        >
-                          {cell}
-                        </Tooltip>
-                      )
-                    }
 
                     return cell
                   })}
