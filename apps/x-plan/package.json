@@ -49,6 +49,7 @@
     "react-dom": "19.2.1",
     "react-flatpickr": "^4.0.11",
     "react-hook-form": "^7.68.0",
+    "recharts": "^3.5.1",
     "server-only": "^0.0.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
