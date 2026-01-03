@@ -17,20 +17,21 @@ import { SHEET_TOOLBAR_GROUP } from '@/components/sheet-toolbar'
 
 export type POStatus = 'PLANNED' | 'PRODUCTION' | 'IN_TRANSIT' | 'ARRIVED' | 'CLOSED' | 'CANCELLED'
 
+// Each row represents a single product/batch within a PO
 export interface POProfitabilityData {
   id: string
   orderCode: string
+  batchCode: string | null
   productId: string
   productName: string
-  batchProducts: Array<{ id: string; name: string }>
   quantity: number
   status: POStatus
+  sellingPrice: number
   manufacturingCost: number
   freightCost: number
   tariffCost: number
   landedUnitCost: number
   supplierCostTotal: number
-  sellingPrice: number
   grossRevenue: number
   fbaFee: number
   amazonReferralRate: number
@@ -86,15 +87,13 @@ export function POProfitabilitySection({
   const [sortField, setSortField] = useState<SortField>('grossRevenue')
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
 
-  // Get unique products from all batch products across all POs
+  // Get unique products for SKU dropdown
   const productOptions = useMemo(() => {
     const productMap = new Map<string, string>()
-    data.forEach((po) => {
-      po.batchProducts.forEach((product) => {
-        if (!productMap.has(product.id)) {
-          productMap.set(product.id, product.name)
-        }
-      })
+    data.forEach((row) => {
+      if (!productMap.has(row.productId)) {
+        productMap.set(row.productId, row.productName)
+      }
     })
     return Array.from(productMap.entries()).map(([id, name]) => ({ id, name }))
   }, [data])
@@ -102,10 +101,10 @@ export function POProfitabilitySection({
   const filteredData = useMemo(() => {
     let result = data
     if (statusFilter !== 'ALL') {
-      result = result.filter((po) => po.status === statusFilter)
+      result = result.filter((row) => row.status === statusFilter)
     }
     if (skuFilter !== 'ALL') {
-      result = result.filter((po) => po.batchProducts.some((p) => p.id === skuFilter))
+      result = result.filter((row) => row.productId === skuFilter)
     }
     return [...result].sort((a, b) => {
       const dateA = a.availableDate ? new Date(a.availableDate).getTime() : 0
@@ -136,13 +135,30 @@ export function POProfitabilitySection({
     }
   }
 
-  // Transform data for Recharts
+  // Transform data for Recharts - group by orderCode for chart display
   const chartData = useMemo(() => {
-    return filteredData.map((po) => ({
-      name: po.orderCode,
-      grossMarginPercent: po.grossMarginPercent,
-      netMarginPercent: po.netMarginPercent,
-      roi: po.roi,
+    const grouped = new Map<string, { grossMarginPercent: number; netMarginPercent: number; roi: number; count: number }>()
+    filteredData.forEach((row) => {
+      const existing = grouped.get(row.orderCode)
+      if (existing) {
+        existing.grossMarginPercent += row.grossMarginPercent
+        existing.netMarginPercent += row.netMarginPercent
+        existing.roi += row.roi
+        existing.count += 1
+      } else {
+        grouped.set(row.orderCode, {
+          grossMarginPercent: row.grossMarginPercent,
+          netMarginPercent: row.netMarginPercent,
+          roi: row.roi,
+          count: 1,
+        })
+      }
+    })
+    return Array.from(grouped.entries()).map(([name, values]) => ({
+      name,
+      grossMarginPercent: values.grossMarginPercent / values.count,
+      netMarginPercent: values.netMarginPercent / values.count,
+      roi: values.roi / values.count,
     }))
   }, [filteredData])
 
@@ -165,10 +181,10 @@ export function POProfitabilitySection({
   // Summary stats
   const summary = useMemo(() => {
     if (filteredData.length === 0) return { totalRevenue: 0, totalProfit: 0, avgMargin: 0, avgROI: 0 }
-    const totalRevenue = filteredData.reduce((sum, po) => sum + po.grossRevenue, 0)
-    const totalProfit = filteredData.reduce((sum, po) => sum + po.netProfit, 0)
+    const totalRevenue = filteredData.reduce((sum, row) => sum + row.grossRevenue, 0)
+    const totalProfit = filteredData.reduce((sum, row) => sum + row.netProfit, 0)
     const avgMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0
-    const avgROI = filteredData.reduce((sum, po) => sum + po.roi, 0) / filteredData.length
+    const avgROI = filteredData.reduce((sum, row) => sum + row.roi, 0) / filteredData.length
     return { totalRevenue, totalProfit, avgMargin, avgROI }
   }, [filteredData])
 
@@ -216,37 +232,18 @@ export function POProfitabilitySection({
         {productOptions.length > 0 && (
           <div className={SHEET_TOOLBAR_GROUP}>
             <span className="text-xs font-medium text-muted-foreground">SKU</span>
-            <button
-              type="button"
-              onClick={() => setSkuFilter('ALL')}
-              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                skuFilter === 'ALL'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-accent'
-              }`}
+            <select
+              value={skuFilter}
+              onChange={(e) => setSkuFilter(e.target.value)}
+              className="h-8 rounded-md border border-input bg-background px-3 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              {skuFilter === 'ALL' && <Check className="h-3 w-3" />}
-              All
-            </button>
-            {productOptions.map((product) => {
-              const isActive = skuFilter === product.id
-              return (
-                <button
-                  key={product.id}
-                  type="button"
-                  onClick={() => setSkuFilter(product.id)}
-                  title={product.name}
-                  className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors max-w-[120px] truncate ${
-                    isActive
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:bg-accent'
-                  }`}
-                >
-                  {isActive && <Check className="h-3 w-3 shrink-0" />}
-                  <span className="truncate">{product.name}</span>
-                </button>
-              )
-            })}
+              <option value="ALL">All SKUs</option>
+              {productOptions.map((product) => (
+                <option key={product.id} value={product.id}>
+                  {product.name}
+                </option>
+              ))}
+            </select>
           </div>
         )}
 
@@ -350,7 +347,7 @@ export function POProfitabilitySection({
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base">P&L Breakdown</CardTitle>
-              <CardDescription>Detailed profitability by purchase order</CardDescription>
+              <CardDescription>Detailed profitability by product batch</CardDescription>
             </div>
             <div className="text-right text-xs text-muted-foreground">
               <div>Total Revenue: <span className="font-semibold text-foreground">{formatCurrency(summary.totalRevenue)}</span></div>
@@ -364,7 +361,7 @@ export function POProfitabilitySection({
               <TableRow>
                 <TableHead>
                   <SortButton field="orderCode" current={sortField} direction={sortDirection} onClick={handleSort}>
-                    PO Code
+                    PO / SKU
                   </SortButton>
                 </TableHead>
                 <TableHead>Status</TableHead>
@@ -395,49 +392,49 @@ export function POProfitabilitySection({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {tableSortedData.map((po) => (
-                <TableRow key={po.id}>
+              {tableSortedData.map((row) => (
+                <TableRow key={row.id}>
                   <TableCell>
-                    <div className="font-medium">{po.orderCode}</div>
-                    <div className="truncate text-xs text-muted-foreground" style={{ maxWidth: '150px' }} title={po.productName}>
-                      {po.productName}
+                    <div className="font-medium">{row.orderCode}</div>
+                    <div className="truncate text-xs text-muted-foreground" style={{ maxWidth: '150px' }} title={row.productName}>
+                      {row.productName}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <StatusBadge status={po.status} />
+                    <StatusBadge status={row.status} />
                   </TableCell>
-                  <TableCell className="text-right font-mono">{po.quantity.toLocaleString()}</TableCell>
-                  <TableCell className="text-right font-mono">{formatCurrency(po.grossRevenue)}</TableCell>
-                  <TableCell className="text-right font-mono text-muted-foreground">{formatCurrency(po.supplierCostTotal)}</TableCell>
-                  <TableCell className="text-right font-mono text-muted-foreground">{formatCurrency(po.amazonFeesTotal)}</TableCell>
-                  <TableCell className="text-right font-mono text-muted-foreground">{formatCurrency(po.ppcCost)}</TableCell>
-                  <TableCell className={`text-right font-mono font-medium ${po.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    {formatCurrency(po.netProfit)}
+                  <TableCell className="text-right font-mono">{row.quantity.toLocaleString()}</TableCell>
+                  <TableCell className="text-right font-mono">{formatCurrency(row.grossRevenue)}</TableCell>
+                  <TableCell className="text-right font-mono text-muted-foreground">{formatCurrency(row.supplierCostTotal)}</TableCell>
+                  <TableCell className="text-right font-mono text-muted-foreground">{formatCurrency(row.amazonFeesTotal)}</TableCell>
+                  <TableCell className="text-right font-mono text-muted-foreground">{formatCurrency(row.ppcCost)}</TableCell>
+                  <TableCell className={`text-right font-mono font-medium ${row.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {formatCurrency(row.netProfit)}
                   </TableCell>
-                  <TableCell className={`text-right font-mono ${po.netMarginPercent < 0 ? 'text-red-600' : ''}`}>
-                    {formatPercent(po.netMarginPercent)}
+                  <TableCell className={`text-right font-mono ${row.netMarginPercent < 0 ? 'text-red-600' : ''}`}>
+                    {formatPercent(row.netMarginPercent)}
                   </TableCell>
-                  <TableCell className={`text-right font-mono font-medium ${po.roi < 0 ? 'text-red-600' : ''}`}>
-                    {formatPercent(po.roi)}
+                  <TableCell className={`text-right font-mono font-medium ${row.roi < 0 ? 'text-red-600' : ''}`}>
+                    {formatPercent(row.roi)}
                   </TableCell>
                 </TableRow>
               ))}
               {/* Total row */}
               <TableRow className="bg-muted/50 font-semibold">
-                <TableCell>Total ({filteredData.length} POs)</TableCell>
+                <TableCell>Total ({filteredData.length} rows)</TableCell>
                 <TableCell />
                 <TableCell className="text-right font-mono">
-                  {filteredData.reduce((sum, po) => sum + po.quantity, 0).toLocaleString()}
+                  {filteredData.reduce((sum, row) => sum + row.quantity, 0).toLocaleString()}
                 </TableCell>
                 <TableCell className="text-right font-mono">{formatCurrency(summary.totalRevenue)}</TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">
-                  {formatCurrency(filteredData.reduce((sum, po) => sum + po.supplierCostTotal, 0))}
+                  {formatCurrency(filteredData.reduce((sum, row) => sum + row.supplierCostTotal, 0))}
                 </TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">
-                  {formatCurrency(filteredData.reduce((sum, po) => sum + po.amazonFeesTotal, 0))}
+                  {formatCurrency(filteredData.reduce((sum, row) => sum + row.amazonFeesTotal, 0))}
                 </TableCell>
                 <TableCell className="text-right font-mono text-muted-foreground">
-                  {formatCurrency(filteredData.reduce((sum, po) => sum + po.ppcCost, 0))}
+                  {formatCurrency(filteredData.reduce((sum, row) => sum + row.ppcCost, 0))}
                 </TableCell>
                 <TableCell className={`text-right font-mono ${summary.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                   {formatCurrency(summary.totalProfit)}

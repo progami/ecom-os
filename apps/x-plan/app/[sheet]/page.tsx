@@ -1657,62 +1657,10 @@ function getPOProfitabilityView(
   const { derivedOrders, operations } = financialData
   const { productNameById } = operations
 
-  const data: POProfitabilityData[] = derivedOrders.map(({ derived, input, productName }) => {
-    // Extract batch products - unique products from batch table rows
-    const batchProducts: Array<{ id: string; name: string }> = []
-    const seenProductIds = new Set<string>()
-    if (Array.isArray(input.batchTableRows) && input.batchTableRows.length > 0) {
-      input.batchTableRows.forEach((batch) => {
-        if (!seenProductIds.has(batch.productId)) {
-          seenProductIds.add(batch.productId)
-          batchProducts.push({
-            id: batch.productId,
-            name: productNameById.get(batch.productId) ?? batch.productId,
-          })
-        }
-      })
-    } else {
-      // Fallback to main product if no batches
-      batchProducts.push({
-        id: input.productId,
-        name: productNameById.get(input.productId) ?? input.productId,
-      })
-    }
+  // Flatten to per-batch rows for proper per-SKU filtering
+  const data: POProfitabilityData[] = []
 
-    const quantity = Number(input.quantity ?? 0)
-    const sellingPrice = Number(derived.sellingPrice ?? 0)
-    const grossRevenue = sellingPrice * quantity
-
-    // Per-unit costs from derived
-    const manufacturingCost = Number(derived.manufacturingCost ?? 0)
-    const freightCost = Number(derived.freightCost ?? 0)
-    const tariffRate = Number(derived.tariffRate ?? 0)
-    const landedUnitCost = Number(derived.landedUnitCost ?? 0)
-    const supplierCostTotal = Number(derived.supplierCostTotal ?? 0)
-
-    // Calculate tariff cost per unit from tariff rate
-    const tariffCost = tariffRate * landedUnitCost
-
-    // Amazon fees
-    const fbaFee = Number(derived.fbaFee ?? 0)
-    const amazonReferralRate = Number(derived.amazonReferralRate ?? 0)
-    const amazonFeesPerUnit = fbaFee + (sellingPrice * amazonReferralRate)
-    const amazonFeesTotal = amazonFeesPerUnit * quantity
-
-    // PPC/Advertising
-    const tacosPercent = Number(derived.tacosPercent ?? 0)
-    const ppcCost = sellingPrice * tacosPercent * quantity
-
-    // Profit calculations
-    const cogs = landedUnitCost * quantity
-    const grossProfit = grossRevenue - cogs - amazonFeesTotal
-    const grossMarginPercent = grossRevenue > 0 ? (grossProfit / grossRevenue) * 100 : 0
-    const netProfit = grossProfit - ppcCost
-    const netMarginPercent = grossRevenue > 0 ? (netProfit / grossRevenue) * 100 : 0
-
-    // ROI = Net Profit / Total Investment (supplier cost)
-    const roi = supplierCostTotal > 0 ? (netProfit / supplierCostTotal) * 100 : 0
-
+  for (const { derived, input } of derivedOrders) {
     // Map status
     const statusMap: Record<string, POStatus> = {
       PLANNED: 'PLANNED',
@@ -1724,36 +1672,71 @@ function getPOProfitabilityView(
     }
     const status: POStatus = statusMap[input.status ?? ''] ?? 'PLANNED'
 
-    return {
-      id: derived.id,
-      orderCode: derived.orderCode,
-      productId: input.productId,
-      productName,
-      batchProducts,
-      quantity,
-      status,
-      manufacturingCost,
-      freightCost,
-      tariffCost,
-      landedUnitCost,
-      supplierCostTotal,
-      sellingPrice,
-      grossRevenue,
-      fbaFee,
-      amazonReferralRate,
-      amazonFeesTotal,
-      tacosPercent,
-      ppcCost,
-      grossProfit,
-      grossMarginPercent,
-      netProfit,
-      netMarginPercent,
-      roi,
-      productionStart: derived.productionStart ?? null,
-      availableDate: derived.availableDate ?? null,
-      totalLeadDays: derived.totalLeadDays ?? 0,
+    // Process each batch as a separate row
+    for (const batch of derived.batches) {
+      const quantity = batch.quantity
+      const sellingPrice = batch.sellingPrice
+      const grossRevenue = sellingPrice * quantity
+
+      // Per-unit costs from batch
+      const manufacturingCost = batch.manufacturingCost
+      const freightCost = batch.freightCost
+      const landedUnitCost = batch.landedUnitCost
+      const tariffCost = batch.tariffRate * batch.manufacturingCost
+
+      // Supplier cost total (COGS)
+      const supplierCostTotal = landedUnitCost * quantity
+
+      // Amazon fees
+      const fbaFee = batch.fbaFee
+      const amazonReferralRate = batch.amazonReferralRate
+      const amazonFeesPerUnit = fbaFee + (sellingPrice * amazonReferralRate)
+      const amazonFeesTotal = amazonFeesPerUnit * quantity
+
+      // PPC/Advertising
+      const tacosPercent = batch.tacosPercent
+      const ppcCost = sellingPrice * tacosPercent * quantity
+
+      // Profit calculations
+      const grossProfit = grossRevenue - supplierCostTotal - amazonFeesTotal
+      const grossMarginPercent = grossRevenue > 0 ? (grossProfit / grossRevenue) * 100 : 0
+      const netProfit = grossProfit - ppcCost
+      const netMarginPercent = grossRevenue > 0 ? (netProfit / grossRevenue) * 100 : 0
+
+      // ROI = Net Profit / Total Investment (supplier cost)
+      const roi = supplierCostTotal > 0 ? (netProfit / supplierCostTotal) * 100 : 0
+
+      data.push({
+        id: `${derived.id}-${batch.productId}`,
+        orderCode: derived.orderCode,
+        batchCode: batch.batchCode ?? null,
+        productId: batch.productId,
+        productName: productNameById.get(batch.productId) ?? batch.productId,
+        quantity,
+        status,
+        sellingPrice,
+        manufacturingCost,
+        freightCost,
+        tariffCost,
+        landedUnitCost,
+        supplierCostTotal,
+        grossRevenue,
+        fbaFee,
+        amazonReferralRate,
+        amazonFeesTotal,
+        tacosPercent,
+        ppcCost,
+        grossProfit,
+        grossMarginPercent,
+        netProfit,
+        netMarginPercent,
+        roi,
+        productionStart: derived.productionStart ?? null,
+        availableDate: derived.availableDate ?? null,
+        totalLeadDays: derived.totalLeadDays ?? 0,
+      })
     }
-  })
+  }
 
   return { data }
 }
