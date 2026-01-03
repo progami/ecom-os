@@ -421,55 +421,55 @@ export function POProfitabilitySection({
             <TableBody>
               {tableSortedData.map((row) => (
                 <TableRow key={row.id}>
-                  <TableCell className="py-3">
-                    <div className="text-sm font-medium">{row.orderCode}</div>
+                  <TableCell>
+                    <div className="font-medium">{row.orderCode}</div>
                     <div className="truncate text-xs text-muted-foreground max-w-[160px]" title={row.productName}>
                       {row.productName}
                     </div>
                   </TableCell>
-                  <TableCell className="py-3">
+                  <TableCell>
                     <StatusBadge status={row.status} />
                   </TableCell>
-                  <TableCell className="py-3 text-right tabular-nums text-sm">{row.quantity.toLocaleString()}</TableCell>
-                  <TableCell className="py-3 text-right tabular-nums text-sm">{formatCurrency(row.grossRevenue)}</TableCell>
-                  <TableCell className="py-3 text-right tabular-nums text-sm text-muted-foreground">{formatCurrency(row.supplierCostTotal)}</TableCell>
-                  <TableCell className="py-3 text-right tabular-nums text-sm text-muted-foreground">{formatCurrency(row.amazonFeesTotal)}</TableCell>
-                  <TableCell className="py-3 text-right tabular-nums text-sm text-muted-foreground">{formatCurrency(row.ppcCost)}</TableCell>
-                  <TableCell className={`py-3 text-right tabular-nums text-sm font-medium ${row.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  <TableCell className="text-right tabular-nums">{row.quantity.toLocaleString()}</TableCell>
+                  <TableCell className="text-right tabular-nums">{formatCurrency(row.grossRevenue)}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(row.supplierCostTotal)}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(row.amazonFeesTotal)}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{formatCurrency(row.ppcCost)}</TableCell>
+                  <TableCell className={`text-right tabular-nums font-medium ${row.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                     {formatCurrency(row.netProfit)}
                   </TableCell>
-                  <TableCell className={`py-3 text-right tabular-nums text-sm ${row.netMarginPercent < 0 ? 'text-red-600' : ''}`}>
+                  <TableCell className={`text-right tabular-nums ${row.netMarginPercent < 0 ? 'text-red-600' : ''}`}>
                     {formatPercent(row.netMarginPercent)}
                   </TableCell>
-                  <TableCell className={`py-3 text-right tabular-nums text-sm font-medium ${row.roi < 0 ? 'text-red-600' : ''}`}>
+                  <TableCell className={`text-right tabular-nums font-medium ${row.roi < 0 ? 'text-red-600' : ''}`}>
                     {formatPercent(row.roi)}
                   </TableCell>
                 </TableRow>
               ))}
               {/* Total row */}
               <TableRow className="bg-muted/50">
-                <TableCell className="py-3 text-sm font-semibold">Total ({filteredData.length} {skuFilter !== 'ALL' ? 'batches' : 'POs'})</TableCell>
-                <TableCell className="py-3" />
-                <TableCell className="py-3 text-right tabular-nums text-sm font-semibold">
+                <TableCell className="font-semibold">Total ({filteredData.length} {skuFilter !== 'ALL' ? 'batches' : 'POs'})</TableCell>
+                <TableCell />
+                <TableCell className="text-right tabular-nums font-semibold">
                   {filteredData.reduce((sum, row) => sum + row.quantity, 0).toLocaleString()}
                 </TableCell>
-                <TableCell className="py-3 text-right tabular-nums text-sm font-semibold">{formatCurrency(summary.totalRevenue)}</TableCell>
-                <TableCell className="py-3 text-right tabular-nums text-sm text-muted-foreground">
+                <TableCell className="text-right tabular-nums font-semibold">{formatCurrency(summary.totalRevenue)}</TableCell>
+                <TableCell className="text-right tabular-nums text-muted-foreground">
                   {formatCurrency(filteredData.reduce((sum, row) => sum + row.supplierCostTotal, 0))}
                 </TableCell>
-                <TableCell className="py-3 text-right tabular-nums text-sm text-muted-foreground">
+                <TableCell className="text-right tabular-nums text-muted-foreground">
                   {formatCurrency(filteredData.reduce((sum, row) => sum + row.amazonFeesTotal, 0))}
                 </TableCell>
-                <TableCell className="py-3 text-right tabular-nums text-sm text-muted-foreground">
+                <TableCell className="text-right tabular-nums text-muted-foreground">
                   {formatCurrency(filteredData.reduce((sum, row) => sum + row.ppcCost, 0))}
                 </TableCell>
-                <TableCell className={`py-3 text-right tabular-nums text-sm font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                <TableCell className={`text-right tabular-nums font-semibold ${summary.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                   {formatCurrency(summary.totalProfit)}
                 </TableCell>
-                <TableCell className={`py-3 text-right tabular-nums text-sm font-semibold ${summary.avgMargin < 0 ? 'text-red-600' : ''}`}>
+                <TableCell className={`text-right tabular-nums font-semibold ${summary.avgMargin < 0 ? 'text-red-600' : ''}`}>
                   {formatPercent(summary.avgMargin)}
                 </TableCell>
-                <TableCell className={`py-3 text-right tabular-nums text-sm font-semibold ${summary.avgROI < 0 ? 'text-red-600' : ''}`}>
+                <TableCell className={`text-right tabular-nums font-semibold ${summary.avgROI < 0 ? 'text-red-600' : ''}`}>
                   {formatPercent(summary.avgROI)}
                 </TableCell>
               </TableRow>
@@ -501,10 +501,10 @@ function SortButton({
     <button
       type="button"
       onClick={() => onClick(field)}
-      className={`flex items-center gap-1 text-xs font-medium hover:text-foreground ${align === 'right' ? 'justify-end w-full' : ''}`}
+      className={`inline-flex items-center gap-1 hover:text-foreground ${align === 'right' ? 'justify-end w-full' : ''}`}
     >
       {children}
-      {isActive && (direction === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+      {isActive && (direction === 'asc' ? <ChevronUp className="h-3 w-3 shrink-0" /> : <ChevronDown className="h-3 w-3 shrink-0" />)}
     </button>
   )
 }
