@@ -591,7 +591,7 @@ export function SalesPlanningGrid({
               kind: 'metric',
               productId: product.id,
               field,
-              width: field === 'finalSalesError' ? 80 : 110,
+              width: 110,
             },
           })
         })
@@ -1777,10 +1777,10 @@ export function SalesPlanningGrid({
                           colIndex === 2 && 'border-r-2',
                           presentation.isEditable && 'cursor-text font-medium',
                           presentation.isEditable && presentation.highlight === 'none' && 'bg-accent/50',
-                          presentation.highlight === 'warning' && 'bg-destructive/10',
+                          presentation.highlight === 'warning' && 'bg-danger-100/90 dark:bg-danger-900/35',
                           presentation.isWarning && 'text-destructive',
-                          presentation.highlight === 'reorder' && 'bg-warning-100/80 dark:bg-warning-900/30',
-                          presentation.highlight === 'inbound' && 'bg-success-100/70 dark:bg-success-900/30',
+                          presentation.highlight === 'reorder' && 'bg-warning-100/95 dark:bg-warning-900/35',
+                          presentation.highlight === 'inbound' && 'bg-success-100/90 dark:bg-success-900/35',
                           isSelected && 'bg-accent',
                           isCurrent && 'ring-2 ring-inset ring-ring'
                         )}

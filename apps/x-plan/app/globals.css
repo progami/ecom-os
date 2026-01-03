@@ -6,19 +6,6 @@
   color-scheme: light dark;
 }
 
-body {
-  @apply min-h-screen antialiased;
-  background: #f8fafc;
-  color: #0f172a;
-  font-feature-settings: "cv11", "ss01";
-  font-optical-sizing: auto;
-}
-
-body.dark {
-  background: #041324;
-  color: rgb(241, 245, 249);
-}
-
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 10px;
@@ -157,6 +144,8 @@ h4, .text-h4 {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply min-h-screen bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+    font-optical-sizing: auto;
   }
 }
