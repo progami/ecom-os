@@ -187,13 +187,13 @@ export function ProductSetupGrid({ strategyId, products, className }: ProductSet
       </div>
 
       <div className="overflow-hidden rounded-xl border bg-card shadow-sm dark:border-white/10">
-        <div className="max-h-[440px] overflow-auto">
+        <div className="overflow-auto">
           <Table className="w-full table-fixed border-collapse">
-        <TableHeader>
-          <TableRow className="hover:bg-transparent">
-            <TableHead className="sticky top-0 z-10 h-10 w-28 border-b border-r bg-muted px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
-              SKU
-            </TableHead>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead className="sticky top-0 z-10 h-10 w-28 border-b border-r bg-muted px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
+                  SKU
+                </TableHead>
             <TableHead className="sticky top-0 z-10 h-10 border-b border-r bg-muted px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.12em] text-cyan-700 last:border-r-0 dark:text-cyan-300/80">
               Name
             </TableHead>
