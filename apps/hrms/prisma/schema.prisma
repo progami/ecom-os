@@ -96,11 +96,6 @@ model Employee {
 
   auditLogs        AuditLog[]      @relation("AuditLogsActor")
 
-  hrmsSettingsDefaultHROwner HrmsSettings[] @relation("HrmsSettingsDefaultHROwner")
-  hrmsSettingsDefaultITOwner HrmsSettings[] @relation("HrmsSettingsDefaultITOwner")
-
-  checklistInstances ChecklistInstance[]
-
   @@index([email])
   @@index([employeeId])
   @@index([department])
@@ -389,92 +384,12 @@ model Task {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
-  checklistItemInstances ChecklistItemInstance[]
-
   @@index([status])
   @@index([category])
   @@index([assignedToId])
   @@index([subjectEmployeeId])
   @@index([caseId])
   @@index([dueDate])
-}
-
-// ============ CHECKLISTS (ONBOARDING/OFFBOARDING) ============
-
-model ChecklistTemplate {
-  id            String                 @id @default(cuid())
-  name          String
-  lifecycleType ChecklistLifecycleType
-  version       Int                    @default(1)
-  isActive      Boolean                @default(true)
-
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
-
-  items         ChecklistTemplateItem[]
-  instances     ChecklistInstance[]
-
-  @@index([lifecycleType, isActive])
-}
-
-model ChecklistTemplateItem {
-  id              String            @id @default(cuid())
-  templateId      String
-  template        ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-
-  title           String
-  description     String?
-  sortOrder       Int
-  ownerType       ChecklistOwnerType
-  dueOffsetDays   Int               @default(0)
-  evidenceRequired Boolean          @default(false)
-
-  dependsOnItemId String?
-
-  itemInstances   ChecklistItemInstance[]
-
-  @@index([templateId, sortOrder])
-  @@index([templateId])
-}
-
-model ChecklistInstance {
-  id            String                 @id @default(cuid())
-  templateId    String
-  template      ChecklistTemplate      @relation(fields: [templateId], references: [id], onDelete: Restrict)
-
-  employeeId    String
-  employee      Employee               @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  lifecycleType ChecklistLifecycleType
-  anchorDate    DateTime               // joinDate or termination date anchor
-
-  createdAt     DateTime               @default(now())
-  updatedAt     DateTime               @updatedAt
-
-  items         ChecklistItemInstance[]
-
-  @@index([employeeId, lifecycleType])
-  @@unique([employeeId, lifecycleType, templateId])
-}
-
-model ChecklistItemInstance {
-  id             String               @id @default(cuid())
-  instanceId     String
-  instance       ChecklistInstance    @relation(fields: [instanceId], references: [id], onDelete: Cascade)
-
-  templateItemId String
-  templateItem   ChecklistTemplateItem @relation(fields: [templateItemId], references: [id], onDelete: Restrict)
-
-  status         ChecklistItemStatus  @default(OPEN)
-  dueDate        DateTime?
-  completedAt    DateTime?
-
-  taskId         String?
-  task           Task?                @relation(fields: [taskId], references: [id], onDelete: SetNull)
-
-  @@index([instanceId])
-  @@index([taskId])
-  @@index([status])
 }
 
 model Case {
@@ -608,22 +523,6 @@ model CronLock {
 }
 
 // Single-row HRMS settings (single org; multi-tenant later)
-model HrmsSettings {
-  id               String   @id @default("singleton")
-
-  defaultHROwnerId String?
-  defaultHROwner   Employee? @relation("HrmsSettingsDefaultHROwner", fields: [defaultHROwnerId], references: [id], onDelete: SetNull)
-
-  defaultITOwnerId String?
-  defaultITOwner   Employee? @relation("HrmsSettingsDefaultITOwner", fields: [defaultITOwnerId], references: [id], onDelete: SetNull)
-
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  @@index([defaultHROwnerId])
-  @@index([defaultITOwnerId])
-}
-
 enum NotificationType {
   POLICY_CREATED
   POLICY_UPDATED
@@ -1221,7 +1120,6 @@ enum HREventType {
   PIP_REVIEW
   DISCIPLINARY_HEARING
   INTERVIEW
-  ONBOARDING
   TRAINING
   COMPANY_EVENT
   HOLIDAY
@@ -1237,30 +1135,8 @@ enum TaskStatus {
 
 enum TaskCategory {
   GENERAL
-  ONBOARDING
-  OFFBOARDING
   CASE
   POLICY
-}
-
-enum ChecklistLifecycleType {
-  ONBOARDING
-  OFFBOARDING
-}
-
-enum ChecklistOwnerType {
-  HR
-  MANAGER
-  IT
-  EMPLOYEE
-}
-
-enum ChecklistItemStatus {
-  OPEN
-  IN_PROGRESS
-  DONE
-  BLOCKED
-  CANCELLED
 }
 
 enum EmployeeFileVisibility {
@@ -1336,9 +1212,6 @@ enum AuditEntityType {
   CASE_ATTACHMENT
   EMPLOYEE_FILE
   TASK
-  CHECKLIST_TEMPLATE
-  CHECKLIST_INSTANCE
-  CHECKLIST_ITEM_INSTANCE
   NOTIFICATION
   EXPORT
 }

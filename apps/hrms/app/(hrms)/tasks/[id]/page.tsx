@@ -19,10 +19,8 @@ const statusOptions = [
   { value: 'CANCELLED', label: 'Cancelled' },
 ];
 
-const categoryOptions = [
+const baseCategoryOptions = [
   { value: 'GENERAL', label: 'General' },
-  { value: 'ONBOARDING', label: 'Onboarding' },
-  { value: 'OFFBOARDING', label: 'Offboarding' },
   { value: 'CASE', label: 'Case' },
   { value: 'POLICY', label: 'Policy' },
 ];
@@ -49,6 +47,8 @@ export default function TaskDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const categoryOptions = baseCategoryOptions;
 
   const canEdit = useMemo(() => {
     if (!me || !task) return false;

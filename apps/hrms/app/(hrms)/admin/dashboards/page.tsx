@@ -157,7 +157,7 @@ export default function AdminDashboardsPage() {
 
       {tab === 'HR_OPS' ? (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <Card padding="md">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Overdue approvals
@@ -180,15 +180,6 @@ export default function AdminDashboardsPage() {
             </Card>
             <Card padding="md">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Onboarding blocked
-              </p>
-              <p className="mt-2 text-2xl font-semibold text-gray-900">
-                {hrOps?.overdue.onboarding.blockedCount ?? 0}
-              </p>
-              <p className="mt-1 text-sm text-gray-600">Waiting on dependencies</p>
-            </Card>
-            <Card padding="md">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Open cases
               </p>
               <p className="mt-2 text-2xl font-semibold text-gray-900">
@@ -208,14 +199,6 @@ export default function AdminDashboardsPage() {
                   { title: 'Reviews', items: hrOps?.overdue.reviews.items ?? [] },
                   { title: 'Violations', items: hrOps?.overdue.violations.items ?? [] },
                   { title: 'Acknowledgements', items: hrOps?.overdue.acknowledgements.items ?? [] },
-                  {
-                    title: 'Onboarding blocked',
-                    items: hrOps?.overdue.onboarding.blockedItems ?? [],
-                  },
-                  {
-                    title: 'Onboarding overdue tasks',
-                    items: hrOps?.overdue.onboarding.overdueTasks ?? [],
-                  },
                 ] as const
               ).map((section) => (
                 <div key={section.title}>

@@ -374,7 +374,7 @@ export const UpdateDisciplinaryActionSchema = z.object({
 // ============ HR CALENDAR EVENT SCHEMAS ============
 export const HREventTypeEnum = z.enum([
   'PERFORMANCE_REVIEW', 'PROBATION_END', 'PIP_REVIEW', 'DISCIPLINARY_HEARING',
-  'INTERVIEW', 'ONBOARDING', 'TRAINING', 'COMPANY_EVENT', 'HOLIDAY', 'OTHER'
+  'INTERVIEW', 'TRAINING', 'COMPANY_EVENT', 'HOLIDAY', 'OTHER'
 ])
 
 export const CreateHRCalendarEventSchema = z.object({

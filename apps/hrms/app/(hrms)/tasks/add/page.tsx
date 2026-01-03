@@ -13,17 +13,11 @@ import { useNavigationHistory } from '@/lib/navigation-history'
 
 const categoryOptions = [
   { value: 'GENERAL', label: 'General' },
-  { value: 'ONBOARDING', label: 'Onboarding' },
-  { value: 'OFFBOARDING', label: 'Offboarding' },
   { value: 'CASE', label: 'Case' },
   { value: 'POLICY', label: 'Policy' },
 ]
 
-type TaskTemplateId =
-  | ''
-  | 'ONBOARDING_STARTER'
-  | 'OFFBOARDING_STARTER'
-  | 'POLICY_FOLLOW_UP'
+type TaskTemplateId = '' | 'POLICY_FOLLOW_UP'
 
 type TaskTemplate = {
   title: string
@@ -33,18 +27,6 @@ type TaskTemplate = {
 }
 
 const TASK_TEMPLATES: Record<Exclude<TaskTemplateId, ''>, TaskTemplate> = {
-  ONBOARDING_STARTER: {
-    title: 'Onboarding: Complete setup checklist',
-    description: 'Accounts, access, equipment, policies, and first-week setup.',
-    category: 'ONBOARDING',
-    dueInDays: 7,
-  },
-  OFFBOARDING_STARTER: {
-    title: 'Offboarding: Complete exit checklist',
-    description: 'Recover equipment, revoke access, collect documents, and finalize handover.',
-    category: 'OFFBOARDING',
-    dueInDays: 3,
-  },
   POLICY_FOLLOW_UP: {
     title: 'Policy: Follow up on acknowledgement',
     description: 'Ensure the required policy is read and acknowledged.',
@@ -55,8 +37,6 @@ const TASK_TEMPLATES: Record<Exclude<TaskTemplateId, ''>, TaskTemplate> = {
 
 const templateOptions = [
   { value: '', label: 'None (blank task)' },
-  { value: 'ONBOARDING_STARTER', label: 'Onboarding checklist (starter)' },
-  { value: 'OFFBOARDING_STARTER', label: 'Offboarding checklist (starter)' },
   { value: 'POLICY_FOLLOW_UP', label: 'Policy follow-up (starter)' },
 ]
 

@@ -57,12 +57,6 @@ const navigation: NavSection[] = [
       { name: 'Leave', href: '/leave', icon: CalendarDaysIcon },
       { name: 'Reviews', href: '/performance/reviews', icon: ClipboardDocumentCheckIcon },
       { name: 'Cases', href: '/cases', icon: ExclamationTriangleIcon },
-      {
-        name: 'Onboarding',
-        href: '/onboarding',
-        icon: ClipboardDocumentCheckIcon,
-        requireHR: true,
-      },
       { name: 'Policies', href: '/policies', icon: DocumentIcon },
       { name: 'Resources', href: '/resources', icon: FolderIcon },
       { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
@@ -80,12 +74,6 @@ const navigation: NavSection[] = [
       },
       { name: 'Audit Logs', href: '/audit-logs', icon: LockClosedIcon, requireHR: true },
       { name: 'Ops Dashboards', href: '/admin/dashboards', icon: ChartBarIcon, requireHR: true },
-      {
-        name: 'Checklist Templates',
-        href: '/admin/checklists',
-        icon: ClipboardDocumentCheckIcon,
-        requireHR: true,
-      },
     ],
   },
 ];

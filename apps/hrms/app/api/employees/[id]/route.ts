@@ -8,7 +8,6 @@ import { patchUser, isAdminConfigured } from '@/lib/google-admin'
 import { getCurrentEmployeeId } from '@/lib/current-user'
 import { filterAllowedFields, canReassignEmployee, isHROrAbove, isSuperAdmin } from '@/lib/permissions'
 import { writeAuditLog } from '@/lib/audit'
-import { instantiateChecklistForEmployee } from '@/lib/domain/checklists/checklist-service'
 
 type EmployeeRouteContext = { params: Promise<{ id: string }> }
 
@@ -343,19 +342,6 @@ export async function PATCH(req: Request, context: EmployeeRouteContext) {
       },
       req,
     })
-
-    // Best-effort: ensure onboarding checklist exists once an employee is ACTIVE (idempotent).
-    if (data.status === 'ACTIVE') {
-      try {
-        await instantiateChecklistForEmployee({
-          employeeId: e.id,
-          lifecycleType: 'ONBOARDING',
-          actorId,
-        })
-      } catch {
-        // No onboarding template configured or other non-critical issue.
-      }
-    }
 
     return NextResponse.json(e)
   } catch (e) {
